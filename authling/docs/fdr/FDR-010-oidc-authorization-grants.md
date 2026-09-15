@@ -34,11 +34,8 @@ sessions.
   current values and explains that access includes future profile changes,
   including a full name added later. The `openid` claim contract does
   not change. An expanded claim policy must use a new disclosure version.
-- Historical grants have disclosure version 0 and require one fresh approval.
-  Approval renews the same active grant ID. Approval forms carry the disclosure
-  version; the server rejects an old form and asks the person to reload it.
-  Denial remains available from an old form. Previously issued codes and tokens
-  keep their existing lifetime and release behavior.
+- Approval forms carry the disclosure version. The server rejects an outdated
+  approval form and asks the person to reload it. Denial remains available.
 - Denying a forced-consent request does not revoke an existing grant.
 - The account page lists active grants with their client name, display host,
   and latest explicit authorization time. Same-origin POST is required to
@@ -54,10 +51,10 @@ sessions.
 ## Durable Model
 
 `OIDCGrantAuthorizedEvent` and `OIDCGrantRevokedEvent` are account aggregate
-facts in `AUTHLING_EVT`. New grants contain opaque account and grant IDs, a
+facts in `AUTHLING_EVT`. Grants contain opaque account and grant IDs, a
 deployment-keyed digest of the exact client ID, scopes, consent disclosure
 version, encrypted display metadata, and opaque event correlations. Client
-names and hosts can contain personal data, so new events never store them in
+names and hosts can contain personal data, so events never store them in
 plaintext. Raw client IDs, CIMD URLs, account emails, tokens, codes, redirect
 URIs, and submitted request URLs are not added to these records.
 
@@ -67,14 +64,12 @@ user-key hierarchy; authorization does not provision or delete keys. Associated
 data binds the envelope to the event ID, account ID, grant ID, exact-client
 digest, scopes, prior authorization event, disclosure version, and both key
 references. The version-specific domain separates it from other encrypted
-account data. New authorization requires an account with encryption keys;
-historical structural accounts without those keys cannot create new grants.
+account data. Authorization requires an account with encryption keys.
 
-Metadata envelope version 0 is the historical plaintext format. These records
-remain replayable, readable, and revocable. Renewing a legacy grant encrypts
-its new snapshot but does not erase its earlier plaintext event or copies in
-backups. Key destruction cannot protect that historical plaintext. Existing
-protobuf fields and tags remain unchanged.
+Only metadata envelope version 1 is supported. The unused plaintext protobuf
+fields retain their original tags but must be empty. Authling has not been
+deployed; this implementation does not provide a migration from plaintext
+grant history.
 
 The authorization projection consumes `authling.evt.account.*`, rebuilds the
 active grant inventory in memory, and is disposable. Commands synchronize it
@@ -94,12 +89,6 @@ for future protocol requests. Every authorization request continues to resolve
 and validate the currently configured client or CIMD document. This avoids an
 outbound metadata fetch from the account page and prevents transient client
 resolution failures from hiding revocation controls.
-
-Deploy the protected metadata format as a coordinated Authling upgrade. Stop
-old writers before starting the new version. Old binaries reject protected
-grants because their required plaintext fields are empty. Once a protected
-grant is written, do not roll back to a binary that only reads plaintext grants.
-All existing grants require fresh approval after this upgrade.
 
 ## Security and Failure Behavior
 

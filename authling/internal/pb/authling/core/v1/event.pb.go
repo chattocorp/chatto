@@ -1358,7 +1358,7 @@ type OIDCGrantAuthorizedEvent struct {
 	// Deployment-keyed digest of the exact client ID. The raw configured ID or
 	// CIMD URL is not retained in durable account history.
 	ClientIdDigest []byte `protobuf:"bytes,3,opt,name=client_id_digest,json=clientIdDigest,proto3" json:"client_id_digest,omitempty"`
-	// Historical plaintext metadata. New writers leave both fields empty.
+	// Unused plaintext fields. Writers leave them empty; readers reject values.
 	ClientName string   `protobuf:"bytes,4,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
 	ClientHost string   `protobuf:"bytes,5,opt,name=client_host,json=clientHost,proto3" json:"client_host,omitempty"`
 	Scopes     []string `protobuf:"bytes,6,rep,name=scopes,proto3" json:"scopes,omitempty"`
@@ -1366,15 +1366,15 @@ type OIDCGrantAuthorizedEvent struct {
 	// they replace so replay rejects stale or forked grant history.
 	PriorAuthorizationEventId string `protobuf:"bytes,7,opt,name=prior_authorization_event_id,json=priorAuthorizationEventId,proto3" json:"prior_authorization_event_id,omitempty"`
 	// Versioned authenticated encryption of the client name and display host.
-	// Version zero is the historical plaintext form. Version one uses the
-	// account's existing credential data key and binds the grant context as AAD.
+	// Version one uses the account's existing credential data key and binds
+	// the grant context as AAD. Other versions are not supported.
 	MetadataEnvelopeVersion uint32 `protobuf:"varint,8,opt,name=metadata_envelope_version,json=metadataEnvelopeVersion,proto3" json:"metadata_envelope_version,omitempty"`
 	UserKeyRef              string `protobuf:"bytes,9,opt,name=user_key_ref,json=userKeyRef,proto3" json:"user_key_ref,omitempty"`
 	CredentialKeyRef        string `protobuf:"bytes,10,opt,name=credential_key_ref,json=credentialKeyRef,proto3" json:"credential_key_ref,omitempty"`
 	MetadataNonce           []byte `protobuf:"bytes,11,opt,name=metadata_nonce,json=metadataNonce,proto3" json:"metadata_nonce,omitempty"`
 	MetadataCiphertext      []byte `protobuf:"bytes,12,opt,name=metadata_ciphertext,json=metadataCiphertext,proto3" json:"metadata_ciphertext,omitempty"`
-	// Identifies the claim disclosure accepted by explicit consent. Historical
-	// grants use zero and must not bypass the current consent page.
+	// Identifies the claim disclosure accepted by explicit consent. Only grants
+	// with the current version can bypass the consent page.
 	ConsentVersion uint32 `protobuf:"varint,13,opt,name=consent_version,json=consentVersion,proto3" json:"consent_version,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache

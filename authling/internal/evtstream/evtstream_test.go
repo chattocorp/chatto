@@ -434,8 +434,10 @@ func TestGrantMetadataEnvelopeValidation(t *testing.T) {
 		"missing ciphertext":   func(g *corev1.OIDCGrantAuthorizedEvent) { g.MetadataCiphertext = nil },
 		"oversized ciphertext": func(g *corev1.OIDCGrantAuthorizedEvent) { g.MetadataCiphertext = make([]byte, 4097) },
 		"missing key":          func(g *corev1.OIDCGrantAuthorizedEvent) { g.CredentialKeyRef = "" },
-		"legacy with protected fields": func(g *corev1.OIDCGrantAuthorizedEvent) {
-			g.MetadataEnvelopeVersion = 0
+		"plaintext envelope": func(g *corev1.OIDCGrantAuthorizedEvent) {
+			g.MetadataEnvelopeVersion, g.ConsentVersion = 0, 0
+			g.UserKeyRef, g.CredentialKeyRef = "", ""
+			g.MetadataNonce, g.MetadataCiphertext = nil, nil
 			g.ClientName = "Legacy"
 			g.ClientHost = "legacy.example"
 		},

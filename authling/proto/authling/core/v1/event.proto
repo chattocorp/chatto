@@ -194,7 +194,7 @@ message OIDCGrantAuthorizedEvent {
   // Deployment-keyed digest of the exact client ID. The raw configured ID or
   // CIMD URL is not retained in durable account history.
   bytes client_id_digest = 3;
-  // Historical plaintext metadata. New writers leave both fields empty.
+  // Unused plaintext fields. Writers leave them empty; readers reject values.
   string client_name = 4;
   string client_host = 5;
   repeated string scopes = 6;
@@ -204,16 +204,16 @@ message OIDCGrantAuthorizedEvent {
   string prior_authorization_event_id = 7;
 
   // Versioned authenticated encryption of the client name and display host.
-  // Version zero is the historical plaintext form. Version one uses the
-  // account's existing credential data key and binds the grant context as AAD.
+  // Version one uses the account's existing credential data key and binds
+  // the grant context as AAD. Other versions are not supported.
   uint32 metadata_envelope_version = 8;
   string user_key_ref = 9;
   string credential_key_ref = 10;
   bytes metadata_nonce = 11;
   bytes metadata_ciphertext = 12;
 
-  // Identifies the claim disclosure accepted by explicit consent. Historical
-  // grants use zero and must not bypass the current consent page.
+  // Identifies the claim disclosure accepted by explicit consent. Only grants
+  // with the current version can bypass the consent page.
   uint32 consent_version = 13;
 }
 

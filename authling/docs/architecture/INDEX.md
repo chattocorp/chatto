@@ -115,7 +115,7 @@ token-safe vocabulary.
 | `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
 | `ProfileUpdatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-key references plus replacement encrypted preferred-username and full-name fields |
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
-| `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; encrypted client display snapshot and account key references (legacy plaintext remains readable); granted scopes; consent disclosure version |
+| `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; encrypted client display snapshot and account key references; granted scopes; consent disclosure version |
 | `OIDCGrantRevokedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and active authorization-event IDs |
 | `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
 | `OIDCSigningKeyRotationRequestedEvent` | `authling.evt.issuer` | Issuer singleton | Opaque future signing-key reference |
@@ -176,13 +176,11 @@ revocation, retains ended grant IDs to prevent generation reuse, and serves
 only after startup replay. Grant commands synchronize to the account tail,
 publish with account-subject OCC, retry from refreshed state after conflicts,
 and wait for their committed position. The projection is cold-replay-only and
-retains scopes and encrypted client display metadata for new grants. The
-service decrypts metadata for display and authenticates it before consent
-reuse. Legacy snapshots remain plaintext in historical events. The active
-projection retains them until the grant is renewed or revoked. Metadata keys
-must match the account creation event.
-See [FDR-010](../fdr/FDR-010-oidc-authorization-grants.md) for encryption,
-disclosure-version, and coordinated-upgrade rules.
+retains scopes and encrypted client display metadata. The service decrypts
+metadata for display and authenticates it before consent reuse. Metadata keys
+must match the account creation event. Only encrypted grant records are
+supported. See [FDR-010](../fdr/FDR-010-oidc-authorization-grants.md) for the
+encryption and disclosure-version rules.
 
 The browser-session inventory is a process-wide in-memory model over one
 filtered `session.*` watcher on `AUTHLING_RUNTIME_STATE`. It decrypts the latest

@@ -222,13 +222,3 @@ instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
 
 The runtime currently has no public account-management, application-data,
 document, or synchronization API.
-
-### Consent and client metadata upgrade
-
-The protected grant format requires a coordinated upgrade: stop old Authling
-writers before starting this version. After a protected grant is written, old
-binaries cannot replay the event history. Existing grants require one fresh
-approval of the identity-claim disclosure. New client-name and host snapshots
-are encrypted; historical plaintext events and backups remain unchanged. See
-[FDR-010](docs/fdr/FDR-010-oidc-authorization-grants.md) for the storage and
-consent rules.

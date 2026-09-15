@@ -41,8 +41,6 @@ func TestProtectedMetadataBindsAuthorizationContext(t *testing.T) {
 	}
 	service := &Service{vault: vault}
 	event := grantAuthorized("evt_protected", "grant_one", "")
-	payload := event.GetOidcGrantAuthorized()
-	payload.ClientName, payload.ClientHost = "", ""
 	client := Client{ID: "private-client", Name: "Private Person's App", Host: "private-person.example"}
 	if err := service.sealMetadata(t.Context(), event, accountKeys{userRef, dataRef}, client); err != nil {
 		t.Fatal(err)

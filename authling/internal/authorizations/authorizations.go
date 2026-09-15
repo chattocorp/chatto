@@ -88,8 +88,6 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		grant := Grant{
 			ID:                   authorized.GetGrantId(),
 			AccountID:            authorized.GetAccountId(),
-			ClientName:           authorized.GetClientName(),
-			ClientHost:           authorized.GetClientHost(),
 			Scopes:               append([]string(nil), authorized.GetScopes()...),
 			AuthorizedAt:         event.GetCreatedAt().AsTime(),
 			AuthorizationEventID: event.GetId(),
@@ -101,11 +99,9 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		if _, exists := p.accounts[grant.AccountID]; !exists {
 			return fmt.Errorf("OIDC grant authorization references an absent account")
 		}
-		if authorized.GetMetadataEnvelopeVersion() != 0 {
-			keys := p.accounts[grant.AccountID]
-			if keys.userRef == "" || keys.dataRef == "" || keys.userRef != authorized.GetUserKeyRef() || keys.dataRef != authorized.GetCredentialKeyRef() {
-				return fmt.Errorf("OIDC grant metadata references another account key hierarchy")
-			}
+		keys := p.accounts[grant.AccountID]
+		if keys.userRef == "" || keys.dataRef == "" || keys.userRef != authorized.GetUserKeyRef() || keys.dataRef != authorized.GetCredentialKeyRef() {
+			return fmt.Errorf("OIDC grant metadata references another account key hierarchy")
 		}
 		if p.byClient == nil {
 			p.byClient = make(map[string]map[string]Grant)
@@ -426,11 +422,8 @@ func (s *Service) sealMetadata(ctx context.Context, event *corev1.Event, keys ac
 }
 
 // openMetadata decrypts only at the service read boundary. The projection
-// retains ciphertext for new grants; historical plaintext remains readable.
+// retains ciphertext; grant metadata is never read from plaintext fields.
 func (s *Service) openMetadata(ctx context.Context, grant Grant) (Grant, error) {
-	if grant.metadata.GetMetadataEnvelopeVersion() == 0 {
-		return grant, nil
-	}
 	key, err := s.vault.ResolveDataKey(ctx, grant.metadata.GetCredentialKeyRef(), grant.metadata.GetUserKeyRef())
 	if err != nil {
 		return Grant{}, fmt.Errorf("resolve OIDC grant metadata key: %w", err)

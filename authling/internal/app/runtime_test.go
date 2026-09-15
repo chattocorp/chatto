@@ -3,8 +3,6 @@ package app
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,8 +21,6 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
@@ -32,7 +28,6 @@ import (
 	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/issuer"
-	"hmans.de/authling/internal/keyvault"
 	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/passwordreset"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
@@ -2384,14 +2379,20 @@ func (failingInventoryKV) Watch(context.Context, string, ...jetstream.WatchOpt) 
 	return nil, &nats.APIError{Code: 400, ErrorCode: 10120, Description: "no JetStream default or applicable tiered limit present"}
 }
 
-func TestLegacyGrantRequiresFreshDisclosureAfterRestart(t *testing.T) {
-	cfg := embeddedTestConfig(t)
-	first, cancel, errs := startTestRuntime(t, cfg)
-	account, err := first.Accounts.CreateLocal(testContext(t), "legacy@example.com", "a deliberately uncommon password")
+func TestGrantKeyLossFailsClosedAndAllowsRevocation(t *testing.T) {
+	runtime, cancel, errs := startTestRuntime(t, embeddedTestConfig(t))
+	defer stopTestRuntime(t, runtime, cancel, errs)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "grant@example.com", "a deliberately uncommon password")
 	if err != nil {
 		t.Fatal(err)
 	}
-	js, _, err := storage.Open(testContext(t), first.connection.NATS, 1)
+	grant, err := runtime.Authorizations.Authorize(testContext(t), account.ID, authorizations.Client{ID: "client-one", Name: "Client One", Host: "client.example"}, []string{"openid"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, _ := lastAccountEvent(t, runtime, account.ID)
+	// Key loss must fail closed for reads and automatic consent, but must not block revocation.
+	js, _, err := storage.Open(testContext(t), runtime.connection.NATS, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2399,64 +2400,16 @@ func TestLegacyGrantRequiresFreshDisclosureAfterRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	key, err := keyvault.New(stores.Keys).WorkflowKey(testContext(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	digest := hmac.New(sha256.New, key)
-	clear(key)
-	_, _ = digest.Write([]byte("authling:oidc-client-index:v1\x00client-legacy"))
-	legacy := &corev1.Event{Id: "evt_legacygrant", CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
-		AccountId: account.ID, GrantId: "grant_legacy", ClientIdDigest: digest.Sum(nil), ClientName: "Legacy App", ClientHost: "legacy.example", Scopes: []string{"openid"},
-	}}}
-	raw, err := proto.Marshal(legacy)
-	if err != nil {
-		t.Fatal(err)
-	}
-	subject, _ := evtstream.AccountSubject(account.ID)
-	if _, err := js.Publish(testContext(t), subject, raw); err != nil {
-		t.Fatal(err)
-	}
-	stopTestRuntime(t, first, cancel, errs)
-	restarted, cancelRestarted, restartErrors := startTestRuntime(t, cfg)
-	defer stopTestRuntime(t, restarted, cancelRestarted, restartErrors)
-	grants, err := restarted.Authorizations.List(testContext(t), account.ID)
-	if err != nil || len(grants) != 1 || grants[0].ClientName != "Legacy App" {
-		t.Fatalf("legacy replay failed: %v", err)
-	}
-	if covered, err := restarted.Authorizations.Covers(testContext(t), account.ID, "client-legacy", []string{"openid"}); err != nil || covered {
-		t.Fatalf("legacy grant skipped disclosure: %v %v", covered, err)
-	}
-	renewed, err := restarted.Authorizations.Authorize(testContext(t), account.ID, authorizations.Client{ID: "client-legacy", Name: "Current App", Host: "current.example"}, []string{"openid"})
-	if err != nil || renewed.ID != "grant_legacy" {
-		t.Fatalf("legacy renewal failed: %v", err)
-	}
-	event, _ := lastAccountEvent(t, restarted, account.ID)
-	if event.GetOidcGrantAuthorized().GetPriorAuthorizationEventId() != legacy.GetId() {
-		t.Fatal("renewal lost historical correlation")
-	}
-	if covered, err := restarted.Authorizations.Covers(testContext(t), account.ID, "client-legacy", []string{"openid"}); err != nil || !covered {
-		t.Fatalf("renewed grant did not cover disclosure: %v %v", covered, err)
-	}
-	// Key loss must fail closed for reads and automatic consent, but must not block revocation.
-	js, _, err = storage.Open(testContext(t), restarted.connection.NATS, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	stores, err = storage.OpenStores(testContext(t), js, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if err := stores.Keys.Purge(testContext(t), event.GetOidcGrantAuthorized().GetUserKeyRef()); err != nil {
 		t.Fatal(err)
 	}
-	if covered, err := restarted.Authorizations.Covers(testContext(t), account.ID, "client-legacy", []string{"openid"}); err == nil || covered {
+	if covered, err := runtime.Authorizations.Covers(testContext(t), account.ID, "client-one", []string{"openid"}); err == nil || covered {
 		t.Fatal("automatic consent accepted missing metadata key")
 	}
-	if _, err := restarted.Authorizations.List(testContext(t), account.ID); err == nil {
+	if _, err := runtime.Authorizations.List(testContext(t), account.ID); err == nil {
 		t.Fatal("listed protected metadata after key loss")
 	}
-	if err := restarted.Authorizations.Revoke(testContext(t), account.ID, renewed.ID); err != nil {
+	if err := runtime.Authorizations.Revoke(testContext(t), account.ID, grant.ID); err != nil {
 		t.Fatalf("revoke after metadata key loss: %v", err)
 	}
 }

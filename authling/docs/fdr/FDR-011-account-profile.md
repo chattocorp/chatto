@@ -25,8 +25,8 @@ profile data.
   `preferred_username` and `name` claims. Relying parties must not treat either
   value as a stable identifier.
 - Consent lists the current identity values and discloses later profile changes,
-  including a full name added later. Existing grants require approval under
-  this disclosure before automatic consent can resume. See
+  including a full name added later. Automatic consent requires a grant with
+  the current disclosure version. See
   [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 ## Security and storage
