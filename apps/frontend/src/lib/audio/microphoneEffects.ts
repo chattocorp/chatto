@@ -44,11 +44,11 @@ export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
   return {
     lowCut: strength > 0,
     equalizer: strength > 0,
-    bass: 0,
-    mid: 0,
-    treble: strength,
+    bass: 1.5 * strength,
+    mid: 1.5 * strength,
+    treble: 3 * strength,
     compressor: strength > 0,
-    amount: 25,
+    amount: 50,
     strength,
     polish: strength
   };

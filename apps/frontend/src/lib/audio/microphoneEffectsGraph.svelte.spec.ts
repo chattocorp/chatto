@@ -92,10 +92,10 @@ it('interpolates fractional tone and compression settings across both slider hal
   const graph = new MicrophoneEffectsGraph(context, context.createGain(), context.destination);
   for (const [amount, cutoff, bass, mid, treble, threshold, ratio] of [
     [0, 0, 0, 0, 0, 0, 1],
-    [25, 15, 0, 0, 0.25, -3.5, 1.25],
-    [50, 30, 0, 0, 0.5, -7, 1.5],
-    [75, 45, 0, 0, 0.75, -10.5, 1.75],
-    [100, 60, 0, 0, 1, -14, 2]
+    [25, 15, 0.375, 0.375, 0.75, -4, 1.375],
+    [50, 30, 0.75, 0.75, 1.5, -8, 1.75],
+    [75, 45, 1.125, 1.125, 2.25, -12, 2.125],
+    [100, 60, 1.5, 1.5, 3, -16, 2.5]
   ]) {
     graph.update(microphoneEffectsForAmount(amount), true);
     expect(filters[0].frequency.value).toBeCloseTo(cutoff);
@@ -110,4 +110,20 @@ it('interpolates fractional tone and compression settings across both slider hal
 
 it('keeps Normal audio neutral through the complete graph', async () => {
   expect(await level(1000, 0.5, microphoneEffectsForAmount(0))).toBeCloseTo(0.5 / Math.SQRT2, 4);
+});
+
+it('adds progressively clearer high frequencies without relying on a volume increase', async () => {
+  const contrast = async (amount: number) => {
+    const effects = microphoneEffectsForAmount(amount);
+    return 20 * Math.log10(
+      await level(8000, 0.02, effects) / await level(500, 0.02, effects)
+    );
+  };
+  expect(await contrast(0)).toBeCloseTo(0, 2);
+  const midpoint = await contrast(50);
+  const awesome = await contrast(100);
+  expect(midpoint).toBeGreaterThan(0.75);
+  expect(awesome).toBeGreaterThan(1.5);
+  expect(awesome).toBeGreaterThan(midpoint);
+  expect(awesome).toBeLessThan(4);
 });

@@ -11,8 +11,8 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 - **Voice Quality** in App Preferences is a continuous processing slider.
   **Normal** (the default) disables the added effects, **Pretty cool** marks
-  gentle processing at the midpoint, and **AWESOME** applies a small treble
-  lift and moderate compression while preserving the natural voice. Saturation
+  gentle processing at the midpoint, and **AWESOME** adds modest warmth and
+  clarity with moderate compression while preserving the natural voice. Saturation
   is excluded because the combined effects must not distort ordinary speech. At the maximum,
   the voice slider shows a moving rainbow and the AWESOME readout dances in
   rainbow colours, with each letter moving in sequence. The rainbow fades in

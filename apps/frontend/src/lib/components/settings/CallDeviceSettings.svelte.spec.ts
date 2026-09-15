@@ -164,7 +164,7 @@ it('offers a continuous voice slider while keeping the gate separate', async () 
   await tick();
   expect(preferences.voiceAmount).toBe(37.5);
   expect(screen.container.querySelector('[data-rainbow-band]')).toBeNull();
-  expect(preferences.effects.treble).toBe(0.375);
+  expect(preferences.effects.treble).toBe(1.125);
   await userEvent.keyboard('{Home}');
   expect(preferences.effects.compressor).toBe(false);
   expect(preferences.microphoneThreshold).toBe(-30);

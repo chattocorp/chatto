@@ -252,9 +252,9 @@ look-ahead buffer, saved setting, or external connection is required.
 compressor. Each EQ band is bounded to ±6 dB. At full strength, compressor amount maps 0–100
 to threshold -12…-20 dB and ratio 1.5…3.5, with 15 ms attack and 200 ms release.
 The voice slider scales linearly from neutral at 0 to low-cut 60 Hz,
-EQ 0/0/+1 dB, compressor threshold -14 dB and ratio 2 at 100. At the
-midpoint the cutoff is 30 Hz, treble lift is 0.5 dB, threshold is -7 dB,
-and ratio is 1.5. Fractional DSP parameters are not rounded. There is no
+EQ +1.5/+1.5/+3 dB, compressor threshold -16 dB and ratio 2.5 at 100. At the
+midpoint the cutoff is 30 Hz, EQ is +0.75/+0.75/+1.5 dB, threshold is -8 dB,
+and ratio is 1.75. Fractional DSP parameters are not rounded. There is no
 saturation branch; ordinary speech must retain its harmonic balance.
 A second processor in the same bundled worklet runs `VoicePolish` after the
 native graph. A complementary one-pole split at 4 kHz detects prominent,
