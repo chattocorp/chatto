@@ -1,7 +1,7 @@
 # FDR-002: Verified Email Signup
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -41,7 +41,11 @@ durable account and starts the browser session defined by FDR-003.
    and falls back to `user` when fewer than two characters remain. The value
    is an identity hint, not a login credential or an Authling-wide unique name.
 8. Authling creates a fresh browser session and takes the person to the signed-in
-   account page. If session storage is unavailable, the account remains created
+   account page, or resumes the pending OIDC consent request when signup started
+   from an app. Signup carries the opaque request ID through each form and
+   validates it before email, verification, or account creation. Form validation
+   errors preserve that ID. An unavailable request stops the OIDC signup flow.
+   If session storage is unavailable, the account remains created
    and the person can sign in later.
 
 Requests for an already claimed address follow the same throttling, SMTP, and

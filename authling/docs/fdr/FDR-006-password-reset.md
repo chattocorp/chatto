@@ -1,7 +1,7 @@
 # FDR-006: Password Reset
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -17,6 +17,15 @@ email claim, and OpenID Connect `sub` remain unchanged.
 - Every syntactically valid email address follows the same flow and email
   delivery path whether or not it currently identifies an account. Browser
   copy does not disclose account existence.
+- Before any audit append or delivery work, a request consumes a shared global
+  admission and a keyed per-address admission. The limits are 1,000 globally
+  and ten per address. Each admission restarts that counter's 15-minute quiet
+  window. Exhausted counters expire after that window; rejected requests do
+  not extend it. Global admission comes first to bound address-counter creation.
+  Counters use OCC and survive process restart. SMTP and storage failures,
+  including unknown acknowledgements, do not refund admission. Thus failed
+  delivery cannot cause unlimited permanent recovery events. Existing and
+  absent addresses use the same policy and public failure response.
 - After rate limits accept a request for an existing account, Authling commits
   a `PasswordResetRequestedEvent` before creating the flow or sending email.
   The event contains only the account ID and current credential event ID; its

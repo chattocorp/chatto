@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { waitForPasswordResetCode } from './fixtures/mailpit';
+import { waitForPasswordResetCode, waitForVerificationCode } from './fixtures/mailpit';
 import { completeSignup } from './fixtures/signup';
 import { expect, test } from './setup';
 
@@ -249,4 +249,52 @@ test('rechecks max_age when consent is submitted after authentication expires', 
   await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
   await page.getByRole('button', { name: 'Authorize', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`^${escapeRegExp(stack.callbackURL)}\\?`));
+});
+
+
+test('continues OIDC after signup and supports silent authorization', async ({ page, request, stack }) => {
+  const verifier = 'signup-verifier-with-at-least-forty-three-characters';
+  const authorize = new URL('/oauth/authorize', stack.baseURL);
+  authorize.search = new URLSearchParams({
+    client_id: 'authling-e2e', redirect_uri: stack.callbackURL,
+    response_type: 'code', scope: 'openid', state: 'signup-state',
+    code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+    code_challenge_method: 'S256'
+  }).toString();
+  await page.goto(authorize.toString());
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Create one' }).click();
+  await expect(page).toHaveURL(/\/signup\?id=/);
+  await page.getByLabel('Email address').fill(`oidc-signup-${randomUUID()}@example.invalid`);
+  await page.getByRole('button', { name: 'Email me a code' }).click();
+  const code = await waitForVerificationCode(request, stack.mailpitURL);
+  await page.getByLabel('Verification code').fill(code === '000000' ? '000001' : '000000');
+  await page.getByRole('button', { name: 'Verify email' }).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await page.getByLabel('Verification code').fill(code);
+  await page.getByRole('button', { name: 'Verify email' }).click();
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByLabel('Confirm password').fill('a different sufficiently long password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Passwords do not match.');
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByLabel('Confirm password').fill(password);
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Authorize', exact: true }).click();
+  await expect(page).toHaveURL((url) => url.origin + url.pathname === stack.callbackURL && url.searchParams.has('code'));
+  const callback = new URL(page.url());
+  expect(callback.searchParams.get('state')).toBe('signup-state');
+  const tokens = await request.post(`${stack.baseURL}/oauth/token`, { form: {
+    grant_type: 'authorization_code', client_id: 'authling-e2e', redirect_uri: stack.callbackURL,
+    code: callback.searchParams.get('code') ?? '', code_verifier: verifier
+  } });
+  expect(tokens.ok()).toBe(true);
+
+  authorize.searchParams.set('prompt', 'none');
+  await page.goto(authorize.toString());
+  await expect(page).toHaveURL((url) => url.origin + url.pathname === stack.callbackURL && url.searchParams.has('code'));
+  authorize.searchParams.set('max_age', '0');
+  await page.goto(authorize.toString());
+  await expect(page).toHaveURL((url) => url.searchParams.get('error') === 'login_required');
 });

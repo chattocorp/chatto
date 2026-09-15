@@ -221,7 +221,12 @@ ordinary server-rendered links and forms.
 
 `GET /signup` renders the email form. Three POST endpoints start a flow, verify
 its code, and complete account creation with a password. Unsafe requests reject
-cross-origin browser submissions. The browser carries a random opaque flow
+cross-origin browser submissions. Signup from an OIDC login carries the
+validated pending request ID through its
+forms and resumes consent after session creation. A silent OIDC request returns
+an authorization code or a protocol error without rendering login or consent;
+its encrypted `silent` flag survives restart.
+The browser carries a random opaque flow
 token in hidden fields; raw email addresses, OTPs, and passwords never enter
 URLs.
 
@@ -259,7 +264,8 @@ local watcher before redirecting.
 `GET /password-reset` starts verified-email recovery. Three POST endpoints
 create an expiring flow, verify its six-digit code, and commit a new password.
 Claimed and unclaimed valid addresses follow the same email-delivery and
-browser path. After delivery limits accept an existing account's request, a
+browser path. After non-refundable admission and delivery limits accept an
+existing account's request, a
 PII-free `PasswordResetRequestedEvent` must commit before flow creation or SMTP
 delivery; absent accounts have no aggregate on which to record one. Encrypted
 flow state is bound to that audit event and the credential event current at
@@ -336,6 +342,12 @@ five-second lookup deadline includes DNS and body reads. Its cache holds at
 most 256 clients, removes expired entries on access, and evicts the entry with
 the earliest expiry when full. Pending requests, code mappings,
 and opaque access-token records are encrypted and expire in runtime state.
+New authorization requests first consume a shared OCC admission counter in
+`AUTHLING_RUNTIME_STATE`. It permits 1,000 admissions and expires ten minutes
+after the last admission. Failed work does not refund it. Recovery uses separate
+global and keyed per-address admission counters with a 15-minute quiet window,
+so failed SMTP delivery cannot bypass the bound on permanent recovery events.
+These counters contain no identifiers or secrets and share no event subjects.
 Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the active RS256 key; JWKS publishes its public key plus
 any prepared successor and unexpired predecessor. JWKS responses have a

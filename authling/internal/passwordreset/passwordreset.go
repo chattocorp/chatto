@@ -79,6 +79,15 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Bound accepted work even when SMTP or a later storage operation fails.
+	// Global admission comes first to bound the number of address counters.
+	if err := storage.AdmitRequest(ctx, s.kv, s.js, "password-reset-admission.global", maxGlobalDeliveredCodes, FlowTTL); err != nil {
+		return "", err
+	}
+	admissionKey := "password-reset-admission." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "admission\x00"+normalized))
+	if err := storage.AdmitRequest(ctx, s.kv, s.js, admissionKey, maxDeliveredCodes, FlowTTL); err != nil {
+		return "", err
+	}
 	token, err := randomToken(32)
 	if err != nil {
 		return "", err

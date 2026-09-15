@@ -27,6 +27,7 @@ import (
 const (
 	authRequestLifetime = 10 * time.Minute
 	accessTokenLifetime = 5 * time.Minute
+	maxAuthRequests     = 1000
 )
 
 // ErrLoginRequired means the browser must authenticate again before approval.
@@ -58,10 +59,12 @@ type authRequestState struct {
 	MaxAge        *uint                       `json:"max_age,omitempty"`
 	ForceLogin    bool                        `json:"force_login,omitempty"`
 	ForceConsent  bool                        `json:"force_consent,omitempty"`
-	Subject       string                      `json:"subject,omitempty"`
-	Authorized    bool                        `json:"authorized"`
-	AuthTime      time.Time                   `json:"auth_time,omitempty"`
-	CodeKey       string                      `json:"code_key,omitempty"`
+	// Silent prohibits login, consent, and other interactive pages.
+	Silent     bool      `json:"silent,omitempty"`
+	Subject    string    `json:"subject,omitempty"`
+	Authorized bool      `json:"authorized"`
+	AuthTime   time.Time `json:"auth_time,omitempty"`
+	CodeKey    string    `json:"code_key,omitempty"`
 }
 
 func (r *authRequestState) GetID() string { return r.ID }
@@ -104,6 +107,7 @@ type ConsentRequest struct {
 	ID, ClientID, ClientName, ClientHost, RedirectOrigin string
 	Scopes                                               []string
 	ForceConsent                                         bool
+	Silent                                               bool
 }
 
 // Storage persists OIDC protocol state in Authling's encrypted runtime bucket.
@@ -119,6 +123,11 @@ type Storage struct {
 
 func NewStorage(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, clients *Resolver, issuerService *issuer.Service, profile func(context.Context, string) (string, string, error)) *Storage {
 	return &Storage{kv: kv, js: js, key: append([]byte(nil), key...), clients: clients, issuer: issuerService, now: time.Now, profile: profile}
+}
+
+// admitAuthRequest runs at HTTP admission before client lookup or state creation.
+func (s *Storage) admitAuthRequest(ctx context.Context) error {
+	return storage.AdmitRequest(ctx, s.kv, s.js, "oidc.admission.global", maxAuthRequests, authRequestLifetime)
 }
 
 func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRequest, _ string) (op.AuthRequest, error) {
@@ -139,6 +148,7 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRe
 		CodeChallenge: request.CodeChallenge, CodeMethod: request.CodeChallengeMethod,
 		ForceConsent: slices.Contains(request.Prompt, liboidc.PromptConsent),
 		ForceLogin:   slices.Contains(request.Prompt, liboidc.PromptLogin),
+		Silent:       slices.Contains(request.Prompt, liboidc.PromptNone),
 		MaxAge:       request.MaxAge,
 	}
 	if err := s.create(ctx, s.requestKey(id), state, authRequestLifetime); err != nil {
@@ -224,6 +234,7 @@ func (s *Storage) Consent(ctx context.Context, id string) (ConsentRequest, error
 		RedirectOrigin: redirectOrigin,
 		Scopes:         append([]string(nil), state.Scopes...),
 		ForceConsent:   state.ForceConsent,
+		Silent:         state.Silent,
 	}, nil
 }
 
@@ -274,6 +285,11 @@ func (s *Storage) Authorize(ctx context.Context, id, accountID string, authentic
 
 // Deny consumes a pending request and returns its already-validated client redirect.
 func (s *Storage) Deny(ctx context.Context, id string) (string, error) {
+	return s.reject(ctx, id, "access_denied")
+}
+
+// reject consumes a pending request and returns an error to its validated URI.
+func (s *Storage) reject(ctx context.Context, id, code string) (string, error) {
 	_, state, err := s.readRequest(ctx, id)
 	if err != nil || state.Authorized {
 		return "", errOIDCStateNotFound
@@ -283,7 +299,7 @@ func (s *Storage) Deny(ctx context.Context, id string) (string, error) {
 		return "", errOIDCStateNotFound
 	}
 	query := redirect.Query()
-	query.Set("error", "access_denied")
+	query.Set("error", code)
 	if state.State != "" {
 		query.Set("state", state.State)
 	}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -20,6 +21,7 @@ import (
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/issuer"
 	"hmans.de/authling/internal/keyvault"
+	"hmans.de/authling/internal/storage"
 )
 
 // Service owns Authling's OIDC protocol handler and user-consent operations.
@@ -119,6 +121,9 @@ func (s *Service) Authorize(ctx context.Context, id, accountID string, authentic
 	if err != nil {
 		return "", err
 	}
+	if consent.Silent {
+		return "", errOIDCStateNotFound
+	}
 	if s.grants == nil {
 		return "", fmt.Errorf("OIDC authorization grants unavailable")
 	}
@@ -179,6 +184,19 @@ func (s *Service) Deny(ctx context.Context, id string) (string, error) {
 	return s.storage.Deny(ctx, id)
 }
 
+// RejectSilent ends a non-interactive request without displaying login or consent.
+func (s *Service) RejectSilent(ctx context.Context, id string, loginRequired bool) (string, error) {
+	consent, err := s.storage.Consent(ctx, id)
+	if err != nil || !consent.Silent {
+		return "", errOIDCStateNotFound
+	}
+	code := "consent_required"
+	if loginRequired {
+		code = "login_required"
+	}
+	return s.storage.reject(ctx, id, code)
+}
+
 func (s *Service) wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/openid-configuration" {
@@ -199,11 +217,20 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 				http.Error(w, "invalid authorization request", http.StatusBadRequest)
 				return
 			}
-		}
-		if r.URL.Path == "/oauth/token" {
-			if err := validateTokenRequest(w, r); err != nil {
-				w.Header().Set("Cache-Control", "no-store")
-				http.Error(w, "invalid token request", http.StatusBadRequest)
+			// Reject before library error handling, which logs request metadata.
+			// This also bounds client lookup work for syntactically valid requests.
+			w.Header().Set("Cache-Control", "no-store")
+			if s.storage == nil {
+				http.Error(w, "authorization unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			if err := s.storage.admitAuthRequest(r.Context()); err != nil {
+				if errors.Is(err, storage.ErrAdmissionLimited) {
+					w.Header().Set("Retry-After", "600")
+					http.Error(w, "authorization request limit reached; try again later", http.StatusTooManyRequests)
+				} else {
+					http.Error(w, "authorization unavailable", http.StatusServiceUnavailable)
+				}
 				return
 			}
 		}
@@ -213,6 +240,13 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		if r.URL.Path == "/oauth/token" {
+			if err := validateTokenRequest(w, r); err != nil {
+				w.Header().Set("Cache-Control", "no-store")
+				http.Error(w, "invalid token request", http.StatusBadRequest)
 				return
 			}
 		}
@@ -386,7 +420,7 @@ func validateAuthorizeRequest(r *http.Request) *authorizationRequestError {
 	prompts := strings.Fields(query.Get("prompt"))
 	seenPrompts := make(map[string]bool, len(prompts))
 	for _, prompt := range prompts {
-		if (prompt != liboidc.PromptConsent && prompt != liboidc.PromptLogin) || seenPrompts[prompt] {
+		if (prompt != liboidc.PromptConsent && prompt != liboidc.PromptLogin && prompt != liboidc.PromptNone) || seenPrompts[prompt] || prompt == liboidc.PromptNone && len(prompts) != 1 {
 			return clientError("invalid_request")
 		}
 		seenPrompts[prompt] = true
