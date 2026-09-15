@@ -103,9 +103,7 @@ export class AppUiState {
   }
 
   get activeDesktopRoomSidebarPanel(): RoomSidebarPanelState {
-    const scope = this.#activeRoomScopeKey;
-    if (!scope) return null;
-    const preference = this.#desktopRoomSidebarSessionState[scope];
+    const preference = this.#desktopRoomSidebarPreference;
     return typeof preference === 'object' && preference !== null
       ? preference.previousPanel
       : (preference ?? null);
@@ -120,7 +118,7 @@ export class AppUiState {
     if (this.activeRoomSidebarProfileUserId) return this.activeRoomSidebarProfileUserId;
     const scope = this.#activeRoomScopeKey;
     if (!scope) return null;
-    const preference = this.#desktopRoomSidebarSessionState[scope];
+    const preference = this.#desktopRoomSidebarPreference;
     return preference === undefined || (typeof preference === 'object' && preference !== null)
       ? defaultUserId
       : null;
@@ -137,18 +135,7 @@ export class AppUiState {
   }
 
   toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    const preference = this.#activeRoomScopeKey
-      ? this.#desktopRoomSidebarSessionState[this.#activeRoomScopeKey]
-      : undefined;
-    if (
-      this.activeRoomSidebarProfileUserId ||
-      (typeof preference === 'object' && preference !== null)
-    ) {
-      this.closeRoomSidebarProfile('desktop');
-      this.openDesktopRoomSidebarPanel(panel);
-      return;
-    }
-    if (this.activeDesktopRoomSidebarPanel === panel) {
+    if (!this.activeRoomSidebarProfileUserId && this.#desktopRoomSidebarPreference === panel) {
       this.closeDesktopRoomSidebarPanel();
       return;
     }
@@ -316,15 +303,17 @@ export class AppUiState {
     return roomScopeKey(this.#activeServerId, this.#activeRoomId);
   }
 
+  get #desktopRoomSidebarPreference(): RoomSidebarPreference {
+    const scope = this.#activeRoomScopeKey;
+    return scope ? this.#desktopRoomSidebarSessionState[scope] : undefined;
+  }
+
   #setDesktopRoomSidebarPanel(panel: Exclude<RoomSidebarPreference, undefined>): void {
     const scope = this.activeRoomScope;
     if (!scope) return;
 
     setRoomSidebarPanelState(scope.serverId, scope.roomId, panel);
-    this.#desktopRoomSidebarSessionState = {
-      ...this.#desktopRoomSidebarSessionState,
-      [roomScopeKey(scope.serverId, scope.roomId)]: panel
-    };
+    this.#desktopRoomSidebarSessionState[roomScopeKey(scope.serverId, scope.roomId)] = panel;
   }
 
   #profileUserIdForActiveRoom(profile: RoomSidebarProfileState | null): string | null {

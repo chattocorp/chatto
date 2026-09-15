@@ -72,7 +72,7 @@ describe('profile preferences', () => {
     }
   });
 
-  it.each(['{', '{}', 'null', '{"view":"profile","previousPanel":"unknown"}'])(
+  it.each(['{', '{}', 'null', 'profile:', 'profile:unknown', 'profile:files:extra'])(
     'ignores malformed profile state: %s',
     (raw) => {
       localStorage.setItem(

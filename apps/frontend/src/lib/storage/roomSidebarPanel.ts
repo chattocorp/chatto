@@ -19,26 +19,24 @@ function isRoomSidebarPanel(value: unknown): value is RoomSidebarPanel {
   return typeof value === 'string' && ROOM_SIDEBAR_PANELS.includes(value as RoomSidebarPanel);
 }
 
+// Keep this startup codec small: the root app UI also loads on the login page.
 const codec: Codec<Exclude<RoomSidebarPreference, undefined>> = {
-  serialize: (value) =>
-    value === null ? 'closed' : typeof value === 'string' ? value : JSON.stringify(value),
+  serialize: (value) => {
+    if (value === null) return 'closed';
+    if (typeof value === 'string') return value;
+    return `profile:${value.previousPanel ?? 'closed'}`;
+  },
   parse: (raw) => {
     if (isRoomSidebarPanel(raw)) return raw;
     if (raw === 'closed') return null;
-    try {
-      const value: unknown = JSON.parse(raw);
-      if (
-        typeof value === 'object' &&
-        value !== null &&
-        'view' in value &&
-        value.view === 'profile' &&
-        'previousPanel' in value &&
-        (value.previousPanel === null || isRoomSidebarPanel(value.previousPanel))
-      ) {
-        return { view: 'profile', previousPanel: value.previousPanel };
+    if (raw.startsWith('profile:')) {
+      const previousPanel = raw.slice('profile:'.length);
+      if (previousPanel === 'closed' || isRoomSidebarPanel(previousPanel)) {
+        return {
+          view: 'profile',
+          previousPanel: previousPanel === 'closed' ? null : previousPanel
+        };
       }
-    } catch {
-      // Unknown or damaged values use the room's default presentation.
     }
     return undefined;
   }
