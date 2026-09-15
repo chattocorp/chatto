@@ -77,15 +77,22 @@
       "system_default": "Süsteemi vaikeseade",
       "unavailable_device": "Salvestatud seade pole saadaval",
       "output_unsupported": "See brauser kasutab süsteemi kõlarit. Kõlari valimine pole saadaval.",
+      "sensitivity": "Müravärava lävi",
+      "gate_off": "Väljas",
+      "gate_unavailable": "Mikrofoni töötlus pole saadaval. Kasutatakse tavalist heli.",
       "call_settings": "Kõneseaded",
       "join_muted": "Liitu kõnedega vaigistatud mikrofoniga",
-      "test_title": "Testi mikrofoni",
       "input_level": "Mikrofoni tase",
       "start_test": "Alusta mikrofoni testi",
       "stop_test": "Peata test",
       "waiting": "Mikrofoni juurdepääsu ootel…",
       "test_failed": "Mikrofoni testimine nurjus. Kontrolli seadme juurdepääsu ja proovi uuesti.",
-      "test_in_call": "Enne mikrofoni testimist lahku kõnest."
+      "test_in_call": "Enne mikrofoni testimist lahku kõnest.",
+      "processing": "Mikrofoni töötlus",
+      "voice_quality": "Hääle kvaliteet",
+      "voice_normal": "Tavaline",
+      "voice_cool": "Päris lahe",
+      "voice_awesome": "VÕIMAS"
     }
   }
 }

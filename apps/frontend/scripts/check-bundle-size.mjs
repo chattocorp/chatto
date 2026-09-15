@@ -12,10 +12,9 @@ const messagesRoot = resolve(frontendRoot, 'messages');
 const routes = [
   {
     name: 'login',
-    // Bot profile copy adds about 0.3 KiB to the synchronous English fallback.
-    // The same files vary by about 0.6 KiB between Node gzip implementations.
-    // Keep one KiB of allowance; route and lazy-catalog guards still apply.
-    budgetKiB: 291,
+    // Voice settings and bot profile copy measure 291.1 KiB on Linux CI and
+    // 290.5 KiB locally. Allow build variation; DSP and route catalogs stay lazy.
+    budgetKiB: 292,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
@@ -164,6 +163,7 @@ for (const result of routeResults) {
 
 const roomResult = routeResults.find(({ name }) => name === 'room');
 const deferredRoomInteractionSources = [
+  'src/lib/desktop/nativeScreenSharePublisher.ts',
   'src/lib/components/EmojiPicker.svelte',
   'src/lib/components/chat/VideoPlayer.svelte',
   'src/lib/components/menus/UserContextMenu.svelte',

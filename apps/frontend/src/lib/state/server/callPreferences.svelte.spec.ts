@@ -4,6 +4,16 @@ import { availableCallDevice, CallPreferencesState } from './callPreferences.sve
 describe('CallPreferencesState', () => {
   beforeEach(() => localStorage.clear());
 
+  it('persists sensitivity per server and defaults older preferences to off', () => {
+    const state = new CallPreferencesState('sensitivity');
+    expect(state.microphoneThreshold).toBe(-60);
+    state.setMicrophoneThreshold(-32);
+    expect(new CallPreferencesState('sensitivity').microphoneThreshold).toBe(-32);
+    expect(new CallPreferencesState('other').microphoneThreshold).toBe(-60);
+    state.setMicrophoneThreshold(NaN);
+    expect(new CallPreferencesState('sensitivity').microphoneThreshold).toBe(-60);
+  });
+
   it('restores devices and join-muted independently for each server', () => {
     const first = new CallPreferencesState('first');
     first.setDevice('audioinput', 'mic');
@@ -50,4 +60,57 @@ describe('CallPreferencesState', () => {
     localStorage.setItem('chatto:i:first:callPreferences', 'invalid');
     expect(new CallPreferencesState('first').camera).toBe('');
   });
+});
+
+it('persists fractional voice strength independently of gate, devices, join and server', () => {
+  const state = new CallPreferencesState('voice-strength');
+  state.setDevice('audioinput', 'chosen');
+  state.setJoinMuted(true);
+  state.setMicrophoneThreshold(-25);
+  for (const amount of [0, 12.5, 50, 87.3, 100]) {
+    state.setVoiceAmount(amount);
+    const restored = new CallPreferencesState('voice-strength');
+    expect(restored.voiceAmount).toBe(amount);
+    expect(restored.effects.compressor).toBe(amount > 0);
+    expect(restored.microphoneThreshold).toBe(-25);
+    expect(restored.microphone).toBe('chosen');
+    expect(restored.joinMuted).toBe(true);
+    expect(new CallPreferencesState('separate-strength').voiceAmount).toBe(0);
+  }
+});
+
+it.each([
+  [{}, 0],
+  [{ processingPreset: 'none' }, 0],
+  [{ processingPreset: 'subtle' }, 50],
+  [{ processingPreset: 'strong' }, 100],
+  [{ processingPreset: 'invalid' }, 0],
+  [{ effects: { compressor: true } }, 50],
+  [{ effects: { compressor: 'true' } }, 0],
+  [{ voiceAmount: 32.5, processingPreset: 'strong' }, 32.5],
+  [{ voiceAmount: 'bad', processingPreset: 'strong' }, 0],
+  [{ voiceAmount: null, processingPreset: 'strong' }, 0],
+  [{ voiceAmount: 200 }, 100],
+  [{ voiceAmount: -10 }, 0]
+])('restores safe voice strength from %j', (saved, expected) => {
+  localStorage.setItem(
+    'chatto:i:migration:callPreferences',
+    JSON.stringify({
+      ...saved,
+      microphone: 'mic',
+      microphoneThreshold: -30
+    })
+  );
+  const state = new CallPreferencesState('migration');
+  expect(state.voiceAmount).toBe(expected);
+  expect(state.microphone).toBe('mic');
+  expect(state.microphoneThreshold).toBe(-30);
+});
+
+it('rejects non-finite runtime voice strength', () => {
+  const state = new CallPreferencesState('invalid-strength');
+  for (const value of [NaN, Infinity, -Infinity]) {
+    state.setVoiceAmount(value);
+    expect(state.voiceAmount).toBe(0);
+  }
 });

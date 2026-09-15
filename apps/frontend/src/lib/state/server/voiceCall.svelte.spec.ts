@@ -48,6 +48,14 @@ let lastRoom: {
   };
   switchActiveDevice: ReturnType<typeof vi.fn>;
 } | null = null;
+let mockMicrophonePublication:
+  | {
+      audioTrack: {
+        getProcessor: ReturnType<typeof vi.fn>;
+        setProcessor: ReturnType<typeof vi.fn>;
+      };
+    }
+  | undefined;
 let connectFailure: Error | null = null;
 let connectGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let microphoneGate: { promise: Promise<void>; resolve: () => void } | null = null;
@@ -64,6 +72,20 @@ let localTrackPublications: Array<{
   track: { source: string; mediaStreamTrack?: MediaStreamTrack };
 }> = [];
 let mockRemoteParticipants = new Map<string, unknown>();
+
+let processorConstructionFails = false;
+vi.mock('$lib/audio/microphoneProcessor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/audio/microphoneProcessor')>();
+  return {
+    ...actual,
+    MicrophoneProcessor: class extends actual.MicrophoneProcessor {
+      constructor(...args: ConstructorParameters<typeof actual.MicrophoneProcessor>) {
+        if (processorConstructionFails) throw new Error('Processor unavailable');
+        super(...args);
+      }
+    }
+  };
+});
 
 vi.mock('livekit-client', () => {
   class MockExternalE2EEKeyProvider {
@@ -152,7 +174,7 @@ vi.mock('livekit-client', () => {
           (publication) => publication.track.mediaStreamTrack !== track
         );
       }),
-      getTrackPublication: vi.fn(),
+      getTrackPublication: vi.fn(() => mockMicrophonePublication),
       identity: 'local-user',
       name: 'Local User',
       metadata: '',
@@ -283,6 +305,7 @@ function createPermittedCallState(api: VoiceCallAPI) {
 
 describe('VoiceCallState', () => {
   beforeEach(() => {
+    mockMicrophonePublication = undefined;
     calls.length = 0;
     lastRoomOptions = null;
     lastKeyProvider = null;
@@ -474,6 +497,69 @@ describe('VoiceCallState', () => {
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
   });
 
+  it('keeps calls usable when optional processor construction fails', async () => {
+    processorConstructionFails = true;
+    const state = createPermittedCallState(createVoiceCallClient());
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(state.connected).toBe(true);
+      expect(state.isMuted).toBe(false);
+      expect(state.microphoneGateUnavailable).toBe(true);
+    } finally {
+      processorConstructionFails = false;
+      await state.leave();
+    }
+  });
+
+  it.each([false, true])(
+    'keeps a call usable when optional processor failure is %s',
+    async (fails) => {
+      const setProcessor = fails
+        ? vi.fn().mockRejectedValue(new Error('Unavailable'))
+        : vi.fn().mockResolvedValue(undefined);
+      mockMicrophonePublication = { audioTrack: { getProcessor: vi.fn(), setProcessor } };
+      const state = createPermittedCallState(createVoiceCallClient());
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(state.connected).toBe(true);
+      expect(state.isMuted).toBe(false);
+      expect(setProcessor).toHaveBeenCalledOnce();
+      expect(state.microphoneGateUnavailable).toBe(fails);
+      expect(lastRoomOptions?.audioCaptureDefaults).not.toHaveProperty('processor');
+      await state.leave();
+    }
+  );
+
+  it('applies saved processing settings and live changes to the call processor', async () => {
+    const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
+    const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
+    const preferences = new CallPreferencesState('call-effects');
+    preferences.setVoiceAmount(100);
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(applied).toHaveBeenCalledWith(expect.objectContaining({ bass: 8, treble: 10, compressor: true }));
+      preferences.setVoiceAmount(0);
+      await vi.waitFor(() =>
+        expect(applied).toHaveBeenCalledWith(
+          expect.objectContaining({ bass: 0, compressor: false })
+        )
+      );
+    } finally {
+      await state.leave();
+      applied.mockRestore();
+    }
+  });
+
   it('restores saved devices and joins muted without capture prompts', async () => {
     const preferences = new CallPreferencesState('call-device-restore');
     preferences.setDevice('audioinput', 'preferred-mic');
@@ -493,7 +579,8 @@ describe('VoiceCallState', () => {
     );
     await state.join('wss://livekit.example.test', 'R1');
     expect(lastRoomOptions?.audioCaptureDefaults).toMatchObject({
-      deviceId: { ideal: 'preferred-mic' }
+      deviceId: { ideal: 'preferred-mic' },
+      autoGainControl: false
     });
     expect(lastRoomOptions?.videoCaptureDefaults).toMatchObject({
       deviceId: { ideal: 'preferred-camera' }
@@ -1021,8 +1108,7 @@ describe('VoiceCallState', () => {
     screenShareGate = deferredVoid();
 
     const starting = state.startNativeScreenShare('window:42', 'Moonring');
-    await flushPromises();
-    expect(session.onEnded).not.toBeNull();
+    await expect.poll(() => session.onEnded).not.toBeNull();
     session.onEnded?.(new Error('native publisher ended'));
     screenShareGate.resolve();
 

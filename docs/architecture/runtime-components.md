@@ -219,14 +219,88 @@ stream, or snapshot contract is required.
 ## Browser call preferences and device test
 
 The server-owned frontend store gives each call state a browser-local
-`CallPreferencesState`. It saves device IDs and join-muted at the existing
+`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold, and voice processing amount at the existing
 per-server storage boundary. These settings do not enter Chatto APIs or EVT.
+The voice amount is a finite number from 0 to 100. Invalid values use 0.
+Previous presets map to 0 (none), 50 (subtle), and 100 (strong).
+Legacy enabled effect settings map to 50. Other saved choices remain intact.
 LiveKit capture defaults use the saved input choices; a missing output device
 uses the browser default. Device switches save only after success.
 
-The settings page owns `CallDeviceTest`. Explicit capture feeds a Web Audio
-meter and an audio element for immediate local playback. The selected speaker
-is applied where the browser supports output selection. No recording is made.
+Calls and `CallDeviceTest` share `MicrophoneProcessor`, a LiveKit-compatible
+track processor. Its bundled audio worklet calculates input RMS and applies
+one gate envelope across channels. Processing uses the audio sample clock,
+not browser UI timers: attack 5 ms, hold 150 ms, release 80 ms, and a closing
+threshold half the opening amplitude (about 6 dB lower). The -60 dB control
+position disables gating. Voice Quality derives a polish amount from 0 to 1.
+This widens the closed gate's smooth gain transition from 0 to 12 dB below the
+opening threshold and extends release from 80 to 180 ms. Hold and hysteresis
+remain unchanged. The input meter maps -60 to 0 dBFS onto 0–1.
+The gate worklet then applies `LowFrequencyControl` in place, before native EQ
+and compression. A 120 Hz low-pass detector compares 2 ms energy with a 150 ms
+baseline and full-band energy to identify audible bass bursts. Its cut is
+bounded to 3 dB, with 1 ms gain attack and 80 ms release. A separate 250 Hz
+low-pass stage reduces sustained audible bass dominance by up to 1.5 dB, with
+150 ms detection/attack and 500 ms release. Both share gains across channels,
+scale with the existing polish amount, and bypass exactly at Normal. Partial
+threshold messages do not change their amount. The heuristic can react to
+very low-pitched vowels; bounded cuts limit that tradeoff. No new worklet node,
+look-ahead buffer, saved setting, or external connection is required.
+`MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
+60 Hz high-pass filter at maximum (0 Hz when disabled), pre-EQ headroom gain,
+200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
+compressor. Each EQ band is bounded to ±12 dB. At full strength, compressor amount maps 0–100
+to threshold -12…-20 dB and ratio 1.5…3.5, with 15 ms attack and 200 ms release.
+The voice slider scales linearly from neutral at 0 to low-cut 60 Hz,
+EQ +8/+6/+10 dB, compressor threshold -18 dB and ratio 3 at 100. At the
+midpoint the cutoff is 30 Hz, EQ is +4/+3/+5 dB, threshold is -9 dB,
+and ratio is 2. The compressor receives the boosted EQ signal directly;
+pre-EQ attenuation reserves headroom only when compression is disabled.
+Post-compressor gain scales from 0 to +3 dB before the final peak limiter;
+this is a gain-stage setting, not the net output increase. Fractional DSP
+parameters are not rounded. There is no
+saturation branch; ordinary speech must retain its harmonic balance.
+A second processor in the same bundled worklet runs `VoicePolish` after the
+native graph. A complementary one-pole split at 4 kHz detects prominent,
+audible high-band energy and reduces that band by up to 2 dB at full polish.
+Detection and gain attack use 1 ms; gain release uses 80 ms. Linked channel
+gains preserve balance. A final sample-peak limiter has immediate attack and
+80 ms release and a fixed ceiling of 0.99 while processing is enabled.
+This is a pre-encoding sample ceiling, not an inter-sample peak guarantee.
+Polish amount changes use 15 ms smoothing and blend held corrections directly,
+so slow release does not produce a level step when returning to Normal.
+Normal bypasses the added stage
+exactly. Neither stage adds a look-ahead buffer. Both worklets are owned by
+`MicrophoneProcessor`; a failure in either stops both and routes raw input to
+the existing output track and fallback meter. Restart restores derived settings.
+Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
+The gate meters the signal after the optional low-cut filter and before EQ.
+Capture requests disable browser AGC in both owners. The processor graph is
+lazy-loaded for calls and requires no additional service or dependency.
+Calls attach the processor after LiveKit assigns its audio context. The
+processor owns its output tracks and graph; LiveKit or the test owns the
+input and context. Device restarts rebuild the graph. Permanent disposal
+rejects queued initialization after call or page exit. Module or processor
+failure preserves ordinary audio. The processor owns an analyser fallback when the worklet cannot run, so
+call state does not create a separate audio context or sampling path. The worklet asset comes from the frontend
+origin and sends only input levels to the UI, with no external connection.
+
+The settings page owns `CallDeviceTest`. At Normal with the gate Off, an audio
+element plays the original capture stream. A parallel analyser measures input;
+it does not feed playback, and no custom processor initializes. Browser echo
+cancellation, noise suppression, and automatic gain control are disabled on
+this raw path. Enabling processing restarts capture with noise suppression;
+echo cancellation stays disabled for local monitoring. Returning to bypass
+also restarts capture. Both transitions preserve the selected speaker.
+With processing enabled, capture feeds the shared processor.
+Where `AudioContext.setSinkId` is supported, a shared final gain node
+feeds both the published stream and the context destination for direct local
+monitoring. The same node preserves monitoring after runtime processor failure.
+Other browsers use the processed stream in an audio element. Initialization
+failure monitors the raw stream. Explicit output errors stop the test instead
+of selecting another speaker silently. Active output changes are serialized
+and do not reopen capture. Explicit microphone choices use an exact device
+constraint. No recording is made.
 Generation checks stop late streams or playback after cancellation. Page exit
 stops tracks and playback, closes the audio context, and cancels meter updates.
 Camera discovery requests temporary access on page open only if device names

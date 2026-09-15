@@ -77,15 +77,22 @@
       "system_default": "Predefinito di sistema",
       "unavailable_device": "Dispositivo salvato non disponibile",
       "output_unsupported": "Questo browser usa l’altoparlante di sistema. La selezione dell’altoparlante non è disponibile.",
+      "sensitivity": "Soglia del noise gate",
+      "gate_off": "Disattivata",
+      "gate_unavailable": "Elaborazione del microfono non disponibile. Viene usato l’audio normale.",
       "call_settings": "Impostazioni chiamate",
       "join_muted": "Partecipa alle chiamate con il microfono disattivato",
-      "test_title": "Prova il microfono",
       "input_level": "Livello del microfono",
       "start_test": "Avvia test del microfono",
       "stop_test": "Interrompi test",
       "waiting": "In attesa dell’accesso al microfono…",
       "test_failed": "Impossibile provare il microfono. Controlla l’accesso al dispositivo e riprova.",
-      "test_in_call": "Esci dalla chiamata prima di provare il microfono."
+      "test_in_call": "Esci dalla chiamata prima di provare il microfono.",
+      "processing": "Elaborazione del microfono",
+      "voice_quality": "Qualità della voce",
+      "voice_normal": "Normale",
+      "voice_cool": "Niente male",
+      "voice_awesome": "FANTASTICA"
     }
   }
 }

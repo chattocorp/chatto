@@ -1,6 +1,9 @@
+import { userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import type { OutputAudioContext } from '$lib/state/server/callDeviceTest.svelte';
+import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
 import CallDeviceSettings from './CallDeviceSettings.svelte';
 
@@ -13,6 +16,17 @@ const visibleCamera = {
 describe('Call device settings', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
+
+  it('persists threshold changes made with the keyboard', async () => {
+    vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
+    const screen = render(CallDeviceSettings, {
+      preferences: new CallPreferencesState('threshold-control')
+    });
+    const slider = screen.container.querySelector<HTMLInputElement>('input[type=range]')!;
+    slider.focus();
+    await userEvent.keyboard('{Home}{ArrowRight}');
+    expect(new CallPreferencesState('threshold-control').microphoneThreshold).toBe(-59);
+  });
 
   it('shows remembered unavailable devices without requesting capture', async () => {
     vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
@@ -46,22 +60,30 @@ describe('Call device settings', () => {
       await context.resume();
       return destination.stream;
     });
-    const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
-    const screen = render(CallDeviceSettings, {
-      preferences: new CallPreferencesState('playback-refresh')
-    });
+    const monitor = vi.spyOn(MicrophoneProcessor.prototype, 'connectMonitor');
+    const preferences = new CallPreferencesState('playback-refresh');
+    preferences.setVoiceAmount(50);
+    const screen = render(CallDeviceSettings, { preferences });
     try {
       await screen.getByRole('button', { name: 'Start microphone test' }).click();
       await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
-      await vi.waitFor(() => expect(play).toHaveBeenCalledOnce());
-      const audio = play.mock.contexts[0] as HTMLAudioElement;
-      await vi.waitFor(() => expect(audio.paused).toBe(false));
+      await vi.waitFor(() => expect(monitor).toHaveBeenCalledOnce());
+      const output = monitor.mock.calls[0][0];
+      const analyser = output.context.createAnalyser();
+      (monitor.mock.contexts[0] as MicrophoneProcessor).connectMonitor(analyser);
+      const samples = new Float32Array(analyser.fftSize);
+      const expectOutput = () => {
+        expect(output.context.state).toBe('running');
+        analyser.getFloatTimeDomainData(samples);
+        expect(Math.max(...samples.map(Math.abs))).toBeGreaterThan(0.1);
+      };
+      await vi.waitFor(expectOutput);
       const callsBefore = enumerate.mock.calls.length;
       navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
       await vi.waitFor(() => expect(enumerate.mock.calls.length).toBeGreaterThan(callsBefore));
       await tick();
-      expect(audio.srcObject).toBe(destination.stream);
-      expect(audio.paused).toBe(false);
+      expect(destination.stream.getAudioTracks()[0].readyState).toBe('live');
+      await vi.waitFor(expectOutput);
     } finally {
       await screen.unmount();
       oscillator.stop();
@@ -121,4 +143,74 @@ describe('Call device settings', () => {
     resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream);
     await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
   });
+});
+
+it('offers a continuous voice slider while keeping the gate separate', async () => {
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
+  const preferences = new CallPreferencesState('voice-ui');
+  preferences.setMicrophoneThreshold(-30);
+  const screen = render(CallDeviceSettings, { preferences });
+  const slider = screen.getByRole('slider', { name: /^Voice Quality/ });
+  await expect.element(slider).toHaveValue('0');
+  slider.element().focus();
+  await userEvent.keyboard('{End}');
+  expect(new CallPreferencesState('voice-ui').voiceAmount).toBe(100);
+  expect(screen.container.querySelector('[data-rainbow-band]')).not.toBeNull();
+  expect(screen.container.querySelector('.awesome-text')).not.toBeNull();
+  await expect.element(slider).toHaveAttribute('aria-valuetext', 'AWESOME');
+  const input = slider.element() as HTMLInputElement;
+  input.value = '37.5';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  await tick();
+  expect(preferences.voiceAmount).toBe(37.5);
+  expect(screen.container.querySelector('[data-rainbow-band]')).toBeNull();
+  expect(preferences.effects.treble).toBe(3.75);
+  await userEvent.keyboard('{Home}');
+  expect(preferences.effects.compressor).toBe(false);
+  expect(preferences.microphoneThreshold).toBe(-30);
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(2);
+  expect(screen.container.querySelector('details')).toBeNull();
+  await expect.element(screen.getByText('Pretty cool', { exact: true })).toBeVisible();
+});
+
+it('disables the voice slider when processing is unavailable', async () => {
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
+  const screen = render(CallDeviceSettings, {
+    preferences: new CallPreferencesState('unavailable-voice'),
+    inCall: true,
+    gateUnavailable: true
+  });
+  await expect.element(screen.getByRole('slider', { name: /^Voice Quality/ })).toBeDisabled();
+});
+
+it('switches the selected test output without stopping capture or requiring another Start click', async () => {
+  const context = new AudioContext();
+  const stream = context.createMediaStreamDestination().stream;
+  const preferences = new CallPreferencesState('live-output');
+  preferences.setVoiceAmount(50);
+  const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+  const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue(undefined);
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
+    visibleCamera,
+    {kind: 'audiooutput', deviceId: 'headphones', label: 'Headphones'} as MediaDeviceInfo
+  ]);
+  const screen = render(CallDeviceSettings, {preferences});
+  try {
+    await screen.getByRole('button', {name: 'Start microphone test'}).click();
+    await expect.element(screen.getByRole('button', {name: 'Stop test'})).toBeInTheDocument();
+    await screen.getByRole('radio', {name: 'Headphones'}).click();
+    await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith('headphones'));
+    await vi.waitFor(() => expect(preferences.speaker).toBe('headphones'));
+    expect(capture).toHaveBeenCalledOnce();
+    expect(stream.getAudioTracks()[0].readyState).toBe('live');
+    await expect.element(screen.getByRole('button', {name: 'Stop test'})).toBeInTheDocument();
+    await screen.getByRole('radiogroup', {name:'Speaker', exact:true})
+      .getByRole('radio', {name:'System default'}).click();
+    await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith(''));
+    expect(capture).toHaveBeenCalledOnce();
+  } finally {
+    await screen.unmount();
+    await context.close();
+    vi.restoreAllMocks();
+  }
 });

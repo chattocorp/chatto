@@ -9,6 +9,50 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
+- **Voice Quality** in App Preferences is a continuous processing slider.
+  **Normal** (the default) disables the added effects, **Pretty cool** marks
+  gentle processing at the midpoint, and **AWESOME** adds warmth, clarity,
+  and loudness with stronger EQ and moderate compression. Saturation
+  is excluded because the combined effects must not distort ordinary speech. At the maximum,
+  the voice slider shows a moving rainbow and the AWESOME readout dances in
+  rainbow colours, with each letter moving in sequence. The rainbow fades in
+  and moves faster over the final fifth of the slider. Reduced motion keeps
+  both the rainbow and readout static; unavailable processing uses the standard
+  disabled control.
+  The low-cut filter, equaliser, and compression parameters interpolate between
+  these positions. Automatic plosive control reduces brief bass thumps, and
+  adaptive bass control reduces sustained boom while preserving vocal warmth.
+  These cuts increase toward AWESOME and run before compression so excessive
+  bass is less likely to lower the whole voice. Automatic de-essing reduces
+  sharp S and SH sounds, and a
+  final limiter catches near-clipping sample peaks. Automatic corrections stay
+  conservative even at AWESOME. An enabled
+  gate gets a softer closing transition to preserve quiet word endings; Off
+  still disables the gate. These additions need no separate controls and are
+  bypassed at Normal. Changes use short ramps to avoid clicks while dragging.
+  The noise gate stays separate because its threshold depends on the microphone
+  and room. The slider affects microphone audio in calls and the local test,
+  not received audio or screen sharing. Its position is saved per browser and
+  server without changing gate, device, or join-muted choices.
+  Compression receives the boosted EQ signal to reduce loud peaks and uses the
+  browser compressor's built-in makeup gain. A small additional gain after
+  compression increases loudness before the final peak limiter. Browser automatic gain control is disabled
+  to avoid competing volume adjustments. Calls retain browser echo cancellation
+  and noise suppression. The local test disables echo cancellation so it does
+  not cancel its own playback.
+- **Noise gate threshold** is available beside a live microphone meter in call
+  devices and **App Preferences → Voice & video**. It defaults to **Off**
+  and is saved per browser and server. Higher thresholds suppress quieter
+  sounds. The meter shows input before the gate, on the same scale as its
+  threshold marker. Muted calls show no input activity.
+- Sensitivity changes affect outgoing microphone audio and the local test.
+  The gate uses a short attack, a hold period, a lower closing threshold,
+  and a slower release to limit abrupt changes and repeated opening near
+  the threshold. It does not change participant mute state. Basic audio
+  remains available if the browser cannot run the optional gate; the UI
+  shows that microphone processing is unavailable. This does not add a media service
+  or change room permissions.
+
 - **App Preferences → Voice & video** stores microphone, speaker, camera, and
   join-muted choices in this browser for the selected server. Successful device
   changes during a call update those choices. Missing devices use a system
@@ -17,12 +61,19 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Camera selection does not start video. Joining muted does not request
   microphone access merely to list devices. Browser support controls whether
   a speaker can be selected.
-- Device choices use radio controls. An explicit local microphone test shows
+- Device choices use radio controls. During a local test, output changes keep
+  capture active. A failed explicit output selection stops the test instead of
+  silently playing through another device. An explicit local microphone test shows
   an input meter and plays the microphone immediately through the selected
   speaker. It does not record audio, connect to LiveKit, or verify network
   connectivity. Testing is unavailable during the selected server's call.
-  Stop, navigation, and device changes release capture and stop playback;
-  late capture results are stopped as well.
+  Stop and navigation release capture and stop playback. Input changes restart
+  an active test; output changes keep capture active. Camera choices do not
+  interrupt the microphone test. Late capture results are stopped.
+  At Normal with the gate Off, the test plays the original capture stream,
+  disables browser noise suppression, and does not initialize custom processing.
+  Switching between this bypass and processing restarts capture and keeps the
+  selected speaker. Use headphones for local monitoring to avoid feedback.
 - Opening the settings page requests camera access only if camera names are
   unavailable and no call is active on the selected server. The browser may
   show its permission dialog. Discovery stops camera capture immediately.

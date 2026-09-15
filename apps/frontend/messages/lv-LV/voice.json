@@ -77,15 +77,22 @@
       "system_default": "Sistēmas noklusējums",
       "unavailable_device": "Saglabātā ierīce nav pieejama",
       "output_unsupported": "Šis pārlūks izmanto sistēmas skaļruni. Skaļruņa izvēle nav pieejama.",
+      "sensitivity": "Trokšņu vārtu slieksnis",
+      "gate_off": "Izslēgts",
+      "gate_unavailable": "Mikrofona apstrāde nav pieejama. Tiek izmantota parastā skaņa.",
       "call_settings": "Zvanu iestatījumi",
       "join_muted": "Pievienoties zvaniem ar izslēgtu mikrofonu",
-      "test_title": "Pārbaudīt mikrofonu",
       "input_level": "Mikrofona līmenis",
       "start_test": "Sākt mikrofona pārbaudi",
       "stop_test": "Apturēt pārbaudi",
       "waiting": "Gaida piekļuvi mikrofonam…",
       "test_failed": "Neizdevās pārbaudīt mikrofonu. Pārbaudi piekļuvi ierīcei un mēģini vēlreiz.",
-      "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu."
+      "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu.",
+      "processing": "Mikrofona apstrāde",
+      "voice_quality": "Balss kvalitāte",
+      "voice_normal": "Parasta",
+      "voice_cool": "Diezgan forša",
+      "voice_awesome": "LIELISKA"
     }
   }
 }

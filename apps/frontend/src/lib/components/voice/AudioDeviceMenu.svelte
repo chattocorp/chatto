@@ -10,6 +10,7 @@ Reads available devices and current selection from `voiceCallState`.
 - `onclose` - Called when the menu should dismiss
 -->
 <script lang="ts">
+  import MicrophoneSensitivity from '$lib/components/settings/MicrophoneSensitivity.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
@@ -56,7 +57,17 @@ Reads available devices and current selection from `voiceCallState`.
   ]);
 </script>
 
-<ContextMenu {anchor} {onclose}>
+<ContextMenu {anchor} {onclose} role="dialog" ariaLabel={m('voice.devices')}>
+  {#if voiceCallState.preferences}
+    <div class="p-3">
+      <MicrophoneSensitivity
+        preferences={voiceCallState.preferences}
+        level={voiceCallState.microphoneLevel}
+        unavailable={voiceCallState.microphoneGateUnavailable}
+        id="call-microphone-sensitivity"
+      />
+    </div>
+  {/if}
   {#each sections as section (section.label)}
     <MenuSection ariaLabel={section.label}>
       <div class="px-3 py-1.5 text-xs font-medium text-muted">{section.label}</div>

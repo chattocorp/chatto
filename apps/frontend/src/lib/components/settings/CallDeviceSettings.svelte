@@ -1,5 +1,6 @@
 <!-- @component Browser-local call defaults and an explicitly started microphone test. -->
 <script lang="ts">
+  import MicrophoneProcessing from './MicrophoneProcessing.svelte';
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
   import { ChoiceRow, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
@@ -8,8 +9,17 @@
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import { CallDeviceTest } from '$lib/state/server/callDeviceTest.svelte';
 
-  let { preferences, inCall = false }: { preferences: CallPreferencesState; inCall?: boolean } =
-    $props();
+  let {
+    preferences,
+    inCall = false,
+    callLevel = 0,
+    gateUnavailable = false
+  }: {
+    preferences: CallPreferencesState;
+    inCall?: boolean;
+    callLevel?: number;
+    gateUnavailable?: boolean;
+  } = $props();
   const test = new CallDeviceTest();
   let devices = $state<MediaDeviceInfo[]>([]);
   let deviceError = $state(false);
@@ -32,7 +42,9 @@
 
   onMount(() => {
     alive = true;
-    outputSupported = 'setSinkId' in HTMLMediaElement.prototype;
+    outputSupported =
+      (typeof AudioContext !== 'undefined' && 'setSinkId' in AudioContext.prototype) ||
+      'setSinkId' in HTMLMediaElement.prototype;
     void discoverDevices();
     navigator.mediaDevices?.addEventListener('devicechange', refresh);
     return () => {
@@ -59,18 +71,23 @@
     return result;
   }
 
-  function select(kind: MediaDeviceKind, value: string) {
-    test.stop();
+  async function select(kind: MediaDeviceKind, value: string) {
+    if (kind === 'audiooutput' && test.active) {
+      if (await test.setSpeaker(value)) preferences.setDevice(kind, value);
+      return;
+    }
+    const restart = kind !== 'videoinput' && (test.active || test.pending);
     preferences.setDevice(kind, value);
+    if (restart) await startTest();
   }
 
   async function startTest() {
-    const speaker = devices.some(
-      (device) => device.kind === 'audiooutput' && device.deviceId === preferences.speaker
-    )
-      ? preferences.speaker
-      : '';
-    await test.start(preferences.microphone, speaker);
+    await test.start(
+      preferences.microphone,
+      preferences.speaker,
+      () => preferences.microphoneThreshold,
+      () => preferences.effects
+    );
     if (alive) await refresh();
   }
 
@@ -145,19 +162,13 @@
         bind:checked={() => preferences.joinMuted, (value) => preferences.setJoinMuted(value)}
       />
     </Panel>
-    <Panel title={m('voice.preferences.test_title')} icon="iconify icon-[uil--microphone]">
+    <Panel title={m('voice.preferences.processing')} icon="iconify icon-[uil--microphone]">
       <div class="flex max-w-xl flex-col gap-4">
-        <span id="call-input-label">{m('voice.preferences.input_level')}</span>
-        <div
-          role="meter"
-          aria-labelledby="call-input-label"
-          aria-valuemin="0"
-          aria-valuemax="1"
-          aria-valuenow={test.level}
-          class="h-3 overflow-hidden rounded-full bg-surface"
-        >
-          <div class="h-full rounded-full bg-action" style:width={`${test.level * 100}%`}></div>
-        </div>
+        <MicrophoneProcessing
+          {preferences}
+          level={inCall ? callLevel : test.level}
+          unavailable={inCall ? gateUnavailable : test.gateUnavailable}
+        />
         <div class="flex flex-wrap gap-2">
           {#if !test.active && !test.pending}
             <Button onclick={startTest} disabled={inCall}

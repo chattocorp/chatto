@@ -4,7 +4,8 @@
 Reusable checkbox option row for forms. Use this for settings, toggles, and
 other boolean controls that need a label plus optional helper or error text.
 The complete row shows the selected state, and its square indicator distinguishes
-it from the circular ChoiceRow radio pattern. The native checkbox remains in
+it from the circular ChoiceRow radio pattern. The row positions the hidden native input so focus stays inside scrolling panes.
+The native checkbox remains in
 the DOM for form semantics, keyboard focus, and screen-reader state.
 -->
 <script lang="ts">
@@ -41,7 +42,7 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
   for={id}
   aria-busy={loading || undefined}
   class={[
-    'checkbox-option',
+    'relative checkbox-option',
     checked && !error && 'checkbox-option-selected',
     error && 'checkbox-option-error',
     disabled && 'cursor-not-allowed opacity-60',
@@ -69,7 +70,7 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
     ]}
     aria-hidden="true"
   >
-    <span class="iconify text-base icon-[uil--check]"></span>
+    <span class="iconify icon-[uil--check] text-base"></span>
   </span>
 
   <span class="min-w-0 flex-1">

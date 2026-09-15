@@ -1,3 +1,5 @@
+import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
+import { microphoneMeter } from '$lib/audio/noiseGate';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
  *
@@ -19,7 +21,7 @@ import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
-import { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
+import type { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
 
 /** Resolved room actions. Missing permission data always denies access. */
 export type CallPermissions = {
@@ -273,12 +275,10 @@ export class VoiceCallState {
   private audioLevelCache = new Map<string, AudioLevelInfo>();
 
   // Local microphone audio analysis (Web Audio API) for instant level feedback.
-  // LiveKit's audioLevel for the local participant comes from the server
-  // (round-trip latency), so we read the mic input directly instead.
-  private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private analyserSource: MediaStreamAudioSourceNode | null = null;
-  private analyserData: Float32Array<ArrayBuffer> | null = null;
+  private microphoneProcessor: MicrophoneProcessor | null = null;
+  /** Pre-gate level for the settings meter; zero while muted. */
+  microphoneLevel = $state(0);
+  microphoneGateUnavailable = $state(false);
 
   readonly preferences?: CallPreferencesState;
 
@@ -325,7 +325,6 @@ export class VoiceCallState {
         await room.localParticipant.setMicrophoneEnabled(false);
         if (this.room !== room) return;
         this.isMuted = true;
-        this.teardownLocalAudioAnalyser();
       }
       if (!this.canUseCamera) {
         await room.localParticipant.setCameraEnabled(false);
@@ -496,6 +495,14 @@ export class VoiceCallState {
         : [];
       const outputDevice = availableCallDevice(this.preferences?.speaker ?? '', outputDevices);
 
+      try {
+        const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
+        this.microphoneProcessor = new MicrophoneProcessor(this.preferences?.microphoneThreshold);
+        if (this.preferences) this.microphoneProcessor.setEffects(this.preferences.effects);
+      } catch {
+        this.microphoneGateUnavailable = true;
+      }
+
       // Create and connect LiveKit room
       this.room = new Room({
         encryption: {
@@ -512,7 +519,7 @@ export class VoiceCallState {
             ? { deviceId: { ideal: this.preferences.microphone } }
             : {}),
           channelCount: { ideal: 1 },
-          autoGainControl: true,
+          autoGainControl: false,
           echoCancellation: true,
           noiseSuppression: true
         },
@@ -555,7 +562,7 @@ export class VoiceCallState {
           );
           if (this.room === room) {
             this.isMuted = false;
-            this.setupLocalAudioAnalyser();
+            await this.setupMicrophoneProcessor();
           }
         } catch (err) {
           if (this.room === room) {
@@ -722,9 +729,7 @@ export class VoiceCallState {
     this.isMuted = newMuted;
 
     if (!newMuted) {
-      this.setupLocalAudioAnalyser();
-    } else {
-      this.teardownLocalAudioAnalyser();
+      await this.setupMicrophoneProcessor();
     }
 
     this.updateParticipants();
@@ -839,6 +844,10 @@ export class VoiceCallState {
     const livekitUrl = this.liveKitURL;
     const roomId = this.roomId;
     if (!livekitUrl || !roomId) return;
+    const { NativeScreenSharePublisherSession } = await import(
+      '$lib/desktop/nativeScreenSharePublisher'
+    );
+    if (this.room !== room || !this.canScreenShare) return;
     const credential = await this.#api.createGameSharePublisherToken(roomId);
     if (!credential || credential.callId !== this.activeCallId) {
       throw new Error('The server could not create a native screen-share publisher credential.');
@@ -1066,9 +1075,9 @@ export class VoiceCallState {
       return;
     }
 
-    // Reconnect analyser to the new mic track
+    // Attach processing if the device change created a new local track.
     if (!this.isMuted) {
-      this.setupLocalAudioAnalyser();
+      await this.setupMicrophoneProcessor();
     }
   }
 
@@ -1293,13 +1302,19 @@ export class VoiceCallState {
 
   /**
    * Update the non-reactive audio level cache. Called at ~60ms.
-   * Writes to a plain Map (not $state) so Svelte's reactive graph is
-   * completely untouched.
+   * Participant levels stay in a plain Map; only the settings meter and
+   * optional processor availability enter Svelte's reactive graph.
    */
   private updateAudioLevels(): void {
     if (!this.room) return;
 
-    const localAudioLevel = this.getLocalAudioLevel();
+    this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? -60);
+    if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
+    if (this.microphoneProcessor)
+      this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
+    const inputLevel = this.isMuted ? 0 : (this.microphoneProcessor?.level ?? 0);
+    const localAudioLevel = Math.min(inputLevel * 2, 1);
+    this.microphoneLevel = microphoneMeter(inputLevel);
 
     const allParticipants: Participant[] = [
       this.room.localParticipant,
@@ -1318,66 +1333,34 @@ export class VoiceCallState {
   }
 
   /**
-   * Set up a Web Audio API analyser connected to the local microphone track.
-   * This gives us instant audio level readings without server round-trip.
+   * Attach optional processing after LiveKit assigns the audio context.
+   * The processor also owns the input meter and its analyser fallback.
    */
-  private setupLocalAudioAnalyser(): void {
-    this.teardownLocalAudioAnalyser();
-    if (!this.room) return;
+  private async setupMicrophoneProcessor(): Promise<void> {
+    const room = this.room;
+    const processor = this.microphoneProcessor;
+    if (!room) return;
 
     const { Track } = getLoadedLiveKit();
-    const micPub = this.room.localParticipant.getTrackPublication(Track.Source.Microphone);
-    const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
-    if (!mediaStreamTrack) return;
-
-    try {
-      this.audioContext = new AudioContext();
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.analyserData = new Float32Array(this.analyser.fftSize) as Float32Array<ArrayBuffer>;
-
-      const stream = new MediaStream([mediaStreamTrack]);
-      this.analyserSource = this.audioContext.createMediaStreamSource(stream);
-      this.analyserSource.connect(this.analyser);
-      // Don't connect analyser to destination — we don't want to hear ourselves
-    } catch {
-      this.teardownLocalAudioAnalyser();
+    const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const audioTrack = micPub?.audioTrack;
+    if (audioTrack && processor) {
+      try {
+        if (audioTrack.getProcessor() !== processor) await audioTrack.setProcessor(processor);
+      } catch {
+        // Optional processing must not fail microphone enable or a device switch.
+        processor.unavailable = true;
+      }
+      if (this.room !== room || this.isMuted) return;
+      this.microphoneGateUnavailable = processor.unavailable;
     }
-  }
-
-  private teardownLocalAudioAnalyser(): void {
-    this.analyserSource?.disconnect();
-    this.analyserSource = null;
-    this.analyser?.disconnect();
-    this.analyser = null;
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      this.audioContext.close().catch(() => {});
-    }
-    this.audioContext = null;
-    this.analyserData = null;
-  }
-
-  /**
-   * Read the current local microphone audio level (0–1) from the Web Audio
-   * API analyser. Returns 0 if the analyser is not set up.
-   */
-  private getLocalAudioLevel(): number {
-    if (!this.analyser || !this.analyserData) return 0;
-
-    this.analyser.getFloatTimeDomainData(this.analyserData);
-
-    // Compute RMS of the waveform samples
-    let sumSq = 0;
-    for (let i = 0; i < this.analyserData.length; i++) {
-      sumSq += this.analyserData[i] * this.analyserData[i];
-    }
-    const rms = Math.sqrt(sumSq / this.analyserData.length);
-
-    // Normalize: RMS of ~0.5 is very loud speech, scale so it maps to ~1.0
-    return Math.min(rms * 2, 1);
   }
 
   private cleanup(): void {
+    this.microphoneProcessor?.dispose();
+    this.microphoneProcessor = null;
+    this.microphoneLevel = 0;
+    this.microphoneGateUnavailable = false;
     const disconnectedRoomId = this.roomId;
     const disconnectedCallId = this.activeCallId;
     const wasConnected = this.connected;
@@ -1386,7 +1369,7 @@ export class VoiceCallState {
       clearInterval(this.audioLevelInterval);
       this.audioLevelInterval = null;
     }
-    this.teardownLocalAudioAnalyser();
+
     if (this.room) {
       // Detach all remote audio tracks to clean up <audio> elements
       for (const p of this.room.remoteParticipants.values()) {

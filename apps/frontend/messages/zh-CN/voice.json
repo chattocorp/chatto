@@ -77,15 +77,22 @@
       "system_default": "系统默认",
       "unavailable_device": "已保存的设备不可用",
       "output_unsupported": "此浏览器使用系统扬声器，无法选择扬声器。",
+      "sensitivity": "噪声门阈值",
+      "gate_off": "关闭",
+      "gate_unavailable": "麦克风处理不可用。正在使用普通音频。",
       "call_settings": "通话设置",
       "join_muted": "加入通话时将麦克风静音",
-      "test_title": "测试麦克风",
       "input_level": "麦克风音量",
       "start_test": "开始麦克风测试",
       "stop_test": "停止测试",
       "waiting": "正在等待麦克风访问权限…",
       "test_failed": "无法测试麦克风。请检查设备访问权限后重试。",
-      "test_in_call": "请先退出通话，再测试麦克风。"
+      "test_in_call": "请先退出通话，再测试麦克风。",
+      "processing": "麦克风处理",
+      "voice_quality": "语音质量",
+      "voice_normal": "普通",
+      "voice_cool": "挺酷",
+      "voice_awesome": "超棒"
     }
   }
 }
