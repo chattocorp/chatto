@@ -65,7 +65,9 @@ configuration. HTTPS redirects are mandatory outside loopback development.
 `oidc.cimd_trusted_private_hosts` and `oidc.cimd_trusted_loopback_hosts` are
 separate, exact-host development exceptions. They permit named CIMD hosts to
 resolve only to private or loopback addresses respectively; neither permits
-other special-use destinations.
+other special-use destinations. An issuer with a loopback hostname also permits
+loopback CIMD destinations without an explicit trusted-host entry. CIMD URLs
+still require HTTPS.
 
 Operators must select exactly one NATS mode:
 
@@ -203,9 +205,10 @@ revision when this model is running.
 The issuer projection consumes the singleton `authling.evt.issuer` subject.
 On first initialization, its service creates or resolves the RS256 signing key
 and establishes the issuer with subject-level OCC. It then materializes one
-active key, at most one pre-published successor, and at most one unexpired
-predecessor. The in-process reconciler automatically requests rotation when
-the active key reaches its configured age, creates event-owned key material,
+active key and at most one pre-published successor or unexpired predecessor.
+A new rotation waits for the preceding retirement to complete. The in-process
+reconciler automatically requests rotation when the active key reaches its
+configured age, creates event-owned key material,
 activates it after ten minutes of JWKS publication, and retires the predecessor
 after a 15-minute overlap. Every transition uses issuer-subject OCC and waits
 for its projected position. Restart resumes incomplete creation or destruction

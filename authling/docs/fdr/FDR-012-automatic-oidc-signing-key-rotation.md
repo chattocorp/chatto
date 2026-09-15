@@ -1,7 +1,7 @@
 # FDR-012: Automatic OIDC Signing-Key Rotation
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -37,9 +37,10 @@ account interaction and does not change the issuer or account `sub`.
 Five additive event variants record rotation request, key preparation,
 activation, retirement request, and retirement completion on the singleton
 `authling.evt.issuer` aggregate. The issuer projection materializes exactly one
-active key plus at most one prepared successor and one retiring predecessor.
-It rejects missing, duplicate, early, mismatched, or out-of-order transitions
-during live consumption and cold replay.
+active key plus at most one prepared successor or one retiring predecessor.
+A new rotation waits for the preceding retirement to complete. It rejects
+missing, duplicate, early, mismatched, or out-of-order transitions during live
+consumption and cold replay.
 
 A rotation request records a new opaque key reference before an outcome writes
 private material. This makes provisioning recoverable after a crash rather
@@ -63,8 +64,8 @@ scheme are unchanged.
 - Token signing and JWKS fail closed if required key material is absent,
   malformed, substituted beneath another reference, or inconsistent with the
   durable `kid`.
-- A prepared key cannot sign before its activation time. An active key cannot
-  be retired before its predecessor overlap expires.
+- A prepared key cannot sign before its activation time. The preceding key
+  cannot be retired before its overlap expires.
 - A replica that is too stale to resolve a key after retirement fails closed;
   it does not silently select another key or mint an unverifiable token.
 - The key identifier is the existing SHA-256 fingerprint of the public key.

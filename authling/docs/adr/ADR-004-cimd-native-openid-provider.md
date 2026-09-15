@@ -37,7 +37,10 @@ to identity scopes; the initial profile accepts exactly `openid`.
 Authorization codes are short-lived, single-use through JetStream optimistic
 concurrency, and bound to the exact client and redirect URI. The first slice
 does not support refresh tokens, implicit or hybrid flow, request objects,
-dynamic registration, or additional identity claims.
+or dynamic registration. The current profile also releases the identity hints
+defined by [FDR-011](../fdr/FDR-011-account-profile.md) and the authentication
+time defined by [FDR-004](../fdr/FDR-004-openid-connect-provider.md), without
+adding another scope.
 
 Authling supports two client sources behind the same protocol boundary:
 
@@ -51,8 +54,11 @@ Authling supports two client sources behind the same protocol boundary:
    dialing; requires the document's `client_id` to exactly equal its URL; and
    accepts only the initial public Authorization Code profile.
 
-Special-use CIMD destinations remain denied by default. An operator may
-explicitly trust exact hostnames for controlled development environments.
+Special-use CIMD destinations remain denied by default. An issuer with a
+loopback hostname permits loopback CIMD destinations for local development.
+Other issuers require explicit trust for exact loopback hostnames. Operators
+may also explicitly trust exact private hostnames for controlled development
+environments. CIMD document URLs still require HTTPS.
 Private-host and loopback-host trust are separate capabilities, and each
 permits only its named address class. Link-local, multicast, and all other
 special-use destinations stay blocked.

@@ -1,7 +1,7 @@
 # FDR-009: Browser Session Management
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -113,11 +113,15 @@ retention decision.
 
 ## Compatibility
 
-The encrypted session-record format and cookie format are unchanged. Existing
-sessions receive deterministic account-page identifiers when a new process
-indexes them, and older Authling replicas continue validating the same records.
-All replicas observe authoritative KV deletions even when they do not expose
-the new account-page controls. No migration is required.
+The session-management controls add no encrypted-record or cookie-format
+change. Valid session records receive deterministic account-page identifiers
+when a process indexes them. Revocation uses authoritative KV deletions and
+does not require a new persisted index.
+
+This does not make every historical session valid under current authentication
+rules. Records without authentication time fail closed and require fresh
+login; [FDR-003](FDR-003-local-login-and-browser-sessions.md#compatibility)
+defines the session and authentication-freshness upgrade requirements.
 
 ## Limitations
 

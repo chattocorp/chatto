@@ -1,7 +1,7 @@
 # FDR-003: Local Login and Browser Sessions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -86,7 +86,7 @@ attribute.
 
 **Why:** These attributes reduce script access, cross-site presentation, and
 cleartext transport risk while letting ordinary OIDC top-level navigation work
-in a later slice. A browser-session cookie avoids silently adding a "remember
+in the OIDC flow. A browser-session cookie avoids silently adding a "remember
 me" feature.
 
 **Tradeoff:** Browser session restoration behavior varies, and local HTTP
@@ -118,6 +118,15 @@ must not reveal whether an address is registered.
 **Tradeoff:** Generic failures are less helpful to legitimate users, and an
 attacker can temporarily deny login to a known address by exhausting its
 attempt budget.
+
+## Compatibility
+
+Session records must contain a valid authentication time. Older records without
+that value fail closed; Authling does not infer it from session creation or
+activity. Affected browsers must sign in again. Upgrade all replicas before
+relying on authentication-freshness checks, because older replicas do not
+enforce the same constraints. Current valid sessions retain their normal
+expiry and restart behavior.
 
 ## Limitations
 

@@ -7,8 +7,8 @@
 
 Authling acts as an OpenID Provider for conventional configured clients and
 automatically discovered CIMD public clients. A person authenticates with
-their Authling browser session, explicitly authorizes one request, and returns
-to the relying party with an Authorization Code.
+their Authling browser session, authorizes the client when consent is required,
+and returns to the relying party with an Authorization Code.
 
 ## Behavior
 
@@ -54,9 +54,10 @@ client. Both still require PKCE.
 An unconfigured HTTPS URL client ID is resolved as a Client ID Metadata
 Document. It must describe that exact client ID, public token authentication,
 one or more safe redirect URIs, and no flow outside Authorization Code. Fetches
-are HTTPS-only, do not follow redirects, reject special-use destinations,
-ignore proxy configuration, and have strict concurrency, response-size,
-timeout, and cache bounds. Invalid responses are never cached.
+are HTTPS-only, do not follow redirects, reject special-use destinations except
+for the development cases below, ignore proxy configuration, and have strict
+concurrency, response-size, timeout, and cache bounds. Invalid responses are
+never cached.
 
 Each resolver permits eight active cache-miss lookups. Admission happens before
 DNS validation and does not queue: a saturated resolver rejects another cache
@@ -76,9 +77,11 @@ These limits are per process and use no durable state or background worker.
 A later request can retry after a slot is released; failures are not cached.
 Ingress rate limits remain a separate control for aggregate request traffic.
 
-Special-use destinations are rejected by default. Operators may explicitly
-trust exact CIMD hostnames that resolve to private or loopback addresses in
-controlled development environments. Private-host and loopback-host trust are
+Special-use destinations are rejected by default. An issuer with a loopback
+hostname permits loopback CIMD destinations for local development. Other
+issuers require explicit trust for exact loopback hostnames. Operators may also
+trust exact private hostnames in controlled development environments. CIMD
+URLs still require HTTPS. Private-host and loopback-host trust are
 separate exceptions, and each admits only its named address class. Neither
 permits link-local, multicast, or other special-use destinations.
 
@@ -172,8 +175,11 @@ freshness parameters in [OpenID Connect Core](https://openid.net/specs/openid-co
 
 ## Upgrade Behavior
 
-These changes add no durable event variants. Historical pending requests omit
-`silent` and retain their interactive behavior. New runtime counters expire on
+Request admission and silent-request handling add no durable event variants.
+Historical pending requests omit `silent` and retain their interactive
+behavior. New runtime counters expire on
 their own; no data migration is required. Update all replicas before relying on
 the shared limits or silent-request behavior: older replicas do not enforce
-these controls.
+these controls. Authentication-freshness checks also reject historical browser
+sessions without an authentication time; see the compatibility requirements in
+[FDR-003](FDR-003-local-login-and-browser-sessions.md#compatibility).
