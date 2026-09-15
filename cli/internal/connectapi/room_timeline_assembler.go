@@ -257,9 +257,12 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 }
 
 func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEvent, payload *evtv1.MessagePostedEvent) (*apiv1.Message, error) {
-	payload, err := h.api.core.HydrateMessagePost(ctx, event.Event)
-	if err != nil {
-		return nil, err
+	if !event.EchoMetadataHydrated {
+		var err error
+		payload, err = h.api.core.HydrateMessagePost(ctx, event.Event)
+		if err != nil {
+			return nil, err
+		}
 	}
 	hydrationState, err := h.api.core.RoomTimelineReads().MessageHydrationState(event.Id)
 	if err != nil {

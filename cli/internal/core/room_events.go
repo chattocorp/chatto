@@ -21,6 +21,9 @@ const maxTimelineHydrationAttempts = 3
 type RoomEvent struct {
 	*evtv1.Event
 	Sequence uint64
+	// EchoMetadataHydrated marks detached echo attribution and mentions that
+	// the transport can reuse without loading the original post again.
+	EchoMetadataHydrated bool
 }
 
 // RoomEventsResult is the return type for paginated room event queries.
@@ -210,17 +213,17 @@ func (c *ChattoCore) hydrateTimelineEntries(ctx context.Context, entries []*Time
 	if err != nil {
 		return nil, err
 	}
+	posts, err := c.hydrateMessagePosts(ctx, hydrated)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]*RoomEvent, len(entries))
 	for i, event := range hydrated {
 		if event.GetMessagePosted().GetEchoOfEventId() != "" {
-			post, err := c.HydrateMessagePost(ctx, event)
-			if err != nil {
-				return nil, err
-			}
 			event = proto.Clone(event).(*evtv1.Event)
-			event.Event = &evtv1.Event_MessagePosted{MessagePosted: post}
+			event.Event = &evtv1.Event_MessagePosted{MessagePosted: posts[i]}
 		}
-		result[i] = &RoomEvent{Event: event, Sequence: entries[i].StreamSeq}
+		result[i] = &RoomEvent{Event: event, Sequence: entries[i].StreamSeq, EchoMetadataHydrated: true}
 	}
 	return result, nil
 }

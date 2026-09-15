@@ -397,7 +397,9 @@ same room. Body selection and attachment indexes use the original body
 reference. Echo bodies from historical EVT records remain indexed only for
 physical record ownership and secure deletion. Snapshot restore rebuilds
 attachment membership from these links. The Room Timeline snapshot semantics
-token is `v8`.
+token is `v8`. Timeline pages batch original metadata reads and reuse metadata
+and canonical bodies within the response. Projections do not retain decrypted
+content.
 
 The Bleve search checkpoint contract is `bleve-message-index-v10`. Echo posts
 are not searchable contributions. Historical echo bodies cannot replace the

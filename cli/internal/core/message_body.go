@@ -179,38 +179,82 @@ func (c *ChattoCore) ResolveMessageContentID(roomID, eventID string) (string, er
 // The returned echo payload is detached from EVT. Missing originals never use old
 // copied echo metadata. Envelope identity and timeline routing remain unchanged.
 func (c *ChattoCore) HydrateMessagePost(ctx context.Context, event *evtv1.Event) (*evtv1.MessagePostedEvent, error) {
-	post := event.GetMessagePosted()
-	if post == nil || post.GetEchoOfEventId() == "" {
+	if post := event.GetMessagePosted(); post == nil || post.GetEchoOfEventId() == "" {
 		return post, nil
 	}
-	result := proto.Clone(post).(*evtv1.MessagePostedEvent)
-	result.InReplyTo = ""
-	result.MentionedUserIds = nil
-	result.Mentions = nil
-	id, err := c.ResolveMessageContentID(post.GetRoomId(), event.GetId())
-	if err != nil {
-		return result, nil
-	}
-	_, retracted, _ := c.roomModel.latestBodyReference(event.GetId())
-	if retracted {
-		return result, nil
-	}
-	entry, ok := c.roomModel.timelineEntry(id)
-	if !ok {
-		return result, nil
-	}
-	originals, err := c.timelineHydrator.events(ctx, []*TimelineEntry{entry})
-	if errors.Is(err, jetstream.ErrMsgNotFound) {
-		return result, nil
-	}
+	posts, err := c.hydrateMessagePosts(ctx, []*evtv1.Event{event})
 	if err != nil {
 		return nil, err
 	}
-	original := originals[0].GetMessagePosted()
-	result.InReplyTo = original.GetInReplyTo()
-	result.MentionedUserIds = append([]string(nil), original.GetMentionedUserIds()...)
-	result.Mentions = cloneMessageMentions(original.GetMentions())
-	return result, nil
+	return posts[0], nil
+}
+
+// hydrateMessagePosts batches canonical metadata reads and reuses originals
+// already present in the response. All cached metadata is request-local.
+func (c *ChattoCore) hydrateMessagePosts(ctx context.Context, events []*evtv1.Event) ([]*evtv1.MessagePostedEvent, error) {
+	originals := make(map[string]*evtv1.MessagePostedEvent)
+	for _, event := range events {
+		if post := event.GetMessagePosted(); post != nil && post.GetEchoOfEventId() == "" {
+			originals[event.GetId()] = post
+		}
+	}
+	posts := make([]*evtv1.MessagePostedEvent, len(events))
+	owners := make([]string, len(events))
+	var missing []*TimelineEntry
+	seen := make(map[string]bool)
+	for i, event := range events {
+		post := event.GetMessagePosted()
+		posts[i] = post
+		if post == nil || post.GetEchoOfEventId() == "" {
+			continue
+		}
+		posts[i] = proto.Clone(post).(*evtv1.MessagePostedEvent)
+		posts[i].InReplyTo = ""
+		posts[i].MentionedUserIds = nil
+		posts[i].Mentions = nil
+		id, err := c.ResolveMessageContentID(post.GetRoomId(), event.GetId())
+		_, retracted, _ := c.roomModel.latestBodyReference(event.GetId())
+		if err != nil || retracted {
+			continue
+		}
+		owners[i] = id
+		if originals[id] != nil || seen[id] {
+			continue
+		}
+		if entry, ok := c.roomModel.timelineEntry(id); ok {
+			seen[id] = true
+			missing = append(missing, entry)
+		}
+	}
+	loaded, err := c.timelineHydrator.events(ctx, missing)
+	if errors.Is(err, jetstream.ErrMsgNotFound) {
+		// Secure deletion can remove one record during a read. Preserve the
+		// remaining echoes instead of failing the complete response.
+		loaded = nil
+		for _, entry := range missing {
+			one, readErr := c.timelineHydrator.events(ctx, []*TimelineEntry{entry})
+			if errors.Is(readErr, jetstream.ErrMsgNotFound) {
+				continue
+			}
+			if readErr != nil {
+				return nil, readErr
+			}
+			loaded = append(loaded, one...)
+		}
+	} else if err != nil {
+		return nil, err
+	}
+	for _, original := range loaded {
+		originals[original.GetId()] = original.GetMessagePosted()
+	}
+	for i, owner := range owners {
+		if original := originals[owner]; owner != "" && original != nil {
+			posts[i].InReplyTo = original.GetInReplyTo()
+			posts[i].MentionedUserIds = append([]string(nil), original.GetMentionedUserIds()...)
+			posts[i].Mentions = cloneMessageMentions(original.GetMentions())
+		}
+	}
+	return posts, nil
 }
 
 func (c *ChattoCore) currentMessageBody(ctx context.Context, eventID string) (*evtv1.MessageBody, error) {

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -88,7 +89,7 @@ func (s *timelineEventReaderStub) EventsAt(ctx context.Context, sequences []uint
 		}
 		record := s.records[sequence]
 		if record == nil {
-			return nil, fmt.Errorf("missing test EVT sequence %d", sequence)
+			return nil, fmt.Errorf("missing test EVT sequence %d: %w", sequence, jetstream.ErrMsgNotFound)
 		}
 		result[i] = record
 	}
