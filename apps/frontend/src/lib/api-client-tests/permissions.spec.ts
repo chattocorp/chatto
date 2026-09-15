@@ -49,6 +49,76 @@ describe('createPermissionAPI', () => {
     });
   });
 
+  it('reads bot summaries through the existing matrix RPC and advances by scopes', async () => {
+    const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const signal = new AbortController().signal;
+    mocks.getUserPermissionMatrix.mockResolvedValue({
+      summary: true,
+      matrix: {
+        scopes: [{ id: 'room:general', label: 'general', kind: PermissionScopeKind.ROOM }],
+        cells: [
+          {
+            permission: 'message.read',
+            scopeId: 'room:general',
+            effective: PermissionDecision.ALLOW
+          },
+          {
+            permission: 'message.manage',
+            scopeId: 'room:general',
+            effective: PermissionDecision.NONE
+          }
+        ]
+      },
+      page: { hasMore: true }
+    });
+    await expect(api.getUserPermissionSummary('bot', 100, signal)).resolves.toEqual({
+      permissions: [
+        {
+          permission: 'message.read',
+          scope: 'room',
+          scopeId: 'general',
+          scopeName: 'general',
+          active: true
+        },
+        {
+          permission: 'message.manage',
+          scope: 'room',
+          scopeId: 'general',
+          scopeName: 'general',
+          active: false
+        }
+      ],
+      hasMore: true,
+      nextOffset: 101
+    });
+    expect(mocks.getUserPermissionMatrix).toHaveBeenCalledWith(
+      {
+        userId: 'bot',
+        summary: true,
+        includeDirectMessageScope: true,
+        page: { limit: 100, offset: 100 }
+      },
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+    mocks.getUserPermissionMatrix.mockResolvedValue({
+      summary: true,
+      matrix: { scopes: [], cells: [] },
+      page: { hasMore: true }
+    });
+    await expect(api.getUserPermissionSummary('bot')).rejects.toThrow(
+      'Empty permission scope page'
+    );
+    mocks.getUserPermissionMatrix.mockResolvedValue({
+      summary: true,
+      matrix: { scopes: [], cells: [{ scopeId: 'unknown' }] }
+    });
+    await expect(api.getUserPermissionSummary('bot')).rejects.toThrow('Missing permission scope');
+    mocks.getUserPermissionMatrix.mockResolvedValue({ matrix: { scopes: [], cells: [] } });
+    await expect(api.getUserPermissionSummary('bot')).rejects.toThrow(
+      'Permission summary is not supported'
+    );
+  });
+
   it('loads the tier matrix with auth headers', async () => {
     mocks.getRolePermissionTierMatrix.mockResolvedValue({
       matrix: {
@@ -373,23 +443,30 @@ describe('createPermissionAPI', () => {
     );
   });
 
-it('sends scope pages and cancellation for JSON-compatible decision reads', async () => {
-  mocks.listRolePermissionDecisions.mockResolvedValue({
-    roleName: 'moderator', decisions: [],
-    scopes: [{ kind: PermissionScopeKind.ROOM, id: 'room-1' }],
-    page: { totalCount: 1n, hasMore: false }
+  it('sends scope pages and cancellation for JSON-compatible decision reads', async () => {
+    mocks.listRolePermissionDecisions.mockResolvedValue({
+      roleName: 'moderator',
+      decisions: [],
+      scopes: [{ kind: PermissionScopeKind.ROOM, id: 'room-1' }],
+      page: { totalCount: 1n, hasMore: false }
+    });
+    const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const signal = new AbortController().signal;
+    const result = await api.listRolePermissionDecisions('moderator', {
+      signal,
+      page: { limit: 10, offset: 0 },
+      scope: { tier: 'room', roomId: 'room-1' }
+    });
+    expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith(
+      {
+        roleName: 'moderator',
+        includeDirectMessageScope: true,
+        page: { limit: 10, offset: 0 },
+        scope: { kind: PermissionScopeKind.ROOM, id: 'room-1' }
+      },
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+    expect(result.scopes).toEqual([{ tier: 'room', roomId: 'room-1' }]);
+    expect(result.page).toEqual({ totalCount: 1, hasMore: false });
   });
-  const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
-  const signal = new AbortController().signal;
-  const result = await api.listRolePermissionDecisions('moderator', {
-    signal, page: { limit: 10, offset: 0 }, scope: { tier: 'room', roomId: 'room-1' }
-  });
-  expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith({
-    roleName: 'moderator', includeDirectMessageScope: true,
-    page: { limit: 10, offset: 0 }, scope: { kind: PermissionScopeKind.ROOM, id: 'room-1' }
-  }, { headers: { Authorization: 'Bearer token' }, signal });
-  expect(result.scopes).toEqual([{ tier: 'room', roomId: 'room-1' }]);
-  expect(result.page).toEqual({ totalCount: 1, hasMore: false });
-});
-
 });

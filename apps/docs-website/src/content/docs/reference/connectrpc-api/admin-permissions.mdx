@@ -141,8 +141,11 @@ Resource-oriented permission decisions for one role.
 ### GetUserPermissionMatrix
 
 Gets one page of a user's permission matrix. Human targets require
-user.manage-permissions; bot targets require ownership or bot.manage.
-Returns NOT_FOUND when the user does not exist.
+user.manage-permissions; full bot matrices require ownership or bot.manage.
+The summary view accepts any authenticated member for bot targets only.
+Clients should refresh visible summaries every 30 seconds and clear them
+when closed or when a read fails. Missing or non-bot summary targets return
+NOT_FOUND. Full reads return NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/GetUserPermissionMatrix
@@ -160,6 +163,7 @@ Request one user's permission matrix.
 | `include_direct_message_scope` | `bool` | Include the direct-message scope column. Defaults to false so an older client does not receive a scope kind that it cannot interpret. |
 | `page` | [`chatto.api.v1.PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions. |
 | `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Optional exact scope filter. Missing or inaccessible scopes produce an empty page. SERVER and DM require an empty ID; GROUP and ROOM require an ID. |
+| `summary` | `bool` | Return a compact summary of configured bot grants. Bot targets only; any authenticated member may request this view. Equivalent scopes and included permissions are combined before scope filtering and pagination. Hidden rooms are omitted; inactive grants are returned only to bot managers. Cells contain ALLOW for active grants and NONE for inactive grants. Override and allow_permitted editing details are omitted. |
 
 
 <a id="chatto-admin-v1-GetUserPermissionMatrixResponse"></a>
@@ -172,6 +176,7 @@ Response containing one user's permission matrix.
 | --- | --- | --- |
 | `matrix` | [`UserPermissionMatrix`](/reference/connectrpc-api/types/#chatto-admin-v1-UserPermissionMatrix) | Requested matrix. |
 | `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Total matching scopes and whether another scope page exists. |
+| `summary` | `optional bool` | True when the server applied the requested bot summary view. Clients must check this before treating matrix cells as summary grants; older servers can ignore the request option and return a full management matrix instead. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-ListUserPermissionDecisions"></a>

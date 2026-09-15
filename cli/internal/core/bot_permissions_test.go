@@ -16,13 +16,13 @@ func TestBotPermissionsVisibilityCeilingAndInclusion(t *testing.T) {
 	bot, err := c.CreateBot(ctx, owner.Id, "summary_bot", "Summary Bot")
 	require.NoError(t, err)
 	botID := bot.User.Id
-	entries, err := c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err := c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
 	require.Empty(t, entries)
 	require.NoError(t, c.GrantUserPermission(ctx, owner.Id, botID, PermMessageRead))
-	entries, err = c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
-	require.Equal(t, []BotPermission{
+	require.Equal(t, []botPermission{
 		{Permission: PermMessageRead, Scope: PermissionMatrixScope{ID: "dm", Label: "Direct messages", Kind: MatrixScopeDM}, Active: true},
 		{Permission: PermMessageRead, Scope: PermissionMatrixScope{ID: "server", Label: "Server", Kind: MatrixScopeServer}, Active: true},
 	}, entries)
@@ -33,55 +33,55 @@ func TestBotPermissionsVisibilityCeilingAndInclusion(t *testing.T) {
 	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, owner.Id, PermMessageRead))
 	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, viewer.Id, PermRoomList))
 	require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, owner.Id, PermMessageReadInteractions))
-	entries, err = c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
 	for _, entry := range entries {
 		require.True(t, entry.Active)
 		require.NotEqual(t, "server", entry.Scope.ID)
 		require.NotEqual(t, "room:"+room.Id, entry.Scope.ID)
 	}
-	managerEntries, err := c.ListBotPermissions(ctx, owner.Id, botID)
+	managerEntries, err := c.botPermissionSummaryEntries(ctx, owner.Id, botID)
 	require.NoError(t, err)
 	scope := PermissionMatrixScope{ID: "room:" + room.Id, Label: room.Name, Kind: MatrixScopeRoom, ParentGroupID: room.GroupId}
-	require.Contains(t, managerEntries, BotPermission{Permission: PermMessageRead, Scope: scope, Active: false})
-	require.Contains(t, managerEntries, BotPermission{Permission: PermMessageReadInteractions, Scope: scope, Active: true})
+	require.Contains(t, managerEntries, botPermission{Permission: PermMessageRead, Scope: scope, Active: false})
+	require.Contains(t, managerEntries, botPermission{Permission: PermMessageReadInteractions, Scope: scope, Active: true})
 	// Account administration alone must not expose unavailable grants.
 	require.NoError(t, c.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, viewer.Id, PermRoomList))
 	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, viewer.Id, PermUserManageAccounts))
-	entries, err = c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
 	for _, entry := range entries {
 		require.True(t, entry.Active)
 	}
 	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, viewer.Id, PermBotManage))
-	entries, err = c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
-	require.Contains(t, entries, BotPermission{Permission: PermMessageRead, Scope: scope, Active: false})
+	require.Contains(t, entries, botPermission{Permission: PermMessageRead, Scope: scope, Active: false})
 	// A bot can inspect public access, but cannot acquire manager-only details.
-	entries, err = c.ListBotPermissions(ctx, botID, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, botID, botID)
 	require.NoError(t, err)
 	for _, entry := range entries {
 		require.True(t, entry.Active)
 	}
 	require.NoError(t, c.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, owner.Id, PermMessageRead))
-	entries, err = c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 	require.Equal(t, MatrixScopeServer, entries[1].Scope.Kind)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, botID, PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow))
-	entries, err = c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 	require.Equal(t, MatrixScopeDM, entries[0].Scope.Kind)
 	require.Equal(t, MatrixScopeServer, entries[1].Scope.Kind)
 	require.NoError(t, c.ClearUserPermissionState(ctx, owner.Id, botID, PermMessageRead))
-	entries, err = c.ListBotPermissions(ctx, viewer.Id, botID)
+	entries, err = c.botPermissionSummaryEntries(ctx, viewer.Id, botID)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	require.Equal(t, MatrixScopeDM, entries[0].Scope.Kind)
-	_, err = c.ListBotPermissions(ctx, viewer.Id, owner.Id)
+	_, err = c.botPermissionSummaryEntries(ctx, viewer.Id, owner.Id)
 	require.ErrorIs(t, err, ErrNotFound)
-	_, err = c.ListBotPermissions(ctx, "", botID)
+	_, err = c.botPermissionSummaryEntries(ctx, "", botID)
 	require.ErrorIs(t, err, ErrNotFound)
 }
 

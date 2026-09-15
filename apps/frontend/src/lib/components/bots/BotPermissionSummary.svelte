@@ -2,7 +2,7 @@
 while mounted and discards cached data when the profile closes. -->
 <script lang="ts">
   import { createInfiniteQuery } from '@tanstack/svelte-query';
-  import { createBotAPI } from '$lib/api-client/bots';
+  import { createPermissionAPI } from '$lib/api-client/permissions';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -29,9 +29,10 @@ while mounted and discards cached data when the profile closes. -->
       ],
       initialPageParam: 0,
       queryFn: ({ pageParam, signal }) =>
-        scope.connection.getAPI(createBotAPI).listPermissions(botId, pageParam, signal),
-      getNextPageParam: (page, _pages, offset) =>
-        page.hasMore ? offset + page.permissions.length : undefined,
+        scope.connection
+          .getAPI(createPermissionAPI)
+          .getUserPermissionSummary(botId, pageParam, signal),
+      getNextPageParam: (page) => page.nextOffset,
       refetchInterval: 30_000,
       gcTime: 0
     }),

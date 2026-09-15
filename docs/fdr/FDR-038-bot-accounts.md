@@ -28,6 +28,11 @@ exercise more authority than its human owner currently possesses.
   joining share one bullet when both apply to the same scope. The section
   starts expanded and remembers its collapsed state for each server on this
   device.
+- The profile uses the existing `chatto.admin.v1.AdminPermissionService`
+  `GetUserPermissionMatrix` read with `summary: true`. Only bot targets accept
+  member-visible summaries. Full matrices, human permission reads, and writes
+  retain their management checks. The response confirms the summary view so
+  older servers cannot be mistaken for summary-capable servers.
 - The summary combines broader and narrower grants only when every applicable
   narrower scope has the same effective access. It omits permissions already
   included by another displayed permission. Named rooms follow the viewer's

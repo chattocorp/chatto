@@ -134,8 +134,10 @@ manage their own bots; `bot.manage` allows global management. A human with
 but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
 
-`BotService.ListBotPermissions` exposes a paginated, read-only effective
-allowlist to all authenticated members. Core evaluates the existing permission
+`chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix` accepts
+`summary: true` for a paginated, read-only bot allowlist available to all
+authenticated members. Human targets and full matrices retain their existing
+management gates. Core evaluates the existing permission
 resolver in one server content view. It combines equivalent scopes and filters
 room metadata before pagination. Inactive grants require bot management
 access. The read does not expose credentials or individual DM participants.

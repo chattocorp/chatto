@@ -1,12 +1,11 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBotAPI } from '$lib/api-client/bots';
-import { BotPermissionScope, CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
+import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  listBotPermissions: vi.fn(),
   listBots: vi.fn(),
   getBot: vi.fn(),
   createBot: vi.fn(),
@@ -31,7 +30,6 @@ describe('createBotAPI', () => {
     for (const mock of Object.values(mocks)) mock.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      listBotPermissions: mocks.listBotPermissions,
       listBots: mocks.listBots,
       getBot: mocks.getBot,
       createBot: mocks.createBot,
@@ -41,41 +39,6 @@ describe('createBotAPI', () => {
       revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
       reassignBotOwner: mocks.reassignBotOwner
     });
-  });
-
-  it('reads a public permission page and rejects an unknown scope', async () => {
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
-    const signal = new AbortController().signal;
-    mocks.listBotPermissions.mockResolvedValue({
-      permissions: [
-        {
-          permission: 'message.read',
-          scope: BotPermissionScope.ROOM,
-          scopeId: 'room',
-          scopeName: 'general',
-          active: true
-        }
-      ],
-      page: { hasMore: true }
-    });
-    await expect(api.listPermissions('bot', 100, signal)).resolves.toEqual({
-      permissions: [
-        {
-          permission: 'message.read',
-          scope: 'room',
-          scopeId: 'room',
-          scopeName: 'general',
-          active: true
-        }
-      ],
-      hasMore: true
-    });
-    expect(mocks.listBotPermissions).toHaveBeenCalledWith(
-      { botUserId: 'bot', page: { limit: 100, offset: 100 } },
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
-    mocks.listBotPermissions.mockResolvedValue({ permissions: [{ scope: 999 }] });
-    await expect(api.listPermissions('bot')).rejects.toThrow('Unsupported bot permission scope');
   });
 
   it('lists bots and maps key metadata without exposing a verifier', async () => {

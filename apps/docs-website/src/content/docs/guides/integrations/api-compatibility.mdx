@@ -26,12 +26,16 @@ data migration is required.
 
 ## Bot permission summaries
 
-`BotService.ListBotPermissions` is an additive API for authenticated members.
-It returns effective bot grants with separate channel and DM scopes. It omits
-hidden room identities. Only bot owners and authorised human bot managers can
-receive inactive grants. Existing bot management APIs keep their access rules.
-No stored-data migration is required. Servers without this method return
-`UNIMPLEMENTED`; the bundled profile shows that the summary is unavailable.
+`chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix` accepts
+`summary: true` for bot targets. This additive option returns compact effective
+grants with separate channel and DM scopes. It omits hidden room identities.
+Only bot owners and authorised human bot managers receive inactive grants.
+Human permission reads, full matrices, and writes keep their access rules.
+
+The response sets `summary: true` when the server applies this view. Clients
+must check this marker: an older server can ignore the request option and
+return a full matrix to a manager. The bundled profile reports an unavailable
+summary if the marker is absent. No stored-data migration is required.
 
 ## Target a server release
 

@@ -5,20 +5,20 @@ import (
 	"slices"
 )
 
-// BotPermission describes a configured permission at its effective scope.
+// botPermission describes a configured permission at its effective scope.
 // Inactive entries are returned only to bot managers. Room membership and
 // operation-specific requirements remain separate from permission grants.
-type BotPermission struct {
+type botPermission struct {
 	Permission Permission
 	Scope      PermissionMatrixScope
 	Active     bool
 }
 
-// ListBotPermissions describes a bot's effective allowlist to authenticated
+// botPermissionSummaryEntries describes a bot's effective allowlist to authenticated
 // members. It reads one content view, compresses equivalent scopes, and removes
 // room metadata the viewer cannot see. No credential metadata is exposed.
-func (c *ChattoCore) ListBotPermissions(ctx context.Context, actorID, botID string) ([]BotPermission, error) {
-	var result []BotPermission
+func (c *ChattoCore) botPermissionSummaryEntries(ctx context.Context, actorID, botID string) ([]botPermission, error) {
+	var result []botPermission
 	err := c.ReadServerContentView(ctx, func(ctx context.Context, _ uint64) error {
 		result = nil
 		actorIsBot, _, actorExists := c.userModel.isBotAndOwner(actorID)
@@ -126,10 +126,56 @@ func (c *ChattoCore) ListBotPermissions(ctx context.Context, actorID, botID stri
 	return result, err
 }
 
+// GetBotPermissionSummaryPage exposes configured bot grants through the existing
+// user permission matrix read. Human targets remain inaccessible in this view.
+// Scope pagination is applied after compaction and viewer visibility filtering.
+func (c *ChattoCore) GetBotPermissionSummaryPage(ctx context.Context, actorID, botID string, includeDM bool, query PermissionScopeQuery) (*UserPermissionMatrix, error) {
+	entries, err := c.botPermissionSummaryEntries(ctx, actorID, botID)
+	if err != nil {
+		return nil, err
+	}
+	scopes := make([]PermissionMatrixScope, 0)
+	seen := make(map[string]bool)
+	for _, entry := range entries {
+		if entry.Scope.Kind == MatrixScopeDM && !includeDM && !query.includesDM() {
+			continue
+		}
+		if !seen[entry.Scope.ID] {
+			seen[entry.Scope.ID] = true
+			scopes = append(scopes, entry.Scope)
+		}
+	}
+	scopes, page, err := selectPermissionScopes(scopes, query)
+	if err != nil {
+		return nil, err
+	}
+	selected := make(map[string]bool, len(scopes))
+	for _, scope := range scopes {
+		selected[scope.ID] = true
+	}
+	matrix := &UserPermissionMatrix{UserID: botID, Scopes: scopes, Page: page}
+	permissions := make(map[string]bool)
+	for _, entry := range entries {
+		if !selected[entry.Scope.ID] {
+			continue
+		}
+		decision := MatrixDecisionNone
+		if entry.Active {
+			decision = MatrixDecisionAllow
+		}
+		matrix.Cells = append(matrix.Cells, PermissionMatrixCell{Permission: string(entry.Permission), ScopeID: entry.Scope.ID, Effective: decision})
+		if !permissions[string(entry.Permission)] {
+			permissions[string(entry.Permission)] = true
+			matrix.ApplicablePermissions = append(matrix.ApplicablePermissions, string(entry.Permission))
+		}
+	}
+	return matrix, nil
+}
+
 // compactBotPermission emits a broader scope only when every applicable child
 // has the same status. Hidden rooms participate in this check: a public global
 // claim must not overstate the bot's access in a hidden room.
-func compactBotPermission(perm Permission, scopes []PermissionMatrixScope, states map[string]int) []BotPermission {
+func compactBotPermission(perm Permission, scopes []PermissionMatrixScope, states map[string]int) []botPermission {
 	// Each child contributes to at most two ancestors, keeping compaction
 	// linear in the number of scopes even for large room directories.
 	covered := make(map[string]bool, len(states))
@@ -153,7 +199,7 @@ func compactBotPermission(perm Permission, scopes []PermissionMatrixScope, state
 			}
 		}
 	}
-	var result []BotPermission
+	var result []botPermission
 	for _, scope := range scopes {
 		status := states[scope.ID]
 		if status == 0 || !covered[scope.ID] {
@@ -165,7 +211,7 @@ func compactBotPermission(perm Permission, scopes []PermissionMatrixScope, state
 		if scope.Kind == MatrixScopeRoom && covered["group:"+scope.ParentGroupID] {
 			continue
 		}
-		result = append(result, BotPermission{Permission: perm, Scope: scope, Active: status == 1})
+		result = append(result, botPermission{Permission: perm, Scope: scope, Active: status == 1})
 	}
 	return result
 }

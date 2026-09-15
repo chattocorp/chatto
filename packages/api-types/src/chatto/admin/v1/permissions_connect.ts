@@ -59,8 +59,11 @@ export const AdminPermissionService = {
     },
     /**
      * Gets one page of a user's permission matrix. Human targets require
-     * user.manage-permissions; bot targets require ownership or bot.manage.
-     * Returns NOT_FOUND when the user does not exist.
+     * user.manage-permissions; full bot matrices require ownership or bot.manage.
+     * The summary view accepts any authenticated member for bot targets only.
+     * Clients should refresh visible summaries every 30 seconds and clear them
+     * when closed or when a read fails. Missing or non-bot summary targets return
+     * NOT_FOUND. Full reads return NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix
      */

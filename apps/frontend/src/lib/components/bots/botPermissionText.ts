@@ -1,4 +1,4 @@
-import type { BotPermission } from '$lib/api-client/bots';
+import type { BotPermission } from '$lib/api-client/permissions';
 import { m } from '$lib/i18n/messages';
 import { getPermissionDescription, getPermissionCategory } from '$lib/permissions';
 

@@ -4,9 +4,9 @@ import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import type { BotPermission } from '$lib/api-client/bots';
+import type { BotPermission } from '$lib/api-client/permissions';
 
-const mocks = vi.hoisted(() => ({ listPermissions: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getUserPermissionSummary: vi.fn() }));
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'permission-test',
@@ -41,7 +41,7 @@ describe('bot permission summary', () => {
   });
 
   it('renders readable active and inactive permissions with distinct channel and DM scopes', async () => {
-    mocks.listPermissions.mockResolvedValue({
+    mocks.getUserPermissionSummary.mockResolvedValue({
       permissions: [
         entry('message.read', 'server'),
         entry('message.post', 'dm'),
@@ -61,11 +61,11 @@ describe('bot permission summary', () => {
     expect(mounted.container.textContent).toContain('owner’s current permissions');
     expect(mounted.container.textContent).toContain('Manage messages');
     expect(mounted.container.textContent).not.toContain('start DMs');
-    expect(mocks.listPermissions).toHaveBeenCalledWith('bot', 0, expect.any(AbortSignal));
+    expect(mocks.getUserPermissionSummary).toHaveBeenCalledWith('bot', 0, expect.any(AbortSignal));
   });
 
   it('groups actions by scope and combines browsing and joining only within that scope', async () => {
-    mocks.listPermissions.mockResolvedValue({
+    mocks.getUserPermissionSummary.mockResolvedValue({
       permissions: [
         entry('room.join', 'server'),
         entry('room.list', 'server'),
@@ -99,7 +99,7 @@ describe('bot permission summary', () => {
   });
 
   it('keeps rooms with equal names in separate groups', async () => {
-    mocks.listPermissions.mockResolvedValue({
+    mocks.getUserPermissionSummary.mockResolvedValue({
       permissions: [
         entry('room.list', 'room'),
         { ...entry('room.join', 'room'), scopeId: 'another' }
@@ -114,7 +114,7 @@ describe('bot permission summary', () => {
 
   it('shows loading, then an empty result without an inactive section', async () => {
     let resolve!: (value: unknown) => void;
-    mocks.listPermissions.mockReturnValue(
+    mocks.getUserPermissionSummary.mockReturnValue(
       new Promise((done) => {
         resolve = done;
       })
@@ -127,26 +127,30 @@ describe('bot permission summary', () => {
   });
 
   it('hides stale grants after a failed refresh and supports retry', async () => {
-    mocks.listPermissions.mockResolvedValue({
+    mocks.getUserPermissionSummary.mockResolvedValue({
       permissions: [entry('message.read', 'server')],
       hasMore: false
     });
     mounted = render(BotPermissionSummary, { botId: 'bot' });
     await expect.element(page.getByText('Read all messages')).toBeVisible();
-    mocks.listPermissions.mockRejectedValue(new Error('offline'));
+    mocks.getUserPermissionSummary.mockRejectedValue(new Error('offline'));
     await queryClient.invalidateQueries({ queryKey: ['server', 'permission-test'] });
     await expect
       .element(page.getByRole('alert'))
       .toHaveTextContent('Could not load this bot’s permissions.');
     expect(mounted.container.textContent).not.toContain('Read all messages');
-    mocks.listPermissions.mockResolvedValue({ permissions: [], hasMore: false });
+    mocks.getUserPermissionSummary.mockResolvedValue({ permissions: [], hasMore: false });
     await page.getByRole('button', { name: 'Try Again' }).click();
     await expect.element(page.getByText('No active permissions are visible to you.')).toBeVisible();
   });
 
   it('loads another page and keeps inactive grants separate', async () => {
-    mocks.listPermissions
-      .mockResolvedValueOnce({ permissions: [entry('message.read', 'room')], hasMore: true })
+    mocks.getUserPermissionSummary
+      .mockResolvedValueOnce({
+        permissions: [entry('message.read', 'room')],
+        hasMore: true,
+        nextOffset: 1
+      })
       .mockResolvedValueOnce({
         permissions: [entry('message.post', 'room', false)],
         hasMore: false
@@ -154,12 +158,20 @@ describe('bot permission summary', () => {
     mounted = render(BotPermissionSummary, { botId: 'bot' });
     await page.getByRole('button', { name: 'Show more permissions' }).click();
     await expect.element(page.getByText('Inactive grants', { exact: true })).toBeVisible();
-    expect(mocks.listPermissions).toHaveBeenLastCalledWith('bot', 1, expect.any(AbortSignal));
+    expect(mocks.getUserPermissionSummary).toHaveBeenLastCalledWith(
+      'bot',
+      1,
+      expect.any(AbortSignal)
+    );
   });
 
   it('combines overlapping pages without duplicate bullets', async () => {
-    mocks.listPermissions
-      .mockResolvedValueOnce({ permissions: [entry('message.read', 'room')], hasMore: true })
+    mocks.getUserPermissionSummary
+      .mockResolvedValueOnce({
+        permissions: [entry('message.read', 'room')],
+        hasMore: true,
+        nextOffset: 1
+      })
       .mockResolvedValueOnce({
         permissions: [entry('message.read', 'room'), entry('message.post', 'dm')],
         hasMore: false
@@ -171,21 +183,25 @@ describe('bot permission summary', () => {
   });
 
   it('clears the previous bot while the next profile loads', async () => {
-    mocks.listPermissions.mockResolvedValueOnce({
+    mocks.getUserPermissionSummary.mockResolvedValueOnce({
       permissions: [entry('message.read', 'server')],
       hasMore: false
     });
     mounted = render(BotPermissionSummary, { botId: 'first' });
     await expect.element(page.getByText('Read all messages')).toBeVisible();
-    mocks.listPermissions.mockReturnValue(new Promise(() => {}));
+    mocks.getUserPermissionSummary.mockReturnValue(new Promise(() => {}));
     await mounted.rerender({ botId: 'second' });
     await expect.element(page.getByText('Loading...')).toBeVisible();
     expect(mounted.container.textContent).not.toContain('Read all messages');
-    expect(mocks.listPermissions).toHaveBeenLastCalledWith('second', 0, expect.any(AbortSignal));
+    expect(mocks.getUserPermissionSummary).toHaveBeenLastCalledWith(
+      'second',
+      0,
+      expect.any(AbortSignal)
+    );
   });
 
   it('uses plain descriptions for echoes and calls', async () => {
-    mocks.listPermissions.mockResolvedValue({
+    mocks.getUserPermissionSummary.mockResolvedValue({
       permissions: [entry('message.echo', 'room'), entry('call.start', 'room')],
       hasMore: false
     });
@@ -197,7 +213,7 @@ describe('bot permission summary', () => {
   it('renders German bot-specific descriptions', async () => {
     await loadLocaleMessages('de-DE');
     setReactiveLocale('de-DE');
-    mocks.listPermissions.mockResolvedValue({
+    mocks.getUserPermissionSummary.mockResolvedValue({
       permissions: [entry('message.read-interactions', 'room')],
       hasMore: false
     });
@@ -211,7 +227,7 @@ describe('bot permission summary', () => {
   });
 
   it('collapses the complete permission section and remembers the choice', async () => {
-    mocks.listPermissions.mockResolvedValue({
+    mocks.getUserPermissionSummary.mockResolvedValue({
       permissions: [entry('message.read', 'server')],
       hasMore: false
     });

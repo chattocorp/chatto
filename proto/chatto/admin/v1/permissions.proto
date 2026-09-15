@@ -101,7 +101,7 @@ message PermissionMatrixCell {
   string permission = 1;
   // Scope ID matching PermissionMatrixScope.id.
   string scope_id = 2;
-  // Explicit decision at this scope.
+  // Explicit decision at this scope; unspecified in a bot summary.
   PermissionDecision override = 3;
   // Effective decision at this scope.
   PermissionDecision effective = 4;
@@ -304,6 +304,13 @@ message GetUserPermissionMatrixRequest {
   // Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
   // SERVER and DM require an empty ID; GROUP and ROOM require an ID.
   PermissionScope scope = 4;
+  // Return a compact summary of configured bot grants. Bot targets only;
+  // any authenticated member may request this view. Equivalent scopes and
+  // included permissions are combined before scope filtering and pagination.
+  // Hidden rooms are omitted; inactive grants are returned only to bot managers.
+  // Cells contain ALLOW for active grants and NONE for inactive grants.
+  // Override and allow_permitted editing details are omitted.
+  bool summary = 5;
 }
 
 // Response containing one user's permission matrix.
@@ -312,6 +319,10 @@ message GetUserPermissionMatrixResponse {
   UserPermissionMatrix matrix = 1;
   // Total matching scopes and whether another scope page exists.
   chatto.api.v1.PageInfo page = 2;
+  // True when the server applied the requested bot summary view. Clients must
+  // check this before treating matrix cells as summary grants; older servers
+  // can ignore the request option and return a full management matrix instead.
+  optional bool summary = 3;
 }
 
 // Request to set one role permission state.
@@ -375,8 +386,11 @@ service AdminPermissionService {
   // role.manage. Returns NOT_FOUND when the role does not exist.
   rpc ListRolePermissionDecisions(ListRolePermissionDecisionsRequest) returns (ListRolePermissionDecisionsResponse);
   // Gets one page of a user's permission matrix. Human targets require
-  // user.manage-permissions; bot targets require ownership or bot.manage.
-  // Returns NOT_FOUND when the user does not exist.
+  // user.manage-permissions; full bot matrices require ownership or bot.manage.
+  // The summary view accepts any authenticated member for bot targets only.
+  // Clients should refresh visible summaries every 30 seconds and clear them
+  // when closed or when a read fails. Missing or non-bot summary targets return
+  // NOT_FOUND. Full reads return NOT_FOUND when the user does not exist.
   rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);
   // Lists one user's permission decisions as resource-oriented rows. Human
   // targets require user.manage-permissions; bot targets require ownership or

@@ -72,8 +72,11 @@ type AdminPermissionServiceClient interface {
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one page of a user's permission matrix. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage.
-	// Returns NOT_FOUND when the user does not exist.
+	// user.manage-permissions; full bot matrices require ownership or bot.manage.
+	// The summary view accepts any authenticated member for bot targets only.
+	// Clients should refresh visible summaries every 30 seconds and clear them
+	// when closed or when a read fails. Missing or non-bot summary targets return
+	// NOT_FOUND. Full reads return NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
 	// Lists one user's permission decisions as resource-oriented rows. Human
 	// targets require user.manage-permissions; bot targets require ownership or
@@ -221,8 +224,11 @@ type AdminPermissionServiceHandler interface {
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one page of a user's permission matrix. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage.
-	// Returns NOT_FOUND when the user does not exist.
+	// user.manage-permissions; full bot matrices require ownership or bot.manage.
+	// The summary view accepts any authenticated member for bot targets only.
+	// Clients should refresh visible summaries every 30 seconds and clear them
+	// when closed or when a read fails. Missing or non-bot summary targets return
+	// NOT_FOUND. Full reads return NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
 	// Lists one user's permission decisions as resource-oriented rows. Human
 	// targets require user.manage-permissions; bot targets require ownership or
