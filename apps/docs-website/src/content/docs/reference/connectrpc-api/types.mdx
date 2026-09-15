@@ -866,6 +866,18 @@ Current authenticated user's public profile plus self-only settings.
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
+<a id="chatto-api-v1-VerifiedEmail"></a>
+
+### VerifiedEmail
+
+One email address that the authenticated user has proved they control.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Normalized email address. |
+| `verified_at` | `google.protobuf.Timestamp` | Time at which the address was verified. |
+| `primary` | `bool` | Whether account-directed email is sent to this address. |
+
 <a id="chatto-api-v1-AssetUpload"></a>
 
 ### AssetUpload
@@ -1528,6 +1540,7 @@ admin/member metadata with visibility controlled by the service.
 | `viewer_can_delete_account` | `bool` | Whether the caller may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
+| `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
 
 <a id="chatto-admin-v1-OAuthClient"></a>
 

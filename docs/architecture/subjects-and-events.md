@@ -325,6 +325,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.custom_status_set`                       | `UserCustomStatusSetEvent`                          |
 | `evt.user.{userId}.custom_status_cleared`                   | `UserCustomStatusClearedEvent`                      |
 | `evt.user.{userId}.verified_email_added`                    | `UserVerifiedEmailAddedEvent`                       |
+| `evt.user.{userId}.primary_email_changed`                   | `UserPrimaryEmailChangedEvent`; references the selected verified-email event without duplicating user PII |
 | `evt.user.{userId}.password_hash_changed`                   | `UserPasswordHashChangedEvent`                      |
 | `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent` (legacy replay)        |
 | `evt.user.{userId}.external_identity_linked`                | `UserExternalIdentityLinkedEvent`                   |

@@ -46,6 +46,12 @@ export type ChangePasswordInput = {
   currentPassword?: string;
 };
 
+export type VerifiedEmail = {
+  email: string;
+  verifiedAt: string | null;
+  primary: boolean;
+};
+
 export function createAccountAPI(config: AccountAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
   const headers = () => authHeaders(config);
@@ -66,6 +72,32 @@ export function createAccountAPI(config: AccountAPIConfig) {
         { password: input.password, currentPassword: input.currentPassword },
         { headers: headers() }
       );
+    },
+
+    async listVerifiedEmails(expectedUserId: string): Promise<VerifiedEmail[]> {
+      const response = await client.listVerifiedEmails({ expectedUserId }, { headers: headers() });
+      return response.verifiedEmails.map(verifiedEmail);
+    },
+
+    async requestEmailVerification(expectedUserId: string, email: string): Promise<void> {
+      await client.requestEmailVerification({ email, expectedUserId }, { headers: headers() });
+    },
+
+    async confirmEmailVerification(
+      expectedUserId: string,
+      email: string,
+      code: string
+    ): Promise<VerifiedEmail[]> {
+      const response = await client.confirmEmailVerification(
+        { email, code, expectedUserId },
+        { headers: headers() }
+      );
+      return response.verifiedEmails.map(verifiedEmail);
+    },
+
+    async setPrimaryEmail(expectedUserId: string, email: string): Promise<VerifiedEmail[]> {
+      const response = await client.setPrimaryEmail({ email, expectedUserId }, { headers: headers() });
+      return response.verifiedEmails.map(verifiedEmail);
     },
 
     async updateSettings(input: UpdateSettingsInput): Promise<AccountUserSettings> {
@@ -95,6 +127,18 @@ export function createAccountAPI(config: AccountAPIConfig) {
       );
       return true;
     }
+  };
+}
+
+function verifiedEmail(value: {
+  email: string;
+  verifiedAt?: { toDate(): Date };
+  primary: boolean;
+}): VerifiedEmail {
+  return {
+    email: value.email,
+    verifiedAt: value.verifiedAt?.toDate().toISOString() ?? null,
+    primary: value.primary
   };
 }
 

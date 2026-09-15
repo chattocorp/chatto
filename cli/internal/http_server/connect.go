@@ -40,7 +40,7 @@ func (s *HTTPServer) newOperatorAPIServer() *http.Server {
 func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter) {
 	api := s.connectAPI
 	if api == nil {
-		api = connectapi.New(s.core, s.config, s.version, connectapi.WithMessageSearchProviderClient(search.NewClient(s.nc)))
+		api = connectapi.New(s.core, s.config, s.version, connectapi.WithMessageSearchProviderClient(search.NewClient(s.nc)), connectapi.WithEmailSender(s.mailer))
 		s.connectAPI = api
 	}
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptionsForWebserver(s.config.Webserver)...)

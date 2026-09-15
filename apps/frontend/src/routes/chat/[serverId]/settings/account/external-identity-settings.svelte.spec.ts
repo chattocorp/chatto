@@ -62,7 +62,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 const currentUser = {
-  user: { hasPassword: true }
+  user: { id: 'user-alice', hasPassword: true }
 } as unknown as CurrentUserState;
 
 async function settle(): Promise<void> {
@@ -72,9 +72,9 @@ async function settle(): Promise<void> {
   flushSync();
 }
 
-function renderSettings() {
+function renderSettings(user: CurrentUserState = currentUser) {
   return render(ExternalIdentitySettings, {
-    props: { currentUser, accountSettingsPath: '/chat/-/settings/account' }
+    props: { currentUser: user, accountSettingsPath: '/chat/-/settings/account' }
   });
 }
 
@@ -132,7 +132,7 @@ describe('external identity settings query lifecycle', () => {
   });
 
   it('purges the private snapshot with the server session', async () => {
-    const queryKey = settingsQueryKeys.externalIdentities('origin', connection);
+    const queryKey = settingsQueryKeys.externalIdentities('origin', connection, 'user-alice');
     const view = renderSettings();
     await settle();
     view.unmount();
@@ -140,6 +140,33 @@ describe('external identity settings query lifecycle', () => {
     removeRegisteredServerQueries('origin');
 
     expect(queryClient.getQueryData(queryKey)).toBeUndefined();
+  });
+
+  it('does not reuse a private snapshot for another authenticated user', async () => {
+    let resolveBob!: (result: ReturnType<typeof linkedIdentityList>) => void;
+    mocks.list
+      .mockResolvedValueOnce(linkedIdentityList())
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof linkedIdentityList>>(
+            (resolve) => (resolveBob = resolve)
+          )
+      );
+
+    const aliceView = renderSettings();
+    await settle();
+    expect(aliceView.container.textContent).toContain('GitHub');
+    aliceView.unmount();
+
+    const bob = {
+      user: { id: 'user-bob', hasPassword: true }
+    } as unknown as CurrentUserState;
+    const bobView = renderSettings(bob);
+    await settle();
+
+    expect(bobView.container.textContent).not.toContain('GitHub');
+    resolveBob({ providers: [], linkedIdentities: [] });
+    await settle();
   });
 
   it('preserves the existing sign-out flow after a successful disconnect', async () => {

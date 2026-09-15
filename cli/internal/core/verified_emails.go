@@ -18,11 +18,6 @@ import (
 // Email Verification Constants and Errors
 // ============================================================================
 
-const (
-	// EmailVerificationCodeTTL is the duration a verification code is valid.
-	EmailVerificationCodeTTL = 15 * time.Minute
-)
-
 var (
 	// ErrTokenNotFound is returned when the verification code doesn't exist or has expired.
 	ErrTokenNotFound = errors.New("verification code not found or expired")
@@ -63,6 +58,7 @@ type EmailVerificationCode struct {
 type VerifiedEmail struct {
 	Email      string    `json:"email"`
 	VerifiedAt time.Time `json:"verified_at"`
+	Primary    bool      `json:"primary"`
 }
 
 // ============================================================================
@@ -326,6 +322,68 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 // GetVerifiedEmails returns all verified emails for a user from the user projection.
 func (c *ChattoCore) GetVerifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
 	return c.userModel.verifiedEmails(ctx, userID)
+}
+
+// SetPrimaryVerifiedEmail selects one verified address for account-directed
+// email. The command is idempotent when the address is already primary.
+func (c *ChattoCore) SetPrimaryVerifiedEmail(ctx context.Context, userID, email string) error {
+	if strings.TrimSpace(userID) == "" {
+		return ErrInvalidArgument
+	}
+	if err := c.userModel.waitForUsersCurrent(ctx, "primary verified email", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
+		return fmt.Errorf("wait for verified email state: %w", err)
+	}
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return ErrInvalidArgument
+	}
+	eventID, ok := c.userModel.users.Projection().verifiedEmailEventID(userID, email)
+	if !ok {
+		return fmt.Errorf("%w: verified email", ErrNotFound)
+	}
+	if c.userModel.users.Projection().primaryVerifiedEmailEventID(userID) == eventID {
+		return nil
+	}
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserPrimaryEmailChanged{
+		UserPrimaryEmailChanged: &evtv1.UserPrimaryEmailChangedEvent{
+			UserId:               userID,
+			VerifiedEmailEventId: eventID,
+		},
+	}})
+	_, err := c.appendUserEvent(ctx, userID, event, "", func() error {
+		currentEventID, found := c.userModel.users.Projection().verifiedEmailEventID(userID, email)
+		if !found || currentEventID != eventID {
+			return fmt.Errorf("%w: verified email", ErrNotFound)
+		}
+		if c.userModel.users.Projection().primaryVerifiedEmailEventID(userID) == eventID {
+			return errVerifiedEmailNoop
+		}
+		return nil
+	})
+	if errors.Is(err, errVerifiedEmailNoop) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("set primary verified email: %w", err)
+	}
+	return nil
+}
+
+// PrimaryVerifiedEmail returns the address selected for account-directed email.
+func (c *ChattoCore) PrimaryVerifiedEmail(ctx context.Context, userID string) (VerifiedEmail, bool, error) {
+	emails, err := c.GetVerifiedEmails(ctx, userID)
+	if err != nil {
+		return VerifiedEmail{}, false, err
+	}
+	for _, email := range emails {
+		if email.Primary {
+			return email, true, nil
+		}
+	}
+	return VerifiedEmail{}, false, nil
 }
 
 // HasVerifiedEmail checks if a user has at least one verified email.

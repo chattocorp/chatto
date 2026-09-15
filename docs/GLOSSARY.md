@@ -78,6 +78,11 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Bot incoming webhook** — Named HTTP credential that allows an external system to post a message as a bot. A bot can have multiple incoming webhooks. Chatto shows each action-limited URL only when it creates that webhook. A manager replaces a webhook when the manager creates a new one, moves the caller, and revokes the old one. Each webhook has independent revocation and last-use metadata. It cannot authenticate the normal API or realtime connection. See [FDR-038](fdr/FDR-038-bot-accounts.md) and [ADR-083](adr/ADR-083-action-limited-bot-incoming-webhooks.md).
 
+**Primary email** — The verified email that a user selects for
+account-directed email. The first verified email becomes primary, and adding
+another address does not change the selection. See
+[FDR-018](fdr/FDR-018-account-lifecycle.md).
+
 **Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
 
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).

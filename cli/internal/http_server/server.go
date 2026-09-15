@@ -143,7 +143,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		nc:               cfg.NC,
 		router:           router,
 		core:             cfg.Core,
-		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version, connectapi.WithMessageSearchProviderClient(search.NewClient(cfg.NC))),
+		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version, connectapi.WithMessageSearchProviderClient(search.NewClient(cfg.NC)), connectapi.WithEmailSender(mailer)),
 		mailer:           mailer,
 		mockMailer:       mockMailer,
 		addr:             cfg.Addr,

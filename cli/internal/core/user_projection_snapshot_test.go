@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"testing"
@@ -118,6 +119,41 @@ func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *
 	require.NoError(t, cold.Apply(created, 2))
 	require.NoError(t, cold.Apply(tail, 3))
 	require.Equal(t, cold.Users(), restored.Users())
+}
+
+func TestUserProjectionSnapshotPreservesPrimaryVerifiedEmail(t *testing.T) {
+	original, contentKey := newEncryptedUserProjection(t, "U1")
+	createdAt := time.Date(2026, 9, 14, 8, 0, 0, 0, time.UTC)
+	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
+
+	// Two encrypted email facts establish the list. A later selection event
+	// references the second fact and must survive snapshot restore.
+	for index, address := range []string{"first@example.com", "second@example.com"} {
+		eventID := fmt.Sprintf("E%d", index+2)
+		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, "U1", evtstream.EventUserVerifiedEmailAdded, "email", address)
+		require.NoError(t, err)
+		require.NoError(t, original.Apply(userEvent(eventID, createdAt.Add(time.Duration(index+1)*time.Minute), &evtv1.Event{
+			Event: &evtv1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
+				UserId: "U1", EncryptedEmail: encryptedEmail,
+			}},
+		}), uint64(index+3)))
+	}
+	require.NoError(t, original.Apply(userEvent("E4", createdAt.Add(3*time.Minute), &evtv1.Event{
+		Event: &evtv1.Event_UserPrimaryEmailChanged{UserPrimaryEmailChanged: &evtv1.UserPrimaryEmailChangedEvent{
+			UserId: "U1", VerifiedEmailEventId: "E3",
+		}},
+	}), 5))
+
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	restored := NewUserProjection(staticProjectionKeyWrapper{key: contentKey.key}, staticProjectionDEKStore{})
+	require.NoError(t, restored.Restore(payload))
+	emails, err := restored.VerifiedEmailsContext(context.Background(), "U1")
+	require.NoError(t, err)
+	require.Len(t, emails, 2)
+	require.False(t, emails[0].Primary)
+	require.Equal(t, "second@example.com", emails[1].Email)
+	require.True(t, emails[1].Primary)
 }
 
 func TestUserProjectionSnapshotPreservesCanonicalOwnersForDuplicateDigests(t *testing.T) {

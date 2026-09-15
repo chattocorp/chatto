@@ -1530,6 +1530,151 @@ Result of updating or adding the authenticated account password.
 | `user` | [`User`](#chatto-api-v1-User) | Current authenticated user profile after the password update. |
 
 
+<a id="chatto-api-v1-MyAccountService-ListVerifiedEmails"></a>
+
+### ListVerifiedEmails
+
+Lists the authenticated user's verified email addresses and primary choice.
+Returns FAILED_PRECONDITION when the authenticated account does not match
+expected_user_id.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/ListVerifiedEmails
+```
+
+<a id="chatto-api-v1-ListVerifiedEmailsRequest"></a>
+
+#### Input: ListVerifiedEmailsRequest
+
+Request the authenticated user's verified email addresses. expected_user_id
+binds the request to the account state that the client currently displays.
+The server returns FAILED_PRECONDITION if the authenticated account changed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `expected_user_id` | `string` | User ID that the client expects to be authenticated. |
+
+
+<a id="chatto-api-v1-ListVerifiedEmailsResponse"></a>
+
+#### Result: ListVerifiedEmailsResponse
+
+Verified email addresses for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `verified_emails` | repeated [`VerifiedEmail`](#chatto-api-v1-VerifiedEmail) | No field description provided. |
+
+
+<a id="chatto-api-v1-MyAccountService-RequestEmailVerification"></a>
+
+### RequestEmailVerification
+
+Sends a six-digit code to an email address that the authenticated user
+wants to add. The code expires after the server-configured email OTP
+lifetime. The client can request a new code after expiry. The server must
+have transactional email enabled. Returns ALREADY_EXISTS when the address
+is already verified for the user, RESOURCE_EXHAUSTED after too many code
+requests or attempts, and UNAVAILABLE when email delivery is disabled or
+fails. Returns FAILED_PRECONDITION when the authenticated account does not
+match expected_user_id.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/RequestEmailVerification
+```
+
+<a id="chatto-api-v1-RequestEmailVerificationRequest"></a>
+
+#### Input: RequestEmailVerificationRequest
+
+Request a short-lived verification code for an email address.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | New address to verify and add to the authenticated user's account. |
+| `expected_user_id` | `string` | User ID that the client expects to be authenticated. |
+
+
+<a id="chatto-api-v1-RequestEmailVerificationResponse"></a>
+
+#### Result: RequestEmailVerificationResponse
+
+Result of requesting an email verification code.
+
+
+<a id="chatto-api-v1-MyAccountService-ConfirmEmailVerification"></a>
+
+### ConfirmEmailVerification
+
+Confirms a verification code and adds the address to the account. Returns
+INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
+when another user already controls the address. Returns FAILED_PRECONDITION
+when the authenticated account does not match expected_user_id.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/ConfirmEmailVerification
+```
+
+<a id="chatto-api-v1-ConfirmEmailVerificationRequest"></a>
+
+#### Input: ConfirmEmailVerificationRequest
+
+Confirm control of an email address with a verification code.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Address that received the verification code. |
+| `code` | `string` | Six-digit code that the server sent to the address. |
+| `expected_user_id` | `string` | User ID that the client expects to be authenticated. |
+
+
+<a id="chatto-api-v1-ConfirmEmailVerificationResponse"></a>
+
+#### Result: ConfirmEmailVerificationResponse
+
+Verified email addresses after a successful confirmation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `verified_emails` | repeated [`VerifiedEmail`](#chatto-api-v1-VerifiedEmail) | No field description provided. |
+
+
+<a id="chatto-api-v1-MyAccountService-SetPrimaryEmail"></a>
+
+### SetPrimaryEmail
+
+Selects one verified address for future account-directed email. Returns
+NOT_FOUND when the address is not verified for the authenticated user, and
+FAILED_PRECONDITION when the authenticated account does not match
+expected_user_id.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/SetPrimaryEmail
+```
+
+<a id="chatto-api-v1-SetPrimaryEmailRequest"></a>
+
+#### Input: SetPrimaryEmailRequest
+
+Select a verified email for account-directed email.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Verified address to select as primary. |
+| `expected_user_id` | `string` | User ID that the client expects to be authenticated. |
+
+
+<a id="chatto-api-v1-SetPrimaryEmailResponse"></a>
+
+#### Result: SetPrimaryEmailResponse
+
+Verified email addresses after the primary address changes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `verified_emails` | repeated [`VerifiedEmail`](#chatto-api-v1-VerifiedEmail) | No field description provided. |
+
+
 <a id="chatto-api-v1-MyAccountService-GetSettings"></a>
 
 ### GetSettings
@@ -5426,6 +5571,20 @@ Current authenticated user's public profile plus self-only settings.
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+
+
+
+<a id="chatto-api-v1-VerifiedEmail"></a>
+
+### VerifiedEmail
+
+One email address that the authenticated user has proved they control.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Normalized email address. |
+| `verified_at` | `google.protobuf.Timestamp` | Time at which the address was verified. |
+| `primary` | `bool` | Whether account-directed email is sent to this address. |
 
 
 

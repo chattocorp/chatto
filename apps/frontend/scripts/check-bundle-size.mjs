@@ -17,10 +17,10 @@ const routes = [
   },
   {
     name: 'overview',
-    // Protocol 4 includes the canonical Event catalogue in the authenticated
-    // realtime decoder. Keep five KiB of measured headroom for that public
-    // schema while the larger room route stays below its existing budget.
-    budgetKiB: 330,
+    // The authenticated shell includes the complete Event and MyAccountService
+    // descriptors. Keep at least five KiB of measured headroom for these public
+    // schemas while the larger room route stays below its existing budget.
+    budgetKiB: 337,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',

@@ -44,9 +44,12 @@ type AdminMember struct {
 	// Last self-service username change, when visible and known.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
 	// Public identity fields for this user.
-	User          *v1.User `protobuf:"bytes,12,opt,name=user,proto3" json:"user,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	User *v1.User `protobuf:"bytes,12,opt,name=user,proto3" json:"user,omitempty"`
+	// Selected primary verified email visible to the caller. Absence can mean
+	// that no primary email exists or that the field is not visible.
+	PrimaryVerifiedEmail *string `protobuf:"bytes,13,opt,name=primary_verified_email,json=primaryVerifiedEmail,proto3,oneof" json:"primary_verified_email,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *AdminMember) Reset() {
@@ -126,6 +129,13 @@ func (x *AdminMember) GetUser() *v1.User {
 		return x.User
 	}
 	return nil
+}
+
+func (x *AdminMember) GetPrimaryVerifiedEmail() string {
+	if x != nil && x.PrimaryVerifiedEmail != nil {
+		return *x.PrimaryVerifiedEmail
+	}
+	return ""
 }
 
 // Request server-admin member rows.
@@ -1164,7 +1174,7 @@ var File_chatto_admin_v1_members_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/admin/v1/members.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x03\n" +
+	"\x1dchatto/admin/v1/members.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x03\n" +
 	"\vAdminMember\x12\x14\n" +
 	"\x05roles\x18\x05 \x03(\tR\x05roles\x129\n" +
 	"\n" +
@@ -1174,7 +1184,9 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x19viewer_can_delete_account\x18\n" +
 	" \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12'\n" +
-	"\x04user\x18\f \x01(\v2\x13.chatto.api.v1.UserR\x04userJ\x04\b\x01\x10\x05J\x04\b\a\x10\bR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"\x04user\x18\f \x01(\v2\x13.chatto.api.v1.UserR\x04user\x129\n" +
+	"\x16primary_verified_email\x18\r \x01(\tH\x00R\x14primaryVerifiedEmail\x88\x01\x01B\x19\n" +
+	"\x17_primary_verified_emailJ\x04\b\x01\x10\x05J\x04\b\a\x10\bR\x02idR\x05loginR\fdisplay_nameR\n" +
 	"avatar_urlR\adeleted\"w\n" +
 	"\x12ListMembersRequest\x12\x16\n" +
 	"\x06search\x18\x01 \x01(\tR\x06search\x12.\n" +
@@ -1342,6 +1354,7 @@ func file_chatto_admin_v1_members_proto_init() {
 		return
 	}
 	file_chatto_admin_v1_roles_proto_init()
+	file_chatto_admin_v1_members_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_admin_v1_members_proto_msgTypes[3].OneofWrappers = []any{
 		(*GetMemberRequest_UserId)(nil),
 		(*GetMemberRequest_Login)(nil),

@@ -17,8 +17,6 @@ and supplies an optional row-navigation callback.
     id: string;
     login: string;
     displayName: string;
-    hasVerifiedEmail?: boolean;
-    verifiedEmails?: string[];
   };
 
   let {
@@ -68,7 +66,7 @@ and supplies an optional row-navigation callback.
 {:else}
   <DataTable
     items={users}
-    columns={4}
+    columns={3}
     {emptyMessage}
     {hasMore}
     {loadingMore}
@@ -79,23 +77,11 @@ and supplies an optional row-navigation callback.
     {#snippet header()}
       <th class="table-header-cell">{m('admin.users.login')}</th>
       <th class="table-header-cell">{m('admin.users.display_name')}</th>
-      <th class="table-header-cell">{m('admin.users.email')}</th>
       <th class="table-header-cell">{m('admin.users.id')}</th>
     {/snippet}
     {#snippet row(user: User)}
       <td class="px-4 py-3 font-medium">{user.login}</td>
       <td class="px-4 py-3">{user.displayName}</td>
-      <td class="px-4 py-3 text-muted">
-        {#if user.verifiedEmails && user.verifiedEmails.length > 0}
-          <span class="flex items-center gap-1">
-            <span class="iconify icon-[uil--check-circle] text-success"></span>
-            {user.verifiedEmails[0]}
-            {#if user.verifiedEmails.length > 1}
-              <span class="text-xs">+{user.verifiedEmails.length - 1}</span>
-            {/if}
-          </span>
-        {/if}
-      </td>
       <td class="px-4 py-3 text-muted"><CopyId value={user.id} /></td>
     {/snippet}
   </DataTable>

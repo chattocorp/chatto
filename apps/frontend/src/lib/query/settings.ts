@@ -6,10 +6,21 @@ function settingsRoot(serverId: string, connection: SettingsQueryConnection) {
   return ['server', serverId, 'session', connection.queryScope, 'settings'] as const;
 }
 
+function accountSettingsRoot(
+  serverId: string,
+  connection: SettingsQueryConnection,
+  userId: string
+) {
+  return [...settingsRoot(serverId, connection), 'account', userId] as const;
+}
+
 export const settingsQueryKeys = {
   root: settingsRoot,
-  externalIdentities(serverId: string, connection: SettingsQueryConnection) {
-    return [...settingsRoot(serverId, connection), 'external-identities'] as const;
+  externalIdentities(serverId: string, connection: SettingsQueryConnection, userId: string) {
+    return [...accountSettingsRoot(serverId, connection, userId), 'external-identities'] as const;
+  },
+  verifiedEmails(serverId: string, connection: SettingsQueryConnection, userId: string) {
+    return [...accountSettingsRoot(serverId, connection, userId), 'verified-emails'] as const;
   },
   botsRoot(serverId: string, connection: SettingsQueryConnection) {
     return [...settingsRoot(serverId, connection), 'bots'] as const;

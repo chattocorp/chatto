@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -252,6 +253,464 @@ func (x *ChangePasswordResponse) GetUser() *User {
 	return nil
 }
 
+// One email address that the authenticated user has proved they control.
+type VerifiedEmail struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Normalized email address.
+	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	// Time at which the address was verified.
+	VerifiedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=verified_at,json=verifiedAt,proto3" json:"verified_at,omitempty"`
+	// Whether account-directed email is sent to this address.
+	Primary       bool `protobuf:"varint,3,opt,name=primary,proto3" json:"primary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifiedEmail) Reset() {
+	*x = VerifiedEmail{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifiedEmail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifiedEmail) ProtoMessage() {}
+
+func (x *VerifiedEmail) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifiedEmail.ProtoReflect.Descriptor instead.
+func (*VerifiedEmail) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *VerifiedEmail) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *VerifiedEmail) GetVerifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.VerifiedAt
+	}
+	return nil
+}
+
+func (x *VerifiedEmail) GetPrimary() bool {
+	if x != nil {
+		return x.Primary
+	}
+	return false
+}
+
+// Request the authenticated user's verified email addresses. expected_user_id
+// binds the request to the account state that the client currently displays.
+// The server returns FAILED_PRECONDITION if the authenticated account changed.
+type ListVerifiedEmailsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,1,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListVerifiedEmailsRequest) Reset() {
+	*x = ListVerifiedEmailsRequest{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVerifiedEmailsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVerifiedEmailsRequest) ProtoMessage() {}
+
+func (x *ListVerifiedEmailsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVerifiedEmailsRequest.ProtoReflect.Descriptor instead.
+func (*ListVerifiedEmailsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListVerifiedEmailsRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
+	}
+	return ""
+}
+
+// Verified email addresses for the authenticated user.
+type ListVerifiedEmailsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VerifiedEmails []*VerifiedEmail       `protobuf:"bytes,1,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListVerifiedEmailsResponse) Reset() {
+	*x = ListVerifiedEmailsResponse{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVerifiedEmailsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVerifiedEmailsResponse) ProtoMessage() {}
+
+func (x *ListVerifiedEmailsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVerifiedEmailsResponse.ProtoReflect.Descriptor instead.
+func (*ListVerifiedEmailsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListVerifiedEmailsResponse) GetVerifiedEmails() []*VerifiedEmail {
+	if x != nil {
+		return x.VerifiedEmails
+	}
+	return nil
+}
+
+// Request a short-lived verification code for an email address.
+type RequestEmailVerificationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// New address to verify and add to the authenticated user's account.
+	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,2,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RequestEmailVerificationRequest) Reset() {
+	*x = RequestEmailVerificationRequest{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestEmailVerificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestEmailVerificationRequest) ProtoMessage() {}
+
+func (x *RequestEmailVerificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestEmailVerificationRequest.ProtoReflect.Descriptor instead.
+func (*RequestEmailVerificationRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RequestEmailVerificationRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *RequestEmailVerificationRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
+	}
+	return ""
+}
+
+// Result of requesting an email verification code.
+type RequestEmailVerificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestEmailVerificationResponse) Reset() {
+	*x = RequestEmailVerificationResponse{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestEmailVerificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestEmailVerificationResponse) ProtoMessage() {}
+
+func (x *RequestEmailVerificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestEmailVerificationResponse.ProtoReflect.Descriptor instead.
+func (*RequestEmailVerificationResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{8}
+}
+
+// Confirm control of an email address with a verification code.
+type ConfirmEmailVerificationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Address that received the verification code.
+	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	// Six-digit code that the server sent to the address.
+	Code string `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,3,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConfirmEmailVerificationRequest) Reset() {
+	*x = ConfirmEmailVerificationRequest{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmEmailVerificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmEmailVerificationRequest) ProtoMessage() {}
+
+func (x *ConfirmEmailVerificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmEmailVerificationRequest.ProtoReflect.Descriptor instead.
+func (*ConfirmEmailVerificationRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ConfirmEmailVerificationRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *ConfirmEmailVerificationRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ConfirmEmailVerificationRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
+	}
+	return ""
+}
+
+// Verified email addresses after a successful confirmation.
+type ConfirmEmailVerificationResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VerifiedEmails []*VerifiedEmail       `protobuf:"bytes,1,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConfirmEmailVerificationResponse) Reset() {
+	*x = ConfirmEmailVerificationResponse{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmEmailVerificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmEmailVerificationResponse) ProtoMessage() {}
+
+func (x *ConfirmEmailVerificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmEmailVerificationResponse.ProtoReflect.Descriptor instead.
+func (*ConfirmEmailVerificationResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ConfirmEmailVerificationResponse) GetVerifiedEmails() []*VerifiedEmail {
+	if x != nil {
+		return x.VerifiedEmails
+	}
+	return nil
+}
+
+// Select a verified email for account-directed email.
+type SetPrimaryEmailRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Verified address to select as primary.
+	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,2,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SetPrimaryEmailRequest) Reset() {
+	*x = SetPrimaryEmailRequest{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPrimaryEmailRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPrimaryEmailRequest) ProtoMessage() {}
+
+func (x *SetPrimaryEmailRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPrimaryEmailRequest.ProtoReflect.Descriptor instead.
+func (*SetPrimaryEmailRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SetPrimaryEmailRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *SetPrimaryEmailRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
+	}
+	return ""
+}
+
+// Verified email addresses after the primary address changes.
+type SetPrimaryEmailResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VerifiedEmails []*VerifiedEmail       `protobuf:"bytes,1,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SetPrimaryEmailResponse) Reset() {
+	*x = SetPrimaryEmailResponse{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPrimaryEmailResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPrimaryEmailResponse) ProtoMessage() {}
+
+func (x *SetPrimaryEmailResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPrimaryEmailResponse.ProtoReflect.Descriptor instead.
+func (*SetPrimaryEmailResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SetPrimaryEmailResponse) GetVerifiedEmails() []*VerifiedEmail {
+	if x != nil {
+		return x.VerifiedEmails
+	}
+	return nil
+}
+
 // Request the authenticated user's display preferences. Human and bot accounts
 // use the same operation; no target account ID is accepted.
 type GetSettingsRequest struct {
@@ -262,7 +721,7 @@ type GetSettingsRequest struct {
 
 func (x *GetSettingsRequest) Reset() {
 	*x = GetSettingsRequest{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -274,7 +733,7 @@ func (x *GetSettingsRequest) String() string {
 func (*GetSettingsRequest) ProtoMessage() {}
 
 func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -287,7 +746,7 @@ func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{13}
 }
 
 // Current display preferences, with defaults for settings not yet saved.
@@ -301,7 +760,7 @@ type GetSettingsResponse struct {
 
 func (x *GetSettingsResponse) Reset() {
 	*x = GetSettingsResponse{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -313,7 +772,7 @@ func (x *GetSettingsResponse) String() string {
 func (*GetSettingsResponse) ProtoMessage() {}
 
 func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -326,7 +785,7 @@ func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetSettingsResponse) GetSettings() *UserSettings {
@@ -357,7 +816,7 @@ type UpdateSettingsRequest struct {
 
 func (x *UpdateSettingsRequest) Reset() {
 	*x = UpdateSettingsRequest{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -369,7 +828,7 @@ func (x *UpdateSettingsRequest) String() string {
 func (*UpdateSettingsRequest) ProtoMessage() {}
 
 func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -382,7 +841,7 @@ func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdateSettingsRequest) GetTimezone() string {
@@ -424,7 +883,7 @@ type UpdateSettingsResponse struct {
 
 func (x *UpdateSettingsResponse) Reset() {
 	*x = UpdateSettingsResponse{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -436,7 +895,7 @@ func (x *UpdateSettingsResponse) String() string {
 func (*UpdateSettingsResponse) ProtoMessage() {}
 
 func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -449,7 +908,7 @@ func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateSettingsResponse) GetSettings() *UserSettings {
@@ -469,7 +928,7 @@ type RequestAccountDeletionRequest struct {
 
 func (x *RequestAccountDeletionRequest) Reset() {
 	*x = RequestAccountDeletionRequest{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +940,7 @@ func (x *RequestAccountDeletionRequest) String() string {
 func (*RequestAccountDeletionRequest) ProtoMessage() {}
 
 func (x *RequestAccountDeletionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +953,7 @@ func (x *RequestAccountDeletionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestAccountDeletionRequest.ProtoReflect.Descriptor instead.
 func (*RequestAccountDeletionRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{17}
 }
 
 // Result of issuing an account deletion confirmation token.
@@ -508,7 +967,7 @@ type RequestAccountDeletionResponse struct {
 
 func (x *RequestAccountDeletionResponse) Reset() {
 	*x = RequestAccountDeletionResponse{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -520,7 +979,7 @@ func (x *RequestAccountDeletionResponse) String() string {
 func (*RequestAccountDeletionResponse) ProtoMessage() {}
 
 func (x *RequestAccountDeletionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -533,7 +992,7 @@ func (x *RequestAccountDeletionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestAccountDeletionResponse.ProtoReflect.Descriptor instead.
 func (*RequestAccountDeletionResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RequestAccountDeletionResponse) GetConfirmationToken() string {
@@ -554,7 +1013,7 @@ type DeleteMyAccountRequest struct {
 
 func (x *DeleteMyAccountRequest) Reset() {
 	*x = DeleteMyAccountRequest{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +1025,7 @@ func (x *DeleteMyAccountRequest) String() string {
 func (*DeleteMyAccountRequest) ProtoMessage() {}
 
 func (x *DeleteMyAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +1038,7 @@ func (x *DeleteMyAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMyAccountRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMyAccountRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteMyAccountRequest) GetConfirmationToken() string {
@@ -598,7 +1057,7 @@ type DeleteMyAccountResponse struct {
 
 func (x *DeleteMyAccountResponse) Reset() {
 	*x = DeleteMyAccountResponse{}
-	mi := &file_chatto_api_v1_account_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -610,7 +1069,7 @@ func (x *DeleteMyAccountResponse) String() string {
 func (*DeleteMyAccountResponse) ProtoMessage() {}
 
 func (x *DeleteMyAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_account_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -623,14 +1082,14 @@ func (x *DeleteMyAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMyAccountResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMyAccountResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{20}
 }
 
 var File_chatto_api_v1_account_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/api/v1/account.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1achatto/api/v1/viewer.proto\"\xf0\x01\n" +
+	"\x1bchatto/api/v1/account.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1achatto/api/v1/viewer.proto\"\xf0\x01\n" +
 	"\x14UpdateProfileRequest\x121\n" +
 	"\fdisplay_name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 H\x00R\vdisplayName\x88\x01\x01\x12$\n" +
 	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x02\x18 H\x01R\x05login\x88\x01\x01\x12\x1f\n" +
@@ -647,7 +1106,34 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\b\x18\x80\x01R\bpassword\x123\n" +
 	"\x10current_password\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0fcurrentPassword\"A\n" +
 	"\x16ChangePasswordResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\x14\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"|\n" +
+	"\rVerifiedEmail\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12;\n" +
+	"\vverified_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"verifiedAt\x12\x18\n" +
+	"\aprimary\x18\x03 \x01(\bR\aprimary\"N\n" +
+	"\x19ListVerifiedEmailsRequest\x121\n" +
+	"\x10expected_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"c\n" +
+	"\x1aListVerifiedEmailsResponse\x12E\n" +
+	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"v\n" +
+	"\x1fRequestEmailVerificationRequest\x12 \n" +
+	"\x05email\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\x121\n" +
+	"\x10expected_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"\"\n" +
+	" RequestEmailVerificationResponse\"\x95\x01\n" +
+	"\x1fConfirmEmailVerificationRequest\x12 \n" +
+	"\x05email\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\x12\x1d\n" +
+	"\x04code\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x04code\x121\n" +
+	"\x10expected_user_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"i\n" +
+	" ConfirmEmailVerificationResponse\x12E\n" +
+	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"m\n" +
+	"\x16SetPrimaryEmailRequest\x12 \n" +
+	"\x05email\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\x121\n" +
+	"\x10expected_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"`\n" +
+	"\x17SetPrimaryEmailResponse\x12E\n" +
+	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"\x14\n" +
 	"\x12GetSettingsRequest\"N\n" +
 	"\x13GetSettingsResponse\x127\n" +
 	"\bsettings\x18\x01 \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\"\x9c\x02\n" +
@@ -668,10 +1154,14 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"G\n" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"(\n" +
-	"\x17DeleteMyAccountResponseJ\x04\b\x01\x10\x02R\adeleted2\xfe\t\n" +
+	"\x17DeleteMyAccountResponseJ\x04\b\x01\x10\x02R\adeleted2\xca\r\n" +
 	"\x10MyAccountService\x12Z\n" +
 	"\rUpdateProfile\x12#.chatto.api.v1.UpdateProfileRequest\x1a$.chatto.api.v1.UpdateProfileResponse\x12]\n" +
-	"\x0eChangePassword\x12$.chatto.api.v1.ChangePasswordRequest\x1a%.chatto.api.v1.ChangePasswordResponse\x12T\n" +
+	"\x0eChangePassword\x12$.chatto.api.v1.ChangePasswordRequest\x1a%.chatto.api.v1.ChangePasswordResponse\x12n\n" +
+	"\x12ListVerifiedEmails\x12(.chatto.api.v1.ListVerifiedEmailsRequest\x1a).chatto.api.v1.ListVerifiedEmailsResponse\"\x03\x90\x02\x01\x12{\n" +
+	"\x18RequestEmailVerification\x12..chatto.api.v1.RequestEmailVerificationRequest\x1a/.chatto.api.v1.RequestEmailVerificationResponse\x12{\n" +
+	"\x18ConfirmEmailVerification\x12..chatto.api.v1.ConfirmEmailVerificationRequest\x1a/.chatto.api.v1.ConfirmEmailVerificationResponse\x12`\n" +
+	"\x0fSetPrimaryEmail\x12%.chatto.api.v1.SetPrimaryEmailRequest\x1a&.chatto.api.v1.SetPrimaryEmailResponse\x12T\n" +
 	"\vGetSettings\x12!.chatto.api.v1.GetSettingsRequest\x1a\".chatto.api.v1.GetSettingsResponse\x12]\n" +
 	"\x0eUpdateSettings\x12$.chatto.api.v1.UpdateSettingsRequest\x1a%.chatto.api.v1.UpdateSettingsResponse\x12u\n" +
 	"\x16ListExternalIdentities\x12,.chatto.api.v1.ListExternalIdentitiesRequest\x1a-.chatto.api.v1.ListExternalIdentitiesResponse\x12~\n" +
@@ -696,74 +1186,96 @@ func file_chatto_api_v1_account_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_account_proto_rawDescData
 }
 
-var file_chatto_api_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_chatto_api_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_chatto_api_v1_account_proto_goTypes = []any{
 	(*UpdateProfileRequest)(nil),               // 0: chatto.api.v1.UpdateProfileRequest
 	(*UpdateProfileResponse)(nil),              // 1: chatto.api.v1.UpdateProfileResponse
 	(*ChangePasswordRequest)(nil),              // 2: chatto.api.v1.ChangePasswordRequest
 	(*ChangePasswordResponse)(nil),             // 3: chatto.api.v1.ChangePasswordResponse
-	(*GetSettingsRequest)(nil),                 // 4: chatto.api.v1.GetSettingsRequest
-	(*GetSettingsResponse)(nil),                // 5: chatto.api.v1.GetSettingsResponse
-	(*UpdateSettingsRequest)(nil),              // 6: chatto.api.v1.UpdateSettingsRequest
-	(*UpdateSettingsResponse)(nil),             // 7: chatto.api.v1.UpdateSettingsResponse
-	(*RequestAccountDeletionRequest)(nil),      // 8: chatto.api.v1.RequestAccountDeletionRequest
-	(*RequestAccountDeletionResponse)(nil),     // 9: chatto.api.v1.RequestAccountDeletionResponse
-	(*DeleteMyAccountRequest)(nil),             // 10: chatto.api.v1.DeleteMyAccountRequest
-	(*DeleteMyAccountResponse)(nil),            // 11: chatto.api.v1.DeleteMyAccountResponse
-	(*fieldmaskpb.FieldMask)(nil),              // 12: google.protobuf.FieldMask
-	(*User)(nil),                               // 13: chatto.api.v1.User
-	(*UserSettings)(nil),                       // 14: chatto.api.v1.UserSettings
-	(TimeFormat)(0),                            // 15: chatto.api.v1.TimeFormat
-	(*ListExternalIdentitiesRequest)(nil),      // 16: chatto.api.v1.ListExternalIdentitiesRequest
-	(*StartExternalIdentityLinkRequest)(nil),   // 17: chatto.api.v1.StartExternalIdentityLinkRequest
-	(*DisconnectExternalIdentityRequest)(nil),  // 18: chatto.api.v1.DisconnectExternalIdentityRequest
-	(*SetPresenceRequest)(nil),                 // 19: chatto.api.v1.SetPresenceRequest
-	(*SetCustomStatusRequest)(nil),             // 20: chatto.api.v1.SetCustomStatusRequest
-	(*DeleteCustomStatusRequest)(nil),          // 21: chatto.api.v1.DeleteCustomStatusRequest
-	(*ListExternalIdentitiesResponse)(nil),     // 22: chatto.api.v1.ListExternalIdentitiesResponse
-	(*StartExternalIdentityLinkResponse)(nil),  // 23: chatto.api.v1.StartExternalIdentityLinkResponse
-	(*DisconnectExternalIdentityResponse)(nil), // 24: chatto.api.v1.DisconnectExternalIdentityResponse
-	(*SetPresenceResponse)(nil),                // 25: chatto.api.v1.SetPresenceResponse
-	(*SetCustomStatusResponse)(nil),            // 26: chatto.api.v1.SetCustomStatusResponse
-	(*DeleteCustomStatusResponse)(nil),         // 27: chatto.api.v1.DeleteCustomStatusResponse
+	(*VerifiedEmail)(nil),                      // 4: chatto.api.v1.VerifiedEmail
+	(*ListVerifiedEmailsRequest)(nil),          // 5: chatto.api.v1.ListVerifiedEmailsRequest
+	(*ListVerifiedEmailsResponse)(nil),         // 6: chatto.api.v1.ListVerifiedEmailsResponse
+	(*RequestEmailVerificationRequest)(nil),    // 7: chatto.api.v1.RequestEmailVerificationRequest
+	(*RequestEmailVerificationResponse)(nil),   // 8: chatto.api.v1.RequestEmailVerificationResponse
+	(*ConfirmEmailVerificationRequest)(nil),    // 9: chatto.api.v1.ConfirmEmailVerificationRequest
+	(*ConfirmEmailVerificationResponse)(nil),   // 10: chatto.api.v1.ConfirmEmailVerificationResponse
+	(*SetPrimaryEmailRequest)(nil),             // 11: chatto.api.v1.SetPrimaryEmailRequest
+	(*SetPrimaryEmailResponse)(nil),            // 12: chatto.api.v1.SetPrimaryEmailResponse
+	(*GetSettingsRequest)(nil),                 // 13: chatto.api.v1.GetSettingsRequest
+	(*GetSettingsResponse)(nil),                // 14: chatto.api.v1.GetSettingsResponse
+	(*UpdateSettingsRequest)(nil),              // 15: chatto.api.v1.UpdateSettingsRequest
+	(*UpdateSettingsResponse)(nil),             // 16: chatto.api.v1.UpdateSettingsResponse
+	(*RequestAccountDeletionRequest)(nil),      // 17: chatto.api.v1.RequestAccountDeletionRequest
+	(*RequestAccountDeletionResponse)(nil),     // 18: chatto.api.v1.RequestAccountDeletionResponse
+	(*DeleteMyAccountRequest)(nil),             // 19: chatto.api.v1.DeleteMyAccountRequest
+	(*DeleteMyAccountResponse)(nil),            // 20: chatto.api.v1.DeleteMyAccountResponse
+	(*fieldmaskpb.FieldMask)(nil),              // 21: google.protobuf.FieldMask
+	(*User)(nil),                               // 22: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),              // 23: google.protobuf.Timestamp
+	(*UserSettings)(nil),                       // 24: chatto.api.v1.UserSettings
+	(TimeFormat)(0),                            // 25: chatto.api.v1.TimeFormat
+	(*ListExternalIdentitiesRequest)(nil),      // 26: chatto.api.v1.ListExternalIdentitiesRequest
+	(*StartExternalIdentityLinkRequest)(nil),   // 27: chatto.api.v1.StartExternalIdentityLinkRequest
+	(*DisconnectExternalIdentityRequest)(nil),  // 28: chatto.api.v1.DisconnectExternalIdentityRequest
+	(*SetPresenceRequest)(nil),                 // 29: chatto.api.v1.SetPresenceRequest
+	(*SetCustomStatusRequest)(nil),             // 30: chatto.api.v1.SetCustomStatusRequest
+	(*DeleteCustomStatusRequest)(nil),          // 31: chatto.api.v1.DeleteCustomStatusRequest
+	(*ListExternalIdentitiesResponse)(nil),     // 32: chatto.api.v1.ListExternalIdentitiesResponse
+	(*StartExternalIdentityLinkResponse)(nil),  // 33: chatto.api.v1.StartExternalIdentityLinkResponse
+	(*DisconnectExternalIdentityResponse)(nil), // 34: chatto.api.v1.DisconnectExternalIdentityResponse
+	(*SetPresenceResponse)(nil),                // 35: chatto.api.v1.SetPresenceResponse
+	(*SetCustomStatusResponse)(nil),            // 36: chatto.api.v1.SetCustomStatusResponse
+	(*DeleteCustomStatusResponse)(nil),         // 37: chatto.api.v1.DeleteCustomStatusResponse
 }
 var file_chatto_api_v1_account_proto_depIdxs = []int32{
-	12, // 0: chatto.api.v1.UpdateProfileRequest.update_mask:type_name -> google.protobuf.FieldMask
-	13, // 1: chatto.api.v1.UpdateProfileResponse.user:type_name -> chatto.api.v1.User
-	13, // 2: chatto.api.v1.ChangePasswordResponse.user:type_name -> chatto.api.v1.User
-	14, // 3: chatto.api.v1.GetSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	15, // 4: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
-	12, // 5: chatto.api.v1.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
-	14, // 6: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	0,  // 7: chatto.api.v1.MyAccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
-	2,  // 8: chatto.api.v1.MyAccountService.ChangePassword:input_type -> chatto.api.v1.ChangePasswordRequest
-	4,  // 9: chatto.api.v1.MyAccountService.GetSettings:input_type -> chatto.api.v1.GetSettingsRequest
-	6,  // 10: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
-	16, // 11: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
-	17, // 12: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
-	18, // 13: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
-	19, // 14: chatto.api.v1.MyAccountService.SetPresence:input_type -> chatto.api.v1.SetPresenceRequest
-	20, // 15: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
-	21, // 16: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
-	8,  // 17: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
-	10, // 18: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
-	1,  // 19: chatto.api.v1.MyAccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
-	3,  // 20: chatto.api.v1.MyAccountService.ChangePassword:output_type -> chatto.api.v1.ChangePasswordResponse
-	5,  // 21: chatto.api.v1.MyAccountService.GetSettings:output_type -> chatto.api.v1.GetSettingsResponse
-	7,  // 22: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
-	22, // 23: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
-	23, // 24: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
-	24, // 25: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
-	25, // 26: chatto.api.v1.MyAccountService.SetPresence:output_type -> chatto.api.v1.SetPresenceResponse
-	26, // 27: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
-	27, // 28: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
-	9,  // 29: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
-	11, // 30: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
-	19, // [19:31] is the sub-list for method output_type
-	7,  // [7:19] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	21, // 0: chatto.api.v1.UpdateProfileRequest.update_mask:type_name -> google.protobuf.FieldMask
+	22, // 1: chatto.api.v1.UpdateProfileResponse.user:type_name -> chatto.api.v1.User
+	22, // 2: chatto.api.v1.ChangePasswordResponse.user:type_name -> chatto.api.v1.User
+	23, // 3: chatto.api.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
+	4,  // 4: chatto.api.v1.ListVerifiedEmailsResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
+	4,  // 5: chatto.api.v1.ConfirmEmailVerificationResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
+	4,  // 6: chatto.api.v1.SetPrimaryEmailResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
+	24, // 7: chatto.api.v1.GetSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	25, // 8: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
+	21, // 9: chatto.api.v1.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	24, // 10: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	0,  // 11: chatto.api.v1.MyAccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
+	2,  // 12: chatto.api.v1.MyAccountService.ChangePassword:input_type -> chatto.api.v1.ChangePasswordRequest
+	5,  // 13: chatto.api.v1.MyAccountService.ListVerifiedEmails:input_type -> chatto.api.v1.ListVerifiedEmailsRequest
+	7,  // 14: chatto.api.v1.MyAccountService.RequestEmailVerification:input_type -> chatto.api.v1.RequestEmailVerificationRequest
+	9,  // 15: chatto.api.v1.MyAccountService.ConfirmEmailVerification:input_type -> chatto.api.v1.ConfirmEmailVerificationRequest
+	11, // 16: chatto.api.v1.MyAccountService.SetPrimaryEmail:input_type -> chatto.api.v1.SetPrimaryEmailRequest
+	13, // 17: chatto.api.v1.MyAccountService.GetSettings:input_type -> chatto.api.v1.GetSettingsRequest
+	15, // 18: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
+	26, // 19: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
+	27, // 20: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
+	28, // 21: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
+	29, // 22: chatto.api.v1.MyAccountService.SetPresence:input_type -> chatto.api.v1.SetPresenceRequest
+	30, // 23: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
+	31, // 24: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
+	17, // 25: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
+	19, // 26: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
+	1,  // 27: chatto.api.v1.MyAccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
+	3,  // 28: chatto.api.v1.MyAccountService.ChangePassword:output_type -> chatto.api.v1.ChangePasswordResponse
+	6,  // 29: chatto.api.v1.MyAccountService.ListVerifiedEmails:output_type -> chatto.api.v1.ListVerifiedEmailsResponse
+	8,  // 30: chatto.api.v1.MyAccountService.RequestEmailVerification:output_type -> chatto.api.v1.RequestEmailVerificationResponse
+	10, // 31: chatto.api.v1.MyAccountService.ConfirmEmailVerification:output_type -> chatto.api.v1.ConfirmEmailVerificationResponse
+	12, // 32: chatto.api.v1.MyAccountService.SetPrimaryEmail:output_type -> chatto.api.v1.SetPrimaryEmailResponse
+	14, // 33: chatto.api.v1.MyAccountService.GetSettings:output_type -> chatto.api.v1.GetSettingsResponse
+	16, // 34: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
+	32, // 35: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
+	33, // 36: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
+	34, // 37: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
+	35, // 38: chatto.api.v1.MyAccountService.SetPresence:output_type -> chatto.api.v1.SetPresenceResponse
+	36, // 39: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
+	37, // 40: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
+	18, // 41: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
+	20, // 42: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
+	27, // [27:43] is the sub-list for method output_type
+	11, // [11:27] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_account_proto_init() }
@@ -777,14 +1289,14 @@ func file_chatto_api_v1_account_proto_init() {
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_viewer_proto_init()
 	file_chatto_api_v1_account_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_api_v1_account_proto_msgTypes[6].OneofWrappers = []any{}
+	file_chatto_api_v1_account_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_account_proto_rawDesc), len(file_chatto_api_v1_account_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

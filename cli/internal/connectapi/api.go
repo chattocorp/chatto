@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/validate"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/email"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
@@ -50,6 +51,7 @@ type API struct {
 	config         config.ChattoConfig
 	version        string
 	searchProvider MessageSearchProviderClient
+	emailSender    email.Sender
 }
 
 // MessageSearchProviderClient calls the trusted provider contract used behind
@@ -66,6 +68,11 @@ type APIOption func(*API)
 // the trusted NATS provider boundary.
 func WithMessageSearchProviderClient(client MessageSearchProviderClient) APIOption {
 	return func(api *API) { api.searchProvider = client }
+}
+
+// WithEmailSender supplies transactional email delivery to account methods.
+func WithEmailSender(sender email.Sender) APIOption {
+	return func(api *API) { api.emailSender = sender }
 }
 
 func New(core *core.ChattoCore, config config.ChattoConfig, version string, options ...APIOption) *API {
