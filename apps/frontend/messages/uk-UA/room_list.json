@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Показати більше кімнат у {group} ({count})",
+    "hide_rooms_in_group": "Приховати кімнати в {group}, до яких ви не приєдналися",
+    "more_rooms": "Ще {count}",
+    "show_less": "Показати менше",
     "active_call": "Активний виклик",
     "call_participants": "{count} учасників дзвінка",
     "go_to_notifications": "Перейти до сповіщень {count}",

@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Mostrar más salas en {group} ({count})",
+    "hide_rooms_in_group": "Ocultar las salas de {group} a las que no te has unido",
+    "more_rooms": "{count} más",
+    "show_less": "Mostrar menos",
     "active_call": "Llamada activa",
     "call_participants": "{count} participantes en llamada",
     "go_to_notifications": "Ir a notificaciones {count}",

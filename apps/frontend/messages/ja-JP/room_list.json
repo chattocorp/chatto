@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "{group} の他のルームを表示（{count}）",
+    "hide_rooms_in_group": "{group} の未参加ルームを非表示",
+    "more_rooms": "他 {count} 件",
+    "show_less": "表示を減らす",
     "active_call": "アクティブな通話",
     "call_participants": "{count} 人が通話に参加しています",
     "go_to_notifications": "{count} 通知に移動",

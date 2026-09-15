@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "הצגת חדרים נוספים ב־{group} ({count})",
+    "hide_rooms_in_group": "הסתרת חדרים שלא הצטרפת אליהם ב־{group}",
+    "more_rooms": "עוד {count}",
+    "show_less": "הצגת פחות",
     "active_call": "שיחה פעילה",
     "call_participants": "{count} משתתפים בשיחה",
     "go_to_notifications": "עבור אל {count} התראות",

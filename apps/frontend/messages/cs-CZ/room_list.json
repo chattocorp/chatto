@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Zobrazit další místnosti ve skupině {group} ({count})",
+    "hide_rooms_in_group": "Skrýt místnosti ve skupině {group}, do kterých jste se nepřipojili",
+    "more_rooms": "Další: {count}",
+    "show_less": "Zobrazit méně",
     "active_call": "Aktivní hovor",
     "call_participants": "{count} účastníků hovoru",
     "go_to_notifications": "Přejděte na {count} oznámení",

@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "{count} weitere Räume in {group} anzeigen",
+    "hide_rooms_in_group": "Weitere Räume in {group} ausblenden",
+    "more_rooms": "{count} weitere",
+    "show_less": "Weniger anzeigen",
     "active_call": "Aktiver Anruf",
     "call_participants": "{count} Teilnehmende im Anruf",
     "go_to_notifications": "Zu {count} Benachrichtigungen",

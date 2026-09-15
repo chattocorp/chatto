@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Show more rooms in {group} ({count})",
+    "hide_rooms_in_group": "Hide unjoined rooms in {group}",
+    "more_rooms": "{count} more",
+    "show_less": "Show less",
     "active_call": "Active call",
     "call_participants": "{count} participants in call",
     "go_to_notifications": "Go to {count} notifications",

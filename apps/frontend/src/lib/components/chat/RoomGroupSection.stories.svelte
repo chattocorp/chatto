@@ -23,6 +23,10 @@
   ];
 </script>
 
+<script lang="ts">
+  let discoveryExpanded = $state(false);
+</script>
+
 {#snippet room(room: (typeof rooms)[number])}
   <button type="button" class={['sidebar-item text-start', room.highlighted && 'bg-surface']}>
     {#if room.universal}
@@ -79,5 +83,29 @@
       item={room}
       persistKey="storybook:room-group-section:empty"
     />
+  </div>
+</Story>
+
+<Story name="Room discovery footer" asChild>
+  <div class="w-72 bg-background">
+    <RoomGroupSection
+      label="Projects"
+      items={discoveryExpanded ? rooms : rooms.slice(0, 1)}
+      item={room}
+      persistKey="storybook:room-group-section:discovery"
+    >
+      {#snippet footer()}
+        <button
+          type="button"
+          class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-xs text-start"
+          aria-expanded={discoveryExpanded}
+          aria-label={discoveryExpanded ? "Hide unjoined rooms" : "Show 2 unjoined rooms"}
+          onclick={() => { discoveryExpanded = !discoveryExpanded; }}
+        >
+          <span class="sidebar-icon" aria-hidden="true">{discoveryExpanded ? '−' : '+'}</span>
+          <span>{discoveryExpanded ? 'Show less' : '2 more'}</span>
+        </button>
+      {/snippet}
+    </RoomGroupSection>
   </div>
 </Story>
