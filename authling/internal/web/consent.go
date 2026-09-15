@@ -2,12 +2,13 @@ package web
 
 import (
 	"errors"
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/oidcprovider"
-	"hmans.de/authling/internal/sessions"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"hmans.de/authling/internal/authorizations"
+	"hmans.de/authling/internal/oidcprovider"
+	"hmans.de/authling/internal/sessions"
 )
 
 // mountConsent registers browser approval and denial of OIDC requests.

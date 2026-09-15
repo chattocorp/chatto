@@ -2,11 +2,12 @@ package web
 
 import (
 	"errors"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/sessions"
 	"net/http"
 	"net/url"
 	"time"
+
+	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/sessions"
 )
 
 // mountPasswordChange registers signed-in password replacement.

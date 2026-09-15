@@ -2,11 +2,12 @@ package web
 
 import (
 	"errors"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/passwordreset"
 	"net/http"
 	"net/url"
 	"time"
+
+	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/passwordreset"
 )
 
 // mountPasswordReset registers email verification and password recovery.

@@ -2,10 +2,11 @@ package web
 
 import (
 	"errors"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/sessions"
 	"net/http"
 	"net/url"
+
+	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/sessions"
 )
 
 // mountProfile registers account profile forms.

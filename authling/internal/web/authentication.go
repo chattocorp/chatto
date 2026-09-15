@@ -2,10 +2,11 @@ package web
 
 import (
 	"errors"
-	"hmans.de/authling/internal/accounts"
 	"net/http"
 	"net/url"
 	"time"
+
+	"hmans.de/authling/internal/accounts"
 )
 
 // mountLogin registers local login and its OIDC return handling.

@@ -2,11 +2,12 @@ package web
 
 import (
 	"errors"
-	"hmans.de/authling/internal/accounts"
-	"hmans.de/authling/internal/registration"
 	"net/http"
 	"net/url"
 	"time"
+
+	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/registration"
 )
 
 // mountRegistration registers verified-email signup.

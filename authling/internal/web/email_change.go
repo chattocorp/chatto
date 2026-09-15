@@ -2,11 +2,12 @@ package web
 
 import (
 	"errors"
+	"net/http"
+	"net/url"
+
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/sessions"
-	"net/http"
-	"net/url"
 )
 
 // mountEmailChange registers signed-in email verification and replacement.

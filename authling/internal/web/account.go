@@ -2,10 +2,11 @@ package web
 
 import (
 	"errors"
-	"hmans.de/authling/internal/authorizations"
-	"hmans.de/authling/internal/sessions"
 	"net/http"
 	"net/url"
+
+	"hmans.de/authling/internal/authorizations"
+	"hmans.de/authling/internal/sessions"
 )
 
 // mountAccount registers the account overview and grant/session management.
