@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"hmans.de/authling/internal/logging"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
+	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/authling/internal/web"
 )
@@ -241,8 +241,8 @@ func TestActiveAccountKeyLossStillFailsStartup(t *testing.T) {
 	defer stop()
 	errorsCh := make(chan error, 1)
 	go func() { errorsCh <- second.Run(ctx) }()
-	if err := second.WaitReady(ctx); err == nil {
-		t.Fatal("active missing key treated as erasure")
+	if err := second.WaitReady(ctx); err == nil || !strings.Contains(err.Error(), "resolve active account key") {
+		t.Fatalf("expected active key loss startup error, got %v", err)
 	}
 	stop()
 	if err := <-errorsCh; err == nil {

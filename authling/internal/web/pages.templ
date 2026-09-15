@@ -1,17 +1,17 @@
 package web
 
 import (
-	"net/url"
-	"strconv"
-	"time"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/sessions"
+	"net/url"
+	"strconv"
+	"time"
 )
 
 templ layout(title, signedInAs string) {
-	<!doctype html>
+	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="utf-8"/>
@@ -311,7 +311,7 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 		<a class="button button-secondary mt-8 w-full" href="/account/profile">Edit profile</a>
 		<a class="button button-secondary mt-3 w-full" href="/account/email">Change email address</a>
 		<a class="button button-secondary mt-3 w-full" href="/account/password">Change password</a>
- <a class="button button-secondary mt-3 w-full" href="/account/delete">Delete account</a>
+		<a class="button button-secondary mt-3 w-full" href="/account/delete">Delete account</a>
 		<form class="mt-3" method="post" action="/logout">
 			<button class="button button-secondary w-full" type="submit">Sign out</button>
 		</form>
@@ -425,29 +425,28 @@ templ passwordChangePage(message string, passwordMinimumLength int, signedInAs s
 	}
 }
 
-
 templ deleteAccountPage(message string) {
- @layout("Delete account", "") {
-  <h1 class="text-3xl font-semibold tracking-tight">Delete your account</h1>
-  <p class="mt-4 leading-7">This cannot be undone. You will be signed out of Authling on every device. Your email address, password, profile, and app authorization details will become unreadable when background key erasure finishes.</p>
-  <p class="mt-4 leading-7">This does not delete your data or end sessions in other apps. Those apps may still accept identity tokens already issued by Authling until they expire.</p>
-  <p class="mt-4 leading-7">Short-lived verification records expire separately. Backup copies follow the operator’s retention policy. You can sign up again with the same email address, but you will get a new account ID.</p>
-  if message != "" {
-   <p class="notice notice-error" role="alert">{ message }</p>
-  }
-  <form class="mt-8 space-y-5" method="post" action="/account/delete">
-   <label class="block"><span class="font-medium">Current password</span><input class="form-control" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
-   <label class="flex items-start gap-3"><input class="mt-1" type="checkbox" name="confirm" value="delete" required/><span>I understand that this permanently deletes my Authling account.</span></label>
-   <button class="button button-danger w-full" type="submit">Permanently delete account</button>
-   <a class="button button-secondary w-full" href="/account">Keep my account</a>
-  </form>
- }
+	@layout("Delete account", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Delete your account</h1>
+		<p class="mt-4 leading-7">This cannot be undone. You will be signed out of Authling on every device. Your private account details will become unreadable when background key erasure finishes. Encrypted history and basic audit records remain.</p>
+		<p class="mt-4 leading-7">This does not delete your data or end sessions in other apps. Those apps may still accept identity tokens already issued by Authling until they expire.</p>
+		<p class="mt-4 leading-7">Short-lived verification records expire separately. Backup copies follow the operator’s retention policy. You can sign up again with the same email address, but you will get a new account ID.</p>
+		if message != "" {
+			<p class="notice notice-error" role="alert">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/delete">
+			<label class="block"><span class="font-medium">Current password</span><input class="form-control" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
+			<label class="flex items-start gap-3"><input class="mt-1" type="checkbox" name="confirm" value="delete" required/><span>I understand that this permanently deletes my Authling account.</span></label>
+			<button class="button button-danger w-full" type="submit">Permanently delete account</button>
+			<a class="button button-secondary w-full" href="/account">Keep my account</a>
+		</form>
+	}
 }
 
 templ accountDeletedPage() {
- @layout("Account deleted", "") {
-  <h1 class="text-3xl font-semibold tracking-tight">Your account is closed</h1>
-  <p class="mt-4 leading-7">Authling access has ended. Background key erasure will finish automatically, including after a restart.</p>
-  <a class="button button-secondary mt-8 w-full" href="/">Return home</a>
- }
+	@layout("Account deleted", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Your account is closed</h1>
+		<p class="mt-4 leading-7">Authling access has ended. Background key erasure will finish automatically, including after a restart.</p>
+		<a class="button button-secondary mt-8 w-full" href="/">Return home</a>
+	}
 }

@@ -14,8 +14,8 @@ waits and is returned to the CLI with its original error chain. A missing
 JetStream tier error also includes an account-quota hint.
 
 The HTTP surface contains server-rendered signup, login, password-reset,
-signed-in password-change, verified email-change, account deletion, consent, account, and logout
-pages plus embedded browser assets. It also exposes OpenID Connect discovery,
+signed-in password-change, verified email-change, account deletion, consent,
+account, and logout pages plus embedded browser assets. It also exposes OpenID Connect discovery,
 authorization, token, UserInfo, and JWKS endpoints. Authling exposes no public
 account-management, application-data, document, or synchronization API.
 
@@ -138,8 +138,8 @@ replicas without a durable email-derived index.
 
 The account model consumes `authling.evt.account.*` and
 `authling.evt.account-registry`. It maps opaque account IDs to creation times.
-During replay it resolves and decrypts active local credentials and rebuilds a keyed
-digest index of normalized emails. It retains encrypted verifier fields and
+During replay it resolves and decrypts active local credentials and rebuilds a
+keyed digest index of normalized emails. It retains encrypted verifier fields and
 opaque key references, but neither plaintext email nor plaintext password
 verifiers. It retains encrypted profile fields and decrypts them only at the
 account-service read boundary. The model retains bounded password-reset request correlations so
@@ -349,15 +349,6 @@ password reset, signed-in password change, and email change also cap request
 bodies. OTP flows globally limit delivery and bound concurrent SMTP and
 completion work per process.
 
-## Deliberately absent
-
-The runtime does not yet contain MFA recovery, browser-device
-or location tracking, durable login history, OIDC refresh tokens, emergency
-manual signing-key rotation, diagnostic endpoints, or backup tooling.
-Application data, documents, and generic synchronization are deliberately
-outside Authling's identity-provider boundary.
-
-
 ## Account deletion and erasure
 
 `GET /account/delete` renders the effects and limits from
@@ -406,3 +397,11 @@ Restoring a snapshot from before deletion can restore the identity and keys;
 do not serve that restore as current state without reconciling later deletions.
 New event variants require all replicas to use this release before deletion.
 There is no migration or mixed-version fallback for this undeployed product.
+
+## Deliberately absent
+
+The runtime does not yet contain MFA recovery, browser-device
+or location tracking, durable login history, OIDC refresh tokens, emergency
+manual signing-key rotation, diagnostic endpoints, or backup tooling.
+Application data, documents, and generic synchronization are deliberately
+outside Authling's identity-provider boundary.

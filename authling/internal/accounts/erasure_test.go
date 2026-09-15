@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"hmans.de/authling/internal/evtstream"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
@@ -111,5 +112,32 @@ func TestReplayRechecksErasureAfterKeyDisappears(t *testing.T) {
 	_, erased, err := projection.replayEmailDigest(account.ID, credential.userKeyRef, credential.credentialKeyRef, credential.emailCiphertext, credential.emailNonce, credential.emailAAD)
 	if err != nil || !erased || checks != 2 {
 		t.Fatalf("erasure replay checks=%d erased=%v error=%v", checks, erased, err)
+	}
+}
+
+func TestLaggingReplicaCannotReadDeletedAccount(t *testing.T) {
+	fixture := newSafetyFixture(t, t.TempDir(), nil)
+	account, err := fixture.service.CreateLocal(t.Context(), "replica@example.invalid", "a deliberately uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replica, _, stop := newSafetyReplica(t, fixture.js, fixture.stream, fixture.keys)
+	stop()
+	if err := fixture.service.RequestErasure(t.Context(), account.ID, account.AuthenticationVersion); err != nil {
+		t.Fatal(err)
+	}
+	// The stopped replica still has the old encrypted account and the keys exist.
+	if _, ok := replica.Get(account.ID); !ok {
+		t.Fatal("fixture has no stale account")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 150*time.Millisecond)
+	defer cancel()
+	if _, err := replica.Profile(ctx, account.ID); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("stale replica disclosed profile")
+	}
+	sessionCtx, sessionCancel := context.WithTimeout(t.Context(), 150*time.Millisecond)
+	defer sessionCancel()
+	if _, ok, err := replica.AuthenticationVersion(sessionCtx, account.ID); ok || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("stale replica accepted session generation")
 	}
 }

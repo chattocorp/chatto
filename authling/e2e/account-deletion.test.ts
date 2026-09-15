@@ -5,7 +5,12 @@ import { expect, test } from './setup';
 
 const password = 'correct horse battery staple';
 
-test('deletes an account, denies other browsers, and permits a new identity after restart', async ({ browser, page, request, stack }, testInfo) => {
+test('deletes an account, denies other browsers, and permits a new identity after restart', async ({
+  browser,
+  page,
+  request,
+  stack
+}, testInfo) => {
   const email = `erase-${randomUUID()}@example.invalid`;
   const oldID = await completeSignup(page, request, stack, email, password);
   const otherContext = await browser.newContext({ baseURL: stack.baseURL });

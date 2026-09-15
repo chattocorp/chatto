@@ -1955,7 +1955,7 @@ func deleteAccountPage(message string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "<h1 class=\"text-3xl font-semibold tracking-tight\">Delete your account</h1><p class=\"mt-4 leading-7\">This cannot be undone. You will be signed out of Authling on every device. Your email address, password, profile, and app authorization details will become unreadable when background key erasure finishes.</p><p class=\"mt-4 leading-7\">This does not delete your data or end sessions in other apps. Those apps may still accept identity tokens already issued by Authling until they expire.</p><p class=\"mt-4 leading-7\">Short-lived verification records expire separately. Backup copies follow the operator’s retention policy. You can sign up again with the same email address, but you will get a new account ID.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "<h1 class=\"text-3xl font-semibold tracking-tight\">Delete your account</h1><p class=\"mt-4 leading-7\">This cannot be undone. You will be signed out of Authling on every device. Your private account details will become unreadable when background key erasure finishes. Encrypted history and basic audit records remain.</p><p class=\"mt-4 leading-7\">This does not delete your data or end sessions in other apps. Those apps may still accept identity tokens already issued by Authling until they expire.</p><p class=\"mt-4 leading-7\">Short-lived verification records expire separately. Backup copies follow the operator’s retention policy. You can sign up again with the same email address, but you will get a new account ID.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1967,7 +1967,7 @@ func deleteAccountPage(message string) templ.Component {
 				var templ_7745c5c3_Var92 string
 				templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 436, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 435, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 				if templ_7745c5c3_Err != nil {

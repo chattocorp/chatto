@@ -112,11 +112,9 @@ func TestDurableWorkerResumesPartialDestructionAndDuplicateDelivery(t *testing.T
 	c.PasswordVerifierCiphertext = []byte{4}
 	c.PreferredUsernameNonce = []byte{5}
 	c.PreferredUsernameCiphertext = []byte{6}
-	position, err := pub.AppendAccountCreated(ctx, creation)
-	if err != nil {
+	if _, err := pub.AppendAccountCreated(ctx, creation); err != nil {
 		t.Fatal(err)
 	}
-	_ = position
 	projection := NewProjection()
 	handle := events.NewDecodedProjectionHandle(js, stream, projection, evtstream.Decode, logger)
 	runCtx, stop := context.WithCancel(ctx)
