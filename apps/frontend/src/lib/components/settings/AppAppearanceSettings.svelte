@@ -66,7 +66,6 @@
   <div class="flex flex-col gap-6">
     <Panel title={m('settings.preferences.theme.title')} icon="iconify icon-[uil--palette]">
       <div class="max-w-md">
-        <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
         <div
           class="flex flex-col gap-2"
           role="radiogroup"
@@ -85,7 +84,6 @@
     </Panel>
 
     <Panel title={m('settings.preferences.accent.title')} icon="iconify icon-[uil--palette]">
-      <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
       <AccentColorPicker
         value={userPreferences.accentColor}
         onchange={(value) => (userPreferences.accentColor = value)}
@@ -93,7 +91,6 @@
     </Panel>
 
     <Panel title={m('settings.preferences.depth.title')} icon="iconify icon-[uil--layer-group]">
-      <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
       <div class="flex max-w-md flex-col gap-2" role="radiogroup" aria-label={m('settings.preferences.depth.title')}>
         {#each depthOptions as option (option.value)}
           <ChoiceRow
@@ -110,7 +107,6 @@
       icon="iconify icon-[uil--window-section]"
     >
       <div class="max-w-md">
-        <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
         <div
           class="flex flex-col gap-2"
           role="radiogroup"

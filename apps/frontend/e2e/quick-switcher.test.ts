@@ -33,7 +33,7 @@ function switcherInput(dialog: import('@playwright/test').Locator) {
 
 /** Returns all result buttons inside the quick switcher. */
 function switcherResults(dialog: import('@playwright/test').Locator) {
-  return dialog.locator('button.sidebar-item');
+  return dialog.getByRole('navigation').getByRole('button');
 }
 
 test.describe('Quick Switcher (Cmd-K)', () => {

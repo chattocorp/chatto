@@ -51,7 +51,7 @@ function switcherInput(dialog: Locator): Locator {
 }
 
 function switcherResults(dialog: Locator): Locator {
-  return dialog.locator('button.sidebar-item');
+  return dialog.getByRole('navigation').getByRole('button');
 }
 
 async function navigateWithinClient(page: Page, href: string): Promise<void> {

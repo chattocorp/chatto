@@ -154,7 +154,7 @@ test.describe('message search', () => {
       await dialog
         .getByPlaceholder('Go somewhere, or type ? to search messages...')
         .fill(`?${term}`);
-      await expect(dialog.locator('button.sidebar-item', { hasText: body })).toBeVisible({
+      await expect(dialog.getByRole('navigation').getByRole('button').filter({ hasText: body })).toBeVisible({
         timeout: TIMEOUTS.UI_FAST
       });
       await page.keyboard.press('Escape');
@@ -162,7 +162,7 @@ test.describe('message search', () => {
 
     const dialog = await openQuickSwitcher(page);
     await dialog.getByPlaceholder('Go somewhere, or type ? to search messages...').fill(`?${term}`);
-    await dialog.locator('button.sidebar-item', { hasText: body }).click();
+    await dialog.getByRole('navigation').getByRole('button').filter({ hasText: body }).click();
     await chatPage.expectRoomHeaderVisible('general');
     await roomPage.expectMessageVisible(body, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
