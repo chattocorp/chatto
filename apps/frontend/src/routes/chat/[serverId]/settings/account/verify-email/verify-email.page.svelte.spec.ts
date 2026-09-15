@@ -133,7 +133,7 @@ describe('Verify email page', () => {
     });
   });
 
-  it('does not navigate after another navigation starts in the same server scope', async () => {
+  it('reconciles a confirmation without navigating after another navigation starts', async () => {
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     let resolveConfirmation = (_emails: Array<{ email: string; primary: boolean }>) => {};
     mocks.confirmEmailVerification.mockImplementation(
@@ -160,8 +160,14 @@ describe('Verify email page', () => {
       queryClient.getQueryData(
         settingsQueryKeys.verifiedEmails('origin', connection, 'U123abcetc.')
       )
-    ).toBeUndefined();
-    expect(invalidateQueries).not.toHaveBeenCalled();
+    ).toEqual([{ email: 'alice.new@example.com', primary: true }]);
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminQueryKeys.membersRoot('origin', connection)
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
+      exact: true
+    });
     expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe('');
     await expect.element(getByText('No email verification is in progress.')).toBeVisible();
   });

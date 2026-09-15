@@ -70,9 +70,11 @@ socket.
 `MyAccountService.GetSettings` exposes caller-owned display preferences using
 the same settings resource as updates and the combined viewer response.
 `MyAccountService` also lists the caller's verified emails, sends and confirms
-email-verification codes, and selects the primary email. These methods accept
-no target user ID. Verification delivery uses the server's configured
-transactional email sender.
+email-verification codes, and selects the primary email. These methods do not
+accept a caller-selected target account. They require the caller's expected
+account ID as a stale-session assertion and reject a different authenticated
+account before reading or changing email state. Verification delivery uses the
+server's configured transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.

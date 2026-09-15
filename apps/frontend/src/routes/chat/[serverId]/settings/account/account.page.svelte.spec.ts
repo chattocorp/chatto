@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
+import { settingsQueryKeys } from '$lib/query/settings';
 import AccountPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   setPrimaryEmail: vi.fn(),
   beforeNavigate: vi.fn(),
   goto: vi.fn(),
+  toastSuccess: vi.fn(),
   scopeCurrent: true,
   currentUser: {
     user: {
@@ -51,6 +53,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
+vi.mock('$lib/ui/toast/toastState.svelte', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/ui/toast/toastState.svelte')>()),
+  toast: { success: mocks.toastSuccess }
+}));
+
 async function settle(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
@@ -70,6 +77,7 @@ describe('Account settings page', () => {
     mocks.beforeNavigate.mockReset();
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
+    mocks.toastSuccess.mockReset();
     mocks.scopeCurrent = true;
     mocks.currentUser.user = {
       id: 'U123abcetc.',
@@ -177,6 +185,44 @@ describe('Account settings page', () => {
       queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
       exact: true
     });
+    expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+  });
+
+  it('reconciles a primary change without stale UI effects after navigation starts', async () => {
+    const initial = [
+      { email: 'alice@example.com', primary: true },
+      { email: 'alice.secondary@example.com', primary: false }
+    ];
+    const changed = [
+      { email: 'alice@example.com', primary: false },
+      { email: 'alice.secondary@example.com', primary: true }
+    ];
+    let resolveSelection = (_emails: typeof changed) => {};
+    mocks.listVerifiedEmails.mockResolvedValue(initial);
+    mocks.setPrimaryEmail.mockImplementation(
+      () => new Promise<typeof changed>((resolve) => (resolveSelection = resolve))
+    );
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { getByRole } = render(AccountPage);
+    await settle();
+    await getByRole('button', { name: 'Make primary' }).click();
+    const navigationGuard = mocks.beforeNavigate.mock.calls.at(-1)?.[0] as
+      | (() => void)
+      | undefined;
+    navigationGuard?.();
+    resolveSelection(changed);
+    await settle();
+
+    expect(
+      queryClient.getQueryData(
+        settingsQueryKeys.verifiedEmails('origin', connection, 'U123abcetc.')
+      )
+    ).toEqual(changed);
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminQueryKeys.membersRoot('origin', connection)
+    });
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
 
   it('requires matching email addresses before requesting verification', async () => {

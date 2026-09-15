@@ -58,15 +58,18 @@
     };
   }
 
-  function isCurrentEmailContext(scope: EmailActionScope): boolean {
+  function isCurrentEmailScope(scope: EmailActionScope): boolean {
     return (
-      componentActive &&
       serverScope.isCurrent() &&
       scope.serverId === serverScope.serverId &&
       scope.connection.queryScope === serverScope.connection.queryScope &&
       scope.userId !== '' &&
       scope.userId === viewerUserId
     );
+  }
+
+  function isCurrentEmailContext(scope: EmailActionScope): boolean {
+    return componentActive && isCurrentEmailScope(scope);
   }
 
   function isCurrentEmailAction(scope: EmailActionScope): boolean {
@@ -184,7 +187,7 @@
       const next = await scope.connection
         .getAPI(createAccountAPI)
         .setPrimaryEmail(scope.userId, address);
-      if (!isCurrentEmailAction(scope)) return;
+      if (!isCurrentEmailScope(scope)) return;
       setEmails(scope, next);
       void queryClient.invalidateQueries({
         queryKey: adminQueryKeys.membersRoot(scope.serverId, scope.connection)
@@ -193,6 +196,7 @@
         queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
         exact: true
       });
+      if (!isCurrentEmailAction(scope)) return;
       toast.success(m('settings.account.email.primary_changed'));
     } catch (err) {
       if (!isCurrentEmailContext(scope)) return;

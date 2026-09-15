@@ -301,14 +301,17 @@ describe('server query cache', () => {
     expect(queryClient.getQueryData(orphanedPermissions)).toBeUndefined();
   });
 
-  it('does not retry authentication or permission failures', async () => {
-    const queryFn = vi.fn().mockRejectedValue(new ConnectError('denied', Code.PermissionDenied));
+  it.each([Code.FailedPrecondition, Code.PermissionDenied, Code.Unauthenticated])(
+    'does not retry permanent Connect failure %s',
+    async (code) => {
+      const queryFn = vi.fn().mockRejectedValue(new ConnectError('permanent failure', code));
 
-    await expect(
-      queryClient.fetchQuery({ queryKey: ['server', 'one', 'denied'], queryFn })
-    ).rejects.toMatchObject({ code: Code.PermissionDenied });
-    expect(queryFn).toHaveBeenCalledOnce();
-  });
+      await expect(
+        queryClient.fetchQuery({ queryKey: ['server', 'one', 'permanent', code], queryFn })
+      ).rejects.toMatchObject({ code });
+      expect(queryFn).toHaveBeenCalledOnce();
+    }
+  );
 
   it('retries one transient failure', async () => {
     const queryFn = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue('ok');

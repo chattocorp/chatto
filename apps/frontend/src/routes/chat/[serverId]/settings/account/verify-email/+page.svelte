@@ -63,15 +63,18 @@
 		};
 	}
 
-	function isCurrentEmailContext(scope: EmailActionScope): boolean {
+	function isCurrentEmailScope(scope: EmailActionScope): boolean {
 		return (
-			componentActive &&
 			serverScope.isCurrent() &&
 			scope.serverId === serverScope.serverId &&
 			scope.connection.queryScope === serverScope.connection.queryScope &&
 			scope.userId !== '' &&
 			scope.userId === viewerUserId
 		);
+	}
+
+	function isCurrentEmailContext(scope: EmailActionScope): boolean {
+		return componentActive && isCurrentEmailScope(scope);
 	}
 
 	function isCurrentEmailAction(scope: EmailActionScope): boolean {
@@ -94,8 +97,7 @@
 				.getAPI(createAccountAPI)
 				.confirmEmailVerification(scope.userId, address, submittedCode);
 			clearPendingEmailVerification(scope.serverId, scope.userId, address);
-			if (isCurrentEmailContext(scope)) pendingEmail = '';
-			if (!isCurrentEmailAction(scope)) return;
+			if (!isCurrentEmailScope(scope)) return;
 			queryClient.setQueryData(
 				settingsQueryKeys.verifiedEmails(scope.serverId, scope.connection, scope.userId),
 				emails
@@ -107,6 +109,8 @@
 				queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
 				exact: true
 			});
+			if (isCurrentEmailContext(scope)) pendingEmail = '';
+			if (!isCurrentEmailAction(scope)) return;
 			toast.success(m('settings.account.email.verified'));
 			await goto(accountPath, { replaceState: true });
 		} catch (reason) {

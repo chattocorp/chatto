@@ -67,6 +67,9 @@ test.describe('Verified email settings', () => {
     const firstUser = await createAndLoginTestUser(page, { loginPrefix: 'emailbindingfirst' });
     await accountPage.goto();
     await expect(page.getByText(firstUser.id ?? '', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(`${firstUser.login}@example.com`, { exact: true })
+    ).toBeVisible();
 
     const otherTab = await page.context().newPage();
     const secondUser = await createAndLoginTestUser(otherTab, {
@@ -87,6 +90,28 @@ test.describe('Verified email settings', () => {
       { expectedUserId: secondUser.id }
     );
     expect(currentResponse.ok()).toBe(true);
+
+    // Keep the mounted SPA on Alice while making its cached query stale. A
+    // same-server remount must send Alice's expected ID with Bob's new cookie,
+    // reject the response, and never put Bob's address in Alice's cache.
+    await page.evaluate(() => {
+      const staleNow = Date.now() + 60_000;
+      Date.now = () => staleNow;
+    });
+    await page.getByRole('link', { name: 'Profile', exact: true }).click();
+    await page.waitForURL(routes.settingsProfile);
+    const listResponse = page.waitForResponse((response) =>
+      response.url().includes('/chatto.api.v1.MyAccountService/ListVerifiedEmails')
+    );
+    await page.getByRole('link', { name: 'Account', exact: true }).click();
+    await page.waitForURL(routes.settingsAccount);
+    const rejectedList = await listResponse;
+    expect(rejectedList.ok()).toBe(false);
+    await expect(rejectedList.json()).resolves.toMatchObject({ code: 'failed_precondition' });
+    await expect(page.getByText(/authenticated account changed/)).toBeVisible();
+    await expect(
+      page.getByText(`${secondUser.login}@example.com`, { exact: true })
+    ).toHaveCount(0);
     await otherTab.close();
   });
 
