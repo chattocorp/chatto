@@ -81,7 +81,9 @@ describe('bot permission summary', () => {
     mounted = render(BotPermissionSummary, { botId: 'bot' });
     await expect.element(page.getByText('Browse and join rooms', { exact: true })).toBeVisible();
     await expect.element(page.getByText('Browse rooms', { exact: true })).toBeVisible();
-    const headings = [...mounted.container.querySelectorAll('h4')].map((el) => el.textContent);
+    const headings = [...mounted.container.querySelectorAll('h4')].map((el) =>
+      el.textContent?.trim()
+    );
     expect(headings).toEqual([
       'Rooms',
       'Rooms it has joined',

@@ -45,7 +45,10 @@ while mounted and discards cached data when the profile closes. -->
 {#snippet permissionGroups(groups: BotPermissionGroup[])}
   {#each groups as group (group.id)}
     <div class="space-y-1">
-      <h4 class="font-medium break-words"><bdi>{group.label}</bdi></h4>
+      <h4 class="flex items-start gap-2 font-medium">
+        <span class={['iconify mt-0.5 shrink-0 text-muted', group.icon]} aria-hidden="true"></span>
+        <bdi class="min-w-0 break-words">{group.label}</bdi>
+      </h4>
       <ul class="list-disc space-y-1 ps-5">
         {#each group.actions as action (action.id)}
           <li class="break-words">{action.text}</li>

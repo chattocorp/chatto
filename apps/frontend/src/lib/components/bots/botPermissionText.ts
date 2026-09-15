@@ -6,6 +6,8 @@ import { getPermissionDescription, getPermissionCategory } from '$lib/permission
 export type BotPermissionGroup = {
   id: string;
   label: string;
+  /** Static Iconify utility, bundled by the frontend build. */
+  icon: string;
   actions: { id: string; text: string }[];
 };
 
@@ -51,6 +53,17 @@ export function groupBotPermissions(entries: BotPermission[]): BotPermissionGrou
       return {
         id,
         label: group.label,
+        icon: id.startsWith('dm:')
+          ? 'icon-[uil--comments]'
+          : id.startsWith('group:')
+            ? 'icon-[uil--layer-group]'
+            : id.startsWith('room:')
+              ? 'icon-[uil--comment-alt-lines]'
+              : id.startsWith('joined_rooms:')
+                ? 'icon-[uil--users-alt]'
+                : id.startsWith('all_rooms:')
+                  ? 'icon-[uil--apps]'
+                  : 'icon-[uil--server]',
         actions: [...group.permissions]
           .filter((permission) => !combineBrowseJoin || permission !== 'room.list')
           .map((permission) => ({
