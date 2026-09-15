@@ -91,13 +91,9 @@ test.describe('Verified email settings', () => {
     );
     expect(currentResponse.ok()).toBe(true);
 
-    // Keep the mounted SPA on Alice while making its cached query stale. A
-    // same-server remount must send Alice's expected ID with Bob's new cookie,
-    // reject the response, and never put Bob's address in Alice's cache.
-    await page.evaluate(() => {
-      const staleNow = Date.now() + 60_000;
-      Date.now = () => staleNow;
-    });
+    // Keep the mounted SPA on Alice. A same-server remount must send Alice's
+    // expected ID with Bob's new cookie, reject the response, and never put
+    // Bob's address in Alice's cache.
     await page.getByRole('link', { name: 'Profile', exact: true }).click();
     await page.waitForURL(routes.settingsProfile);
     const listResponse = page.waitForResponse((response) =>

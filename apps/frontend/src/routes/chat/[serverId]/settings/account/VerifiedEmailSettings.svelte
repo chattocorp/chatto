@@ -91,7 +91,11 @@
       return {
         queryKey: settingsQueryKeys.verifiedEmails(serverScope.serverId, connection, userId),
         queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails(userId),
-        enabled: userId !== ''
+        enabled: userId !== '',
+        // A different tab can replace the origin cookie while this SPA still
+        // identifies the previous user. Remounting must assert that identity
+        // against the server instead of reusing a fresh private snapshot.
+        refetchOnMount: 'always' as const
       };
     },
     () => queryClient
