@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -20,8 +19,8 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/op"
 	"hmans.de/authling/internal/ids"
 	"hmans.de/authling/internal/issuer"
+	"hmans.de/authling/internal/runtimejson"
 	"hmans.de/authling/internal/storage"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 const (
@@ -34,12 +33,6 @@ const (
 var ErrLoginRequired = errors.New("fresh authentication required")
 
 var errOIDCStateNotFound = errors.New("OIDC state not found")
-
-type sealedState struct {
-	Version    int    `json:"version"`
-	Nonce      []byte `json:"nonce"`
-	Ciphertext []byte `json:"ciphertext"`
-}
 
 type authRequestState struct {
 	ID            string                      `json:"id"`
@@ -527,28 +520,14 @@ func (s *Storage) read(key string, ctx context.Context, value any) error {
 	return s.open(key, entry.Value(), value)
 }
 func (s *Storage) seal(key string, value any) ([]byte, error) {
-	plain, err := json.Marshal(value)
-	if err != nil {
-		return nil, err
-	}
-	sealed, err := datacrypto.Seal(s.key, plain, []byte("authling:oidc-runtime:v1\x00"+key))
-	clear(plain)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(sealedState{Version: 1, Nonce: sealed.Nonce, Ciphertext: sealed.Ciphertext})
+	return runtimejson.Seal(s.key, []byte("authling:oidc-runtime:v1\x00"+key), value, runtimejson.LowercaseFields)
 }
 func (s *Storage) open(key string, data []byte, value any) error {
-	var envelope sealedState
-	if json.Unmarshal(data, &envelope) != nil || envelope.Version != 1 {
+	err := runtimejson.Open(s.key, []byte("authling:oidc-runtime:v1\x00"+key), data, value)
+	if errors.Is(err, runtimejson.ErrInvalidEnvelope) {
 		return fmt.Errorf("invalid OIDC state envelope")
 	}
-	plain, err := datacrypto.Open(s.key, envelope.Ciphertext, envelope.Nonce, []byte("authling:oidc-runtime:v1\x00"+key))
-	if err != nil {
-		return err
-	}
-	defer clear(plain)
-	return json.Unmarshal(plain, value)
+	return err
 }
 func (s *Storage) derivedKey(kind, secret string) string {
 	digest := hmac.New(sha256.New, s.key)

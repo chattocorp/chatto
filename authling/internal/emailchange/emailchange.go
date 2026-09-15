@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -18,8 +17,8 @@ import (
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/email"
+	"hmans.de/authling/internal/runtimejson"
 	"hmans.de/authling/internal/storage"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 const FlowTTL = 15 * time.Minute
@@ -51,11 +50,6 @@ type flowState struct {
 	CompletionAttempts   int                        `json:"completion_attempts"`
 	CompletionLeaseUntil time.Time                  `json:"completion_lease_until"`
 	ExpiresAt            time.Time                  `json:"expires_at"`
-}
-
-type sealedState struct {
-	Version           int `json:"version"`
-	Nonce, Ciphertext []byte
 }
 
 // Completion reports a committed identity change and whether the best-effort
@@ -274,16 +268,7 @@ func (s *Service) flowKey(token string) string {
 }
 
 func (s *Service) seal(key string, state flowState) ([]byte, error) {
-	plain, err := json.Marshal(state)
-	if err != nil {
-		return nil, err
-	}
-	defer clear(plain)
-	sealed, err := datacrypto.Seal(s.key, plain, []byte("authling:email-change-runtime:v1\x00"+key))
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(sealedState{Version: 1, Nonce: sealed.Nonce, Ciphertext: sealed.Ciphertext})
+	return runtimejson.Seal(s.key, []byte("authling:email-change-runtime:v1\x00"+key), state, runtimejson.CapitalizedFields)
 }
 
 func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry, flowState, error) {
@@ -291,17 +276,8 @@ func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry
 	if err != nil {
 		return nil, flowState{}, err
 	}
-	var sealed sealedState
-	if err := json.Unmarshal(entry.Value(), &sealed); err != nil || sealed.Version != 1 {
-		return nil, flowState{}, ErrInvalidFlow
-	}
-	plain, err := datacrypto.Open(s.key, sealed.Ciphertext, sealed.Nonce, []byte("authling:email-change-runtime:v1\x00"+key))
-	if err != nil {
-		return nil, flowState{}, ErrInvalidFlow
-	}
-	defer clear(plain)
 	var state flowState
-	if err := json.Unmarshal(plain, &state); err != nil {
+	if err := runtimejson.Open(s.key, []byte("authling:email-change-runtime:v1\x00"+key), entry.Value(), &state); err != nil {
 		return nil, flowState{}, ErrInvalidFlow
 	}
 	return entry, state, nil

@@ -237,6 +237,14 @@ The host-only browser cookie carries only a random opaque bearer and is
 `HttpOnly`, `SameSite=Lax`, scoped to `/`, non-persistent, and secure outside
 the explicit loopback development mode.
 
+The `internal/runtimejson` codec encodes version-1 encrypted JSON envelopes
+for signup, password reset, email change, sessions, and OIDC runtime state.
+It preserves the capitalized workflow fields and lowercase session/OIDC fields.
+Callers supply the existing key and associated data, including the storage key.
+They retain expiry, revision checks, storage access, and domain validation.
+The codec clears temporary plaintext buffers before returning. Existing records
+remain readable, and old readers can read new records without migration.
+
 Session records are authenticated-encrypted in runtime state beneath
 HMAC-derived keys. They have a 24-hour absolute lifetime and a one-hour
 inactivity limit. Activity updates use OCC and never extend the absolute
