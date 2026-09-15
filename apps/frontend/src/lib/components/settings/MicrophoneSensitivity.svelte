@@ -1,7 +1,7 @@
 <!-- @component Shared pre-gate meter and browser-local transmission threshold. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { RangeField } from '$lib/ui/form';
+  import RangeField from '$lib/ui/form/RangeField.svelte';
   import { Hint } from '$lib/ui';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   let {

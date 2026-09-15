@@ -39,6 +39,9 @@ icon, disabled state, semantic action color, and field spacing.
     max > min ? Math.max(0, Math.min(1, ((value ?? min) - min) / (max - min))) : 0
   );
   const rainbowOpacity = $derived(rainbow && !disabled ? Math.max(0, (progress - 0.8) / 0.2) : 0);
+  const letters = $derived(
+    Array.from(displayValue, (text, index) => ({ text, delay: `${index * 85}ms` }))
+  );
   const celebrate = $derived(rainbow && !disabled && value === max);
 </script>
 
@@ -50,9 +53,18 @@ icon, disabled state, semantic action color, and field spacing.
       {/if}
       <span>{label}</span>
     </span>
-    <span class={['shrink-0 tabular-nums', celebrate ? 'awesome-text' : 'text-muted']}
-      >{displayValue}</span
-    >
+    <span class="shrink-0 tabular-nums">
+      {#if celebrate}
+        <span class="sr-only">{displayValue}</span>
+        <span aria-hidden="true" class="inline-flex" data-awesome-readout>
+          {#each letters as letter (letter)}
+            <span class="awesome-text" style:--letter-delay={letter.delay}>{letter.text}</span>
+          {/each}
+        </span>
+      {:else}
+        <span class="text-muted">{displayValue}</span>
+      {/if}
+    </span>
   </span>
   <span class="relative block h-5">
     {#if rainbow && !disabled}
@@ -70,7 +82,10 @@ icon, disabled state, semantic action color, and field spacing.
               style:opacity={rainbowOpacity}
               data-rainbow-band
             >
-              <span class="rainbow-spectrum"></span>
+              <span
+                class="rainbow-spectrum"
+                style:--rainbow-duration={`${4 / (1 + 5 * rainbowOpacity)}s`}
+              ></span>
             </span>
           {/if}
         </span>

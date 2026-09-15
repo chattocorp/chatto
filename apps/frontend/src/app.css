@@ -521,7 +521,7 @@
     #a78bfa,
     #ff477e 50%
   );
-  animation: rainbow-travel 2s linear infinite;
+  animation: rainbow-travel var(--rainbow-duration, 4s) linear infinite;
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
@@ -545,7 +545,8 @@
   color: transparent;
   animation:
     awesome-colours 2s linear infinite,
-    awesome-dance 900ms ease-in-out infinite;
+    awesome-dance 1400ms ease-in-out infinite;
+  animation-delay: calc(-1 * var(--letter-delay, 0ms)), var(--letter-delay, 0ms);
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
@@ -574,17 +575,15 @@
 }
 @keyframes awesome-dance {
   0%,
+  45%,
   100% {
-    transform: translate(0, 0) rotate(-2deg);
+    transform: translateY(0) rotate(0) scale(1);
   }
-  25% {
-    transform: translate(1px, -2px) rotate(2deg);
+  15% {
+    transform: translateY(-4px) rotate(-8deg) scale(1.12);
   }
-  50% {
-    transform: translate(-1px, 0) rotate(-1deg);
-  }
-  75% {
-    transform: translate(1px, -1px) rotate(2deg);
+  30% {
+    transform: translateY(1px) rotate(5deg) scale(0.96);
   }
 }
 

@@ -14,7 +14,8 @@ Rooms support real-time voice conversations with optional camera video and scree
   gentle processing at the midpoint, and **AWESOME** adds bass, reduces nasal
   midrange, brightens highs, and applies firmer compression. At the maximum,
   the voice slider shows a moving rainbow and the AWESOME readout dances in
-  rainbow colours. The rainbow fades in over the final fifth of the slider,
+  rainbow colours, with each letter moving in sequence. The rainbow fades in
+  and moves faster over the final fifth of the slider,
   where soft saturation also adds warmth and harmonics. Reduced motion keeps
   both the rainbow and readout static; unavailable processing uses the standard
   disabled control.

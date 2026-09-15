@@ -1,7 +1,7 @@
 <!-- @component Local microphone effects; changes apply to the active call or voice test. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { RangeField } from '$lib/ui/form';
+  import RangeField from '$lib/ui/form/RangeField.svelte';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import MicrophoneSensitivity from './MicrophoneSensitivity.svelte';
 
