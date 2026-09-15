@@ -1,11 +1,12 @@
 package connectapi
 
 import (
+	"testing"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"testing"
 )
 
 func TestBotPermissionListingPublicBoundaryAndPaging(t *testing.T) {
