@@ -612,7 +612,7 @@ type PermissionMatrixCell struct {
 	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
 	// Scope ID matching PermissionMatrixScope.id.
 	ScopeId string `protobuf:"bytes,2,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
-	// Explicit decision at this scope; unspecified in a bot summary.
+	// Explicit decision at this scope.
 	Override PermissionDecision `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.admin.v1.PermissionDecision" json:"override,omitempty"`
 	// Effective decision at this scope.
 	Effective PermissionDecision `protobuf:"varint,4,opt,name=effective,proto3,enum=chatto.admin.v1.PermissionDecision" json:"effective,omitempty"`
@@ -1687,14 +1687,7 @@ type GetUserPermissionMatrixRequest struct {
 	Page *v1.PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	// Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
 	// SERVER and DM require an empty ID; GROUP and ROOM require an ID.
-	Scope *PermissionScope `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
-	// Return a compact summary of configured bot grants. Bot targets only;
-	// any authenticated member may request this view. Equivalent scopes and
-	// included permissions are combined before scope filtering and pagination.
-	// Hidden rooms are omitted; inactive grants are returned only to bot managers.
-	// Cells contain ALLOW for active grants and NONE for inactive grants.
-	// Override and allow_permitted editing details are omitted.
-	Summary       bool `protobuf:"varint,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	Scope         *PermissionScope `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1757,24 +1750,13 @@ func (x *GetUserPermissionMatrixRequest) GetScope() *PermissionScope {
 	return nil
 }
 
-func (x *GetUserPermissionMatrixRequest) GetSummary() bool {
-	if x != nil {
-		return x.Summary
-	}
-	return false
-}
-
 // Response containing one user's permission matrix.
 type GetUserPermissionMatrixResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested matrix.
 	Matrix *UserPermissionMatrix `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
 	// Total matching scopes and whether another scope page exists.
-	Page *v1.PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
-	// True when the server applied the requested bot summary view. Clients must
-	// check this before treating matrix cells as summary grants; older servers
-	// can ignore the request option and return a full management matrix instead.
-	Summary       *bool `protobuf:"varint,3,opt,name=summary,proto3,oneof" json:"summary,omitempty"`
+	Page          *v1.PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1821,13 +1803,6 @@ func (x *GetUserPermissionMatrixResponse) GetPage() *v1.PageInfo {
 		return x.Page
 	}
 	return nil
-}
-
-func (x *GetUserPermissionMatrixResponse) GetSummary() bool {
-	if x != nil && x.Summary != nil {
-		return *x.Summary
-	}
-	return false
 }
 
 // Request to set one role permission state.
@@ -2176,19 +2151,15 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x126\n" +
 	"\x05scope\x18\x03 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"h\n" +
 	"\x1aExplainPermissionsResponse\x12J\n" +
-	"\fexplanations\x18\x01 \x03(\v2&.chatto.admin.v1.PermissionExplanationR\fexplanations\"\x85\x02\n" +
+	"\fexplanations\x18\x01 \x03(\v2&.chatto.admin.v1.PermissionExplanationR\fexplanations\"\xeb\x01\n" +
 	"\x1eGetUserPermissionMatrixRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12?\n" +
 	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\x12.\n" +
 	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x126\n" +
-	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\x12\x18\n" +
-	"\asummary\x18\x05 \x01(\bR\asummary\"\xb8\x01\n" +
+	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"\x8d\x01\n" +
 	"\x1fGetUserPermissionMatrixResponse\x12=\n" +
 	"\x06matrix\x18\x01 \x01(\v2%.chatto.admin.v1.UserPermissionMatrixR\x06matrix\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\x12\x1d\n" +
-	"\asummary\x18\x03 \x01(\bH\x00R\asummary\x88\x01\x01B\n" +
-	"\n" +
-	"\b_summary\"\xee\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\xee\x01\n" +
 	"\x18SetRolePermissionRequest\x12$\n" +
 	"\trole_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\x12'\n" +
 	"\n" +
@@ -2366,7 +2337,6 @@ func file_chatto_admin_v1_permissions_proto_init() {
 		return
 	}
 	file_chatto_admin_v1_permissions_proto_msgTypes[7].OneofWrappers = []any{}
-	file_chatto_admin_v1_permissions_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

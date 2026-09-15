@@ -130,6 +130,32 @@ Clients should ignore unknown keys so servers can add capabilities over time.
 | `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
 | `granted` | `bool` | Whether the capability is currently available. |
 
+<a id="chatto-api-v1-EffectivePermission"></a>
+
+### EffectivePermission
+
+A permission currently allowed at a scope. Membership and action-specific
+requirements still apply. This is effective authority, not a stored grant.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission identifier. |
+| `scope` | [`EffectivePermissionScope`](#chatto-api-v1-EffectivePermissionScope) | Scope where the permission is allowed. |
+| `covers_descendants` | `bool` | True when every applicable child scope also allows this permission. Hidden rooms participate in this check without revealing their identities. False means clients must not describe this grant as covering all children. |
+
+<a id="chatto-api-v1-EffectivePermissionScope"></a>
+
+### EffectivePermissionScope
+
+Scope metadata visible to the caller.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`EffectivePermissionScopeKind`](#chatto-api-v1-EffectivePermissionScopeKind) | Scope tier. |
+| `id` | `string` | Room or group ID; empty for server and DM scopes. |
+| `name` | `string` | Current room or group name; empty for server and DM scopes. |
+| `parent_group_id` | `string` | Parent group ID for a channel room; empty for other scopes. |
+
 <a id="chatto-api-v1-PermissionGrant"></a>
 
 ### PermissionGrant
@@ -1611,7 +1637,7 @@ Matrix cell for one permission and scope.
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
-| `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope; unspecified in a bot summary. |
+| `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
 | `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
 
@@ -1825,6 +1851,20 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
+
+<a id="chatto-api-v1-EffectivePermissionScopeKind"></a>
+
+### EffectivePermissionScopeKind
+
+Scope of effective authority. Channel scopes never include direct messages.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | No scope supplied. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server authority or the default for channel rooms. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP` | `2` | A channel room group. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
 
 <a id="chatto-api-v1-ImageFitMode"></a>
 

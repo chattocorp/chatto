@@ -70,6 +70,12 @@ const categories = [
         description: 'Chunked room-scoped attachment upload RPCs.'
       },
       {
+        name: 'PermissionService',
+        slug: 'permissions',
+        title: 'Effective Permissions',
+        description: 'Read-only effective permissions for bot and human accounts.'
+      },
+      {
         name: 'BotService',
         slug: 'bots',
         title: 'Bots',

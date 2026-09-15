@@ -64,7 +64,7 @@ socket.
 | ------- | --------------- | ----------- |
 | `chatto.auth.v1` | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService` | Public capability-token flows |
 | `chatto.discovery.v1` | `ServerDiscoveryService` | Public discovery |
-| `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
+| `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
 `MyAccountService.GetSettings` exposes caller-owned display preferences using
@@ -134,13 +134,15 @@ manage their own bots; `bot.manage` allows global management. A human with
 but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
 
-`chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix` accepts
-`summary: true` for a paginated, read-only bot allowlist available to all
-authenticated members. Human targets and full matrices retain their existing
-management gates. Core evaluates the existing permission
-resolver in one server content view. It combines equivalent scopes and filters
-room metadata before pagination. Inactive grants require bot management
-access. The read does not expose credentials or individual DM participants.
+`chatto.api.v1.PermissionService.ListEffectivePermissions` is a read-only,
+entry-paginated effective permission read. Authenticated members can inspect
+bot targets; human targets require `user.manage-permissions`. Core evaluates
+the existing resolver in one server content view, including bot owner limits.
+The response retains inherited and included grants. Child coverage metadata
+accounts for hidden rooms before room identities are filtered. The client
+combines grants for display. Stored overrides and inactive grants remain in
+the existing admin matrix API, with its management checks. Neither effective
+permission scopes nor their coverage metadata expose individual DM participants.
 
 Owner reassignment validates stable request-time authorization inputs and uses
 user-family OCC. This boundary serializes reassignment with deletion of the bot

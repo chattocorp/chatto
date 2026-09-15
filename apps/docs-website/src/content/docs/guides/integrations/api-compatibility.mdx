@@ -24,18 +24,23 @@ bots. It identifies the human owner without granting management access.
 Older servers omit the field; clients must tolerate its absence. No stored
 data migration is required.
 
-## Bot permission summaries
+## Effective permissions
 
-`chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix` accepts
-`summary: true` for bot targets. This additive option returns compact effective
-grants with separate channel and DM scopes. It omits hidden room identities.
-Only bot owners and authorised human bot managers receive inactive grants.
-Human permission reads, full matrices, and writes keep their access rules.
+`chatto.api.v1.PermissionService.ListEffectivePermissions` is a new read-only
+API. Any signed-in member can read bot effective permissions. Human targets,
+including the caller, require `user.manage-permissions`.
 
-The response sets `summary: true` when the server applies this view. Clients
-must check this marker: an older server can ignore the request option and
-return a full matrix to a manager. The bundled profile reports an unavailable
-summary if the marker is absent. No stored-data migration is required.
+The response contains allowed permissions at server, group, channel-room, and
+DM scopes. It applies bot owner limits and omits hidden room identities.
+`covers_descendants` reports whether a grant covers all applicable child
+scopes, including hidden rooms. Channel defaults and DM access are separate.
+Clients can use this metadata to combine overlapping grants for display.
+The response never contains stored overrides or inactive grants. These remain
+in the admin matrix API under its existing management checks.
+
+Older servers return an unimplemented-method error. The bundled profile shows
+an unavailable state in that case. No stored-data migration is required. See
+the [PermissionService reference](/reference/connectrpc-api/permissions/).
 
 ## Target a server release
 

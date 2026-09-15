@@ -86,21 +86,11 @@ func (s *permissionService) GetUserPermissionMatrix(ctx context.Context, req *co
 	if err != nil {
 		return nil, err
 	}
-	var matrix *core.UserPermissionMatrix
-	if req.Msg.GetSummary() {
-		matrix, err = s.api.core.GetBotPermissionSummaryPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
-	} else {
-		matrix, err = s.api.core.GetUserPermissionMatrixPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
-	}
+	matrix, err := s.api.core.GetUserPermissionMatrixPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response := &adminv1.GetUserPermissionMatrixResponse{Matrix: apiUserPermissionMatrix(matrix), Page: apiPermissionScopePage(matrix.Page)}
-	if req.Msg.GetSummary() {
-		summary := true
-		response.Summary = &summary
-	}
-	return connect.NewResponse(response), nil
+	return connect.NewResponse(&adminv1.GetUserPermissionMatrixResponse{Matrix: apiUserPermissionMatrix(matrix), Page: apiPermissionScopePage(matrix.Page)}), nil
 }
 
 func (s *permissionService) ListUserPermissionDecisions(ctx context.Context, req *connect.Request[adminv1.ListUserPermissionDecisionsRequest]) (*connect.Response[adminv1.ListUserPermissionDecisionsResponse], error) {
@@ -407,10 +397,8 @@ func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.Perm
 		mapped := &adminv1.PermissionMatrixCell{
 			Permission: cell.Permission,
 			ScopeId:    cell.ScopeID,
+			Override:   apiPermissionDecision(cell.Override),
 			Effective:  apiPermissionDecision(cell.Effective),
-		}
-		if cell.Override != "" {
-			mapped.Override = apiPermissionDecision(cell.Override)
 		}
 		if cell.AllowPermitted != nil {
 			mapped.AllowPermitted = cell.AllowPermitted

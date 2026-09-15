@@ -28,18 +28,21 @@ exercise more authority than its human owner currently possesses.
   joining share one bullet when both apply to the same scope. The section
   starts expanded and remembers its collapsed state for each server on this
   device.
-- The profile uses the existing `chatto.admin.v1.AdminPermissionService`
-  `GetUserPermissionMatrix` read with `summary: true`. Only bot targets accept
-  member-visible summaries. Full matrices, human permission reads, and writes
-  retain their management checks. The response confirms the summary view so
-  older servers cannot be mistaken for summary-capable servers.
+- The profile reads `chatto.api.v1.PermissionService.ListEffectivePermissions`.
+  Any authenticated member can read bot effective permissions. Human targets,
+  including the caller, require `user.manage-permissions`. The read returns only
+  effective grants; it never returns stored overrides or inactive grants.
+- The client groups these grants for display. The API reports whether each
+  grant covers all applicable child scopes, including rooms hidden from the
+  viewer. It filters hidden room identities before entry pagination.
 - The summary combines broader and narrower grants only when every applicable
   narrower scope has the same effective access. It omits permissions already
   included by another displayed permission. Named rooms follow the viewer's
   normal room visibility. No DM participants or credential details are exposed.
 - Bot owners and authorised human bot managers can expand **Inactive grants** to see saved
   grants that are not active, with an explanation that the owner's current permissions do not allow them.
-  Other members cannot see inactive grants.
+  The profile loads these separately through the existing admin user matrix
+  read. Other members cannot see inactive grants.
 - The summary refreshes every 30 seconds while the pane is open. A failed read
   shows an error instead of stale grants. Long summaries have a control to
   load more permissions. Closing the pane stops refreshes and clears its cache.

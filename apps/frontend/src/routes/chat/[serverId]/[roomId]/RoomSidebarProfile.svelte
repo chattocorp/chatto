@@ -144,7 +144,7 @@ realtime changes arrive.
 
     {#if baseUser.isBot}
       {#key baseUser.id}
-        <BotPermissionSummary botId={baseUser.id} />
+        <BotPermissionSummary botId={baseUser.id} botOwnerId={baseUser.botOwnerUserId} />
       {/key}
     {/if}
 

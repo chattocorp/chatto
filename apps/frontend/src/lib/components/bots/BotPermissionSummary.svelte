@@ -1,8 +1,9 @@
 <!-- @component Public bot permissions. The query refreshes every 30 seconds
 while mounted and discards cached data when the profile closes. -->
 <script lang="ts">
-  import { createInfiniteQuery } from '@tanstack/svelte-query';
-  import { createPermissionAPI } from '$lib/api-client/permissions';
+  import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
+  import { createPermissionAPI, type MatrixData } from '$lib/api-client/permissions';
+  import { createEffectivePermissionAPI } from '$lib/api-client/effectivePermissions';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -11,11 +12,12 @@ while mounted and discards cached data when the profile closes. -->
   import { Button } from '$lib/ui/form';
   import {
     groupBotPermissions,
-    mergeBotPermissionPages,
+    compactEffectivePermissions,
+    inactiveBotGrants,
     type BotPermissionGroup
   } from './botPermissionText';
 
-  let { botId }: { botId: string } = $props();
+  let { botId, botOwnerId }: { botId: string; botOwnerId?: string } = $props();
   const scope = useServerScope();
   const query = createInfiniteQuery(
     () => ({
@@ -30,17 +32,68 @@ while mounted and discards cached data when the profile closes. -->
       initialPageParam: 0,
       queryFn: ({ pageParam, signal }) =>
         scope.connection
-          .getAPI(createPermissionAPI)
-          .getUserPermissionSummary(botId, pageParam, signal),
+          .getAPI(createEffectivePermissionAPI)
+          .listEffectivePermissions(botId, pageParam, signal),
       getNextPageParam: (page) => page.nextOffset,
       refetchInterval: 30_000,
       gcTime: 0
     }),
     () => queryClient
   );
-  const entries = $derived(mergeBotPermissionPages(query.data?.pages ?? []));
-  const active = $derived(groupBotPermissions(entries.filter((entry) => entry.active)));
-  const inactive = $derived(groupBotPermissions(entries.filter((entry) => !entry.active)));
+  const active = $derived(
+    groupBotPermissions(
+      compactEffectivePermissions(query.data?.pages.flatMap((page) => page.permissions) ?? [])
+    )
+  );
+  const canManage = $derived(
+    !!scope.store?.projection.viewer?.user?.profile &&
+      !scope.store.projection.viewer.user.profile.isBot &&
+      (scope.store.projection.viewer.user.profile.id === botOwnerId ||
+        scope.store.projection.viewer.viewerPermissions?.permissions.some(
+          (entry) => entry.permission === 'bot.manage' && entry.granted
+        ))
+  );
+  const configuration = createQuery(
+    () => ({
+      queryKey: [
+        'server',
+        scope.serverId,
+        'session',
+        scope.connection.queryScope,
+        'bot-permission-configuration',
+        botId
+      ],
+      enabled: canManage,
+      queryFn: async ({ signal }) => {
+        const api = scope.connection.getAPI(createPermissionAPI);
+        const matrix: MatrixData = { applicablePermissions: [], scopes: [], cells: [] };
+        let offset = 0;
+        while (true) {
+          const page = await api.getUserPermissionMatrix(botId, {
+            signal,
+            page: { limit: 100, offset }
+          });
+          if (!page) throw new Error('Missing bot permission configuration');
+          matrix.applicablePermissions.push(...page.applicablePermissions);
+          matrix.scopes.push(...page.scopes);
+          matrix.cells.push(...page.cells);
+          if (!page.page.hasMore) break;
+          if (!page.scopes.length) throw new Error('Empty bot configuration scope page');
+          offset += page.scopes.length;
+        }
+        matrix.applicablePermissions = [...new Set(matrix.applicablePermissions)];
+        return matrix;
+      },
+      refetchInterval: 30_000,
+      gcTime: 0
+    }),
+    () => queryClient
+  );
+  const inactive = $derived(
+    canManage && !configuration.isError && configuration.data
+      ? groupBotPermissions(inactiveBotGrants(configuration.data), true)
+      : []
+  );
 </script>
 
 {#snippet permissionGroups(groups: BotPermissionGroup[])}
@@ -74,13 +127,20 @@ while mounted and discards cached data when the profile closes. -->
       {:else if !query.hasNextPage}
         <p class="text-muted">{m('chat.profile.permissions.empty')}</p>
       {/if}
-      {#if inactive.length > 0}
+      {#if inactive.length > 0 || (canManage && configuration.isError)}
         <details class="space-y-3 text-muted">
           <summary class="cursor-pointer font-medium"
             >{m('chat.profile.permissions.inactive_title')}</summary
           >
           <p>{m('chat.profile.permissions.inactive_note')}</p>
-          {@render permissionGroups(inactive)}
+          {#if configuration.isError}
+            <p role="alert">{m('chat.profile.permissions.error')}</p>
+            <Button variant="secondary" onclick={() => configuration.refetch()}
+              >{m('common.retry')}</Button
+            >
+          {:else}
+            {@render permissionGroups(inactive)}
+          {/if}
         </details>
       {/if}
       {#if query.hasNextPage}

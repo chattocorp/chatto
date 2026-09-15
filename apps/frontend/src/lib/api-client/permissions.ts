@@ -13,15 +13,6 @@ import {
   type UserPermissionMatrix as APIUserPermissionMatrix
 } from '@chatto/api-types/admin/v1/permissions_pb';
 
-/** Public summary entry, already filtered and combined by the server. */
-export type BotPermission = {
-  permission: string;
-  scope: 'server' | 'group' | 'room' | 'dm';
-  scopeId: string;
-  scopeName: string;
-  active: boolean;
-};
-
 export type PermissionAPIConfig = {
   baseUrl: string;
   bearerToken: string | null;
@@ -131,52 +122,6 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    /** Read the public bot summary through the existing user matrix API. */
-    async getUserPermissionSummary(userId: string, offset = 0, signal?: AbortSignal) {
-      const response = await client.getUserPermissionMatrix(
-        { userId, summary: true, includeDirectMessageScope: true, page: { limit: 100, offset } },
-        { headers: headers(), signal }
-      );
-      if (response.summary !== true) throw new Error('Permission summary is not supported');
-      if (!response.matrix) throw new Error('Missing permission summary');
-      const scopes = new Map(response.matrix.scopes.map((scope) => [scope.id, scope]));
-      const permissions: BotPermission[] = response.matrix.cells.map((cell) => {
-        const scope = scopes.get(cell.scopeId);
-        if (!scope) throw new Error('Missing permission scope');
-        const kind =
-          scope.kind === PermissionScopeKind.SERVER
-            ? 'server'
-            : scope.kind === PermissionScopeKind.DM
-              ? 'dm'
-              : scope.kind === PermissionScopeKind.GROUP
-                ? 'group'
-                : scope.kind === PermissionScopeKind.ROOM
-                  ? 'room'
-                  : null;
-        if (!kind) throw new Error('Unsupported permission scope');
-        if (
-          cell.effective !== PermissionDecision.ALLOW &&
-          cell.effective !== PermissionDecision.NONE
-        ) {
-          throw new Error('Unsupported permission summary decision');
-        }
-        return {
-          permission: cell.permission,
-          scope: kind,
-          scopeId: kind === 'room' || kind === 'group' ? scope.id.slice(kind.length + 1) : '',
-          scopeName: scope.label,
-          active: cell.effective === PermissionDecision.ALLOW
-        };
-      });
-      const hasMore = response.page?.hasMore ?? false;
-      if (hasMore && scopes.size === 0) throw new Error('Empty permission scope page');
-      return {
-        permissions,
-        hasMore,
-        nextOffset: hasMore ? offset + response.matrix.scopes.length : undefined
-      };
-    },
-
     async getRolePermissionTierMatrix(
       input: {
         roomId?: string | null;

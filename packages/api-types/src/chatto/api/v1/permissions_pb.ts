@@ -5,6 +5,57 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
+
+/**
+ * Scope of effective authority. Channel scopes never include direct messages.
+ *
+ * @generated from enum chatto.api.v1.EffectivePermissionScopeKind
+ */
+export enum EffectivePermissionScopeKind {
+  /**
+   * No scope supplied.
+   *
+   * @generated from enum value: EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Server authority or the default for channel rooms.
+   *
+   * @generated from enum value: EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER = 1;
+   */
+  SERVER = 1,
+
+  /**
+   * A channel room group.
+   *
+   * @generated from enum value: EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP = 2;
+   */
+  GROUP = 2,
+
+  /**
+   * One channel room.
+   *
+   * @generated from enum value: EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM = 3;
+   */
+  ROOM = 3,
+
+  /**
+   * Direct-message authority; membership is always required.
+   *
+   * @generated from enum value: EFFECTIVE_PERMISSION_SCOPE_KIND_DM = 4;
+   */
+  DM = 4,
+}
+// Retrieve enum metadata with: proto3.getEnumType(EffectivePermissionScopeKind)
+proto3.util.setEnumType(EffectivePermissionScopeKind, "chatto.api.v1.EffectivePermissionScopeKind", [
+  { no: 0, name: "EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED" },
+  { no: 1, name: "EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER" },
+  { no: 2, name: "EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP" },
+  { no: 3, name: "EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM" },
+  { no: 4, name: "EFFECTIVE_PERMISSION_SCOPE_KIND_DM" },
+]);
 
 /**
  * Effective decision for one permission key.
@@ -116,5 +167,230 @@ export class CapabilityGrant extends Message<CapabilityGrant> {
 
   static equals(a: CapabilityGrant | PlainMessage<CapabilityGrant> | undefined, b: CapabilityGrant | PlainMessage<CapabilityGrant> | undefined): boolean {
     return proto3.util.equals(CapabilityGrant, a, b);
+  }
+}
+
+/**
+ * Scope metadata visible to the caller.
+ *
+ * @generated from message chatto.api.v1.EffectivePermissionScope
+ */
+export class EffectivePermissionScope extends Message<EffectivePermissionScope> {
+  /**
+   * Scope tier.
+   *
+   * @generated from field: chatto.api.v1.EffectivePermissionScopeKind kind = 1;
+   */
+  kind = EffectivePermissionScopeKind.UNSPECIFIED;
+
+  /**
+   * Room or group ID; empty for server and DM scopes.
+   *
+   * @generated from field: string id = 2;
+   */
+  id = "";
+
+  /**
+   * Current room or group name; empty for server and DM scopes.
+   *
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * Parent group ID for a channel room; empty for other scopes.
+   *
+   * @generated from field: string parent_group_id = 4;
+   */
+  parentGroupId = "";
+
+  constructor(data?: PartialMessage<EffectivePermissionScope>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.EffectivePermissionScope";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(EffectivePermissionScopeKind) },
+    { no: 2, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "parent_group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EffectivePermissionScope {
+    return new EffectivePermissionScope().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EffectivePermissionScope {
+    return new EffectivePermissionScope().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EffectivePermissionScope {
+    return new EffectivePermissionScope().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EffectivePermissionScope | PlainMessage<EffectivePermissionScope> | undefined, b: EffectivePermissionScope | PlainMessage<EffectivePermissionScope> | undefined): boolean {
+    return proto3.util.equals(EffectivePermissionScope, a, b);
+  }
+}
+
+/**
+ * A permission currently allowed at a scope. Membership and action-specific
+ * requirements still apply. This is effective authority, not a stored grant.
+ *
+ * @generated from message chatto.api.v1.EffectivePermission
+ */
+export class EffectivePermission extends Message<EffectivePermission> {
+  /**
+   * Stable permission identifier.
+   *
+   * @generated from field: string permission = 1;
+   */
+  permission = "";
+
+  /**
+   * Scope where the permission is allowed.
+   *
+   * @generated from field: chatto.api.v1.EffectivePermissionScope scope = 2;
+   */
+  scope?: EffectivePermissionScope;
+
+  /**
+   * True when every applicable child scope also allows this permission.
+   * Hidden rooms participate in this check without revealing their identities.
+   * False means clients must not describe this grant as covering all children.
+   *
+   * @generated from field: bool covers_descendants = 3;
+   */
+  coversDescendants = false;
+
+  constructor(data?: PartialMessage<EffectivePermission>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.EffectivePermission";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "scope", kind: "message", T: EffectivePermissionScope },
+    { no: 3, name: "covers_descendants", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EffectivePermission {
+    return new EffectivePermission().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EffectivePermission {
+    return new EffectivePermission().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EffectivePermission {
+    return new EffectivePermission().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EffectivePermission | PlainMessage<EffectivePermission> | undefined, b: EffectivePermission | PlainMessage<EffectivePermission> | undefined): boolean {
+    return proto3.util.equals(EffectivePermission, a, b);
+  }
+}
+
+/**
+ * Select a current page of effective permissions for one account.
+ *
+ * @generated from message chatto.api.v1.ListEffectivePermissionsRequest
+ */
+export class ListEffectivePermissionsRequest extends Message<ListEffectivePermissionsRequest> {
+  /**
+   * Required target account ID.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * Offset page over visible permission entries; default 20, maximum 100.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 2;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListEffectivePermissionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListEffectivePermissionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListEffectivePermissionsRequest {
+    return new ListEffectivePermissionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListEffectivePermissionsRequest {
+    return new ListEffectivePermissionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListEffectivePermissionsRequest {
+    return new ListEffectivePermissionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListEffectivePermissionsRequest | PlainMessage<ListEffectivePermissionsRequest> | undefined, b: ListEffectivePermissionsRequest | PlainMessage<ListEffectivePermissionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListEffectivePermissionsRequest, a, b);
+  }
+}
+
+/**
+ * Effective grants in permission-catalog order, then stable scope-ID order.
+ * Denied and unconfigured permissions are absent. Inherited and included
+ * permissions remain separate entries; clients can group them for display.
+ *
+ * @generated from message chatto.api.v1.ListEffectivePermissionsResponse
+ */
+export class ListEffectivePermissionsResponse extends Message<ListEffectivePermissionsResponse> {
+  /**
+   * Effective grants visible to the caller.
+   *
+   * @generated from field: repeated chatto.api.v1.EffectivePermission permissions = 1;
+   */
+  permissions: EffectivePermission[] = [];
+
+  /**
+   * Counts and continuation for the visible entry collection.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<ListEffectivePermissionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListEffectivePermissionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "permissions", kind: "message", T: EffectivePermission, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListEffectivePermissionsResponse {
+    return new ListEffectivePermissionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListEffectivePermissionsResponse {
+    return new ListEffectivePermissionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListEffectivePermissionsResponse {
+    return new ListEffectivePermissionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListEffectivePermissionsResponse | PlainMessage<ListEffectivePermissionsResponse> | undefined, b: ListEffectivePermissionsResponse | PlainMessage<ListEffectivePermissionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListEffectivePermissionsResponse, a, b);
   }
 }

@@ -1,6 +1,17 @@
-import type { BotPermission } from '$lib/api-client/permissions';
+import type { EffectivePermission } from '$lib/api-client/effectivePermissions';
+import type { MatrixData, MatrixScope } from '$lib/api-client/permissions';
 import { m } from '$lib/i18n/messages';
-import { getPermissionDescription, getPermissionCategory } from '$lib/permissions';
+import {
+  getIncludingPermissions,
+  getPermissionDescription,
+  getPermissionCategory
+} from '$lib/permissions';
+
+/** Presentation entry shared by effective access and manager-only inactive grants. */
+export type BotPermission = Pick<
+  EffectivePermission,
+  'permission' | 'scope' | 'scopeId' | 'scopeName'
+> & { active: boolean };
 
 /** A scope heading and its actions, built only from server-authorised grants. */
 export type BotPermissionGroup = {
@@ -12,17 +23,22 @@ export type BotPermissionGroup = {
 };
 
 /** Group one active state at a time. Scope identity never depends on display names. */
-export function groupBotPermissions(entries: BotPermission[]): BotPermissionGroup[] {
+export function groupBotPermissions(
+  entries: BotPermission[],
+  configuration = false
+): BotPermissionGroup[] {
   const groups = new Map<string, { label: string; permissions: Set<string> }>();
   for (const entry of entries) {
     const category = getPermissionCategory(entry.permission);
     const kind =
       entry.scope === 'server'
-        ? category === 'message' || category === 'call'
-          ? 'joined_rooms'
-          : category === 'room'
-            ? 'all_rooms'
-            : 'server'
+        ? configuration
+          ? 'server'
+          : category === 'message' || category === 'call'
+            ? 'joined_rooms'
+            : category === 'room'
+              ? 'all_rooms'
+              : 'server'
         : entry.scope;
     const id = `${kind}:${entry.scopeId}`;
     let group = groups.get(id);
@@ -77,17 +93,90 @@ export function groupBotPermissions(entries: BotPermission[]): BotPermissionGrou
     });
 }
 
-/** Offset pages can overlap after a permission change. Keep the newest entry. */
-export function mergeBotPermissionPages(
-  pages: { permissions: BotPermission[] }[]
-): BotPermission[] {
-  const unique = new Map<string, BotPermission>();
-  for (const page of pages) {
-    for (const entry of page.permissions) {
-      unique.set(`${entry.permission}:${entry.scope}:${entry.scopeId}`, entry);
+/** Collapse display entries only when the server proves coverage of hidden children. */
+export function compactEffectivePermissions(entries: EffectivePermission[]): BotPermission[] {
+  const unique = new Map<string, EffectivePermission>();
+  for (const entry of entries)
+    unique.set(`${entry.permission}:${entry.scope}:${entry.scopeId}`, entry);
+  const all = [...unique.values()];
+  const byKey = new Map(
+    all.map((entry) => [`${entry.permission}:${entry.scope}:${entry.scopeId}`, entry])
+  );
+  const permissions = [...new Set(all.map((entry) => entry.permission))];
+  const covers = (permission: string, target: EffectivePermission): boolean => {
+    if (byKey.get(`${permission}:${target.scope}:${target.scopeId}`)?.coversDescendants)
+      return true;
+    if (target.scope === 'group' || target.scope === 'room') {
+      if (byKey.get(`${permission}:server:`)?.coversDescendants) return true;
     }
-  }
-  return [...unique.values()];
+    return (
+      target.scope === 'room' &&
+      !!byKey.get(`${permission}:group:${target.parentGroupId}`)?.coversDescendants
+    );
+  };
+  return all
+    .filter((entry) => {
+      if (!entry.coversDescendants) return false;
+      if (
+        (entry.scope === 'group' || entry.scope === 'room') &&
+        byKey.get(`${entry.permission}:server:`)?.coversDescendants
+      )
+        return false;
+      if (
+        entry.scope === 'room' &&
+        byKey.get(`${entry.permission}:group:${entry.parentGroupId}`)?.coversDescendants
+      )
+        return false;
+      return !getIncludingPermissions(permissions, entry.permission).some((permission) =>
+        covers(permission, entry)
+      );
+    })
+    .map((entry) => ({ ...entry, active: true }));
+}
+
+/** Derive unavailable configured bot grants from the manager's complete matrix.
+ * Broader rows describe configuration defaults; room rows describe local limits.
+ * This never decides authorization: the admin API owns access and effective values.
+ */
+export function inactiveBotGrants(matrix: MatrixData): BotPermission[] {
+  const cells = new Map(matrix.cells.map((cell) => [`${cell.scopeId}:${cell.permission}`, cell]));
+  const scopes = new Map(matrix.scopes.map((scope) => [scope.id, scope]));
+  const configured = (scope: MatrixScope, permission: string): boolean => {
+    const ids =
+      scope.kind === 'ROOM'
+        ? [scope.id, `group:${scope.parentGroupId}`, 'server']
+        : scope.kind === 'SERVER'
+          ? ['server']
+          : [scope.id, 'server'];
+    for (const id of ids) {
+      const decision = cells.get(`${id}:${permission}`)?.override;
+      if (decision && decision !== 'NONE') return decision === 'ALLOW';
+    }
+    return false;
+  };
+  return matrix.cells
+    .filter((cell) => {
+      const scope = scopes.get(cell.scopeId);
+      if (!scope || cell.effective === 'ALLOW') return false;
+      if (!configured(scope, cell.permission)) return false;
+      // Included read subsets add no useful second inactive line.
+      return !getIncludingPermissions(matrix.applicablePermissions, cell.permission).some(
+        (permission) =>
+          configured(scope, permission) &&
+          cells.get(`${scope.id}:${permission}`)?.effective !== 'ALLOW'
+      );
+    })
+    .map((cell) => {
+      const scope = scopes.get(cell.scopeId)!;
+      const kind = scope.kind.toLowerCase() as BotPermission['scope'];
+      return {
+        permission: cell.permission,
+        scope: kind,
+        scopeId: kind === 'room' || kind === 'group' ? scope.id.slice(kind.length + 1) : '',
+        scopeName: scope.label,
+        active: false
+      };
+    });
 }
 
 // Keep bot actions concise and avoid human-only behaviour or protocol keys in

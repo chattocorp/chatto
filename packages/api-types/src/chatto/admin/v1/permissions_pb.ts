@@ -530,7 +530,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
   scopeId = "";
 
   /**
-   * Explicit decision at this scope; unspecified in a bot summary.
+   * Explicit decision at this scope.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision override = 3;
    */
@@ -1499,18 +1499,6 @@ export class GetUserPermissionMatrixRequest extends Message<GetUserPermissionMat
    */
   scope?: PermissionScope;
 
-  /**
-   * Return a compact summary of configured bot grants. Bot targets only;
-   * any authenticated member may request this view. Equivalent scopes and
-   * included permissions are combined before scope filtering and pagination.
-   * Hidden rooms are omitted; inactive grants are returned only to bot managers.
-   * Cells contain ALLOW for active grants and NONE for inactive grants.
-   * Override and allow_permitted editing details are omitted.
-   *
-   * @generated from field: bool summary = 5;
-   */
-  summary = false;
-
   constructor(data?: PartialMessage<GetUserPermissionMatrixRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1523,7 +1511,6 @@ export class GetUserPermissionMatrixRequest extends Message<GetUserPermissionMat
     { no: 2, name: "include_direct_message_scope", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "page", kind: "message", T: PageRequest },
     { no: 4, name: "scope", kind: "message", T: PermissionScope },
-    { no: 5, name: "summary", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserPermissionMatrixRequest {
@@ -1563,15 +1550,6 @@ export class GetUserPermissionMatrixResponse extends Message<GetUserPermissionMa
    */
   page?: PageInfo;
 
-  /**
-   * True when the server applied the requested bot summary view. Clients must
-   * check this before treating matrix cells as summary grants; older servers
-   * can ignore the request option and return a full management matrix instead.
-   *
-   * @generated from field: optional bool summary = 3;
-   */
-  summary?: boolean;
-
   constructor(data?: PartialMessage<GetUserPermissionMatrixResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1582,7 +1560,6 @@ export class GetUserPermissionMatrixResponse extends Message<GetUserPermissionMa
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "matrix", kind: "message", T: UserPermissionMatrix },
     { no: 2, name: "page", kind: "message", T: PageInfo },
-    { no: 3, name: "summary", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserPermissionMatrixResponse {

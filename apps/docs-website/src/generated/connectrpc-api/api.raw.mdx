@@ -115,6 +115,56 @@ Batch public role response.
 | `roles` | repeated [`Role`](#chatto-api-v1-Role) | Found roles. The server preserves first-seen request order and de-duplicates repeated names. |
 
 
+<a id="chatto-api-v1-PermissionService"></a>
+
+## PermissionService
+
+Read-only effective authority. Configuration and explanations remain in
+chatto.admin.v1.AdminPermissionService.
+
+<a id="chatto-api-v1-PermissionService-ListEffectivePermissions"></a>
+
+### ListEffectivePermissions
+
+Any authenticated member may read a bot's effective permissions. Human
+targets require user.manage-permissions, including self-targeted reads.
+Bot authority includes the owner's current limits. Hidden room identities,
+stored grants, credentials, and individual DM participants are not exposed.
+Missing or deleted targets return NOT_FOUND. Each page is a fresh read;
+concurrent changes can move entries between pages. Clients should refresh
+visible views (the bundled client uses 30 seconds), deduplicate overlapping
+pages, and clear the view on close or read failure.
+
+```http
+POST /api/connect/chatto.api.v1.PermissionService/ListEffectivePermissions
+```
+
+<a id="chatto-api-v1-ListEffectivePermissionsRequest"></a>
+
+#### Input: ListEffectivePermissionsRequest
+
+Select a current page of effective permissions for one account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required target account ID. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Offset page over visible permission entries; default 20, maximum 100. |
+
+
+<a id="chatto-api-v1-ListEffectivePermissionsResponse"></a>
+
+#### Result: ListEffectivePermissionsResponse
+
+Effective grants in permission-catalog order, then stable scope-ID order.
+Denied and unconfigured permissions are absent. Inherited and included
+permissions remain separate entries; clients can group them for display.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`EffectivePermission`](#chatto-api-v1-EffectivePermission) | Effective grants visible to the caller. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Counts and continuation for the visible entry collection. |
+
+
 <a id="chatto-api-v1-AssetService"></a>
 
 ## AssetService
@@ -4773,6 +4823,36 @@ Clients should ignore unknown keys so servers can add capabilities over time.
 
 
 
+<a id="chatto-api-v1-EffectivePermission"></a>
+
+### EffectivePermission
+
+A permission currently allowed at a scope. Membership and action-specific
+requirements still apply. This is effective authority, not a stored grant.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission identifier. |
+| `scope` | [`EffectivePermissionScope`](#chatto-api-v1-EffectivePermissionScope) | Scope where the permission is allowed. |
+| `covers_descendants` | `bool` | True when every applicable child scope also allows this permission. Hidden rooms participate in this check without revealing their identities. False means clients must not describe this grant as covering all children. |
+
+
+
+<a id="chatto-api-v1-EffectivePermissionScope"></a>
+
+### EffectivePermissionScope
+
+Scope metadata visible to the caller.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`EffectivePermissionScopeKind`](#chatto-api-v1-EffectivePermissionScopeKind) | Scope tier. |
+| `id` | `string` | Room or group ID; empty for server and DM scopes. |
+| `name` | `string` | Current room or group name; empty for server and DM scopes. |
+| `parent_group_id` | `string` | Parent group ID for a channel room; empty for other scopes. |
+
+
+
 <a id="chatto-api-v1-PermissionGrant"></a>
 
 ### PermissionGrant
@@ -6115,6 +6195,21 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
+
+
+<a id="chatto-api-v1-EffectivePermissionScopeKind"></a>
+
+### EffectivePermissionScopeKind
+
+Scope of effective authority. Channel scopes never include direct messages.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | No scope supplied. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server authority or the default for channel rooms. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP` | `2` | A channel room group. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
 
 
 <a id="chatto-api-v1-ImageFitMode"></a>

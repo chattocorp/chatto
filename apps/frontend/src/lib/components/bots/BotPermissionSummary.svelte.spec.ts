@@ -1,248 +1,187 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
-import { loadLocaleMessages } from '$lib/i18n/messages';
-import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import type { BotPermission } from '$lib/api-client/permissions';
+import type { EffectivePermission } from '$lib/api-client/effectivePermissions';
+import {
+  compactEffectivePermissions,
+  groupBotPermissions,
+  inactiveBotGrants
+} from './botPermissionText';
 
-const mocks = vi.hoisted(() => ({ getUserPermissionSummary: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  listEffectivePermissions: vi.fn(),
+  getUserPermissionMatrix: vi.fn(),
+  serverId: 'effective-test'
+}));
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
-    serverId: 'permission-test',
-    connection: { queryScope: 'session', getAPI: () => mocks }
+    serverId: mocks.serverId,
+    connection: { queryScope: 'session', getAPI: () => mocks },
+    store: {
+      projection: {
+        viewer: {
+          user: { profile: { id: 'viewer', isBot: false } },
+          viewerPermissions: { permissions: [] }
+        }
+      }
+    }
   })
 }));
 import BotPermissionSummary from './BotPermissionSummary.svelte';
 
-function entry(permission: string, scope: BotPermission['scope'], active = true): BotPermission {
+function grant(
+  permission: string,
+  scope: EffectivePermission['scope'] = 'server',
+  overrides: Partial<EffectivePermission> = {}
+): EffectivePermission {
   return {
     permission,
     scope,
-    scopeId: scope === 'room' ? 'general' : '',
-    scopeName: scope === 'room' ? 'general' : '',
-    active
+    scopeId: '',
+    scopeName: '',
+    parentGroupId: '',
+    coversDescendants: true,
+    ...overrides
   };
 }
+let view: ReturnType<typeof render> | undefined;
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.serverId = `effective-test-${crypto.randomUUID()}`;
+  queryClient.clear();
+  localStorage.clear();
+  queryClient.setQueryDefaults(['server', mocks.serverId], { retry: false });
+});
+afterEach(() => {
+  queryClient.clear();
+});
 
-let mounted: ReturnType<typeof render> | undefined;
-describe('bot permission summary', () => {
-  beforeEach(async () => {
-    vi.resetAllMocks();
-    queryClient.clear();
-    queryClient.setQueryDefaults(['server', 'permission-test'], { retry: false });
-    await loadLocaleMessages('en-GB');
-    setReactiveLocale('en-GB');
+it('groups effective grants without issuing an admin read for ordinary members', async () => {
+  mocks.listEffectivePermissions.mockResolvedValue({
+    permissions: [
+      grant('message.read'),
+      grant('message.read-interactions'),
+      grant('message.read', 'dm'),
+      grant('room.list'),
+      grant('room.join')
+    ],
+    hasMore: false
   });
-  afterEach(() => {
-    mounted?.unmount();
-    mounted = undefined;
-    queryClient.clear();
-  });
+  view = render(BotPermissionSummary, { botId: 'bot', botOwnerId: 'owner' });
+  await expect.element(page.getByText('Browse and join rooms')).toBeVisible();
+  await expect.element(page.getByText('Rooms it has joined', { exact: true })).toBeVisible();
+  await expect.element(page.getByText('Its direct messages', { exact: true })).toBeVisible();
+  expect(mocks.getUserPermissionMatrix).not.toHaveBeenCalled();
+  expect(view.container.textContent).not.toContain('Inactive grants');
+});
 
-  it('renders readable active and inactive permissions with distinct channel and DM scopes', async () => {
-    mocks.getUserPermissionSummary.mockResolvedValue({
-      permissions: [
-        entry('message.read', 'server'),
-        entry('message.post', 'dm'),
-        entry('message.manage', 'room', false)
-      ],
+it('keeps the disclosure collapsed across profile mounts', async () => {
+  mocks.listEffectivePermissions.mockResolvedValue({
+    permissions: [grant('message.read')],
+    hasMore: false
+  });
+  view = render(BotPermissionSummary, { botId: 'bot' });
+  await expect.element(page.getByText('Read all messages')).toBeVisible();
+  await page.getByRole('button', { name: 'What it can do' }).click();
+  await expect.element(page.getByText('Read all messages')).not.toBeInTheDocument();
+  await view.unmount();
+  view = render(BotPermissionSummary, { botId: 'bot' });
+  await expect
+    .element(page.getByRole('button', { name: 'What it can do' }))
+    .toHaveAttribute('aria-expanded', 'false');
+});
+
+it('hides stale effective grants after a read error and permits retry', async () => {
+  mocks.listEffectivePermissions.mockResolvedValue({
+    permissions: [grant('message.read')],
+    hasMore: false
+  });
+  view = render(BotPermissionSummary, { botId: 'bot' });
+  await expect.element(page.getByText('Read all messages')).toBeVisible();
+  mocks.listEffectivePermissions.mockRejectedValue(new Error('offline'));
+  await queryClient.invalidateQueries({ queryKey: ['server', mocks.serverId] });
+  await expect.element(page.getByRole('alert')).toBeVisible();
+  expect(view.container.textContent).not.toContain('Read all messages');
+  mocks.listEffectivePermissions.mockResolvedValue({ permissions: [], hasMore: false });
+  await page.getByRole('button', { name: 'Try Again' }).click();
+  await expect.element(page.getByText('No active permissions are visible to you.')).toBeVisible();
+});
+
+it('deduplicates overlapping pages and uses the API continuation', async () => {
+  mocks.listEffectivePermissions
+    .mockResolvedValueOnce({ permissions: [grant('message.read')], hasMore: true, nextOffset: 1 })
+    .mockResolvedValueOnce({
+      permissions: [grant('message.read'), grant('message.post')],
       hasMore: false
     });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect.element(page.getByText('Read all messages')).toBeVisible();
-    await expect.element(page.getByText('Post new messages')).toBeVisible();
-    await expect.element(page.getByText('Inactive grants', { exact: true })).toBeVisible();
-    await expect.element(page.getByRole('heading', { name: 'Rooms it has joined' })).toBeVisible();
-    await expect.element(page.getByRole('heading', { name: 'Its direct messages' })).toBeVisible();
-    await expect.element(page.getByText('Manage messages', { exact: true })).not.toBeVisible();
-    await page.getByText('Inactive grants', { exact: true }).click();
-    await expect.element(page.getByText('Manage messages', { exact: true })).toBeVisible();
-    expect(mounted.container.textContent).toContain('owner’s current permissions');
-    expect(mounted.container.textContent).toContain('Manage messages');
-    expect(mounted.container.textContent).not.toContain('start DMs');
-    expect(mocks.getUserPermissionSummary).toHaveBeenCalledWith('bot', 0, expect.any(AbortSignal));
-  });
+  view = render(BotPermissionSummary, { botId: 'bot' });
+  await page.getByRole('button', { name: 'Show more permissions' }).click();
+  await expect.element(page.getByText('Post new messages')).toBeVisible();
+  expect(mocks.listEffectivePermissions).toHaveBeenLastCalledWith(
+    'bot',
+    1,
+    expect.any(AbortSignal)
+  );
+  expect(view.container.textContent?.match(/Read all messages/g)).toHaveLength(1);
+});
 
-  it('groups actions by scope and combines browsing and joining only within that scope', async () => {
-    mocks.getUserPermissionSummary.mockResolvedValue({
-      permissions: [
-        entry('room.join', 'server'),
-        entry('room.list', 'server'),
-        entry('message.read', 'server'),
-        entry('message.post-in-thread', 'server'),
-        entry('message.read', 'dm'),
-        entry('message.post-in-thread', 'dm'),
-        entry('room.list', 'room'),
-        entry('room.join', 'room', false)
-      ],
-      hasMore: false
-    });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect.element(page.getByText('Browse and join rooms', { exact: true })).toBeVisible();
-    await expect.element(page.getByText('Browse rooms', { exact: true })).toBeVisible();
-    const headings = [...mounted.container.querySelectorAll('h4')].map((el) =>
-      el.textContent?.trim()
-    );
-    expect(headings).toEqual([
-      'Rooms',
-      'Rooms it has joined',
-      '#general',
-      'Its direct messages',
-      '#general'
-    ]);
-    expect(mounted.container.querySelectorAll('li')).toHaveLength(7);
-    expect(mounted.container.querySelector('details')?.open).toBe(false);
-    await expect
-      .element(page.getByRole('button', { name: 'More information' }))
-      .not.toBeInTheDocument();
+it('reads unavailable grants separately for the owner and hides them on ownership loss', async () => {
+  mocks.listEffectivePermissions.mockResolvedValue({ permissions: [], hasMore: false });
+  mocks.getUserPermissionMatrix.mockResolvedValue({
+    applicablePermissions: ['message.manage'],
+    scopes: [{ id: 'dm', kind: 'DM', label: 'Direct messages', parentGroupId: '' }],
+    cells: [{ permission: 'message.manage', scopeId: 'dm', override: 'ALLOW', effective: 'NONE' }],
+    page: { hasMore: false }
   });
+  view = render(BotPermissionSummary, { botId: 'bot', botOwnerId: 'viewer' });
+  await expect.element(page.getByText('Inactive grants')).toBeVisible();
+  await page.getByText('Inactive grants').click();
+  await expect.element(page.getByText('Manage messages')).toBeVisible();
+  await view.rerender({ botId: 'bot', botOwnerId: 'someone-else' });
+  await expect.element(page.getByText('Inactive grants')).not.toBeInTheDocument();
+});
 
-  it('keeps rooms with equal names in separate groups', async () => {
-    mocks.getUserPermissionSummary.mockResolvedValue({
-      permissions: [
-        entry('room.list', 'room'),
-        { ...entry('room.join', 'room'), scopeId: 'another' }
-      ],
-      hasMore: false
-    });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect.element(page.getByText('Browse rooms', { exact: true })).toBeVisible();
-    expect(mounted.container.querySelectorAll('h4')).toHaveLength(2);
-    expect(mounted.container.textContent).not.toContain('Browse and join');
-  });
+it('does not claim global access when a hidden descendant restricts it', () => {
+  const result = compactEffectivePermissions([
+    grant('message.read', 'server', { coversDescendants: false }),
+    grant('message.read', 'room', { scopeId: 'visible', scopeName: 'general' }),
+    grant('message.read', 'dm')
+  ]);
+  expect(result.map((x) => x.scope)).toEqual(['room', 'dm']);
+});
 
-  it('shows loading, then an empty result without an inactive section', async () => {
-    let resolve!: (value: unknown) => void;
-    mocks.getUserPermissionSummary.mockReturnValue(
-      new Promise((done) => {
-        resolve = done;
-      })
-    );
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect.element(page.getByText('Loading...')).toBeVisible();
-    resolve({ permissions: [], hasMore: false });
-    await expect.element(page.getByText('No active permissions are visible to you.')).toBeVisible();
-    expect(mounted.container.textContent).not.toContain('Inactive grants');
-  });
+it('combines inherited scopes and included permissions only under proven coverage', () => {
+  const result = compactEffectivePermissions([
+    grant('message.read'),
+    grant('message.read', 'room', { scopeId: 'room' }),
+    grant('message.read-interactions', 'room', { scopeId: 'room' }),
+    grant('message.read', 'dm')
+  ]);
+  expect(result.map((x) => [x.permission, x.scope])).toEqual([
+    ['message.read', 'server'],
+    ['message.read', 'dm']
+  ]);
+  expect(groupBotPermissions(result).map((x) => x.icon)).toEqual([
+    'icon-[uil--users-alt]',
+    'icon-[uil--comments]'
+  ]);
+});
 
-  it('hides stale grants after a failed refresh and supports retry', async () => {
-    mocks.getUserPermissionSummary.mockResolvedValue({
-      permissions: [entry('message.read', 'server')],
-      hasMore: false
-    });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect.element(page.getByText('Read all messages')).toBeVisible();
-    mocks.getUserPermissionSummary.mockRejectedValue(new Error('offline'));
-    await queryClient.invalidateQueries({ queryKey: ['server', 'permission-test'] });
-    await expect
-      .element(page.getByRole('alert'))
-      .toHaveTextContent('Could not load this bot’s permissions.');
-    expect(mounted.container.textContent).not.toContain('Read all messages');
-    mocks.getUserPermissionSummary.mockResolvedValue({ permissions: [], hasMore: false });
-    await page.getByRole('button', { name: 'Try Again' }).click();
-    await expect.element(page.getByText('No active permissions are visible to you.')).toBeVisible();
+it('finds inherited inactive grants from the admin matrix without treating unconfigured cells as grants', () => {
+  const result = inactiveBotGrants({
+    applicablePermissions: ['message.read', 'message.post'],
+    scopes: [
+      { id: 'server', kind: 'SERVER', label: 'Server', parentGroupId: '' },
+      { id: 'room:r', kind: 'ROOM', label: 'general', parentGroupId: 'g' }
+    ],
+    cells: [
+      { permission: 'message.read', scopeId: 'server', override: 'ALLOW', effective: 'ALLOW' },
+      { permission: 'message.read', scopeId: 'room:r', override: 'NONE', effective: 'NONE' },
+      { permission: 'message.post', scopeId: 'room:r', override: 'NONE', effective: 'NONE' }
+    ]
   });
-
-  it('loads another page and keeps inactive grants separate', async () => {
-    mocks.getUserPermissionSummary
-      .mockResolvedValueOnce({
-        permissions: [entry('message.read', 'room')],
-        hasMore: true,
-        nextOffset: 1
-      })
-      .mockResolvedValueOnce({
-        permissions: [entry('message.post', 'room', false)],
-        hasMore: false
-      });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await page.getByRole('button', { name: 'Show more permissions' }).click();
-    await expect.element(page.getByText('Inactive grants', { exact: true })).toBeVisible();
-    expect(mocks.getUserPermissionSummary).toHaveBeenLastCalledWith(
-      'bot',
-      1,
-      expect.any(AbortSignal)
-    );
-  });
-
-  it('combines overlapping pages without duplicate bullets', async () => {
-    mocks.getUserPermissionSummary
-      .mockResolvedValueOnce({
-        permissions: [entry('message.read', 'room')],
-        hasMore: true,
-        nextOffset: 1
-      })
-      .mockResolvedValueOnce({
-        permissions: [entry('message.read', 'room'), entry('message.post', 'dm')],
-        hasMore: false
-      });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await page.getByRole('button', { name: 'Show more permissions' }).click();
-    await expect.element(page.getByText('Post new messages')).toBeVisible();
-    expect(mounted.container.querySelectorAll('li')).toHaveLength(2);
-  });
-
-  it('clears the previous bot while the next profile loads', async () => {
-    mocks.getUserPermissionSummary.mockResolvedValueOnce({
-      permissions: [entry('message.read', 'server')],
-      hasMore: false
-    });
-    mounted = render(BotPermissionSummary, { botId: 'first' });
-    await expect.element(page.getByText('Read all messages')).toBeVisible();
-    mocks.getUserPermissionSummary.mockReturnValue(new Promise(() => {}));
-    await mounted.rerender({ botId: 'second' });
-    await expect.element(page.getByText('Loading...')).toBeVisible();
-    expect(mounted.container.textContent).not.toContain('Read all messages');
-    expect(mocks.getUserPermissionSummary).toHaveBeenLastCalledWith(
-      'second',
-      0,
-      expect.any(AbortSignal)
-    );
-  });
-
-  it('uses plain descriptions for echoes and calls', async () => {
-    mocks.getUserPermissionSummary.mockResolvedValue({
-      permissions: [entry('message.echo', 'room'), entry('call.start', 'room')],
-      hasMore: false
-    });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect.element(page.getByText('Show thread replies in the room timeline')).toBeVisible();
-    await expect.element(page.getByText('Start calls')).toBeVisible();
-  });
-
-  it('renders German bot-specific descriptions', async () => {
-    await loadLocaleMessages('de-DE');
-    setReactiveLocale('de-DE');
-    mocks.getUserPermissionSummary.mockResolvedValue({
-      permissions: [entry('message.read-interactions', 'room')],
-      hasMore: false
-    });
-    mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect.element(page.getByRole('button', { name: 'Was er tun kann' })).toBeVisible();
-    await expect
-      .element(
-        page.getByText('Threads lesen, die er erstellt hat oder in denen er direkt erwähnt wurde')
-      )
-      .toBeVisible();
-  });
-
-  it('collapses the complete permission section and remembers the choice', async () => {
-    mocks.getUserPermissionSummary.mockResolvedValue({
-      permissions: [entry('message.read', 'server')],
-      hasMore: false
-    });
-    mounted = render(BotPermissionSummary, { botId: 'collapse-test' });
-    const toggle = page.getByRole('button', { name: 'What it can do' });
-    await expect.element(page.getByText('Read all messages', { exact: true })).toBeVisible();
-    await toggle.click();
-    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect
-      .element(page.getByText('Read all messages', { exact: true }))
-      .not.toBeInTheDocument();
-    mounted.unmount();
-    mounted = render(BotPermissionSummary, { botId: 'collapse-test' });
-    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
-    await toggle.click();
-    await expect.element(page.getByText('Read all messages', { exact: true })).toBeVisible();
-  });
+  expect(result).toEqual([
+    { permission: 'message.read', scope: 'room', scopeId: 'r', scopeName: 'general', active: false }
+  ]);
 });
