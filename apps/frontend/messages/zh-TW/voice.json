@@ -77,6 +77,7 @@
       "system_default": "系統預設",
       "unavailable_device": "已儲存的裝置無法使用",
       "output_unsupported": "此瀏覽器使用系統喇叭，無法選擇喇叭。",
+      "call_settings": "通話設定",
       "join_muted": "加入通話時將麥克風靜音",
       "test_title": "測試麥克風",
       "input_level": "麥克風音量",

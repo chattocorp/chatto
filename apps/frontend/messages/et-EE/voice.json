@@ -77,6 +77,7 @@
       "system_default": "Süsteemi vaikeseade",
       "unavailable_device": "Salvestatud seade pole saadaval",
       "output_unsupported": "See brauser kasutab süsteemi kõlarit. Kõlari valimine pole saadaval.",
+      "call_settings": "Kõneseaded",
       "join_muted": "Liitu kõnedega vaigistatud mikrofoniga",
       "test_title": "Testi mikrofoni",
       "input_level": "Mikrofoni tase",

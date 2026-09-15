@@ -77,6 +77,7 @@
       "system_default": "Predeterminado del sistema",
       "unavailable_device": "Dispositivo guardado no disponible",
       "output_unsupported": "Este navegador usa el altavoz del sistema. No se puede seleccionar otro altavoz.",
+      "call_settings": "Configuración de llamadas",
       "join_muted": "Unirse a las llamadas con el micrófono silenciado",
       "test_title": "Probar tu micrófono",
       "input_level": "Nivel del micrófono",

@@ -77,6 +77,7 @@
       "system_default": "Domyślne urządzenie systemowe",
       "unavailable_device": "Zapisane urządzenie jest niedostępne",
       "output_unsupported": "Ta przeglądarka używa głośnika systemowego. Wybór głośnika jest niedostępny.",
+      "call_settings": "Ustawienia połączeń",
       "join_muted": "Dołączaj do rozmów z wyciszonym mikrofonem",
       "test_title": "Przetestuj mikrofon",
       "input_level": "Poziom mikrofonu",

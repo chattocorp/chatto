@@ -77,6 +77,7 @@
       "system_default": "システムの既定",
       "unavailable_device": "保存したデバイスは利用できません",
       "output_unsupported": "このブラウザーはシステムのスピーカーを使用します。スピーカーの選択は利用できません。",
+      "call_settings": "通話設定",
       "join_muted": "マイクをミュートして通話に参加",
       "test_title": "マイクをテスト",
       "input_level": "マイクのレベル",

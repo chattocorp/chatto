@@ -77,6 +77,7 @@
       "system_default": "Padrão do sistema",
       "unavailable_device": "Dispositivo salvo indisponível",
       "output_unsupported": "Este navegador usa o alto-falante do sistema. A seleção de alto-falantes não está disponível.",
+      "call_settings": "Configurações de chamadas",
       "join_muted": "Entrar nas chamadas com o microfone silenciado",
       "test_title": "Testar o microfone",
       "input_level": "Nível do microfone",

@@ -77,6 +77,7 @@
       "system_default": "Systemstandard",
       "unavailable_device": "Gespeichertes Gerät nicht verfügbar",
       "output_unsupported": "Dieser Browser verwendet den Systemlautsprecher. Eine Lautsprecherauswahl ist nicht verfügbar.",
+      "call_settings": "Anrufeinstellungen",
       "join_muted": "Anrufen mit stummgeschaltetem Mikrofon beitreten",
       "test_title": "Mikrofon testen",
       "input_level": "Mikrofonpegel",

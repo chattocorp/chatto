@@ -77,6 +77,7 @@
       "system_default": "Predefinito di sistema",
       "unavailable_device": "Dispositivo salvato non disponibile",
       "output_unsupported": "Questo browser usa l’altoparlante di sistema. La selezione dell’altoparlante non è disponibile.",
+      "call_settings": "Impostazioni chiamate",
       "join_muted": "Partecipa alle chiamate con il microfono disattivato",
       "test_title": "Prova il microfono",
       "input_level": "Livello del microfono",

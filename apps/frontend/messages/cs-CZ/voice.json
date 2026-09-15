@@ -77,6 +77,7 @@
       "system_default": "Výchozí zařízení systému",
       "unavailable_device": "Uložené zařízení není dostupné",
       "output_unsupported": "Tento prohlížeč používá systémový reproduktor. Výběr reproduktoru není dostupný.",
+      "call_settings": "Nastavení hovorů",
       "join_muted": "Připojovat se k hovorům se ztlumeným mikrofonem",
       "test_title": "Otestovat mikrofon",
       "input_level": "Úroveň mikrofonu",

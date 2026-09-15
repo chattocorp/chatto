@@ -77,6 +77,7 @@
       "system_default": "System default",
       "unavailable_device": "Saved device unavailable",
       "output_unsupported": "This browser uses the system speaker. Speaker selection is unavailable.",
+      "call_settings": "Call Settings",
       "join_muted": "Join calls with microphone muted",
       "test_title": "Test your microphone",
       "input_level": "Microphone level",

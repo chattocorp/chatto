@@ -135,13 +135,15 @@
             {/each}
           </div>
         </div>
-        <Checkbox
-          id="call-join-muted"
-          label={m('voice.preferences.join_muted')}
-          bind:checked={() => preferences.joinMuted, (value) => preferences.setJoinMuted(value)}
-        />
         {#if deviceError}<Hint>{m('voice.media_device_failed')}</Hint>{/if}
       </div>
+    </Panel>
+    <Panel title={m('voice.preferences.call_settings')} icon="iconify icon-[uil--phone]">
+      <Checkbox
+        id="call-join-muted"
+        label={m('voice.preferences.join_muted')}
+        bind:checked={() => preferences.joinMuted, (value) => preferences.setJoinMuted(value)}
+      />
     </Panel>
     <Panel title={m('voice.preferences.test_title')} icon="iconify icon-[uil--microphone]">
       <div class="flex max-w-xl flex-col gap-4">

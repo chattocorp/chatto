@@ -77,6 +77,7 @@
       "system_default": "Paramètre système par défaut",
       "unavailable_device": "Appareil enregistré indisponible",
       "output_unsupported": "Ce navigateur utilise le haut-parleur du système. La sélection du haut-parleur est indisponible.",
+      "call_settings": "Paramètres des appels",
       "join_muted": "Rejoindre les appels avec le microphone coupé",
       "test_title": "Tester votre microphone",
       "input_level": "Niveau du microphone",

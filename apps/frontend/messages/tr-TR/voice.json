@@ -77,6 +77,7 @@
       "system_default": "Sistem varsayılanı",
       "unavailable_device": "Kaydedilen cihaz kullanılamıyor",
       "output_unsupported": "Bu tarayıcı sistem hoparlörünü kullanır. Hoparlör seçimi kullanılamıyor.",
+      "call_settings": "Arama ayarları",
       "join_muted": "Aramalara mikrofon kapalı olarak katıl",
       "test_title": "Mikrofonunuzu test edin",
       "input_level": "Mikrofon seviyesi",

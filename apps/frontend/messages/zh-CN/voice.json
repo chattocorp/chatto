@@ -77,6 +77,7 @@
       "system_default": "系统默认",
       "unavailable_device": "已保存的设备不可用",
       "output_unsupported": "此浏览器使用系统扬声器，无法选择扬声器。",
+      "call_settings": "通话设置",
       "join_muted": "加入通话时将麦克风静音",
       "test_title": "测试麦克风",
       "input_level": "麦克风音量",

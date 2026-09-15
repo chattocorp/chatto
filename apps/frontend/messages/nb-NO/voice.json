@@ -77,6 +77,7 @@
       "system_default": "Systemstandard",
       "unavailable_device": "Lagret enhet er utilgjengelig",
       "output_unsupported": "Nettleseren bruker systemets høyttaler. Høyttalervalg er utilgjengelig.",
+      "call_settings": "Anropsinnstillinger",
       "join_muted": "Bli med i samtaler med dempet mikrofon",
       "test_title": "Test mikrofonen",
       "input_level": "Mikrofonnivå",
