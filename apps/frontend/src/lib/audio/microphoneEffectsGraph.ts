@@ -10,6 +10,8 @@ export class MicrophoneEffectsGraph {
   readonly #compressor: DynamicsCompressorNode;
   readonly #dry: GainNode;
   readonly #wet: GainNode;
+  readonly #saturationDry: GainNode;
+  readonly #saturationWet: GainNode;
   readonly #nodes: AudioNode[];
   #settings = '';
 
@@ -39,10 +41,22 @@ export class MicrophoneEffectsGraph {
     this.#compressor.release.value = 0.15;
     this.#dry = context.createGain();
     this.#wet = context.createGain();
+    const sum = context.createGain();
+    const saturation = context.createWaveShaper();
+    // A fixed, smooth curve adds harmonics. No oversampling means no resampler
+    // delay between the dry and wet branches; only their gains change at runtime.
+    saturation.curve = Float32Array.from({ length: 4097 }, (_, index) => {
+      const sample = (index / 4096) * 2 - 1;
+      return Math.tanh(2.5 * sample) / Math.tanh(2.5);
+    });
+    this.#saturationDry = context.createGain();
+    this.#saturationWet = context.createGain();
+    sum.connect(this.#saturationDry).connect(output);
+    sum.connect(saturation).connect(this.#saturationWet).connect(output);
     this.input.connect(gate);
     gate.connect(this.#headroom).connect(this.#bass).connect(this.#mid).connect(this.#treble);
-    this.#treble.connect(this.#dry).connect(output);
-    this.#treble.connect(this.#compressor).connect(this.#wet).connect(output);
+    this.#treble.connect(this.#dry).connect(sum);
+    this.#treble.connect(this.#compressor).connect(this.#wet).connect(sum);
     this.#nodes = [
       this.input,
       this.#headroom,
@@ -51,7 +65,11 @@ export class MicrophoneEffectsGraph {
       this.#treble,
       this.#compressor,
       this.#dry,
-      this.#wet
+      this.#wet,
+      sum,
+      saturation,
+      this.#saturationDry,
+      this.#saturationWet
     ];
     this.update(normalizeMicrophoneEffects(), true);
   }
@@ -79,6 +97,9 @@ export class MicrophoneEffectsGraph {
     set(this.#compressor.ratio, 1 + (1 + value.amount * 0.06) * strength);
     set(this.#dry.gain, value.compressor ? 0 : 1);
     set(this.#wet.gain, value.compressor ? 1 : 0);
+    const saturation = value.saturation ?? 0;
+    set(this.#saturationDry.gain, 1 - saturation);
+    set(this.#saturationWet.gain, saturation);
   }
 
   destroy(): void {

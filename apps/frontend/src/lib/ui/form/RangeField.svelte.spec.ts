@@ -32,13 +32,14 @@ describe('RangeField', () => {
 });
 
 it.each([
-  [true, 100, false, true],
-  [true, 99.9, false, false],
-  [true, 100, true, false],
-  [false, 100, false, false]
+  [true, 80, false, 0, false],
+  [true, 90, false, 0.5, false],
+  [true, 100, false, 1, true],
+  [true, 100, true, 0, false],
+  [false, 100, false, 0, false]
 ])(
-  'limits the rainbow to an enabled opt-in maximum (%s, %s, %s)',
-  async (rainbow, value, disabled, active) => {
+  'fades the rainbow over the final fifth (%s, %s, %s)',
+  async (rainbow, value, disabled, opacity, dancing) => {
     const screen = render(RangeField, {
       id: 'rainbow',
       label: 'Your Voice',
@@ -49,13 +50,43 @@ it.each([
       rainbow,
       disabled
     });
-    const input = screen.container.querySelector('input')!;
-    expect(input.classList.contains('range-rainbow')).toBe(active);
-    expect(getComputedStyle(input).animationName).toBe(active ? 'range-rainbow-flow' : 'none');
+    const band = screen.container.querySelector<HTMLElement>('[data-rainbow-band]');
+    expect(band !== null).toBe(opacity > 0);
+    if (band) {
+      expect(Number(band.style.opacity)).toBeCloseTo(opacity);
+      const spectrum = band.firstElementChild!;
+      expect(getComputedStyle(spectrum).animationName).toBe('rainbow-travel');
+    }
+    expect(screen.container.querySelector('.awesome-text') !== null).toBe(dancing);
   }
 );
 
-it('keeps the rainbow static when reduced motion is requested', async () => {
+it('animates the actual painted rainbow element rather than the native input', () => {
+  const screen = render(RangeField, {
+    id: 'moving-rainbow',
+    label: 'Your Voice',
+    min: 0,
+    max: 100,
+    value: 100,
+    displayValue: 'AWESOME',
+    rainbow: true
+  });
+  const spectrum = screen.container.querySelector('.rainbow-spectrum')!;
+  const animation = spectrum.getAnimations()[0];
+  animation.pause();
+  animation.currentTime = 0;
+  const before = getComputedStyle(spectrum).transform;
+  animation.currentTime = 1000;
+  expect(getComputedStyle(spectrum).transform).not.toBe(before);
+  expect(getComputedStyle(spectrum).backgroundImage).toContain('gradient');
+  expect(getComputedStyle(screen.container.querySelector('input')!).animationName).toBe('none');
+  const text = screen.container.querySelector('.awesome-text')!;
+  expect(text.getAnimations()).toHaveLength(2);
+  expect(getComputedStyle(text).color).toBe('rgba(0, 0, 0, 0)');
+  expect(getComputedStyle(text).backgroundClip).toBe('text');
+});
+
+it('keeps the rainbow and text static when reduced motion is requested', async () => {
   const session = cdp();
   await session.send('Emulation.setEmulatedMedia', {
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }]
@@ -70,12 +101,11 @@ it('keeps the rainbow static when reduced motion is requested', async () => {
       displayValue: 'AWESOME',
       rainbow: true
     });
-    const input = screen.container.querySelector('input')!;
-    expect(input.classList.contains('range-rainbow')).toBe(true);
-    expect(getComputedStyle(input).animationName).toBe('none');
-    expect(getComputedStyle(input).getPropertyValue('--range-spectrum')).toContain(
-      'linear-gradient'
-    );
+    const spectrum = screen.container.querySelector('.rainbow-spectrum')!;
+    const text = screen.container.querySelector('.awesome-text')!;
+    expect(getComputedStyle(spectrum).animationName).toBe('none');
+    expect(getComputedStyle(text).animationName).toBe('none');
+    expect(getComputedStyle(spectrum).backgroundImage).toContain('gradient');
   } finally {
     await session.send('Emulation.setEmulatedMedia', { features: [] });
   }

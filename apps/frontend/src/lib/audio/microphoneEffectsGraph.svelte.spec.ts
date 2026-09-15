@@ -7,7 +7,11 @@ import {
 } from './microphoneEffects';
 
 /** Render real native DSP offline so assertions do not depend on wall-clock audio. */
-async function level(frequency: number, amplitude: number, effects: Partial<MicrophoneEffects>) {
+async function renderAudio(
+  frequency: number,
+  amplitude: number,
+  effects: Partial<MicrophoneEffects>
+) {
   const context = new OfflineAudioContext(1, 48000, 48000);
   const source = context.createOscillator();
   source.frequency.value = frequency;
@@ -20,7 +24,11 @@ async function level(frequency: number, amplitude: number, effects: Partial<Micr
   source.start();
   const buffer = await context.startRendering();
   graph.destroy();
-  const samples = buffer.getChannelData(0).slice(24000);
+  return buffer.getChannelData(0);
+}
+
+async function level(frequency: number, amplitude: number, effects: Partial<MicrophoneEffects>) {
+  const samples = (await renderAudio(frequency, amplitude, effects)).slice(24000);
   return Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
 }
 
@@ -114,4 +122,31 @@ it('makes AWESOME fuller and more compressed than Pretty cool', async () => {
   const dynamics = async (settings: MicrophoneEffects) =>
     (await level(1000, 0.8, settings)) / (await level(1000, 0.02, settings));
   expect(await dynamics(awesome)).toBeLessThan(await dynamics(cool));
+});
+
+it('adds harmonics with saturation and keeps full-scale output bounded', async () => {
+  const dry = await renderAudio(1000, 0.4, { saturation: 0 });
+  const saturated = await renderAudio(1000, 0.4, { saturation: 0.5 });
+  const harmonic = (samples: Float32Array, frequency: number) => {
+    let real = 0;
+    let imaginary = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const phase = (2 * Math.PI * frequency * i) / 48000;
+      real += samples[i] * Math.cos(phase);
+      imaginary += samples[i] * Math.sin(phase);
+    }
+    return (2 * Math.hypot(real, imaginary)) / samples.length;
+  };
+  expect(harmonic(dry, 3000)).toBeLessThan(0.00001);
+  expect(harmonic(saturated, 3000)).toBeGreaterThan(0.005);
+  const fullScale = await renderAudio(1000, 1, microphoneEffectsForAmount(100));
+  expect(Math.max(...fullScale.map(Math.abs))).toBeLessThanOrEqual(1);
+});
+
+it('introduces saturation only over the last fifth of Your Voice', () => {
+  expect(microphoneEffectsForAmount(0).saturation).toBe(0);
+  expect(microphoneEffectsForAmount(50).saturation).toBe(0);
+  expect(microphoneEffectsForAmount(80).saturation).toBe(0);
+  expect(microphoneEffectsForAmount(90).saturation).toBe(0.25);
+  expect(microphoneEffectsForAmount(100).saturation).toBe(0.5);
 });

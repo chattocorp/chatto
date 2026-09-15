@@ -231,6 +231,10 @@ Its anchors are neutral at 0, low-cut 80 Hz / EQ -1/+1/+1 dB / compressor
 threshold -15.6 dB and ratio 2.9 at 50, and low-cut 80 Hz / EQ +4/-2/+4 dB /
 threshold -32.4 dB and ratio 7.1 at 100. Neutral compression uses threshold 0
 and ratio 1. Fractional DSP parameters are not rounded.
+Above 80, a post-compressor saturation branch fades from 0 to 50% wet at 100.
+A fixed 4097-point WaveShaper curve uses tanh(2.5x)/tanh(2.5). Oversampling stays
+off so the dry and wet branches have no resampler delay difference. Dry/wet gains
+use the same 15 ms smoothing. The graph owns and disconnects both branches.
 Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
 The gate meters the signal after the optional low-cut filter and before EQ.
 Capture requests disable browser AGC in both owners. The processor graph is

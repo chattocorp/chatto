@@ -465,41 +465,23 @@
   @apply h-2 w-2 rounded-full bg-white;
 }
 
-/* Explicit opt-in celebration for a full-scale range. This spectrum is content,
-   not an action/status colour; keep ordinary form controls on semantic tokens. */
-@utility range-rainbow {
+/* Celebration is painted on real elements: native track pseudo-elements do not
+   reliably repaint inherited animations. The native input still owns interaction. */
+@utility range-celebration {
   appearance: none;
   background: transparent;
-  --range-spectrum: repeating-linear-gradient(
-    90deg,
-    #ff477e 0%,
-    #ffb347,
-    #ffe66d,
-    #50e3a4,
-    #36cfff,
-    #a78bfa,
-    #ff477e 50%
-  );
-  animation: range-rainbow-flow 2.4s linear infinite;
 
   &::-webkit-slider-runnable-track {
     height: 0.625rem;
-    border-radius: 999px;
-    background-image: var(--range-spectrum);
-    background-size: 200% 100%;
-    background-position: inherit;
-    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-action) 40%, transparent);
+    background: transparent;
   }
-
   &::-moz-range-track {
     height: 0.625rem;
-    border-radius: 999px;
-    background-image: var(--range-spectrum);
-    background-size: 200% 100%;
-    background-position: inherit;
-    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-action) 40%, transparent);
+    background: transparent;
   }
-
+  &::-moz-range-progress {
+    background: transparent;
+  }
   &::-webkit-slider-thumb {
     appearance: none;
     width: 1.25rem;
@@ -509,7 +491,6 @@
     border-radius: 50%;
     background: var(--color-surface);
   }
-
   &::-moz-range-thumb {
     width: 1rem;
     height: 1rem;
@@ -517,24 +498,93 @@
     border-radius: 50%;
     background: var(--color-surface);
   }
-
   &:focus-visible {
     outline: 2px solid var(--color-action);
     outline-offset: 4px;
     border-radius: 999px;
   }
+}
 
+/* Intentional spectrum for the voice celebration, separate from action/status colours. */
+@utility rainbow-spectrum {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 200%;
+  background: repeating-linear-gradient(
+    90deg,
+    #ff477e 0%,
+    #ffb347,
+    #ffe66d,
+    #50e3a4,
+    #36cfff,
+    #a78bfa,
+    #ff477e 50%
+  );
+  animation: rainbow-travel 2s linear infinite;
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
 }
 
-@keyframes range-rainbow-flow {
+@utility awesome-text {
+  display: inline-block;
+  font-weight: 700;
+  /* Mix with the theme text colour so the rainbow is readable in light and dark. */
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-text) 50%, #ff477e),
+    color-mix(in srgb, var(--color-text) 50%, #ffb347),
+    color-mix(in srgb, var(--color-text) 50%, #50e3a4),
+    color-mix(in srgb, var(--color-text) 50%, #36cfff),
+    color-mix(in srgb, var(--color-text) 50%, #a78bfa),
+    color-mix(in srgb, var(--color-text) 50%, #ff477e)
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+  animation:
+    awesome-colours 2s linear infinite,
+    awesome-dance 900ms ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+  @media (forced-colors: active) {
+    color: CanvasText;
+    background: none;
+    animation: none;
+  }
+}
+
+@keyframes rainbow-travel {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes awesome-colours {
   from {
     background-position: 0% 50%;
   }
   to {
     background-position: 200% 50%;
+  }
+}
+@keyframes awesome-dance {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(-2deg);
+  }
+  25% {
+    transform: translate(1px, -2px) rotate(2deg);
+  }
+  50% {
+    transform: translate(-1px, 0) rotate(-1deg);
+  }
+  75% {
+    transform: translate(1px, -1px) rotate(2deg);
   }
 }
 

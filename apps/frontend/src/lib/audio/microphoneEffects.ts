@@ -9,6 +9,8 @@ export interface MicrophoneEffects {
   amount: number;
   /** Ramp filter cutoff and compression from neutral; omitted means full strength. */
   strength?: number;
+  /** Soft saturation blend, 0–1; only the top fifth of Your Voice enables it. */
+  saturation?: number;
 }
 
 /** Bound inputs before they reach AudioParams; omitted values produce fresh defaults. */
@@ -26,7 +28,8 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
     treble: bounded(raw.treble, -6, 6, 0),
     compressor: raw.compressor === true,
     amount: bounded(raw.amount, 0, 100, 50),
-    strength: bounded(raw.strength, 0, 1, 1)
+    strength: bounded(raw.strength, 0, 1, 1),
+    saturation: bounded(raw.saturation, 0, 1, 0)
   };
 }
 
@@ -47,6 +50,7 @@ export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
     treble: lower + 3 * upper,
     compressor: amount > 0,
     amount: 15 + 70 * upper,
-    strength: lower
+    strength: lower,
+    saturation: Math.max(0, (amount - 80) / 20) * 0.5
   };
 }

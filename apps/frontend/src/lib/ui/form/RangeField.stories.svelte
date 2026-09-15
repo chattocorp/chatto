@@ -21,6 +21,7 @@
   let volume = $state(70);
   let disabledValue = $state(35);
   let awesome = $state(100);
+  let warmingUp = $state(90);
 </script>
 
 <Story name="Default" asChild>
@@ -75,6 +76,20 @@
       displayValue="AWESOME"
       rainbow
       disabled
+    />
+  </div>
+</Story>
+
+<Story name="Rainbow fading in" asChild>
+  <div class="max-w-md">
+    <RangeField
+      id="partial-rainbow"
+      label="Your Voice"
+      min={0}
+      max={100}
+      bind:value={warmingUp}
+      displayValue={`${warmingUp}%`}
+      rainbow
     />
   </div>
 </Story>

@@ -13,8 +13,11 @@ Rooms support real-time voice conversations with optional camera video and scree
   **Normal** (the default) disables the added effects, **Pretty cool** marks
   gentle processing at the midpoint, and **AWESOME** adds bass, reduces nasal
   midrange, brightens highs, and applies firmer compression. At the maximum,
-  the voice slider shows an animated rainbow. Reduced motion keeps the rainbow
-  static; unavailable processing uses the standard disabled control.
+  the voice slider shows a moving rainbow and the AWESOME readout dances in
+  rainbow colours. The rainbow fades in over the final fifth of the slider,
+  where soft saturation also adds warmth and harmonics. Reduced motion keeps
+  both the rainbow and readout static; unavailable processing uses the standard
+  disabled control.
   The low-cut filter, equaliser, and compression parameters interpolate between
   these positions. Changes use short ramps to avoid clicks while dragging.
   The noise gate stays separate because its threshold depends on the microphone

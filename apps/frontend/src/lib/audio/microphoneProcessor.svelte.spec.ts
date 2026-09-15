@@ -84,7 +84,7 @@ it('gates a real LiveKit track, updates thresholds, restarts, and releases only 
   }
 });
 
-it.each(['missing API', 'module failure', 'native node failure'])(
+it.each(['missing API', 'module failure', 'native node failure', 'saturation node failure'])(
   'keeps ordinary audio available with %s',
   async (failure) => {
     const { context, oscillator, track } = await input();
@@ -92,6 +92,10 @@ it.each(['missing API', 'module failure', 'native node failure'])(
       Object.defineProperty(context, 'audioWorklet', { value: undefined });
     else if (failure === 'module failure')
       vi.spyOn(context.audioWorklet, 'addModule').mockRejectedValue(new Error('Unavailable'));
+    else if (failure === 'saturation node failure')
+      vi.spyOn(context, 'createWaveShaper').mockImplementation(() => {
+        throw new Error('Unavailable');
+      });
     else
       vi.spyOn(context, 'createDynamicsCompressor').mockImplementation(() => {
         throw new Error('Unavailable');
