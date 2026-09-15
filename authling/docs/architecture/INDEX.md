@@ -179,7 +179,8 @@ and wait for their committed position. The projection is cold-replay-only and
 retains scopes and encrypted client display metadata for new grants. The
 service decrypts metadata for display and authenticates it before consent
 reuse. Legacy snapshots remain plaintext in historical events. The active
-projection retains them until the grant is renewed or revoked. Metadata keys must match the account creation event.
+projection retains them until the grant is renewed or revoked. Metadata keys
+must match the account creation event.
 See [FDR-010](../fdr/FDR-010-oidc-authorization-grants.md) for encryption,
 disclosure-version, and coordinated-upgrade rules.
 
@@ -308,8 +309,8 @@ requires exactly the `openid` scope and S256 PKCE.
 Signed-out requests resume through an opaque server-side request ID after
 login. `GET /oidc/consent` reuses a durable exact-client authorization grant
 when it covers the requested scopes and current disclosure version, except
-when `prompt=consent` requires an explicit decision. The page lists the account ID, username, and optional full
-name and discloses later profile changes. Same-origin `POST /oidc/consent`
+when `prompt=consent` requires an explicit decision. The page lists the account
+ID, username, and optional full name and discloses later profile changes. Same-origin `POST /oidc/consent`
 requires the current form disclosure version to record explicit approval
 before authorizing the expiring request or returns a denial to the validated
 client redirect.

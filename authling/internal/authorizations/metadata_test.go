@@ -100,6 +100,8 @@ func TestProtectedMetadataBindsAuthorizationContext(t *testing.T) {
 		})
 	}
 	wrongKey := proto.Clone(event).(*corev1.Event)
+	wrongKey.Id = "evt_wrongkey"
+	wrongKey.GetOidcGrantAuthorized().PriorAuthorizationEventId = event.GetId()
 	wrongKey.GetOidcGrantAuthorized().UserKeyRef = "uk_other"
 	if err := projection.Apply(wrongKey, 3); err == nil {
 		t.Fatal("projection accepted another account key hierarchy")
