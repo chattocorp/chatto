@@ -118,8 +118,28 @@ describe('standalone server selection', () => {
   it('keeps sign-in disabled when discovery has no authorization endpoint', async () => {
     mocks.servers = [{ id: 'remote', url: 'https://remote.example', name: 'Remote', token: null }];
     mocks.getPublicServerInfo.mockResolvedValueOnce({ name: 'Remote', authorizeUrl: '' });
-    const { getByRole } = render(LoginPage, { props: { data: standaloneData } });
+    const { getByRole, getByText } = render(LoginPage, { props: { data: standaloneData } });
+    await expect.element(getByText('Sign-in unavailable')).toBeVisible();
     await expect.element(getByRole('button', { name: 'Sign in' })).toBeDisabled();
+    expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
+  });
+
+  it('rechecks cached success before offering sign-in', async () => {
+    const url = 'https://remote.example';
+    mocks.servers = [{ id: 'remote', url, name: 'Remote', token: null }];
+    queryClient.setQueryData(['login-server-discovery', url], {
+      name: 'Remote', authorizeUrl: '/oauth/authorize'
+    });
+    let failDiscovery!: (error: Error) => void;
+    mocks.getPublicServerInfo.mockImplementationOnce(() =>
+      new Promise((_resolve, reject) => { failDiscovery = reject; })
+    );
+    const { getByRole, getByText } = render(LoginPage, { props: { data: standaloneData } });
+    await expect.element(getByText('Checking server…')).toBeVisible();
+    await expect.element(getByRole('button', { name: 'Sign in' })).toBeDisabled();
+    failDiscovery(new TypeError('Failed to fetch'));
+    await expect.element(getByText('Server unavailable')).toBeVisible();
+    await expect.element(getByRole('button', { name: 'Sign in' })).not.toBeInTheDocument();
     expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
   });
 

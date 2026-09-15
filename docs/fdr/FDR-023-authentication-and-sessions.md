@@ -17,13 +17,13 @@ flows include classic password login, configured external
 providers, and a bootstrap path for first-boot operator setup.
 
 ## Behavior
+
 - The standalone sign-in page keeps remembered signed-out servers when they
   are unavailable. It checks each server before it offers sign-in. A failed
-  check shows “Server unavailable” and Retry. A cookie-authenticated server is
+  check shows “Server unavailable” and Try Again. A cookie-authenticated server is
   not signed out merely because it has no bearer token.
 - These checks contact only the displayed saved servers and reveal the
   browser's IP address to them. They do not send authentication credentials.
-
 
 - **Login** — users sign in with login + password on a `/login` page. Operators can disable password login independently from direct registration. When disabled, the server rejects password-login requests before credential validation and public discovery tells clients not to render the password form or recovery link. Existing sessions, registration, and authenticated password management remain unchanged. The page is also used for redirect-after-signup and continues to offer configured external providers.
 - **External provider login** — operators configure repeated `[[auth.providers]]` entries or equivalent counted `CHATTO_AUTH_PROVIDERS_<index>_<field>` environment variables. Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`. The login page renders buttons from `chatto.discovery.v1.ServerDiscoveryService.GetServer` login providers, and provider flows use `/auth/providers/{providerID}` plus `/auth/providers/{providerID}/callback`. OIDC also keeps `/auth/oidc` and `/auth/oidc/callback` as compatibility aliases for older clients and provider registrations. A matched browser login establishes the HTTP-only cookie session and redirects without a bearer credential; when provider login is nested inside Chatto OAuth authorization, the existing PKCE authorization-code flow continues instead.
