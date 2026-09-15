@@ -11,6 +11,7 @@
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, Button, Form } from '$lib/ui/form';
+  import KnownServerSignInCard from './KnownServerSignInCard.svelte';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
 
   const { data } = $props();
@@ -32,7 +33,7 @@
     pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
   );
   const displayedError = $derived(error || pageError);
-  const signedOutServers = $derived(serverRegistry.servers.filter((server) => !server.token));
+  const signedOutServers = $derived(serverRegistry.servers.filter((server) => !serverRegistry.isAuthenticated(server.id)));
 
   // Standalone detection: if public server info failed to load, there is no local
   // backend to log in to. Redirect URLs are backend-driven flows, so keep the
@@ -180,21 +181,12 @@
       {#if signedOutServers.length > 0}
         <div class="mt-8 flex w-full flex-col gap-3 text-left">
           {#each signedOutServers as server (server.id)}
-            <div class="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
-              <div class="min-w-0 flex-1">
-                <div class="truncate font-semibold">{server.name}</div>
-                <div class="truncate text-xs text-muted">{new URL(server.url).host}</div>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onclick={() => handleKnownServerSignIn(server)}
-                loading={connectingServerId === server.id}
-                disabled={connectingServerId !== null && connectingServerId !== server.id}
-              >
-                {m('add_server.sign_in')}
-              </Button>
-            </div>
+            <KnownServerSignInCard
+              {server}
+              connecting={connectingServerId === server.id}
+              disabled={connectingServerId !== null}
+              onSignIn={() => handleKnownServerSignIn(server)}
+            />
           {/each}
         </div>
       {/if}
