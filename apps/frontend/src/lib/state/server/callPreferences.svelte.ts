@@ -13,6 +13,8 @@ export interface CallPreferences {
   microphoneThreshold: number;
   /** Voice processing amount, 0–100; the noise gate remains independent. */
   voiceAmount: number;
+  /** Local RNNoise filtering, independent of tone and gate settings. */
+  noiseSuppression: boolean;
 }
 
 const defaults: CallPreferences = {
@@ -21,6 +23,7 @@ const defaults: CallPreferences = {
   camera: '',
   joinMuted: false,
   voiceAmount: 0,
+  noiseSuppression: false,
   microphoneThreshold: GATE_OFF
 };
 
@@ -50,6 +53,7 @@ export class CallPreferencesState {
               ? 50
               : 0;
     this.#value = $state({
+      noiseSuppression: raw?.noiseSuppression === true,
       microphone: typeof raw?.microphone === 'string' ? raw.microphone : '',
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
@@ -62,7 +66,19 @@ export class CallPreferencesState {
   }
 
   get effects() {
-    return microphoneEffectsForAmount(this.#value.voiceAmount);
+    return {
+      ...microphoneEffectsForAmount(this.#value.voiceAmount),
+      noiseSuppression: this.#value.noiseSuppression
+    };
+  }
+
+  get noiseSuppression(): boolean {
+    return this.#value.noiseSuppression;
+  }
+
+  setNoiseSuppression(value: boolean): void {
+    this.#value.noiseSuppression = value;
+    this.#slot.set(this.#value);
   }
 
   get voiceAmount(): number {

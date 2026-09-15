@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@sapphi-red/web-noise-suppressor@0.4.0': d0e15d306b424799e1c360c36c25dbd6b03127ee6f39f61a683ed274d86ae98f
+
 importers:
 
   .:
@@ -68,6 +71,9 @@ importers:
       '@connectrpc/connect-web':
         specifier: ^1.7.0
         version: 1.7.0(@bufbuild/protobuf@1.10.1)(@connectrpc/connect@1.7.0(@bufbuild/protobuf@1.10.1))
+      '@sapphi-red/web-noise-suppressor':
+        specifier: 0.4.0
+        version: 0.4.0(patch_hash=d0e15d306b424799e1c360c36c25dbd6b03127ee6f39f61a683ed274d86ae98f)
       '@tanstack/svelte-query':
         specifier: ^6.1.38
         version: 6.1.38(svelte@5.56.10(@typescript-eslint/types@8.67.0))
@@ -2372,6 +2378,9 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@sapphi-red/web-noise-suppressor@0.4.0':
+    resolution: {integrity: sha512-vkBEL/VDkbeP3qqSRQFRtPLGa19a38JUzO6J0r5D/MQSumrlERy671DAMaETgY6etXjDCoJcD7JBIaXnuGVtVw==}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -7854,6 +7863,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@sapphi-red/web-noise-suppressor@0.4.0(patch_hash=d0e15d306b424799e1c360c36c25dbd6b03127ee6f39f61a683ed274d86ae98f)': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
 

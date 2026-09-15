@@ -72,6 +72,7 @@
     "game_window_selected": "Vybráno: {name}",
     "permission_denied": "K této akci v hovoru nemáš oprávnění.",
     "preferences": {
+      "noise_suppression": "Potlačení šumu",
       "title": "Hlas a video",
       "scope": "Uloženo v tomto prohlížeči pro tento server.",
       "system_default": "Výchozí zařízení systému",
@@ -79,7 +80,7 @@
       "output_unsupported": "Tento prohlížeč používá systémový reproduktor. Výběr reproduktoru není dostupný.",
       "sensitivity": "Práh šumové brány",
       "gate_off": "Vypnuto",
-      "gate_unavailable": "Zpracování mikrofonu není dostupné. Používá se běžný zvuk.",
+      "gate_unavailable": "Zpracování mikrofonu není dostupné.",
       "call_settings": "Nastavení hovorů",
       "join_muted": "Připojovat se k hovorům se ztlumeným mikrofonem",
       "input_level": "Úroveň mikrofonu",

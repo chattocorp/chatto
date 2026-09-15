@@ -547,7 +547,7 @@ describe('VoiceCallState', () => {
     );
     try {
       await state.join('wss://livekit.example.test', 'R1');
-      expect(applied).toHaveBeenCalledWith(expect.objectContaining({ bass: 1.5, treble: 3, compressor: true }));
+      expect(applied).toHaveBeenCalledWith(expect.objectContaining({ bass: 2.5, treble: 4, compressor: true }));
       preferences.setVoiceAmount(0);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(

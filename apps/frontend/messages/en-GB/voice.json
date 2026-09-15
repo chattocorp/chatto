@@ -72,6 +72,7 @@
     "game_window_selected": "{name} selected",
     "permission_denied": "You do not have permission to perform this call action.",
     "preferences": {
+      "noise_suppression": "Noise suppression",
       "title": "Voice & video",
       "scope": "Saved in this browser for this server.",
       "system_default": "System default",
@@ -79,7 +80,7 @@
       "output_unsupported": "This browser uses the system speaker. Speaker selection is unavailable.",
       "sensitivity": "Noise gate threshold",
       "gate_off": "Off",
-      "gate_unavailable": "Microphone processing unavailable. Using normal audio.",
+      "gate_unavailable": "Microphone processing unavailable.",
       "call_settings": "Call Settings",
       "join_muted": "Join calls with microphone muted",
       "input_level": "Microphone level",

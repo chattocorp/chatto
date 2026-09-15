@@ -72,6 +72,7 @@
     "game_window_selected": "Atlasīts: {name}",
     "permission_denied": "Tev nav atļaujas veikt šo darbību zvanā.",
     "preferences": {
+      "noise_suppression": "Trokšņu slāpēšana",
       "title": "Balss un video",
       "scope": "Saglabāts šajā pārlūkā šim serverim.",
       "system_default": "Sistēmas noklusējums",
@@ -79,7 +80,7 @@
       "output_unsupported": "Šis pārlūks izmanto sistēmas skaļruni. Skaļruņa izvēle nav pieejama.",
       "sensitivity": "Trokšņu vārtu slieksnis",
       "gate_off": "Izslēgts",
-      "gate_unavailable": "Mikrofona apstrāde nav pieejama. Tiek izmantota parastā skaņa.",
+      "gate_unavailable": "Mikrofona apstrāde nav pieejama.",
       "call_settings": "Zvanu iestatījumi",
       "join_muted": "Pievienoties zvaniem ar izslēgtu mikrofonu",
       "input_level": "Mikrofona līmenis",

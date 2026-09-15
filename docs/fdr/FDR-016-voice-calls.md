@@ -9,6 +9,12 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
+- Optional **Noise suppression** reduces background noise locally. It is off by
+  default and is independent of voice quality and the noise gate. Its assets
+  come from the Chatto server; processing sends no audio to an external service.
+  If the filter cannot start, audio continues and processing is shown as
+  unavailable.
+
 - **Voice Quality** in App Preferences is a continuous processing slider.
   **Normal** (the default) disables the added effects, **Pretty cool** marks
   gentle processing at the midpoint, and **AWESOME** adds modest warmth and

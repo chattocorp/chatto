@@ -72,6 +72,7 @@
     "game_window_selected": "已选择 {name}",
     "permission_denied": "你没有执行此通话操作的权限。",
     "preferences": {
+      "noise_suppression": "噪声抑制",
       "title": "语音与视频",
       "scope": "保存在此浏览器中，仅用于此服务器。",
       "system_default": "系统默认",
@@ -79,7 +80,7 @@
       "output_unsupported": "此浏览器使用系统扬声器，无法选择扬声器。",
       "sensitivity": "噪声门阈值",
       "gate_off": "关闭",
-      "gate_unavailable": "麦克风处理不可用。正在使用普通音频。",
+      "gate_unavailable": "麦克风处理不可用。",
       "call_settings": "通话设置",
       "join_muted": "加入通话时将麦克风静音",
       "input_level": "麦克风音量",

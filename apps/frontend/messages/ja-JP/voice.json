@@ -72,6 +72,7 @@
     "game_window_selected": "{name}を選択しました",
     "permission_denied": "この通話操作を実行する権限がありません。",
     "preferences": {
+      "noise_suppression": "ノイズ抑制",
       "title": "音声と映像",
       "scope": "このサーバー用に、このブラウザーに保存されます。",
       "system_default": "システムの既定",
@@ -79,7 +80,7 @@
       "output_unsupported": "このブラウザーはシステムのスピーカーを使用します。スピーカーの選択は利用できません。",
       "sensitivity": "ノイズゲートのしきい値",
       "gate_off": "オフ",
-      "gate_unavailable": "マイク音声処理を利用できません。通常の音声を使用します。",
+      "gate_unavailable": "マイク音声処理を利用できません。",
       "call_settings": "通話設定",
       "join_muted": "マイクをミュートして通話に参加",
       "input_level": "マイクのレベル",

@@ -72,6 +72,7 @@
     "game_window_selected": "{name} sélectionné",
     "permission_denied": "Vous n’avez pas la permission d’effectuer cette action dans un appel.",
     "preferences": {
+      "noise_suppression": "Suppression du bruit",
       "title": "Voix et vidéo",
       "scope": "Enregistré dans ce navigateur pour ce serveur.",
       "system_default": "Paramètre système par défaut",
@@ -79,7 +80,7 @@
       "output_unsupported": "Ce navigateur utilise le haut-parleur du système. La sélection du haut-parleur est indisponible.",
       "sensitivity": "Seuil de la porte de bruit",
       "gate_off": "Désactivé",
-      "gate_unavailable": "Traitement du microphone indisponible. Le son normal est utilisé.",
+      "gate_unavailable": "Traitement du microphone indisponible.",
       "call_settings": "Paramètres des appels",
       "join_muted": "Rejoindre les appels avec le microphone coupé",
       "input_level": "Niveau du microphone",

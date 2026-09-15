@@ -1,5 +1,7 @@
 /** Browser-local microphone effects. Gains are dB; compressor amount is 0–100. */
 export interface MicrophoneEffects {
+  /** Optional local RNNoise suppression, independent of voice colouring. */
+  noiseSuppression?: boolean;
   lowCut: boolean;
   equalizer: boolean;
   bass: number;
@@ -21,6 +23,7 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
       ? Math.max(min, Math.min(max, value))
       : fallback;
   return {
+    noiseSuppression: raw.noiseSuppression === true,
     lowCut: raw.lowCut === true,
     equalizer: raw.equalizer === true,
     bass: bounded(raw.bass, -6, 6, 0),
@@ -44,11 +47,11 @@ export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
   return {
     lowCut: strength > 0,
     equalizer: strength > 0,
-    bass: 1.5 * strength,
-    mid: 1.5 * strength,
-    treble: 3 * strength,
+    bass: 2.5 * strength,
+    mid: 2 * strength,
+    treble: 4 * strength,
     compressor: strength > 0,
-    amount: 50,
+    amount: 75,
     strength,
     polish: strength
   };

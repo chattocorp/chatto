@@ -14,3 +14,6 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - runling@0.6.0
+
+patchedDependencies:
+  '@sapphi-red/web-noise-suppressor@0.4.0': patches/@sapphi-red__web-noise-suppressor@0.4.0.patch

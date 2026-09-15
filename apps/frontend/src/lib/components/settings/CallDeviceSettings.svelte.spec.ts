@@ -164,7 +164,7 @@ it('offers a continuous voice slider while keeping the gate separate', async () 
   await tick();
   expect(preferences.voiceAmount).toBe(37.5);
   expect(screen.container.querySelector('[data-rainbow-band]')).toBeNull();
-  expect(preferences.effects.treble).toBe(1.125);
+  expect(preferences.effects.treble).toBe(1.5);
   await userEvent.keyboard('{Home}');
   expect(preferences.effects.compressor).toBe(false);
   expect(preferences.microphoneThreshold).toBe(-30);
@@ -189,23 +189,27 @@ it('switches the selected test output without stopping capture or requiring anot
   const preferences = new CallPreferencesState('live-output');
   preferences.setVoiceAmount(50);
   const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
-  const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue(undefined);
+  const sink = vi
+    .spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId')
+    .mockResolvedValue(undefined);
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
     visibleCamera,
-    {kind: 'audiooutput', deviceId: 'headphones', label: 'Headphones'} as MediaDeviceInfo
+    { kind: 'audiooutput', deviceId: 'headphones', label: 'Headphones' } as MediaDeviceInfo
   ]);
-  const screen = render(CallDeviceSettings, {preferences});
+  const screen = render(CallDeviceSettings, { preferences });
   try {
-    await screen.getByRole('button', {name: 'Start microphone test'}).click();
-    await expect.element(screen.getByRole('button', {name: 'Stop test'})).toBeInTheDocument();
-    await screen.getByRole('radio', {name: 'Headphones'}).click();
+    await screen.getByRole('button', { name: 'Start microphone test' }).click();
+    await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
+    await screen.getByRole('radio', { name: 'Headphones' }).click();
     await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith('headphones'));
     await vi.waitFor(() => expect(preferences.speaker).toBe('headphones'));
     expect(capture).toHaveBeenCalledOnce();
     expect(stream.getAudioTracks()[0].readyState).toBe('live');
-    await expect.element(screen.getByRole('button', {name: 'Stop test'})).toBeInTheDocument();
-    await screen.getByRole('radiogroup', {name:'Speaker', exact:true})
-      .getByRole('radio', {name:'System default'}).click();
+    await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
+    await screen
+      .getByRole('radiogroup', { name: 'Speaker', exact: true })
+      .getByRole('radio', { name: 'System default' })
+      .click();
     await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith(''));
     expect(capture).toHaveBeenCalledOnce();
   } finally {
@@ -213,4 +217,18 @@ it('switches the selected test output without stopping capture or requiring anot
     await context.close();
     vi.restoreAllMocks();
   }
+});
+
+it('offers independent noise suppression and restores the saved choice', async () => {
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
+  const preferences = new CallPreferencesState('suppression-ui');
+  const screen = render(CallDeviceSettings, { preferences });
+  const checkbox = screen.getByRole('checkbox', { name: 'Noise suppression', exact: true });
+  await expect.element(checkbox).not.toBeChecked();
+  await checkbox.click();
+  expect(new CallPreferencesState('suppression-ui').noiseSuppression).toBe(true);
+  expect(preferences.voiceAmount).toBe(0);
+  expect(preferences.microphoneThreshold).toBe(-60);
+  await checkbox.click();
+  expect(new CallPreferencesState('suppression-ui').noiseSuppression).toBe(false);
 });

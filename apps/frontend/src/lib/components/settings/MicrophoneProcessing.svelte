@@ -1,6 +1,7 @@
 <!-- @component Local microphone effects; changes apply to the active call or voice test. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import { Checkbox } from '$lib/ui/form';
   import RangeField from '$lib/ui/form/RangeField.svelte';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import MicrophoneSensitivity from './MicrophoneSensitivity.svelte';
@@ -17,6 +18,13 @@
 </script>
 
 <div class="flex flex-col gap-5">
+  <Checkbox
+    id="microphone-noise-suppression"
+    label={m('voice.preferences.noise_suppression')}
+    bind:checked={
+      () => preferences.noiseSuppression, (value) => preferences.setNoiseSuppression(value)
+    }
+  />
   <MicrophoneSensitivity {preferences} {level} {unavailable} />
   <div class="flex flex-col gap-2">
     <RangeField

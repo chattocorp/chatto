@@ -72,6 +72,7 @@
     "game_window_selected": "{name} selecionado",
     "permission_denied": "Você não tem permissão para realizar esta ação na chamada.",
     "preferences": {
+      "noise_suppression": "Supressão de ruído",
       "title": "Voz e vídeo",
       "scope": "Salvo neste navegador para este servidor.",
       "system_default": "Padrão do sistema",
@@ -79,7 +80,7 @@
       "output_unsupported": "Este navegador usa o alto-falante do sistema. A seleção de alto-falantes não está disponível.",
       "sensitivity": "Limiar do gate de ruído",
       "gate_off": "Desativado",
-      "gate_unavailable": "Processamento do microfone indisponível. O áudio normal está sendo usado.",
+      "gate_unavailable": "Processamento do microfone indisponível.",
       "call_settings": "Configurações de chamadas",
       "join_muted": "Entrar nas chamadas com o microfone silenciado",
       "input_level": "Nível do microfone",

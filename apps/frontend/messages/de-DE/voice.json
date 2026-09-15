@@ -72,6 +72,7 @@
     "game_window_selected": "{name} ausgewählt",
     "permission_denied": "Du hast keine Berechtigung für diese Anrufaktion.",
     "preferences": {
+      "noise_suppression": "Rauschunterdrückung",
       "title": "Sprache & Video",
       "scope": "In diesem Browser für diesen Server gespeichert.",
       "system_default": "Systemstandard",
@@ -79,7 +80,7 @@
       "output_unsupported": "Dieser Browser verwendet den Systemlautsprecher. Eine Lautsprecherauswahl ist nicht verfügbar.",
       "sensitivity": "Noise-Gate-Schwelle",
       "gate_off": "Aus",
-      "gate_unavailable": "Mikrofonverarbeitung nicht verfügbar. Normales Audio wird verwendet.",
+      "gate_unavailable": "Mikrofonverarbeitung nicht verfügbar.",
       "call_settings": "Anrufeinstellungen",
       "join_muted": "Anrufen mit stummgeschaltetem Mikrofon beitreten",
       "input_level": "Mikrofonpegel",
