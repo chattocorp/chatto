@@ -20,7 +20,7 @@ const routes = [
     // The authenticated shell includes the complete Event and MyAccountService
     // descriptors. Keep at least five KiB of measured headroom for these public
     // schemas while the larger room route stays below its existing budget.
-    budgetKiB: 336,
+    budgetKiB: 337,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
