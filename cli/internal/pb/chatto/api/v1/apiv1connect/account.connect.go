@@ -90,6 +90,8 @@ type MyAccountServiceClient interface {
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
+	// Returns FAILED_PRECONDITION when the authenticated account does not match
+	// expected_user_id.
 	ListVerifiedEmails(context.Context, *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error)
 	// Sends a six-digit code to an email address that the authenticated user
 	// wants to add. The code expires after the server-configured email OTP
@@ -97,14 +99,18 @@ type MyAccountServiceClient interface {
 	// have transactional email enabled. Returns ALREADY_EXISTS when the address
 	// is already verified for the user, RESOURCE_EXHAUSTED after too many code
 	// requests or attempts, and UNAVAILABLE when email delivery is disabled or
-	// fails.
+	// fails. Returns FAILED_PRECONDITION when the authenticated account does not
+	// match expected_user_id.
 	RequestEmailVerification(context.Context, *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error)
 	// Confirms a verification code and adds the address to the account. Returns
 	// INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
-	// when another user already controls the address.
+	// when another user already controls the address. Returns FAILED_PRECONDITION
+	// when the authenticated account does not match expected_user_id.
 	ConfirmEmailVerification(context.Context, *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error)
 	// Selects one verified address for future account-directed email. Returns
-	// NOT_FOUND when the address is not verified for the authenticated user.
+	// NOT_FOUND when the address is not verified for the authenticated user, and
+	// FAILED_PRECONDITION when the authenticated account does not match
+	// expected_user_id.
 	SetPrimaryEmail(context.Context, *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error)
 	// Reads the authenticated user's display preferences without changing them.
 	// Returns default settings when none have been saved.
@@ -358,6 +364,8 @@ type MyAccountServiceHandler interface {
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
+	// Returns FAILED_PRECONDITION when the authenticated account does not match
+	// expected_user_id.
 	ListVerifiedEmails(context.Context, *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error)
 	// Sends a six-digit code to an email address that the authenticated user
 	// wants to add. The code expires after the server-configured email OTP
@@ -365,14 +373,18 @@ type MyAccountServiceHandler interface {
 	// have transactional email enabled. Returns ALREADY_EXISTS when the address
 	// is already verified for the user, RESOURCE_EXHAUSTED after too many code
 	// requests or attempts, and UNAVAILABLE when email delivery is disabled or
-	// fails.
+	// fails. Returns FAILED_PRECONDITION when the authenticated account does not
+	// match expected_user_id.
 	RequestEmailVerification(context.Context, *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error)
 	// Confirms a verification code and adds the address to the account. Returns
 	// INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
-	// when another user already controls the address.
+	// when another user already controls the address. Returns FAILED_PRECONDITION
+	// when the authenticated account does not match expected_user_id.
 	ConfirmEmailVerification(context.Context, *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error)
 	// Selects one verified address for future account-directed email. Returns
-	// NOT_FOUND when the address is not verified for the authenticated user.
+	// NOT_FOUND when the address is not verified for the authenticated user, and
+	// FAILED_PRECONDITION when the authenticated account does not match
+	// expected_user_id.
 	SetPrimaryEmail(context.Context, *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error)
 	// Reads the authenticated user's display preferences without changing them.
 	// Returns default settings when none have been saved.

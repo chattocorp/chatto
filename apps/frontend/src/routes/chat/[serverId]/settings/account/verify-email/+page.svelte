@@ -92,7 +92,9 @@
 		try {
 			const emails = await scope.connection
 				.getAPI(createAccountAPI)
-				.confirmEmailVerification(address, submittedCode);
+				.confirmEmailVerification(scope.userId, address, submittedCode);
+			clearPendingEmailVerification(scope.serverId, scope.userId, address);
+			if (isCurrentEmailContext(scope)) pendingEmail = '';
 			if (!isCurrentEmailAction(scope)) return;
 			queryClient.setQueryData(
 				settingsQueryKeys.verifiedEmails(scope.serverId, scope.connection, scope.userId),
@@ -105,7 +107,6 @@
 				queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
 				exact: true
 			});
-			clearPendingEmailVerification(scope.serverId, scope.userId, address);
 			toast.success(m('settings.account.email.verified'));
 			await goto(accountPath, { replaceState: true });
 		} catch (reason) {
@@ -124,7 +125,9 @@
 		resending = true;
 		error = '';
 		try {
-			await scope.connection.getAPI(createAccountAPI).requestEmailVerification(address);
+			await scope.connection
+				.getAPI(createAccountAPI)
+				.requestEmailVerification(scope.userId, address);
 			if (!isCurrentEmailAction(scope)) return;
 			code = '';
 			toast.success(m('settings.account.email.code_sent'));

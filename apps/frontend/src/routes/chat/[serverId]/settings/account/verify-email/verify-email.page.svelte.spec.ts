@@ -73,7 +73,7 @@ describe('Verify email page', () => {
     vi.restoreAllMocks();
   });
 
-  it('ignores a confirmation response after its server scope is disposed', async () => {
+  it('clears a consumed challenge without stale UI effects after its server scope is disposed', async () => {
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     let resolveConfirmation = (_emails: Array<{ email: string; primary: boolean }>) => {};
     mocks.confirmEmailVerification.mockImplementation(
@@ -88,6 +88,7 @@ describe('Verify email page', () => {
     await getByRole('button', { name: 'Verify email' }).click();
 
     expect(mocks.confirmEmailVerification).toHaveBeenCalledWith(
+      'U123abcetc.',
       'alice.new@example.com',
       '123456'
     );
@@ -98,9 +99,7 @@ describe('Verify email page', () => {
     expect(mocks.goto).not.toHaveBeenCalled();
     expect(invalidateQueries).not.toHaveBeenCalled();
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
-    expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe(
-      'alice.new@example.com'
-    );
+    expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe('');
   });
 
   it('invalidates admin email views after confirming an address', async () => {
@@ -115,6 +114,7 @@ describe('Verify email page', () => {
     await settle();
 
     expect(mocks.confirmEmailVerification).toHaveBeenCalledWith(
+      'U123abcetc.',
       'alice.new@example.com',
       '123456'
     );
@@ -143,7 +143,7 @@ describe('Verify email page', () => {
         )
     );
 
-    const { getByRole } = render(VerifyEmailPage);
+    const { getByRole, getByText } = render(VerifyEmailPage);
     await getByRole('textbox', { name: 'Digit 1' }).fill('123456');
     await getByRole('button', { name: 'Verify email' }).click();
 
@@ -162,5 +162,30 @@ describe('Verify email page', () => {
       )
     ).toBeUndefined();
     expect(invalidateQueries).not.toHaveBeenCalled();
+    expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe('');
+    await expect.element(getByText('No email verification is in progress.')).toBeVisible();
+  });
+
+  it('keeps a retryable challenge when confirmation fails after navigation starts', async () => {
+    let rejectConfirmation = (_reason: Error) => {};
+    mocks.confirmEmailVerification.mockImplementation(
+      () => new Promise((_resolve, reject) => (rejectConfirmation = reject))
+    );
+
+    const { getByRole } = render(VerifyEmailPage);
+    await getByRole('textbox', { name: 'Digit 1' }).fill('123456');
+    await getByRole('button', { name: 'Verify email' }).click();
+
+    const navigationGuard = mocks.beforeNavigate.mock.calls.at(-1)?.[0] as (() => void) | undefined;
+    expect(navigationGuard).toBeTypeOf('function');
+    navigationGuard?.();
+    rejectConfirmation(new Error('verification failed'));
+    await settle();
+
+    expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe(
+      'alice.new@example.com'
+    );
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
 });

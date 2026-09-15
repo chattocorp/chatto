@@ -68,8 +68,13 @@ message VerifiedEmail {
   bool primary = 3;
 }
 
-// Request the authenticated user's verified email addresses.
-message ListVerifiedEmailsRequest {}
+// Request the authenticated user's verified email addresses. expected_user_id
+// binds the request to the account state that the client currently displays.
+// The server returns FAILED_PRECONDITION if the authenticated account changed.
+message ListVerifiedEmailsRequest {
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
 
 // Verified email addresses for the authenticated user.
 message ListVerifiedEmailsResponse {
@@ -80,6 +85,8 @@ message ListVerifiedEmailsResponse {
 message RequestEmailVerificationRequest {
   // New address to verify and add to the authenticated user's account.
   string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 // Result of requesting an email verification code.
@@ -91,6 +98,8 @@ message ConfirmEmailVerificationRequest {
   string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
   // Six-digit code that the server sent to the address.
   string code = 2 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 3 [(buf.validate.field).string.min_len = 1];
 }
 
 // Verified email addresses after a successful confirmation.
@@ -102,6 +111,8 @@ message ConfirmEmailVerificationResponse {
 message SetPrimaryEmailRequest {
   // Verified address to select as primary.
   string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 // Verified email addresses after the primary address changes.
@@ -172,6 +183,8 @@ service MyAccountService {
   // Updates or adds the authenticated user's password.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
   // Lists the authenticated user's verified email addresses and primary choice.
+  // Returns FAILED_PRECONDITION when the authenticated account does not match
+  // expected_user_id.
   rpc ListVerifiedEmails(ListVerifiedEmailsRequest) returns (ListVerifiedEmailsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -181,14 +194,18 @@ service MyAccountService {
   // have transactional email enabled. Returns ALREADY_EXISTS when the address
   // is already verified for the user, RESOURCE_EXHAUSTED after too many code
   // requests or attempts, and UNAVAILABLE when email delivery is disabled or
-  // fails.
+  // fails. Returns FAILED_PRECONDITION when the authenticated account does not
+  // match expected_user_id.
   rpc RequestEmailVerification(RequestEmailVerificationRequest) returns (RequestEmailVerificationResponse);
   // Confirms a verification code and adds the address to the account. Returns
   // INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
-  // when another user already controls the address.
+  // when another user already controls the address. Returns FAILED_PRECONDITION
+  // when the authenticated account does not match expected_user_id.
   rpc ConfirmEmailVerification(ConfirmEmailVerificationRequest) returns (ConfirmEmailVerificationResponse);
   // Selects one verified address for future account-directed email. Returns
-  // NOT_FOUND when the address is not verified for the authenticated user.
+  // NOT_FOUND when the address is not verified for the authenticated user, and
+  // FAILED_PRECONDITION when the authenticated account does not match
+  // expected_user_id.
   rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (SetPrimaryEmailResponse);
   // Reads the authenticated user's display preferences without changing them.
   // Returns default settings when none have been saved.

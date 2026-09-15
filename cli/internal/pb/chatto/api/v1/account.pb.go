@@ -317,11 +317,15 @@ func (x *VerifiedEmail) GetPrimary() bool {
 	return false
 }
 
-// Request the authenticated user's verified email addresses.
+// Request the authenticated user's verified email addresses. expected_user_id
+// binds the request to the account state that the client currently displays.
+// The server returns FAILED_PRECONDITION if the authenticated account changed.
 type ListVerifiedEmailsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,1,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListVerifiedEmailsRequest) Reset() {
@@ -352,6 +356,13 @@ func (x *ListVerifiedEmailsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListVerifiedEmailsRequest.ProtoReflect.Descriptor instead.
 func (*ListVerifiedEmailsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListVerifiedEmailsRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
+	}
+	return ""
 }
 
 // Verified email addresses for the authenticated user.
@@ -403,9 +414,11 @@ func (x *ListVerifiedEmailsResponse) GetVerifiedEmails() []*VerifiedEmail {
 type RequestEmailVerificationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// New address to verify and add to the authenticated user's account.
-	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,2,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RequestEmailVerificationRequest) Reset() {
@@ -441,6 +454,13 @@ func (*RequestEmailVerificationRequest) Descriptor() ([]byte, []int) {
 func (x *RequestEmailVerificationRequest) GetEmail() string {
 	if x != nil {
 		return x.Email
+	}
+	return ""
+}
+
+func (x *RequestEmailVerificationRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
 	}
 	return ""
 }
@@ -488,9 +508,11 @@ type ConfirmEmailVerificationRequest struct {
 	// Address that received the verification code.
 	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	// Six-digit code that the server sent to the address.
-	Code          string `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Code string `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,3,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ConfirmEmailVerificationRequest) Reset() {
@@ -533,6 +555,13 @@ func (x *ConfirmEmailVerificationRequest) GetEmail() string {
 func (x *ConfirmEmailVerificationRequest) GetCode() string {
 	if x != nil {
 		return x.Code
+	}
+	return ""
+}
+
+func (x *ConfirmEmailVerificationRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
 	}
 	return ""
 }
@@ -586,9 +615,11 @@ func (x *ConfirmEmailVerificationResponse) GetVerifiedEmails() []*VerifiedEmail 
 type SetPrimaryEmailRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Verified address to select as primary.
-	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	// User ID that the client expects to be authenticated.
+	ExpectedUserId string `protobuf:"bytes,2,opt,name=expected_user_id,json=expectedUserId,proto3" json:"expected_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *SetPrimaryEmailRequest) Reset() {
@@ -624,6 +655,13 @@ func (*SetPrimaryEmailRequest) Descriptor() ([]byte, []int) {
 func (x *SetPrimaryEmailRequest) GetEmail() string {
 	if x != nil {
 		return x.Email
+	}
+	return ""
+}
+
+func (x *SetPrimaryEmailRequest) GetExpectedUserId() string {
+	if x != nil {
+		return x.ExpectedUserId
 	}
 	return ""
 }
@@ -1073,23 +1111,27 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12;\n" +
 	"\vverified_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"verifiedAt\x12\x18\n" +
-	"\aprimary\x18\x03 \x01(\bR\aprimary\"\x1b\n" +
-	"\x19ListVerifiedEmailsRequest\"c\n" +
+	"\aprimary\x18\x03 \x01(\bR\aprimary\"N\n" +
+	"\x19ListVerifiedEmailsRequest\x121\n" +
+	"\x10expected_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"c\n" +
 	"\x1aListVerifiedEmailsResponse\x12E\n" +
-	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"C\n" +
+	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"v\n" +
 	"\x1fRequestEmailVerificationRequest\x12 \n" +
 	"\x05email\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\"\"\n" +
-	" RequestEmailVerificationResponse\"b\n" +
+	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\x121\n" +
+	"\x10expected_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"\"\n" +
+	" RequestEmailVerificationResponse\"\x95\x01\n" +
 	"\x1fConfirmEmailVerificationRequest\x12 \n" +
 	"\x05email\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\x12\x1d\n" +
-	"\x04code\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x04code\"i\n" +
+	"\x04code\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x04code\x121\n" +
+	"\x10expected_user_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"i\n" +
 	" ConfirmEmailVerificationResponse\x12E\n" +
-	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\":\n" +
+	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"m\n" +
 	"\x16SetPrimaryEmailRequest\x12 \n" +
 	"\x05email\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\"`\n" +
+	"\xbaH\ar\x05\x18\xfe\x01`\x01R\x05email\x121\n" +
+	"\x10expected_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0eexpectedUserId\"`\n" +
 	"\x17SetPrimaryEmailResponse\x12E\n" +
 	"\x0fverified_emails\x18\x01 \x03(\v2\x1c.chatto.api.v1.VerifiedEmailR\x0everifiedEmails\"\x14\n" +
 	"\x12GetSettingsRequest\"N\n" +

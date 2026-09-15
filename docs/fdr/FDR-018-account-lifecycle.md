@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -29,6 +29,12 @@ This FDR covers human accounts from registration through deletion: signup, email
   direct registration. It keeps the pending address in server-scoped session
   storage so a page reload does not lose the pending verification. Chatto
   adds the email only after the user confirms the code.
+- If another tab signs in to a different account, an already-open tab refuses
+  to load or change email settings until its account state is refreshed. It
+  does not show or change the other account's email addresses.
+- A successful confirmation removes its tab-scoped pending challenge even when
+  the user navigates away before the response arrives. The consumed code does
+  not appear again when the user returns to the confirmation page.
 - An address that is already verified cannot start another verification
   ceremony.
 - The first verified email becomes the primary email. Adding another email does
@@ -109,6 +115,17 @@ recipients, which can cause spam reports.
 **Decision:** Registration and email-verification codes, registration completion tokens, password-reset tokens, and account-deletion confirmation tokens are stored in `RUNTIME_STATE` under HMAC-derived keys with per-key TTLs. The HMAC input is scoped by workflow and keyed by `[core].secret_key`.
 **Why:** These values are raw credentials or credential-adjacent workflow state. They need restart and restore survival, but they are not reconstructable account history and should not become event-log or backup secrets. The audit value is captured separately in safe EVT facts.
 **Tradeoff:** Operators must keep `[core].secret_key` stable across restores if pending account workflows should continue working. Changing it intentionally invalidates outstanding registration, email-verification, password-reset, and account-deletion credentials.
+
+### 2c. Bind email management to the loaded account
+
+**Decision:** Each email-management operation asserts the account identity
+that the client has loaded. The server rejects the operation before it reads or
+changes email state if the authenticated account is different.
+**Why:** Browser cookies are shared across tabs. Signing in to another account
+in one tab must not let a stale tab read or change that account's private email
+state.
+**Tradeoff:** A stale tab can show an account-changed error and require a
+refresh before email management continues.
 
 ### 3. Deliberate deletion confirmation
 

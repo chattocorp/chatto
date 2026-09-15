@@ -43,6 +43,8 @@ export const MyAccountService = {
     },
     /**
      * Lists the authenticated user's verified email addresses and primary choice.
+     * Returns FAILED_PRECONDITION when the authenticated account does not match
+     * expected_user_id.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.ListVerifiedEmails
      */
@@ -60,7 +62,8 @@ export const MyAccountService = {
      * have transactional email enabled. Returns ALREADY_EXISTS when the address
      * is already verified for the user, RESOURCE_EXHAUSTED after too many code
      * requests or attempts, and UNAVAILABLE when email delivery is disabled or
-     * fails.
+     * fails. Returns FAILED_PRECONDITION when the authenticated account does not
+     * match expected_user_id.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.RequestEmailVerification
      */
@@ -73,7 +76,8 @@ export const MyAccountService = {
     /**
      * Confirms a verification code and adds the address to the account. Returns
      * INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
-     * when another user already controls the address.
+     * when another user already controls the address. Returns FAILED_PRECONDITION
+     * when the authenticated account does not match expected_user_id.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.ConfirmEmailVerification
      */
@@ -85,7 +89,9 @@ export const MyAccountService = {
     },
     /**
      * Selects one verified address for future account-directed email. Returns
-     * NOT_FOUND when the address is not verified for the authenticated user.
+     * NOT_FOUND when the address is not verified for the authenticated user, and
+     * FAILED_PRECONDITION when the authenticated account does not match
+     * expected_user_id.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.SetPrimaryEmail
      */

@@ -107,6 +107,7 @@ describe('Account settings page', () => {
     await expect.element(getByText('Email address', { exact: true })).toBeVisible();
     await expect.element(getByRole('row', { name: 'alice@example.com Primary' })).toBeVisible();
     await expect.element(getByRole('button', { name: 'Make primary' })).toBeVisible();
+    expect(mocks.listVerifiedEmails).toHaveBeenCalledWith('U123abcetc.');
 
     await getByRole('button', { name: 'Add email address' }).click();
 
@@ -165,7 +166,10 @@ describe('Account settings page', () => {
     await getByRole('button', { name: 'Make primary' }).click();
     await settle();
 
-    expect(mocks.setPrimaryEmail).toHaveBeenCalledWith('alice.secondary@example.com');
+    expect(mocks.setPrimaryEmail).toHaveBeenCalledWith(
+      'U123abcetc.',
+      'alice.secondary@example.com'
+    );
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: adminQueryKeys.membersRoot('origin', connection)
     });
@@ -197,7 +201,10 @@ describe('Account settings page', () => {
     await expect.element(submitButton).toBeEnabled();
     await submitButton.click();
 
-    expect(mocks.requestEmailVerification).toHaveBeenCalledWith('alice.new@example.com');
+    expect(mocks.requestEmailVerification).toHaveBeenCalledWith(
+      'U123abcetc.',
+      'alice.new@example.com'
+    );
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/settings/account/verify-email');
   });
 

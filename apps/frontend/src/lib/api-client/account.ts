@@ -74,25 +74,29 @@ export function createAccountAPI(config: AccountAPIConfig) {
       );
     },
 
-    async listVerifiedEmails(): Promise<VerifiedEmail[]> {
-      const response = await client.listVerifiedEmails({}, { headers: headers() });
+    async listVerifiedEmails(expectedUserId: string): Promise<VerifiedEmail[]> {
+      const response = await client.listVerifiedEmails({ expectedUserId }, { headers: headers() });
       return response.verifiedEmails.map(verifiedEmail);
     },
 
-    async requestEmailVerification(email: string): Promise<void> {
-      await client.requestEmailVerification({ email }, { headers: headers() });
+    async requestEmailVerification(expectedUserId: string, email: string): Promise<void> {
+      await client.requestEmailVerification({ email, expectedUserId }, { headers: headers() });
     },
 
-    async confirmEmailVerification(email: string, code: string): Promise<VerifiedEmail[]> {
+    async confirmEmailVerification(
+      expectedUserId: string,
+      email: string,
+      code: string
+    ): Promise<VerifiedEmail[]> {
       const response = await client.confirmEmailVerification(
-        { email, code },
+        { email, code, expectedUserId },
         { headers: headers() }
       );
       return response.verifiedEmails.map(verifiedEmail);
     },
 
-    async setPrimaryEmail(email: string): Promise<VerifiedEmail[]> {
-      const response = await client.setPrimaryEmail({ email }, { headers: headers() });
+    async setPrimaryEmail(expectedUserId: string, email: string): Promise<VerifiedEmail[]> {
+      const response = await client.setPrimaryEmail({ email, expectedUserId }, { headers: headers() });
       return response.verifiedEmails.map(verifiedEmail);
     },
 

@@ -87,7 +87,7 @@
       const userId = viewerUserId;
       return {
         queryKey: settingsQueryKeys.verifiedEmails(serverScope.serverId, connection, userId),
-        queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails(),
+        queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails(userId),
         enabled: userId !== ''
       };
     },
@@ -155,7 +155,9 @@
     requesting = true;
     addEmailError = '';
     try {
-      await scope.connection.getAPI(createAccountAPI).requestEmailVerification(address);
+      await scope.connection
+        .getAPI(createAccountAPI)
+        .requestEmailVerification(scope.userId, address);
       if (!isCurrentEmailAction(scope)) return;
       addEmailVisible = false;
       await goto(verificationPath);
@@ -179,7 +181,9 @@
     selectingEmail = address;
     actionError = '';
     try {
-      const next = await scope.connection.getAPI(createAccountAPI).setPrimaryEmail(address);
+      const next = await scope.connection
+        .getAPI(createAccountAPI)
+        .setPrimaryEmail(scope.userId, address);
       if (!isCurrentEmailAction(scope)) return;
       setEmails(scope, next);
       void queryClient.invalidateQueries({

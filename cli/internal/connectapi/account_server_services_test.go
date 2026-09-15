@@ -433,7 +433,7 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 	// The account requests a code through the authenticated API. The address is
 	// not verified until the code delivered by the configured sender is confirmed.
 	if _, err := env.account.RequestEmailVerification(ctx, connect.NewRequest(&apiv1.RequestEmailVerificationRequest{
-		Email: "First@Example.com",
+		Email: "First@Example.com", ExpectedUserId: env.viewer.Id,
 	})); err != nil {
 		t.Fatalf("RequestEmailVerification: %v", err)
 	}
@@ -441,7 +441,7 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 	if message == nil || message.To != "first@example.com" {
 		t.Fatalf("verification message = %+v, want normalized recipient", message)
 	}
-	listed, err := env.account.ListVerifiedEmails(ctx, connect.NewRequest(&apiv1.ListVerifiedEmailsRequest{}))
+	listed, err := env.account.ListVerifiedEmails(ctx, connect.NewRequest(&apiv1.ListVerifiedEmailsRequest{ExpectedUserId: env.viewer.Id}))
 	if err != nil {
 		t.Fatalf("ListVerifiedEmails before confirmation: %v", err)
 	}
@@ -449,7 +449,7 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 		t.Fatalf("emails before confirmation = %+v, want none", emails)
 	}
 	if _, err := env.account.SetPrimaryEmail(ctx, connect.NewRequest(&apiv1.SetPrimaryEmailRequest{
-		Email: "first@example.com",
+		Email: "first@example.com", ExpectedUserId: env.viewer.Id,
 	})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("SetPrimaryEmail before confirmation code = %v, want not_found", connect.CodeOf(err))
 	}
@@ -458,7 +458,7 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 		t.Fatalf("verification message body has no code: %q", message.Body)
 	}
 	confirmed, err := env.account.ConfirmEmailVerification(ctx, connect.NewRequest(&apiv1.ConfirmEmailVerificationRequest{
-		Email: "first@example.com", Code: code,
+		Email: "first@example.com", Code: code, ExpectedUserId: env.viewer.Id,
 	}))
 	if err != nil {
 		t.Fatalf("ConfirmEmailVerification: %v", err)
@@ -467,7 +467,7 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 		t.Fatalf("confirmed emails = %+v, want one primary address", emails)
 	}
 	if _, err := env.account.RequestEmailVerification(ctx, connect.NewRequest(&apiv1.RequestEmailVerificationRequest{
-		Email: "FIRST@example.com",
+		Email: "FIRST@example.com", ExpectedUserId: env.viewer.Id,
 	})); connect.CodeOf(err) != connect.CodeAlreadyExists {
 		t.Fatalf("RequestEmailVerification verified address code = %v, want already_exists", connect.CodeOf(err))
 	}
@@ -476,7 +476,9 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 	if err := env.core.AddVerifiedEmailDirect(ctx, env.viewer.Id, "second@example.com"); err != nil {
 		t.Fatalf("AddVerifiedEmailDirect second: %v", err)
 	}
-	selected, err := env.account.SetPrimaryEmail(ctx, connect.NewRequest(&apiv1.SetPrimaryEmailRequest{Email: "second@example.com"}))
+	selected, err := env.account.SetPrimaryEmail(ctx, connect.NewRequest(&apiv1.SetPrimaryEmailRequest{
+		Email: "second@example.com", ExpectedUserId: env.viewer.Id,
+	}))
 	if err != nil {
 		t.Fatalf("SetPrimaryEmail: %v", err)
 	}
@@ -488,6 +490,66 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 	}
 	if primary != "second@example.com" {
 		t.Fatalf("primary email = %q, want second@example.com", primary)
+	}
+}
+
+func TestMyAccountServiceBindsVerifiedEmailRequestsToExpectedUser(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	mailer := email.NewMockSender(true)
+	env.api.emailSender = mailer
+	otherUserID := "U-another-account"
+
+	if _, err := env.account.ListVerifiedEmails(ctx, connect.NewRequest(&apiv1.ListVerifiedEmailsRequest{
+		ExpectedUserId: otherUserID,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("ListVerifiedEmails mismatched account code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+
+	if _, err := env.account.RequestEmailVerification(ctx, connect.NewRequest(&apiv1.RequestEmailVerificationRequest{
+		Email: "bound-request@example.com", ExpectedUserId: otherUserID,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("RequestEmailVerification mismatched account code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	if messages := mailer.Messages(); len(messages) != 0 {
+		t.Fatalf("mismatched account sent %d verification messages, want none", len(messages))
+	}
+
+	const pendingAddress = "bound-confirmation@example.com"
+	code, err := env.core.CreateEmailVerificationCode(ctx, env.viewer.Id, pendingAddress)
+	if err != nil {
+		t.Fatalf("CreateEmailVerificationCode: %v", err)
+	}
+	if _, err := env.account.ConfirmEmailVerification(ctx, connect.NewRequest(&apiv1.ConfirmEmailVerificationRequest{
+		Email: pendingAddress, Code: code, ExpectedUserId: otherUserID,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("ConfirmEmailVerification mismatched account code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	if _, err := env.account.ConfirmEmailVerification(ctx, connect.NewRequest(&apiv1.ConfirmEmailVerificationRequest{
+		Email: pendingAddress, Code: code, ExpectedUserId: env.viewer.Id,
+	})); err != nil {
+		t.Fatalf("ConfirmEmailVerification after mismatched account: %v", err)
+	}
+
+	const secondaryAddress = "bound-primary@example.com"
+	if err := env.core.AddVerifiedEmailDirect(ctx, env.viewer.Id, secondaryAddress); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+	if _, err := env.account.SetPrimaryEmail(ctx, connect.NewRequest(&apiv1.SetPrimaryEmailRequest{
+		Email: secondaryAddress, ExpectedUserId: otherUserID,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("SetPrimaryEmail mismatched account code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	listed, err := env.account.ListVerifiedEmails(ctx, connect.NewRequest(&apiv1.ListVerifiedEmailsRequest{
+		ExpectedUserId: env.viewer.Id,
+	}))
+	if err != nil {
+		t.Fatalf("ListVerifiedEmails: %v", err)
+	}
+	for _, address := range listed.Msg.GetVerifiedEmails() {
+		if address.GetEmail() == secondaryAddress && address.GetPrimary() {
+			t.Fatalf("mismatched account selected %q as primary", secondaryAddress)
+		}
 	}
 }
 

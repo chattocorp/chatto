@@ -75,9 +75,12 @@ func (s *accountService) ChangePassword(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&apiv1.ChangePasswordResponse{User: responseUser}), nil
 }
 
-func (s *accountService) ListVerifiedEmails(ctx context.Context, _ *connect.Request[apiv1.ListVerifiedEmailsRequest]) (*connect.Response[apiv1.ListVerifiedEmailsResponse], error) {
+func (s *accountService) ListVerifiedEmails(ctx context.Context, req *connect.Request[apiv1.ListVerifiedEmailsRequest]) (*connect.Response[apiv1.ListVerifiedEmailsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err := requireExpectedUser(caller, req.Msg.GetExpectedUserId()); err != nil {
 		return nil, err
 	}
 	emails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
@@ -90,6 +93,9 @@ func (s *accountService) ListVerifiedEmails(ctx context.Context, _ *connect.Requ
 func (s *accountService) RequestEmailVerification(ctx context.Context, req *connect.Request[apiv1.RequestEmailVerificationRequest]) (*connect.Response[apiv1.RequestEmailVerificationResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err := requireExpectedUser(caller, req.Msg.GetExpectedUserId()); err != nil {
 		return nil, err
 	}
 	if s.api.emailSender == nil || !s.api.emailSender.IsEnabled() {
@@ -136,6 +142,9 @@ func (s *accountService) ConfirmEmailVerification(ctx context.Context, req *conn
 	if err != nil {
 		return nil, err
 	}
+	if err := requireExpectedUser(caller, req.Msg.GetExpectedUserId()); err != nil {
+		return nil, err
+	}
 	address := strings.ToLower(strings.TrimSpace(req.Msg.GetEmail()))
 	if _, err := s.api.core.VerifyEmailCode(ctx, caller.UserID, address, strings.TrimSpace(req.Msg.GetCode())); err != nil {
 		if errors.Is(err, core.ErrTokenNotFound) || errors.Is(err, core.ErrTokenExpired) || errors.Is(err, core.ErrEmailVerificationCodeInvalid) || errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
@@ -155,6 +164,9 @@ func (s *accountService) SetPrimaryEmail(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, err
 	}
+	if err := requireExpectedUser(caller, req.Msg.GetExpectedUserId()); err != nil {
+		return nil, err
+	}
 	if err := s.api.core.SetPrimaryVerifiedEmail(ctx, caller.UserID, req.Msg.GetEmail()); err != nil {
 		return nil, connectError(err)
 	}
@@ -163,6 +175,16 @@ func (s *accountService) SetPrimaryEmail(ctx context.Context, req *connect.Reque
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.SetPrimaryEmailResponse{VerifiedEmails: verifiedEmailsToAPI(emails)}), nil
+}
+
+// requireExpectedUser prevents a stale browser tab from applying an ambient
+// cookie session for one account to self-service state that it loaded for a
+// different account.
+func requireExpectedUser(caller Caller, expectedUserID string) error {
+	if expectedUserID == "" || caller.UserID != expectedUserID {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("authenticated account changed"))
+	}
+	return nil
 }
 
 func verifiedEmailsToAPI(emails []core.VerifiedEmail) []*apiv1.VerifiedEmail {

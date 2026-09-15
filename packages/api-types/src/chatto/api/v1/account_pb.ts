@@ -271,11 +271,20 @@ export class VerifiedEmail extends Message<VerifiedEmail> {
 }
 
 /**
- * Request the authenticated user's verified email addresses.
+ * Request the authenticated user's verified email addresses. expected_user_id
+ * binds the request to the account state that the client currently displays.
+ * The server returns FAILED_PRECONDITION if the authenticated account changed.
  *
  * @generated from message chatto.api.v1.ListVerifiedEmailsRequest
  */
 export class ListVerifiedEmailsRequest extends Message<ListVerifiedEmailsRequest> {
+  /**
+   * User ID that the client expects to be authenticated.
+   *
+   * @generated from field: string expected_user_id = 1;
+   */
+  expectedUserId = "";
+
   constructor(data?: PartialMessage<ListVerifiedEmailsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -284,6 +293,7 @@ export class ListVerifiedEmailsRequest extends Message<ListVerifiedEmailsRequest
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListVerifiedEmailsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "expected_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVerifiedEmailsRequest {
@@ -355,6 +365,13 @@ export class RequestEmailVerificationRequest extends Message<RequestEmailVerific
    */
   email = "";
 
+  /**
+   * User ID that the client expects to be authenticated.
+   *
+   * @generated from field: string expected_user_id = 2;
+   */
+  expectedUserId = "";
+
   constructor(data?: PartialMessage<RequestEmailVerificationRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -364,6 +381,7 @@ export class RequestEmailVerificationRequest extends Message<RequestEmailVerific
   static readonly typeName = "chatto.api.v1.RequestEmailVerificationRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "expected_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RequestEmailVerificationRequest {
@@ -436,6 +454,13 @@ export class ConfirmEmailVerificationRequest extends Message<ConfirmEmailVerific
    */
   code = "";
 
+  /**
+   * User ID that the client expects to be authenticated.
+   *
+   * @generated from field: string expected_user_id = 3;
+   */
+  expectedUserId = "";
+
   constructor(data?: PartialMessage<ConfirmEmailVerificationRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -446,6 +471,7 @@ export class ConfirmEmailVerificationRequest extends Message<ConfirmEmailVerific
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "expected_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ConfirmEmailVerificationRequest {
@@ -517,6 +543,13 @@ export class SetPrimaryEmailRequest extends Message<SetPrimaryEmailRequest> {
    */
   email = "";
 
+  /**
+   * User ID that the client expects to be authenticated.
+   *
+   * @generated from field: string expected_user_id = 2;
+   */
+  expectedUserId = "";
+
   constructor(data?: PartialMessage<SetPrimaryEmailRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -526,6 +559,7 @@ export class SetPrimaryEmailRequest extends Message<SetPrimaryEmailRequest> {
   static readonly typeName = "chatto.api.v1.SetPrimaryEmailRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "expected_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPrimaryEmailRequest {
