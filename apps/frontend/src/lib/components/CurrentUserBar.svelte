@@ -284,7 +284,7 @@ sidebar. Shows the avatar with presence and the live display name.
     {/if}
 
     <div
-      class="flex h-12 max-h-12 min-h-12 items-center gap-2 overflow-hidden rounded-xl bg-surface px-2"
+      class="flex h-12 max-h-12 min-h-12 items-center gap-2 overflow-hidden shell-surface px-2"
       data-testid="current-user-identity-card"
     >
       <button

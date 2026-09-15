@@ -490,7 +490,7 @@
                   <div
                     animate:flip={{ duration: 200 }}
                     class={[
-                      'group flex cursor-grab items-center gap-3 selectable-list-item py-2 pr-2 pl-3',
+                      'group flex cursor-grab items-center gap-3 selectable-list-item py-2 ps-3 pe-4',
                       room.kind === 'room' && room.room.archived && 'opacity-60'
                     ]}
                   >

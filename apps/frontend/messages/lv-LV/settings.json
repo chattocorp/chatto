@@ -215,7 +215,26 @@
       },
       "save_button": "Saglabāt laika iestatījumus",
       "saved": "Laika iestatījumi saglabāti",
-      "save_failed": "Neizdevās saglabāt laika iestatījumus"
+      "save_failed": "Neizdevās saglabāt laika iestatījumus",
+      "accent": {
+        "title": "Akcenta krāsa",
+        "blue": "Zila",
+        "cyan": "Ciāna",
+        "teal": "Zaļganzila",
+        "green": "Zaļa",
+        "amber": "Dzintara",
+        "orange": "Oranža",
+        "pink": "Rozā",
+        "violet": "Violeta",
+        "grey": "Pelēka",
+        "preview": "Priekšskatījums"
+      },
+      "depth": {
+        "title": "Virsmas dziļums",
+        "flat": "Plakans",
+        "three_d": "3D",
+        "very_3d": "Izteikts 3D"
+      }
     },
     "notifications": {
       "title": "Paziņojumi",

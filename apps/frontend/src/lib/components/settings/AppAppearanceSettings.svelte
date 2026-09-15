@@ -4,9 +4,11 @@
   import {
     userPreferences,
     type DisplayTheme,
+    type SurfaceDepth,
     type ThreadPanePresentation
   } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import AccentColorPicker from './AccentColorPicker.svelte';
 
   const themeOptions = $derived([
     {
@@ -29,6 +31,12 @@
     label: string;
     description: string;
   }>);
+
+  const depthOptions = $derived([
+    { value: 'flat', label: m('settings.preferences.depth.flat') },
+    { value: '3d', label: m('settings.preferences.depth.three_d') },
+    { value: 'very-3d', label: m('settings.preferences.depth.very_3d') }
+  ] satisfies Array<{ value: SurfaceDepth; label: string }>);
 
   const threadPaneOptions = $derived([
     {
@@ -73,6 +81,27 @@
             />
           {/each}
         </div>
+      </div>
+    </Panel>
+
+    <Panel title={m('settings.preferences.accent.title')} icon="iconify icon-[uil--palette]">
+      <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
+      <AccentColorPicker
+        value={userPreferences.accentColor}
+        onchange={(value) => (userPreferences.accentColor = value)}
+      />
+    </Panel>
+
+    <Panel title={m('settings.preferences.depth.title')} icon="iconify icon-[uil--layer-group]">
+      <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
+      <div class="flex max-w-md flex-col gap-2" role="radiogroup" aria-label={m('settings.preferences.depth.title')}>
+        {#each depthOptions as option (option.value)}
+          <ChoiceRow
+            label={option.label}
+            selected={userPreferences.surfaceDepth === option.value}
+            onclick={() => (userPreferences.surfaceDepth = option.value)}
+          />
+        {/each}
       </div>
     </Panel>
 

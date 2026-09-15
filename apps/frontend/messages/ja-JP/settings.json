@@ -215,7 +215,26 @@
       },
       "save_button": "時刻設定を保存",
       "saved": "時刻設定を保存しました",
-      "save_failed": "時刻設定を保存できませんでした"
+      "save_failed": "時刻設定を保存できませんでした",
+      "accent": {
+        "title": "アクセントカラー",
+        "blue": "ブルー",
+        "cyan": "シアン",
+        "teal": "ティール",
+        "green": "グリーン",
+        "amber": "アンバー",
+        "orange": "オレンジ",
+        "pink": "ピンク",
+        "violet": "バイオレット",
+        "grey": "グレー",
+        "preview": "プレビュー"
+      },
+      "depth": {
+        "title": "立体感",
+        "flat": "フラット",
+        "three_d": "3D",
+        "very_3d": "強い3D"
+      }
     },
     "notifications": {
       "title": "通知",

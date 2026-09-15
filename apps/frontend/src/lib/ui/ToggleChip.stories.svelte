@@ -5,6 +5,7 @@
   const componentDescription = `
     Use ToggleChip for compact binary or independently selectable toggles inside dense editors. It
     is interactive; use SegmentedControl for one-of-many modes and Pill for passive labels.
+    Compact admin actions use quiet shell lighting without a drop shadow, with the standard button focus ring and quick feedback.
   `.trim();
 
   const { Story } = defineMeta({
@@ -61,5 +62,29 @@
     >
       Deny
     </ToggleChip>
+  </div>
+</Story>
+
+
+<Story name="Admin actions" asChild>
+  <div class="flex flex-col gap-4 rounded-lg bg-background p-4">
+    <div class="flex gap-2 rounded-lg bg-surface p-3">
+      <ToggleChip tone="neutral" square title="Edit room">
+        <span class="iconify icon-[uil--pen] text-base" aria-label="Edit room"></span>
+      </ToggleChip>
+      <ToggleChip tone="neutral" square title="Room permissions">
+        <span class="iconify icon-[uil--shield] text-base" aria-label="Room permissions"></span>
+      </ToggleChip>
+      <ToggleChip tone="warning" square title="Archive room">
+        <span class="iconify icon-[uil--archive] text-base" aria-label="Archive room"></span>
+      </ToggleChip>
+      <ToggleChip tone="danger" square title="Delete group" disabled>
+        <span class="iconify icon-[uil--trash-alt] text-base" aria-label="Delete group"></span>
+      </ToggleChip>
+    </div>
+    <div class="flex gap-2">
+      <ToggleChip tone="neutral">All rooms</ToggleChip>
+      <ToggleChip tone="action" pressed>Archived</ToggleChip>
+    </div>
   </div>
 </Story>

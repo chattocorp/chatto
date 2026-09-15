@@ -50,6 +50,20 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar.
 - **Bot identity management** — an API-key-authenticated bot updates its own login, display name, and bio through `MyAccountService.UpdateProfile`. It manages its avatar through `UserService`. Human owners manage bot lifecycle, ownership, permissions, API keys, and avatars. A human with `bot.manage` or `user.manage-accounts` can also manage a bot's avatar. Bot custom-status and personal-settings management are not supported.
 
+- **Surface depth** — Appearance offers Flat, 3D, and Very 3D bevel strength.
+  3D is the default. Flat removes decorative bevels and inset shading. Very 3D
+  strengthens and widens them. Changes apply immediately across registered
+  servers and remain in this browser. Switching modes animates unless reduced
+  motion is enabled. The accent choice, focus indicators, and layout do not change.
+- **Accent colour** — Appearance offers eight colours (Blue, Cyan, Teal, Green,
+  Amber, Orange, Pink, and Violet) plus Grey. Cyan is the default when a choice
+  is absent or invalid. Changes apply immediately across the app and remain
+  after reload. The choice stays in this browser and needs no server request
+  or external service. Each palette has readable shades for light and dark
+  themes; primary buttons use white labels in both. Status and warning colours
+  remain independent. The picker names each colour and marks the selection
+  with a check; it supports keyboard navigation.
+
 ## Design Decisions
 
 ### 1. 30-day login change cooldown

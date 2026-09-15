@@ -215,7 +215,26 @@
       },
       "save_button": "儲存時間設定",
       "saved": "已儲存時間設定",
-      "save_failed": "無法儲存時間設定"
+      "save_failed": "無法儲存時間設定",
+      "accent": {
+        "title": "強調色",
+        "blue": "藍色",
+        "cyan": "青色",
+        "teal": "藍綠色",
+        "green": "綠色",
+        "amber": "琥珀色",
+        "orange": "橙色",
+        "pink": "粉紅色",
+        "violet": "紫色",
+        "grey": "灰色",
+        "preview": "預覽"
+      },
+      "depth": {
+        "title": "介面立體感",
+        "flat": "平面",
+        "three_d": "3D",
+        "very_3d": "強烈 3D"
+      }
     },
     "notifications": {
       "title": "通知",

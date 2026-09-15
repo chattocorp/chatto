@@ -12,9 +12,9 @@ const messagesRoot = resolve(frontendRoot, 'messages');
 const routes = [
   {
     name: 'login',
-    // Voice settings and bot profile copy measure 291.1 KiB on Linux CI and
-    // 290.5 KiB locally. Allow build variation; DSP and route catalogs stay lazy.
-    budgetKiB: 292,
+    // App appearance choices and shared surface finishes measure about 295 KiB.
+    // Allow platform variation; DSP and route catalogs stay lazy.
+    budgetKiB: 296,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {

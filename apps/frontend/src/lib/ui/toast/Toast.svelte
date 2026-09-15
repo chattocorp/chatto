@@ -46,7 +46,7 @@
     {/if}
     <button
       type="button"
-      class="btn-ghost btn-xs shrink-0"
+      class="btn-ghost btn-xs shrink-0 rounded-md"
       onclick={onDismiss}
       aria-label={m('ui.toast.dismiss')}
     >

@@ -5,7 +5,9 @@
   const componentDescription = `
     Use Button for committed actions, form submits, destructive commands, and link-styled calls to
     action. Keep modal footer actions visible and horizontal, using secondary for cancel and the
-    strongest applicable tone for the action.
+    strongest applicable tone for the action. Labelled buttons share the rounded-xl radius
+    of chat input surfaces; icon-only buttons keep rounded-md corners. Filled buttons have a
+    subtle gloss and raised edge. Ghost buttons stay flat; disabled buttons lose the raised finish.
   `.trim();
 
   const { Story } = defineMeta({
@@ -59,7 +61,7 @@
     docs: {
       description: {
         story:
-          'Buttons use flat fills and tonal borders. Secondary buttons use a quiet surface fill. Ghost buttons use an action tint on hover.'
+          'Filled buttons use a faint top highlight, a soft lower edge, and a small shadow. Pressed buttons look inset. Secondary buttons keep a quiet surface fill; ghost buttons stay flat and use an action tint on hover.'
       }
     }
   }}

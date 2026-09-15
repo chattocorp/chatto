@@ -210,6 +210,7 @@ labels truncate only after the dialog reaches its viewport limit.
     <div
       class={[
         'dialog-frame flex max-w-full flex-col overflow-hidden bg-surface shadow-xl',
+        mediaViewer ? 'sm:floating-frame' : 'floating-frame',
         mediaViewer
           ? 'h-dvh max-h-dvh w-full sm:h-[85dvh] sm:max-h-[85dvh] sm:w-max sm:rounded-lg sm:border sm:border-text/10 sm:p-2'
           : 'max-h-[calc(100dvh-2rem)] w-max rounded-lg border border-text/10 p-2 sm:max-h-[78vh]'
@@ -219,6 +220,7 @@ labels truncate only after the dialog reaches its viewport limit.
       <div
         class={[
           'flex min-h-0 w-max max-w-full min-w-full flex-1 flex-col overflow-hidden bg-background p-3',
+          mediaViewer ? 'sm:floating-inset' : 'floating-inset',
           mediaViewer
             ? 'ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:rounded-md'
             : 'rounded-md'

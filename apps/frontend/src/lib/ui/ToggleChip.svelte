@@ -66,10 +66,10 @@ iconify icon in the slot:
     danger: 'border-danger/30 bg-danger/12 text-danger hover:bg-danger/18',
     warning: 'border-warning/30 bg-warning/12 text-warning hover:bg-warning/18',
     action: 'border-action/30 bg-action/10 text-action hover:bg-action/15',
-    neutral: 'border-border bg-surface-strong text-text hover:bg-surface-selected'
+    neutral: 'border-input-border bg-surface-strong text-text hover:bg-surface-selected'
   };
 
-  const inactiveClasses = 'border-border bg-surface text-muted';
+  const inactiveClasses = 'border-input-border bg-surface text-muted';
 
   const inactiveHover: Record<Tone, string> = {
     success: 'hover:border-success/25 hover:bg-success/8 hover:text-success',
@@ -83,8 +83,8 @@ iconify icon in the slot:
 <button
   type="button"
   class={[
-    'inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border text-xs font-medium transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.97]',
-    square ? 'w-10' : 'min-w-10 px-2.5',
+    'toggle-chip',
+    square ? 'w-10 rounded-lg p-0' : 'min-w-10',
     pressed ? pressedClasses[tone] : [inactiveClasses, inactiveHover[tone]],
     disabled ? 'cursor-not-allowed opacity-60' : ''
   ]}

@@ -137,7 +137,7 @@
     {#if version}
       <button
         type="button"
-        class="min-h-10 cursor-pointer rounded px-2 text-muted transition-colors hover:bg-surface-emphasized hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+        class="app-header-text-action"
         onclick={showAboutChatto}
         title={m('ui.tooltip.about', { subject: 'Chatto' })}
         aria-label={m('ui.tooltip.about', { subject: 'Chatto' })}
@@ -149,10 +149,12 @@
     {#if hasInstances}
       <button
         type="button"
-        class="iconify icon-[uil--signout] cursor-pointer hover:text-text"
+        class="app-header-icon"
         onclick={handleSignOut}
         title={m('ui.sign_out')}
+        aria-label={m('ui.sign_out')}
       >
+        <span class="iconify icon-[uil--signout] text-lg" aria-hidden="true"></span>
       </button>
     {/if}
   </div>

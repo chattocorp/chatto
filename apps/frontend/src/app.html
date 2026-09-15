@@ -171,6 +171,31 @@
           root.dir = textDirection(locale);
         }
 
+        // Restore accent and depth before CSS loads so the first paint uses saved appearance.
+        // Keep this allowlist aligned with lib/state/userPreferences.svelte.ts.
+        try {
+          const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+          const depth = stored?.surfaceDepth;
+          root.dataset.depth = ['flat', '3d', 'very-3d'].includes(depth) ? depth : '3d';
+          const accent = stored?.accentColor;
+          root.dataset.accent = [
+            'blue',
+            'cyan',
+            'teal',
+            'green',
+            'amber',
+            'orange',
+            'pink',
+            'violet',
+            'grey'
+          ].includes(accent)
+            ? accent
+            : 'cyan';
+        } catch {
+          root.dataset.accent = 'cyan';
+          root.dataset.depth = '3d';
+        }
+
         applyTheme();
         applyLocale();
 

@@ -215,7 +215,26 @@
       },
       "save_button": "Save time settings",
       "saved": "Time settings saved",
-      "save_failed": "Failed to save time settings"
+      "save_failed": "Failed to save time settings",
+      "accent": {
+        "title": "Accent colour",
+        "blue": "Blue",
+        "cyan": "Cyan",
+        "teal": "Teal",
+        "green": "Green",
+        "amber": "Amber",
+        "orange": "Orange",
+        "pink": "Pink",
+        "violet": "Violet",
+        "grey": "Grey",
+        "preview": "Preview"
+      },
+      "depth": {
+        "title": "Surface depth",
+        "flat": "Flat",
+        "three_d": "3D",
+        "very_3d": "Very 3D"
+      }
     },
     "notifications": {
       "title": "Notifications",
