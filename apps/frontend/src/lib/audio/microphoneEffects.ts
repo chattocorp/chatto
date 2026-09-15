@@ -9,8 +9,6 @@ export interface MicrophoneEffects {
   amount: number;
   /** Ramp filter cutoff and compression from neutral; omitted means full strength. */
   strength?: number;
-  /** Soft saturation blend, 0–1; only the top fifth of Voice Quality enables it. */
-  saturation?: number;
   /** Automatic bass/plosive control, de-essing, limiting and gate softness. */
   polish?: number;
 }
@@ -31,7 +29,6 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
     compressor: raw.compressor === true,
     amount: bounded(raw.amount, 0, 100, 50),
     strength: bounded(raw.strength, 0, 1, 1),
-    saturation: bounded(raw.saturation, 0, 1, 0),
     polish: bounded(raw.polish, 0, 1, 0)
   };
 }
@@ -43,18 +40,16 @@ export function normalizeVoiceAmount(value: unknown): number {
 
 /** Interpolate normalized 0–100 input across Normal → Pretty cool → AWESOME without rounding. */
 export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
-  const lower = Math.min(amount / 50, 1);
-  const upper = Math.max(amount / 50 - 1, 0);
+  const strength = normalizeVoiceAmount(amount) / 100;
   return {
-    lowCut: amount > 0,
-    equalizer: amount > 0,
-    bass: 0 - lower + 5 * upper,
-    mid: lower - 3 * upper,
-    treble: lower + 3 * upper,
-    compressor: amount > 0,
-    amount: 15 + 70 * upper,
-    strength: lower,
-    saturation: Math.max(0, (amount - 80) / 20) * 0.5,
-    polish: amount / 100
+    lowCut: strength > 0,
+    equalizer: strength > 0,
+    bass: 0,
+    mid: 0,
+    treble: strength,
+    compressor: strength > 0,
+    amount: 25,
+    strength,
+    polish: strength
   };
 }

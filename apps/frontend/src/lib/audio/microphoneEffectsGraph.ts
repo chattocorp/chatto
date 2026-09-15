@@ -10,8 +10,6 @@ export class MicrophoneEffectsGraph {
   readonly #compressor: DynamicsCompressorNode;
   readonly #dry: GainNode;
   readonly #wet: GainNode;
-  readonly #saturationDry: GainNode;
-  readonly #saturationWet: GainNode;
   readonly #nodes: AudioNode[];
   #settings = '';
 
@@ -37,22 +35,12 @@ export class MicrophoneEffectsGraph {
     this.#headroom = context.createGain();
     this.#compressor = context.createDynamicsCompressor();
     this.#compressor.knee.value = 12;
-    this.#compressor.attack.value = 0.006;
-    this.#compressor.release.value = 0.15;
+    this.#compressor.attack.value = 0.015;
+    this.#compressor.release.value = 0.2;
     this.#dry = context.createGain();
     this.#wet = context.createGain();
     const sum = context.createGain();
-    const saturation = context.createWaveShaper();
-    // A fixed, smooth curve adds harmonics. No oversampling means no resampler
-    // delay between the dry and wet branches; only their gains change at runtime.
-    saturation.curve = Float32Array.from({ length: 4097 }, (_, index) => {
-      const sample = (index / 4096) * 2 - 1;
-      return Math.tanh(2.5 * sample) / Math.tanh(2.5);
-    });
-    this.#saturationDry = context.createGain();
-    this.#saturationWet = context.createGain();
-    sum.connect(this.#saturationDry).connect(output);
-    sum.connect(saturation).connect(this.#saturationWet).connect(output);
+    sum.connect(output);
     this.input.connect(gate);
     gate.connect(this.#headroom).connect(this.#bass).connect(this.#mid).connect(this.#treble);
     this.#treble.connect(this.#dry).connect(sum);
@@ -66,10 +54,7 @@ export class MicrophoneEffectsGraph {
       this.#compressor,
       this.#dry,
       this.#wet,
-      sum,
-      saturation,
-      this.#saturationDry,
-      this.#saturationWet
+      sum
     ];
     this.update(normalizeMicrophoneEffects(), true);
   }
@@ -86,20 +71,17 @@ export class MicrophoneEffectsGraph {
       else param.setTargetAtTime(target, this.context.currentTime, 0.015);
     };
     const strength = value.strength ?? 1;
-    set(this.input.frequency, value.lowCut ? 80 * strength : 0);
+    set(this.input.frequency, value.lowCut ? 60 * strength : 0);
     const gains = value.equalizer ? [value.bass, value.mid, value.treble] : [0, 0, 0];
     set(this.#bass.gain, gains[0]);
     set(this.#mid.gain, gains[1]);
     set(this.#treble.gain, gains[2]);
     // Reserve the sum of positive boosts before EQ to avoid output clipping.
     set(this.#headroom.gain, 10 ** (-gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) / 20));
-    set(this.#compressor.threshold, (-12 - value.amount * 0.24) * strength);
-    set(this.#compressor.ratio, 1 + (1 + value.amount * 0.06) * strength);
+    set(this.#compressor.threshold, (-12 - value.amount * 0.08) * strength);
+    set(this.#compressor.ratio, 1 + (0.5 + value.amount * 0.02) * strength);
     set(this.#dry.gain, value.compressor ? 0 : 1);
     set(this.#wet.gain, value.compressor ? 1 : 0);
-    const saturation = value.saturation ?? 0;
-    set(this.#saturationDry.gain, 1 - saturation);
-    set(this.#saturationWet.gain, saturation);
   }
 
   destroy(): void {

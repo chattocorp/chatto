@@ -74,7 +74,7 @@ export class LowFrequencyControl {
       const burst = clamp((this.#fastSub / Math.max(this.#slowSub, 1e-9) - 2) / 4);
       const lowDominance = clamp((this.#fastSub / Math.max(this.#fastEnergy, 1e-9) - 0.55) / 0.3);
       const audible = clamp((Math.sqrt(this.#fastSub) - 0.035) / 0.1);
-      const plosiveTarget = 10 ** ((-9 * burst * lowDominance * audible) / 20);
+      const plosiveTarget = 10 ** ((-3 * burst * lowDominance * audible) / 20);
       this.#plosiveGain +=
         (plosiveTarget - this.#plosiveGain) *
         (plosiveTarget < this.#plosiveGain ? this.#attack : this.#release);
@@ -93,7 +93,7 @@ export class LowFrequencyControl {
       this.#slowBass += (bassEnergy / Math.max(1, channels) - this.#slowBass) * this.#slow;
       const boom = clamp((this.#slowBass / Math.max(this.#slowEnergy, 1e-9) - 0.65) / 0.25);
       const bassAudible = clamp((Math.sqrt(this.#slowBass) - 0.05) / 0.15);
-      const bassTarget = 10 ** ((-4 * boom * bassAudible) / 20);
+      const bassTarget = 10 ** ((-1.5 * boom * bassAudible) / 20);
       this.#bassGain +=
         (bassTarget - this.#bassGain) *
         (bassTarget < this.#bassGain ? this.#slow : this.#bassRelease);

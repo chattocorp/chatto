@@ -99,7 +99,6 @@ it.each([
   'missing API',
   'module failure',
   'native node failure',
-  'saturation node failure',
   'polish node failure'
 ])('keeps ordinary audio available with %s', async (failure) => {
   const { context, oscillator, track } = await input();
@@ -118,11 +117,7 @@ it.each([
         }
       }
     );
-  } else if (failure === 'saturation node failure')
-    vi.spyOn(context, 'createWaveShaper').mockImplementation(() => {
-      throw new Error('Unavailable');
-    });
-  else
+  } else
     vi.spyOn(context, 'createDynamicsCompressor').mockImplementation(() => {
       throw new Error('Unavailable');
     });
@@ -205,13 +200,14 @@ it.each([
           .connect(analyser);
       monitor();
       await vi.waitFor(() => expect(peak()).toBeGreaterThan(amplitude * 0.83));
+      const baseline = peak();
       processor.setEffects({ ...normalizeMicrophoneEffects(), polish: 1 });
-      await vi.waitFor(() => expect(peak()).toBeLessThan(amplitude * 0.8));
+      await vi.waitFor(() => expect(peak()).toBeLessThan(baseline * 0.99));
       await processor.restart({ track, audioContext: context, kind: Track.Kind.Audio });
       monitor();
       await vi.waitFor(() => {
         expect(peak()).toBeGreaterThan(0.05);
-        expect(peak()).toBeLessThan(amplitude * 0.8);
+        expect(peak()).toBeLessThan(baseline * 0.99);
       });
       processor.setEffects(normalizeMicrophoneEffects());
       await vi.waitFor(() => expect(peak()).toBeGreaterThan(amplitude * 0.83));

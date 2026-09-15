@@ -22,8 +22,9 @@ it.each([44100, 48000])('selectively reduces strong sibilance at %s Hz', (rate) 
   const normal = rms(render(8000, 0.3, 0, rate).slice(rate / 2));
   const cool = rms(render(8000, 0.3, 0.5, rate).slice(rate / 2));
   const awesome = rms(render(8000, 0.3, 1, rate).slice(rate / 2));
-  expect(awesome).toBeLessThan(cool * 0.9);
-  expect(cool).toBeLessThan(normal * 0.9);
+  expect(awesome).toBeGreaterThan(normal * 0.79); // At most 2 dB correction.
+  expect(awesome).toBeLessThan(cool * 0.99);
+  expect(cool).toBeLessThan(normal * 0.99);
   expect(rms(render(8000, 0.005, 1, rate).slice(rate / 2))).toBeCloseTo(0.005 / Math.SQRT2, 5);
 });
 
@@ -39,9 +40,9 @@ it('catches first-sample peaks, links stereo gain and releases after a transient
   const input = [Float32Array.of(4, -4), Float32Array.of(2, -2)];
   const output = input.map((c) => new Float32Array(c.length));
   processor.process(input, output);
-  expect(Math.abs(output[0][0])).toBeCloseTo(0.89, 5);
+  expect(Math.abs(output[0][0])).toBeCloseTo(0.99, 5);
   for (let i = 0; i < 2; i++) {
-    expect(Math.abs(output[0][i])).toBeLessThanOrEqual(0.890001);
+    expect(Math.abs(output[0][i])).toBeLessThanOrEqual(0.990001);
     expect(output[0][i]).toBeCloseTo(output[1][i] * 2, 5);
   }
   const quiet = [new Float32Array(128).fill(0.1)];

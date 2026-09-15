@@ -11,12 +11,12 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 - **Voice Quality** in App Preferences is a continuous processing slider.
   **Normal** (the default) disables the added effects, **Pretty cool** marks
-  gentle processing at the midpoint, and **AWESOME** adds bass, reduces nasal
-  midrange, brightens highs, and applies firmer compression. At the maximum,
+  gentle processing at the midpoint, and **AWESOME** applies a small treble
+  lift and moderate compression while preserving the natural voice. Saturation
+  is excluded because the combined effects must not distort ordinary speech. At the maximum,
   the voice slider shows a moving rainbow and the AWESOME readout dances in
   rainbow colours, with each letter moving in sequence. The rainbow fades in
-  and moves faster over the final fifth of the slider,
-  where soft saturation also adds warmth and harmonics. Reduced motion keeps
+  and moves faster over the final fifth of the slider. Reduced motion keeps
   both the rainbow and readout static; unavailable processing uses the standard
   disabled control.
   The low-cut filter, equaliser, and compression parameters interpolate between
@@ -25,7 +25,8 @@ Rooms support real-time voice conversations with optional camera video and scree
   These cuts increase toward AWESOME and run before compression so excessive
   bass is less likely to lower the whole voice. Automatic de-essing reduces
   sharp S and SH sounds, and a
-  final limiter catches sample peaks. Both increase toward AWESOME. An enabled
+  final limiter catches near-clipping sample peaks. Automatic corrections stay
+  conservative even at AWESOME. An enabled
   gate gets a softer closing transition to preserve quiet word endings; Off
   still disables the gate. These additions need no separate controls and are
   bypassed at Normal. Changes use short ramps to avoid clicks while dragging.

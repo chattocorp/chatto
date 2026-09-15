@@ -36,12 +36,12 @@ describe('CallDeviceTest', () => {
         () => preferences.effects
       );
       expect(applied).toHaveBeenCalledWith(
-        expect.objectContaining({ amount: 15, compressor: true })
+        expect.objectContaining({ amount: 25, compressor: true })
       );
       preferences.setVoiceAmount(100);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(
-          expect.objectContaining({ amount: 85, compressor: true })
+          expect.objectContaining({ amount: 25, compressor: true })
         )
       );
       preferences.setVoiceAmount(0);

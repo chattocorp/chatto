@@ -49,7 +49,7 @@ class MicrophoneGateWorklet extends AudioWorkletProcessor {
 }
 registerProcessor('chatto-microphone-gate', MicrophoneGateWorklet);
 
-/** Final audio-thread stage, after the native EQ/compressor/saturation graph. */
+/** Final audio-thread stage, after the native EQ/compressor graph. */
 class VoicePolishWorklet extends AudioWorkletProcessor {
   #polish: VoicePolish;
   #stopped = false;

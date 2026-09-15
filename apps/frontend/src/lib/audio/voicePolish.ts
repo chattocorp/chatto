@@ -64,7 +64,7 @@ export class VoicePolish {
         Math.min(1, (this.#highEnergy / Math.max(this.#energy, 1e-12) - 0.25) / 0.35)
       );
       const audible = Math.max(0, Math.min(1, (Math.sqrt(this.#highEnergy) - 0.015) / 0.06));
-      const target = 10 ** ((-9 * prominence * audible) / 20);
+      const target = 10 ** ((-2 * prominence * audible) / 20);
       this.#deEssGain +=
         (target - this.#deEssGain) * (target < this.#deEssGain ? this.#attack : this.#release);
       let peak = 0;
@@ -82,7 +82,7 @@ export class VoicePolish {
         this.#deEssGain = 1;
         continue;
       }
-      const ceiling = 0.99 - 0.1 * this.#amount;
+      const ceiling = 0.99;
       const limit = Math.min(1, ceiling / Math.max(peak, 1e-12));
       // Immediate linked attack catches even the first sample of a transient.
       this.#limitGain = Math.min(limit, this.#limitGain + (1 - this.#limitGain) * this.#release);

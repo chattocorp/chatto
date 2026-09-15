@@ -26,7 +26,7 @@ it.each([44100, 48000])('reduces brief low thumps progressively at %s Hz', (rate
   );
   expect(levels[1]).toBeLessThan(levels[0] * 0.95);
   expect(levels[2]).toBeLessThan(levels[1] * 0.95);
-  expect(levels[2]).toBeGreaterThan(levels[0] * 0.3);
+  expect(levels[2]).toBeGreaterThan(levels[0] * 0.7);
   const spokenOnset = tone(500, 0.3, 0.06, rate);
   expect(render(spokenOnset, 1, rate)).toEqual(spokenOnset);
 });
@@ -36,7 +36,7 @@ it('controls sustained boom while preserving ordinary vocal warmth and quiet rum
   const levels = [0, 0.5, 1].map((amount) => rms(render(boomy, amount).slice(48000)));
   expect(levels[2]).toBeLessThan(levels[1] * 0.95);
   expect(levels[1]).toBeLessThan(levels[0] * 0.95);
-  expect(levels[2]).toBeGreaterThan(levels[0] * 0.6);
+  expect(levels[2]).toBeGreaterThan(levels[0] * 0.84);
   const natural = Float32Array.from(
     { length: 48000 },
     (_, i) =>
@@ -89,7 +89,7 @@ it('fades out a held bass correction without a jump at Normal', () => {
   const output = [new Float32Array(128)];
   for (let i = 0; i < 750; i++) processor.process(input, output);
   let previous = output[0][127];
-  expect(previous).toBeLessThan(0.4);
+  expect(previous).toBeLessThan(0.45);
   processor.amount = 0;
   let largestStep = 0;
   for (let i = 0; i < 150; i++) {

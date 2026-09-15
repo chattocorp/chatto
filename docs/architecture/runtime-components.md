@@ -239,33 +239,29 @@ remain unchanged. The input meter maps -60 to 0 dBFS onto 0–1.
 The gate worklet then applies `LowFrequencyControl` in place, before native EQ
 and compression. A 120 Hz low-pass detector compares 2 ms energy with a 150 ms
 baseline and full-band energy to identify audible bass bursts. Its cut is
-bounded to 9 dB, with 1 ms gain attack and 80 ms release. A separate 250 Hz
-low-pass stage reduces sustained audible bass dominance by up to 4 dB, with
+bounded to 3 dB, with 1 ms gain attack and 80 ms release. A separate 250 Hz
+low-pass stage reduces sustained audible bass dominance by up to 1.5 dB, with
 150 ms detection/attack and 500 ms release. Both share gains across channels,
 scale with the existing polish amount, and bypass exactly at Normal. Partial
 threshold messages do not change their amount. The heuristic can react to
 very low-pitched vowels; bounded cuts limit that tradeoff. No new worklet node,
 look-ahead buffer, saved setting, or external connection is required.
 `MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
-80 Hz high-pass filter (0 Hz when disabled), pre-EQ headroom gain,
+60 Hz high-pass filter at maximum (0 Hz when disabled), pre-EQ headroom gain,
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
 compressor. Each EQ band is bounded to ±6 dB. At full strength, compressor amount maps 0–100
-to threshold -12…-36 dB and ratio 2…8, with 6 ms attack and 150 ms release.
-The voice slider interpolates linearly in two segments: 0–50 and 50–100.
-Its anchors are neutral at 0, low-cut 80 Hz / EQ -1/+1/+1 dB / compressor
-threshold -15.6 dB and ratio 2.9 at 50, and low-cut 80 Hz / EQ +4/-2/+4 dB /
-threshold -32.4 dB and ratio 7.1 at 100. Neutral compression uses threshold 0
-and ratio 1. Fractional DSP parameters are not rounded.
-Above 80, a post-compressor saturation branch fades from 0 to 50% wet at 100.
-A fixed 4097-point WaveShaper curve uses tanh(2.5x)/tanh(2.5). Oversampling stays
-off so the dry and wet branches have no resampler delay difference. Dry/wet gains
-use the same 15 ms smoothing. The graph owns and disconnects both branches.
+to threshold -12…-20 dB and ratio 1.5…3.5, with 15 ms attack and 200 ms release.
+The voice slider scales linearly from neutral at 0 to low-cut 60 Hz,
+EQ 0/0/+1 dB, compressor threshold -14 dB and ratio 2 at 100. At the
+midpoint the cutoff is 30 Hz, treble lift is 0.5 dB, threshold is -7 dB,
+and ratio is 1.5. Fractional DSP parameters are not rounded. There is no
+saturation branch; ordinary speech must retain its harmonic balance.
 A second processor in the same bundled worklet runs `VoicePolish` after the
 native graph. A complementary one-pole split at 4 kHz detects prominent,
-audible high-band energy and reduces that band by up to 9 dB at full polish.
+audible high-band energy and reduces that band by up to 2 dB at full polish.
 Detection and gain attack use 1 ms; gain release uses 80 ms. Linked channel
 gains preserve balance. A final sample-peak limiter has immediate attack and
-80 ms release; its ceiling moves from 0.99 toward 0.89 as polish increases.
+80 ms release and a fixed ceiling of 0.99 while processing is enabled.
 This is a pre-encoding sample ceiling, not an inter-sample peak guarantee.
 Polish amount changes use 15 ms smoothing and blend held corrections directly,
 so slow release does not produce a level step when returning to Normal.
