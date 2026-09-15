@@ -207,7 +207,7 @@ stream, or snapshot contract is required.
 ## Browser call preferences and device test
 
 The server-owned frontend store gives each call state a browser-local
-`CallPreferencesState`. It saves device IDs, join-muted, and microphone threshold at the existing
+`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold, and bounded effect settings at the existing
 per-server storage boundary. These settings do not enter Chatto APIs or EVT.
 LiveKit capture defaults use the saved input choices; a missing output device
 uses the browser default. Device switches save only after success.
@@ -218,6 +218,15 @@ one gate envelope across channels. Processing uses the audio sample clock,
 not browser UI timers: attack 5 ms, hold 150 ms, release 80 ms, and a closing
 threshold half the opening amplitude (about 6 dB lower). The -60 dB control
 position disables gating. The input meter maps -60 to 0 dBFS onto 0–1.
+`MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
+80 Hz high-pass filter (0 Hz when disabled), pre-EQ headroom gain,
+200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
+compressor. Each EQ band is bounded to ±6 dB. Compressor amount maps 0–100
+to threshold -12…-36 dB and ratio 2…8, with 6 ms attack and 150 ms release.
+Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
+The gate meters the signal after the optional low-cut filter and before EQ.
+Capture requests disable browser AGC in both owners. The processor graph is
+lazy-loaded for calls and requires no additional service or dependency.
 Calls attach the processor after LiveKit assigns its audio context. The
 processor owns its output tracks and graph; LiveKit or the test owns the
 input and context. Device restarts rebuild the graph. Permanent disposal

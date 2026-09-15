@@ -26,6 +26,9 @@ describe('CallDeviceTest', () => {
     try {
       await test.start('');
       expect(test.active).toBe(true);
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(
+        expect.objectContaining({ audio: expect.objectContaining({ autoGainControl: false }) })
+      );
       await vi.waitFor(() => expect(test.level).toBeGreaterThan(0));
       expect(play).toHaveBeenCalledOnce();
       const audio = play.mock.contexts[0] as HTMLAudioElement;

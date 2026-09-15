@@ -134,3 +134,23 @@ describe('Call device settings', () => {
     await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
   });
 });
+
+it('enables effects independently, persists keyboard edits and resets processing', async () => {
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
+  const preferences = new CallPreferencesState('processing-ui');
+  const screen = render(CallDeviceSettings, { preferences });
+  await screen.getByText('Microphone processing', { exact: true }).click();
+  await expect.element(screen.getByRole('slider', { name: /^Bass/ })).toBeDisabled();
+  await screen.getByRole('checkbox', { name: 'Equaliser', exact: true }).click();
+  const bass = screen.container.querySelector<HTMLInputElement>('#microphone-bass')!;
+  bass.focus();
+  await userEvent.keyboard('{End}');
+  expect(new CallPreferencesState('processing-ui').effects.bass).toBe(6);
+  await screen.getByRole('checkbox', { name: 'Compressor', exact: true }).click();
+  await expect.element(screen.getByRole('slider', { name: /^Amount/ })).toBeEnabled();
+  expect(preferences.effects.lowCut).toBe(false);
+  await screen.getByRole('button', { name: 'Reset processing' }).click();
+  expect(preferences.effects.equalizer).toBe(false);
+  expect(preferences.effects.compressor).toBe(false);
+  expect(preferences.effects.bass).toBe(0);
+});

@@ -61,3 +61,41 @@ describe('CallPreferencesState', () => {
     expect(new CallPreferencesState('first').camera).toBe('');
   });
 });
+
+it('normalizes, persists and resets effects without changing device or join choices', () => {
+  const state = new CallPreferencesState('effects');
+  state.setDevice('audioinput', 'chosen');
+  state.setJoinMuted(true);
+  state.setMicrophoneThreshold(-25);
+  state.setEffects({
+    equalizer: true,
+    bass: 500,
+    mid: NaN,
+    treble: -500,
+    compressor: true,
+    amount: 150
+  });
+  expect(new CallPreferencesState('effects').effects).toEqual({
+    lowCut: false,
+    equalizer: true,
+    bass: 6,
+    mid: 0,
+    treble: -6,
+    compressor: true,
+    amount: 100
+  });
+  state.resetProcessing();
+  const restored = new CallPreferencesState('effects');
+  expect(restored.effects).toEqual({
+    lowCut: false,
+    equalizer: false,
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    compressor: false,
+    amount: 50
+  });
+  expect(restored.microphoneThreshold).toBe(-60);
+  expect(restored.microphone).toBe('chosen');
+  expect(restored.joinMuted).toBe(true);
+});

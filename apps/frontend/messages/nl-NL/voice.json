@@ -77,9 +77,9 @@
       "system_default": "Systeemstandaard",
       "unavailable_device": "Opgeslagen apparaat niet beschikbaar",
       "output_unsupported": "Deze browser gebruikt de systeemluidspreker. Luidsprekerselectie is niet beschikbaar.",
-      "sensitivity": "Ingangsdrempel",
+      "sensitivity": "Drempel voor ruispoort",
       "gate_off": "Uit",
-      "gate_unavailable": "Gevoeligheid niet beschikbaar. Normaal microfoongeluid wordt gebruikt.",
+      "gate_unavailable": "Microfoonverwerking niet beschikbaar. Normaal geluid wordt gebruikt.",
       "call_settings": "Oproepinstellingen",
       "join_muted": "Deelnemen aan gesprekken met gedempte microfoon",
       "test_title": "Je microfoon testen",
@@ -88,7 +88,16 @@
       "stop_test": "Test stoppen",
       "waiting": "Wachten op microfoontoegang…",
       "test_failed": "De microfoon kon niet worden getest. Controleer de apparaattoegang en probeer het opnieuw.",
-      "test_in_call": "Verlaat je gesprek voordat je de microfoon test."
+      "test_in_call": "Verlaat je gesprek voordat je de microfoon test.",
+      "processing": "Microfoonverwerking",
+      "low_cut": "Laagafsnijfilter",
+      "equalizer": "Equalizer",
+      "bass": "Lage tonen",
+      "mid": "Middentonen",
+      "treble": "Hoge tonen",
+      "compressor": "Compressor",
+      "amount": "Sterkte",
+      "reset_processing": "Verwerking herstellen"
     }
   }
 }

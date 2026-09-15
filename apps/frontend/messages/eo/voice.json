@@ -77,9 +77,9 @@
       "system_default": "Sistema defaŭlto",
       "unavailable_device": "Konservita aparato ne disponeblas",
       "output_unsupported": "Ĉi tiu retumilo uzas la sisteman laŭtparolilon. Elekto de laŭtparolilo ne disponeblas.",
-      "sensitivity": "Eniga sojlo",
+      "sensitivity": "Sojlo de brupordego",
       "gate_off": "Malŝaltita",
-      "gate_unavailable": "Sentemo ne disponeblas. Uzata estas normala mikrofona sono.",
+      "gate_unavailable": "Mikrofona prilaborado ne disponeblas. Ordinara sono estas uzata.",
       "call_settings": "Vokaj agordoj",
       "join_muted": "Aliĝi al vokoj kun silentigita mikrofono",
       "test_title": "Testi vian mikrofonon",
@@ -88,7 +88,16 @@
       "stop_test": "Haltigi teston",
       "waiting": "Atendante aliron al la mikrofono…",
       "test_failed": "Ne eblis testi la mikrofonon. Kontrolu la aparatan aliron kaj reprovu.",
-      "test_in_call": "Forlasu vian vokon antaŭ ol testi la mikrofonon."
+      "test_in_call": "Forlasu vian vokon antaŭ ol testi la mikrofonon.",
+      "processing": "Mikrofona prilaborado",
+      "low_cut": "Filtrilo de malaltaj frekvencoj",
+      "equalizer": "Ekvalizilo",
+      "bass": "Basoj",
+      "mid": "Mezaj tonoj",
+      "treble": "Altaj tonoj",
+      "compressor": "Kompresoro",
+      "amount": "Intenseco",
+      "reset_processing": "Restarigi prilaboradon"
     }
   }
 }

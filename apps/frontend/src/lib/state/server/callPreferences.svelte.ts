@@ -1,3 +1,8 @@
+import {
+  defaultMicrophoneEffects,
+  normalizeMicrophoneEffects,
+  type MicrophoneEffects
+} from '$lib/audio/microphoneEffects';
 import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
@@ -10,6 +15,7 @@ export interface CallPreferences {
   joinMuted: boolean;
   /** dBFS threshold; -60 disables the optional gate. */
   microphoneThreshold: number;
+  effects: MicrophoneEffects;
 }
 
 const defaults: CallPreferences = {
@@ -17,6 +23,7 @@ const defaults: CallPreferences = {
   speaker: '',
   camera: '',
   joinMuted: false,
+  effects: { ...defaultMicrophoneEffects },
   microphoneThreshold: GATE_OFF
 };
 
@@ -33,8 +40,24 @@ export class CallPreferencesState {
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
       microphoneThreshold: normalizeGateThreshold(raw?.microphoneThreshold),
+      effects: normalizeMicrophoneEffects(raw?.effects),
       joinMuted: raw?.joinMuted === true
     });
+  }
+
+  get effects(): Readonly<MicrophoneEffects> {
+    return this.#value.effects;
+  }
+
+  setEffects(patch: Partial<MicrophoneEffects>): void {
+    this.#value.effects = normalizeMicrophoneEffects({ ...this.#value.effects, ...patch });
+    this.#slot.set(this.#value);
+  }
+
+  resetProcessing(): void {
+    this.#value.effects = { ...defaultMicrophoneEffects };
+    this.#value.microphoneThreshold = GATE_OFF;
+    this.#slot.set(this.#value);
   }
 
   get microphoneThreshold() {

@@ -25,3 +25,7 @@
 <Story name="Sensitivity unavailable" asChild>
   <CallDeviceSettingsStoryHarness inCall threshold={-30} gateUnavailable />
 </Story>
+
+<Story name="Microphone effects" asChild>
+  <CallDeviceSettingsStoryHarness inCall threshold={-35} effects />
+</Story>

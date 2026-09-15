@@ -77,9 +77,9 @@
       "system_default": "Systemstandard",
       "unavailable_device": "Lagret enhet er utilgjengelig",
       "output_unsupported": "Nettleseren bruker systemets høyttaler. Høyttalervalg er utilgjengelig.",
-      "sensitivity": "Inngangsterskel",
+      "sensitivity": "Støyportterskel",
       "gate_off": "Av",
-      "gate_unavailable": "Følsomhet er utilgjengelig. Bruker vanlig mikrofonlyd.",
+      "gate_unavailable": "Mikrofonbehandling er utilgjengelig. Vanlig lyd brukes.",
       "call_settings": "Anropsinnstillinger",
       "join_muted": "Bli med i samtaler med dempet mikrofon",
       "test_title": "Test mikrofonen",
@@ -88,7 +88,16 @@
       "stop_test": "Stopp test",
       "waiting": "Venter på mikrofontilgang…",
       "test_failed": "Kunne ikke teste mikrofonen. Kontroller enhetstilgangen og prøv igjen.",
-      "test_in_call": "Forlat samtalen før du tester mikrofonen."
+      "test_in_call": "Forlat samtalen før du tester mikrofonen.",
+      "processing": "Mikrofonbehandling",
+      "low_cut": "Lavkuttfilter",
+      "equalizer": "Equalizer",
+      "bass": "Bass",
+      "mid": "Mellomtone",
+      "treble": "Diskant",
+      "compressor": "Kompressor",
+      "amount": "Styrke",
+      "reset_processing": "Tilbakestill behandling"
     }
   }
 }

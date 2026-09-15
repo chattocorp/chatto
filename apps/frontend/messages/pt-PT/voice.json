@@ -77,9 +77,9 @@
       "system_default": "Predefinição do sistema",
       "unavailable_device": "Dispositivo guardado indisponível",
       "output_unsupported": "Este navegador usa o altifalante do sistema. A seleção de altifalantes não está disponível.",
-      "sensitivity": "Limiar de entrada",
+      "sensitivity": "Limiar do gate de ruído",
       "gate_off": "Desativado",
-      "gate_unavailable": "Sensibilidade indisponível. É usado o áudio normal do microfone.",
+      "gate_unavailable": "Processamento do microfone indisponível. É usado o áudio normal.",
       "call_settings": "Definições de chamadas",
       "join_muted": "Entrar nas chamadas com o microfone silenciado",
       "test_title": "Testar o microfone",
@@ -88,7 +88,16 @@
       "stop_test": "Parar teste",
       "waiting": "A aguardar acesso ao microfone…",
       "test_failed": "Não foi possível testar o microfone. Verifique o acesso ao dispositivo e tente novamente.",
-      "test_in_call": "Saia da chamada antes de testar o microfone."
+      "test_in_call": "Saia da chamada antes de testar o microfone.",
+      "processing": "Processamento do microfone",
+      "low_cut": "Filtro de corte de graves",
+      "equalizer": "Equalizador",
+      "bass": "Graves",
+      "mid": "Médios",
+      "treble": "Agudos",
+      "compressor": "Compressor",
+      "amount": "Intensidade",
+      "reset_processing": "Repor processamento"
     }
   }
 }

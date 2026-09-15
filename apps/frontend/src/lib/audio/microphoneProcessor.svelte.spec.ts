@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { LocalAudioTrack, Track } from 'livekit-client';
 import { MicrophoneProcessor } from './microphoneProcessor';
+import { defaultMicrophoneEffects } from './microphoneEffects';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -29,7 +30,7 @@ it('gates a real LiveKit track, updates thresholds, restarts, and releases only 
   const local = new LocalAudioTrack(track, undefined, true, context);
   const processor = new MicrophoneProcessor(-20);
   try {
-    const connect = vi.spyOn(MediaStreamAudioSourceNode.prototype, 'connect');
+    const connect = vi.spyOn(AudioNode.prototype, 'connect');
     await local.setProcessor(processor);
     const worklet: unknown = connect.mock.calls.find(
       ([node]) => node instanceof AudioWorkletNode
@@ -49,6 +50,10 @@ it('gates a real LiveKit track, updates thresholds, restarts, and releases only 
     expect(peak()).toBe(0);
     processor.setThreshold(-60);
     await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.001));
+    processor.setEffects({ ...defaultMicrophoneEffects, equalizer: true, mid: -6 });
+    await vi.waitFor(() => expect(peak()).toBeLessThan(0.009));
+    processor.setEffects({ ...defaultMicrophoneEffects });
+    await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.0095));
     await local.mute();
     await vi.waitFor(() => expect(peak()).toBe(0));
     await local.unmute();

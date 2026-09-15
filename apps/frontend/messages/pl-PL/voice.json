@@ -77,9 +77,9 @@
       "system_default": "Domyślne urządzenie systemowe",
       "unavailable_device": "Zapisane urządzenie jest niedostępne",
       "output_unsupported": "Ta przeglądarka używa głośnika systemowego. Wybór głośnika jest niedostępny.",
-      "sensitivity": "Próg wejścia",
+      "sensitivity": "Próg bramki szumów",
       "gate_off": "Wyłączony",
-      "gate_unavailable": "Czułość jest niedostępna. Używany jest zwykły dźwięk mikrofonu.",
+      "gate_unavailable": "Przetwarzanie mikrofonu jest niedostępne. Używany jest zwykły dźwięk.",
       "call_settings": "Ustawienia połączeń",
       "join_muted": "Dołączaj do rozmów z wyciszonym mikrofonem",
       "test_title": "Przetestuj mikrofon",
@@ -88,7 +88,16 @@
       "stop_test": "Zatrzymaj test",
       "waiting": "Oczekiwanie na dostęp do mikrofonu…",
       "test_failed": "Nie udało się przetestować mikrofonu. Sprawdź dostęp do urządzenia i spróbuj ponownie.",
-      "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu."
+      "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu.",
+      "processing": "Przetwarzanie mikrofonu",
+      "low_cut": "Filtr dolnozaporowy",
+      "equalizer": "Korektor",
+      "bass": "Basy",
+      "mid": "Średnie tony",
+      "treble": "Wysokie tony",
+      "compressor": "Kompresor",
+      "amount": "Siła",
+      "reset_processing": "Resetuj przetwarzanie"
     }
   }
 }

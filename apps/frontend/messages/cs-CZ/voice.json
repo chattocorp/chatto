@@ -77,9 +77,9 @@
       "system_default": "Výchozí zařízení systému",
       "unavailable_device": "Uložené zařízení není dostupné",
       "output_unsupported": "Tento prohlížeč používá systémový reproduktor. Výběr reproduktoru není dostupný.",
-      "sensitivity": "Práh vstupu",
+      "sensitivity": "Práh šumové brány",
       "gate_off": "Vypnuto",
-      "gate_unavailable": "Citlivost není dostupná. Používá se běžný zvuk mikrofonu.",
+      "gate_unavailable": "Zpracování mikrofonu není dostupné. Používá se běžný zvuk.",
       "call_settings": "Nastavení hovorů",
       "join_muted": "Připojovat se k hovorům se ztlumeným mikrofonem",
       "test_title": "Otestovat mikrofon",
@@ -88,7 +88,16 @@
       "stop_test": "Zastavit test",
       "waiting": "Čekání na přístup k mikrofonu…",
       "test_failed": "Mikrofon se nepodařilo otestovat. Zkontrolujte přístup k zařízení a zkuste to znovu.",
-      "test_in_call": "Před testem mikrofonu opusťte hovor."
+      "test_in_call": "Před testem mikrofonu opusťte hovor.",
+      "processing": "Zpracování mikrofonu",
+      "low_cut": "Filtr nízkých frekvencí",
+      "equalizer": "Ekvalizér",
+      "bass": "Basy",
+      "mid": "Středy",
+      "treble": "Výšky",
+      "compressor": "Kompresor",
+      "amount": "Intenzita",
+      "reset_processing": "Obnovit zpracování"
     }
   }
 }

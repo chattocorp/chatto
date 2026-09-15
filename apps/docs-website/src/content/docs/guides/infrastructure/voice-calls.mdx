@@ -260,16 +260,31 @@ the selected speaker and see the input level. Select **Stop test** to stop.
 This local test does not record audio or connect to LiveKit. Leave the
 selected server's call before running the test.
 
-Use **Input threshold** beside the meter to suppress quiet sounds. Move the
+Use **Noise gate threshold** beside the meter to suppress quiet sounds. Move the
 slider right until background sounds fall below the marker, then speak and
 check that your voice remains above it. **Off** passes microphone audio
 without this gate. The choice stays in this browser for the selected server.
 The meter shows input before the gate. The browser still applies echo
-cancellation, noise suppression, and automatic gain control.
+cancellation and noise suppression. Automatic gain control is disabled so
+it does not compete with your compressor settings.
+
+Expand **Microphone processing** to adjust these optional effects:
+
+- **Low-cut filter** removes low-frequency rumble below 80 Hz.
+- **Equaliser** adjusts bass, mids, and treble by up to 6 dB in either direction.
+  Boosts reserve headroom, so the overall volume can decrease.
+- **Compressor** reduces the difference between loud and quiet speech.
+  Increase **Amount** for stronger compression. The browser compressor also raises quiet input.
+
+All three effects start disabled. They apply immediately to your call and
+microphone test. Processing runs locally in this order: low-cut filter,
+noise gate, equaliser, compressor. It does not affect camera, screen-share,
+or received audio. **Reset processing** disables the gate and effects and
+restores their default values. Your device choices stay unchanged.
 
 The same control and a live meter are available in the call device menu.
 Changing the threshold does not mute or unmute your participant. The local
-test lets you hear the result before a call. If sensitivity is unavailable,
+test lets you hear the result before a call. If microphone processing is unavailable,
 calls continue with normal microphone audio and show a short notice.
 
 If camera names are unavailable, opening this page requests camera access

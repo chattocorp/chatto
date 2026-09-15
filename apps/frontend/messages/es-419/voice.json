@@ -77,9 +77,9 @@
       "system_default": "Predeterminado del sistema",
       "unavailable_device": "Dispositivo guardado no disponible",
       "output_unsupported": "Este navegador usa el altavoz del sistema. No se puede seleccionar otro altavoz.",
-      "sensitivity": "Umbral de entrada",
+      "sensitivity": "Umbral de puerta de ruido",
       "gate_off": "Desactivado",
-      "gate_unavailable": "Sensibilidad no disponible. Se usa el audio normal del micrófono.",
+      "gate_unavailable": "Procesamiento del micrófono no disponible. Se usa el audio normal.",
       "call_settings": "Configuración de llamadas",
       "join_muted": "Unirse a las llamadas con el micrófono silenciado",
       "test_title": "Probar tu micrófono",
@@ -88,7 +88,16 @@
       "stop_test": "Detener prueba",
       "waiting": "Esperando acceso al micrófono…",
       "test_failed": "No se pudo probar el micrófono. Comprueba el acceso al dispositivo e inténtalo de nuevo.",
-      "test_in_call": "Sal de la llamada antes de probar el micrófono."
+      "test_in_call": "Sal de la llamada antes de probar el micrófono.",
+      "processing": "Procesamiento del micrófono",
+      "low_cut": "Filtro de corte de graves",
+      "equalizer": "Ecualizador",
+      "bass": "Graves",
+      "mid": "Medios",
+      "treble": "Agudos",
+      "compressor": "Compresor",
+      "amount": "Intensidad",
+      "reset_processing": "Restablecer procesamiento"
     }
   }
 }

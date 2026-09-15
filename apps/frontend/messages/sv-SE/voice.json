@@ -77,9 +77,9 @@
       "system_default": "Systemstandard",
       "unavailable_device": "Sparad enhet är inte tillgänglig",
       "output_unsupported": "Webbläsaren använder systemets högtalare. Högtalarval är inte tillgängligt.",
-      "sensitivity": "Ingångströskel",
+      "sensitivity": "Tröskel för brusgrind",
       "gate_off": "Av",
-      "gate_unavailable": "Känslighet är inte tillgänglig. Vanligt mikrofonljud används.",
+      "gate_unavailable": "Mikrofonbearbetning är inte tillgänglig. Vanligt ljud används.",
       "call_settings": "Samtalsinställningar",
       "join_muted": "Anslut till samtal med avstängd mikrofon",
       "test_title": "Testa mikrofonen",
@@ -88,7 +88,16 @@
       "stop_test": "Stoppa test",
       "waiting": "Väntar på mikrofonåtkomst…",
       "test_failed": "Kunde inte testa mikrofonen. Kontrollera enhetsåtkomsten och försök igen.",
-      "test_in_call": "Lämna samtalet innan du testar mikrofonen."
+      "test_in_call": "Lämna samtalet innan du testar mikrofonen.",
+      "processing": "Mikrofonbearbetning",
+      "low_cut": "Lågskärningsfilter",
+      "equalizer": "Equalizer",
+      "bass": "Bas",
+      "mid": "Mellanregister",
+      "treble": "Diskant",
+      "compressor": "Kompressor",
+      "amount": "Styrka",
+      "reset_processing": "Återställ bearbetning"
     }
   }
 }

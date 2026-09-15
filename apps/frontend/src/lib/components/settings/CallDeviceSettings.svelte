@@ -1,6 +1,6 @@
 <!-- @component Browser-local call defaults and an explicitly started microphone test. -->
 <script lang="ts">
-  import MicrophoneSensitivity from './MicrophoneSensitivity.svelte';
+  import MicrophoneProcessing from './MicrophoneProcessing.svelte';
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
   import { ChoiceRow, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
@@ -80,7 +80,12 @@
     )
       ? preferences.speaker
       : '';
-    await test.start(preferences.microphone, speaker, () => preferences.microphoneThreshold);
+    await test.start(
+      preferences.microphone,
+      speaker,
+      () => preferences.microphoneThreshold,
+      () => preferences.effects
+    );
     if (alive) await refresh();
   }
 
@@ -157,7 +162,7 @@
     </Panel>
     <Panel title={m('voice.preferences.test_title')} icon="iconify icon-[uil--microphone]">
       <div class="flex max-w-xl flex-col gap-4">
-        <MicrophoneSensitivity
+        <MicrophoneProcessing
           {preferences}
           level={inCall ? callLevel : test.level}
           unavailable={inCall ? gateUnavailable : test.gateUnavailable}

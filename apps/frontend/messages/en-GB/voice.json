@@ -77,9 +77,9 @@
       "system_default": "System default",
       "unavailable_device": "Saved device unavailable",
       "output_unsupported": "This browser uses the system speaker. Speaker selection is unavailable.",
-      "sensitivity": "Input threshold",
+      "sensitivity": "Noise gate threshold",
       "gate_off": "Off",
-      "gate_unavailable": "Sensitivity unavailable. Using normal microphone audio.",
+      "gate_unavailable": "Microphone processing unavailable. Using normal audio.",
       "call_settings": "Call Settings",
       "join_muted": "Join calls with microphone muted",
       "test_title": "Test your microphone",
@@ -88,7 +88,16 @@
       "stop_test": "Stop test",
       "waiting": "Waiting for microphone access…",
       "test_failed": "Could not test the microphone. Check device access and try again.",
-      "test_in_call": "Leave your call before testing the microphone."
+      "test_in_call": "Leave your call before testing the microphone.",
+      "processing": "Microphone processing",
+      "low_cut": "Low-cut filter",
+      "equalizer": "Equaliser",
+      "bass": "Bass",
+      "mid": "Mids",
+      "treble": "Treble",
+      "compressor": "Compressor",
+      "amount": "Amount",
+      "reset_processing": "Reset processing"
     }
   }
 }

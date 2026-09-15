@@ -1,3 +1,4 @@
+import { defaultMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/microphoneEffects';
 import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { microphoneMeter } from '$lib/audio/noiseGate';
 import type { Track } from 'livekit-client';
@@ -18,7 +19,8 @@ export class CallDeviceTest {
   async start(
     deviceId: string,
     speakerId = '',
-    threshold: () => number = () => -60
+    threshold: () => number = () => -60,
+    effects: () => MicrophoneEffects = () => ({ ...defaultMicrophoneEffects })
   ): Promise<void> {
     this.stop();
     const generation = this.#generation;
@@ -31,7 +33,7 @@ export class CallDeviceTest {
           channelCount: { ideal: 1 },
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: false
         },
         video: false
       });
@@ -58,6 +60,7 @@ export class CallDeviceTest {
       if (generation !== this.#generation) return;
       const processor = new MicrophoneProcessor(threshold());
       this.#processor = processor;
+      processor.setEffects(effects());
       await processor.init({
         track: stream.getAudioTracks()[0],
         audioContext: context,
@@ -84,6 +87,7 @@ export class CallDeviceTest {
       const sample = () => {
         if (generation !== this.#generation) return;
         processor.setThreshold(threshold());
+        processor.setEffects(effects());
         this.gateUnavailable = processor.unavailable;
         this.level = microphoneMeter(processor.level);
         this.#frame = requestAnimationFrame(sample);

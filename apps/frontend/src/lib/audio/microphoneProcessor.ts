@@ -1,10 +1,16 @@
+import { MicrophoneEffectsGraph } from './microphoneEffectsGraph';
 import type { AudioProcessorOptions, Track, TrackProcessor } from 'livekit-client';
 import workletURL from './noiseGate.worklet?worker&url';
 import { GATE_OFF } from './noiseGate';
+import {
+  defaultMicrophoneEffects,
+  normalizeMicrophoneEffects,
+  type MicrophoneEffects
+} from './microphoneEffects';
 
 const modules = new WeakMap<AudioContext, Promise<void>>();
 
-/** Owns the gate graph, but never owns the source track or supplied context. */
+/** Owns the microphone processing graph, but never owns the source track or supplied context. */
 export class MicrophoneProcessor implements TrackProcessor<
   Track.Kind.Audio,
   AudioProcessorOptions
@@ -23,6 +29,8 @@ export class MicrophoneProcessor implements TrackProcessor<
   #onError?: () => void;
   #destination?: MediaStreamAudioDestinationNode;
   #threshold = GATE_OFF;
+  #effects: MicrophoneEffects = { ...defaultMicrophoneEffects };
+  #graph?: MicrophoneEffectsGraph;
 
   constructor(threshold = GATE_OFF) {
     this.#threshold = threshold;
@@ -48,6 +56,11 @@ export class MicrophoneProcessor implements TrackProcessor<
     if (value === this.#threshold) return;
     this.#threshold = value;
     this.#node?.port.postMessage({ threshold: value });
+  }
+
+  setEffects(value: MicrophoneEffects): void {
+    this.#effects = normalizeMicrophoneEffects(value);
+    this.#graph?.update(this.#effects);
   }
 
   async init({ track, audioContext }: AudioProcessorOptions): Promise<void> {
@@ -82,6 +95,7 @@ export class MicrophoneProcessor implements TrackProcessor<
       this.#onError = () => {
         if (generation !== this.#generation) return;
         source.disconnect();
+        this.#graph?.destroy();
         node.disconnect();
         source.connect(destination);
         this.setupFallbackMeter(audioContext);
@@ -89,7 +103,9 @@ export class MicrophoneProcessor implements TrackProcessor<
         this.unavailable = true;
       };
       node.addEventListener('processorerror', this.#onError, { once: true });
-      source.connect(node).connect(destination);
+      this.#graph = new MicrophoneEffectsGraph(audioContext, node, destination);
+      this.#graph.update(this.#effects, true);
+      source.connect(this.#graph.input);
       this.processedTrack = destination.stream.getAudioTracks()[0];
       this.active = true;
     } catch {
@@ -124,6 +140,8 @@ export class MicrophoneProcessor implements TrackProcessor<
       if (this.#onError) this.#node.removeEventListener('processorerror', this.#onError);
       this.#node.port.close();
     }
+    this.#graph?.destroy();
+    this.#graph = undefined;
     this.#source?.disconnect();
     this.#node?.disconnect();
     this.#destination?.stream.getTracks().forEach((track) => track.stop());

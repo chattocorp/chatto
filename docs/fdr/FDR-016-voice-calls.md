@@ -9,7 +9,16 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
-- **Input threshold** is available beside a live microphone meter in call
+- **Microphone processing** in App Preferences offers an optional low-cut
+  filter, three-band equaliser, and compressor with one amount control.
+  All start disabled and affect microphone audio in calls and the local
+  test. They do not affect received audio or screen sharing. Settings are
+  saved per browser and server. Reset disables processing and restores
+  neutral values without changing device or join-muted choices.
+  EQ boosts reserve headroom. Compression reduces loud peaks and uses the browser compressor’s
+  built-in makeup gain. Browser automatic gain control is disabled to
+  avoid competing volume adjustments; echo and noise suppression remain on.
+- **Noise gate threshold** is available beside a live microphone meter in call
   devices and **App Preferences → Voice & video**. It defaults to **Off**
   and is saved per browser and server. Higher thresholds suppress quieter
   sounds. The meter shows input before the gate, on the same scale as its
@@ -19,7 +28,7 @@ Rooms support real-time voice conversations with optional camera video and scree
   and a slower release to limit abrupt changes and repeated opening near
   the threshold. It does not change participant mute state. Basic audio
   remains available if the browser cannot run the optional gate; the UI
-  shows that sensitivity is unavailable. This does not add a media service
+  shows that microphone processing is unavailable. This does not add a media service
   or change room permissions.
 
 - **App Preferences → Voice & video** stores microphone, speaker, camera, and

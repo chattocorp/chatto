@@ -77,9 +77,9 @@
       "system_default": "システムの既定",
       "unavailable_device": "保存したデバイスは利用できません",
       "output_unsupported": "このブラウザーはシステムのスピーカーを使用します。スピーカーの選択は利用できません。",
-      "sensitivity": "入力しきい値",
+      "sensitivity": "ノイズゲートのしきい値",
       "gate_off": "オフ",
-      "gate_unavailable": "感度を調整できません。通常のマイク音声を使用します。",
+      "gate_unavailable": "マイク音声処理を利用できません。通常の音声を使用します。",
       "call_settings": "通話設定",
       "join_muted": "マイクをミュートして通話に参加",
       "test_title": "マイクをテスト",
@@ -88,7 +88,16 @@
       "stop_test": "テストを停止",
       "waiting": "マイクへのアクセスを待っています…",
       "test_failed": "マイクをテストできませんでした。デバイスへのアクセスを確認して、もう一度お試しください。",
-      "test_in_call": "マイクをテストする前に通話から退出してください。"
+      "test_in_call": "マイクをテストする前に通話から退出してください。",
+      "processing": "マイク音声処理",
+      "low_cut": "ローカットフィルター",
+      "equalizer": "イコライザー",
+      "bass": "低音",
+      "mid": "中音",
+      "treble": "高音",
+      "compressor": "コンプレッサー",
+      "amount": "強さ",
+      "reset_processing": "音声処理をリセット"
     }
   }
 }

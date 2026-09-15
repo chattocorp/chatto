@@ -498,6 +498,7 @@ export class VoiceCallState {
       try {
         const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
         this.microphoneProcessor = new MicrophoneProcessor(this.preferences?.microphoneThreshold);
+        if (this.preferences) this.microphoneProcessor.setEffects(this.preferences.effects);
       } catch {
         this.microphoneGateUnavailable = true;
       }
@@ -518,7 +519,7 @@ export class VoiceCallState {
             ? { deviceId: { ideal: this.preferences.microphone } }
             : {}),
           channelCount: { ideal: 1 },
-          autoGainControl: true,
+          autoGainControl: false,
           echoCancellation: true,
           noiseSuppression: true
         },
@@ -1304,6 +1305,7 @@ export class VoiceCallState {
     if (!this.room) return;
 
     this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? -60);
+    if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
     if (this.microphoneProcessor)
       this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
     const localAudioLevel = this.getLocalAudioLevel();

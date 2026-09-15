@@ -77,9 +77,9 @@
       "system_default": "Systemstandard",
       "unavailable_device": "Gespeichertes Gerät nicht verfügbar",
       "output_unsupported": "Dieser Browser verwendet den Systemlautsprecher. Eine Lautsprecherauswahl ist nicht verfügbar.",
-      "sensitivity": "Eingangsschwelle",
+      "sensitivity": "Noise-Gate-Schwelle",
       "gate_off": "Aus",
-      "gate_unavailable": "Empfindlichkeit nicht verfügbar. Normales Mikrofon-Audio wird verwendet.",
+      "gate_unavailable": "Mikrofonverarbeitung nicht verfügbar. Normales Audio wird verwendet.",
       "call_settings": "Anrufeinstellungen",
       "join_muted": "Anrufen mit stummgeschaltetem Mikrofon beitreten",
       "test_title": "Mikrofon testen",
@@ -88,7 +88,16 @@
       "stop_test": "Test stoppen",
       "waiting": "Warte auf Mikrofonzugriff…",
       "test_failed": "Mikrofon konnte nicht getestet werden. Prüfe den Gerätezugriff und versuche es erneut.",
-      "test_in_call": "Verlasse deinen Anruf, bevor du das Mikrofon testest."
+      "test_in_call": "Verlasse deinen Anruf, bevor du das Mikrofon testest.",
+      "processing": "Mikrofonverarbeitung",
+      "low_cut": "Tiefenfilter",
+      "equalizer": "Equalizer",
+      "bass": "Bässe",
+      "mid": "Mitten",
+      "treble": "Höhen",
+      "compressor": "Kompressor",
+      "amount": "Stärke",
+      "reset_processing": "Verarbeitung zurücksetzen"
     }
   }
 }

@@ -77,9 +77,9 @@
       "system_default": "Sistem varsayılanı",
       "unavailable_device": "Kaydedilen cihaz kullanılamıyor",
       "output_unsupported": "Bu tarayıcı sistem hoparlörünü kullanır. Hoparlör seçimi kullanılamıyor.",
-      "sensitivity": "Giriş eşiği",
+      "sensitivity": "Gürültü kapısı eşiği",
       "gate_off": "Kapalı",
-      "gate_unavailable": "Hassasiyet kullanılamıyor. Normal mikrofon sesi kullanılıyor.",
+      "gate_unavailable": "Mikrofon işleme kullanılamıyor. Normal ses kullanılıyor.",
       "call_settings": "Arama ayarları",
       "join_muted": "Aramalara mikrofon kapalı olarak katıl",
       "test_title": "Mikrofonunuzu test edin",
@@ -88,7 +88,16 @@
       "stop_test": "Testi durdur",
       "waiting": "Mikrofon erişimi bekleniyor…",
       "test_failed": "Mikrofon test edilemedi. Cihaz erişimini kontrol edip tekrar deneyin.",
-      "test_in_call": "Mikrofonu test etmeden önce aramadan ayrılın."
+      "test_in_call": "Mikrofonu test etmeden önce aramadan ayrılın.",
+      "processing": "Mikrofon işleme",
+      "low_cut": "Düşük frekans kesme filtresi",
+      "equalizer": "Ekolayzer",
+      "bass": "Bas",
+      "mid": "Orta",
+      "treble": "Tiz",
+      "compressor": "Kompresör",
+      "amount": "Yoğunluk",
+      "reset_processing": "İşlemeyi sıfırla"
     }
   }
 }
