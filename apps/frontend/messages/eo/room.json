@@ -158,7 +158,19 @@
       "view_label": "Vidu {filename}",
       "download_label": "Elŝutu {filename}",
       "image_refresh_failed": "Ne eblis refreŝigi bildan ligilon",
-      "download_refresh_failed": "Ne eblis refreŝigi elŝutan ligilon"
+      "download_refresh_failed": "Ne eblis refreŝigi elŝutan ligilon",
+      "html_viewer": {
+        "download": "Elŝuti",
+        "show_preview": "Montri antaŭrigardon",
+        "warning": "Ĉi tiu dokumento povas ŝargi enhavon de eksteraj retejoj. Tiuj retejoj povas vidi vian IP-adreson.",
+        "preview_title": "Antaŭrigardo de {filename}",
+        "preview_failed": "Ne eblis ŝargi la antaŭrigardon. Bonvolu reprovi.",
+        "document_type": "Dokumenttipo",
+        "html_document": "HTML-dokumento",
+        "xhtml_document": "XHTML-dokumento",
+        "file_size": "Dosiergrando",
+        "unavailable": "Ne disponebla"
+      }
     },
     "link_preview": {
       "delete_title": "Forigi ligilon antaŭrigardon",

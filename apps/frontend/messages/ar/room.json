@@ -174,7 +174,19 @@
       "view_label": "عرض {filename}",
       "download_label": "تنزيل {filename}",
       "image_refresh_failed": "تعذر تحديث رابط الصورة",
-      "download_refresh_failed": "تعذر تحديث رابط التنزيل"
+      "download_refresh_failed": "تعذر تحديث رابط التنزيل",
+      "html_viewer": {
+        "download": "تنزيل",
+        "show_preview": "إظهار المعاينة",
+        "warning": "قد يحمّل هذا المستند محتوى من مواقع ويب خارجية. يمكن لهذه المواقع رؤية عنوان IP الخاص بك.",
+        "preview_title": "معاينة {filename}",
+        "preview_failed": "تعذّر تحميل المعاينة. حاول مرة أخرى.",
+        "document_type": "نوع المستند",
+        "html_document": "مستند HTML",
+        "xhtml_document": "مستند XHTML",
+        "file_size": "حجم الملف",
+        "unavailable": "غير متاح"
+      }
     },
     "link_preview": {
       "delete_title": "حذف معاينة الرابط",

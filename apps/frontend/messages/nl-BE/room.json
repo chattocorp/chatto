@@ -158,7 +158,19 @@
       "view_label": "Bekijk {filename}",
       "download_label": "{filename} downloaden",
       "image_refresh_failed": "Kan afbeeldingslink niet vernieuwen",
-      "download_refresh_failed": "Kan de downloadlink niet vernieuwen"
+      "download_refresh_failed": "Kan de downloadlink niet vernieuwen",
+      "html_viewer": {
+        "download": "Downloaden",
+        "show_preview": "Voorbeeld tonen",
+        "warning": "Dit document kan inhoud van externe websites laden. Deze websites kunnen je IP-adres zien.",
+        "preview_title": "Voorbeeld van {filename}",
+        "preview_failed": "Het voorbeeld kon niet worden geladen. Probeer het opnieuw.",
+        "document_type": "Documenttype",
+        "html_document": "HTML-document",
+        "xhtml_document": "XHTML-document",
+        "file_size": "Bestandsgrootte",
+        "unavailable": "Niet beschikbaar"
+      }
     },
     "link_preview": {
       "delete_title": "Linkvoorbeeld verwijderen",

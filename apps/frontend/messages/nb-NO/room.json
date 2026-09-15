@@ -158,7 +158,19 @@
       "view_label": "Se {filename}",
       "download_label": "Last ned {filename}",
       "image_refresh_failed": "Kunne ikke oppdatere bildelinken",
-      "download_refresh_failed": "Kunne ikke oppdatere nedlastingslenken"
+      "download_refresh_failed": "Kunne ikke oppdatere nedlastingslenken",
+      "html_viewer": {
+        "download": "Last ned",
+        "show_preview": "Vis forhåndsvisning",
+        "warning": "Dette dokumentet kan laste inn innhold fra eksterne nettsteder. Disse nettstedene kan se IP-adressen din.",
+        "preview_title": "Forhåndsvisning av {filename}",
+        "preview_failed": "Kunne ikke laste inn forhåndsvisningen. Prøv igjen.",
+        "document_type": "Dokumenttype",
+        "html_document": "HTML-dokument",
+        "xhtml_document": "XHTML-dokument",
+        "file_size": "Filstørrelse",
+        "unavailable": "Ikke tilgjengelig"
+      }
     },
     "link_preview": {
       "delete_title": "Slett forhåndsvisning av kobling",

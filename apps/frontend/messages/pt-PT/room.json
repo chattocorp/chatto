@@ -158,7 +158,19 @@
       "view_label": "Ver {filename}",
       "download_label": "Download {filename}",
       "image_refresh_failed": "Não foi possível atualizar o link da imagem",
-      "download_refresh_failed": "Não foi possível atualizar o link de download"
+      "download_refresh_failed": "Não foi possível atualizar o link de download",
+      "html_viewer": {
+        "download": "Transferir",
+        "show_preview": "Mostrar pré-visualização",
+        "warning": "Este documento pode carregar conteúdo de sites externos. Estes sites podem ver o teu endereço IP.",
+        "preview_title": "Pré-visualização de {filename}",
+        "preview_failed": "Não foi possível carregar a pré-visualização. Tenta novamente.",
+        "document_type": "Tipo de documento",
+        "html_document": "Documento HTML",
+        "xhtml_document": "Documento XHTML",
+        "file_size": "Tamanho do ficheiro",
+        "unavailable": "Indisponível"
+      }
     },
     "link_preview": {
       "delete_title": "Apagar visualização do link",

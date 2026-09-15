@@ -158,7 +158,19 @@
       "view_label": "Skatīt {filename}",
       "download_label": "Lejupielādēt {filename}",
       "image_refresh_failed": "Nevarēja atsvaidzināt attēla saiti",
-      "download_refresh_failed": "Nevarēja atsvaidzināt lejupielādes saiti"
+      "download_refresh_failed": "Nevarēja atsvaidzināt lejupielādes saiti",
+      "html_viewer": {
+        "download": "Lejupielādēt",
+        "show_preview": "Rādīt priekšskatījumu",
+        "warning": "Šis dokuments var ielādēt saturu no ārējām vietnēm. Šīs vietnes var redzēt tavu IP adresi.",
+        "preview_title": "Faila {filename} priekšskatījums",
+        "preview_failed": "Neizdevās ielādēt priekšskatījumu. Mēģini vēlreiz.",
+        "document_type": "Dokumenta veids",
+        "html_document": "HTML dokuments",
+        "xhtml_document": "XHTML dokuments",
+        "file_size": "Faila lielums",
+        "unavailable": "Nav pieejams"
+      }
     },
     "link_preview": {
       "delete_title": "Dzēst saites priekšskatījumu",

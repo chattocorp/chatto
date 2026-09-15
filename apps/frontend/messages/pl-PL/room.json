@@ -165,7 +165,19 @@
       "view_label": "Wyświetl {filename}",
       "download_label": "Pobierz {filename}",
       "image_refresh_failed": "Nie można odświeżyć linku do obrazu",
-      "download_refresh_failed": "Nie można odświeżyć linku do pobrania"
+      "download_refresh_failed": "Nie można odświeżyć linku do pobrania",
+      "html_viewer": {
+        "download": "Pobierz",
+        "show_preview": "Pokaż podgląd",
+        "warning": "Ten dokument może wczytywać treści z zewnętrznych witryn. Te witryny mogą zobaczyć Twój adres IP.",
+        "preview_title": "Podgląd pliku {filename}",
+        "preview_failed": "Nie udało się wczytać podglądu. Spróbuj ponownie.",
+        "document_type": "Typ dokumentu",
+        "html_document": "Dokument HTML",
+        "xhtml_document": "Dokument XHTML",
+        "file_size": "Rozmiar pliku",
+        "unavailable": "Niedostępny"
+      }
     },
     "link_preview": {
       "delete_title": "Usuń podgląd linku",
