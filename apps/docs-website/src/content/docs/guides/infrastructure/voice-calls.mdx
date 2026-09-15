@@ -260,43 +260,13 @@ the selected speaker and see the input level. Select **Stop test** to stop.
 This local test does not record audio or connect to LiveKit. Leave the
 selected server's call before running the test.
 
-Use **Noise gate threshold** beside the meter to suppress quiet sounds. Move the
-slider right until background sounds fall below the marker, then speak and
-check that your voice remains above it. **Off** passes microphone audio
-without this gate. The choice stays in this browser for the selected server.
-The meter shows input before the gate. The browser still applies echo
-cancellation and noise suppression. Automatic gain control is disabled so
-it does not compete with your compressor settings.
+Under **Microphone processing**, adjust **Voice Quality** while running the
+microphone test. Move toward **AWESOME** for stronger processing, or select
+**Normal** to turn it off.
 
-Move the **Voice Quality** slider in **Microphone processing** to adjust your sound:
-
-- **Normal** (the default) disables the added voice effects.
-- **Pretty cool** at the midpoint adds gentle tone adjustment and light compression.
-- **AWESOME** adds fuller bass, less nasal midrange, brighter highs, and firmer compression.
-
-Positions between these labels smoothly blend the processing settings. Over
-the final 20%, soft saturation adds warmth and harmonics, and a moving rainbow
-fades into the slider and moves faster as the value increases. At **AWESOME**,
-each letter of the value label dances in sequence, in rainbow colours. If your
-system prefers reduced motion, both stay still.
-
-As Voice Quality increases, automatic de-essing reduces sharp S and SH sounds.
-A final limiter catches sudden sample peaks after the other effects. An enabled
-noise gate also closes more gently to preserve quiet word endings. These changes
-increase toward AWESOME and need no extra controls. Normal bypasses them, and
-an Off gate stays off.
-The noise gate applies separately. Moving **Voice Quality** keeps your gate
-threshold, device choices, and join-muted preference. Browser echo cancellation
-and noise suppression stay enabled.
-
-Changes apply immediately to your call and microphone test. Processing runs
-locally and affects only your microphone, not camera, screen-share, or received
-audio. Use the microphone test while you adjust the slider.
-
-The noise gate control and a live meter are also available in the call device menu.
-Changing the threshold does not mute or unmute your participant. The local
-test lets you hear the result before a call. If microphone processing is unavailable,
-calls continue with normal microphone audio and show a short notice.
+Use **Noise gate threshold** to suppress quiet background sounds. Set the marker
+above the background noise level but below your speech level. Select **Off** to
+disable the gate. You can also adjust this threshold from the call's device menu.
 
 If camera names are unavailable, opening this page requests camera access
 through the browser. Capture stops immediately after discovery.
