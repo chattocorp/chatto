@@ -73,8 +73,11 @@ var ErrCredentialChanged = errors.New("local credential changed")
 
 // Account is the current projected structural state of an Authling account.
 type Account struct {
-	ID                    string
-	CreatedAt             time.Time
+	ID        string
+	CreatedAt time.Time
+	// AuthenticationVersion identifies the credential generation. Account
+	// commands and login return the generation they authorized; callers must
+	// pass it unchanged when creating a browser session.
 	AuthenticationVersion uint64
 }
 
@@ -598,9 +601,14 @@ func (p *Projection) completedEmailChange(target EmailChangeTarget, newEmail str
 	return account, ok
 }
 
-func (p *Projection) completedPasswordChange(accountID, eventID string) (Account, bool) {
+// accountAtCredential returns the generation only while the exact credential
+// remains active. A staged email replacement must not authorize a session.
+func (p *Projection) accountAtCredential(accountID, eventID string) (Account, bool) {
 	p.RLock()
 	defer p.RUnlock()
+	if _, pending := p.pendingEmails[accountID]; pending {
+		return Account{}, false
+	}
 	credential, ok := p.credentials[accountID]
 	if !ok || credential.eventID != eventID {
 		return Account{}, false
@@ -650,10 +658,24 @@ func (p *Projection) Count() int {
 	return len(p.accounts)
 }
 
+// accountPublisher is the event boundary used by account commands. Publication
+// errors other than an OCC conflict may leave the commit outcome unknown.
+type accountPublisher interface {
+	AccountRegistryTail(context.Context) (uint64, error)
+	AccountTail(context.Context, string) (uint64, error)
+	AppendAccountCreated(context.Context, *corev1.Event) (events.StreamPosition, error)
+	AppendRegisteredAccount(context.Context, *corev1.Event, *corev1.Event, uint64) (events.StreamPosition, error)
+	AppendEmailChanged(context.Context, *corev1.Event, *corev1.Event, uint64, uint64) (events.StreamPosition, error)
+	AppendEmailChangeRequested(context.Context, *corev1.Event, uint64) (events.StreamPosition, error)
+	AppendPasswordChanged(context.Context, *corev1.Event, uint64) (events.StreamPosition, error)
+	AppendPasswordResetRequested(context.Context, *corev1.Event, uint64) (events.StreamPosition, error)
+	AppendProfileUpdated(context.Context, *corev1.Event, uint64) (events.StreamPosition, error)
+}
+
 // Service validates account commands, commits events with OCC, and waits for
 // the serving projection before returning.
 type Service struct {
-	publisher             *evtstream.Publisher
+	publisher             accountPublisher
 	handle                events.ProjectionHandle[*Projection]
 	vault                 *keyvault.Vault
 	dummyCredential       protectedCredential
@@ -859,9 +881,9 @@ func (s *Service) CreateLocal(ctx context.Context, email, password string) (Acco
 		return Account{}, fmt.Errorf("provision account keys: %w", err)
 	}
 	defer clear(dataKey)
-	committed := false
+	cleanupSafe := true
 	defer func() {
-		if !committed {
+		if cleanupSafe {
 			cleanupContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			_ = s.vault.RemoveProvisionedCredentialKeys(cleanupContext, operationRef, userRef, dataRef)
@@ -900,21 +922,25 @@ func (s *Service) CreateLocal(ctx context.Context, email, password string) (Acco
 		if s.handle.Projection().HasEmail(email) {
 			return Account{}, ErrEmailClaimed
 		}
+		// Once publication starts, a missing reply does not prove rejection.
+		// Retain the keys and operation marker for every unknown outcome;
+		// only a definite OCC rejection makes compensation safe again.
+		cleanupSafe = false
 		position, err := s.publisher.AppendRegisteredAccount(ctx, event, claimEvent, tail)
 		if errors.Is(err, events.ErrConflict) {
+			cleanupSafe = true
 			continue
 		}
 		if err != nil {
 			return Account{}, fmt.Errorf("commit local account: %w", err)
 		}
-		committed = true
 		_ = s.vault.CompleteProvisioning(ctx, operationRef)
 		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
 			return Account{}, err
 		}
-		account, ok := s.handle.Projection().Get(accountID)
+		account, ok := s.handle.Projection().accountAtCredential(accountID, eventID)
 		if !ok {
-			return Account{}, fmt.Errorf("created account is absent from projection")
+			return Account{}, ErrCredentialChanged
 		}
 		return account, nil
 	}
@@ -1080,7 +1106,7 @@ func (s *Service) ChangePassword(ctx context.Context, target PasswordChangeTarge
 		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
 			return Account{}, fmt.Errorf("wait for signed-in password change: %w", err)
 		}
-		account, ok := s.handle.Projection().completedPasswordChange(target.AccountID, eventID)
+		account, ok := s.handle.Projection().accountAtCredential(target.AccountID, eventID)
 		if !ok {
 			return Account{}, ErrCredentialChanged
 		}
@@ -1366,7 +1392,7 @@ func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget,
 		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
 			return Account{}, fmt.Errorf("wait for password change: %w", err)
 		}
-		account, ok := s.handle.Projection().completedPasswordChange(target.AccountID, eventID)
+		account, ok := s.handle.Projection().accountAtCredential(target.AccountID, eventID)
 		if !ok {
 			return Account{}, ErrCredentialChanged
 		}
@@ -1418,7 +1444,8 @@ func (s *Service) identityCredentialAtTail(ctx context.Context, accountID, crede
 
 // AuthenticateLocal verifies an email/password credential without retaining
 // plaintext protected data in the projection. Absent accounts still perform
-// the same Argon2id work as password mismatches.
+// the same Argon2id work as password mismatches. The returned account carries
+// the generation of the verified credential; session creation must bind to it.
 func (s *Service) AuthenticateLocal(ctx context.Context, email, password string) (Account, error) {
 	email = NormalizeEmail(email)
 	credential, exists := s.handle.Projection().credentialForEmail(email)
@@ -1434,9 +1461,17 @@ func (s *Service) AuthenticateLocal(ctx context.Context, email, password string)
 	if !exists {
 		return Account{}, ErrInvalidCredentials
 	}
-	account, ok := s.handle.Projection().Get(credential.accountID)
+	// Password verification can overlap a credential change on any replica.
+	// Cross both projection boundaries before accepting the captured verifier.
+	if _, _, err := s.identityCredentialAtTail(ctx, credential.accountID, credential.eventID); err != nil {
+		if errors.Is(err, ErrCredentialChanged) {
+			return Account{}, ErrInvalidCredentials
+		}
+		return Account{}, err
+	}
+	account, ok := s.handle.Projection().accountAtCredential(credential.accountID, credential.eventID)
 	if !ok {
-		return Account{}, fmt.Errorf("authenticated account is absent from projection")
+		return Account{}, ErrInvalidCredentials
 	}
 	return account, nil
 }

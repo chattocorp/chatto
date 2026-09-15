@@ -123,6 +123,11 @@ func TestCredentialBoundAuditRequestsWaitForEmailClaim(t *testing.T) {
 		return err
 	})
 
+	assertNoAuditAppend("login", func(commandCtx context.Context) error {
+		_, err := service.AuthenticateLocal(commandCtx, oldEmail, password)
+		return err
+	})
+
 	close(releaseClaim)
 	select {
 	case err := <-changeErrors:
