@@ -19,8 +19,6 @@ export { default as Frame } from './Frame.svelte';
 export { default as HeaderIconButton } from './HeaderIconButton.svelte';
 export { default as HelpTooltip } from './HelpTooltip.svelte';
 export { default as Hint } from './Hint.svelte';
-export { default as ImageModal } from './ImageModal.svelte';
-export type { ImageItem } from './ImageModal.svelte';
 export { default as LoadingPage } from './LoadingPage.svelte';
 export { default as MarkdownHtml } from './MarkdownHtml.svelte';
 export { default as MenuItem } from './MenuItem.svelte';

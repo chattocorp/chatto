@@ -842,10 +842,18 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('1 / 5')).toBeVisible();
   await expect(dialog.locator('img')).toHaveAttribute('src', /\/image\/2048x2048\/contain\?/);
-  await expect(dialog.getByRole('link', { name: 'Open original' })).toHaveAttribute(
+  await expect(dialog.getByRole('link', { name: 'Download', exact: true })).toHaveAttribute(
     'href',
     /\/assets\/files\/[^/?]+\?/
   );
+
+  const download = dialog.getByRole('link', { name: 'Download', exact: true });
+  await expect(download).toHaveAttribute('href', /[?&]download=1(?:&|$)/);
+  await expect(download).toBeInViewport();
+  await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+  // Wait for the dialog's opening scale animation to finish.
+  await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390);
+  await expect.poll(async () => (await dialog.boundingBox())?.height).toBe(844);
 
   // Verify the "brighton.jpg" filename is shown
   await expect(dialog.getByText('brighton.jpg')).toBeVisible();
@@ -854,6 +862,7 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   await page.keyboard.press('ArrowRight');
   await expect(dialog.getByText('2 / 5')).toBeVisible();
   await expect(dialog.getByText('brighton2.jpg')).toBeVisible();
+  await expect(download).toHaveAttribute('download', 'brighton2.jpg');
 
   // Press ArrowRight again to go to the third image
   await page.keyboard.press('ArrowRight');
@@ -963,7 +972,7 @@ test.describe('image lightbox back button and tap behavior', () => {
     await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
 
     // Click the dialog backdrop (top-left corner, outside the image content)
-    await dialog.click({ position: { x: 5, y: 5 } });
+    await page.mouse.click(5, 5);
     await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   });
 });

@@ -176,7 +176,8 @@
         "html_document": "HTML-dokument",
         "xhtml_document": "XHTML-dokument",
         "file_size": "Filstorlek",
-        "unavailable": "Inte tillgänglig"
+        "unavailable": "Inte tillgänglig",
+        "no_preview": "Ingen förhandsvisning är tillgänglig för den här filen. Ladda ned den för att spara den."
       }
     },
     "link_preview": {

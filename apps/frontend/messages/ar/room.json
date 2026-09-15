@@ -192,7 +192,8 @@
         "html_document": "مستند HTML",
         "xhtml_document": "مستند XHTML",
         "file_size": "حجم الملف",
-        "unavailable": "غير متاح"
+        "unavailable": "غير متاح",
+        "no_preview": "لا تتوفر معاينة لهذا الملف. يمكنك تنزيله لحفظه."
       }
     },
     "link_preview": {

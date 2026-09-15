@@ -180,7 +180,8 @@
         "html_document": "מסמך HTML",
         "xhtml_document": "מסמך XHTML",
         "file_size": "גודל הקובץ",
-        "unavailable": "לא זמין"
+        "unavailable": "לא זמין",
+        "no_preview": "אין תצוגה מקדימה לקובץ הזה. ניתן להוריד אותו כדי לשמור אותו."
       }
     },
     "link_preview": {
