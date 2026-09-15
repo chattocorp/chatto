@@ -69,13 +69,21 @@ describe('Call device settings', () => {
       await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
       await vi.waitFor(() => expect(monitor).toHaveBeenCalledOnce());
       const output = monitor.mock.calls[0][0];
-      expect(output.context.state).toBe('running');
+      const analyser = output.context.createAnalyser();
+      (monitor.mock.contexts[0] as MicrophoneProcessor).connectMonitor(analyser);
+      const samples = new Float32Array(analyser.fftSize);
+      const expectOutput = () => {
+        expect(output.context.state).toBe('running');
+        analyser.getFloatTimeDomainData(samples);
+        expect(Math.max(...samples.map(Math.abs))).toBeGreaterThan(0.1);
+      };
+      await vi.waitFor(expectOutput);
       const callsBefore = enumerate.mock.calls.length;
       navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
       await vi.waitFor(() => expect(enumerate.mock.calls.length).toBeGreaterThan(callsBefore));
       await tick();
       expect(destination.stream.getAudioTracks()[0].readyState).toBe('live');
-      expect(output.context.state).toBe('running');
+      await vi.waitFor(expectOutput);
     } finally {
       await screen.unmount();
       oscillator.stop();

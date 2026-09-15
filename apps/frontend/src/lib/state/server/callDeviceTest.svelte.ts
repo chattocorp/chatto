@@ -113,8 +113,6 @@ export class CallDeviceTest {
         const selectOutput = context.setSinkId?.bind(context);
         if (selectOutput) await selectOutput(speakerId);
         if (generation !== this.#generation) return;
-        await context.resume();
-        if (generation !== this.#generation) return;
         processor = new MicrophoneProcessor(threshold());
         this.#processor = processor;
         processor.setEffects(effects());
@@ -147,6 +145,9 @@ export class CallDeviceTest {
             return;
           }
         }
+        // Start the clock after asynchronous worklet setup and output wiring.
+        await context.resume();
+        if (generation !== this.#generation) return;
         readLevel = () => processor!.level;
       }
       const sample = () => {
