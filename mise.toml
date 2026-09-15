@@ -461,6 +461,7 @@ env = {
   CHATTO_BOOTSTRAP_USERS_1_PASSWORD = "foobar123",
   CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
   CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
+  CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
   CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
   CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
   CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 3}}/api/runs/start/chatto",

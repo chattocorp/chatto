@@ -36,7 +36,9 @@ can slide out before its rows are removed.
   interface Props {
     label: string;
     items: T[];
-    item: Snippet<[T]>;
+    item?: Snippet<[T]>;
+    /** Free-form content stays mounted while collapsed so async rendering cannot interrupt expansion. */
+    content?: Snippet;
     /** Optional controls aligned to the end of the section heading. */
     headerActions?: Snippet;
     /** Optional content below the items, visible only while expanded. */
@@ -66,6 +68,7 @@ can slide out before its rows are removed.
     label,
     items,
     item,
+    content,
     headerActions,
     footer,
     leadingOverlay,
@@ -158,6 +161,20 @@ can slide out before its rows are removed.
       {/if}
     </div>
 
+    {#if content}
+      <div
+        class={[
+          'grid transition-[grid-template-rows] duration-180 ease-out motion-reduce:transition-none',
+          collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+        ]}
+        inert={collapsed}
+      >
+        <div class="min-h-0 overflow-hidden">
+          {@render content()}
+        </div>
+      </div>
+    {/if}
+
     {#if visibleItems.length > 0 || (itemsAttachment && !collapsed)}
       <div
         class={[
@@ -176,13 +193,13 @@ can slide out before its rows are removed.
               transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}
               data-is-dnd-shadow-item-hint={isDndShadowItem(entry) || undefined}
             >
-              {@render item(entry)}
+              {@render item?.(entry)}
             </div>
           {/each}
         {:else}
           {#each visibleItems as entry (entry.id)}
             <div transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}>
-              {@render item(entry)}
+              {@render item?.(entry)}
             </div>
           {/each}
         {/if}

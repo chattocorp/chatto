@@ -13,6 +13,8 @@ realtime changes arrive.
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import { serverStorageKey } from '$lib/storage/serverStorage';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import { m } from '$lib/i18n/messages';
   import Interval from '$lib/lifecycle/Interval.svelte';
@@ -118,11 +120,6 @@ realtime changes arrive.
           <bdi>{displayName}</bdi>
         </h2>
         <p class="truncate text-sm text-muted" dir="ltr">@{login}</p>
-        {#if baseUser.isBot}
-          <p class="mt-1 font-medium tracking-wide text-muted uppercase">
-            {m('chat.profile.bot')}
-          </p>
-        {/if}
         <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
       </div>
     </div>
@@ -139,12 +136,28 @@ realtime changes arrive.
     {/if}
 
     {#if bio}
-      <UserBio {bio} class="mt-4" />
+      <div class="-mx-4 mt-6">
+        <RoomGroupSection
+          label={m('chat.profile.bio')}
+          persistKey={serverStorageKey(serverScope.serverId, 'profile-bio-collapsed')}
+          items={[]}
+          testid="profile-bio-heading"
+          separated
+        >
+          {#snippet content()}
+            <UserBio {bio} class="px-1 pt-2 pb-2" />
+          {/snippet}
+        </RoomGroupSection>
+      </div>
     {/if}
 
     {#if baseUser.isBot}
       {#key baseUser.id}
-        <BotPermissionSummary botId={baseUser.id} botOwnerId={baseUser.bot?.ownerUserId} />
+        <BotPermissionSummary
+          botId={baseUser.id}
+          botOwnerId={baseUser.bot?.ownerUserId}
+          class={bio ? '' : 'mt-6'}
+        />
       {/key}
     {/if}
 

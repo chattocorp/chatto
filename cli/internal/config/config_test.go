@@ -27,6 +27,9 @@ func TestLocalDevelopmentConfigUsesSeparateDataDirectories(t *testing.T) {
 		t.Fatalf("bootstrap bots = %#v, want one development bot", cfg.Bootstrap.Bots)
 	}
 	bot := cfg.Bootstrap.Bots[0]
+	if bot.Bio != "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message." {
+		t.Fatal("development bot bio was not loaded")
+	}
 	if bot.Login != "test_bot" || bot.DisplayName != "TestBot" || bot.OwnerLogin != "alice" {
 		t.Fatalf("development bot identity = %#v", bot)
 	}

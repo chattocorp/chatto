@@ -76,6 +76,7 @@
       "in_room_capitalized": "In"
     },
     "profile": {
+      "bio": "Bio",
       "title": "Profil",
       "fallback_title": "Profil",
       "not_found": "Benutzer nicht gefunden",

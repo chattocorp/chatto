@@ -13,6 +13,7 @@ func TestApplyBootstrapEnvironment(t *testing.T) {
 	t.Setenv("CHATTO_BOOTSTRAP_USERS_0_SERVER_ROLE", "owner")
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_LOGIN", "test_bot")
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME", "TestBot")
+	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_BIO", "A **development** assistant.")
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN", "owner")
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME", "Local development")
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE", "./data/bootstrap/test_bot.key")
@@ -33,6 +34,9 @@ func TestApplyBootstrapEnvironment(t *testing.T) {
 		t.Fatalf("bootstrap bots = %#v", cfg.Bootstrap.Bots)
 	}
 	bot := cfg.Bootstrap.Bots[0]
+	if bot.Bio != "A **development** assistant." {
+		t.Fatal("bootstrap bot bio was not loaded")
+	}
 	if bot.Login != "test_bot" || bot.DisplayName != "TestBot" || bot.OwnerLogin != "owner" || bot.APIKeyName != "Local development" || bot.CredentialFile != "./data/bootstrap/test_bot.key" {
 		t.Fatalf("bootstrap bot = %#v", bot)
 	}

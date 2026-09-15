@@ -130,6 +130,7 @@ password = 'foobar123'
 [[bootstrap.bots]]
 login = 'test_bot'
 display_name = 'TestBot'
+bio = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message."
 owner_login = 'alice'
 api_key_name = 'Local development'
 credential_file = './data/bootstrap/test_bot.key'

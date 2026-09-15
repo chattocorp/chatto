@@ -17,7 +17,16 @@ while mounted and discards cached data when the profile closes. -->
     type BotPermissionGroup
   } from './botPermissionText';
 
-  let { botId, botOwnerId }: { botId: string; botOwnerId?: string } = $props();
+  let {
+    botId,
+    botOwnerId,
+    class: className = 'mt-6'
+  }: {
+    botId: string;
+    botOwnerId?: string;
+    /** Spacing supplied by the profile that owns this section. */
+    class?: string;
+  } = $props();
   const scope = useServerScope();
   const query = createQuery(
     () => ({
@@ -141,7 +150,7 @@ while mounted and discards cached data when the profile closes. -->
   </div>
 {/snippet}
 
-<div class="-mx-4 mt-6">
+<div class={['-mx-4', className]}>
   <RoomGroupSection
     label={m('chat.profile.permissions.title')}
     persistKey={serverStorageKey(scope.serverId, 'bot-profile-permissions-collapsed')}

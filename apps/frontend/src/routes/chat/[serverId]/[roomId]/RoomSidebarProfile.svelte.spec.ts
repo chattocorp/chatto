@@ -113,6 +113,29 @@ describe('RoomSidebarProfile', () => {
     expect(container.textContent).not.toContain('Loading');
   });
 
+  it('collapses and expands the bio section', async () => {
+    getUserSummaryCache('origin').prime([user]);
+    const { container } = renderProfile();
+    await expect.poll(() => q(container, '[data-testid="profile-bio-heading"]')).not.toBeNull();
+    const heading = q(container, '[data-testid="profile-bio-heading"]');
+
+    await expect.element(heading).toHaveAttribute('aria-expanded', 'true');
+    await expect.poll(() => q(container, '[data-testid="user-bio"]')).not.toBeNull();
+    heading?.click();
+    await expect.element(heading).toHaveAttribute('aria-expanded', 'false');
+    expect(q(container, '[data-testid="user-bio"]')?.closest('[inert]')).not.toBeNull();
+
+    heading?.click();
+    await expect.element(heading).toHaveAttribute('aria-expanded', 'true');
+    await expect.poll(() => q(container, '[data-testid="user-bio"]')).not.toBeNull();
+  });
+
+  it('omits the bio section when no bio is set', () => {
+    getUserSummaryCache('origin').prime([{ ...user, bio: null }]);
+    const { container } = renderProfile();
+    expect(q(container, '[data-testid="profile-bio-heading"]')).toBeNull();
+  });
+
   it('shows loading while an uncached profile is loading', () => {
     mocks.queryState.isPending = true;
 
