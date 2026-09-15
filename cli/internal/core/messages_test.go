@@ -393,12 +393,6 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	if gotEchoID, ok := core.roomModel.channelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
 		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
 	}
-	agg := evtstream.RoomAggregate(room.Id)
-	if _, err := core.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(_ context.Context, _ *evtv1.MessageBody, _ map[string]string) (string, error) {
-		return "independently edited echo", nil
-	}); err != nil {
-		t.Fatalf("Diverge linked echo body: %v", err)
-	}
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "stale preflight text", withPreservedMessageBody()); err != nil {
 		t.Fatalf("EditMessage preserve current body: %v", err)
 	}
@@ -413,8 +407,8 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get preserved echo body: %v", err)
 	}
-	if preservedEchoText != "independently edited echo" {
-		t.Fatalf("preserved echo body = %q, want its independently committed text", preservedEchoText)
+	if preservedEchoText != "reply edited again" {
+		t.Fatalf("preserved echo body = %q, want the original reply text", preservedEchoText)
 	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply without echo", WithMessageChannelEcho(false)); err != nil {
@@ -546,7 +540,7 @@ func TestPublishMessageEditRebuildsBodyAfterOCCConflict(t *testing.T) {
 	require.Nil(t, body.LinkPreview, "the retry must not restore metadata removed by the conflicting edit")
 }
 
-func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
+func TestPartialEditsThroughEchoUseLatestCanonicalBody(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -584,14 +578,9 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 		body.Attachments = attachments
 	}
 
-	agg := evtstream.RoomAggregate(room.Id)
-	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(ctx context.Context, body *evtv1.MessageBody, _ map[string]string) (string, error) {
-		plaintext, err := chattoCore.decryptMessageBody(ctx, echoID, room.Id, body)
-		if err != nil {
-			return "", err
-		}
+	err = chattoCore.editEmbeddedBody(ctx, user.Id, KindChannel, room.Id, echoID, messageMutationAuthorization{authorOnly: true}, nil, func(body *evtv1.MessageBody, _ map[string]string) error {
 		removeAsset(body, attachmentB.Id)
-		return string(plaintext), nil
+		return nil
 	})
 	require.NoError(t, err)
 
@@ -603,10 +592,10 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 
 	originalBody, err := chattoCore.currentMessageBody(ctx, reply.Id)
 	require.NoError(t, err)
-	require.Equal(t, []string{attachmentB.Id}, originalBody.GetAssetIds())
+	require.Empty(t, originalBody.GetAssetIds())
 	echoBody, err := chattoCore.currentMessageBody(ctx, echoID)
 	require.NoError(t, err)
-	require.Empty(t, echoBody.GetAssetIds(), "propagation must not restore the independently removed attachment")
+	require.Empty(t, echoBody.GetAssetIds(), "a later edit must not restore the previously removed attachment")
 }
 
 func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
@@ -988,14 +977,14 @@ func TestAttachmentDescriptionsFollowLinkedEchoesAndAttachmentDeletion(t *testin
 	require.True(t, ok)
 	_, _, err = chattoCore.Messages().SetAttachmentDescription(ctx, MessageAttachmentDescriptionSetInput{
 		ActorID: author.Id, RoomID: room.Id, EventID: echoID,
-		AttachmentID: attachment.Id, Description: "Echo-only edit",
+		AttachmentID: attachment.Id, Description: "Edit through echo",
 	})
-	require.ErrorIs(t, err, ErrInvalidArgument)
+	require.NoError(t, err)
 
 	for _, eventID := range []string{reply.Event.Id, echoID} {
 		body, err := chattoCore.GetFullMessageBody(ctx, eventID)
 		require.NoError(t, err)
-		require.Equal(t, "Original description", body.AttachmentDescriptions[attachment.Id])
+		require.Equal(t, "Edit through echo", body.AttachmentDescriptions[attachment.Id])
 	}
 
 	err = chattoCore.SetAttachmentDescription(ctx, author.Id, KindChannel, room.Id, reply.Event.Id, attachment.Id, "Replacement description")
@@ -1006,7 +995,7 @@ func TestAttachmentDescriptionsFollowLinkedEchoesAndAttachmentDeletion(t *testin
 		require.Equal(t, "Replacement description", body.AttachmentDescriptions[attachment.Id])
 	}
 
-	err = chattoCore.DeleteAttachmentFromMessage(ctx, author.Id, KindChannel, room.Id, reply.Event.Id, attachment.Id)
+	err = chattoCore.DeleteAttachmentFromMessage(ctx, author.Id, KindChannel, room.Id, echoID, attachment.Id)
 	require.NoError(t, err)
 	for _, eventID := range []string{reply.Event.Id, echoID} {
 		body, err := chattoCore.GetFullMessageBody(ctx, eventID)
@@ -3072,6 +3061,96 @@ func TestMessageModel_PostMessageValidatesInReplyTo(t *testing.T) {
 			}
 			if got := result.Event.GetMessagePosted().GetInReplyTo(); got != tt.inReplyTo {
 				t.Fatalf("InReplyTo = %q, want %q", got, tt.inReplyTo)
+			}
+		})
+	}
+}
+
+func TestHistoricalEchoBodyIsIgnoredAndDeletedWithoutErasingOriginal(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := c.CreateUser(ctx, SystemActorID, "legacy-echo-owner", "Legacy Echo Owner", "password123")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, user.Id, KindChannel, "", "legacy-echo", "")
+	require.NoError(t, err)
+	_, err = c.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	root, err := c.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	reply, err := c.PostMessage(ctx, KindChannel, room.Id, user.Id, "canonical content", nil, root.Id, "", nil, true)
+	require.NoError(t, err)
+	echoID, ok := c.roomModel.channelEchoEventID(reply.Id)
+	require.True(t, ok)
+	// Reproduce a historical independent body update directly in EVT. Production
+	// mutations must reject an echo as a physical body owner.
+	body, err := c.currentMessageBody(ctx, reply.Id)
+	require.NoError(t, err)
+	legacyBodyID := NewEventID()
+	require.NoError(t, c.encryptMessageContent(ctx, body, room.Id, echoID, reply.Id, legacyBodyID, "stale historical copy", map[string]string{}))
+	fact := newEvent(user.Id, &evtv1.Event{
+		Id:    legacyBodyID,
+		Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: room.Id, EventId: echoID, Body: body}},
+	})
+	subject := evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody)
+	filter := evtstream.RoomAggregate(room.Id).AllEventsFilter()
+	tail, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+	require.NoError(t, err)
+	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: fact, HasOCC: true, ExpectedSeq: tail, FilterSubject: filter}})
+	require.NoError(t, err)
+	require.NoError(t, c.roomModel.waitForTimeline(ctx, events.SubjectPosition(subject, seqs[0])))
+	text, err := c.GetMessageBody(ctx, echoID)
+	require.NoError(t, err)
+	require.Equal(t, "canonical content", text)
+	require.NoError(t, c.EditMessage(ctx, user.Id, KindChannel, room.Id, echoID, "current original"))
+	text, err = c.GetMessageBody(ctx, echoID)
+	require.NoError(t, err)
+	require.Equal(t, "current original", text)
+	// Historical copies remain until deletion, rather than an upgrade sweep.
+	_, err = c.storage.serverEvtStream.GetMsg(ctx, seqs[0])
+	require.NoError(t, err)
+	require.NoError(t, c.DeleteMessage(ctx, user.Id, KindChannel, room.Id, echoID))
+	_, err = c.storage.serverEvtStream.GetMsg(ctx, seqs[0])
+	require.Error(t, err)
+	text, err = c.GetMessageBody(ctx, reply.Id)
+	require.NoError(t, err)
+	require.Equal(t, "current original", text)
+	text, err = c.GetMessageBody(ctx, echoID)
+	require.NoError(t, err)
+	require.Empty(t, text)
+}
+
+func TestDeleteEchoDoesNotReadOriginalBody(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("missing=%v", missing), func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			room, author := setupRoomAttachmentTest(t, c, ctx)
+			root, err := c.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+			require.NoError(t, err)
+			reply, err := c.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply", nil, root.Id, "", nil, true)
+			require.NoError(t, err)
+			echoID, ok := c.ChannelEchoEventID(reply.Id)
+			require.True(t, ok)
+			reference, _, _ := c.roomModel.latestBodyReference(reply.Id)
+			if missing {
+				require.NoError(t, c.storage.serverEvtStream.DeleteMsg(ctx, reference.StreamSeq))
+			}
+			reader := &recordingTimelineEventReader{delegate: c.timelineHydrator.reader}
+			c.timelineHydrator = newRoomTimelineHydrator(reader)
+			require.NoError(t, c.Messages().DeleteMessage(ctx, MessageDeleteInput{ActorID: author.Id, RoomID: room.Id, EventID: echoID}))
+			require.True(t, c.roomModel.isHiddenEcho(echoID))
+			_, retracted, _ := c.roomModel.latestBodyReference(reply.Id)
+			require.False(t, retracted)
+			reader.mu.Lock()
+			reads := append([][]uint64(nil), reader.reads...)
+			reader.mu.Unlock()
+			for _, sequences := range reads {
+				require.NotContains(t, sequences, reference.StreamSeq)
+			}
+			if !missing {
+				body, err := c.GetMessageBody(ctx, reply.Id)
+				require.NoError(t, err)
+				require.Equal(t, "reply", body)
 			}
 		})
 	}

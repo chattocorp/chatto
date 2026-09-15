@@ -407,3 +407,9 @@ state and reset placeholders cannot close notifications. Unknown older rows
 remain displayed when the response is partial. Checks with no matching browser
 notifications make no server request. This path adds no persisted state or
 background control push.
+
+
+Echo post frames resolve body, mentions, and reply attribution from the original
+reply after projection readiness. Canonical edit and reaction events refresh
+loaded echo rows through their original-message links. No extra durable echo
+edit is required.

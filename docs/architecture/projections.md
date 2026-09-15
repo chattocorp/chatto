@@ -162,7 +162,7 @@ generation, and user key shredding event families, and uses projector key
 During captured startup replay it commits up to 256 ordered events and the
 final checkpoint in one Bleve transaction, including a smaller final batch;
 once current, each relevant live event is committed immediately.
-Its checkpoint contract starts with `bleve-message-index-v9-` and includes a
+Its checkpoint contract starts with `bleve-message-index-v10-` and includes a
 stable fingerprint of the configured language analyzer set, so changing that
 set forces a cold EVT replay.
 
@@ -199,7 +199,7 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v7`.
+uses `v8`.
 
 The 0.5 internal protobuf package split changes full protobuf names and selects
 new snapshot contract IDs. A server ignores older snapshots, cold-replays EVT,
@@ -388,3 +388,21 @@ context. A configuration edit replaces the encrypted settings for the same
 endpoint ID and advances the cutoff, but preserves the first creation time.
 Failure history and latest-failure summaries are read directly from LOG; they
 are not projection values and disappear when their records expire.
+
+
+### Echo content references
+
+Room Timeline resolves each visible echo to an original thread reply in the
+same room. Body selection and attachment indexes use the original body
+reference. Echo bodies from historical EVT records remain indexed only for
+physical record ownership and secure deletion. Snapshot restore rebuilds
+attachment membership from these links. The Room Timeline snapshot semantics
+token is `v8`. Timeline pages batch original metadata reads and reuse metadata
+and canonical bodies within the response. Missing or invalid original metadata
+is omitted for the affected echo; storage errors still fail the read. Historical
+echo metadata is never used as a fallback. Projections do not retain decrypted
+content.
+
+The Bleve search checkpoint contract is `bleve-message-index-v10`. Echo posts
+are not searchable contributions. Historical echo bodies cannot replace the
+original search document or create a second result.

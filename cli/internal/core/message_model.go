@@ -209,9 +209,6 @@ func (s *MessageModel) SetAttachmentDescription(ctx context.Context, input Messa
 	if err != nil {
 		return nil, kind, err
 	}
-	if event.GetMessagePosted().GetEchoOfEventId() != "" {
-		return nil, kind, invalidArgument("event_id must identify the canonical message")
-	}
 	description, err := normalizeAttachmentDescription(input.Description)
 	if err != nil {
 		return nil, kind, err

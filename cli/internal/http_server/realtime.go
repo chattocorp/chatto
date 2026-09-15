@@ -887,6 +887,12 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		}
 	}
 	if durable != nil && durable.GetMessagePosted() != nil {
+		post, err := s.core.HydrateMessagePost(ctx, durable)
+		if err != nil {
+			return nil, err
+		}
+		projected.GetMessagePosted().InReplyTo = post.GetInReplyTo()
+		projected.GetMessagePosted().Mentions = realtimeMentions(viewerID, post.GetMentions())
 		body, err := s.core.GetFullMessageBody(ctx, durable.GetId())
 		if err != nil {
 			return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)

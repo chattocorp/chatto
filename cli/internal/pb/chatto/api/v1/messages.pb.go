@@ -581,7 +581,7 @@ type SetAttachmentDescriptionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required. Canonical message event containing the attachment.
+	// Required. Message event containing the attachment, or its channel echo.
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Required. Attachment asset ID in the current message body.
 	AttachmentId string `protobuf:"bytes,3,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`

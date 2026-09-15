@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -11,6 +11,9 @@ server feature: operators decide whether to expose it and which trusted search
 provider supplies results.
 
 ## Behavior
+
+- The bundled provider indexes each original message once. Thread reply echoes
+  do not create separate matches or retain a separate searchable body.
 
 - Search covers the current bodies of messages in rooms the viewer may
   currently read, including direct messages, threads, and accessible archived

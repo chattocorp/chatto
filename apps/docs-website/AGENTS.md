@@ -6,12 +6,18 @@ Starlight.
 ## Audience
 
 - Write for community members, server operators, administrators, and API users.
+- Document current product behavior and reader tasks. Do not describe
+  implementation history or internal mechanisms unless readers need that
+  information to use, integrate with, or operate the product.
 - Do not put maintainer workflow text in visible pages. You can use hidden
   source comments when they help.
 - The repository, binaries, and Docker images are public. Do not document
   private repository or registry access.
 
 ## Keep Docs In Sync
+
+Apply the meaningful reader impact rule in root `AGENTS.md` before making any
+of the updates below. Related code changes alone do not require guide updates.
 
 - Public API stability or version-skew changes: update
   `guides/integrations/api-compatibility.mdx` and the API
