@@ -157,6 +157,8 @@ optimization; each HTTP attempt still checks current endpoint state.
 
 Echo content reads do not change physical body-record ownership. Deleting an
 echo can erase its historical body records but cannot select the original
-reply's body sequences. Deleting the original also erases historical linked
-echo bodies. Reference-only echoes have no body records to erase. Upgrades
-retain historical copies until the existing deletion rules select them.
+reply's body sequences. Echo retraction does not load the original body, so a
+missing or corrupt body cannot block removal of the echo entry. Deleting the
+original also erases historical linked echo bodies. Reference-only echoes have
+no body records to erase. Upgrades retain historical copies until the existing
+deletion rules select them.

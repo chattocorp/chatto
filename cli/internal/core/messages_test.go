@@ -3118,3 +3118,40 @@ func TestHistoricalEchoBodyIsIgnoredAndDeletedWithoutErasingOriginal(t *testing.
 	require.NoError(t, err)
 	require.Empty(t, text)
 }
+
+func TestDeleteEchoDoesNotReadOriginalBody(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("missing=%v", missing), func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			room, author := setupRoomAttachmentTest(t, c, ctx)
+			root, err := c.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+			require.NoError(t, err)
+			reply, err := c.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply", nil, root.Id, "", nil, true)
+			require.NoError(t, err)
+			echoID, ok := c.ChannelEchoEventID(reply.Id)
+			require.True(t, ok)
+			reference, _, _ := c.roomModel.latestBodyReference(reply.Id)
+			if missing {
+				require.NoError(t, c.storage.serverEvtStream.DeleteMsg(ctx, reference.StreamSeq))
+			}
+			reader := &recordingTimelineEventReader{delegate: c.timelineHydrator.reader}
+			c.timelineHydrator = newRoomTimelineHydrator(reader)
+			require.NoError(t, c.Messages().DeleteMessage(ctx, MessageDeleteInput{ActorID: author.Id, RoomID: room.Id, EventID: echoID}))
+			require.True(t, c.roomModel.isHiddenEcho(echoID))
+			_, retracted, _ := c.roomModel.latestBodyReference(reply.Id)
+			require.False(t, retracted)
+			reader.mu.Lock()
+			reads := append([][]uint64(nil), reader.reads...)
+			reader.mu.Unlock()
+			for _, sequences := range reads {
+				require.NotContains(t, sequences, reference.StreamSeq)
+			}
+			if !missing {
+				body, err := c.GetMessageBody(ctx, reply.Id)
+				require.NoError(t, err)
+				require.Equal(t, "reply", body)
+			}
+		})
+	}
+}

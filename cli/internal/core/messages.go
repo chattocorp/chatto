@@ -1613,8 +1613,8 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 }
 
 // publishMessageRetract emits a MessageRetractedEvent on EVT. StreamMyEvents
-// receives the canonical live.evt.> republish directly. Factored out so
-// DeleteMessage can fan to linked messages.
+// receives the canonical live.evt.> republish directly. Original messages return
+// their body for attachment cleanup; echoes only retract their timeline entry.
 func (c *ChattoCore) publishMessageRetract(
 	ctx context.Context,
 	actorID string,
@@ -1646,13 +1646,16 @@ func (c *ChattoCore) publishMessageRetract(
 		if retracted {
 			return nil, false, nil
 		}
-		// Load the body after reading the OCC cursor. A successful append then
-		// proves that no edit replaced this body before the retraction landed.
-		// DeleteMessage needs the detached payload for attachment cleanup after
-		// the projection has made it unavailable.
-		body, err := c.currentMessageBody(ctx, eventID)
-		if err != nil {
-			return nil, false, err
+		// Original messages need a detached body for attachment cleanup. Load
+		// it under the room OCC cursor so a concurrent edit forces a retry.
+		// Echoes own no canonical content and must remain removable when the
+		// original body is missing or corrupt.
+		var body *evtv1.MessageBody
+		if entry.EchoOfEventID == "" {
+			body, err = c.currentMessageBody(ctx, eventID)
+			if err != nil {
+				return nil, false, err
+			}
 		}
 
 		entries := []evtstream.BatchEntry{{
