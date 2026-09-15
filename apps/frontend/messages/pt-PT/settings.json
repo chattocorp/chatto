@@ -215,7 +215,26 @@
       },
       "save_button": "Guardar definições de hora",
       "saved": "Definições de hora guardadas",
-      "save_failed": "Não foi possível guardar as definições de hora"
+      "save_failed": "Não foi possível guardar as definições de hora",
+      "accent": {
+        "title": "Cor de destaque",
+        "blue": "Azul",
+        "cyan": "Ciano",
+        "teal": "Verde-azulado",
+        "green": "Verde",
+        "amber": "Âmbar",
+        "orange": "Laranja",
+        "pink": "Rosa",
+        "violet": "Violeta",
+        "grey": "Cinzento",
+        "preview": "Pré-visualização"
+      },
+      "depth": {
+        "title": "Profundidade da interface",
+        "flat": "Plano",
+        "three_d": "3D",
+        "very_3d": "Muito 3D"
+      }
     },
     "notifications": {
       "title": "Notificações",

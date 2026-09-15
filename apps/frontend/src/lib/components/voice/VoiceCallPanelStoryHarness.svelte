@@ -22,7 +22,7 @@
 		scenario = 'screen'
 	}: {
 		layout?: 'sidebar' | 'stage';
-		scenario?: 'screen' | 'screen-single-secondary' | 'camera' | 'voice';
+		scenario?: 'screen' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
 	} = $props();
 
 	const roomId = 'storybook-call-room';
@@ -224,13 +224,13 @@
 			})
 		);
 		store.permissions = permissions;
-		store.voiceCall.roomId = roomId;
-		store.voiceCall.connected = true;
+		store.voiceCall.roomId = scenario === 'idle' ? null : roomId;
+		store.voiceCall.connected = scenario !== 'idle';
 		store.voiceCall.connecting = false;
 		store.voiceCall.isMuted = false;
 		store.voiceCall.isCameraEnabled = scenario !== 'voice';
 		store.voiceCall.isScreenShareEnabled = scenario === 'screen';
-		store.voiceCall.participants = participantsForScenario();
+		store.voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
 	}
 
 	onMount(async () => {

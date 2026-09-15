@@ -46,3 +46,9 @@
 		<VoiceCallPanelStoryHarness layout="sidebar" scenario="screen" />
 	</div>
 </Story>
+
+<Story name="Start call" asChild>
+	<div class="flex h-[720px] w-[256px] overflow-hidden rounded-lg bg-background">
+		<VoiceCallPanelStoryHarness layout="sidebar" scenario="idle" />
+	</div>
+</Story>

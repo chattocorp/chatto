@@ -215,7 +215,26 @@
       },
       "save_button": "Salva impostazioni orarie",
       "saved": "Impostazioni orarie salvate",
-      "save_failed": "Impossibile salvare le impostazioni orarie"
+      "save_failed": "Impossibile salvare le impostazioni orarie",
+      "accent": {
+        "title": "Colore di risalto",
+        "blue": "Blu",
+        "cyan": "Ciano",
+        "teal": "Verde petrolio",
+        "green": "Verde",
+        "amber": "Ambra",
+        "orange": "Arancione",
+        "pink": "Rosa",
+        "violet": "Viola",
+        "grey": "Grigio",
+        "preview": "Anteprima"
+      },
+      "depth": {
+        "title": "Profondità dell’interfaccia",
+        "flat": "Piatto",
+        "three_d": "3D",
+        "very_3d": "Molto 3D"
+      }
     },
     "notifications": {
       "title": "Notifiche",

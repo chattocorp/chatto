@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  accentColors,
+  surfaceDepths,
+  type SurfaceDepth,
+  type AccentColor,
   UserPreferencesState,
   getLegacyNotificationSoundPreferences,
   resolveDisplayTheme
@@ -29,6 +33,8 @@ describe('UserPreferencesState', () => {
     mockSystemTheme('light');
     localStorage.clear();
     delete document.documentElement.dataset.theme;
+    delete document.documentElement.dataset.accent;
+    delete document.documentElement.dataset.depth;
     document.documentElement.style.backgroundColor = '';
     document.documentElement.style.colorScheme = '';
     document.head.innerHTML = '<meta name="theme-color" content="#e5e7eb" />';
@@ -38,11 +44,39 @@ describe('UserPreferencesState', () => {
     const state = new UserPreferencesState();
 
     expect(state.displayTheme).toBe('system');
+    expect(state.accentColor).toBe('cyan');
+    expect(state.surfaceDepth).toBe('3d');
     expect(state.effectiveDisplayTheme).toBe('light');
     expect(state.composerEditor).toBe('markdown');
     expect(state.composerSendMode).toBe('enter');
     expect(state.composerFormattingToolbarVisible).toBe(false);
     expect(state.threadPanePresentation).toBe('overlay');
+  });
+
+  it.each(surfaceDepths)('persists and restores %s surface depth independently', (depth) => {
+    const state = new UserPreferencesState();
+    state.displayTheme = 'dark';
+    state.accentColor = 'violet';
+    state.surfaceDepth = depth;
+    expect(document.documentElement.dataset.depth).toBe(depth);
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.accent).toBe('violet');
+    expect(new UserPreferencesState().surfaceDepth).toBe(depth);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      surfaceDepth: depth,
+      accentColor: 'violet',
+      displayTheme: 'dark'
+    });
+  });
+
+  it.each([null, 0, 'unknown', {}, []])('rejects invalid stored depth %j', (depth) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ surfaceDepth: depth }));
+    const state = new UserPreferencesState();
+    expect(state.surfaceDepth).toBe('3d');
+    state.surfaceDepth = 'flat';
+    state.surfaceDepth = depth as SurfaceDepth;
+    expect(state.surfaceDepth).toBe('3d');
+    expect(document.documentElement.dataset.depth).toBe('3d');
   });
 
   it('resolves the system display theme from prefers-color-scheme', () => {
@@ -151,6 +185,40 @@ describe('UserPreferencesState', () => {
       composerFormattingToolbarVisible: true
     });
   });
+
+  it.each(accentColors)(
+    'persists and restores the %s accent without changing theme',
+    (accentColor) => {
+      const state = new UserPreferencesState();
+      state.displayTheme = 'dark';
+      state.accentColor = accentColor;
+      expect(document.documentElement.dataset.accent).toBe(accentColor);
+      expect(document.documentElement.dataset.theme).toBe('dark');
+      expect(new UserPreferencesState().accentColor).toBe(accentColor);
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        accentColor,
+        displayTheme: 'dark'
+      });
+    }
+  );
+
+  it('falls back to cyan for invalid saved or assigned accents', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ accentColor: 'unknown' }));
+    const state = new UserPreferencesState();
+    expect(state.accentColor).toBe('cyan');
+    state.accentColor = 'violet';
+    state.accentColor = 'invalid' as AccentColor;
+    expect(state.accentColor).toBe('cyan');
+    expect(document.documentElement.dataset.accent).toBe('cyan');
+  });
+
+  it.each(['null', 'false', '123', '"violet"', '{broken'])(
+    'recovers from an unusable preferences record: %s',
+    (raw) => {
+      localStorage.setItem(STORAGE_KEY, raw);
+      expect(new UserPreferencesState().accentColor).toBe('cyan');
+    }
+  );
 
   it('hydrates a persisted formatting shelf choice', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerFormattingToolbarVisible: true }));

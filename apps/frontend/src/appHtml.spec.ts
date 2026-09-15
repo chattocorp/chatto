@@ -217,6 +217,36 @@ describe('app.html metadata', () => {
 });
 
 describe('app.html theme bootstrap', () => {
+  it.each(['flat', '3d', 'very-3d'])('restores %s surface depth before the app starts', (surfaceDepth) => {
+    const { root } = runThemeScript({ preferences: { surfaceDepth }, systemDark: false });
+    expect(root.dataset.depth).toBe(surfaceDepth);
+  });
+
+  it.each([undefined, null, {}, { surfaceDepth: 'unknown' }, { surfaceDepth: 123 }])(
+    'uses 3D for an absent or invalid saved depth: %j',
+    (preferences) => {
+      const { root } = runThemeScript({ preferences, systemDark: false });
+      expect(root.dataset.depth).toBe('3d');
+    }
+  );
+
+  it.each(['blue', 'cyan', 'teal', 'green', 'amber', 'orange', 'pink', 'violet', 'grey'])(
+    'restores the %s accent before the app starts',
+    (accentColor) => {
+      const { root } = runThemeScript({ preferences: { accentColor }, systemDark: true });
+      expect(root.dataset.accent).toBe(accentColor);
+      expect(root.dataset.theme).toBe('dark');
+    }
+  );
+
+  it.each([undefined, null, {}, { accentColor: 'unknown' }, { accentColor: 123 }])(
+    'uses cyan when the saved accent is absent or invalid: %j',
+    (preferences) => {
+      const { root } = runThemeScript({ preferences, systemDark: false });
+      expect(root.dataset.accent).toBe('cyan');
+    }
+  );
+
   it('reads chatto:preferences.displayTheme before legacy localStorage.theme', () => {
     const { root, themeColor } = runThemeScript({
       preferences: { displayTheme: 'light' },

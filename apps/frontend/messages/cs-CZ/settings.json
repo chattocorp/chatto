@@ -215,7 +215,26 @@
       },
       "save_button": "Uložit nastavení času",
       "saved": "Nastavení času uloženo",
-      "save_failed": "Nastavení času se nepodařilo uložit"
+      "save_failed": "Nastavení času se nepodařilo uložit",
+      "accent": {
+        "title": "Barva zvýraznění",
+        "blue": "Modrá",
+        "cyan": "Azurová",
+        "teal": "Tyrkysová",
+        "green": "Zelená",
+        "amber": "Jantarová",
+        "orange": "Oranžová",
+        "pink": "Růžová",
+        "violet": "Fialová",
+        "grey": "Šedá",
+        "preview": "Náhled"
+      },
+      "depth": {
+        "title": "Hloubka povrchu",
+        "flat": "Plochý",
+        "three_d": "3D",
+        "very_3d": "Výrazné 3D"
+      }
     },
     "notifications": {
       "title": "Oznámení",

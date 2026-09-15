@@ -37,7 +37,7 @@
     docs: {
       description: {
         story:
-          'The default field includes a persistent label and inherits the shared input surface.'
+          'The default field includes a persistent label and the shared rounded, subtly recessed input frame.'
       }
     }
   }}

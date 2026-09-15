@@ -284,7 +284,7 @@ function setSearch(container: HTMLElement, value: string) {
 }
 
 function resultButtons(container: HTMLElement): HTMLButtonElement[] {
-  return Array.from(container.querySelectorAll<HTMLButtonElement>('button.sidebar-item'));
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('button[data-index]'));
 }
 
 async function waitForDebouncedUserSearch(search = 'river-login') {

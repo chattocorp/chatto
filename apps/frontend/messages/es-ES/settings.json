@@ -215,7 +215,26 @@
       },
       "save_button": "Guardar ajustes de hora",
       "saved": "Ajustes de hora guardados",
-      "save_failed": "No se pudieron guardar los ajustes de hora"
+      "save_failed": "No se pudieron guardar los ajustes de hora",
+      "accent": {
+        "title": "Color de acento",
+        "blue": "Azul",
+        "cyan": "Cian",
+        "teal": "Verde azulado",
+        "green": "Verde",
+        "amber": "Ámbar",
+        "orange": "Naranja",
+        "pink": "Rosa",
+        "violet": "Violeta",
+        "grey": "Gris",
+        "preview": "Vista previa"
+      },
+      "depth": {
+        "title": "Profundidad de la interfaz",
+        "flat": "Plano",
+        "three_d": "3D",
+        "very_3d": "Muy 3D"
+      }
     },
     "notifications": {
       "title": "Notificaciones",

@@ -57,7 +57,7 @@
   <UserAvatar {user} size="xs" useLiveProfile={false} />
 {/snippet}
 
-<!-- Outer wrapper replicates ContextMenu.svelte's container exactly -->
+<!-- The native dialog owns dismissal; command-palette owns the shared menu finish. -->
 <dialog
   {@attach syncQuickSwitcherDialog}
   onclose={() => quickSwitcher.close()}
@@ -75,11 +75,11 @@
 >
   {#if quickSwitcher.visible}
     <div
-      class="flex w-140 max-w-[90vw] flex-col gap-1 rounded-lg border border-text/10 bg-surface p-1 text-sm shadow-xl"
+      class="command-palette"
     >
       <div class="menu-section">
-        <div class="flex items-center gap-2 px-3 py-1.5">
-          <span class="iconify sidebar-icon icon-[uil--search] text-muted"></span>
+        <div class="flex min-h-10 items-center gap-2 px-3 py-1.5">
+          <span class="iconify sidebar-icon icon-[uil--search] text-muted" aria-hidden="true"></span>
           <input
             {@attach registerInput}
             value={model.query}
@@ -87,17 +87,17 @@
             onkeydown={handleKeydown}
             type="text"
             placeholder={m('quick_switcher.placeholder')}
-            class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
+            class="min-w-0 flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
           {#if model.loading}
             <span class="iconify sidebar-icon icon-[uil--spinner-alt] animate-spin text-muted"
             ></span>
           {/if}
-          <kbd class="rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted">Esc</kbd>
+          <kbd class="keycap">Esc</kbd>
         </div>
       </div>
 
-      <div class="max-h-80 overflow-y-auto menu-section">
+      <div class="max-h-[min(20rem,55dvh)] overflow-y-auto menu-section">
         <nav class="sidebar-nav">
           {#if model.filtered.length === 0 && !model.loading}
             <p class="px-3 py-6 text-center text-muted">
@@ -121,22 +121,22 @@
                 data-index={index}
                 type="button"
                 class={[
-                  'sidebar-item text-start',
-                  item.kind === 'message' ? 'items-start px-2 py-2' : '',
-                  index === model.selectedIndex ? 'bg-surface' : ''
+                  'command-palette-result',
+                  item.kind === 'message' ? 'items-start py-2' : '',
+                  index === model.selectedIndex ? 'command-palette-result-active' : ''
                 ]}
                 onclick={() => model.select(item)}
                 onpointerenter={() => model.selectIndex(index)}
               >
                 {#if item.kind === 'message'}
-                  <span
-                    class="iconify mt-0.5 sidebar-icon icon-[uil--comment-alt-message] shrink-0 text-muted"
-                  ></span>
+                  <span class="command-palette-leading">
+                    <span class="iconify sidebar-icon icon-[uil--comment-alt-message]" aria-hidden="true"></span>
+                  </span>
                 {:else if item.kind === 'destination' && item.icon}
-                  <span class="iconify sidebar-icon text-muted {item.icon}"></span>
+                  <span class="command-palette-leading"><span class="iconify sidebar-icon {item.icon}" aria-hidden="true"></span></span>
                 {:else if item.kind === 'user'}
                   {@const user = item.participants?.[0] ?? null}
-                  <span class="sidebar-icon">
+                  <span class="command-palette-leading">
                     {#if user}
                       {@render avatar(user)}
                     {:else}
@@ -144,7 +144,7 @@
                     {/if}
                   </span>
                 {:else if item.kind === 'dm' && item.participants}
-                  <span class="sidebar-icon">
+                  <span class="command-palette-leading">
                     <span class="flex -space-x-2">
                       {#each item.participants as participant (participant.id)}
                         {@render avatar(participant)}
@@ -168,7 +168,7 @@
                     {/if}
                   </span>
                 {:else}
-                  <span class="sidebar-icon text-muted">#</span>
+                  <span class="command-palette-leading">#</span>
                 {/if}
 
                 {#if item.kind === 'message'}
@@ -196,8 +196,8 @@
                   </span>
                 {/if}
 
-                {#if !model.query.trim()}
-                  <span class="shrink-0 text-xs text-muted">{model.kindLabels[item.kind]}</span>
+                {#if index === model.selectedIndex}
+                  <span class="shrink-0 text-muted" aria-hidden="true">↵</span>
                 {/if}
               </button>
             {/each}

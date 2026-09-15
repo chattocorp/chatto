@@ -215,7 +215,26 @@
       },
       "save_button": "保存时间设置",
       "saved": "时间设置已保存",
-      "save_failed": "无法保存时间设置"
+      "save_failed": "无法保存时间设置",
+      "accent": {
+        "title": "强调色",
+        "blue": "蓝色",
+        "cyan": "青色",
+        "teal": "蓝绿色",
+        "green": "绿色",
+        "amber": "琥珀色",
+        "orange": "橙色",
+        "pink": "粉色",
+        "violet": "紫色",
+        "grey": "灰色",
+        "preview": "预览"
+      },
+      "depth": {
+        "title": "界面立体感",
+        "flat": "平面",
+        "three_d": "3D",
+        "very_3d": "强烈 3D"
+      }
     },
     "notifications": {
       "title": "通知",

@@ -215,7 +215,26 @@
       },
       "save_button": "Spara tidsinställningar",
       "saved": "Tidsinställningarna har sparats",
-      "save_failed": "Det gick inte att spara tidsinställningarna"
+      "save_failed": "Det gick inte att spara tidsinställningarna",
+      "accent": {
+        "title": "Accentfärg",
+        "blue": "Blå",
+        "cyan": "Cyan",
+        "teal": "Turkos",
+        "green": "Grön",
+        "amber": "Bärnsten",
+        "orange": "Orange",
+        "pink": "Rosa",
+        "violet": "Violett",
+        "grey": "Grå",
+        "preview": "Förhandsvisning"
+      },
+      "depth": {
+        "title": "Ytdjup",
+        "flat": "Platt",
+        "three_d": "3D",
+        "very_3d": "Tydlig 3D"
+      }
     },
     "notifications": {
       "title": "Aviseringar",

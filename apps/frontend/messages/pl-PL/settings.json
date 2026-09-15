@@ -215,7 +215,26 @@
       },
       "save_button": "Zapisz ustawienia czasu",
       "saved": "Ustawienia czasu zapisane",
-      "save_failed": "Nie udało się zapisać ustawień czasu"
+      "save_failed": "Nie udało się zapisać ustawień czasu",
+      "accent": {
+        "title": "Kolor akcentu",
+        "blue": "Niebieski",
+        "cyan": "Cyjan",
+        "teal": "Morski",
+        "green": "Zielony",
+        "amber": "Bursztynowy",
+        "orange": "Pomarańczowy",
+        "pink": "Różowy",
+        "violet": "Fioletowy",
+        "grey": "Szary",
+        "preview": "Podgląd"
+      },
+      "depth": {
+        "title": "Głębia interfejsu",
+        "flat": "Płaski",
+        "three_d": "3D",
+        "very_3d": "Wyraźne 3D"
+      }
     },
     "notifications": {
       "title": "Powiadomienia",

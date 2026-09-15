@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'One-of-many settings choice. Group ChoiceRow instances in an accessible radiogroup.'
+            'One-of-many settings choice with a soft raised row, inset empty indicator, and glossy selected indicator. Group ChoiceRow instances in an accessible radiogroup.'
         }
       }
     }

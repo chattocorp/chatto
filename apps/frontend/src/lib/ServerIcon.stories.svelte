@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'Server gutter icon with selection, notification, compatibility, and sign-in states.'
+            'Server gutter icon with a soft shell rim and a broad single hover shimmer over its artwork, plus the original two-pixel selection outline, notification, compatibility, and sign-in states.'
         }
       }
     }
