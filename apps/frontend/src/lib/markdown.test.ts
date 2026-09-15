@@ -118,6 +118,114 @@ describe('renderMarkdown', () => {
     });
   });
 
+  describe('spoilers', () => {
+    it('renders a paired spoiler region', async () => {
+      const html = await renderMarkdown('The answer is ||42||.');
+      expect(html).toContain('<span class="spoiler" data-spoiler>42</span>');
+    });
+
+    it('renders multiple independent spoilers in one message', async () => {
+      const html = await renderMarkdown('||one|| and ||two||');
+      expect(html.match(/class="spoiler"/g)).toHaveLength(2);
+      expect(html).toContain('>one<');
+      expect(html).toContain('>two<');
+    });
+
+    it('renders inline markdown inside a spoiler once revealed', async () => {
+      const html = await renderMarkdown('||**bold** and [link](https://example.com)||');
+      expect(html).toContain('<span class="spoiler" data-spoiler><strong>bold</strong>');
+      expect(html).toContain('href="https://example.com"');
+    });
+
+    it('keeps empty, unmatched, and whitespace-adjacent delimiters literal', async () => {
+      const empty = await renderMarkdown('|||| x');
+      expect(empty).not.toContain('data-spoiler');
+
+      const unmatchedOpen = await renderMarkdown('start ||open end');
+      expect(unmatchedOpen).toContain('start ||open end');
+
+      const spaceAfterOpen = await renderMarkdown('|| spaced content ||');
+      expect(spaceAfterOpen).not.toContain('data-spoiler');
+
+      const trailingDelimiters = await renderMarkdown('done ||');
+      expect(trailingDelimiters).not.toContain('data-spoiler');
+    });
+
+    it('keeps `a || b || c` style prose literal', async () => {
+      const html = await renderMarkdown('a || b || c');
+      expect(html).toContain('a || b || c');
+      expect(html).not.toContain('data-spoiler');
+    });
+
+    it('never parses spoilers inside code spans or fenced code', async () => {
+      const codeSpan = await renderMarkdown('`||x||`');
+      expect(codeSpan).toContain('<code>||x||</code>');
+      expect(codeSpan).not.toContain('data-spoiler');
+
+      const fence = await renderMarkdown('```text\n||x||\n```');
+      expect(fence).toContain('||x||');
+      expect(fence).not.toContain('data-spoiler');
+    });
+
+    it('does not nest spoilers; innermost pair wins', async () => {
+      const html = await renderMarkdown('outer ||middle ||inner|| middle|| outer');
+      expect(html).toContain('<span class="spoiler" data-spoiler>inner</span>');
+      // The rejected outer markers must stay literal.
+      expect(html).toContain('outer ||middle ');
+      expect(html).toContain(' middle|| outer');
+    });
+
+    it('treats a spoiler inside a table cell as cell content', async () => {
+      const html = await renderMarkdown('| A | B |\n| --- | --- |\n| ||secret|| | shown |');
+      expect(html).toContain('<span class="spoiler" data-spoiler>secret</span>');
+      expect(html).toContain('<td>shown</td>');
+    });
+
+    it('keeps spoiler cells aligned with their column across rows', async () => {
+      const html = await renderMarkdown(
+        '| A | B | C |\n| :-- | :-: | --: |\n| plain ||hidden|| end | shown | tail |'
+      );
+      expect(html).toContain('<span class="spoiler" data-spoiler>hidden</span>');
+      expect(html).toContain('<td style="text-align:left">plain');
+      expect(html).toContain('end</td>');
+      expect(html).toContain('<td style="text-align:center">shown</td>');
+      expect(html).toContain('<td style="text-align:right">tail</td>');
+    });
+
+    it('keeps an unpaired pipe inside a spoiled region literal', async () => {
+      const html = await renderMarkdown('value ||a|b|| end');
+      expect(html).toContain('<span class="spoiler" data-spoiler>a|b</span>');
+      expect(html).not.toContain('|b||');
+    });
+
+    it('pairs runs across soft line breaks inside one paragraph', async () => {
+      const html = await renderMarkdown('line one ||starts\nends here||');
+      expect(html).toContain('<span class="spoiler" data-spoiler>starts<br>\nends here</span>');
+    });
+
+    it('does not cross paragraph boundaries', async () => {
+      const html = await renderMarkdown('alpha ||beta\n\ngamma|| delta');
+      expect(html).not.toContain('data-spoiler');
+    });
+
+    it('caps the number of spoilers per message', async () => {
+      const body = Array.from({ length: 150 }, (_, i) => `||s${i}||`).join(' ');
+      const html = await renderMarkdown(body);
+      expect(html.match(/data-spoiler/g)).toHaveLength(100);
+      expect(html).toContain('||s100||');
+    });
+
+    it('handles long delimiter runs deterministically without corrupting output', async () => {
+      const html = await renderMarkdown(`${'|'.repeat(30)} secret ${'|'.repeat(30)}`);
+      expect(html.length).toBeLessThan(1000);
+    });
+
+    it('preserves spoilers through entity-adjacent text', async () => {
+      const html = await renderMarkdown('a &amp; b ||c & d|| e');
+      expect(html).toContain('<span class="spoiler" data-spoiler>c &amp; d</span>');
+    });
+  });
+
   describe('invisible spacing', () => {
     it('collapses lines made from encoded non-breaking spaces', async () => {
       const html = await renderMarkdown(`before\n${'&nbsp;\n'.repeat(500)}after`);
