@@ -110,7 +110,8 @@
       "room": "聊天室",
       "server": "伺服器",
       "user": "使用者",
-      "other": "其他"
+      "other": "其他",
+      "call": "通話"
     },
     "permission_descriptions": {
       "server_manage": "更新伺服器設定（名稱、說明、標誌）",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "建立使用者、編輯帳號身分、重設密碼、附加已驗證的電子郵件地址，以及清除登入冷卻時間",
       "user_manage_permissions": "編輯個別使用者的權限覆寫",
       "bot_create": "建立您擁有的機器人帳號",
-      "bot_manage": "檢視及管理所有機器人帳號"
+      "bot_manage": "檢視及管理所有機器人帳號",
+      "call_start": "開始通話（也需要 call.join）",
+      "call_join": "加入進行中的通話",
+      "call_voice": "在通話中使用麥克風",
+      "call_camera": "在通話中使用攝影機",
+      "call_screenshare": "分享螢幕或應用程式，包括擷取的音訊"
     }
   }
 }

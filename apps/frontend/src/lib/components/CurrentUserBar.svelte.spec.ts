@@ -61,6 +61,9 @@ const {
     } | null
   },
   voiceCallState: {
+    canUseVoice: true,
+    canUseCamera: true,
+    canScreenShare: true,
     connected: false,
     roomId: null as string | null,
     isMuted: false,

@@ -110,7 +110,8 @@
       "room": "Telpas",
       "server": "Serveris",
       "user": "Lietotāji",
-      "other": "Citi"
+      "other": "Citi",
+      "call": "Zvani"
     },
     "permission_descriptions": {
       "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
       "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu",
       "bot_create": "Izveidot sev piederošus botu kontus",
-      "bot_manage": "Skatīt un pārvaldīt visus botu kontus"
+      "bot_manage": "Skatīt un pārvaldīt visus botu kontus",
+      "call_start": "Sākt zvanu (nepieciešama arī call.join atļauja)",
+      "call_join": "Pievienoties notiekošam zvanam",
+      "call_voice": "Izmantot mikrofonu zvanos",
+      "call_camera": "Izmantot kameru zvanos",
+      "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio"
     }
   }
 }

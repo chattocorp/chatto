@@ -175,6 +175,9 @@ func initializeCoreServices(
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return fmt.Errorf("failed to seed default RBAC: %w", err)
 	}
+	if err := core.seedCallPermissions(ctx); err != nil {
+		return fmt.Errorf("seed call permissions: %w", err)
+	}
 	if err := core.notificationMaterializer.Initialize(ctx); err != nil {
 		return fmt.Errorf("failed to initialize notification materializer: %w", err)
 	}

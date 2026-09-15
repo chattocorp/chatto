@@ -39,6 +39,10 @@ const callStore = vi.hoisted(() => ({
     user: { id: 'viewer', login: 'viewer' }
   },
   voiceCall: {
+    permissionsFor: () => ({ start: true, join: true, voice: true, camera: true, screenshare: true }),
+    canUseVoice: true,
+    canUseCamera: true,
+    canScreenShare: true,
     roomId: null as string | null,
     connecting: false,
     connected: false,

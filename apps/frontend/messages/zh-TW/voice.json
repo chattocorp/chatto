@@ -69,6 +69,7 @@
     "no_game_windows": "找不到可分享的視窗。請以視窗或無邊框模式開啟遊戲，然後再試一次。",
     "game_windows_failed": "無法載入可分享的視窗。",
     "untitled_window": "未命名視窗",
-    "game_window_selected": "已選擇 {name}"
+    "game_window_selected": "已選擇 {name}",
+    "permission_denied": "你沒有執行此通話操作的權限。"
   }
 }

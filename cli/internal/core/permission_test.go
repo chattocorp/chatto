@@ -322,6 +322,7 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermMessageReact,
 		PermMessageEcho,
 		PermBotCreate,
+		PermCallStart, PermCallJoin, PermCallVoice, PermCallCamera, PermCallScreenShare,
 	}
 	if !slices.Equal(DefaultEveryonePermissions(), want) {
 		t.Errorf("everyone server defaults = %v, want %v", DefaultEveryonePermissions(), want)

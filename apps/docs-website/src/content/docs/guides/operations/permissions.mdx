@@ -42,7 +42,7 @@ Every Chatto server starts with four system roles. You cannot delete them.
 
 | Role          | Default behavior                                                                                                                                                                                                                                                                         |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, message reading, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account.                                            |
+| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, message reading, posting, thread posting, attaching files, reactions, echoing thread replies, calls, and deleting your own account.                                            |
 | **moderator** | Adds server-wide moderation defaults for managing messages and banning room members.                                                                                                                                                                                                     |
 | **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. Ordinary posting, attachments, threads, reactions, and echoing otherwise come from `everyone`. System diagnostics remain owner-only. |
 | **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants.                                                                                                                                                                                              |
@@ -115,13 +115,13 @@ Permissions can be configured at different scopes:
 | Scope               | Meaning                                                  |
 | ------------------- | -------------------------------------------------------- |
 | **Server**          | Global defaults or restrictions across the whole server. |
-| **Direct messages** | Global overrides for message actions in all DMs.          |
+| **Direct messages** | Global overrides for message and call actions in all DMs.          |
 | **Group**           | Defaults or restrictions for a channel-room group.        |
 | **Room**            | Local exceptions for one channel room.                    |
 
 Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the next broader setting for this same user or role". For example, a room set to Inherit checks the room group, then the server. It never inherits a setting from another role.
 
-All `message.*` permissions can be configured at Direct messages scope. No
+All `message.*` and `call.*` permissions can be configured at Direct messages scope. No
 `room.*` permission applies there. Channel-relevant permissions can use Room,
 Group, and Server scope. Server-only permissions use only Server scope.
 
@@ -146,6 +146,11 @@ also includes `server.manage-neighbors` through the same explicit metadata.
 | `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
 | `message.react`           | Add or remove reactions.                                                                                                                                                        |
 | `message.echo`            | Echo thread replies to the main channel.                                                                                                                                        |
+| `call.start` | Start a call. Also requires `call.join` and room membership. |
+| `call.join` | Join an ongoing call, including as a listener. Requires room membership. |
+| `call.voice` | Publish microphone audio. |
+| `call.camera` | Publish webcam video. |
+| `call.screenshare` | Share a screen, window, or game, including captured audio. |
 | `room.list`               | See rooms in the directory and room lists.                                                                                                                                      |
 | `room.join`               | Join channel rooms.                                                                                                                                                             |
 | `room.create`             | Create channel rooms.                                                                                                                                                           |
@@ -160,6 +165,11 @@ also includes `server.manage-neighbors` through the same explicit metadata.
 | `user.delete-self`        | Delete your own account.                                                                                                                                                        |
 
 The full list is visible in the admin UI.
+
+Call permissions do not require privileged mode. New and upgraded servers grant
+all five to `everyone`. Upgrade initialization preserves earlier explicit call
+permission decisions, including cleared grants. See [Voice calls](/guides/infrastructure/voice-calls/)
+for media restrictions and active-call revocation.
 
 <Aside type="caution" title="Existing servers need explicit read grants">
   Chatto applies defaults only when it bootstraps an empty RBAC stream. Before

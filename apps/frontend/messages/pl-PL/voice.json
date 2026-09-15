@@ -69,6 +69,7 @@
     "no_game_windows": "Nie znaleziono okien do udostępnienia. Otwórz grę w trybie okienkowym lub bez ramek i spróbuj ponownie.",
     "game_windows_failed": "Nie udało się wczytać okien do udostępnienia.",
     "untitled_window": "Okno bez tytułu",
-    "game_window_selected": "Wybrano: {name}"
+    "game_window_selected": "Wybrano: {name}",
+    "permission_denied": "Nie masz uprawnień do wykonania tej czynności w rozmowie."
   }
 }

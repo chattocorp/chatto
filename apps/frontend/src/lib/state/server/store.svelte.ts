@@ -241,7 +241,20 @@ export class ServerStateStore {
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
-    this.voiceCall = new VoiceCallState(voiceCallAPI);
+    this.voiceCall = new VoiceCallState(voiceCallAPI, (roomId) => {
+      const state = this.projection.rooms.get(roomId)?.viewerState;
+      const granted = (permission: string) =>
+        state?.isMember === true &&
+        (state.permissions.some((grant) => grant.permission === permission && grant.granted) ??
+          false);
+      return {
+        start: granted('call.start'),
+        join: granted('call.join'),
+        voice: granted('call.voice'),
+        camera: granted('call.camera'),
+        screenshare: granted('call.screenshare')
+      };
+    });
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
     this.navigation = new NavigationStore(this.projection, this.realtimeSync, this.notifications);
     this.roomDirectory = new RoomDirectoryStore(
@@ -633,6 +646,7 @@ export class ServerStateStore {
           break;
         }
         case 'rooms':
+          void this.voiceCall.reconcilePermissions();
           for (const [roomId, room] of this.projection.rooms) {
             this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
             this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);

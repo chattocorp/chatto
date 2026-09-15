@@ -13,9 +13,10 @@ export type PermissionMetadata = {
 };
 
 export type PermissionCategory =
-  'admin' | 'bot' | 'message' | 'role' | 'room' | 'server' | 'user' | 'other';
+  'admin' | 'bot' | 'call' | 'message' | 'role' | 'room' | 'server' | 'user' | 'other';
 
 const PERMISSION_CATEGORY_LABELS: Record<PermissionCategory, () => string> = {
+  call: () => m('rbac.permission_categories.call'),
   admin: () => m('rbac.permission_categories.admin'),
   bot: () => m('rbac.permission_categories.bot'),
   message: () => m('rbac.permission_categories.message'),
@@ -65,6 +66,25 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'room.ban-member': {
     category: 'room',
     description: () => m('rbac.permission_descriptions.room_ban_member')
+  },
+
+  // Call permissions
+  'call.start': {
+    category: 'call',
+    description: () => m('rbac.permission_descriptions.call_start')
+  },
+  'call.join': { category: 'call', description: () => m('rbac.permission_descriptions.call_join') },
+  'call.voice': {
+    category: 'call',
+    description: () => m('rbac.permission_descriptions.call_voice')
+  },
+  'call.camera': {
+    category: 'call',
+    description: () => m('rbac.permission_descriptions.call_camera')
+  },
+  'call.screenshare': {
+    category: 'call',
+    description: () => m('rbac.permission_descriptions.call_screenshare')
   },
 
   // Message permissions

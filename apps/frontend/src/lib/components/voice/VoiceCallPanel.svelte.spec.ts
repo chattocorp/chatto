@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
 
 afterEach(() => vi.restoreAllMocks());
@@ -34,4 +35,36 @@ it('clears speaking styles and participant controls when a call becomes observed
   expect(bob.dataset.callSpeaking).toBeUndefined();
   expect(bob.hasAttribute('data-speaking-ring')).toBe(false);
   expect(screen.container.querySelector('[data-testid="call-feed-local-mute-button"]')).toBeNull();
+});
+
+it('gates entry and media controls from the current room permissions', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const store = serverRegistry.getStore(serverRegistry.originServer!.id);
+  const roomId = store.voiceCall.roomId!;
+  const room = store.projection.rooms.get(roomId)!;
+  flushSync(() => {
+    store.voiceCall.isMuted = true;
+    store.projection.rooms.set(
+      roomId,
+      new RoomWithViewerState({
+        room: room.room,
+        viewerState: {
+          isMember: true,
+          permissions: [{ permission: 'call.join', granted: true }]
+        }
+      })
+    );
+  });
+  await expect.element(screen.getByTestId('call-mute-toggle')).toBeDisabled();
+  await expect.element(screen.getByTestId('call-camera-toggle')).toBeDisabled();
+  await expect.element(screen.getByTestId('call-screen-share-toggle')).toBeDisabled();
+  await expect.element(screen.getByTestId('call-leave-button')).toBeEnabled();
+  flushSync(() => {
+    store.voiceCall.connected = false;
+  });
+  vi.spyOn(store.activeCallRooms, 'has').mockReturnValue(false);
+  await expect.element(screen.getByTestId('call-join-button')).toBeDisabled();
 });

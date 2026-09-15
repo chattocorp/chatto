@@ -110,7 +110,8 @@
       "room": "Místnosti",
       "server": "Server",
       "user": "Uživatelé",
-      "other": "Ostatní"
+      "other": "Ostatní",
+      "call": "Hovory"
     },
     "permission_descriptions": {
       "server_manage": "Aktualizace nastavení serveru (název, popis, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Vytvářejte uživatele, upravujte identitu účtu, resetujte hesla, připojujte ověřené e-maily a vymažte cooldowny pro přihlášení",
       "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele",
       "bot_create": "Vytvářet účty botů, které vlastníte",
-      "bot_manage": "Zobrazit a spravovat všechny účty botů"
+      "bot_manage": "Zobrazit a spravovat všechny účty botů",
+      "call_start": "Zahájit hovor (vyžaduje také call.join)",
+      "call_join": "Připojit se k probíhajícímu hovoru",
+      "call_voice": "Používat mikrofon v hovorech",
+      "call_camera": "Používat kameru v hovorech",
+      "call_screenshare": "Sdílet obrazovku nebo aplikaci včetně zachyceného zvuku"
     }
   }
 }

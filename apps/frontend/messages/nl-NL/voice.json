@@ -69,6 +69,7 @@
     "no_game_windows": "Geen deelbare vensters gevonden. Open een game in venster- of randloze modus en probeer het opnieuw.",
     "game_windows_failed": "De deelbare vensters konden niet worden geladen.",
     "untitled_window": "Venster zonder titel",
-    "game_window_selected": "{name} geselecteerd"
+    "game_window_selected": "{name} geselecteerd",
+    "permission_denied": "Je hebt geen toestemming voor deze oproepactie."
   }
 }
