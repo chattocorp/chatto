@@ -1308,8 +1308,9 @@ export class VoiceCallState {
     if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
     if (this.microphoneProcessor)
       this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
-    const localAudioLevel = this.getLocalAudioLevel();
-    this.microphoneLevel = this.isMuted ? 0 : microphoneMeter(this.microphoneProcessor?.level ?? 0);
+    const inputLevel = this.isMuted ? 0 : (this.microphoneProcessor?.level ?? 0);
+    const localAudioLevel = Math.min(inputLevel * 2, 1);
+    this.microphoneLevel = microphoneMeter(inputLevel);
 
     const allParticipants: Participant[] = [
       this.room.localParticipant,
@@ -1349,11 +1350,6 @@ export class VoiceCallState {
       if (this.room !== room || this.isMuted) return;
       this.microphoneGateUnavailable = processor.unavailable;
     }
-  }
-
-  /** Pre-gate microphone amplitude for local speaking visuals; zero while muted. */
-  private getLocalAudioLevel(): number {
-    return this.isMuted ? 0 : Math.min((this.microphoneProcessor?.level ?? 0) * 2, 1);
   }
 
   private cleanup(): void {

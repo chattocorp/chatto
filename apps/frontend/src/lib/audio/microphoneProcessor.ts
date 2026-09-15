@@ -2,11 +2,7 @@ import { MicrophoneEffectsGraph } from './microphoneEffectsGraph';
 import type { AudioProcessorOptions, Track, TrackProcessor } from 'livekit-client';
 import workletURL from './noiseGate.worklet?worker&url';
 import { GATE_OFF } from './noiseGate';
-import {
-  defaultMicrophoneEffects,
-  normalizeMicrophoneEffects,
-  type MicrophoneEffects
-} from './microphoneEffects';
+import { normalizeMicrophoneEffects, type MicrophoneEffects } from './microphoneEffects';
 
 const modules = new WeakMap<AudioContext, Promise<void>>();
 
@@ -29,7 +25,7 @@ export class MicrophoneProcessor implements TrackProcessor<
   #onError?: () => void;
   #destination?: MediaStreamAudioDestinationNode;
   #threshold = GATE_OFF;
-  #effects: MicrophoneEffects = { ...defaultMicrophoneEffects };
+  #effects: MicrophoneEffects = normalizeMicrophoneEffects();
   #graph?: MicrophoneEffectsGraph;
 
   constructor(threshold = GATE_OFF) {

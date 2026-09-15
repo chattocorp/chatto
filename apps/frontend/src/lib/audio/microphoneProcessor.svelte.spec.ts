@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { LocalAudioTrack, Track } from 'livekit-client';
 import { MicrophoneProcessor } from './microphoneProcessor';
-import { defaultMicrophoneEffects } from './microphoneEffects';
+import { normalizeMicrophoneEffects } from './microphoneEffects';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -50,9 +50,9 @@ it('gates a real LiveKit track, updates thresholds, restarts, and releases only 
     expect(peak()).toBe(0);
     processor.setThreshold(-60);
     await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.001));
-    processor.setEffects({ ...defaultMicrophoneEffects, equalizer: true, mid: -6 });
+    processor.setEffects({ ...normalizeMicrophoneEffects(), equalizer: true, mid: -6 });
     await vi.waitFor(() => expect(peak()).toBeLessThan(0.009));
-    processor.setEffects({ ...defaultMicrophoneEffects });
+    processor.setEffects(normalizeMicrophoneEffects());
     await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.0095));
     await local.mute();
     await vi.waitFor(() => expect(peak()).toBe(0));

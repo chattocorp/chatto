@@ -9,18 +9,8 @@ export interface MicrophoneEffects {
   amount: number;
 }
 
-export const defaultMicrophoneEffects: Readonly<MicrophoneEffects> = Object.freeze({
-  lowCut: false,
-  equalizer: false,
-  bass: 0,
-  mid: 0,
-  treble: 0,
-  compressor: false,
-  amount: 50
-});
-
-/** Bound stored and programmatic inputs before they reach AudioParams. */
-export function normalizeMicrophoneEffects(value: unknown): MicrophoneEffects {
+/** Bound inputs before they reach AudioParams; omitted values produce fresh defaults. */
+export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
   const raw = value && typeof value === 'object' ? (value as Partial<MicrophoneEffects>) : {};
   const bounded = (value: unknown, min: number, max: number, fallback: number) =>
     typeof value === 'number' && Number.isFinite(value)

@@ -1,8 +1,4 @@
-import {
-  defaultMicrophoneEffects,
-  normalizeMicrophoneEffects,
-  type MicrophoneEffects
-} from '$lib/audio/microphoneEffects';
+import { normalizeMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/microphoneEffects';
 import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
@@ -24,7 +20,7 @@ const defaults: CallPreferences = {
   speaker: '',
   camera: '',
   joinMuted: false,
-  effects: { ...defaultMicrophoneEffects },
+  effects: normalizeMicrophoneEffects(),
   microphoneThreshold: GATE_OFF
 };
 
@@ -57,7 +53,7 @@ export class CallPreferencesState {
 
   /** Restore the processing defaults without changing device or join choices. */
   resetProcessing(): void {
-    this.#value.effects = { ...defaultMicrophoneEffects };
+    this.#value.effects = normalizeMicrophoneEffects();
     this.#value.microphoneThreshold = GATE_OFF;
     this.#slot.set(this.#value);
   }

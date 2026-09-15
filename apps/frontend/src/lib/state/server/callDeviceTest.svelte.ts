@@ -1,4 +1,4 @@
-import { defaultMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/microphoneEffects';
+import { normalizeMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/microphoneEffects';
 import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { microphoneMeter } from '$lib/audio/noiseGate';
 import type { Track } from 'livekit-client';
@@ -20,7 +20,7 @@ export class CallDeviceTest {
     deviceId: string,
     speakerId = '',
     threshold: () => number = () => -60,
-    effects: () => MicrophoneEffects = () => ({ ...defaultMicrophoneEffects })
+    effects: () => MicrophoneEffects = normalizeMicrophoneEffects
   ): Promise<void> {
     this.stop();
     const generation = this.#generation;

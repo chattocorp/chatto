@@ -1,8 +1,4 @@
-import {
-  defaultMicrophoneEffects,
-  normalizeMicrophoneEffects,
-  type MicrophoneEffects
-} from './microphoneEffects';
+import { normalizeMicrophoneEffects, type MicrophoneEffects } from './microphoneEffects';
 
 /** Owns native DSP nodes around the gate; never owns the context or gate. */
 export class MicrophoneEffectsGraph {
@@ -57,7 +53,7 @@ export class MicrophoneEffectsGraph {
       this.#dry,
       this.#wet
     ];
-    this.update(defaultMicrophoneEffects, true);
+    this.update(normalizeMicrophoneEffects(), true);
   }
 
   /** Smooth updates avoid clicks; dry bypass avoids compressor latency when off. */

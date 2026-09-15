@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { MicrophoneEffectsGraph } from './microphoneEffectsGraph';
-import { defaultMicrophoneEffects, type MicrophoneEffects } from './microphoneEffects';
+import { normalizeMicrophoneEffects, type MicrophoneEffects } from './microphoneEffects';
 
 /** Render real native DSP offline so assertions do not depend on wall-clock audio. */
 async function level(frequency: number, amplitude: number, effects: Partial<MicrophoneEffects>) {
@@ -11,7 +11,7 @@ async function level(frequency: number, amplitude: number, effects: Partial<Micr
   gain.gain.value = amplitude;
   const gate = context.createGain();
   const graph = new MicrophoneEffectsGraph(context, gate, context.destination);
-  graph.update({ ...defaultMicrophoneEffects, ...effects }, true);
+  graph.update({ ...normalizeMicrophoneEffects(), ...effects }, true);
   source.connect(gain).connect(graph.input);
   source.start();
   const buffer = await context.startRendering();
