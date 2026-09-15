@@ -12,7 +12,10 @@ const messagesRoot = resolve(frontendRoot, 'messages');
 const routes = [
   {
     name: 'login',
-    budgetKiB: 290,
+    // Bot profile copy adds about 0.3 KiB to the synchronous English fallback.
+    // The same files vary by about 0.6 KiB between Node gzip implementations.
+    // Keep one KiB of allowance; route and lazy-catalog guards still apply.
+    budgetKiB: 291,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
