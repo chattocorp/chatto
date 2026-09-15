@@ -1104,59 +1104,10 @@ func (s *Service) ChangePassword(ctx context.Context, target PasswordChangeTarge
 	if target.AccountID == "" || target.CredentialEventID == "" || target.newPassword == "" {
 		return Account{}, ErrCredentialChanged
 	}
-	password, err := validatePassword(target.newPassword, s.passwordMinimumLength)
-	if err != nil {
-		return Account{}, err
-	}
-	tail, credential, err := s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
-	if err != nil {
-		return Account{}, err
-	}
-	verifier, err := hashPassword(password)
-	if err != nil {
-		return Account{}, err
-	}
-	dataKey, err := s.vault.ResolveDataKey(ctx, credential.credentialKeyRef, credential.userKeyRef)
-	if err != nil {
-		return Account{}, fmt.Errorf("resolve password credential key: %w", err)
-	}
-	defer clear(dataKey)
-	eventID, err := ids.New("evt")
-	if err != nil {
-		return Account{}, err
-	}
-	sealedVerifier, err := datacrypto.Seal(dataKey, []byte(verifier), passwordChangedAAD(eventID, target.AccountID, credential.userKeyRef, credential.credentialKeyRef))
-	if err != nil {
-		return Account{}, err
-	}
-	event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_PasswordChanged{PasswordChanged: &corev1.PasswordChangedEvent{
-		AccountId: target.AccountID, UserKeyRef: credential.userKeyRef, CredentialKeyRef: credential.credentialKeyRef,
-		CredentialEnvelopeVersion: 1, PasswordVerifierNonce: sealedVerifier.Nonce, PasswordVerifierCiphertext: sealedVerifier.Ciphertext,
-		PriorCredentialEventId: target.CredentialEventID,
-		Kind:                   corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN,
-	}}}
-	for range 5 {
-		position, err := s.publisher.AppendPasswordChanged(ctx, event, tail)
-		if errors.Is(err, events.ErrConflict) {
-			tail, _, err = s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
-			if err != nil {
-				return Account{}, err
-			}
-			continue
-		}
-		if err != nil {
-			return Account{}, fmt.Errorf("commit signed-in password change: %w", err)
-		}
-		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
-			return Account{}, fmt.Errorf("wait for signed-in password change: %w", err)
-		}
-		account, ok := s.handle.Projection().accountAtCredential(target.AccountID, eventID)
-		if !ok {
-			return Account{}, ErrCredentialChanged
-		}
-		return account, nil
-	}
-	return Account{}, fmt.Errorf("signed-in password change conflict")
+	return s.replacePassword(ctx, passwordReplacement{
+		accountID: target.AccountID, credentialEventID: target.CredentialEventID,
+		password: target.newPassword, kind: corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN,
+	})
 }
 
 // PrepareEmailChange reauthenticates one local account against its current
@@ -1400,11 +1351,37 @@ func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget,
 	if target.AccountID == "" || target.CredentialEventID == "" || target.RequestEventID == "" {
 		return Account{}, ErrCredentialChanged
 	}
-	password, err := validatePassword(password, s.passwordMinimumLength)
+	return s.replacePassword(ctx, passwordReplacement{
+		accountID: target.AccountID, credentialEventID: target.CredentialEventID,
+		requestEventID: target.RequestEventID, password: password,
+		kind: corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY,
+	})
+}
+
+// passwordReplacement carries a command's identity binding and ceremony.
+// Recovery retains its request event reference; signed-in changes omit it.
+type passwordReplacement struct {
+	accountID         string
+	credentialEventID string
+	requestEventID    string
+	password          string
+	kind              corev1.PasswordChangeKind
+}
+
+// replacePassword publishes one replacement at the bound credential generation.
+// Hashing and encryption happen once. Only confirmed OCC conflicts retry, after
+// checking both authoritative projection boundaries again. Audit-only changes
+// can advance the tail; a new credential must reject the stale replacement.
+func (s *Service) replacePassword(ctx context.Context, replacement passwordReplacement) (Account, error) {
+	operation := "password change"
+	if replacement.kind == corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN {
+		operation = "signed-in password change"
+	}
+	password, err := validatePassword(replacement.password, s.passwordMinimumLength)
 	if err != nil {
 		return Account{}, err
 	}
-	tail, credential, err := s.passwordResetCredentialAtTail(ctx, target)
+	tail, credential, err := s.identityCredentialAtTail(ctx, replacement.accountID, replacement.credentialEventID)
 	if err != nil {
 		return Account{}, err
 	}
@@ -1421,43 +1398,39 @@ func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget,
 	if err != nil {
 		return Account{}, err
 	}
-	sealedVerifier, err := datacrypto.Seal(dataKey, []byte(verifier), passwordChangedAAD(eventID, target.AccountID, credential.userKeyRef, credential.credentialKeyRef))
+	sealedVerifier, err := datacrypto.Seal(dataKey, []byte(verifier), passwordChangedAAD(eventID, replacement.accountID, credential.userKeyRef, credential.credentialKeyRef))
 	if err != nil {
 		return Account{}, err
 	}
 	event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_PasswordChanged{PasswordChanged: &corev1.PasswordChangedEvent{
-		AccountId: target.AccountID, UserKeyRef: credential.userKeyRef, CredentialKeyRef: credential.credentialKeyRef,
+		AccountId: replacement.accountID, UserKeyRef: credential.userKeyRef, CredentialKeyRef: credential.credentialKeyRef,
 		CredentialEnvelopeVersion: 1, PasswordVerifierNonce: sealedVerifier.Nonce, PasswordVerifierCiphertext: sealedVerifier.Ciphertext,
-		PasswordResetRequestEventId: target.RequestEventID,
-		PriorCredentialEventId:      target.CredentialEventID,
-		Kind:                        corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY,
+		PasswordResetRequestEventId: replacement.requestEventID,
+		PriorCredentialEventId:      replacement.credentialEventID,
+		Kind:                        replacement.kind,
 	}}}
 	for range 5 {
 		position, err := s.publisher.AppendPasswordChanged(ctx, event, tail)
 		if errors.Is(err, events.ErrConflict) {
-			tail, _, err = s.passwordResetCredentialAtTail(ctx, target)
+			tail, _, err = s.identityCredentialAtTail(ctx, replacement.accountID, replacement.credentialEventID)
 			if err != nil {
 				return Account{}, err
 			}
 			continue
 		}
 		if err != nil {
-			return Account{}, fmt.Errorf("commit password change: %w", err)
+			return Account{}, fmt.Errorf("commit %s: %w", operation, err)
 		}
 		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
-			return Account{}, fmt.Errorf("wait for password change: %w", err)
+			return Account{}, fmt.Errorf("wait for %s: %w", operation, err)
 		}
-		account, ok := s.handle.Projection().accountAtCredential(target.AccountID, eventID)
+		account, ok := s.handle.Projection().accountAtCredential(replacement.accountID, eventID)
 		if !ok {
 			return Account{}, ErrCredentialChanged
 		}
 		return account, nil
 	}
-	return Account{}, fmt.Errorf("password change conflict")
-}
-
-func (s *Service) passwordResetCredentialAtTail(ctx context.Context, target PasswordResetTarget) (uint64, protectedCredential, error) {
-	return s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+	return Account{}, fmt.Errorf("%s conflict", operation)
 }
 
 // identityCredentialAtTail captures both subjects that can advance a local
