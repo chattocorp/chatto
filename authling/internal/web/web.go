@@ -339,6 +339,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		redirect(w, r, target)
 	})
+	mountDeletion(mux, deps, publicOrigin)
 	mux.HandleFunc("GET /account", func(w http.ResponseWriter, r *http.Request) {
 		account, token, err := authenticatedAccountAndToken(r, deps, true)
 		if errors.Is(err, sessions.ErrNotFound) {

@@ -122,12 +122,24 @@ func (s *Service) List(ctx context.Context, accountID, currentToken string) ([]B
 	if err := s.WaitForInventoryStartup(ctx); err != nil {
 		return nil, fmt.Errorf("list browser sessions: %w", err)
 	}
+	// Resolve once, outside the inventory lock. An outage is not revocation.
+	var version uint64
+	if s.authenticationVersion != nil {
+		v, ok, err := s.authenticationVersion(ctx, accountID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrNotFound
+		}
+		version = v
+	}
 	currentKey := s.sessionKey(currentToken)
 	now := s.now().UTC()
 
 	s.inventoryMu.RLock()
 	current, currentOK := s.inventoryByKey[currentKey]
-	if !currentOK || current.Session.AccountID != accountID || !s.sessionActive(current.Session, now) {
+	if !currentOK || current.Session.AccountID != accountID || !s.sessionActive(current.Session, now, version) {
 		s.inventoryMu.RUnlock()
 		return nil, ErrNotFound
 	}
@@ -135,7 +147,7 @@ func (s *Service) List(ctx context.Context, accountID, currentToken string) ([]B
 	views := make([]BrowserSession, 0, len(keys))
 	for key := range keys {
 		entry, ok := s.inventoryByKey[key]
-		if !ok || !s.sessionActive(entry.Session, now) {
+		if !ok || !s.sessionActive(entry.Session, now, version) {
 			continue
 		}
 		views = append(views, BrowserSession{
@@ -279,13 +291,12 @@ func (s *Service) inventoryEntryByIDLocked(accountID, id string) (inventoryEntry
 	return inventoryEntry{}, false
 }
 
-func (s *Service) sessionActive(state Session, now time.Time) bool {
+func (s *Service) sessionActive(state Session, now time.Time, version uint64) bool {
 	if !now.Before(state.ExpiresAt) || now.Sub(state.LastSeenAt) >= InactivityLifetime {
 		return false
 	}
 	if s.authenticationVersion != nil {
-		version, ok := s.authenticationVersion(state.AccountID)
-		return ok && version == state.AuthenticationVersion
+		return version == state.AuthenticationVersion
 	}
 	return true
 }

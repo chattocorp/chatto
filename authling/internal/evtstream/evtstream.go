@@ -317,6 +317,19 @@ func validate(event *corev1.Event) error {
 		return fmt.Errorf("Authling event created_at: %w", err)
 	}
 	switch payload := event.GetEvent().(type) {
+	case *corev1.Event_AccountErasureRequested:
+		r := payload.AccountErasureRequested
+		if !validSubjectToken(r.GetAccountId()) || !validSubjectToken(r.GetPriorCredentialEventId()) || !strings.HasPrefix(r.GetUserKeyRef(), "uk_") || !validSubjectToken(r.GetUserKeyRef()) || !strings.HasPrefix(r.GetCredentialKeyRef(), "dk_") || !validSubjectToken(r.GetCredentialKeyRef()) {
+			return fmt.Errorf("invalid account erasure request")
+		}
+	case *corev1.Event_EmailReleased:
+		if !validSubjectToken(payload.EmailReleased.GetAccountId()) || !validSubjectToken(payload.EmailReleased.GetErasureRequestEventId()) {
+			return fmt.Errorf("invalid email release")
+		}
+	case *corev1.Event_AccountErased:
+		if !validSubjectToken(payload.AccountErased.GetAccountId()) || !validSubjectToken(payload.AccountErased.GetErasureRequestEventId()) {
+			return fmt.Errorf("invalid erasure completion")
+		}
 	case *corev1.Event_AccountCreated:
 		if _, err := AccountSubject(payload.AccountCreated.GetAccountId()); err != nil {
 			return err
@@ -497,4 +510,51 @@ func validSigningKeyRef(value string) bool {
 		return false
 	}
 	return true
+}
+
+// AppendAccountErasure atomically denies an account and releases its email claim.
+func (p *Publisher) AppendAccountErasure(ctx context.Context, request, release *corev1.Event, accountTail, registryTail uint64) (events.StreamPosition, error) {
+	payload := request.GetAccountErasureRequested()
+	if payload == nil || release.GetEmailReleased().GetAccountId() != payload.GetAccountId() || release.GetEmailReleased().GetErasureRequestEventId() != request.GetId() {
+		return events.StreamPosition{}, fmt.Errorf("invalid erasure batch")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	seqs, err := p.AppendBatch(ctx, []events.TypedBatchEntry[*corev1.Event]{
+		{Subject: subject, Event: request, ExpectedSeq: accountTail, HasOCC: true},
+		{Subject: accountRegistrySubject, Event: release, ExpectedSeq: registryTail, HasOCC: true},
+	})
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(accountRegistrySubject, seqs[1]), nil
+}
+
+// AppendAccountErased confirms key destruction at the account's observed tail.
+func (p *Publisher) AppendAccountErased(ctx context.Context, event *corev1.Event, tail uint64) (events.StreamPosition, error) {
+	if event.GetAccountErased() == nil {
+		return events.StreamPosition{}, fmt.Errorf("missing erasure completion")
+	}
+	subject, err := AccountSubject(event.GetAccountErased().GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return p.appendAtPosition(ctx, subject, event, tail)
+}
+
+// EventAccountID returns the structural account identifier, if the event has one.
+func EventAccountID(event *corev1.Event) string {
+	message := event.ProtoReflect()
+	field := message.WhichOneof(message.Descriptor().Oneofs().ByName("event"))
+	if field == nil {
+		return ""
+	}
+	payload := message.Get(field).Message()
+	account := payload.Descriptor().Fields().ByName("account_id")
+	if account == nil {
+		return ""
+	}
+	return payload.Get(account).String()
 }

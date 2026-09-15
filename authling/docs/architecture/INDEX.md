@@ -14,7 +14,7 @@ waits and is returned to the CLI with its original error chain. A missing
 JetStream tier error also includes an account-quota hint.
 
 The HTTP surface contains server-rendered signup, login, password-reset,
-signed-in password-change, verified email-change, consent, account, and logout
+signed-in password-change, verified email-change, account deletion, consent, account, and logout
 pages plus embedded browser assets. It also exposes OpenID Connect discovery,
 authorization, token, UserInfo, and JWKS endpoints. Authling exposes no public
 account-management, application-data, document, or synchronization API.
@@ -85,7 +85,7 @@ storage-path, logging, and deployment policy.
 | `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, email-change, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
 
-`AUTHLING_EVT` enables JetStream atomic publication for future multi-event
+`AUTHLING_EVT` enables JetStream atomic publication for multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and
 restore boundary.
 
@@ -117,6 +117,9 @@ token-safe vocabulary.
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
 | `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; encrypted client display snapshot and account key references; granted scopes; consent disclosure version |
 | `OIDCGrantRevokedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and active authorization-event IDs |
+| `AccountErasureRequestedEvent` | `authling.evt.account.{accountId}` | Account | Current credential and key references; permanent access denial |
+| `EmailReleasedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and erasure-request correlation; atomic email release |
+| `AccountErasedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and request correlation; live key purge completion |
 | `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
 | `OIDCSigningKeyRotationRequestedEvent` | `authling.evt.issuer` | Issuer singleton | Opaque future signing-key reference |
 | `OIDCSigningKeyPreparedEvent` | `authling.evt.issuer` | Issuer singleton | Opaque signing-key reference, public fingerprint ID, and activation time |
@@ -135,7 +138,7 @@ replicas without a durable email-derived index.
 
 The account model consumes `authling.evt.account.*` and
 `authling.evt.account-registry`. It maps opaque account IDs to creation times.
-During replay it resolves and decrypts local credentials and rebuilds a keyed
+During replay it resolves and decrypts active local credentials and rebuilds a keyed
 digest index of normalized emails. It retains encrypted verifier fields and
 opaque key references, but neither plaintext email nor plaintext password
 verifiers. It retains encrypted profile fields and decrypts them only at the
@@ -348,8 +351,58 @@ completion work per process.
 
 ## Deliberately absent
 
-The runtime does not yet contain MFA recovery, account erasure, browser-device
+The runtime does not yet contain MFA recovery, browser-device
 or location tracking, durable login history, OIDC refresh tokens, emergency
 manual signing-key rotation, diagnostic endpoints, or backup tooling.
 Application data, documents, and generic synchronization are deliberately
 outside Authling's identity-provider boundary.
+
+
+## Account deletion and erasure
+
+`GET /account/delete` renders the effects and limits from
+[FDR-013](../fdr/FDR-013-account-deletion.md). Its same-origin, body-limited POST
+requires an active session, explicit confirmation, and a fresh throttled password
+proof at the current authentication version. Account and registry OCC commit
+`AccountErasureRequestedEvent` and `EmailReleasedEvent` as one atomic batch.
+Commands wait through both relevant subject boundaries and reject staged email
+changes. The request removes the account, email index, credentials, profile,
+recovery requests, and grants from active projections. Session checks cross the
+durable account tail; storage errors deny access without deleting valid sessions.
+Protected profile reads also cross that boundary, which denies code exchange and
+UserInfo after deletion. In-flight operations must pass their account boundary;
+OCC prevents an identity mutation from committing after the request.
+
+A separate key-free erasure projection starts before the account projector. It
+records account key ownership, request and release positions, and completion.
+It retains ownership history to reject key reuse and substitution. Account replay
+skips protected email decryption only with durable erasure evidence; it still
+validates structural account history. A failed key read repeats the erasure
+barrier to cover another replica's concurrent purge. Missing active keys remain
+a fatal replay error. No active email index entry is built from erased history.
+
+The named durable consumer `authling-account-erasure` filters
+`authling.evt.account.*`, uses explicit acknowledgements, a one-minute ack wait,
+and one pending message. The worker retries failures after one second. It waits
+for account and grant projections to validate the decision, purges the user key
+then its wrapped data key from `AUTHLING_KEYS`, and appends `AccountErasedEvent`
+with account OCC. Repeated purges and repeated completion attempts are safe.
+The request remains the retry authority if a reply is lost or the process stops.
+Workers on multiple replicas may share the consumer; the consumer cursor is not
+the correctness boundary. Worker errors do not include protected data.
+
+The account key vault does not cache unwrapped keys. Historical ciphertext and
+PII-free structure remain in the event stream. Workflow-key-encrypted email
+change records can retain both addresses until their original 15-minute expiry;
+other verification flows have the same independent maximum lifetime. Session
+and OIDC records retain their existing expiry policies but cannot authorize the
+deleted account. Key erasure does not retract SMTP already in progress or data
+already returned to a relying party.
+
+A completion event proves purges from the live key API, not secure removal of
+filesystem remnants, snapshots, backups, external key exports, or other apps'
+data. An operator must retire key backups under a separate retention policy.
+Restoring a snapshot from before deletion can restore the identity and keys;
+do not serve that restore as current state without reconciling later deletions.
+New event variants require all replicas to use this release before deletion.
+There is no migration or mixed-version fallback for this undeployed product.

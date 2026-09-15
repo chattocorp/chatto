@@ -493,3 +493,17 @@ func validOIDCSigningKeyRef(ref string) bool {
 func wrapAAD(userRef, dataRef string) []byte {
 	return []byte("authling:key-wrap:v1\x00" + userRef + "\x00" + dataRef + "\x00" + credentialKeyPurpose)
 }
+
+// DestroyAccountKeys removes live account keys after a validated durable erasure
+// request. Only the erasure worker may call it. Missing keys make retries safe.
+func (v *Vault) DestroyAccountKeys(ctx context.Context, userRef, dataRef string) error {
+	if !strings.HasPrefix(userRef, "uk_") || !strings.HasPrefix(dataRef, "dk_") {
+		return fmt.Errorf("invalid account erasure key references")
+	}
+	for _, ref := range []string{userRef, dataRef} {
+		if err := v.kv.Purge(ctx, ref); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+			return fmt.Errorf("destroy account key: %w", err)
+		}
+	}
+	return nil
+}

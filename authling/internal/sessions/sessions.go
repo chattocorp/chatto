@@ -46,7 +46,7 @@ type Session struct {
 
 // AuthenticationVersionResolver returns the durable credential generation for
 // an account. A changed generation invalidates sessions issued before it.
-type AuthenticationVersionResolver func(accountID string) (uint64, bool)
+type AuthenticationVersionResolver func(ctx context.Context, accountID string) (uint64, bool, error)
 
 type sealedState struct {
 	Version    int    `json:"version"`
@@ -124,7 +124,10 @@ func (s *Service) create(ctx context.Context, accountID string, expectedVersion 
 	}
 	state := Session{AccountID: accountID, AuthenticatedAt: authenticatedAt.UTC(), CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(AbsoluteLifetime)}
 	if s.authenticationVersion != nil {
-		version, ok := s.authenticationVersion(accountID)
+		version, ok, err := s.authenticationVersion(ctx, accountID)
+		if err != nil {
+			return "", Session{}, err
+		}
 		if !ok {
 			return "", Session{}, fmt.Errorf("create session for absent account")
 		}
@@ -143,8 +146,8 @@ func (s *Service) create(ctx context.Context, accountID string, expectedVersion 
 		return "", Session{}, fmt.Errorf("store session: %w", err)
 	}
 	if expectedVersion != nil {
-		version, ok := s.authenticationVersion(accountID)
-		if !ok || version != *expectedVersion {
+		version, ok, err := s.authenticationVersion(ctx, accountID)
+		if err != nil || !ok || version != *expectedVersion {
 			cleanupContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 			defer cancel()
 			_ = s.kv.Delete(cleanupContext, key, jetstream.LastRevision(revision))
@@ -188,7 +191,10 @@ func (s *Service) validate(ctx context.Context, token string, touch bool) (Sessi
 			return Session{}, ErrNotFound
 		}
 		if s.authenticationVersion != nil {
-			version, ok := s.authenticationVersion(state.AccountID)
+			version, ok, err := s.authenticationVersion(ctx, state.AccountID)
+			if err != nil {
+				return Session{}, err
+			}
 			if !ok || version != state.AuthenticationVersion {
 				_ = s.kv.Delete(ctx, key)
 				return Session{}, ErrNotFound
