@@ -88,15 +88,15 @@ it.each(
       const gainDb = 20 * Math.log10(gain);
       if (amount === 0) expect(gainDb).toBeCloseTo(0, 3);
       else {
-        expect(gainDb).toBeGreaterThan(amount === 100 ? 2 : 0.5);
-        expect(gainDb).toBeLessThan(amount === 100 ? 7 : 4);
+        expect(gainDb).toBeGreaterThan(amount === 100 ? 4 : 0.5);
+        expect(gainDb).toBeLessThan(amount === 100 ? 12 : 7);
       }
       for (const harmonic of [2, 3]) {
         const relative =
           magnitude(output, fundamental * harmonic) /
           magnitude(input, fundamental * harmonic) /
           gain;
-        expect(Math.abs(20 * Math.log10(relative))).toBeLessThan(3);
+        expect(Math.abs(20 * Math.log10(relative))).toBeLessThan(6);
       }
       // The input has no fifth harmonic: avoid adding audible waveshaping distortion.
       expect(magnitude(output, fundamental * 5) / magnitude(output, fundamental)).toBeLessThan(

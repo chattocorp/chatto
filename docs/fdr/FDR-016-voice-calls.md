@@ -34,9 +34,9 @@ Rooms support real-time voice conversations with optional camera video and scree
   and room. The slider affects microphone audio in calls and the local test,
   not received audio or screen sharing. Its position is saved per browser and
   server without changing gate, device, or join-muted choices.
-  EQ boosts reserve headroom. Compression reduces loud peaks and uses the browser
-  compressor's built-in makeup gain. Additional gain after compression restores
-  loudness before the final peak limiter. Browser automatic gain control is disabled
+  Compression receives the boosted EQ signal to reduce loud peaks and uses the
+  browser compressor's built-in makeup gain. A small additional gain after
+  compression increases loudness before the final peak limiter. Browser automatic gain control is disabled
   to avoid competing volume adjustments. Calls retain browser echo cancellation
   and noise suppression. The local test disables echo cancellation so it does
   not cancel its own playback.

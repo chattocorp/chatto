@@ -249,13 +249,14 @@ look-ahead buffer, saved setting, or external connection is required.
 `MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
 60 Hz high-pass filter at maximum (0 Hz when disabled), pre-EQ headroom gain,
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
-compressor. Each EQ band is bounded to ±6 dB. At full strength, compressor amount maps 0–100
+compressor. Each EQ band is bounded to ±12 dB. At full strength, compressor amount maps 0–100
 to threshold -12…-20 dB and ratio 1.5…3.5, with 15 ms attack and 200 ms release.
 The voice slider scales linearly from neutral at 0 to low-cut 60 Hz,
-EQ +4/+3/+6 dB, compressor threshold -18 dB and ratio 3 at 100. At the
-midpoint the cutoff is 30 Hz, EQ is +2/+1.5/+3 dB, threshold is -9 dB,
-and ratio is 2. A post-compressor gain restores loudness after the pre-EQ
-headroom reduction. It scales from 0 to +11 dB before the final peak limiter;
+EQ +8/+6/+10 dB, compressor threshold -18 dB and ratio 3 at 100. At the
+midpoint the cutoff is 30 Hz, EQ is +4/+3/+5 dB, threshold is -9 dB,
+and ratio is 2. The compressor receives the boosted EQ signal directly;
+pre-EQ attenuation reserves headroom only when compression is disabled.
+Post-compressor gain scales from 0 to +3 dB before the final peak limiter;
 this is a gain-stage setting, not the net output increase. Fractional DSP
 parameters are not rounded. There is no
 saturation branch; ordinary speech must retain its harmonic balance.

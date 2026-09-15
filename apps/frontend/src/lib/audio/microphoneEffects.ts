@@ -25,12 +25,12 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
   return {
     lowCut: raw.lowCut === true,
     equalizer: raw.equalizer === true,
-    bass: bounded(raw.bass, -6, 6, 0),
-    mid: bounded(raw.mid, -6, 6, 0),
-    treble: bounded(raw.treble, -6, 6, 0),
+    bass: bounded(raw.bass, -12, 12, 0),
+    mid: bounded(raw.mid, -12, 12, 0),
+    treble: bounded(raw.treble, -12, 12, 0),
     compressor: raw.compressor === true,
     amount: bounded(raw.amount, 0, 100, 50),
-    outputGain: bounded(raw.outputGain, 0, 12, 0),
+    outputGain: bounded(raw.outputGain, 0, 6, 0),
     strength: bounded(raw.strength, 0, 1, 1),
     polish: bounded(raw.polish, 0, 1, 0)
   };
@@ -47,12 +47,12 @@ export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
   return {
     lowCut: strength > 0,
     equalizer: strength > 0,
-    bass: 4 * strength,
-    mid: 3 * strength,
-    treble: 6 * strength,
+    bass: 8 * strength,
+    mid: 6 * strength,
+    treble: 10 * strength,
     compressor: strength > 0,
     amount: 75,
-    outputGain: 11 * strength,
+    outputGain: 3 * strength,
     strength,
     polish: strength
   };

@@ -79,13 +79,17 @@ export class MicrophoneEffectsGraph {
     set(this.#bass.gain, gains[0]);
     set(this.#mid.gain, gains[1]);
     set(this.#treble.gain, gains[2]);
-    // Reserve the sum of positive boosts before EQ to avoid output clipping.
-    set(this.#headroom.gain, 10 ** (-gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) / 20));
+    // Feed boosted EQ into compression so it controls the added energy. When
+    // compression is bypassed, reserve headroom for stand-alone EQ instead.
+    set(
+      this.#headroom.gain,
+      value.compressor ? 1 : 10 ** (-gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) / 20)
+    );
     set(this.#compressor.threshold, (-12 - value.amount * 0.08) * strength);
     set(this.#compressor.ratio, 1 + (0.5 + value.amount * 0.02) * strength);
     set(this.#dry.gain, value.compressor ? 0 : 1);
     set(this.#wet.gain, value.compressor ? 1 : 0);
-    // Restore loudness lost to pre-EQ headroom. VoicePolish limits final peaks.
+    // A small output lift follows compression; VoicePolish limits final peaks.
     set(this.#makeup.gain, 10 ** ((value.outputGain ?? 0) / 20));
   }
 
