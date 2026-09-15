@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"io"
 	"maps"
+	"mime"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -692,6 +693,117 @@ func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
 	assertSandboxedOriginalAttachment(t, stableResp)
 }
 
+func TestAsset_OriginalDownload(t *testing.T) {
+	for _, backend := range []string{"embedded", "s3"} {
+		t.Run(backend, func(t *testing.T) {
+			var env *assetTestEnv
+			if backend == "s3" {
+				env = setupAssetTestServerWithS3(t)
+			} else {
+				env = setupAssetTestServer(t)
+			}
+			user, err := env.core.CreateUser(env.ctx, "system", "downloaduser", "Download User", "password123")
+			if err != nil {
+				t.Fatal(err)
+			}
+			room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "downloadroom", "Download Room")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+				t.Fatal(err)
+			}
+			env.login(t, "downloaduser", "password123")
+			client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+			for _, filename := range []string{"report.html", "Bericht ü.html", `report; "final".html`} {
+				t.Run(filename, func(t *testing.T) {
+					body := []byte("<!doctype html><h1>Shared document</h1><script>window.__ran=true</script>")
+					_, attachment := env.postAssetMessageWithAttachmentContentType(t, room.Id, "download", body, filename, "text/html; charset=utf-8")
+					assetURL, err := url.Parse(env.server.URL + attachment.GetAssetUrl().GetUrl())
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, mode := range []string{"", "0", "1"} {
+						query := assetURL.Query()
+						query.Set("download", mode)
+						assetURL.RawQuery = query.Encode()
+						resp, err := client.Get(assetURL.String())
+						if err != nil {
+							t.Fatal(err)
+						}
+						got, err := io.ReadAll(resp.Body)
+						resp.Body.Close()
+						if err != nil {
+							t.Fatal(err)
+						}
+						if resp.StatusCode != http.StatusOK || !bytes.Equal(got, body) {
+							t.Fatalf("mode %q: status %d or body mismatch", mode, resp.StatusCode)
+						}
+						assertSandboxedOriginalAttachment(t, resp)
+						if resp.Header.Get("Cache-Control") != protectedAssetCacheControl {
+							t.Fatal("download lost private cache policy")
+						}
+						if mode == "1" {
+							disposition, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+							if err != nil || disposition != "attachment" || params["filename"] != filename {
+								t.Fatalf("invalid download disposition: %q (%v)", resp.Header.Get("Content-Disposition"), err)
+							}
+						} else if resp.Header.Get("Content-Disposition") != "" {
+							t.Fatal("inline response forced a download")
+						}
+					}
+					for _, ticket := range []string{"", "invalid"} {
+						query := assetURL.Query()
+						query.Set("access", ticket)
+						assetURL.RawQuery = query.Encode()
+						resp, err := client.Get(assetURL.String())
+						if err != nil {
+							t.Fatal(err)
+						}
+						resp.Body.Close()
+						if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusUnauthorized {
+							t.Fatalf("unauthorized download status %d", resp.StatusCode)
+						}
+						if resp.Header.Get("Content-Disposition") != "" {
+							t.Fatal("unauthorized response exposes a filename")
+						}
+					}
+				})
+			}
+			// Passive S3 media normally redirects; explicit download must stream.
+			if backend == "s3" {
+				body := []byte("passive audio bytes")
+				_, attachment := env.postAssetMessageWithAttachmentContentType(t, room.Id, "audio download", body, "recording.mp3", "audio/mpeg")
+				resp, err := client.Get(env.server.URL + attachment.GetAssetUrl().GetUrl() + "&download=1")
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, err := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if resp.StatusCode != http.StatusOK || !bytes.Equal(got, body) || resp.Header.Get("Location") != "" {
+					t.Fatal("explicit S3 download did not stream original bytes")
+				}
+			}
+		})
+	}
+}
+
+func TestAttachmentDownloadFilename(t *testing.T) {
+	for _, tc := range []struct{ input, want string }{
+		{"../../report.html", "report.html"},
+		{`C:\folder\report.html`, "report.html"},
+		{"report\r\n.html", "report.html"},
+		{"", "attachment"}, {"..", "attachment"}, {"/", "attachment"},
+	} {
+		if got := attachmentDownloadFilename(tc.input); got != tc.want {
+			t.Errorf("filename = %q, want %q", got, tc.want)
+		}
+	}
+}
+
 func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testing.T) {
 	env := setupAssetTestServerWithS3(t)
 
@@ -927,6 +1039,9 @@ func TestOriginalAttachmentNeedsSandbox(t *testing.T) {
 
 func assertSandboxedOriginalAttachment(t *testing.T, resp *http.Response) {
 	t.Helper()
+	if got := resp.Header.Get("Referrer-Policy"); got != "no-referrer" {
+		t.Fatalf("Referrer-Policy = %q, want no-referrer", got)
+	}
 	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
 	}

@@ -158,7 +158,19 @@
       "view_label": "查看 {filename}",
       "download_label": "下载 {filename}",
       "image_refresh_failed": "无法刷新图片链接",
-      "download_refresh_failed": "无法刷新下载链接"
+      "download_refresh_failed": "无法刷新下载链接",
+      "html_viewer": {
+        "download": "下载",
+        "show_preview": "显示预览",
+        "warning": "此文档可能会从外部网站加载内容。这些网站可以看到你的 IP 地址。",
+        "preview_title": "{filename} 的预览",
+        "preview_failed": "无法加载预览。请重试。",
+        "document_type": "文档类型",
+        "html_document": "HTML 文档",
+        "xhtml_document": "XHTML 文档",
+        "file_size": "文件大小",
+        "unavailable": "无法获取"
+      }
     },
     "link_preview": {
       "delete_title": "删除链接预览",

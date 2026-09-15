@@ -266,7 +266,11 @@ policy uses build-time hashes for the inline startup scripts. It does not allow
 general inline scripts. It allows inline styles because Svelte transitions and
 interactive controls create runtime styles. It permits images, media, and
 connections from HTTP and HTTPS origins because one frontend can connect to
-operator-selected Chatto and LiveKit servers.
+operator-selected Chatto and LiveKit servers. It also permits HTTP and HTTPS
+frames for HTML attachments from registered servers. HTML previews require
+consent on each opening and use an iframe with no sandbox permissions and no
+referrer. The notice before preview loading explains that external document
+resources can reveal the viewer's IP address.
 
 Original attachment responses also set `X-Content-Type-Options: nosniff`. Uploaded active document formats such as HTML, XHTML, SVG, and XML are served with `Content-Security-Policy: sandbox`; S3-backed files of those types stream through Chatto instead of redirecting directly to object storage so that policy is preserved.
 

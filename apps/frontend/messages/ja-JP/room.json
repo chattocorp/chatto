@@ -158,7 +158,19 @@
       "view_label": "{filename}を表示",
       "download_label": "{filename}をダウンロード",
       "image_refresh_failed": "画像リンクを更新できませんでした",
-      "download_refresh_failed": "ダウンロードリンクを更新できませんでした"
+      "download_refresh_failed": "ダウンロードリンクを更新できませんでした",
+      "html_viewer": {
+        "download": "ダウンロード",
+        "show_preview": "プレビューを表示",
+        "warning": "このドキュメントは外部のウェブサイトからコンテンツを読み込む場合があります。これらのウェブサイトにはあなたのIPアドレスが伝わります。",
+        "preview_title": "{filename} のプレビュー",
+        "preview_failed": "プレビューを読み込めませんでした。もう一度お試しください。",
+        "document_type": "ドキュメントの種類",
+        "html_document": "HTMLドキュメント",
+        "xhtml_document": "XHTMLドキュメント",
+        "file_size": "ファイルサイズ",
+        "unavailable": "利用できません"
+      }
     },
     "link_preview": {
       "delete_title": "リンクのプレビューを削除",

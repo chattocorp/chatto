@@ -93,9 +93,32 @@ The official Docker image includes the required ffmpeg tools. Host installs need
   New processed videos use HLS for reliable duration detection, seeking, and adaptive quality on both NATS ObjectStore and S3. Videos processed by older Chatto versions are not backfilled and continue using their MP4 variants; unprocessed NATS-backed video files remain complete, non-seekable responses.
 </Aside>
 
+## HTML Attachments
+
+Select an HTML or XHTML attachment to open its viewer. The viewer shows the
+document type and file size. Select **Download** to
+save the original file. Download does not load the preview.
+
+Select **Show preview** to view the document. Before you select it, Chatto does
+not load the document or its external resources. The notice below the button
+explains that external websites can see your IP address if the document loads
+content from them. Each new opening requires this choice again.
+
+The preview blocks scripts, forms, popups, and access to Chatto's application
+state. Documents that need scripts may not work fully. Download and Close stay
+available outside the preview. Escape closes the viewer when focus is on its
+controls. When focus is inside the document, use Close or press Tab to return
+to the viewer controls first.
+
+API clients can add `download=1` to the original attachment URL. Keep its
+`access` ticket parameter. The server returns the original bytes with a download
+disposition and filename, including for S3 storage.
+
 ## Active Document Safety
 
-Uploaded HTML, XHTML, SVG, XML, and XML-derived active document formats are served with a sandbox policy and `nosniff`. S3-backed active documents stream through Chatto instead of redirecting directly to object storage so the sandbox headers stay in place.
+Uploaded HTML, XHTML, SVG, XML, and XML-derived active document formats are served with a sandbox policy and `nosniff`. S3-backed active documents stream through Chatto instead of redirecting directly to object storage so the sandbox headers stay in place. Active documents also use
+`Referrer-Policy: no-referrer` so resource requests do not disclose their
+ticketed URLs.
 
 ## Related Guides
 

@@ -32,7 +32,7 @@ requireValues('default-src', ["'self'"]);
 requireValues('script-src', ["'self'"]);
 requireValues('style-src', ["'self'", "'unsafe-inline'"]);
 requireValues('worker-src', ["'self'"]);
-requireValues('frame-src', ['https://www.youtube-nocookie.com']);
+requireValues('frame-src', ["'self'", 'http:', 'https:']);
 requireValues('connect-src', ["'self'", 'http:', 'https:', 'ws:', 'wss:']);
 
 if (directives.get('script-src').includes("'unsafe-inline'")) {

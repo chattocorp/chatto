@@ -158,7 +158,19 @@
       "view_label": "Ver {filename}",
       "download_label": "Descargar {filename}",
       "image_refresh_failed": "No se pudo actualizar el enlace de la imagen",
-      "download_refresh_failed": "No se pudo actualizar el enlace de descarga"
+      "download_refresh_failed": "No se pudo actualizar el enlace de descarga",
+      "html_viewer": {
+        "download": "Descargar",
+        "show_preview": "Mostrar vista previa",
+        "warning": "Este documento puede cargar contenido de sitios web externos. Estos sitios pueden ver tu dirección IP.",
+        "preview_title": "Vista previa de {filename}",
+        "preview_failed": "No se pudo cargar la vista previa. Inténtalo de nuevo.",
+        "document_type": "Tipo de documento",
+        "html_document": "Documento HTML",
+        "xhtml_document": "Documento XHTML",
+        "file_size": "Tamaño del archivo",
+        "unavailable": "No disponible"
+      }
     },
     "link_preview": {
       "delete_title": "Eliminar vista previa del enlace",

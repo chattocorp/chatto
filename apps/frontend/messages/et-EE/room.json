@@ -158,7 +158,19 @@
       "view_label": "Kuva {filename}",
       "download_label": "Laadi alla {filename}",
       "image_refresh_failed": "Pildi linki ei saanud värskendada",
-      "download_refresh_failed": "Allalaadimislinki ei saanud värskendada"
+      "download_refresh_failed": "Allalaadimislinki ei saanud värskendada",
+      "html_viewer": {
+        "download": "Laadi alla",
+        "show_preview": "Näita eelvaadet",
+        "warning": "See dokument võib laadida sisu välistelt veebisaitidelt. Need veebisaidid näevad sinu IP-aadressi.",
+        "preview_title": "Faili {filename} eelvaade",
+        "preview_failed": "Eelvaate laadimine ebaõnnestus. Proovi uuesti.",
+        "document_type": "Dokumendi tüüp",
+        "html_document": "HTML-dokument",
+        "xhtml_document": "XHTML-dokument",
+        "file_size": "Faili suurus",
+        "unavailable": "Pole saadaval"
+      }
     },
     "link_preview": {
       "delete_title": "Kustuta lingi eelvaade",

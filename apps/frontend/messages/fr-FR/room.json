@@ -158,7 +158,19 @@
       "view_label": "Afficher {filename}",
       "download_label": "Télécharger {filename}",
       "image_refresh_failed": "Impossible d'actualiser le lien de l'image",
-      "download_refresh_failed": "Impossible d'actualiser le lien de téléchargement"
+      "download_refresh_failed": "Impossible d'actualiser le lien de téléchargement",
+      "html_viewer": {
+        "download": "Télécharger",
+        "show_preview": "Afficher un aperçu",
+        "warning": "Ce document peut charger du contenu provenant de sites web externes. Ces sites peuvent voir ton adresse IP.",
+        "preview_title": "Aperçu de {filename}",
+        "preview_failed": "Impossible de charger l’aperçu. Réessaie.",
+        "document_type": "Type de document",
+        "html_document": "Document HTML",
+        "xhtml_document": "Document XHTML",
+        "file_size": "Taille du fichier",
+        "unavailable": "Indisponible"
+      }
     },
     "link_preview": {
       "delete_title": "Supprimer l'aperçu du lien",

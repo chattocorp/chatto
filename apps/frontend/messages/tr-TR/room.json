@@ -158,7 +158,19 @@
       "view_label": "{filename}'yi görüntüle",
       "download_label": "{filename}'yi indirin",
       "image_refresh_failed": "Resim bağlantısı yenilenemedi",
-      "download_refresh_failed": "İndirme bağlantısı yenilenemedi"
+      "download_refresh_failed": "İndirme bağlantısı yenilenemedi",
+      "html_viewer": {
+        "download": "İndir",
+        "show_preview": "Önizlemeyi göster",
+        "warning": "Bu belge harici web sitelerinden içerik yükleyebilir. Bu web siteleri IP adresini görebilir.",
+        "preview_title": "{filename} önizlemesi",
+        "preview_failed": "Önizleme yüklenemedi. Lütfen tekrar dene.",
+        "document_type": "Belge türü",
+        "html_document": "HTML belgesi",
+        "xhtml_document": "XHTML belgesi",
+        "file_size": "Dosya boyutu",
+        "unavailable": "Kullanılamıyor"
+      }
     },
     "link_preview": {
       "delete_title": "Bağlantı Önizlemesini Sil",
