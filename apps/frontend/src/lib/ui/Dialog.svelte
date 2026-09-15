@@ -17,6 +17,7 @@ labels truncate only after the dialog reaches its viewport limit.
   let {
     children,
     footer,
+    footerDetails,
     visible = $bindable(false),
     title,
     size = 'md',
@@ -25,11 +26,13 @@ labels truncate only after the dialog reaches its viewport limit.
   }: {
     visible?: boolean;
     title?: string;
-    size?: 'sm' | 'md' | 'lg';
+    size?: 'sm' | 'md' | 'lg' | 'xl';
     /** ID of an element that describes the dialog (forwarded to aria-describedby). */
     describedBy?: string;
     children: Snippet;
     footer?: Snippet;
+    /** Optional file or task details beside the fixed footer actions. */
+    footerDetails?: Snippet;
     onclose?: () => void;
   } = $props();
 
@@ -43,6 +46,7 @@ labels truncate only after the dialog reaches its viewport limit.
   // against programmatic or keyboard-synthesized clicks being mistaken for a
   // backdrop dismissal.
   let pressStartedInside = true;
+  let previousFocus: Element | null = null;
 
   // Stable per-instance id for the title (so screen readers announce it
   // when the dialog opens). $props.id() is hydration-safe.
@@ -52,8 +56,20 @@ labels truncate only after the dialog reaches its viewport limit.
   const sizeWidths = {
     sm: '400px',
     md: '600px',
-    lg: '800px'
+    lg: '800px',
+    xl: 'min(90vw, 1440px)'
   };
+
+  // History-backed dialogs can unmount without a native close. Restore the
+  // trigger in that path too, after releasing the browser's modal focus trap.
+  function restoreFocusOnUnmount(node: HTMLDialogElement) {
+    return () => {
+      node.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
+  }
 
   function getDefaultAction(node: ParentNode): HTMLButtonElement | null {
     return node.querySelector<HTMLButtonElement>('button[data-dialog-default]:not([disabled])');
@@ -64,7 +80,10 @@ labels truncate only after the dialog reaches its viewport limit.
     if (visible) {
       closing = false;
       pressStartedInside = true;
-      if (!node.open) node.showModal();
+      if (!node.open) {
+        previousFocus = document.activeElement;
+        node.showModal();
+      }
       // showModal() naturally focuses the first focusable element, which
       // for our layout is the Close (X) button in the header — not what
       // users expect. Move focus to the first form field, falling back
@@ -134,6 +153,7 @@ labels truncate only after the dialog reaches its viewport limit.
 </script>
 
 <dialog
+  {@attach restoreFocusOnUnmount}
   {@attach syncDialogVisibility}
   onclose={handleNativeClose}
   onkeydown={handleKeydown}
@@ -198,7 +218,12 @@ labels truncate only after the dialog reaches its viewport limit.
           ]}
         >
           {#if title}
-            <h2 id={titleId} class="text-xl font-semibold text-balance text-text-top">{title}</h2>
+            <h2
+              id={titleId}
+              class="min-w-0 text-xl font-semibold text-balance wrap-anywhere text-text-top"
+            >
+              <bdi>{title}</bdi>
+            </h2>
           {:else}
             <span></span>
           {/if}
@@ -217,7 +242,14 @@ labels truncate only after the dialog reaches its viewport limit.
         </div>
 
         {#if footer}
-          <footer class="dialog-actions">
+          <footer
+            class={footerDetails
+              ? 'mt-3 flex w-0 min-w-full shrink-0 items-center justify-between gap-4'
+              : 'dialog-actions'}
+          >
+            {#if footerDetails}
+              <div class="min-w-0 flex-1">{@render footerDetails()}</div>
+            {/if}
             {@render footer()}
           </footer>
         {/if}

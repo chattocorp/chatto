@@ -164,7 +164,8 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 //	/assets/files/{assetID}
 //
 // The URL identifies the binary, while the access ticket (or, for API clients,
-// the request's cookie/bearer token) authorizes access.
+// the request's cookie/bearer token) authorizes access. download=1 streams the
+// original with an attachment disposition, including when storage is on S3.
 func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	ctx := c.Request.Context()
 	assetID := c.Param("assetID")
@@ -174,7 +175,8 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 		return
 	}
 
-	if protectedAssetDeliveryMode(attachment) == deliveryS3Redirect {
+	download := c.Query("download") == "1"
+	if !download && protectedAssetDeliveryMode(attachment) == deliveryS3Redirect {
 		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment, core.S3AssetRedirectTTL); err == nil {
 			c.Header("Cache-Control", protectedAssetCacheControl)
 			c.Redirect(http.StatusFound, presignedURL)
@@ -197,6 +199,11 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 		contentType = "application/octet-stream"
 	}
 	setOriginalAttachmentSecurityHeaders(c, contentType)
+	if download {
+		c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{
+			"filename": attachmentDownloadFilename(attachment.GetFilename()),
+		}))
+	}
 
 	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
@@ -209,10 +216,29 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 
 const originalAttachmentSandboxCSP = "sandbox"
 
+// attachmentDownloadFilename removes path components and control characters
+// before the MIME encoder quotes or encodes the user-supplied filename.
+func attachmentDownloadFilename(filename string) string {
+	filename = filepath.Base(strings.ReplaceAll(filename, "\\", "/"))
+	filename = strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, filename)
+	if filename == "" || filename == "." || filename == ".." || filename == "/" {
+		return "attachment"
+	}
+	return filename
+}
+
 func setOriginalAttachmentSecurityHeaders(c *gin.Context, contentType string) {
 	c.Header("X-Content-Type-Options", "nosniff")
 	if originalAttachmentNeedsSandbox(contentType) {
 		c.Header("Content-Security-Policy", originalAttachmentSandboxCSP)
+		// The document may load external resources after preview consent. Do not
+		// expose its ticketed URL through those requests' Referer headers.
+		c.Header("Referrer-Policy", "no-referrer")
 	}
 }
 

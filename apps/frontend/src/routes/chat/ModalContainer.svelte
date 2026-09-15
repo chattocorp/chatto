@@ -4,6 +4,7 @@
   import AboutChattoModal from './modals/AboutChattoModal.svelte';
   import DeleteMessageContentModal from './modals/DeleteMessageContentModal.svelte';
   import ImageViewerModal from './modals/ImageViewerModal.svelte';
+  import HtmlViewerModal from './modals/HtmlViewerModal.svelte';
   import LeaveRoomModal from './modals/LeaveRoomModal.svelte';
   import RemoveServerModal from './modals/RemoveServerModal.svelte';
   import SignOutDialog from './SignOutDialog.svelte';
@@ -32,6 +33,8 @@
       <DeleteMessageContentModal {modal} onclose={closeModal} />
     {:else if modal.type === 'imageViewer'}
       <ImageViewerModal {modal} onclose={closeModal} />
+    {:else if modal.type === 'htmlViewer'}
+      <HtmlViewerModal {modal} onclose={closeModal} />
     {/if}
   {/key}
 {/if}

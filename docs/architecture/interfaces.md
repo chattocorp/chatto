@@ -265,6 +265,14 @@ complete object. NATS-backed video is therefore not seekable. Passive S3-backed
 media redirects after authorization to a presigned object URL whose storage
 backend provides byte-range delivery.
 
+`GET /assets/files/{assetId}?download=1` forces an original-file download. It
+uses the same access ticket or authenticated credentials and current read
+checks as the inline response. Chatto streams this mode on both storage
+backends and sets `Content-Disposition: attachment` with the stored filename,
+with path components and control characters removed and MIME encoding applied.
+It preserves the private cache policy, `nosniff`, and active-document sandbox
+headers. The optional query parameter does not change stored data or tickets.
+
 Processed videos can instead expose HLS. Six-second MPEG-TS segments make
 seeking and adaptive rendition switching independent of byte-range support.
 HLS child responses remain behind Chatto so membership loss revokes an already
