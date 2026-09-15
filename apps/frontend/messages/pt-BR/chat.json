@@ -88,21 +88,22 @@
         "error": "Não foi possível carregar as permissões deste bot.",
         "inactive_title": "Permissões inativas",
         "inactive_note": "Estas permissões estão salvas, mas as permissões atuais do proprietário não as permitem.",
-        "allowed": "Pode: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Ler todas as mensagens",
         "interactions": "Ler tópicos que criou ou onde foi mencionado diretamente",
         "post": "Publicar novas mensagens",
         "room": "#{name}",
         "group": "Grupo: {name}",
-        "dm": "Mensagens diretas de que participa",
+        "dm": "Suas mensagens diretas",
         "joined_rooms": "Salas em que entrou",
-        "all_rooms": "Todas as salas de canais",
+        "all_rooms": "Salas",
         "server": "Este servidor",
         "more": "Mostrar mais permissões",
-        "list_rooms": "Ver salas no diretório",
+        "list_rooms": "Explorar salas",
         "echo": "Mostrar respostas de tópicos na linha do tempo da sala",
-        "start_calls": "Iniciar chamadas"
+        "start_calls": "Iniciar chamadas",
+        "browse_join": "Explorar e entrar em salas",
+        "reply": "Responder em tópicos",
+        "manage_messages": "Gerenciar mensagens"
       }
     }
   }

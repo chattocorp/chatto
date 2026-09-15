@@ -88,21 +88,22 @@
         "error": "Kunne ikke laste botens tillatelser.",
         "inactive_title": "Inaktive tillatelser",
         "inactive_note": "Disse tillatelsene er lagret, men eierens gjeldende tillatelser tillater dem ikke.",
-        "allowed": "Kan: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Lese alle meldinger",
         "interactions": "Lese tråder den har opprettet eller der den er nevnt direkte",
         "post": "Sende nye meldinger",
         "room": "#{name}",
         "group": "Gruppe: {name}",
-        "dm": "Direktemeldinger den deltar i",
+        "dm": "Dets direktemeldinger",
         "joined_rooms": "Rom den har blitt med i",
-        "all_rooms": "Alle kanalrom",
+        "all_rooms": "Rom",
         "server": "Denne serveren",
         "more": "Vis flere tillatelser",
-        "list_rooms": "Se rom i katalogen",
+        "list_rooms": "Bla gjennom rom",
         "echo": "Vise trådsvar i rommets tidslinje",
-        "start_calls": "Starte samtaler"
+        "start_calls": "Starte samtaler",
+        "browse_join": "Bla gjennom og bli med i rom",
+        "reply": "Svare i tråder",
+        "manage_messages": "Administrere meldinger"
       }
     }
   }

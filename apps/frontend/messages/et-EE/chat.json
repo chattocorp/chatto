@@ -88,21 +88,22 @@
         "error": "Selle boti õigusi ei saanud laadida.",
         "inactive_title": "Mitteaktiivsed õigused",
         "inactive_note": "Need õigused on salvestatud, kuid omaniku praegused õigused ei luba neid.",
-        "allowed": "Saab: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Lugeda kõiki sõnumeid",
         "interactions": "Lugeda lõimi, mille ta lõi või kus teda otse mainiti",
         "post": "Saata uusi sõnumeid",
         "room": "#{name}",
         "group": "Rühm: {name}",
-        "dm": "Otsesõnumid, milles ta osaleb",
+        "dm": "Tema otsesõnumid",
         "joined_rooms": "Ruumid, millega ta on liitunud",
-        "all_rooms": "Kõik kanaliruumid",
+        "all_rooms": "Ruumid",
         "server": "See server",
         "more": "Näita rohkem õigusi",
-        "list_rooms": "Näha ruume kataloogis",
+        "list_rooms": "Sirvida ruume",
         "echo": "Näidata lõimede vastuseid ruumi ajajoonel",
-        "start_calls": "Alustada kõnesid"
+        "start_calls": "Alustada kõnesid",
+        "browse_join": "Sirvida ruume ja nendega liituda",
+        "reply": "Vastata lõimedes",
+        "manage_messages": "Hallata sõnumeid"
       }
     }
   }

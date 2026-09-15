@@ -6,8 +6,13 @@ while mounted and discards cached data when the profile closes. -->
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { HelpTooltip } from '$lib/ui';
   import { Button } from '$lib/ui/form';
-  import { botPermissionText, mergeBotPermissionPages } from './botPermissionText';
+  import {
+    groupBotPermissions,
+    mergeBotPermissionPages,
+    type BotPermissionGroup
+  } from './botPermissionText';
 
   let { botId }: { botId: string } = $props();
   const scope = useServerScope();
@@ -32,36 +37,47 @@ while mounted and discards cached data when the profile closes. -->
     () => queryClient
   );
   const entries = $derived(mergeBotPermissionPages(query.data?.pages ?? []));
-  const active = $derived(entries.filter((entry) => entry.active));
-  const inactive = $derived(entries.filter((entry) => !entry.active));
+  const active = $derived(groupBotPermissions(entries.filter((entry) => entry.active)));
+  const inactive = $derived(groupBotPermissions(entries.filter((entry) => !entry.active)));
 </script>
 
+{#snippet permissionGroups(groups: BotPermissionGroup[])}
+  {#each groups as group (group.id)}
+    <div class="space-y-1">
+      <h4 class="break-words font-medium"><bdi>{group.label}</bdi></h4>
+      <ul class="list-disc space-y-1 ps-5">
+        {#each group.actions as action (action.id)}
+          <li class="break-words">{action.text}</li>
+        {/each}
+      </ul>
+    </div>
+  {/each}
+{/snippet}
+
 <section class="mt-6 space-y-3" aria-label={m('chat.profile.permissions.title')}>
-  <h3 class="font-semibold text-text-top">{m('chat.profile.permissions.title')}</h3>
+  <div class="flex items-center gap-2">
+    <h3 class="font-semibold text-text-top">{m('chat.profile.permissions.title')}</h3>
+    <HelpTooltip>{m('chat.profile.permissions.note')}</HelpTooltip>
+  </div>
   {#if query.isError}
     <p role="alert" class="text-muted">{m('chat.profile.permissions.error')}</p>
     <Button variant="secondary" onclick={() => query.refetch()}>{m('common.retry')}</Button>
   {:else if query.isPending}
     <p class="text-muted" aria-busy="true">{m('common.loading')}</p>
   {:else}
-    <p class="text-muted">{m('chat.profile.permissions.note')}</p>
     {#if active.length > 0}
-      <ul class="list-disc space-y-2 ps-5">
-        {#each active as entry (`${entry.permission}:${entry.scope}:${entry.scopeId}`)}
-          <li class="break-words">{botPermissionText(entry)}</li>
-        {/each}
-      </ul>
+      {@render permissionGroups(active)}
     {:else if !query.hasNextPage}
       <p class="text-muted">{m('chat.profile.permissions.empty')}</p>
     {/if}
     {#if inactive.length > 0}
-      <h4 class="font-medium">{m('chat.profile.permissions.inactive_title')}</h4>
-      <p class="text-muted">{m('chat.profile.permissions.inactive_note')}</p>
-      <ul class="list-disc space-y-2 ps-5 text-muted">
-        {#each inactive as entry (`${entry.permission}:${entry.scope}:${entry.scopeId}`)}
-          <li class="break-words">{botPermissionText(entry)}</li>
-        {/each}
-      </ul>
+      <details class="space-y-3 text-muted">
+        <summary class="cursor-pointer font-medium"
+          >{m('chat.profile.permissions.inactive_title')}</summary
+        >
+        <p>{m('chat.profile.permissions.inactive_note')}</p>
+        {@render permissionGroups(inactive)}
+      </details>
     {/if}
     {#if query.hasNextPage}
       <Button

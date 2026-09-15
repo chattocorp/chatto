@@ -88,21 +88,22 @@
         "error": "De machtigingen van deze bot konden niet worden geladen.",
         "inactive_title": "Inactieve machtigingen",
         "inactive_note": "Deze machtigingen zijn opgeslagen, maar de huidige machtigingen van de eigenaar staan ze niet toe.",
-        "allowed": "Kan: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Alle berichten lezen",
         "interactions": "Threads lezen die hij heeft gemaakt of waarin hij rechtstreeks is vermeld",
         "post": "Nieuwe berichten plaatsen",
         "room": "#{name}",
         "group": "Groep: {name}",
-        "dm": "Directe berichten waaraan hij deelneemt",
+        "dm": "Zijn privéberichten",
         "joined_rooms": "Ruimtes waarvan hij lid is",
-        "all_rooms": "Alle kanaalruimtes",
+        "all_rooms": "Ruimtes",
         "server": "Deze server",
         "more": "Meer machtigingen tonen",
-        "list_rooms": "Ruimtes in de lijst zien",
+        "list_rooms": "Ruimtes bekijken",
         "echo": "Threadantwoorden in de ruimtetijdlijn tonen",
-        "start_calls": "Gesprekken starten"
+        "start_calls": "Gesprekken starten",
+        "browse_join": "Ruimtes bekijken en deelnemen",
+        "reply": "Antwoorden in threads",
+        "manage_messages": "Berichten beheren"
       }
     }
   }

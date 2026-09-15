@@ -88,21 +88,22 @@
         "error": "No se pudieron cargar los permisos de este bot.",
         "inactive_title": "Permisos inactivos",
         "inactive_note": "Estos permisos están guardados, pero los permisos actuales del propietario no los permiten.",
-        "allowed": "Puede: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Leer todos los mensajes",
         "interactions": "Leer hilos que creó o donde se le mencionó directamente",
         "post": "Publicar mensajes nuevos",
         "room": "#{name}",
         "group": "Grupo: {name}",
-        "dm": "Mensajes directos en los que participa",
+        "dm": "Sus mensajes directos",
         "joined_rooms": "Salas a las que se ha unido",
-        "all_rooms": "Todas las salas de canales",
+        "all_rooms": "Salas",
         "server": "Este servidor",
         "more": "Mostrar más permisos",
-        "list_rooms": "Ver salas en el directorio",
+        "list_rooms": "Explorar salas",
         "echo": "Mostrar respuestas de hilos en la cronología de la sala",
-        "start_calls": "Iniciar llamadas"
+        "start_calls": "Iniciar llamadas",
+        "browse_join": "Explorar y unirse a salas",
+        "reply": "Responder en hilos",
+        "manage_messages": "Administrar mensajes"
       }
     }
   }

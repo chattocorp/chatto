@@ -17,12 +17,15 @@ exercise more authority than its human owner currently possesses.
   authority is applied. Channel rooms and direct messages have separate
   descriptions. Message and call actions still require membership and other
   action-specific conditions.
+- Actions appear as short bullets under scope headings. Room browsing and
+  joining share one bullet when both apply to the same scope. An info tooltip
+  explains membership and other action requirements.
 - The summary combines broader and narrower grants only when every applicable
   narrower scope has the same effective access. It omits permissions already
   included by another displayed permission. Named rooms follow the viewer's
   normal room visibility. No DM participants or credential details are exposed.
-- Bot owners and authorised human bot managers also see inactive grants, with
-  an explanation that the owner's current permissions do not allow them.
+- Bot owners and authorised human bot managers can expand **Inactive grants** to see saved
+  grants that are not active, with an explanation that the owner's current permissions do not allow them.
   Other members cannot see inactive grants.
 - The summary refreshes every 30 seconds while the pane is open. A failed read
   shows an error instead of stale grants. Long summaries have a control to

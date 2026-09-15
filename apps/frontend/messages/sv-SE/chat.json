@@ -88,21 +88,22 @@
         "error": "Det gick inte att läsa in botens behörigheter.",
         "inactive_title": "Inaktiva behörigheter",
         "inactive_note": "Dessa behörigheter är sparade, men ägarens aktuella behörigheter tillåter dem inte.",
-        "allowed": "Kan: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Läsa alla meddelanden",
         "interactions": "Läsa trådar som den har skapat eller där den har nämnts direkt",
         "post": "Skicka nya meddelanden",
         "room": "#{name}",
         "group": "Grupp: {name}",
-        "dm": "Direktmeddelanden som den deltar i",
+        "dm": "Dess direktmeddelanden",
         "joined_rooms": "Rum som den har gått med i",
-        "all_rooms": "Alla kanalrum",
+        "all_rooms": "Rum",
         "server": "Den här servern",
         "more": "Visa fler behörigheter",
-        "list_rooms": "Se rum i katalogen",
+        "list_rooms": "Bläddra bland rum",
         "echo": "Visa trådsvar i rummets tidslinje",
-        "start_calls": "Starta samtal"
+        "start_calls": "Starta samtal",
+        "browse_join": "Bläddra bland och gå med i rum",
+        "reply": "Svara i trådar",
+        "manage_messages": "Hantera meddelanden"
       }
     }
   }

@@ -88,21 +88,22 @@
         "error": "Bu botun izinleri yüklenemedi.",
         "inactive_title": "Etkin olmayan izinler",
         "inactive_note": "Bu izinler kayıtlı, ancak sahibinin mevcut izinleri bunlara izin vermiyor.",
-        "allowed": "Yapabilir: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Tüm mesajları okuma",
         "interactions": "Oluşturduğu veya doğrudan bahsedildiği konuları okuma",
         "post": "Yeni mesajlar gönderme",
         "room": "#{name}",
         "group": "Grup: {name}",
-        "dm": "Katıldığı doğrudan mesajlar",
+        "dm": "Kendi doğrudan mesajları",
         "joined_rooms": "Katıldığı odalar",
-        "all_rooms": "Tüm kanal odaları",
+        "all_rooms": "Odalar",
         "server": "Bu sunucu",
         "more": "Daha fazla izin göster",
-        "list_rooms": "Dizindeki odaları görme",
+        "list_rooms": "Odaları keşfet",
         "echo": "Konu yanıtlarını oda zaman akışında gösterme",
-        "start_calls": "Arama başlatma"
+        "start_calls": "Arama başlatma",
+        "browse_join": "Odaları keşfet ve katıl",
+        "reply": "Konularda yanıt ver",
+        "manage_messages": "Mesajları yönet"
       }
     }
   }

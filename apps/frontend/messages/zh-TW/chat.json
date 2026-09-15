@@ -88,21 +88,22 @@
         "error": "無法載入此機器人的權限。",
         "inactive_title": "未生效的授權",
         "inactive_note": "這些授權已儲存，但擁有者目前的權限不允許使用。",
-        "allowed": "可以：{action} — {scope}。",
-        "inactive": "{action} — {scope}。",
         "read": "讀取所有訊息",
         "interactions": "讀取它建立的或被直接提及的討論串",
         "post": "發布新訊息",
         "room": "#{name}",
         "group": "群組：{name}",
-        "dm": "它參與的私人訊息",
+        "dm": "它參與的私訊",
         "joined_rooms": "它已加入的房間",
-        "all_rooms": "所有頻道房間",
+        "all_rooms": "房間",
         "server": "此伺服器",
         "more": "顯示更多權限",
-        "list_rooms": "查看目錄中的房間",
+        "list_rooms": "瀏覽房間",
         "echo": "在房間時間軸中顯示討論串回覆",
-        "start_calls": "發起通話"
+        "start_calls": "發起通話",
+        "browse_join": "瀏覽並加入房間",
+        "reply": "在討論串中回覆",
+        "manage_messages": "管理訊息"
       }
     }
   }

@@ -88,21 +88,22 @@
         "error": "このボットの権限を読み込めませんでした。",
         "inactive_title": "無効な権限",
         "inactive_note": "これらの権限は保存されていますが、所有者の現在の権限では許可されていません。",
-        "allowed": "許可：{action} — {scope}。",
-        "inactive": "{action} — {scope}。",
         "read": "すべてのメッセージを読む",
         "interactions": "自分が作成したスレッドや直接メンションされたスレッドを読む",
         "post": "新しいメッセージを投稿する",
         "room": "#{name}",
         "group": "グループ：{name}",
-        "dm": "参加しているダイレクトメッセージ",
+        "dm": "参加中のダイレクトメッセージ",
         "joined_rooms": "参加しているルーム",
-        "all_rooms": "すべてのチャンネルルーム",
+        "all_rooms": "ルーム",
         "server": "このサーバー",
         "more": "さらに権限を表示",
-        "list_rooms": "ディレクトリでルームを表示する",
+        "list_rooms": "ルームを探す",
         "echo": "スレッドの返信をルームのタイムラインに表示する",
-        "start_calls": "通話を開始する"
+        "start_calls": "通話を開始する",
+        "browse_join": "ルームを探して参加",
+        "reply": "スレッドで返信",
+        "manage_messages": "メッセージを管理"
       }
     }
   }

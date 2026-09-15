@@ -88,21 +88,22 @@
         "error": "Neizdevās ielādēt šī bota atļaujas.",
         "inactive_title": "Neaktīvas atļaujas",
         "inactive_note": "Šīs atļaujas ir saglabātas, bet īpašnieka pašreizējās atļaujas tās nepieļauj.",
-        "allowed": "Var: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Lasīt visus ziņojumus",
         "interactions": "Lasīt pavedienus, kurus tas izveidojis vai kuros tas tieši pieminēts",
         "post": "Sūtīt jaunus ziņojumus",
         "room": "#{name}",
         "group": "Grupa: {name}",
-        "dm": "Tiešie ziņojumi, kuros tas piedalās",
+        "dm": "Tā tiešie ziņojumi",
         "joined_rooms": "Istabas, kurām tas pievienojies",
-        "all_rooms": "Visas kanālu istabas",
+        "all_rooms": "Telpas",
         "server": "Šis serveris",
         "more": "Rādīt vairāk atļauju",
-        "list_rooms": "Redzēt istabas katalogā",
+        "list_rooms": "Pārlūkot telpas",
         "echo": "Rādīt pavedienu atbildes istabas laika skalā",
-        "start_calls": "Sākt zvanus"
+        "start_calls": "Sākt zvanus",
+        "browse_join": "Pārlūkot telpas un pievienoties tām",
+        "reply": "Atbildēt pavedienos",
+        "manage_messages": "Pārvaldīt ziņojumus"
       }
     }
   }

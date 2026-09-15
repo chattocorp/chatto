@@ -88,21 +88,22 @@
         "error": "Could not load this bot’s permissions.",
         "inactive_title": "Inactive grants",
         "inactive_note": "These grants are saved, but the owner’s current permissions do not allow them.",
-        "allowed": "Can {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Read all messages",
         "interactions": "Read threads it authored or where it was directly mentioned",
         "post": "Post new messages",
         "room": "#{name}",
         "group": "Group: {name}",
-        "dm": "Direct messages it belongs to",
+        "dm": "Its direct messages",
         "joined_rooms": "Rooms it has joined",
-        "all_rooms": "All channel rooms",
+        "all_rooms": "Rooms",
         "server": "This server",
         "more": "Show more permissions",
-        "list_rooms": "See rooms in the directory",
+        "list_rooms": "Browse rooms",
         "echo": "Show thread replies in the room timeline",
-        "start_calls": "Start calls"
+        "start_calls": "Start calls",
+        "browse_join": "Browse and join rooms",
+        "reply": "Reply in threads",
+        "manage_messages": "Manage messages"
       }
     }
   }

@@ -88,21 +88,22 @@
         "error": "Die Berechtigungen dieses Bots konnten nicht geladen werden.",
         "inactive_title": "Inaktive Freigaben",
         "inactive_note": "Diese Freigaben sind gespeichert, aber die aktuellen Berechtigungen des Besitzers lassen sie nicht zu.",
-        "allowed": "Darf: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Alle Nachrichten lesen",
         "interactions": "Threads lesen, die er erstellt hat oder in denen er direkt erwähnt wurde",
         "post": "Neue Nachrichten posten",
         "room": "#{name}",
         "group": "Gruppe: {name}",
-        "dm": "Direktnachrichten, an denen er teilnimmt",
+        "dm": "Seine Direktnachrichten",
         "joined_rooms": "Räume, denen er beigetreten ist",
-        "all_rooms": "Alle Kanalräume",
+        "all_rooms": "Räume",
         "server": "Dieser Server",
         "more": "Weitere Berechtigungen anzeigen",
-        "list_rooms": "Räume im Verzeichnis sehen",
+        "list_rooms": "Räume finden",
         "echo": "Thread-Antworten im Raumverlauf anzeigen",
-        "start_calls": "Anrufe starten"
+        "start_calls": "Anrufe starten",
+        "browse_join": "Räume finden und beitreten",
+        "reply": "In Threads antworten",
+        "manage_messages": "Nachrichten verwalten"
       }
     }
   }

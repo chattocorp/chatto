@@ -88,21 +88,22 @@
         "error": "Nie udało się wczytać uprawnień tego bota.",
         "inactive_title": "Nieaktywne uprawnienia",
         "inactive_note": "Te uprawnienia są zapisane, ale obecne uprawnienia właściciela na nie nie pozwalają.",
-        "allowed": "Może: {action} — {scope}.",
-        "inactive": "{action} — {scope}.",
         "read": "Czytać wszystkie wiadomości",
         "interactions": "Czytać wątki, które utworzył lub w których został bezpośrednio wspomniany",
         "post": "Wysyłać nowe wiadomości",
         "room": "#{name}",
         "group": "Grupa: {name}",
-        "dm": "Wiadomości bezpośrednie, w których uczestniczy",
+        "dm": "Jego wiadomości bezpośrednie",
         "joined_rooms": "Pokoje, do których dołączył",
-        "all_rooms": "Wszystkie pokoje kanałów",
+        "all_rooms": "Pokoje",
         "server": "Ten serwer",
         "more": "Pokaż więcej uprawnień",
-        "list_rooms": "Widzieć pokoje w katalogu",
+        "list_rooms": "Przeglądać pokoje",
         "echo": "Pokazywać odpowiedzi w wątkach na osi czasu pokoju",
-        "start_calls": "Rozpoczynać rozmowy"
+        "start_calls": "Rozpoczynać rozmowy",
+        "browse_join": "Przeglądać pokoje i dołączać do nich",
+        "reply": "Odpowiadać w wątkach",
+        "manage_messages": "Zarządzać wiadomościami"
       }
     }
   }
