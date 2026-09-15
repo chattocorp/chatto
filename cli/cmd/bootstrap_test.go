@@ -162,6 +162,7 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 		Bots: []config.BootstrapBot{{
 			Login:              "test_bot",
 			DisplayName:        "TestBot",
+			Bio:                "A **development** assistant.",
 			OwnerLogin:         "alice",
 			APIKeyName:         "Local development",
 			CredentialFile:     credentialFile,
@@ -179,6 +180,9 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 	bot, err := c.GetUserByLogin(ctx, "test_bot")
 	if err != nil {
 		t.Fatalf("get bootstrap bot: %v", err)
+	}
+	if bot.GetBio() != "A **development** assistant." {
+		t.Fatal("bootstrap bot bio was not saved")
 	}
 	if !bot.GetIsBot() {
 		t.Fatal("expected test_bot to be a bot account")
@@ -226,7 +230,15 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 	applyBootstrap(ctx, c, config.BootstrapConfig{Bots: []config.BootstrapBot{{
 		Login: "test_bot", OwnerLogin: "alice", CredentialFile: credentialFile,
 		OutboundWebhookURL: "http://localhost:5003/api/runs/start/chatto",
+		Bio:                "Changed bootstrap bio",
 	}}})
+	botAfter, err := c.GetUserByLogin(ctx, "test_bot")
+	if err != nil {
+		t.Fatalf("get bot after later bootstrap: %v", err)
+	}
+	if botAfter.GetBio() != bot.GetBio() {
+		t.Fatal("later bootstrap changed the existing bio")
+	}
 	after, err := c.ListBotOutboundWebhooks(ctx, owner.GetId(), bot.GetId())
 	if err != nil || len(after) != 1 || after[0].ID != webhooks[0].ID || after[0].URL != webhooks[0].URL {
 		t.Fatal("later bootstrap changed the existing endpoint")

@@ -152,6 +152,12 @@ func applyBootstrapBot(ctx context.Context, logger *log.Logger, c *core.ChattoCo
 	}
 
 	configured := true
+	if spec.Bio != "" {
+		if _, err := c.AdminUpdateUserProfile(ctx, bot.User.GetId(), nil, nil, &spec.Bio); err != nil {
+			configured = false
+			logger.Error("Failed to set [bootstrap] bot bio", "user_id", bot.User.GetId())
+		}
+	}
 	for _, permission := range spec.Permissions {
 		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.Permission(permission), core.PermissionStateAllow); err != nil {
 			configured = false

@@ -132,3 +132,13 @@
     </RoomGroupSection>
   </div>
 </Story>
+
+<Story name="Profile content" asChild>
+  <div class="w-64 bg-background">
+    <RoomGroupSection label="Bio" items={[]} persistKey="storybook:profile-bio" separated>
+      {#snippet content()}
+        <p class="px-1 py-2">I build chat software and help with development.</p>
+      {/snippet}
+    </RoomGroupSection>
+  </div>
+</Story>

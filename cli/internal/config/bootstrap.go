@@ -36,6 +36,7 @@ func (u BootstrapUser) RoleOrDefault() string {
 // bootstrap-tag builds. The bootstrap writes the show-once API key to
 // CredentialFile with owner-only access. Release builds ignore this data.
 type BootstrapBot struct {
+	Bio                string   `toml:"bio,commented" comment:"Optional public Markdown bio. Applied only on first boot."`
 	Login              string   `toml:"login" comment:"Required. The bot's login name."`
 	DisplayName        string   `toml:"display_name,commented" comment:"Defaults to Login if empty."`
 	OwnerLogin         string   `toml:"owner_login" comment:"Required. Login name of a bootstrapped human owner."`

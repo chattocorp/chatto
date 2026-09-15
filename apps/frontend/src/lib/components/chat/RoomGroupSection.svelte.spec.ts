@@ -36,6 +36,28 @@ describe('RoomGroupSection', () => {
     expect(localStorage.getItem(persistKey)).toBe('1');
   });
 
+  it('keeps free-form content mounted and inert while collapsed', async () => {
+    const { container } = render(RoomGroupSection, {
+      props: {
+        label: 'Bio',
+        items: [],
+        content: testSnippet('<p data-testid="bio-content">Development assistant</p>'),
+        persistKey: 'test:room-group-section:content',
+        testid: 'bio-toggle'
+      }
+    });
+    const content = q(container, '[data-testid="bio-content"]');
+    const toggle = q(container, '[data-testid="bio-toggle"]');
+    toggle?.click();
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(q(container, '[data-testid="bio-content"]')).toBe(content);
+    expect(content?.closest('[inert]')).not.toBeNull();
+    toggle?.click();
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(q(container, '[data-testid="bio-content"]')).toBe(content);
+    expect(content?.closest('[inert]')).toBeNull();
+  });
+
   it('draws a full-width divider when it follows another room group', () => {
     const { container } = render(RoomGroupSection, {
       props: {

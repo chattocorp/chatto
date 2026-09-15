@@ -67,6 +67,8 @@ func bootstrapBotsFromEnv() ([]BootstrapBot, bool, error) {
 			bot.Login = value
 		case "DISPLAY_NAME":
 			bot.DisplayName = value
+		case "BIO":
+			bot.Bio = value
 		case "OWNER_LOGIN":
 			bot.OwnerLogin = value
 		case "API_KEY_NAME":
