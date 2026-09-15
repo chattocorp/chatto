@@ -49,12 +49,18 @@ it('gates a real LiveKit track, updates thresholds, restarts, and releases only 
     expect(peak()).toBe(0);
     processor.setThreshold(-60);
     await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.001));
+    await local.mute();
+    await vi.waitFor(() => expect(peak()).toBe(0));
+    await local.unmute();
+    await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.001));
+    expect(local.isMuted).toBe(false);
     processor.setThreshold(-20);
     await vi.waitFor(() => expect(peak()).toBe(0));
     worklet.dispatchEvent(
       new ErrorEvent('processorerror', { message: 'Synthetic worklet failure' })
     );
     expect(processor.unavailable).toBe(true);
+    await vi.waitFor(() => expect(processor.level).toBeGreaterThan(0));
     await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.001));
     const old = processor.processedTrack!;
     await processor.restart({ track, audioContext: context, kind: Track.Kind.Audio });
@@ -84,6 +90,7 @@ it.each(['missing API', 'module failure'])(
     try {
       await processor.init({ track, audioContext: context, kind: Track.Kind.Audio });
       expect(processor.unavailable).toBe(true);
+      await vi.waitFor(() => expect(processor.level).toBeGreaterThan(0));
       expect(processor.processedTrack).toBe(track);
       await processor.destroy();
       expect(track.readyState).toBe('live');

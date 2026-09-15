@@ -222,8 +222,8 @@ Calls attach the processor after LiveKit assigns its audio context. The
 processor owns its output tracks and graph; LiveKit or the test owns the
 input and context. Device restarts rebuild the graph. Permanent disposal
 rejects queued initialization after call or page exit. Module or processor
-failure preserves ordinary audio. The existing analyser remains a fallback
-when processing cannot start. The worklet asset comes from the frontend
+failure preserves ordinary audio. The processor owns an analyser fallback when the worklet cannot run, so
+call state does not create a separate audio context or sampling path. The worklet asset comes from the frontend
 origin and sends only input levels to the UI, with no external connection.
 
 The settings page owns `CallDeviceTest`. Explicit capture feeds the shared

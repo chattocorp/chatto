@@ -275,13 +275,6 @@ export class VoiceCallState {
   private audioLevelCache = new Map<string, AudioLevelInfo>();
 
   // Local microphone audio analysis (Web Audio API) for instant level feedback.
-  // LiveKit's audioLevel for the local participant comes from the server
-  // (round-trip latency), so we read the mic input directly instead.
-  private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private analyserSource: MediaStreamAudioSourceNode | null = null;
-  private analyserData: Float32Array<ArrayBuffer> | null = null;
-
   private microphoneProcessor: MicrophoneProcessor | null = null;
   /** Pre-gate level for the settings meter; zero while muted. */
   microphoneLevel = $state(0);
@@ -332,7 +325,6 @@ export class VoiceCallState {
         await room.localParticipant.setMicrophoneEnabled(false);
         if (this.room !== room) return;
         this.isMuted = true;
-        this.teardownLocalAudioAnalyser();
       }
       if (!this.canUseCamera) {
         await room.localParticipant.setCameraEnabled(false);
@@ -569,7 +561,7 @@ export class VoiceCallState {
           );
           if (this.room === room) {
             this.isMuted = false;
-            await this.setupLocalAudioAnalyser();
+            await this.setupMicrophoneProcessor();
           }
         } catch (err) {
           if (this.room === room) {
@@ -736,9 +728,7 @@ export class VoiceCallState {
     this.isMuted = newMuted;
 
     if (!newMuted) {
-      await this.setupLocalAudioAnalyser();
-    } else {
-      this.teardownLocalAudioAnalyser();
+      await this.setupMicrophoneProcessor();
     }
 
     this.updateParticipants();
@@ -1080,9 +1070,9 @@ export class VoiceCallState {
       return;
     }
 
-    // Reconnect analyser to the new mic track
+    // Attach processing if the device change created a new local track.
     if (!this.isMuted) {
-      await this.setupLocalAudioAnalyser();
+      await this.setupMicrophoneProcessor();
     }
   }
 
@@ -1317,11 +1307,7 @@ export class VoiceCallState {
     if (this.microphoneProcessor)
       this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
     const localAudioLevel = this.getLocalAudioLevel();
-    this.microphoneLevel = this.isMuted
-      ? 0
-      : microphoneMeter(
-          this.microphoneProcessor?.active ? this.microphoneProcessor.level : localAudioLevel / 2
-        );
+    this.microphoneLevel = this.isMuted ? 0 : microphoneMeter(this.microphoneProcessor?.level ?? 0);
 
     const allParticipants: Participant[] = [
       this.room.localParticipant,
@@ -1341,10 +1327,9 @@ export class VoiceCallState {
 
   /**
    * Attach optional processing after LiveKit assigns the audio context.
-   * Use the existing input analyser only when processing is unavailable.
+   * The processor also owns the input meter and its analyser fallback.
    */
-  private async setupLocalAudioAnalyser(): Promise<void> {
-    this.teardownLocalAudioAnalyser();
+  private async setupMicrophoneProcessor(): Promise<void> {
     const room = this.room;
     const processor = this.microphoneProcessor;
     if (!room) return;
@@ -1361,58 +1346,12 @@ export class VoiceCallState {
       }
       if (this.room !== room || this.isMuted) return;
       this.microphoneGateUnavailable = processor.unavailable;
-      if (processor.active) return;
-    }
-    const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
-    if (!mediaStreamTrack) return;
-
-    try {
-      this.audioContext = new AudioContext();
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.analyserData = new Float32Array(this.analyser.fftSize) as Float32Array<ArrayBuffer>;
-
-      const stream = new MediaStream([mediaStreamTrack]);
-      this.analyserSource = this.audioContext.createMediaStreamSource(stream);
-      this.analyserSource.connect(this.analyser);
-      // Don't connect analyser to destination — we don't want to hear ourselves
-    } catch {
-      this.teardownLocalAudioAnalyser();
     }
   }
 
-  private teardownLocalAudioAnalyser(): void {
-    this.analyserSource?.disconnect();
-    this.analyserSource = null;
-    this.analyser?.disconnect();
-    this.analyser = null;
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      this.audioContext.close().catch(() => {});
-    }
-    this.audioContext = null;
-    this.analyserData = null;
-  }
-
-  /**
-   * Read the current local microphone audio level (0–1) from the Web Audio
-   * processor or fallback analyser. Returns 0 while muted or unavailable.
-   */
+  /** Pre-gate microphone amplitude for local speaking visuals; zero while muted. */
   private getLocalAudioLevel(): number {
-    if (this.isMuted) return 0;
-    if (this.microphoneProcessor?.active) return Math.min(this.microphoneProcessor.level * 2, 1);
-    if (!this.analyser || !this.analyserData) return 0;
-
-    this.analyser.getFloatTimeDomainData(this.analyserData);
-
-    // Compute RMS of the waveform samples
-    let sumSq = 0;
-    for (let i = 0; i < this.analyserData.length; i++) {
-      sumSq += this.analyserData[i] * this.analyserData[i];
-    }
-    const rms = Math.sqrt(sumSq / this.analyserData.length);
-
-    // Normalize: RMS of ~0.5 is very loud speech, scale so it maps to ~1.0
-    return Math.min(rms * 2, 1);
+    return this.isMuted ? 0 : Math.min((this.microphoneProcessor?.level ?? 0) * 2, 1);
   }
 
   private cleanup(): void {
@@ -1428,7 +1367,7 @@ export class VoiceCallState {
       clearInterval(this.audioLevelInterval);
       this.audioLevelInterval = null;
     }
-    this.teardownLocalAudioAnalyser();
+
     if (this.room) {
       // Detach all remote audio tracks to clean up <audio> elements
       for (const p of this.room.remoteParticipants.values()) {

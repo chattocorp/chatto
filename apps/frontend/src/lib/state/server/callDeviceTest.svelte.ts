@@ -81,21 +81,11 @@ export class CallDeviceTest {
         audio.pause();
         return;
       }
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 1024;
-      if (!processor.active) context.createMediaStreamSource(stream).connect(analyser);
-      const samples = new Float32Array(analyser.fftSize);
       const sample = () => {
         if (generation !== this.#generation) return;
         processor.setThreshold(threshold());
         this.gateUnavailable = processor.unavailable;
-        if (processor.active) this.level = microphoneMeter(processor.level);
-        else {
-          analyser.getFloatTimeDomainData(samples);
-          this.level = microphoneMeter(
-            Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length)
-          );
-        }
+        this.level = microphoneMeter(processor.level);
         this.#frame = requestAnimationFrame(sample);
       };
       this.active = true;

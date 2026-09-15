@@ -11,7 +11,9 @@ export class MicrophoneProcessor implements TrackProcessor<
 > {
   readonly name = 'chatto-microphone-gate';
   processedTrack?: MediaStreamTrack;
-  level = 0;
+  #level = 0;
+  #analyser?: AnalyserNode;
+  #samples?: Float32Array<ArrayBuffer>;
   active = false;
   unavailable = false;
   #generation = 0;
@@ -24,6 +26,22 @@ export class MicrophoneProcessor implements TrackProcessor<
 
   constructor(threshold = GATE_OFF) {
     this.#threshold = threshold;
+  }
+
+  /** Input RMS comes from the worklet, or its analyser fallback after failure. */
+  get level(): number {
+    if (!this.#analyser || !this.#samples) return this.#level;
+    this.#analyser.getFloatTimeDomainData(this.#samples);
+    return Math.sqrt(
+      this.#samples.reduce((sum, value) => sum + value * value, 0) / this.#samples.length
+    );
+  }
+
+  private setupFallbackMeter(context: AudioContext): void {
+    this.#analyser = context.createAnalyser();
+    this.#analyser.fftSize = 1024;
+    this.#samples = new Float32Array(this.#analyser.fftSize);
+    this.#source?.connect(this.#analyser);
   }
 
   setThreshold(value: number): void {
@@ -58,7 +76,7 @@ export class MicrophoneProcessor implements TrackProcessor<
       const destination = audioContext.createMediaStreamDestination();
       this.#destination = destination;
       node.port.onmessage = ({ data }) => {
-        this.level = data;
+        this.#level = data;
       };
       node.port.postMessage({ threshold: this.#threshold });
       this.#onError = () => {
@@ -66,6 +84,7 @@ export class MicrophoneProcessor implements TrackProcessor<
         source.disconnect();
         node.disconnect();
         source.connect(destination);
+        this.setupFallbackMeter(audioContext);
         this.active = false;
         this.unavailable = true;
       };
@@ -78,6 +97,12 @@ export class MicrophoneProcessor implements TrackProcessor<
       void this.destroy();
       this.processedTrack = track;
       this.unavailable = true;
+      try {
+        this.#source = audioContext.createMediaStreamSource(new MediaStream([track]));
+        this.setupFallbackMeter(audioContext);
+      } catch {
+        // Meter support is optional too; the original track remains usable.
+      }
     }
   }
 
@@ -108,6 +133,9 @@ export class MicrophoneProcessor implements TrackProcessor<
     this.#destination = undefined;
     this.processedTrack = undefined;
     this.active = false;
-    this.level = 0;
+    this.#level = 0;
+    this.#analyser?.disconnect();
+    this.#analyser = undefined;
+    this.#samples = undefined;
   }
 }
