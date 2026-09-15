@@ -127,10 +127,10 @@ realtime changes arrive.
       </div>
     </div>
 
-    {#if baseUser.isBot && baseUser.botOwnerUserId}
-      {#key baseUser.botOwnerUserId}
+    {#if baseUser.isBot && baseUser.bot?.ownerUserId}
+      {#key baseUser.bot?.ownerUserId}
         <BotOwnerRow
-          ownerId={baseUser.botOwnerUserId}
+          ownerId={baseUser.bot?.ownerUserId}
           {onSendMessage}
           {onOpenProfile}
           viewerSettings={serverScope.store.currentUser.user?.settings}
@@ -144,7 +144,7 @@ realtime changes arrive.
 
     {#if baseUser.isBot}
       {#key baseUser.id}
-        <BotPermissionSummary botId={baseUser.id} botOwnerId={baseUser.botOwnerUserId} />
+        <BotPermissionSummary botId={baseUser.id} botOwnerId={baseUser.bot?.ownerUserId} />
       {/key}
     {/if}
 

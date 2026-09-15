@@ -123,7 +123,7 @@ export function createReplyWorkflow(
       }
 
       const author = await r.step("Check message author", () =>
-        rpc<{ user?: { user?: { isBot?: boolean } } }>("UserService/GetUser", {
+        rpc<{ user?: { user?: { bot?: { ownerUserId: string } } } }>("UserService/GetUser", {
           userId: input.message.author_id,
         }),
       );
@@ -131,7 +131,7 @@ export function createReplyWorkflow(
         throw new Error("The message author is unavailable");
       }
 
-      if (author.user.user.isBot) {
+      if (author.user.user.bot) {
         return { deliveryId: input.id, status: "skipped" as const };
       }
 

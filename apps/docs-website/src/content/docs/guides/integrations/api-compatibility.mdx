@@ -17,12 +17,18 @@ name. It does not mean that every Chatto release exposes the same API.
   your integration against a new version before upgrading that deployment.
 </Aside>
 
-## Bot owner identity
+## Bot identity
 
-The public `User` resource includes optional `bot_owner_user_id` for active
-bots. It identifies the human owner without granting management access.
-Older servers omit the field; clients must tolerate its absence. No stored
-data migration is required.
+The public `User` resource now has a `bot` message of type `BotInfo`.
+Presence identifies a bot; absence identifies a human or a deleted-account
+reference. `bot.owner_user_id` identifies the human owner and does not grant
+management access.
+
+This replaces `User.is_bot` and the former top-level owner field. Update clients
+to test for `user.bot` and read its owner ID. The removed field numbers and names
+are reserved. Older clients that read `is_bot` must be updated for this alpha
+API change. Stored accounts and events are unchanged; no data migration is
+required.
 
 ## Effective permissions
 

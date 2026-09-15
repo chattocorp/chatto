@@ -62,7 +62,7 @@ describe('createMemberDirectoryAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             deleted: false,
-            isBot: true,
+            bot: { ownerUserId: 'owner' },
             avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: APIPresenceStatus.AWAY,
             customStatus: {
@@ -92,6 +92,7 @@ describe('createMemberDirectoryAPI', () => {
           displayName: 'Alice',
           deleted: false,
           isBot: true,
+          bot: { ownerUserId: 'owner' },
           avatarUrl: 'https://cdn/avatar.webp',
           bio: null,
           timezone: null,

@@ -83,7 +83,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
                   login: user.login,
                   displayName: user.displayName,
                   deleted: user.deleted,
-                  isBot: user.isBot,
+                  isBot: !!user.bot,
                   avatarUrl: user.avatarUrl || null,
                   presenceStatus: PresenceStatus.OFFLINE
                 })),

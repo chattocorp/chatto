@@ -46,7 +46,7 @@ function fixture(
         });
       if (path.endsWith("GetUser"))
         return Response.json({
-          user: { user: { isBot: !!options.botAuthor } },
+          user: { user: { bot: options.botAuthor ? { ownerUserId: "owner" } : undefined } },
         });
       if (path.endsWith("RefreshTypingIndicator")) {
         typing.push(JSON.parse(String(init?.body)));

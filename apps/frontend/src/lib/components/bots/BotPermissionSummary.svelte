@@ -41,7 +41,7 @@ while mounted and discards cached data when the profile closes. -->
   const active = $derived(groupBotPermissions(compactEffectivePermissions(query.data ?? [])));
   const canManage = $derived(
     !!scope.store?.projection.viewer?.user?.profile &&
-      !scope.store.projection.viewer.user.profile.isBot &&
+      !scope.store.projection.viewer.user.profile.bot &&
       (scope.store.projection.viewer.user.profile.id === botOwnerId ||
         scope.store.projection.viewer.viewerPermissions?.permissions.some(
           (entry) => entry.permission === 'bot.manage' && entry.granted

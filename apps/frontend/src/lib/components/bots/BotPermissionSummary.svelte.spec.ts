@@ -21,7 +21,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: {
       projection: {
         viewer: {
-          user: { profile: { id: 'viewer', isBot: false } },
+          user: { profile: { id: 'viewer' } },
           viewerPermissions: { permissions: [] }
         }
       }

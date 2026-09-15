@@ -62,7 +62,7 @@ describe('createAdminUserManagementAPI', () => {
             displayName: 'Alice',
             avatarUrl: undefined,
             deleted: false,
-            isBot: true
+            bot: { ownerUserId: 'owner' }
           },
           roles: ['admin'],
           createdAt: { toDate: () => createdAt },

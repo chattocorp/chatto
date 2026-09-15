@@ -290,12 +290,11 @@ func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member
 		Login:          member.Login,
 		DisplayName:    member.DisplayName,
 		Deleted:        member.Deleted,
-		IsBot:          member.IsBot,
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
 	}
-	if member.IsBot && !member.Deleted && member.BotOwnerUserID != "" {
-		summary.BotOwnerUserId = stringPtr(member.BotOwnerUserID)
+	if member.IsBot && !member.Deleted {
+		summary.Bot = &apiv1.BotInfo{OwnerUserId: member.BotOwnerUserID}
 	}
 	return summary
 }

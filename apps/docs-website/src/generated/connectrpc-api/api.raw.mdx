@@ -4771,6 +4771,19 @@ Custom status shown on a user profile, separate from presence.
 
 
 
+<a id="chatto-api-v1-BotInfo"></a>
+
+### BotInfo
+
+Public metadata for a bot account. Presence on User identifies a bot.
+Credentials and management-only details belong to the managed Bot resource.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `owner_user_id` | `string` | Human account that owns this bot; this identity does not grant management access. |
+
+
+
 <a id="chatto-api-v1-User"></a>
 
 ### User
@@ -4786,10 +4799,9 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `is_bot` | `bool` | True when this identity represents an automated bot. |
 | `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
-| `bot_owner_user_id` | `optional string` | Human account that owns this bot. Absent for human or deleted accounts. This public identity reference does not grant bot management access. |
+| `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 
 
 

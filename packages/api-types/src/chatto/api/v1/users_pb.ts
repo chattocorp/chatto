@@ -9,6 +9,48 @@ import { PresenceStatus } from "./presence_pb.js";
 import { CustomUserStatus } from "./user_status_pb.js";
 
 /**
+ * Public metadata for a bot account. Presence on User identifies a bot.
+ * Credentials and management-only details belong to the managed Bot resource.
+ *
+ * @generated from message chatto.api.v1.BotInfo
+ */
+export class BotInfo extends Message<BotInfo> {
+  /**
+   * Human account that owns this bot; this identity does not grant management access.
+   *
+   * @generated from field: string owner_user_id = 1;
+   */
+  ownerUserId = "";
+
+  constructor(data?: PartialMessage<BotInfo>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotInfo";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "owner_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotInfo {
+    return new BotInfo().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotInfo {
+    return new BotInfo().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotInfo {
+    return new BotInfo().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotInfo | PlainMessage<BotInfo> | undefined, b: BotInfo | PlainMessage<BotInfo> | undefined): boolean {
+    return proto3.util.equals(BotInfo, a, b);
+  }
+}
+
+/**
  * Public user fields.
  *
  * @generated from message chatto.api.v1.User
@@ -64,13 +106,6 @@ export class User extends Message<User> {
   customStatus?: CustomUserStatus;
 
   /**
-   * True when this identity represents an automated bot.
-   *
-   * @generated from field: bool is_bot = 8;
-   */
-  isBot = false;
-
-  /**
    * Short self-authored biography shown on the user's profile, when set.
    *
    * @generated from field: optional string bio = 9;
@@ -87,12 +122,11 @@ export class User extends Message<User> {
   timezone?: string;
 
   /**
-   * Human account that owns this bot. Absent for human or deleted accounts.
-   * This public identity reference does not grant bot management access.
+   * Present for a bot identity; absent for humans and deleted-account references.
    *
-   * @generated from field: optional string bot_owner_user_id = 11;
+   * @generated from field: chatto.api.v1.BotInfo bot = 12;
    */
-  botOwnerUserId?: string;
+  bot?: BotInfo;
 
   constructor(data?: PartialMessage<User>) {
     super();
@@ -109,10 +143,9 @@ export class User extends Message<User> {
     { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
-    { no: 8, name: "is_bot", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 9, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 10, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 11, name: "bot_owner_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 12, name: "bot", kind: "message", T: BotInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

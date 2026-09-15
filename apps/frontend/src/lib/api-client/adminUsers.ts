@@ -210,7 +210,7 @@ function adminManagedUser(user: APIUser | undefined): AdminManagedUser {
     login: user.login,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null,
-    ...(user.isBot ? { isBot: true } : {})
+    ...(!!user.bot ? { isBot: true } : {})
   };
 }
 
@@ -224,7 +224,7 @@ function adminMember(member: APIAdminMember): AdminMember {
     login: summary.login,
     displayName: summary.displayName,
     avatarUrl: summary.avatarUrl ?? null,
-    ...(summary.isBot ? { isBot: true } : {}),
+    ...(summary.bot ? { isBot: true } : {}),
     roles: [...member.roles],
     createdAt: member.createdAt?.toDate().toISOString() ?? null,
     deleted: summary.deleted,

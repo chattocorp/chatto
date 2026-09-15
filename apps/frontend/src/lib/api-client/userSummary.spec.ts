@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import {
-  mapOptionalUserSummary,
-  mapUserPresenceView,
-  mapUserSummary
-} from './userSummary';
+import { mapOptionalUserSummary, mapUserPresenceView, mapUserSummary } from './userSummary';
 
 function apiUser(overrides: Partial<APIUser> = {}): APIUser {
   return {
@@ -13,7 +9,6 @@ function apiUser(overrides: Partial<APIUser> = {}): APIUser {
     login: 'alice',
     displayName: 'Alice',
     deleted: false,
-    isBot: false,
     avatarUrl: '',
     presenceStatus: PresenceStatus.ONLINE,
     customStatus: undefined,

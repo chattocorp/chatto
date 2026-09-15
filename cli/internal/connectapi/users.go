@@ -35,10 +35,9 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, av
 		Deleted:        user.GetDeleted(),
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
-		IsBot:          user.GetIsBot(),
 	}
-	if user.GetIsBot() && !user.GetDeleted() && user.GetBotOwnerUserId() != "" {
-		summary.BotOwnerUserId = stringPtr(user.GetBotOwnerUserId())
+	if user.GetIsBot() && !user.GetDeleted() {
+		summary.Bot = &apiv1.BotInfo{OwnerUserId: user.GetBotOwnerUserId()}
 	}
 	if user.GetBio() != "" {
 		bio := user.GetBio()

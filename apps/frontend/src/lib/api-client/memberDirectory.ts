@@ -18,10 +18,11 @@ export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js'
 
 export type MemberDirectoryAPIConfig = ConnectAPIConfig;
 
-export type DirectoryMember = UserSummary & UserPresenceView & {
-  roles: string[];
-  createdAt: string | null;
-};
+export type DirectoryMember = UserSummary &
+  UserPresenceView & {
+    roles: string[];
+    createdAt: string | null;
+  };
 
 export type MemberDirectoryPage = {
   members: DirectoryMember[];
@@ -148,7 +149,7 @@ export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember 
   // omits the user instead of dropping the row, and never leaves `isBot`
   // unset.
   const summary: UserSummary = user
-    ? { ...mapUserSummary(user), isBot: user.isBot ?? false }
+    ? { ...mapUserSummary(user), isBot: !!user.bot }
     : { id: '', login: '', displayName: '', deleted: false, isBot: false, avatarUrl: null };
   return {
     ...summary,

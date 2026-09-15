@@ -12,6 +12,10 @@ exercise more authority than its human owner currently possesses.
 
 ## Behavior
 
+- Public `User.bot` metadata identifies a bot by its presence and contains
+  `owner_user_id`. It is absent for humans and deleted-account references.
+  The stored account model keeps its existing bot fields.
+
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card
   includes the room’s message and profile actions, subject to viewer permissions. This row

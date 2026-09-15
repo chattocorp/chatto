@@ -5,6 +5,13 @@ package chatto.api.v1;
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 
+// Public metadata for a bot account. Presence on User identifies a bot.
+// Credentials and management-only details belong to the managed Bot resource.
+message BotInfo {
+  // Human account that owns this bot; this identity does not grant management access.
+  string owner_user_id = 1;
+}
+
 // Public user fields.
 message User {
   // Stable user ID.
@@ -21,15 +28,14 @@ message User {
   PresenceStatus presence_status = 6;
   // Custom profile status, when set.
   CustomUserStatus custom_status = 7;
-  // True when this identity represents an automated bot.
-  bool is_bot = 8;
+  reserved 8, 11;
+  reserved "is_bot", "bot_owner_user_id";
   // Short self-authored biography shown on the user's profile, when set.
   optional string bio = 9;
   // IANA time zone the user chose to share on their profile (for example
   // "Europe/Berlin"). Absent means the user has not enabled time-zone
   // sharing or has no stored time zone.
   optional string timezone = 10;
-  // Human account that owns this bot. Absent for human or deleted accounts.
-  // This public identity reference does not grant bot management access.
-  optional string bot_owner_user_id = 11;
+  // Present for a bot identity; absent for humans and deleted-account references.
+  BotInfo bot = 12;
 }
