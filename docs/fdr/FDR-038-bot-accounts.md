@@ -17,7 +17,8 @@ exercise more authority than its human owner currently possesses.
   authority is applied. Channel rooms and direct messages have separate
   descriptions. Message and call actions still require membership and other
   action-specific conditions.
-- Actions appear as short bullets under scope headings with bundled icons. Room browsing and
+- Actions appear as short lists aligned below scope headings, with bundled
+  icons in a separate column. Room browsing and
   joining share one bullet when both apply to the same scope. The section
   starts expanded and remembers its collapsed state for each server on this
   device.
