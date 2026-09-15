@@ -77,24 +77,14 @@
       "system_default": "Systemstandard",
       "unavailable_device": "Lagret enhet er utilgjengelig",
       "output_unsupported": "Nettleseren bruker systemets høyttaler. Høyttalervalg er utilgjengelig.",
-      "fallback": "Manglende enheter erstattes med systemstandarden. Valget ditt beholdes. Kameraet slås ikke på når du velger det.",
       "join_muted": "Bli med i samtaler med dempet mikrofon",
-      "next_call": "Innstillingene gjelder neste samtale. Bruk samtalekontrollene for å bytte enhet nå.",
       "test_title": "Test mikrofonen",
-      "test_description": "Start måleren, ta opp opptil 10 sekunder og spill av opptaket. Lyden blir i nettleseren og slettes når du forlater siden. Dette tester ikke samtaletilkoblingen.",
       "input_level": "Mikrofonnivå",
       "start_test": "Start mikrofontest",
       "stop_test": "Stopp test",
-      "record": "Ta opp en test",
-      "finish_recording": "Stopp opptak",
       "waiting": "Venter på mikrofontilgang…",
-      "recording": "Tar opp… stopper etter 10 sekunder.",
       "test_failed": "Kunne ikke teste mikrofonen. Kontroller enhetstilgangen og prøv igjen.",
-      "test_in_call": "Forlat samtalen før du tester mikrofonen.",
-      "recording_unsupported": "Opptak er utilgjengelig i nettleseren. Du kan fortsatt bruke nivåmåleren.",
-      "playback": "Mikrofontestopptak",
-      "show_cameras": "Vis kameraer",
-      "camera_access": "Tillat kameratilgang for å vise kameraer. Opptaket stopper umiddelbart."
+      "test_in_call": "Forlat samtalen før du tester mikrofonen."
     }
   }
 }

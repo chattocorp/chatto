@@ -77,24 +77,14 @@
       "system_default": "Sistema defaŭlto",
       "unavailable_device": "Konservita aparato ne disponeblas",
       "output_unsupported": "Ĉi tiu retumilo uzas la sisteman laŭtparolilon. Elekto de laŭtparolilo ne disponeblas.",
-      "fallback": "Se aparato mankas, la sistema defaŭlto estas uzata. Via elekto restas konservita. Elekti kameraon ne ŝaltas ĝin.",
       "join_muted": "Aliĝi al vokoj kun silentigita mikrofono",
-      "next_call": "Ĉi tiuj agordoj validas por via sekva voko. Uzu la vokregilojn por ŝanĝi aparaton nun.",
       "test_title": "Testi vian mikrofonon",
-      "test_description": "Startigu la mezurilon, registru ĝis 10 sekundojn kaj aŭskultu la registraĵon. La sono restas en ĉi tiu retumilo kaj estas forigita kiam vi forlasas la paĝon. Tio ne testas la vokan konekton.",
       "input_level": "Mikrofona nivelo",
       "start_test": "Startigi mikrofonan teston",
       "stop_test": "Haltigi teston",
-      "record": "Registri teston",
-      "finish_recording": "Haltigi registradon",
       "waiting": "Atendante aliron al la mikrofono…",
-      "recording": "Registrante… haltos post 10 sekundoj.",
       "test_failed": "Ne eblis testi la mikrofonon. Kontrolu la aparatan aliron kaj reprovu.",
-      "test_in_call": "Forlasu vian vokon antaŭ ol testi la mikrofonon.",
-      "recording_unsupported": "Registrado ne disponeblas en ĉi tiu retumilo. Vi ankoraŭ povas uzi la enigan mezurilon.",
-      "playback": "Mikrofona testregistraĵo",
-      "show_cameras": "Montri kameraojn",
-      "camera_access": "Permesu aliron al la kamerao por listigi kameraojn. Kaptado tuj haltas."
+      "test_in_call": "Forlasu vian vokon antaŭ ol testi la mikrofonon."
     }
   }
 }

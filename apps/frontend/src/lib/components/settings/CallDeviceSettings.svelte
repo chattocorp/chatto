@@ -2,9 +2,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import { Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { ChoiceRow, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
-  import { Button, Checkbox, Select } from '$lib/ui/form';
+  import { Button, Checkbox } from '$lib/ui/form';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import { CallDeviceTest } from '$lib/state/server/callDeviceTest.svelte';
 
@@ -14,8 +14,6 @@
   let devices = $state<MediaDeviceInfo[]>([]);
   let deviceError = $state(false);
   let outputSupported = $state(false);
-  let recordingSupported = $state(false);
-  let cameraPending = $state(false);
   let alive = false;
   let refreshGeneration = 0;
 
@@ -26,6 +24,7 @@
       if (!alive || generation !== refreshGeneration) return;
       devices = result;
       deviceError = false;
+      return result;
     } catch {
       if (alive && generation === refreshGeneration) deviceError = true;
     }
@@ -34,8 +33,7 @@
   onMount(() => {
     alive = true;
     outputSupported = 'setSinkId' in HTMLMediaElement.prototype;
-    recordingSupported = typeof MediaRecorder !== 'undefined';
-    void refresh();
+    void discoverDevices();
     navigator.mediaDevices?.addEventListener('devicechange', refresh);
     return () => {
       alive = false;
@@ -67,42 +65,27 @@
   }
 
   async function startTest() {
-    await test.start(preferences.microphone);
+    const speaker = devices.some(
+      (device) => device.kind === 'audiooutput' && device.deviceId === preferences.speaker
+    )
+      ? preferences.speaker
+      : '';
+    await test.start(preferences.microphone, speaker);
     if (alive) await refresh();
   }
 
-  async function showCameras() {
-    if (cameraPending) return;
-    cameraPending = true;
+  async function discoverDevices() {
+    const listed = await refresh();
+    if (!alive || inCall || listed?.some((device) => device.kind === 'videoinput' && device.label))
+      return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       stream.getTracks().forEach((track) => track.stop());
       if (alive) await refresh();
-    } catch {
-      if (alive) deviceError = true;
-    } finally {
-      if (alive) cameraPending = false;
+    } catch (error) {
+      if (alive && !(error instanceof DOMException && error.name === 'NotFoundError'))
+        deviceError = true;
     }
-  }
-
-  function playback(node: HTMLAudioElement) {
-    let current = true;
-    if (outputSupported) {
-      const preferred = devices.some(
-        (device) => device.kind === 'audiooutput' && device.deviceId === preferences.speaker
-      )
-        ? preferences.speaker
-        : '';
-      void node.setSinkId(preferred).catch(() => {
-        if (current) deviceError = true;
-      });
-    }
-    return () => {
-      current = false;
-      node.pause();
-      // Attachments rerun when available outputs change. Keep Svelte's src
-      // binding intact so a refreshed device list cannot erase this clip.
-    };
   }
 </script>
 
@@ -112,47 +95,56 @@
   <div class="flex flex-col gap-6">
     <Panel title={m('voice.devices')} icon="iconify icon-[uil--headphones]">
       <div class="flex max-w-xl flex-col gap-5">
-        <Select
-          id="call-microphone"
-          label={m('voice.microphone')}
-          options={options('audioinput', preferences.microphone)}
-          bind:value={() => preferences.microphone, (value) => select('audioinput', value)}
-        />
-        <Select
-          id="call-speaker"
-          label={m('voice.speaker')}
-          options={options('audiooutput', preferences.speaker)}
-          disabled={!outputSupported}
-          bind:value={() => preferences.speaker, (value) => select('audiooutput', value)}
-        />
-        {#if !outputSupported}<p class="text-muted">
-            {m('voice.preferences.output_unsupported')}
-          </p>{/if}
-        <Select
-          id="call-camera"
-          label={m('voice.camera')}
-          options={options('videoinput', preferences.camera)}
-          bind:value={() => preferences.camera, (value) => select('videoinput', value)}
-        />
         <div>
-          <Button variant="secondary" onclick={showCameras} disabled={inCall || cameraPending}
-            >{m('voice.preferences.show_cameras')}</Button
-          >
+          <h3 class="mb-2 font-medium">{m('voice.microphone')}</h3>
+          <div role="radiogroup" aria-label={m('voice.microphone')} class="flex flex-col gap-2">
+            {#each options('audioinput', preferences.microphone) as option (option.value)}
+              <ChoiceRow
+                label={option.label}
+                selected={preferences.microphone === option.value}
+                onclick={() => select('audioinput', option.value)}
+              />
+            {/each}
+          </div>
         </div>
-        <p class="text-muted">{m('voice.preferences.camera_access')}</p>
-        <p class="text-muted">{m('voice.preferences.fallback')}</p>
+        <div>
+          <h3 class="mb-2 font-medium">{m('voice.speaker')}</h3>
+          <div role="radiogroup" aria-label={m('voice.speaker')} class="flex flex-col gap-2">
+            {#each options('audiooutput', preferences.speaker) as option (option.value)}
+              <ChoiceRow
+                label={option.label}
+                selected={preferences.speaker === option.value}
+                disabled={!outputSupported}
+                onclick={() => select('audiooutput', option.value)}
+              />
+            {/each}
+          </div>
+          {#if !outputSupported}<p class="mt-2 text-muted">
+              {m('voice.preferences.output_unsupported')}
+            </p>{/if}
+        </div>
+        <div>
+          <h3 class="mb-2 font-medium">{m('voice.camera')}</h3>
+          <div role="radiogroup" aria-label={m('voice.camera')} class="flex flex-col gap-2">
+            {#each options('videoinput', preferences.camera) as option (option.value)}
+              <ChoiceRow
+                label={option.label}
+                selected={preferences.camera === option.value}
+                onclick={() => select('videoinput', option.value)}
+              />
+            {/each}
+          </div>
+        </div>
         <Checkbox
           id="call-join-muted"
           label={m('voice.preferences.join_muted')}
           bind:checked={() => preferences.joinMuted, (value) => preferences.setJoinMuted(value)}
         />
-        {#if inCall}<Hint>{m('voice.preferences.next_call')}</Hint>{/if}
         {#if deviceError}<Hint>{m('voice.media_device_failed')}</Hint>{/if}
       </div>
     </Panel>
     <Panel title={m('voice.preferences.test_title')} icon="iconify icon-[uil--microphone]">
       <div class="flex max-w-xl flex-col gap-4">
-        <p class="text-muted">{m('voice.preferences.test_description')}</p>
         <span id="call-input-label">{m('voice.preferences.input_level')}</span>
         <div
           role="meter"
@@ -174,32 +166,10 @@
               >{m('voice.preferences.stop_test')}</Button
             >
           {/if}
-          {#if test.active && !test.recording}
-            <Button variant="secondary" onclick={() => test.record()} disabled={!recordingSupported}
-              >{m('voice.preferences.record')}</Button
-            >
-          {:else if test.recording}
-            <Button onclick={() => test.finishRecording()}
-              >{m('voice.preferences.finish_recording')}</Button
-            >
-          {/if}
         </div>
         {#if test.pending}<p role="status">{m('voice.preferences.waiting')}</p>{/if}
-        {#if test.recording}<p role="status">{m('voice.preferences.recording')}</p>{/if}
         {#if test.error}<Hint>{m('voice.preferences.test_failed')}</Hint>{/if}
         {#if inCall}<Hint>{m('voice.preferences.test_in_call')}</Hint>{/if}
-        {#if !recordingSupported}<p class="text-muted">
-            {m('voice.preferences.recording_unsupported')}
-          </p>{/if}
-        {#if test.clipURL}
-          <audio
-            controls
-            src={test.clipURL}
-            {@attach playback}
-            aria-label={m('voice.preferences.playback')}
-            class="w-full"
-          ></audio>
-        {/if}
       </div>
     </Panel>
   </div>

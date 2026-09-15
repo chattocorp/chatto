@@ -213,7 +213,10 @@ LiveKit capture defaults use the saved input choices; a missing output device
 uses the browser default. Device switches save only after success.
 
 The settings page owns `CallDeviceTest`. Explicit capture feeds a Web Audio
-meter and an optional MediaRecorder. The recording is limited to ten seconds.
-Generation checks stop late streams after cancellation. Page exit stops
-tracks, closes the audio context, cancels timers, and revokes recording URLs.
+meter and an audio element for immediate local playback. The selected speaker
+is applied where the browser supports output selection. No recording is made.
+Generation checks stop late streams or playback after cancellation. Page exit
+stops tracks and playback, closes the audio context, and cancels meter updates.
+Camera discovery requests temporary access on page open only if device names
+are unavailable and no call is active on the selected server.
 The test does not contact a media server.

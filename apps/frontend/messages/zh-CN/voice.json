@@ -77,24 +77,14 @@
       "system_default": "系统默认",
       "unavailable_device": "已保存的设备不可用",
       "output_unsupported": "此浏览器使用系统扬声器，无法选择扬声器。",
-      "fallback": "设备缺失时将使用系统默认设备，并保留已保存的选择。选择摄像头不会将其开启。",
       "join_muted": "加入通话时将麦克风静音",
-      "next_call": "这些设置将在下次通话时生效。要立即更换设备，请使用通话控件。",
       "test_title": "测试麦克风",
-      "test_description": "启动音量计，然后录制最多10秒并播放。音频仅保留在此浏览器中，离开页面后会被删除。这不会测试通话连接。",
       "input_level": "麦克风音量",
       "start_test": "开始麦克风测试",
       "stop_test": "停止测试",
-      "record": "录制测试",
-      "finish_recording": "停止录制",
       "waiting": "正在等待麦克风访问权限…",
-      "recording": "正在录制…10秒后停止。",
       "test_failed": "无法测试麦克风。请检查设备访问权限后重试。",
-      "test_in_call": "请先退出通话，再测试麦克风。",
-      "recording_unsupported": "此浏览器不支持录音。您仍可使用输入音量计。",
-      "playback": "麦克风测试录音",
-      "show_cameras": "显示摄像头",
-      "camera_access": "允许访问摄像头以列出可用摄像头。采集会立即停止。"
+      "test_in_call": "请先退出通话，再测试麦克风。"
     }
   }
 }

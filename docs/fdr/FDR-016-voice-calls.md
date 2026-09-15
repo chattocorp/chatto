@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -17,14 +17,15 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Camera selection does not start video. Joining muted does not request
   microphone access merely to list devices. Browser support controls whether
   a speaker can be selected.
-- An explicit local microphone test shows an input meter and can record up to
-  ten seconds for playback through the selected speaker. Audio remains in
-  browser memory and is discarded on page exit. The test does not connect to
-  LiveKit or verify network connectivity. Testing is unavailable during the
-  selected server's call. Stop, navigation, and device changes release capture;
+- Device choices use radio controls. An explicit local microphone test shows
+  an input meter and plays the microphone immediately through the selected
+  speaker. It does not record audio, connect to LiveKit, or verify network
+  connectivity. Testing is unavailable during the selected server's call.
+  Stop, navigation, and device changes release capture and stop playback;
   late capture results are stopped as well.
-- Users can explicitly allow camera access to discover camera choices.
-  Discovery stops camera capture immediately.
+- Opening the settings page requests camera access only if camera names are
+  unavailable and no call is active on the selected server. The browser may
+  show its permission dialog. Discovery stops camera capture immediately.
 
 - Room membership and `call.join` are required to enter a call. Starting a
   new call also requires `call.start`. Media permissions do not grant entry.

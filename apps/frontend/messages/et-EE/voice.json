@@ -77,24 +77,14 @@
       "system_default": "Süsteemi vaikeseade",
       "unavailable_device": "Salvestatud seade pole saadaval",
       "output_unsupported": "See brauser kasutab süsteemi kõlarit. Kõlari valimine pole saadaval.",
-      "fallback": "Puuduva seadme asemel kasutatakse süsteemi vaikeseadet. Sinu valik säilib. Kaamera valimine ei lülita seda sisse.",
       "join_muted": "Liitu kõnedega vaigistatud mikrofoniga",
-      "next_call": "Need seaded kehtivad järgmise kõne jaoks. Seadme kohe vahetamiseks kasuta kõne juhtnuppe.",
       "test_title": "Testi mikrofoni",
-      "test_description": "Käivita mõõdik, salvesta kuni 10 sekundit ja esita salvestis. Heli jääb sellesse brauserisse ja kustutatakse lehelt lahkumisel. See ei testi kõneühendust.",
       "input_level": "Mikrofoni tase",
       "start_test": "Alusta mikrofoni testi",
       "stop_test": "Peata test",
-      "record": "Salvesta test",
-      "finish_recording": "Peata salvestamine",
       "waiting": "Mikrofoni juurdepääsu ootel…",
-      "recording": "Salvestamine… peatub 10 sekundi pärast.",
       "test_failed": "Mikrofoni testimine nurjus. Kontrolli seadme juurdepääsu ja proovi uuesti.",
-      "test_in_call": "Enne mikrofoni testimist lahku kõnest.",
-      "recording_unsupported": "Salvestamine pole selles brauseris saadaval. Sisendmõõdikut saad endiselt kasutada.",
-      "playback": "Mikrofoni testsalvestis",
-      "show_cameras": "Näita kaameraid",
-      "camera_access": "Kaamerate loetlemiseks luba kaamera kasutamine. Hõive peatub kohe."
+      "test_in_call": "Enne mikrofoni testimist lahku kõnest."
     }
   }
 }

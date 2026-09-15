@@ -77,24 +77,14 @@
       "system_default": "Domyślne urządzenie systemowe",
       "unavailable_device": "Zapisane urządzenie jest niedostępne",
       "output_unsupported": "Ta przeglądarka używa głośnika systemowego. Wybór głośnika jest niedostępny.",
-      "fallback": "Brakujące urządzenia zastępuje domyślne urządzenie systemowe. Twój wybór zostaje zapisany. Wybranie kamery jej nie włącza.",
       "join_muted": "Dołączaj do rozmów z wyciszonym mikrofonem",
-      "next_call": "Te ustawienia dotyczą następnej rozmowy. Aby teraz zmienić urządzenie, użyj elementów sterujących rozmową.",
       "test_title": "Przetestuj mikrofon",
-      "test_description": "Uruchom miernik, nagraj do 10 sekund i odtwórz nagranie. Dźwięk pozostaje w przeglądarce i jest usuwany po opuszczeniu strony. Ten test nie sprawdza połączenia rozmowy.",
       "input_level": "Poziom mikrofonu",
       "start_test": "Rozpocznij test mikrofonu",
       "stop_test": "Zatrzymaj test",
-      "record": "Nagraj test",
-      "finish_recording": "Zatrzymaj nagrywanie",
       "waiting": "Oczekiwanie na dostęp do mikrofonu…",
-      "recording": "Nagrywanie… zatrzyma się po 10 sekundach.",
       "test_failed": "Nie udało się przetestować mikrofonu. Sprawdź dostęp do urządzenia i spróbuj ponownie.",
-      "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu.",
-      "recording_unsupported": "Nagrywanie jest niedostępne w tej przeglądarce. Nadal możesz korzystać z miernika poziomu.",
-      "playback": "Nagranie testowe mikrofonu",
-      "show_cameras": "Pokaż kamery",
-      "camera_access": "Zezwól na dostęp do kamery, aby wyświetlić kamery. Przechwytywanie zatrzyma się natychmiast."
+      "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu."
     }
   }
 }

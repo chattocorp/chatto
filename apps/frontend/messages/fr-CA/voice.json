@@ -77,24 +77,14 @@
       "system_default": "Paramètre système par défaut",
       "unavailable_device": "Appareil enregistré indisponible",
       "output_unsupported": "Ce navigateur utilise le haut-parleur du système. La sélection du haut-parleur est indisponible.",
-      "fallback": "Si un appareil manque, le système utilise son appareil par défaut. Votre choix reste enregistré. Sélectionner une caméra ne l’active pas.",
       "join_muted": "Rejoindre les appels avec le microphone coupé",
-      "next_call": "Ces réglages s’appliquent au prochain appel. Utilisez les commandes de l’appel pour changer d’appareil maintenant.",
       "test_title": "Tester votre microphone",
-      "test_description": "Démarrez l’indicateur, puis enregistrez jusqu’à 10 secondes et écoutez le résultat. L’audio reste dans ce navigateur et est supprimé lorsque vous quittez la page. Ce test ne vérifie pas la connexion d’appel.",
       "input_level": "Niveau du microphone",
       "start_test": "Démarrer le test du microphone",
       "stop_test": "Arrêter le test",
-      "record": "Enregistrer un test",
-      "finish_recording": "Arrêter l’enregistrement",
       "waiting": "En attente de l’accès au microphone…",
-      "recording": "Enregistrement… arrêt après 10 secondes.",
       "test_failed": "Impossible de tester le microphone. Vérifiez l’accès à l’appareil et réessayez.",
-      "test_in_call": "Quittez votre appel avant de tester le microphone.",
-      "recording_unsupported": "L’enregistrement est indisponible dans ce navigateur. Vous pouvez toujours utiliser l’indicateur de niveau.",
-      "playback": "Enregistrement du test du microphone",
-      "show_cameras": "Afficher les caméras",
-      "camera_access": "Autorisez l’accès à la caméra pour afficher les caméras. La capture s’arrête immédiatement."
+      "test_in_call": "Quittez votre appel avant de tester le microphone."
     }
   }
 }

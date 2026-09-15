@@ -77,24 +77,14 @@
       "system_default": "System default",
       "unavailable_device": "Saved device unavailable",
       "output_unsupported": "This browser uses the system speaker. Speaker selection is unavailable.",
-      "fallback": "Missing devices use the system default. Your saved choice is kept. Selecting a camera does not turn it on.",
       "join_muted": "Join calls with microphone muted",
-      "next_call": "These defaults apply to your next call. Use the call controls to change devices now.",
       "test_title": "Test your microphone",
-      "test_description": "Start the meter, then record up to 10 seconds and play it back. Audio stays in this browser and is discarded when you leave. This does not test the call connection.",
       "input_level": "Microphone level",
       "start_test": "Start microphone test",
       "stop_test": "Stop test",
-      "record": "Record a test",
-      "finish_recording": "Stop recording",
       "waiting": "Waiting for microphone access…",
-      "recording": "Recording… stops after 10 seconds.",
       "test_failed": "Could not test the microphone. Check device access and try again.",
-      "test_in_call": "Leave your call before testing the microphone.",
-      "recording_unsupported": "Recording is unavailable in this browser. You can still use the input meter.",
-      "playback": "Microphone test recording",
-      "show_cameras": "Show cameras",
-      "camera_access": "Allow camera access to list cameras. Capture stops immediately."
+      "test_in_call": "Leave your call before testing the microphone."
     }
   }
 }

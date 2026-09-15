@@ -1,19 +1,16 @@
-/** An explicitly started, page-owned microphone test. Audio stays in memory. */
+/** An explicitly started, page-owned microphone test. Audio is monitored locally without recording. */
 export class CallDeviceTest {
   active = $state(false);
   pending = $state(false);
-  recording = $state(false);
   level = $state(0);
-  clipURL = $state('');
   error = $state(false);
   #generation = 0;
   #stream: MediaStream | null = null;
   #context: AudioContext | null = null;
-  #recorder: MediaRecorder | null = null;
+  #audio: HTMLAudioElement | null = null;
   #frame = 0;
-  #limit: ReturnType<typeof setTimeout> | undefined;
 
-  async start(deviceId: string): Promise<void> {
+  async start(deviceId: string, speakerId = ''): Promise<void> {
     this.stop();
     const generation = this.#generation;
     this.pending = true;
@@ -46,6 +43,22 @@ export class CallDeviceTest {
           { once: true }
         )
       );
+      const audio = new Audio();
+      this.#audio = audio;
+      audio.srcObject = stream;
+      if ('setSinkId' in audio && speakerId) {
+        try {
+          await audio.setSinkId(speakerId);
+        } catch {
+          await audio.setSinkId('');
+        }
+      }
+      if (generation !== this.#generation) return;
+      await audio.play();
+      if (generation !== this.#generation) {
+        audio.pause();
+        return;
+      }
       const context = new AudioContext();
       this.#context = context;
       await context.resume();
@@ -75,64 +88,19 @@ export class CallDeviceTest {
     }
   }
 
-  /** Record at most ten seconds; completion releases microphone capture. */
-  record(): void {
-    if (!this.#stream || this.recording || typeof MediaRecorder === 'undefined') return;
-    this.clearClip();
-    const generation = this.#generation;
-    try {
-      const recorder = new MediaRecorder(this.#stream);
-      this.#recorder = recorder;
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (event) => {
-        if (generation === this.#generation && event.data.size) chunks.push(event.data);
-      };
-      recorder.onstop = () => {
-        if (generation !== this.#generation) return;
-        const clip = new Blob(chunks, { type: recorder.mimeType });
-        this.stop();
-        if (clip.size) this.clipURL = URL.createObjectURL(clip);
-      };
-      recorder.onerror = () => {
-        if (generation === this.#generation) {
-          this.stop();
-          this.error = true;
-        }
-      };
-      recorder.start();
-      this.recording = true;
-      this.#limit = setTimeout(() => this.finishRecording(), 10_000);
-    } catch {
-      this.stop();
-      this.error = true;
-    }
-  }
-
-  finishRecording(): void {
-    if (this.#recorder?.state === 'recording') this.#recorder.stop();
-    clearTimeout(this.#limit);
-  }
-
-  clearClip(): void {
-    if (this.clipURL) URL.revokeObjectURL(this.clipURL);
-    this.clipURL = '';
-  }
-
-  /** Invalidate pending capture and discard recordings on navigation or cancel. */
+  /** Invalidate pending capture and stop monitoring on navigation or cancel. */
   stop(): void {
     this.#generation++;
-    clearTimeout(this.#limit);
     cancelAnimationFrame(this.#frame);
-    if (this.#recorder?.state === 'recording') this.#recorder.stop();
-    this.#recorder = null;
+    this.#audio?.pause();
+    if (this.#audio) this.#audio.srcObject = null;
+    this.#audio = null;
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null;
     void this.#context?.close().catch(() => {});
     this.#context = null;
     this.active = false;
     this.pending = false;
-    this.recording = false;
     this.level = 0;
-    this.clearClip();
   }
 }

@@ -5,7 +5,7 @@ import { CallDeviceTest } from './callDeviceTest.svelte';
 describe('CallDeviceTest', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('meters audio, records a playable clip, and releases capture on completion', async () => {
+  it('plays microphone audio immediately, meters it, and releases capture on stop', async () => {
     const source = new AudioContext();
     const oscillator = source.createOscillator();
     const destination = source.createMediaStreamDestination();
@@ -21,24 +21,70 @@ describe('CallDeviceTest', () => {
     button.remove();
     const stream = destination.stream;
     vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
     const test = new CallDeviceTest();
     try {
       await test.start('');
       expect(test.active).toBe(true);
       await vi.waitFor(() => expect(test.level).toBeGreaterThan(0));
-      test.record();
-      expect(test.recording).toBe(true);
-      test.finishRecording();
-      await vi.waitFor(() => expect(test.clipURL).toMatch(/^blob:/));
-      expect((await (await fetch(test.clipURL)).blob()).size).toBeGreaterThan(0);
+      expect(play).toHaveBeenCalledOnce();
+      const audio = play.mock.contexts[0] as HTMLAudioElement;
+      expect(audio.srcObject).toBe(stream);
+      expect(audio.paused).toBe(false);
+      test.stop();
+      expect(audio.paused).toBe(true);
+      expect(audio.srcObject).toBeNull();
       expect(stream.getTracks().every((track) => track.readyState === 'ended')).toBe(true);
       expect(test.active).toBe(false);
-      test.stop();
-      expect(test.clipURL).toBe('');
     } finally {
       test.stop();
       oscillator.stop();
       await source.close();
+    }
+  });
+
+  it('does not start playback when stopped during speaker selection', async () => {
+    const context = new AudioContext();
+    const stream = context.createMediaStreamDestination().stream;
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+    let resolve!: () => void;
+    const sink = vi.spyOn(HTMLMediaElement.prototype, 'setSinkId').mockImplementation(
+      () =>
+        new Promise<void>((done) => {
+          resolve = done;
+        })
+    );
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
+    const test = new CallDeviceTest();
+    try {
+      const pending = test.start('', 'speaker');
+      await vi.waitFor(() => expect(sink).toHaveBeenCalledWith('speaker'));
+      test.stop();
+      resolve();
+      await pending;
+      expect(play).not.toHaveBeenCalled();
+      expect(stream.getTracks().every((track) => track.readyState === 'ended')).toBe(true);
+      expect(test.active).toBe(false);
+    } finally {
+      test.stop();
+      await context.close();
+    }
+  });
+
+  it('releases capture when immediate playback fails', async () => {
+    const context = new AudioContext();
+    const stream = context.createMediaStreamDestination().stream;
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('Playback denied'));
+    const test = new CallDeviceTest();
+    try {
+      await test.start('');
+      expect(test.error).toBe(true);
+      expect(test.active).toBe(false);
+      expect(stream.getTracks().every((track) => track.readyState === 'ended')).toBe(true);
+    } finally {
+      test.stop();
+      await context.close();
     }
   });
 
