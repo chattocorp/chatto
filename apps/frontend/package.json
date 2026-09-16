@@ -104,7 +104,7 @@
     "hls.js": "^1.7.1",
     "js-sha256": "^0.11.1",
     "linkify-it": "^5.0.2",
-    "livekit-client": "^2.22.0",
+    "livekit-client": "^2.22.3",
     "semver": "^7.8.5",
     "tlds": "^1.261.0",
     "vidstack": "^1.15.6"

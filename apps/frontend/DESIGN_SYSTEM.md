@@ -295,7 +295,7 @@ instead of adding local gradients or arbitrary inset shadows.
 | `option-depth` | Quiet checkbox and radio rows; removes depth when disabled. |
 | `control-well` | Empty checkbox and radio indicators. |
 | `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow. |
-| `shell-surface` | User card and composer formatting shelf; soft rim with no button elevation or pressed finish. |
+| `shell-surface` | User card, call participant cards, and composer formatting shelf; soft rim with no button elevation or pressed finish. |
 | `chat-input-surface` | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card. |
 | `shell-lighting` | The same quiet finish over server gutter artwork; does not change the image or intercept clicks. |
 | `floating-frame` | Lit panel, dialog, and menu frames. |

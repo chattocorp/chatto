@@ -2,8 +2,46 @@ import { microphoneEffectsForAmount, normalizeVoiceAmount } from '$lib/audio/mic
 import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
+/** Listener-local playback levels. Percentages above 100 boost the received signal. */
+export interface ParticipantAudioPreferences {
+  voiceVolume: number;
+  streamVolume: number;
+}
+export type ParticipantVolumeControl = keyof ParticipantAudioPreferences;
+export const DEFAULT_PARTICIPANT_AUDIO: Readonly<ParticipantAudioPreferences> = {
+  voiceVolume: 100,
+  streamVolume: 100
+};
+
+/** Reject corrupt values and bound playback gain to 0–200%. */
+export function normalizeParticipantVolume(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.round(Math.max(0, Math.min(200, value)))
+    : 100;
+}
+
+function normalizeParticipantAudio(value: unknown): Record<string, ParticipantAudioPreferences> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([id, settings]) => {
+      if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return [];
+      return [
+        [
+          id,
+          {
+            voiceVolume: normalizeParticipantVolume(settings.voiceVolume),
+            streamVolume: normalizeParticipantVolume(settings.streamVolume)
+          }
+        ]
+      ];
+    })
+  );
+}
+
 /** Saved device IDs are preferences, not permission grants or active track state. */
 export interface CallPreferences {
+  /** Keyed by stable Chatto user ID, never by a transient LiveKit publisher ID. */
+  participantAudio: Record<string, ParticipantAudioPreferences>;
   microphone: string;
   speaker: string;
   camera: string;
@@ -16,6 +54,7 @@ export interface CallPreferences {
 }
 
 const defaults: CallPreferences = {
+  participantAudio: {},
   microphone: '',
   speaker: '',
   camera: '',
@@ -50,6 +89,7 @@ export class CallPreferencesState {
               ? 50
               : 0;
     this.#value = $state({
+      participantAudio: normalizeParticipantAudio(raw?.participantAudio),
       microphone: typeof raw?.microphone === 'string' ? raw.microphone : '',
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
@@ -59,6 +99,33 @@ export class CallPreferencesState {
       ),
       joinMuted: raw?.joinMuted === true
     });
+  }
+
+  /** Return saved levels, or unity gain for an unconfigured participant. */
+  getParticipantAudio(userId: string): Readonly<ParticipantAudioPreferences> {
+    return Object.hasOwn(this.#value.participantAudio, userId)
+      ? this.#value.participantAudio[userId]
+      : DEFAULT_PARTICIPANT_AUDIO;
+  }
+
+  /** Persist one source level while preserving other participant controls. */
+  setParticipantVolume(userId: string, control: ParticipantVolumeControl, value: number): void {
+    this.#value.participantAudio = {
+      ...this.#value.participantAudio,
+      [userId]: {
+        ...this.getParticipantAudio(userId),
+        [control]: normalizeParticipantVolume(value)
+      }
+    };
+    this.#slot.set(this.#value);
+  }
+
+  /** Remove the override so both sources return to their defaults. */
+  resetParticipantAudio(userId: string): void {
+    const { [userId]: _removed, ...remaining } = this.#value.participantAudio;
+    void _removed;
+    this.#value.participantAudio = remaining;
+    this.#slot.set(this.#value);
   }
 
   get effects() {

@@ -93,6 +93,16 @@
       "voice_normal": "Normal",
       "voice_cool": "Ziemlich cool",
       "voice_awesome": "MEGA"
+    },
+    "participant_audio": {
+      "title": "Teilnehmeraudio",
+      "local_only": "Ändert nur, was du hörst",
+      "voice": "Sprachlautstärke",
+      "stream": "Stream-Lautstärke",
+      "reset": "Lautstärke zurücksetzen",
+      "boost_unavailable": "Die Lautstärkeverstärkung ist in diesem Browser nicht verfügbar.",
+      "enable_audio": "Anrufton aktivieren",
+      "system_output": "Dieser Browser verwendet die Systemaudioausgabe für Anrufe."
     }
   }
 }

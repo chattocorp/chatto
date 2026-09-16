@@ -93,6 +93,16 @@
       "voice_normal": "Normal",
       "voice_cool": "Rätt cool",
       "voice_awesome": "FANTASTISK"
+    },
+    "participant_audio": {
+      "title": "Deltagarljud",
+      "local_only": "Ändrar bara vad du hör",
+      "voice": "Röstvolym",
+      "stream": "Strömvolym",
+      "reset": "Återställ volym",
+      "boost_unavailable": "Volymförstärkning är inte tillgänglig i den här webbläsaren.",
+      "enable_audio": "Aktivera samtalsljud",
+      "system_output": "Den här webbläsaren använder systemets ljudutgång för samtal."
     }
   }
 }

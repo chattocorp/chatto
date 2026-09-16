@@ -93,6 +93,16 @@
       "voice_normal": "普通",
       "voice_cool": "いい感じ",
       "voice_awesome": "最高"
+    },
+    "participant_audio": {
+      "title": "参加者の音声",
+      "local_only": "自分に聞こえる音だけを変更します",
+      "voice": "声の音量",
+      "stream": "配信の音量",
+      "reset": "音量をリセット",
+      "boost_unavailable": "このブラウザーでは音量の増幅を利用できません。",
+      "enable_audio": "通話音声を有効にする",
+      "system_output": "このブラウザーは通話にシステムの音声出力を使用します。"
     }
   }
 }

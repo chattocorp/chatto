@@ -68,3 +68,38 @@ it('gates entry and media controls from the current room permissions', async () 
   vi.spyOn(store.activeCallRooms, 'has').mockReturnValue(false);
   await expect.element(screen.getByTestId('call-join-button')).toBeDisabled();
 });
+
+it('opens volume controls from the remote card menu without opening a profile', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const store = serverRegistry.getStore(serverRegistry.originServer!.id);
+  const change = vi.spyOn(store.voiceCall, 'setParticipantVolume');
+  const bob = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
+  expect(bob.querySelector('input[type="range"]')).toBeNull();
+  bob.querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!.click();
+  await expect.poll(() => document.querySelector('input[type="range"]')).not.toBeNull();
+  const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
+  expect(input.max).toBe('200');
+  input.value = '175';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  expect(change).toHaveBeenCalledWith('bob', 'voiceVolume', 175);
+  expect(
+    screen.container.querySelector('[title="Alice"] [data-testid="call-participant-menu-button"]')
+  ).toBeNull();
+  flushSync(() => {
+    store.voiceCall.connected = false;
+  });
+  expect(document.querySelector('input[type="range"]')).toBeNull();
+});
+
+it('places the overflow menu in the screen-share card header', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
+  const card = screen.container.querySelector('[data-testid="call-featured-stage-card"]')!;
+  expect(card.querySelector('[data-testid="call-participant-menu-button"]')).not.toBeNull();
+  expect(card.querySelector('input[type="range"]')).toBeNull();
+});
