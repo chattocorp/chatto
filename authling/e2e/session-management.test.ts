@@ -21,11 +21,11 @@ test('reviews and signs out other browser sessions', async ({ browser, page, req
 
   const firstOther = await signInElsewhere();
   await page.reload();
-  let sessionSection = page.getByRole('heading', { name: 'Browser sessions' }).locator('..');
+  let sessionSection = page.getByRole('heading', { name: 'Sessions' }).locator('..');
   await expect(sessionSection.getByText('Browser session', { exact: true })).toHaveCount(2);
   await expect(sessionSection.getByText('This browser')).toHaveCount(1);
   await expect(
-    sessionSection.getByText('Authling does not store browser names, IP addresses, or locations.')
+    sessionSection.getByText('We do not store browser names, IP addresses, or locations.')
   ).toBeVisible();
   await sessionSection.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('The other browser session was signed out.');
@@ -37,7 +37,7 @@ test('reviews and signs out other browser sessions', async ({ browser, page, req
   const secondOther = await signInElsewhere();
   const thirdOther = await signInElsewhere();
   await page.reload();
-  sessionSection = page.getByRole('heading', { name: 'Browser sessions' }).locator('..');
+  sessionSection = page.getByRole('heading', { name: 'Sessions' }).locator('..');
   await expect(sessionSection.getByText('Browser session', { exact: true })).toHaveCount(3);
   await sessionSection.getByRole('button', { name: 'Sign out all other browsers' }).click();
   await expect(page.getByRole('status')).toHaveText('Your other browser sessions were signed out.');

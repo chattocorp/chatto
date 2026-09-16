@@ -24,7 +24,7 @@ test('changes a signed-in password and invalidates other browser sessions', asyn
 
   await page.getByRole('link', { name: 'Change password' }).click();
   await expect(page.getByRole('heading', { name: 'Change your password' })).toBeVisible();
-  await expect(page.getByText('signs out your other Authling browser sessions')).toBeVisible();
+  await expect(page.getByText('signs out your other browser sessions on Test Accounts')).toBeVisible();
 
   await page.getByLabel('Current password').fill('the wrong current password');
   await page.getByLabel('New password', { exact: true }).fill(replacementPassword);

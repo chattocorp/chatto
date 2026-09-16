@@ -52,6 +52,7 @@ type Service struct {
 	js              jetstream.JetStream
 	key             []byte
 	sender          email.Sender
+	siteName        string // Public service name used only in email copy.
 	accounts        *accounts.Service
 	deliveryBudget  *storage.DeliveryBudget
 	deliverySlots   chan struct{}
@@ -59,12 +60,13 @@ type Service struct {
 }
 
 // New constructs the password-reset workflow.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service) *Service {
+func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, siteName string) *Service {
 	return &Service{
 		kv:       kv,
 		js:       js,
 		key:      append([]byte(nil), key...),
 		sender:   sender,
+		siteName: siteName,
 		accounts: accountService,
 		deliveryBudget: storage.NewDeliveryBudget(kv, js, storage.DeliveryPolicy{
 			GlobalKey:      "password-reset-limit.global",
@@ -128,8 +130,8 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err != nil {
 		return "", fmt.Errorf("store password reset flow: %w", err)
 	}
-	body := fmt.Sprintf("Your Authling password reset code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", code)
-	if err := s.send(ctx, email.Message{To: normalized, Subject: "Your Authling password reset code", Body: body}); err != nil {
+	body := fmt.Sprintf("Your %s password reset code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", s.siteName, code)
+	if err := s.send(ctx, email.Message{To: normalized, Subject: "Your " + s.siteName + " password reset code", Body: body}); err != nil {
 		_ = s.kv.Delete(ctx, key)
 		return "", fmt.Errorf("deliver password reset code: %w", err)
 	}

@@ -57,9 +57,9 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
 
   await page.goto(authorize.toString());
   await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
-  await expect(page.getByText('Signed in as')).toBeVisible();
+  await expect(page.getByRole('link', { name: `Signed in as ${email}. View your account.` })).toBeVisible();
   await expect(page.getByText(email)).toBeVisible();
-  await expect(page.getByText('configured by this Authling operator', { exact: false })).toBeVisible();
+  await expect(page.getByText('configured by this site’s operator', { exact: false })).toBeVisible();
 
   await expect(page.getByText(accountID, { exact: true })).toBeVisible();
   await expect(page.getByText(preferredUsername, { exact: true })).toBeVisible();
@@ -112,9 +112,9 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   expect(await updatedUserinfo.json()).toEqual({ sub: accountID, preferred_username: 'updated-username', name: 'Updated Profile Person' });
 
   await page.goto(`${stack.baseURL}/account`);
-  const authorizedApps = page.getByRole('heading', { name: 'Authorized apps' }).locator('..');
+  const authorizedApps = page.getByRole('heading', { name: 'Connected apps' }).locator('..');
   await expect(authorizedApps.getByText('Authling E2E client')).toBeVisible();
-  await expect(authorizedApps.getByText('configured by this Authling operator', { exact: false })).toBeVisible();
+  await expect(authorizedApps.getByText('configured by this site’s operator', { exact: false })).toBeVisible();
 
   await page.goto(authorize.toString());
   await expect(page).toHaveURL(new RegExp(`^${escapeRegExp(stack.callbackURL)}\\?`));

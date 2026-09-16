@@ -231,6 +231,15 @@ Unversioned asset URLs require cache revalidation with an ETag. Missing files an
 unknown versions are not cached. HTML and authentication responses retain
 `Cache-Control: no-store`.
 
+The `site` configuration supplies a public name and optional description through
+TOML or environment variables. The name defaults to the configured public
+hostname, never a request header. Each HTTP handler attaches its resolved display
+settings to request context for the shared page layout. Transactional email
+workflows receive the same resolved name. Display text does not change issuer or
+client identity. Forms use a compact layout; account settings use a wider layout
+with separate profile, security, connected-app, session, and deletion sections.
+See [FDR-014](../fdr/FDR-014-site-identity.md).
+
 The initial Content Security Policy prohibits scripts and third-party content.
 All essential future authentication interactions must continue to work through
 ordinary server-rendered links and forms.

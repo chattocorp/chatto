@@ -1,5 +1,11 @@
 # Authling config for local development
 
+# Public site identity. These values do not change the issuer URL below.
+# Override with AUTHLING_SITE_NAME and AUTHLING_SITE_DESCRIPTION.
+[site]
+name = 'chatto.id'
+description = 'Your account for Chatto.'
+
 [http]
 bind_address = '127.0.0.1:8080'
 public_url = 'http://localhost:8080'

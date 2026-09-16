@@ -34,7 +34,7 @@ test('resets the password without changing sub and invalidates other browser ses
   await page.getByLabel('Password reset code').fill(code);
   await page.getByRole('button', { name: 'Verify code' }).click();
   await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible();
-  await expect(page.getByText('signs out your other Authling browser sessions')).toBeVisible();
+  await expect(page.getByText('signs out your other browser sessions on Test Accounts')).toBeVisible();
   await page.getByLabel('New password').fill(replacementPassword);
   await page.getByRole('button', { name: 'Reset password' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
