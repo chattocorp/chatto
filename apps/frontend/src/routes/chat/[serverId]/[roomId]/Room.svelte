@@ -857,7 +857,7 @@
         {:then { default: ThreadPane }}
           <ThreadPane
             {roomId}
-            roomName={presentation.title}
+            roomName={room.isDM ? presentation.title : room.roomData.room.name}
             isDirectMessage={room.isDM}
             threadRootEventId={threadId}
             onClose={closeThread}
