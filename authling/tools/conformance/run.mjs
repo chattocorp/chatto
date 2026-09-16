@@ -134,7 +134,7 @@ redirect_uris = ['${suite}/test/a/authling/callback']
     server: { discoveryUrl: `${issuer}/.well-known/openid-configuration` },
     client: { client_id: 'conformance', client_secret: secret, scope: 'openid' },
     client2: { client_id: 'conformance2', client_secret: secret + '-second', scope: 'openid' },
-    // Exercise the unsupported POST authentication method, rather than fail on missing test configuration.
+    // Exercise POST authentication with the same configured confidential client.
     client_secret_post: { client_id: 'conformance', client_secret: secret, scope: 'openid' }
   }), { mode: 0o600 });
   checkRunning();

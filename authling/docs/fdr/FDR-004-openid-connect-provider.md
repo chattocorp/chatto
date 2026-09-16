@@ -47,9 +47,9 @@ and returns to the relying party with an Authorization Code.
 
 An operator declares conventional clients with `[[oidc.clients]]`. An empty
 secret creates a public client using token endpoint authentication method
-`none`; a secret of at least 32 characters creates a `client_secret_basic`
-client. Both require PKCE by default. Only a client with a configured secret may
-set `require_pkce = false`. Public and CIMD clients cannot opt out.
+`none`; a secret of at least 32 characters creates a confidential client that
+accepts `client_secret_basic` or `client_secret_post`. Both public and confidential
+clients require PKCE by default. Only a client with a configured secret may set `require_pkce = false`. Public and CIMD clients cannot opt out.
 If either PKCE parameter is present, the request must contain a valid S256
 challenge and method. Token exchange must then contain the matching verifier.
 A verifier without an original challenge is rejected.
@@ -65,6 +65,17 @@ changes are required. During mixed-version deployment, old replicas reject
 non-PKCE requests and exchanges. Enable the exception only after all replicas
 have been upgraded. Existing short-lived codes retain the challenge recorded
 when authorization started.
+
+Token endpoint discovery advertises both secret authentication methods. Clients
+must use exactly one method per request, with POST credentials in the form body.
+Credentials in query parameters and ambiguous authentication are rejected with
+a JSON `invalid_request` error and `Cache-Control: no-store`. Basic
+clients need no configuration change. POST clients must connect to upgraded
+replicas; there is no persisted-data change.
+
+A missing or empty authorization `response_type` returns `invalid_request`.
+An unsupported value returns `unsupported_response_type`. These errors redirect
+only after validation of the client and its exact redirect URI.
 
 ## CIMD Clients
 

@@ -2588,7 +2588,7 @@ func TestConfidentialClientOptionalPKCEAndDowngradeProtection(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
 	optional := false
-	secret := strings.Repeat("s", 32)
+	secret := strings.Repeat("s", 32) + " +&%:"
 	cfg.OIDC.Clients = []config.OIDCClientConfig{{ID: "test-client", Name: "Test Client", Secret: secret, RequirePKCE: &optional, RedirectURIs: []string{"http://localhost:9999/callback"}}}
 	cfg.OIDC.Clients = append(cfg.OIDC.Clients,
 		config.OIDCClientConfig{ID: "default-confidential", Name: "Default Confidential", Secret: secret, RedirectURIs: []string{"http://localhost:9999/callback"}},
@@ -2609,40 +2609,63 @@ func TestConfidentialClientOptionalPKCEAndDowngradeProtection(t *testing.T) {
 			t.Fatal("client without an exception bypassed PKCE")
 		}
 	}
-	exchange := func(code, verifier, credential string) *httptest.ResponseRecorder {
-		t.Helper()
-		form := url.Values{"grant_type": {"authorization_code"}, "redirect_uri": {"http://localhost:9999/callback"}, "code": {code}}
-		if verifier != "" {
-			form.Set("code_verifier", verifier)
+	for _, method := range []string{"basic", "post"} {
+		exchange := func(code, verifier, credential string) *httptest.ResponseRecorder {
+			t.Helper()
+			form := url.Values{"grant_type": {"authorization_code"}, "redirect_uri": {"http://localhost:9999/callback"}, "code": {code}}
+			if verifier != "" {
+				form.Set("code_verifier", verifier)
+			}
+			if method == "post" {
+				form.Set("client_id", "test-client")
+				form.Set("client_secret", credential)
+			}
+			req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/oauth/token", strings.NewReader(form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if method == "basic" {
+				req.SetBasicAuth("test-client", url.QueryEscape(credential))
+			}
+			res := httptest.NewRecorder()
+			handler.ServeHTTP(res, req)
+			return res
 		}
-		req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/oauth/token", strings.NewReader(form.Encode()))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.SetBasicAuth("test-client", credential)
-		res := httptest.NewRecorder()
-		handler.ServeHTTP(res, req)
-		return res
-	}
-	for _, tc := range []struct {
-		name, challenge, verifier, credential string
-		ok                                    bool
-	}{
-		{"without PKCE", "", "", secret, true},
-		{"wrong secret", "", "", "incorrect", false},
-		{"unexpected verifier", "", strings.Repeat("v", 43), secret, false},
-		{"missing verifier", strings.Repeat("v", 43), "", secret, false},
-		{"wrong verifier", strings.Repeat("v", 43), strings.Repeat("w", 43), secret, false},
-		{"correct verifier", strings.Repeat("v", 43), strings.Repeat("v", 43), secret, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			code := completeAuthorization(t, handler, tc.challenge, nil)
-			response := exchange(code, tc.verifier, tc.credential)
-			if (response.Code == http.StatusOK) != tc.ok {
-				t.Fatalf("unexpected token HTTP status: %d", response.Code)
-			}
-			if tc.ok && exchange(code, tc.verifier, tc.credential).Code == http.StatusOK {
-				t.Fatal("code reuse succeeded")
-			}
-		})
+		for _, tc := range []struct {
+			name, challenge, verifier, credential string
+			ok                                    bool
+		}{
+			{"without PKCE", "", "", secret, true},
+			{"empty secret", "", "", "", false},
+			{"wrong secret", "", "", "incorrect", false},
+			{"unexpected verifier", "", strings.Repeat("v", 43), secret, false},
+			{"missing verifier", strings.Repeat("v", 43), "", secret, false},
+			{"wrong verifier", strings.Repeat("v", 43), strings.Repeat("w", 43), secret, false},
+			{"correct verifier", strings.Repeat("v", 43), strings.Repeat("v", 43), secret, true},
+		} {
+			t.Run(method+"/"+tc.name, func(t *testing.T) {
+				code := completeAuthorization(t, handler, tc.challenge, nil)
+				response := exchange(code, tc.verifier, tc.credential)
+				if (response.Code == http.StatusOK) != tc.ok {
+					t.Fatalf("unexpected token HTTP status: %d", response.Code)
+				}
+				if !tc.ok {
+					if response.Code != http.StatusBadRequest && response.Code != http.StatusUnauthorized {
+						t.Fatalf("expected protocol rejection, got %d", response.Code)
+					}
+					var body struct {
+						Error string `json:"error"`
+					}
+					if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || body.Error == "" {
+						t.Fatal("missing OAuth error response")
+					}
+					if (tc.name == "wrong secret" || tc.name == "empty secret") && body.Error != "invalid_client" {
+						t.Fatalf("credential failure returned %q", body.Error)
+					}
+				}
+				if tc.ok && exchange(code, tc.verifier, tc.credential).Code == http.StatusOK {
+					t.Fatal("code reuse succeeded")
+				}
+			})
+		}
 	}
 }
 
@@ -2660,10 +2683,14 @@ func TestDiscoveryReflectsUnregisteredClientAdmission(t *testing.T) {
 				t.Fatalf("discovery status: %d", response.Code)
 			}
 			var metadata struct {
-				CIMD bool `json:"client_id_metadata_document_supported"`
+				CIMD    bool     `json:"client_id_metadata_document_supported"`
+				Methods []string `json:"token_endpoint_auth_methods_supported"`
 			}
 			if err := json.Unmarshal(response.Body.Bytes(), &metadata); err != nil {
 				t.Fatal(err)
+			}
+			if strings.Join(metadata.Methods, ",") != "none,client_secret_basic,client_secret_post" {
+				t.Fatal("discovery does not advertise supported authentication methods")
 			}
 			if metadata.CIMD != enabled {
 				t.Fatal("discovery differs from configured CIMD policy")

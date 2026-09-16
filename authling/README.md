@@ -306,7 +306,7 @@ id = 'example-app'
 name = 'Example App'
 redirect_uris = ['https://app.example.com/oidc/callback']
 # Omit secret for a public client, or configure at least 32 characters for
-# client_secret_basic authentication.
+# client_secret_basic or client_secret_post authentication.
 secret = 'replace-with-a-secret-from-your-secret-store'
 # Optional compatibility exception for confidential clients only.
 # Prefer true; clients that opt out need other code-injection defenses.

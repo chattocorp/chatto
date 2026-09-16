@@ -270,7 +270,10 @@ func TestAuthorizeValidationErrorsRedirectOnlyToValidatedClients(t *testing.T) {
 		{name: "unsupported scope", raw: invalidScope, wantStatus: http.StatusFound, wantError: "invalid_scope"},
 		{name: "missing PKCE", raw: strings.ReplaceAll(valid, "&code_challenge="+strings.Repeat("a", 43), ""), wantStatus: http.StatusFound, wantError: "invalid_request"},
 		{name: "request object", raw: valid + "&request=opaque", wantStatus: http.StatusFound, wantError: "request_not_supported"},
-		{name: "unsupported response type", raw: strings.ReplaceAll(valid, "response_type=code", "response_type=token"), wantStatus: http.StatusFound, wantError: "unauthorized_client"},
+		{name: "missing response type", raw: strings.ReplaceAll(valid, "response_type=code&", ""), wantStatus: http.StatusFound, wantError: "invalid_request"},
+		{name: "empty response type", raw: strings.ReplaceAll(valid, "response_type=code", "response_type="), wantStatus: http.StatusFound, wantError: "invalid_request"},
+		{name: "missing response type unsafe redirect", raw: strings.ReplaceAll(strings.ReplaceAll(valid, "response_type=code&", ""), "client.example%2Fcallback", "attacker.example%2Fcallback"), wantStatus: http.StatusBadRequest},
+		{name: "unsupported response type", raw: strings.ReplaceAll(valid, "response_type=code", "response_type=token"), wantStatus: http.StatusFound, wantError: "unsupported_response_type"},
 		{name: "unknown client", raw: strings.ReplaceAll(invalidScope, "client_id=client", "client_id=unknown"), wantStatus: http.StatusBadRequest},
 		{name: "unregistered redirect", raw: strings.ReplaceAll(invalidScope, "client.example%2Fcallback", "attacker.example%2Fcallback"), wantStatus: http.StatusBadRequest},
 		{name: "unsupported response mode", raw: valid + "&response_mode=form_post", wantStatus: http.StatusBadRequest},
@@ -548,6 +551,39 @@ func TestCombinedResolverRequiresUnregisteredClientOptInBeforeFetching(t *testin
 				if err == nil || fetches.Load() != 0 {
 					t.Fatal("disabled CIMD resolved or fetched a document")
 				}
+			}
+		})
+	}
+}
+
+// Reject ambiguous credentials before the library can merge or select them.
+func TestTokenRejectsAmbiguousAuthentication(t *testing.T) {
+	for _, tc := range []struct{ name, suffix, query, header string }{
+		{"duplicate secret", "&client_secret=one&client_secret=two", "", ""},
+		{"duplicate client", "&client_id=one&client_id=two", "", ""},
+		{"query secret", "", "?client_secret=secret", ""},
+		{"query code", "", "?code=other", ""},
+		{"mixed methods", "&client_id=client&client_secret=secret", "", "Basic Y2xpZW50OnNlY3JldA=="},
+		{"empty mixed secret", "&client_secret=", "", "Basic Y2xpZW50OnNlY3JldA=="},
+		{"duplicate headers", "", "", "Basic Y2xpZW50OnNlY3JldA=="},
+		{"malformed basic", "&client_id=client&client_secret=secret", "", "Basic broken"},
+		{"unsupported header", "&client_id=client&client_secret=secret", "", "Bearer opaque"},
+		{"assertion", "&client_assertion=opaque", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := (&Service{}).wrap(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("ambiguous credentials reached provider") }))
+			req := httptest.NewRequest(http.MethodPost, "https://auth.example/oauth/token"+tc.query, strings.NewReader("grant_type=authorization_code&code=opaque"+tc.suffix))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			if tc.name == "duplicate headers" {
+				req.Header.Add("Authorization", tc.header)
+			}
+			res := httptest.NewRecorder()
+			handler.ServeHTTP(res, req)
+			if res.Code != http.StatusBadRequest || res.Body.String() != `{"error":"invalid_request"}` || res.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("unexpected error response: status %d", res.Code)
 			}
 		})
 	}

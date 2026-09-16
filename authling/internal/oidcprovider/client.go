@@ -31,6 +31,8 @@ type Client struct {
 	NameValue   string
 	DisplayHost string
 	Redirects   []string
+	// Method selects the library authentication profile. Configured secret clients
+	// use Basic as their default profile and also accept POST credentials.
 	Method      liboidc.AuthMethod
 	Secret      string
 	Source      ClientSource
