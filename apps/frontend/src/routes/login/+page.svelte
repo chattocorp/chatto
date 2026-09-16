@@ -1,7 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
-  import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -113,6 +112,8 @@
         return;
       }
 
+      // Session completion is only needed after a successful password login.
+      const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
       const resumedReturnNavigation = await completeOriginAuthentication();
       if (!resumedReturnNavigation) {
         await navigateAfterAuthentication(data.redirectUrl);
