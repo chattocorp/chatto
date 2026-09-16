@@ -2,20 +2,32 @@
 @component
 
 Reveal replacement content from left to right with a soft, diagonal wipe edge.
-Place outgoing and incoming wrappers in the same grid cell. The outgoing
-content clears behind the incoming edge. Reduced motion skips the wipe.
+Change `active` to replace the content in one grid cell. Mounting or removing
+the whole component does not animate. Reduced motion skips the wipe.
 -->
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
   import { cubicInOut } from 'svelte/easing';
   import { expoOutTransition } from './motion';
 
-  let { children, class: className }: { children: Snippet; class?: ClassValue } = $props();
+  let {
+    active,
+    children,
+    class: className
+  }: {
+    active: boolean;
+    children: Snippet<[boolean]>;
+    class?: ClassValue;
+  } = $props();
+  let mounted = false;
+  onMount(() => {
+    mounted = true;
+  });
 
   function wipe(_node: Element, { outgoing = false } = {}) {
     return {
-      ...expoOutTransition(320),
+      ...expoOutTransition(mounted ? 320 : 0),
       easing: cubicInOut,
       css: (t: number) => {
         // Move the entire feather beyond either edge at the endpoints. Opposite
@@ -29,6 +41,10 @@ content clears behind the incoming edge. Reduced motion skips the wipe.
   }
 </script>
 
-<div class={['min-w-0', className]} in:wipe|global out:wipe|global={{ outgoing: true }}>
-  {@render children()}
+<div class={['grid min-w-0 items-end', className]}>
+  {#key active}
+    <div class="col-start-1 row-start-1 min-w-0" in:wipe out:wipe={{ outgoing: true }}>
+      {@render children(active)}
+    </div>
+  {/key}
 </div>
