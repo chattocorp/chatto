@@ -25,7 +25,6 @@ the same API as the visual editor while keeping the stored Markdown visible.
   } from '@codemirror/lang-markdown';
   import { Compartment, EditorSelection, EditorState, Prec, Transaction } from '@codemirror/state';
   import {
-    drawSelection,
     EditorView,
     keymap,
     placeholder as editorPlaceholder
@@ -120,11 +119,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       padding: '0.25rem 0',
       caretColor: 'var(--color-text)'
     },
-    '.cm-cursor, .cm-dropCursor': {
-      borderLeftColor: 'var(--color-text)'
-    },
-    // CodeMirror centres its cursor on the text edge; leave room inside the clipped scroller.
-    '.cm-line': { padding: '0 2px' },
+    '.cm-line': { padding: '0' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
     '.cm-code-fence': {
       boxSizing: 'border-box',
@@ -157,7 +152,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       paddingBottom: '0.2rem',
       color: 'var(--color-muted)'
     },
-    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, ::selection':
+    '::selection':
       {
         backgroundColor: 'color-mix(in srgb, var(--color-action) 20%, transparent)'
       },
@@ -211,7 +206,6 @@ the same API as the visual editor while keeping the stored Markdown visible.
       state: EditorState.create({
         extensions: [
           history(),
-          drawSelection(),
           keymap.of([
             { key: 'Mod-b', run: (view) => toggleSourceFormatting(view, 'bold') },
             { key: 'Mod-i', run: (view) => toggleSourceFormatting(view, 'italic') },

@@ -51,7 +51,7 @@ function pasteText(target: Element, text: string) {
 }
 
 describe('MarkdownEditor', () => {
-  it('keeps the empty editor caret inside its scroll viewport after refocusing', async () => {
+  it('uses native caret and selection after refocusing', async () => {
     const { container } = await renderEditor();
     const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
     const outside = document.createElement('button');
@@ -62,14 +62,16 @@ describe('MarkdownEditor', () => {
     await textbox.click();
     await expect.element(textbox).toHaveFocus();
 
-    await expect.poll(() => {
-      const cursor = container.querySelector('.cm-cursor');
-      const scroller = container.querySelector('.cm-scroller');
-      if (!cursor || !scroller) return false;
-      const caret = cursor.getBoundingClientRect();
-      const viewport = scroller.getBoundingClientRect();
-      return caret.width > 0 && caret.height > 0 && caret.left >= viewport.left && caret.right <= viewport.right;
-    }).toBe(true);
+    const content = textbox.element();
+    expect(container.querySelector('.cm-cursorLayer, .cm-selectionLayer')).toBeNull();
+    expect(getComputedStyle(content).caretColor).toBe(getComputedStyle(content).color);
+    expect(content.contains(window.getSelection()?.anchorNode ?? null)).toBe(true);
+
+    await userEvent.keyboard('hello');
+    await userEvent.keyboard('{Shift>}{ArrowLeft}{ArrowLeft}{/Shift}');
+    expect(window.getSelection()?.toString()).toBe('lo');
+    await userEvent.keyboard('p');
+    expect(content.textContent).toBe('help');
   });
 
   it('synchronizes its accessible name, placeholder, and disabled state', async () => {
@@ -239,8 +241,7 @@ describe('MarkdownEditor', () => {
     await vi.waitFor(() => expect(container.querySelectorAll('.cm-line')).toHaveLength(2));
 
     api.focus();
-    await vi.waitFor(() => expect(container.querySelector('.cm-cursor')).toBeTruthy());
-    expect(getComputedStyle(container.querySelector('.cm-cursor')!).borderLeftColor).toBe(
+    expect(getComputedStyle(content!).caretColor).toBe(
       getComputedStyle(content!).color
     );
   });
