@@ -195,7 +195,7 @@ async function startStackAttempt(
   const configPath = path.join(stateDirectory, 'authling-e2e.toml');
   writeFileSync(
     configPath,
-    `[[oidc.clients]]\nid = 'authling-e2e'\nname = 'Authling E2E client'\nredirect_uris = ['${callbackURL}']\n${options.additionalConfig ?? ''}`
+    `[site]\nname = 'Test Accounts'\ndescription = 'Your test account.'\n\n[[oidc.clients]]\nid = 'authling-e2e'\nname = 'Authling E2E client'\nredirect_uris = ['${callbackURL}']\n${options.additionalConfig ?? ''}`
   );
   let callbackServer: Server | undefined;
   const mailpit = startProcess(

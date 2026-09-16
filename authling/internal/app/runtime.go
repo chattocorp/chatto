@@ -177,9 +177,9 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 		projectors:       []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector()},
 		issuer:           issuerService,
 		Accounts:         accountService,
-		Registration:     registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
-		PasswordReset:    passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService),
-		EmailChange:      emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService, emailChangeOptions...),
+		Registration:     registration.New(stores.RuntimeState, js, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
+		PasswordReset:    passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name),
+		EmailChange:      emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService, cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()).Name, emailChangeOptions...),
 		Authentication:   authenticationService,
 		Sessions:         sessionService,
 		Authorizations:   authorizationService,
@@ -284,6 +284,7 @@ func serveRuntime(ctx context.Context, cfg config.Config, logger *slog.Logger, r
 	}
 	httpServer := &http.Server{
 		Handler: web.Handler(web.Dependencies{
+			Site:              cfg.Site.Resolve(cfg.HTTP.PublicURLOrDefault()),
 			Accounts:          runtime.Accounts,
 			Authentication:    runtime.Authentication,
 			Registration:      runtime.Registration,

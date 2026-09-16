@@ -67,6 +67,7 @@ type Service struct {
 	js              jetstream.JetStream
 	key             []byte
 	sender          email.Sender
+	siteName        string // Public service name used only in email copy.
 	accounts        *accounts.Service
 	authentication  *authentication.Service
 	deliveryBudget  *storage.DeliveryBudget
@@ -89,12 +90,13 @@ func WithClock(now func() time.Time) Option {
 }
 
 // New constructs the verified email-change workflow.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, options ...Option) *Service {
+func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, siteName string, options ...Option) *Service {
 	service := &Service{
 		kv:             kv,
 		js:             js,
 		key:            append([]byte(nil), key...),
 		sender:         sender,
+		siteName:       siteName,
 		accounts:       accountService,
 		authentication: authenticationService,
 		deliveryBudget: storage.NewDeliveryBudget(kv, js, storage.DeliveryPolicy{
@@ -157,8 +159,8 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 	if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err != nil {
 		return "", fmt.Errorf("store email change flow: %w", err)
 	}
-	body := fmt.Sprintf("Your Authling email change code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", code)
-	if err := s.send(ctx, email.Message{To: newEmail, Subject: "Your Authling email change code", Body: body}); err != nil {
+	body := fmt.Sprintf("Your %s email change code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", s.siteName, code)
+	if err := s.send(ctx, email.Message{To: newEmail, Subject: "Your " + s.siteName + " email change code", Body: body}); err != nil {
 		_ = s.kv.Delete(ctx, key)
 		return "", fmt.Errorf("deliver email change code: %w", err)
 	}
@@ -251,8 +253,8 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 func (s *Service) finishCommitted(key string, revision uint64, state flowState, account accounts.Account) (Completion, error) {
 	message := email.Message{
 		To:      state.Target.OldEmail,
-		Subject: "Your Authling email address changed",
-		Body:    "The email address for your Authling account was changed. If you did not make this change, contact the operator of this Authling service immediately.\n",
+		Subject: "Your " + s.siteName + " email address changed",
+		Body:    fmt.Sprintf("The email address for your %s account was changed. If you did not make this change, contact the operator of this service immediately.\n", s.siteName),
 	}
 	notificationContext, cancel := context.WithTimeout(context.Background(), oldAddressNotificationTimeout)
 	defer cancel()

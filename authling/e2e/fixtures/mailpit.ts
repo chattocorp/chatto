@@ -33,7 +33,7 @@ export async function waitForVerificationCode(
   return waitForCode(
     request,
     mailpitURL,
-    'Your Authling verification code',
+    'Your Test Accounts verification code',
     /verification code is ([0-9]{6})\./,
     timeoutMs
   );
@@ -47,7 +47,7 @@ export async function waitForPasswordResetCode(
   return waitForCode(
     request,
     mailpitURL,
-    'Your Authling password reset code',
+    'Your Test Accounts password reset code',
     /password reset code is ([0-9]{6})\./,
     timeoutMs
   );
@@ -61,7 +61,7 @@ export async function waitForEmailChangeCode(
   return waitForCode(
     request,
     mailpitURL,
-    'Your Authling email change code',
+    'Your Test Accounts email change code',
     /email change code is ([0-9]{6})\./,
     timeoutMs
   );

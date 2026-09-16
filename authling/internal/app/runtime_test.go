@@ -571,7 +571,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 		t.Fatalf("active grants = %+v, %v", grants, err)
 	}
 	accountPage := requestHandler(t, handler, http.MethodGet, "/account", "", cookie)
-	if accountPage.Code != http.StatusOK || !strings.Contains(accountPage.Body.String(), "Authorized apps") || !strings.Contains(accountPage.Body.String(), "Test Client") {
+	if accountPage.Code != http.StatusOK || !strings.Contains(accountPage.Body.String(), "Connected apps") || !strings.Contains(accountPage.Body.String(), "Test Client") {
 		t.Fatalf("account authorized apps status/body = %d %s", accountPage.Code, accountPage.Body.String())
 	}
 
@@ -743,7 +743,7 @@ func TestBrowserSessionManagementHTTP(t *testing.T) {
 		t.Fatalf("account status/body = %d %s", accountPage.Code, accountPage.Body.String())
 	}
 	body := accountPage.Body.String()
-	if strings.Count(body, ">Browser session</p>") != 2 || !strings.Contains(body, "This browser") || !strings.Contains(body, "does not store browser names, IP addresses, or locations") {
+	if strings.Count(body, ">Browser session</p>") != 2 || !strings.Contains(body, "This browser") || !strings.Contains(body, "do not store browser names, IP addresses, or locations") {
 		t.Fatalf("account page does not show privacy-preserving session inventory: %s", body)
 	}
 	match := regexp.MustCompile(`name="session_id" value="([^"]+)"`).FindStringSubmatch(body)
@@ -2045,6 +2045,7 @@ func TestVerifiedFlowAllowsOnlyOneConcurrentCompletion(t *testing.T) {
 func embeddedTestConfig(t *testing.T) config.Config {
 	t.Helper()
 	return config.Config{
+		Site: config.SiteConfig{Name: "Authling"},
 		NATS: config.NATSConfig{
 			Embedded: config.EmbeddedNATSConfig{
 				Enabled: true,
@@ -2537,4 +2538,44 @@ func TestEmailChangeSessionPreservesAuthenticationTime(t *testing.T) {
 	if err != nil || !state.AuthenticatedAt.Equal(at) || !state.CreatedAt.After(at) {
 		t.Fatalf("replacement authentication time = %v, %v", state.AuthenticatedAt, err)
 	}
+}
+
+func TestTransactionalEmailsUseConfiguredSiteName(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.Site.Name = "chatto.id"
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg, sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	check := func(suffix string) {
+		t.Helper()
+		message := sender.last()
+		if message.Subject != "Your chatto.id "+suffix || !strings.Contains(message.Body, "chatto.id") || strings.Contains(message.Body, "Authling") {
+			t.Fatal("transactional email does not use configured site identity")
+		}
+	}
+	if _, err := runtime.Registration.Start(testContext(t), "signup@example.invalid"); err != nil {
+		t.Fatal(err)
+	}
+	check("verification code")
+	if _, err := runtime.PasswordReset.Start(testContext(t), "absent@example.invalid"); err != nil {
+		t.Fatal(err)
+	}
+	check("password reset code")
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "before@example.invalid", "an uncommon and long password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "an uncommon and long password", "after@example.invalid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check("email change code")
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow); err != nil {
+		t.Fatal(err)
+	}
+	check("email address changed")
 }

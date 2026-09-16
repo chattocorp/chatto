@@ -21,3 +21,4 @@ record planned behavior as active functionality.
 | [FDR-011](FDR-011-account-profile.md) | Account Profile | Experimental | 2026-08-21 |
 | [FDR-012](FDR-012-automatic-oidc-signing-key-rotation.md) | Automatic OIDC Signing-Key Rotation | Experimental | 2026-09-15 |
 | [FDR-013](FDR-013-account-deletion.md) | Account Deletion | Experimental | 2026-09-15 |
+| [FDR-014](FDR-014-site-identity.md) | Site Identity | Experimental | 2026-09-16 |

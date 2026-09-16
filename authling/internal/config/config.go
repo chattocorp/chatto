@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"hmans.de/chatto/pkg/appconfig"
 )
@@ -20,11 +22,36 @@ const (
 
 // Config is Authling's canonical process configuration.
 type Config struct {
+	Site           SiteConfig           `toml:"site"`
 	HTTP           HTTPConfig           `toml:"http"`
 	Authentication AuthenticationConfig `toml:"authentication"`
 	OIDC           OIDCConfig           `toml:"oidc"`
 	NATS           NATSConfig           `toml:"nats"`
 	SMTP           SMTPConfig           `toml:"smtp"`
+}
+
+// SiteConfig contains operator-controlled display text, independent of issuer identity.
+type SiteConfig struct {
+	// Name is the public service name, not the software name.
+	Name string `toml:"name" env:"AUTHLING_SITE_NAME"`
+	// Description is optional plain text for the home page and page metadata.
+	Description string `toml:"description" env:"AUTHLING_SITE_DESCRIPTION"`
+}
+
+// Resolve trims display text and defaults the name to the configured public
+// hostname. Request headers never determine the site's identity.
+func (c SiteConfig) Resolve(publicURL string) SiteConfig {
+	c.Name = strings.TrimSpace(c.Name)
+	c.Description = strings.TrimSpace(c.Description)
+	if c.Name == "" {
+		if parsed, err := url.Parse(publicURL); err == nil {
+			c.Name = parsed.Hostname()
+		}
+		if c.Name == "" {
+			c.Name = "Account service"
+		}
+	}
+	return c
 }
 
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
@@ -223,6 +250,16 @@ func (c *Config) applyDefaults() {
 // Validate checks that Authling has exactly one usable NATS deployment mode.
 func (c Config) Validate() error {
 	var problems []string
+	for _, field := range []struct {
+		name, value string
+		limit       int
+	}{
+		{"site.name", c.Site.Name, 120}, {"site.description", c.Site.Description, 500},
+	} {
+		if !utf8.ValidString(field.value) || utf8.RuneCountInString(field.value) > field.limit || strings.ContainsFunc(field.value, unicode.IsControl) {
+			problems = append(problems, field.name+" must be valid single-line text within its length limit")
+		}
+	}
 	if days := c.OIDC.SigningKeyRotationIntervalDays; days < 0 || days > 3650 {
 		problems = append(problems, "oidc.signing_key_rotation_interval_days must be between 1 and 3650 when set")
 	}
