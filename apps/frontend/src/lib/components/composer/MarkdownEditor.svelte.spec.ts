@@ -51,6 +51,27 @@ function pasteText(target: Element, text: string) {
 }
 
 describe('MarkdownEditor', () => {
+  it('keeps the empty editor caret inside its scroll viewport after refocusing', async () => {
+    const { container } = await renderEditor();
+    const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+    const outside = document.createElement('button');
+    outside.textContent = 'Outside editor';
+    container.append(outside);
+    await textbox.click();
+    await userEvent.click(outside);
+    await textbox.click();
+    await expect.element(textbox).toHaveFocus();
+
+    await expect.poll(() => {
+      const cursor = container.querySelector('.cm-cursor');
+      const scroller = container.querySelector('.cm-scroller');
+      if (!cursor || !scroller) return false;
+      const caret = cursor.getBoundingClientRect();
+      const viewport = scroller.getBoundingClientRect();
+      return caret.width > 0 && caret.height > 0 && caret.left >= viewport.left && caret.right <= viewport.right;
+    }).toBe(true);
+  });
+
   it('synchronizes its accessible name, placeholder, and disabled state', async () => {
     const rendered = await renderEditor();
     const textbox = page.getByRole('textbox', { name: 'Write Markdown' });

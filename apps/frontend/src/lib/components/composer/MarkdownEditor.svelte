@@ -123,7 +123,8 @@ the same API as the visual editor while keeping the stored Markdown visible.
     '.cm-cursor, .cm-dropCursor': {
       borderLeftColor: 'var(--color-text)'
     },
-    '.cm-line': { padding: '0' },
+    // CodeMirror centres its cursor on the text edge; leave room inside the clipped scroller.
+    '.cm-line': { padding: '0 2px' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
     '.cm-code-fence': {
       boxSizing: 'border-box',
