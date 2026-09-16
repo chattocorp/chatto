@@ -8,6 +8,7 @@ import '../../app.css';
 import { q } from '$lib/test-utils';
 
 import { presencePreference } from '$lib/state/presencePreference.svelte';
+import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
@@ -526,7 +527,6 @@ describe('CurrentUserBar', () => {
     const link = q(container, '[data-testid="current-user-call-link"]') as HTMLButtonElement;
     expect(link.getAttribute('aria-label')).toBe('Open # general');
     expect(link.textContent?.trim()).toBe('');
-    link.click();
 
     const muteButton = q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement;
     const cameraButton = q(
@@ -561,6 +561,8 @@ describe('CurrentUserBar', () => {
     cameraButton.click();
     screenShareButton.click();
     leaveButton.click();
+    link.click();
+    await expect.poll(() => q(container, '[data-testid="current-user-call-card"]')).toBeNull();
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
     expect(getRoomSidebarPanelState('origin', 'room-1')).toBe(
@@ -570,6 +572,35 @@ describe('CurrentUserBar', () => {
     expect(voiceCallState.toggleCamera).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleScreenShare).toHaveBeenCalledOnce();
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
+  });
+
+  it('reactively hides duplicate controls only for the visible sidebar of the same call', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    let appUi!: AppUiState;
+    const { container } = render(CurrentUserBarTestHarness, { onReady: (state) => { appUi = state; } });
+    const toolbar = () => q(container, '[data-testid="current-user-call-card"]');
+    const desktop = window.matchMedia('(min-width: 1024px)').matches;
+    const open = () => desktop ? appUi.openDesktopRoomSidebarPanel('call') : appUi.openMobileRoomSidebarPanel('call');
+    expect(toolbar()).toBeTruthy();
+    open();
+    await expect.poll(toolbar).toBeNull();
+    if (desktop) appUi.closeDesktopRoomSidebarPanel();
+    else appUi.closeMobileRoomSidebarPanel();
+    await expect.poll(toolbar).toBeTruthy();
+    open();
+    await expect.poll(toolbar).toBeNull();
+    appUi.setActiveRoomScope('origin', 'room-2');
+    open();
+    await expect.poll(toolbar).toBeTruthy();
+    appUi.setActiveRoomScope('origin', 'room-1');
+    open();
+    await expect.poll(toolbar).toBeNull();
+    appUi.openRoomSidebarProfile('user-2', desktop ? 'desktop' : 'mobile');
+    await expect.poll(toolbar).toBeTruthy();
+    appUi.setActiveRoomScope('another-server', 'room-1');
+    open();
+    await expect.poll(toolbar).toBeTruthy();
   });
 
   it('aligns the equal-width call controls with the user card', async () => {

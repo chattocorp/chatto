@@ -12,9 +12,9 @@ const messagesRoot = resolve(frontendRoot, 'messages');
 const routes = [
   {
     name: 'login',
-    // App appearance choices and shared surface finishes measure about 295 KiB.
+    // App appearance choices and shared surface finishes measure about 296 KiB.
     // Allow platform variation; DSP and route catalogs stay lazy.
-    budgetKiB: 296,
+    budgetKiB: 297,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {

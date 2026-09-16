@@ -5,6 +5,7 @@ Displays the current (server-scoped) user at the bottom of the secondary
 sidebar. Shows the avatar with presence and the live display name.
 -->
 <script lang="ts">
+  import { MediaQuery } from 'svelte/reactivity';
   import FadeScale from '$lib/ui/FadeScale.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
@@ -71,10 +72,28 @@ sidebar. Shows the avatar with presence and the live display name.
   const activeCallRoomId = $derived(
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
   );
+  const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
   const activeCallRoom = $derived(
     activeCallRoomId
       ? (navigation?.rooms.find((room) => room.id === activeCallRoomId) ?? null)
       : null
+  );
+  const callProfileUserId = $derived.by(() => {
+    if (activeCallRoom?.type !== RoomKind.DM) return null;
+    const members = activeCallRoom.members;
+    const others = members.filter((member) => member.id !== navigation?.currentUserId);
+    return others.length === 1 ? others[0].id : members.length === 1 ? members[0].id : null;
+  });
+  // A saved desktop panel does not mean it is visible on a narrow viewport.
+  const activeCallSidebarVisible = $derived(
+    appUi.activeRoomScope?.serverId === activeServerId &&
+      appUi.activeRoomScope?.roomId === activeCallRoomId &&
+      !(desktopRoomLayout.current
+        ? appUi.desktopRoomSidebarProfileUserId(callProfileUserId)
+        : appUi.activeRoomSidebarProfileUserId) &&
+      (desktopRoomLayout.current
+        ? appUi.activeDesktopRoomSidebarPanel
+        : appUi.mobileRoomSidebarPanel) === 'call'
   );
   const activeCallRoomName = $derived.by(() => {
     const room = activeCallRoom;
@@ -236,7 +255,7 @@ sidebar. Shows the avatar with presence and the live display name.
 
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
-    {#if activeCallRoomId && voiceCallState}
+    {#if activeCallRoomId && voiceCallState && !activeCallSidebarVisible}
       <FadeScale>
         <PillButtonGroup compact label={m('room.sidebar.call')} testId="current-user-call-card">
           <VoiceCallControlButton
