@@ -219,8 +219,9 @@ stream, or snapshot contract is required.
 ## Browser call preferences and device test
 
 The server-owned frontend store gives each call state a browser-local
-`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold, and voice processing amount at the existing
-per-server storage boundary. These settings do not enter Chatto APIs or EVT.
+`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold,
+voice processing amount, and per-user voice/stream playback levels at the
+existing per-server storage boundary. These settings do not enter Chatto APIs or EVT.
 The voice amount is a finite number from 0 to 100. Invalid values use 0.
 Previous presets map to 0 (none), 50 (subtle), and 100 (strong).
 Legacy enabled effect settings map to 50. Other saved choices remain intact.
@@ -306,3 +307,13 @@ stops tracks and playback, closes the audio context, and cancels meter updates.
 Camera discovery requests temporary access on page open only if device names
 are unavailable and no call is active on the selected server.
 The test does not contact a media server.
+
+### Participant playback gain
+
+The browser call state owns one AudioContext per call and supplies it to
+LiveKit's Web Audio mixer. Remote participant volume applies a 0–2 gain per
+source. Companion publishers use their owner's user ID. Local mute overrides
+both gains without replacing preferences. Track subscription and reconnect
+reapply these gains. Call cleanup closes the context after detaching tracks.
+No new network connection is required. If context creation fails, media-element
+playback remains available with gain capped at 1.

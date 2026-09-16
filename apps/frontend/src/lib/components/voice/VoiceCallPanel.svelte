@@ -31,6 +31,7 @@ Room sidebar panel for voice/video calls.
   import ScreenShareControlButton from './ScreenShareControlButton.svelte';
   import CallTileActionButton from './CallTileActionButton.svelte';
   import CallTileActionToolbar from './CallTileActionToolbar.svelte';
+  import ParticipantCardMenu from './ParticipantCardMenu.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
@@ -178,8 +179,8 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full rounded-md !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full rounded-md !px-0';
   const callTileCardClass =
-    'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-lg border border-text/10 bg-surface p-1.5 text-left text-text shadow-sm transition-colors hover:bg-surface-emphasized/70';
-  const callTileHeaderClass = 'flex min-w-0 items-center gap-2';
+    'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden shell-surface border border-text/10 p-2 text-start text-text shadow-[var(--depth-shadow-xs)]';
+  const callTileHeaderClass = 'flex min-w-0 shrink-0 items-center gap-2 p-1';
   const callTileIdentityButtonClass =
     'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
   const callTileMediaButtonClass =
@@ -351,14 +352,14 @@ Room sidebar panel for voice/video calls.
       testId="call-feed-fullscreen-button"
       onclick={toggleClosestMediaFullscreen}
     />
-    {#if isInThisCall}
+    {#if isInThisCall && participant.isLocal}
       {@render localMuteButton(participant)}
     {/if}
   </CallTileActionToolbar>
 {/snippet}
 
 {#snippet voiceTileActions(participant: DisplayParticipant)}
-  {#if isInThisCall}
+  {#if isInThisCall && participant.isLocal}
     <CallTileActionToolbar testId="call-voice-actions">
       {@render localMuteButton(participant)}
     </CallTileActionToolbar>
@@ -418,7 +419,21 @@ Room sidebar panel for voice/video calls.
     {:else if actions === 'voice'}
       {@render voiceTileActions(participant)}
     {/if}
+    {@render participantAudio(participant)}
   </div>
+{/snippet}
+
+{#snippet participantAudio(participant: DisplayParticipant)}
+  {#if isInThisCall && !participant.isLocal}
+    <ParticipantCardMenu
+      settings={voiceCallState.getParticipantAudio(participant.key)}
+      muted={voiceCallState.isParticipantLocallyMuted(participant.key)}
+      boostAvailable={voiceCallState.audioBoostAvailable}
+      onVolumeChange={(source, value) =>
+        voiceCallState.setParticipantVolume(participant.key, source, value)}
+      onToggleMute={() => voiceCallState.toggleParticipantLocalMute(participant.key)}
+    />
+  {/if}
 {/snippet}
 
 {#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
@@ -558,6 +573,15 @@ Room sidebar panel for voice/video calls.
 {/snippet}
 
 {#snippet callControls()}
+  {#if isInThisCall && voiceCallState.audioPlaybackBlocked}
+    <button
+      type="button"
+      class="mb-2 btn-secondary w-full"
+      onclick={() => voiceCallState.resumeAudio()}
+    >
+      {m('voice.participant_audio.enable_audio')}
+    </button>
+  {/if}
   {#if isInThisCall}
     <div class={isStageLayout ? 'mx-auto max-w-2xl' : ''}>
       <div class="grid grid-cols-5 gap-2">

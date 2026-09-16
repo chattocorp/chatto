@@ -1,7 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
@@ -39,7 +39,13 @@ const callStore = vi.hoisted(() => ({
     user: { id: 'viewer', login: 'viewer' }
   },
   voiceCall: {
-    permissionsFor: () => ({ start: true, join: true, voice: true, camera: true, screenshare: true }),
+    permissionsFor: () => ({
+      start: true,
+      join: true,
+      voice: true,
+      camera: true,
+      screenshare: true
+    }),
     canUseVoice: true,
     canUseCamera: true,
     canScreenShare: true,
@@ -79,6 +85,14 @@ const callStore = vi.hoisted(() => ({
     toggleCamera: vi.fn().mockResolvedValue(undefined),
     toggleScreenShare: vi.fn().mockResolvedValue(undefined),
     toggleParticipantLocalMute: vi.fn(),
+    getParticipantAudio: vi.fn(() => ({ voiceVolume: 100, streamVolume: 100 })),
+    setParticipantVolume: vi.fn(),
+    audioBoostAvailable: true,
+    isParticipantLocallyMuted: vi.fn(
+      (identity: string) =>
+        !!callStore.voiceCall.participants.find((participant) => participant.identity === identity)
+          ?.isLocallyMuted
+    ),
     refreshDevices: vi.fn().mockResolvedValue(undefined),
     getAudioLevel: vi.fn((_identity?: string) => ({ isSpeaking: false, audioLevel: 0 })),
     handleParticipantLeftEvent: vi.fn(),
@@ -425,6 +439,9 @@ describe('RoomSidebar', () => {
     callStore.voiceCall.toggleCamera.mockClear();
     callStore.voiceCall.toggleScreenShare.mockClear();
     callStore.voiceCall.toggleParticipantLocalMute.mockClear();
+    callStore.voiceCall.getParticipantAudio.mockClear();
+    callStore.voiceCall.setParticipantVolume.mockClear();
+    callStore.voiceCall.isParticipantLocallyMuted.mockClear();
     callStore.voiceCall.refreshDevices.mockClear();
     callStore.voiceCall.getAudioLevel.mockClear();
     callStore.voiceCall.getAudioLevel.mockImplementation(() => ({
@@ -845,15 +862,19 @@ describe('RoomSidebar', () => {
     expect(participantCards[0].className).toContain('participant-card-video');
     expect(participantCards[1].className).toContain('participant-card-compact');
     const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
-    const voiceLocalMuteButton = q(
+    const participantMenuButton = q(
       participantCards[1],
-      '[data-testid="call-feed-local-mute-button"]'
+      '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
+    await userEvent.click(participantMenuButton);
+    const voiceLocalMuteButton = page.getByRole('button', { name: 'Mute locally', exact: true });
     expect(mutedIndicator).toBeTruthy();
     expect(participantCards[1].hasAttribute('data-speaking-ring')).toBe(true);
     expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
-    expect(voiceLocalMuteButton).toBeTruthy();
-    expect(voiceLocalMuteButton.getAttribute('aria-label')).toBe('Mute locally');
+    await expect.element(voiceLocalMuteButton).toBeVisible();
+    await expect
+      .element(page.getByRole('slider', { name: /Voice volume/ }))
+      .toHaveAttribute('max', '200');
 
     const deviceButton = q(
       container,
@@ -876,7 +897,7 @@ describe('RoomSidebar', () => {
     muteButton.click();
     cameraButton.click();
     screenShareButton.click();
-    voiceLocalMuteButton.click();
+    await voiceLocalMuteButton.click();
     leaveButton.click();
     await tick();
 
@@ -1226,9 +1247,9 @@ describe('RoomSidebar', () => {
       featured,
       '[data-testid="call-feed-fullscreen-button"]'
     ) as HTMLButtonElement;
-    const localMuteButton = q(
+    const participantMenuButton = q(
       featured,
-      '[data-testid="call-feed-local-mute-button"]'
+      '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
 
     expect(mediaActions.className).toContain('border-text/10');
@@ -1239,8 +1260,7 @@ describe('RoomSidebar', () => {
     expect(fullscreenButton.className).toContain('text-muted');
     expect(fullscreenButton.className).not.toContain('bg-black');
     expect(fullscreenButton.querySelector('[class~="icon-[mdi--fullscreen]"]')).toBeTruthy();
-    expect(localMuteButton).toBeTruthy();
-    expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
+    expect(participantMenuButton).toBeTruthy();
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
 
     fullscreenButton.click();
@@ -1249,7 +1269,10 @@ describe('RoomSidebar', () => {
     expect(requestFullscreen).toHaveBeenCalledOnce();
     expect(fullscreenTargets[0]).toBe(featured);
 
-    localMuteButton.click();
+    await userEvent.click(participantMenuButton);
+    const localMuteButton = page.getByRole('button', { name: 'Unmute locally', exact: true });
+    await expect.element(localMuteButton).toBeVisible();
+    await localMuteButton.click();
 
     expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');
 

@@ -93,6 +93,16 @@
       "voice_normal": "Normální",
       "voice_cool": "Docela super",
       "voice_awesome": "ÚŽASNÝ"
+    },
+    "participant_audio": {
+      "title": "Zvuk účastníka",
+      "local_only": "Mění pouze to, co slyšíte",
+      "voice": "Hlasitost hlasu",
+      "stream": "Hlasitost streamu",
+      "reset": "Obnovit hlasitost",
+      "boost_unavailable": "Zesílení hlasitosti není v tomto prohlížeči dostupné.",
+      "enable_audio": "Zapnout zvuk hovoru",
+      "system_output": "Tento prohlížeč používá pro hovory systémový zvukový výstup."
     }
   }
 }

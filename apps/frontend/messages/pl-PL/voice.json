@@ -93,6 +93,16 @@
       "voice_normal": "Normalny",
       "voice_cool": "Całkiem fajny",
       "voice_awesome": "NIESAMOWITY"
+    },
+    "participant_audio": {
+      "title": "Dźwięk uczestnika",
+      "local_only": "Zmienia tylko to, co słyszysz",
+      "voice": "Głośność głosu",
+      "stream": "Głośność transmisji",
+      "reset": "Przywróć głośność",
+      "boost_unavailable": "Wzmocnienie głośności jest niedostępne w tej przeglądarce.",
+      "enable_audio": "Włącz dźwięk rozmowy",
+      "system_output": "Ta przeglądarka używa systemowego wyjścia dźwięku do rozmów."
     }
   }
 }

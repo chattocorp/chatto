@@ -93,6 +93,16 @@
       "voice_normal": "Normal",
       "voice_cool": "Muy buena",
       "voice_awesome": "INCREÍBLE"
+    },
+    "participant_audio": {
+      "title": "Audio del participante",
+      "local_only": "Solo cambia lo que oyes",
+      "voice": "Volumen de voz",
+      "stream": "Volumen de la transmisión",
+      "reset": "Restablecer volumen",
+      "boost_unavailable": "La amplificación de volumen no está disponible en este navegador.",
+      "enable_audio": "Activar audio de la llamada",
+      "system_output": "Este navegador usa la salida de audio del sistema para las llamadas."
     }
   }
 }

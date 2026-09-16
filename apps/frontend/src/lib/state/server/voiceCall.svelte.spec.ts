@@ -223,6 +223,8 @@ vi.mock('livekit-client', () => {
     Room: MockRoom,
     ExternalE2EEKeyProvider: MockExternalE2EEKeyProvider,
     RoomEvent: {
+      AudioPlaybackStatusChanged: 'AudioPlaybackStatusChanged',
+      Reconnected: 'Reconnected',
       ParticipantConnected: 'ParticipantConnected',
       ParticipantDisconnected: 'ParticipantDisconnected',
       TrackMuted: 'TrackMuted',
@@ -324,6 +326,19 @@ describe('VoiceCallState', () => {
     localTrackPublications = [];
     mockRemoteParticipants = new Map();
     gameCaptureMocks.start.mockReset();
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        state = 'running';
+        setSinkId = vi.fn(async () => undefined);
+        close = vi.fn(async () => {
+          this.state = 'closed';
+        });
+        resume = vi.fn(async () => {
+          this.state = 'running';
+        });
+      }
+    );
     vi.stubGlobal('Worker', class MockWorker {});
     vi.stubGlobal('TransformStream', class MockTransformStream {});
     vi.stubGlobal('ReadableStream', class MockReadableStream {});
@@ -547,7 +562,9 @@ describe('VoiceCallState', () => {
     );
     try {
       await state.join('wss://livekit.example.test', 'R1');
-      expect(applied).toHaveBeenCalledWith(expect.objectContaining({ bass: 8, treble: 10, compressor: true }));
+      expect(applied).toHaveBeenCalledWith(
+        expect.objectContaining({ bass: 8, treble: 10, compressor: true })
+      );
       preferences.setVoiceAmount(0);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(
@@ -1434,6 +1451,110 @@ describe('VoiceCallState', () => {
     roomEventHandlers.get('TrackUnsubscribed')?.(screenShareAudio, {});
 
     expect(screenShareAudio.detach).toHaveBeenCalledOnce();
+  });
+
+  it('awaits output selection failures and closes its playback context on leave', async () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    const context = (
+      lastRoomOptions?.webAudioMix as {
+        audioContext: AudioContext & { setSinkId: ReturnType<typeof vi.fn> };
+      }
+    ).audioContext;
+    expect(state.audioBoostAvailable).toBe(true);
+    context.setSinkId.mockRejectedValueOnce(new DOMException('Unavailable', 'NotFoundError'));
+    lastRoom!.switchActiveDevice.mockClear();
+    await state.setAudioOutputDevice('missing');
+    expect(lastRoom!.switchActiveDevice).not.toHaveBeenCalled();
+    expect(state.selectedOutputDeviceId).toBe('audio-output-1');
+    expect(toastMocks.error).toHaveBeenCalled();
+    await state.leave();
+    expect(context.close).toHaveBeenCalledOnce();
+    expect(state.audioBoostAvailable).toBe(false);
+  });
+
+  it('keeps basic playback and saved boost when Web Audio is unavailable', async () => {
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        constructor() {
+          throw new Error('Unavailable');
+        }
+      }
+    );
+    const state = createPermittedCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    const setVolume = vi.fn();
+    mockRemoteParticipants.set('remote-user', {
+      identity: 'remote-user',
+      setVolume,
+      trackPublications: new Map()
+    } as never);
+    state.setParticipantVolume('remote-user', 'voiceVolume', 200);
+    expect(state.audioBoostAvailable).toBe(false);
+    expect(lastRoomOptions?.webAudioMix).toBe(false);
+    expect(state.getParticipantAudio('remote-user').voiceVolume).toBe(200);
+    expect(setVolume).toHaveBeenCalledWith(1, 'microphone');
+    state.setParticipantVolume('remote-user', 'voiceVolume', 0);
+    expect(setVolume).toHaveBeenCalledWith(0, 'microphone');
+    await state.leave();
+  });
+
+  it('restores boosted voice and stream levels across mute, subscriptions, reconnects, and calls', async () => {
+    const setVolume = vi.fn();
+    const participant = {
+      identity: 'remote-user',
+      name: 'Remote User',
+      metadata: '',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume,
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [])
+    };
+    mockRemoteParticipants.set('remote-user', participant);
+    const preferences = new CallPreferencesState('participant-volumes');
+    preferences.setParticipantVolume('remote-user', 'voiceVolume', 175);
+    preferences.setParticipantVolume('remote-user', 'streamVolume', 40);
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({ start: true, join: true, voice: true, camera: true, screenshare: true }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    expect(lastRoomOptions?.webAudioMix).toHaveProperty('audioContext');
+    expect(setVolume).toHaveBeenCalledWith(1.75, 'microphone');
+    expect(setVolume).toHaveBeenCalledWith(0.4, 'screen_share_audio');
+    state.toggleParticipantLocalMute('remote-user');
+    expect(setVolume).toHaveBeenCalledWith(0, 'microphone');
+    state.setParticipantVolume('remote-user', 'voiceVolume', 150);
+    expect(setVolume).toHaveBeenLastCalledWith(0, 'screen_share_audio');
+    state.toggleParticipantLocalMute('remote-user');
+    expect(setVolume).toHaveBeenCalledWith(1.5, 'microphone');
+    const companionVolume = vi.fn();
+    const companion = {
+      ...participant,
+      identity: 'publisher',
+      metadata: JSON.stringify({ ownerIdentity: 'remote-user' }),
+      setVolume: companionVolume
+    };
+    mockRemoteParticipants.set('publisher', companion);
+    roomEventHandlers.get('TrackSubscribed')?.({ kind: 'audio', attach: vi.fn() }, {}, companion);
+    expect(companionVolume).toHaveBeenCalledWith(0.4, 'screen_share_audio');
+    setVolume.mockClear();
+    roomEventHandlers.get('Reconnected')?.();
+    expect(setVolume).toHaveBeenCalledWith(1.5, 'microphone');
+    await state.leave();
+    await state.join('wss://livekit.example.test', 'R2');
+    expect(state.getParticipantAudio('remote-user')).toEqual({
+      voiceVolume: 150,
+      streamVolume: 40
+    });
+    state.resetParticipantAudio('remote-user');
+    expect(setVolume).toHaveBeenCalledWith(1, 'microphone');
+    expect(companionVolume).toHaveBeenCalledWith(1, 'screen_share_audio');
+    await state.leave();
   });
 
   it('locally mutes and unmutes remote participant audio for the current session only', async () => {

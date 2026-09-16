@@ -93,6 +93,16 @@
       "voice_normal": "普通",
       "voice_cool": "挺酷",
       "voice_awesome": "超棒"
+    },
+    "participant_audio": {
+      "title": "参与者音频",
+      "local_only": "仅更改你听到的声音",
+      "voice": "语音音量",
+      "stream": "直播音量",
+      "reset": "重置音量",
+      "boost_unavailable": "此浏览器不支持音量增强。",
+      "enable_audio": "启用通话音频",
+      "system_output": "此浏览器使用系统音频输出进行通话。"
     }
   }
 }

@@ -93,6 +93,16 @@
       "voice_normal": "普通",
       "voice_cool": "挺酷",
       "voice_awesome": "超棒"
+    },
+    "participant_audio": {
+      "title": "參與者音訊",
+      "local_only": "僅變更你聽到的聲音",
+      "voice": "語音音量",
+      "stream": "串流音量",
+      "reset": "重設音量",
+      "boost_unavailable": "此瀏覽器不支援音量增強。",
+      "enable_audio": "啟用通話音訊",
+      "system_output": "此瀏覽器使用系統音訊輸出進行通話。"
     }
   }
 }

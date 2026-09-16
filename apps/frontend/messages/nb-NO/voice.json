@@ -93,6 +93,16 @@
       "voice_normal": "Normal",
       "voice_cool": "Ganske kul",
       "voice_awesome": "FANTASTISK"
+    },
+    "participant_audio": {
+      "title": "Deltakerlyd",
+      "local_only": "Endrer bare det du hører",
+      "voice": "Stemmevolum",
+      "stream": "Strømmevolum",
+      "reset": "Tilbakestill volum",
+      "boost_unavailable": "Volumforsterkning er ikke tilgjengelig i denne nettleseren.",
+      "enable_audio": "Aktiver samtalelyd",
+      "system_output": "Denne nettleseren bruker systemets lydutgang for samtaler."
     }
   }
 }

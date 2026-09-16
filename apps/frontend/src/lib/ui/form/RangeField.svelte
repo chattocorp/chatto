@@ -14,6 +14,7 @@ icon, disabled state, semantic action color, and field spacing.
     min,
     max,
     step = 1,
+    ticks,
     disabled = false,
     rainbow = false,
     testid,
@@ -28,6 +29,8 @@ icon, disabled state, semantic action color, and field spacing.
     min: number;
     max: number;
     step?: number;
+    /** Native reference marks, independent of the keyboard/pointer step size. */
+    ticks?: readonly number[];
     disabled?: boolean;
     /** Fade in a real rainbow track over the last 20%; animate the maximum readout. */
     rainbow?: boolean;
@@ -98,6 +101,7 @@ icon, disabled state, semantic action color, and field spacing.
       {min}
       {max}
       {step}
+      list={ticks?.length ? `${id}-ticks` : undefined}
       bind:value
       {disabled}
       aria-valuetext={displayValue}
@@ -108,5 +112,12 @@ icon, disabled state, semantic action color, and field spacing.
         rainbow && !disabled && 'range-celebration'
       ]}
     />
+    {#if ticks?.length}
+      <datalist id={`${id}-ticks`}>
+        {#each ticks as tick (tick)}
+          <option value={tick}></option>
+        {/each}
+      </datalist>
+    {/if}
   </span>
 </label>

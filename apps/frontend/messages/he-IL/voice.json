@@ -93,6 +93,16 @@
       "voice_normal": "רגיל",
       "voice_cool": "די מגניב",
       "voice_awesome": "מדהים"
+    },
+    "participant_audio": {
+      "title": "שמע המשתתף",
+      "local_only": "משנה רק את מה שאתה שומע",
+      "voice": "עוצמת הקול",
+      "stream": "עוצמת השידור",
+      "reset": "איפוס עוצמת השמע",
+      "boost_unavailable": "הגברת עוצמת השמע אינה זמינה בדפדפן זה.",
+      "enable_audio": "הפעלת שמע השיחה",
+      "system_output": "דפדפן זה משתמש בפלט השמע של המערכת לשיחות."
     }
   }
 }

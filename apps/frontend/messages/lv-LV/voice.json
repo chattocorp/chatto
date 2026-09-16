@@ -93,6 +93,16 @@
       "voice_normal": "Parasta",
       "voice_cool": "Diezgan forša",
       "voice_awesome": "LIELISKA"
+    },
+    "participant_audio": {
+      "title": "Dalībnieka audio",
+      "local_only": "Maina tikai to, ko dzirdi tu",
+      "voice": "Balss skaļums",
+      "stream": "Straumes skaļums",
+      "reset": "Atiestatīt skaļumu",
+      "boost_unavailable": "Skaļuma pastiprināšana šajā pārlūkā nav pieejama.",
+      "enable_audio": "Iespējot zvana audio",
+      "system_output": "Šis pārlūks zvaniem izmanto sistēmas audio izvadi."
     }
   }
 }
