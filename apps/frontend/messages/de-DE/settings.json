@@ -215,7 +215,26 @@
       },
       "save_button": "Zeiteinstellungen speichern",
       "saved": "Zeiteinstellungen gespeichert",
-      "save_failed": "Zeiteinstellungen konnten nicht gespeichert werden"
+      "save_failed": "Zeiteinstellungen konnten nicht gespeichert werden",
+      "accent": {
+        "title": "Akzentfarbe",
+        "blue": "Blau",
+        "cyan": "Cyan",
+        "teal": "Türkis",
+        "green": "Grün",
+        "amber": "Bernstein",
+        "orange": "Orange",
+        "pink": "Rosa",
+        "violet": "Violett",
+        "grey": "Grau",
+        "preview": "Vorschau"
+      },
+      "depth": {
+        "title": "Oberflächentiefe",
+        "flat": "Flach",
+        "three_d": "3D",
+        "very_3d": "Sehr 3D"
+      }
     },
     "notifications": {
       "title": "Benachrichtigungen",

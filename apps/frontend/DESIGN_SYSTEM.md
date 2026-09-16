@@ -46,16 +46,18 @@ message search results:
 
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
 route. The shared primitive then uses a quiet action-coloured fill and an
-action-coloured icon. Apply `sidebar-item-attention` only to unread content
-that is not the current route. Unread dots remain neutral. Notification badges
+action-coloured icon. Current links and selected menu rows use flat fills,
+without gradients, bevels, or shadows. Apply `sidebar-item-attention`
+only to unread content that is not the current route. Unread dots remain neutral. Notification badges
 keep their semantic priority colour.
 
 When one route path contains another navigation path, set `aria-current` only
 on the most-specific matching item.
 
-The server gutter has a distinct rule. The current server uses a neutral text
-ring and a `surface-selected` fill. This preserves the server identity colour
-inside the icon. Do not add a side stripe or a shadow for navigation selection.
+The server gutter has a distinct rule. The current server uses a two-pixel
+text-coloured ring and a `surface-selected` surround. Keep the server artwork unchanged. Selection
+stays separate from the accent-coloured keyboard focus outline. Do not add
+a side stripe or cast shadow for navigation selection.
 
 ## Choosing A Primitive
 
@@ -87,7 +89,17 @@ inside the icon. Do not add a side stripe or a shadow for navigation selection.
 
 `Checkbox` and `ChoiceRow` use the same option-row shape and selected fill.
 Use the square check indicator for an independent boolean setting. Use the
-circular radio indicator for one choice in a group.
+circular radio indicator for one choice in a group. Rows use a faint raised
+edge. Empty indicators look inset; selected indicators use a reduced lighting
+strength with no outer shadow. Disabled controls have no raised finish. Row and indicator colour transitions
+use the shared `feedback-quick` utility: 50 ms with ease-out timing in both
+directions. Sidebar links and menu rows use the same timing. Keep transition
+properties on the control; change this shared utility to tune feedback speed.
+
+The quick finder uses `command-palette`, which composes the shared menu frame.
+It keeps a compact search field and aligned result rows through
+`command-palette-result`. The active result uses a flat neutral fill and a quiet
+Enter cue. `keycap` supplies the shared keyboard-hint shape.
 
 ## Standard Dialogs
 
@@ -101,6 +113,19 @@ All three components use the same structure. A `surface` tray frames one
 inset `background` work plane. The header and footer stay visible. Only the
 body scrolls when the content is long. Do not add a `Panel`, another work
 plane, or a footer divider inside this structure.
+
+Dialog trays and floating menu shells use `floating-frame` for a faint top
+highlight and lower shading across their padded frame. Content surfaces keep
+their solid `background` fill and use `floating-inset` for a soft inner shadow
+that makes them look recessed. Menu sections receive this shadow only inside
+a floating menu shell. The finish adds no backdrop blur or animation and retains
+the existing outer shadow. Full-screen mobile media dialogs have no exposed
+frame and do not use this finish. Standard panels share the frame highlight
+and recessed content treatment. Panel title bands stay transparent so the
+frame gradient continues around the content without a seam. The shared
+`--frame-*` tokens reduce lower-edge shading and inset shadows in light mode;
+dark mode retains the stronger depth treatment. Form input fields
+keep their existing finish.
 
 Pass footer buttons directly to the `Dialog` footer snippet. `Dialog` owns the
 horizontal, end-aligned layout. The actions always stay in one row. A button
@@ -225,21 +250,91 @@ glow. Invalid fields follow the same treatment with the error-coloured border.
 
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with
-contrast-safe labels. The action colour is the single blue accent in each
-theme: primary buttons, links, focus borders, selection indicators, and compact
-status UI all derive from that same token rather than maintaining a separate
-button colour. Each theme's action token must retain WCAG AA contrast both as
-text on its surrounding work surfaces and with its paired `on-action` button
-label.
+contrast-safe labels. App Preferences → Appearance offers Blue, Cyan, Teal,
+Green, Amber, Orange, Pink, Violet, and Grey. Cyan is the default. The saved
+accent applies across this browser's registered servers and is restored before
+first paint. It does not require a server request or account sync.
 
-Buttons are flat colour controls, not framed form controls. Their fills have a
-matched tonal border. Secondary buttons use a quiet `surface-emphasized` fill and
-an input-coloured border, so they stay visible inside a `surface` card. Do not add
-local frames, shadows, gradients, or bevel effects.
+Each palette supplies a deeper shade and a brighter shade. `action` uses the
+deeper shade in light mode and the brighter shade in dark mode for links,
+focus borders, selection indicators, and compact status UI. Pair these filled
+indicators with `on-action`. `button-action` uses the deeper shade in both
+themes and pairs with `on-button-action` for white labels. Keep the gloss in
+contrast checks. Warning, danger, presence, and server identity colours do not
+change with the accent. Do not use the selected accent as the only way to
+communicate status.
+
+Filled buttons use a subtle raised finish: a faint top highlight, a soft lower
+edge, and a small shadow over the semantic fill. Pressed buttons look inset.
+Ghost buttons stay flat. Disabled buttons have no gloss or raised edge.
+`ToggleChip` uses the same `btn` foundation through `toggle-chip`, including
+compact admin actions. It uses quiet `shell-lighting` without an outer shadow
+so dense action rows stay subtle. Neutral chips use `input-border` to keep
+a visible boundary on grey surfaces. Its labelled form uses the standard button radius;
+its square form uses the compact icon radius.
+Fills retain a matched tonal border. Secondary buttons use a quiet
+`surface-emphasized` fill and an input-coloured border, so they stay visible
+inside a `surface` card. Filled buttons and selected pane-header icon buttons
+share the `control-raised` finish. Inactive header icons stay flat. Do not add
+local gloss, blur, transparency, or extra shadows.
+
+### Shared Depth Utilities
+
+`surface-raised` owns the gradient and lit-edge recipe. `surface-lowered` owns
+inset shadows. Both live in `src/app.css` and set depth only: they do not set
+colour, radius, layout, outer elevation, or interaction states. Use one depth
+primitive per surface. Semantic utilities set the strength and add the rest of
+the component treatment. Feature components should use those semantic utilities
+instead of adding local gradients or arbitrary inset shadows.
+
+| Utility | Use |
+| --- | --- |
+| `surface-raised` | Base raised finish. Semantic utilities set `--lighting-*` strength. |
+| `surface-lowered` | Base recessed finish. Semantic utilities set `--lowered-shadow` and `--lowered-edge`. |
+| `control-raised` | Filled buttons and selected header icons; includes pressed and disabled states. |
+| `option-depth` | Quiet checkbox and radio rows; removes depth when disabled. |
+| `control-well` | Empty checkbox and radio indicators. |
+| `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow. |
+| `shell-surface` | User card and composer formatting shelf; soft rim with no button elevation or pressed finish. |
+| `chat-input-surface` | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card. |
+| `shell-lighting` | The same quiet finish over server gutter artwork; does not change the image or intercept clicks. |
+| `floating-frame` | Lit panel, dialog, and menu frames. |
+| `floating-inset` | Recessed content inside those frames. |
+| `app-frame-shell` / `app-frame-inset` | Desktop app border with a flat fill and edge bevel. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
+| `accent-swatch` | Palette samples with their own colour gradient and shared lit edges. |
+
+Keep the `--lighting-*` and `--lowered-*` parameters inside semantic utilities.
+Each depth primitive resets its parameters so a nested control does not inherit the
+surrounding frame's strength. Colour, radius, and outer elevation remain the
+responsibility of the semantic utility. Existing components apply their own
+finish; callers must not stack a second finish on them.
+
+Appearance exposes `data-depth="flat|3d|very-3d"` on the document root. The
+registered `--depth-strength` and `--depth-width` numbers scale decorative
+lighting, inset shadows, and bevel width. 3D preserves the baseline. Flat uses
+zero strength; Very 3D uses 1.75 strength and 1.5 width. Changes interpolate over
+220 ms, with no transition under reduced motion. The preference is restored
+before the first paint. Keep boundaries, focus rings, status colours, and
+floating-menu elevation independent of this setting. Accent swatches become
+solid in Flat, retain their gradient in 3D, and add sheen in Very 3D. New depth recipes must
+use these shared parameters instead of fixed decorative shadow opacity.
+
+`shimmer-hover` overlays one broad, soft highlight that crosses the surface in
+450 ms. It runs once per hover and respects reduced motion. Nested gutter
+logos defer to the outer shimmer so the effect does not stack.
+
+Global header controls use `app-header-icon`. Hover highlights only the icon
+or text, with no background, border, or lighting effect. Keep the 44 px hit
+area and the visible keyboard focus outline. The colour changes with
+`feedback-quick`. Text actions such as the version number use
+`app-header-text-action` for the same treatment at content width.
 
 Form inputs and `SegmentedControl` share the `control-frame` utility. It owns
-their radius, one-pixel border, and non-layout black outer ring, which keeps
-framed controls legible on mid-tone surfaces. Buttons do not use `control-frame`.
+their rounded corners, one-pixel border, and subtle inset shadow. Inputs and
+segmented tracks read as recessed surfaces. `segmented-track` softens the track
+fill and border, with space around every option. `segmented-selection` uses quiet
+shared shell lighting to lift the selected pill above its track. Buttons do
+not use `control-frame`.
 
 Surfaces form a small semantic ladder:
 
@@ -369,11 +464,17 @@ matches the action.
 
 ## Shape, Type, And Motion
 
-- `rounded` and `rounded-md` are the default for compact controls, fields,
+- Labelled buttons use `rounded-xl` at every size, matching chat input surfaces.
+  Filled icon-only buttons keep `rounded-md` corners.
+- `rounded` and `rounded-md` are the default for other compact controls, fields,
   nested rows, pills, and embedded content.
-- `rounded-lg` is reserved for menus, dialogs, panels, and major shells.
-- `rounded-xl` is exceptional and should communicate a deliberately softer
-  product-specific object, such as a server tile—not an ordinary card.
+- Quiet close, clear, and header icon controls use `rounded-lg` with a faint
+  neutral hover tint and a stronger pressed tint. Keep their keyboard-focus
+  outline. Selected toolbar controls retain their persistent fill; disabled
+  controls do not gain a hover fill.
+- `rounded-lg` also applies to menus, dialogs, panels, and major shells.
+- Outside labelled buttons and chat input surfaces, `rounded-xl` is reserved
+  for softer product-specific objects, such as server tiles.
 - Nested rounded surfaces should be concentric when their padding is small.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
   metadata, timestamps, and terse labels.
@@ -393,7 +494,7 @@ matches the action.
   or value it acts on; do not use it for standalone or toolbar actions.
 
 Chatto deliberately uses browser/platform text rendering. Do not add global
-font smoothing. Ordinary controls are solid rather than gradient-filled;
+font smoothing. Controls use solid semantic fills, with a subtle gloss on filled buttons;
 borders define structure, and shadows are reserved for genuinely floating or
 raised surfaces. Do not use decorative one-sided accent borders or inset edge
 stripes on cards, rows, panels, or selected states. When a boundary is needed,
@@ -474,3 +575,8 @@ scales out while the page sections appear below it. The app removes the shell
 when this transition ends. Keyboard or pointer input ends all startup
 animations and shows the complete page immediately. Automatic form focus does
 not stop the reveal. Reduced motion removes the shell without a transition.
+
+Server banners fill the sidebar width with square corners and a bottom
+`border-border` separator. They form part of the app grid and use no bevel,
+gloss overlay, or outer shadow. Display the complete image at its original aspect ratio, with no height cap.
+Server operators control the banner shape through the uploaded image.

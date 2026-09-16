@@ -10,7 +10,7 @@
 </script>
 
 <Story name="Application surface" asChild>
-  <div class="flex h-80 max-w-4xl bg-surface p-4">
+  <div class="flex h-80 max-w-4xl bg-surface p-4 md:app-frame-shell">
     <Frame>
       <aside class="w-48 border-e border-border bg-surface p-4">
         <p class="font-medium">Spaces</p>
@@ -19,7 +19,7 @@
       </aside>
       <main class="flex-1 p-6">
         <h1 class="text-xl font-semibold">General</h1>
-        <p class="mt-2 text-muted">The frame provides the shared application boundary.</p>
+        <p class="mt-2 text-muted">The content area sits above the frame in light mode and below it in dark mode, including panes with their own background.</p>
       </main>
     </Frame>
   </div>

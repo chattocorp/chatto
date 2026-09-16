@@ -5,6 +5,19 @@
 @import 'tailwindcss' source('./');
 @import './prose.css';
 
+/* Registered numbers let the whole design system interpolate depth together. */
+@property --depth-strength {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+@property --depth-width {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
 :root {
   --inline-direction: 1;
   /* CSS approximates Svelte's `expoOut` curve for expressive movement that
@@ -26,6 +39,15 @@
   --composer-code-title: #8250df;
   --composer-code-literal: #0550ae;
   --composer-code-attribute: #953800;
+}
+
+:root[data-depth='flat'] {
+  --depth-strength: 0;
+}
+
+:root[data-depth='very-3d'] {
+  --depth-strength: 1.75;
+  --depth-width: 1.5;
 }
 
 :root[data-theme='dark'] .composer-code-palette {
@@ -64,7 +86,24 @@
  * `data-theme="dark"`.
  */
 :root {
+  /* 3D is the baseline. Modes scale decorative depth, never focus or boundaries. */
+  transition: --depth-strength 220ms ease-out, --depth-width 220ms ease-out;
+  --depth-strength: 1;
+  --depth-width: 1;
+  --depth-shadow-xs: 0 1px 2px rgb(0 0 0 / calc(0.05 * var(--depth-strength)));
+  --depth-shadow-sm: 0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))), 0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
   color-scheme: light;
+  --segmented-fill: white;
+  --app-edge-upper: rgb(255 255 255 / calc(0.65 * var(--depth-strength)));
+  --app-edge-lower: rgb(0 0 0 / calc(0.12 * var(--depth-strength)));
+  --app-frame-elevation: 0 2px 4px rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
+  --app-inset-opacity: 0;
+
+  /* Pale surfaces need less frame shading than dark surfaces. */
+  --frame-shade: rgb(0 0 0 / calc(0.02 * var(--depth-strength)));
+  --frame-edge-shade: rgb(0 0 0 / calc(0.04 * var(--depth-strength)));
+  --frame-inset-shadow: 0 1px 3px rgb(0 0 0 / calc(0.08 * var(--depth-strength)));
+  --frame-inset-edge: rgb(0 0 0 / calc(0.025 * var(--depth-strength)));
 
   --color-background: var(--color-gray-100);
   --color-text: var(--color-gray-600);
@@ -86,11 +125,14 @@
   --color-input: var(--color-white);
   --color-input-border: var(--color-gray-300);
 
-  /* Action keeps the familiar sky blue. Supporting hues have comparable
-     perceived weight without taking attention from the recommended action. */
-  --color-action: var(--color-sky-700);
+  /* The accent uses readable text/indicator shades for each theme. Filled
+     buttons use the deeper palette shade with white labels in both themes. */
+  --color-action: var(--accent-strong);
   --color-action-hover: color-mix(in srgb, var(--color-action), black 15%);
   --color-on-action: var(--color-white);
+  --color-button-action: var(--accent-strong);
+  --color-button-action-hover: color-mix(in srgb, var(--color-button-action), black 15%);
+  --color-on-button-action: var(--color-white);
   --color-button-success: oklch(49% 0.13 163);
   --color-button-success-hover: color-mix(in oklch, var(--color-button-success), black 10%);
   --color-button-warning: oklch(53% 0.13 60);
@@ -100,8 +142,8 @@
   --color-neutral-action: var(--color-slate-600);
   --color-neutral-action-hover: var(--color-slate-700);
   --color-on-neutral-action: var(--color-white);
-  --color-link: var(--color-sky-700);
-  --color-link-hover: var(--color-sky-800);
+  --color-link: var(--color-action);
+  --color-link-hover: var(--color-action-hover);
   --color-success: oklch(44% 0.12 163);
   --color-on-success: var(--color-white);
   --color-warning: oklch(50% 0.13 60);
@@ -125,15 +167,25 @@
   --shimmer-gradient: linear-gradient(
     120deg,
     transparent 0%,
-    transparent 40%,
+    transparent 35%,
     rgba(255, 255, 255, 0.15) 50%,
-    transparent 60%,
+    transparent 65%,
     transparent 100%
   );
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
+  --segmented-fill: var(--color-neutral-700);
+  --app-edge-upper: rgb(0 0 0 / calc(0.34 * var(--depth-strength)));
+  --app-edge-lower: rgb(255 255 255 / calc(0.12 * var(--depth-strength)));
+  --app-frame-elevation: 0 0 #0000;
+  --app-inset-opacity: 0.85;
+
+  --frame-shade: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
+  --frame-edge-shade: rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
+  --frame-inset-shadow: 0 2px 4px rgb(0 0 0 / calc(0.18 * var(--depth-strength)));
+  --frame-inset-edge: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
 
   --color-background: var(--color-neutral-900);
   --color-text: var(--color-neutral-300);
@@ -150,7 +202,7 @@
   --color-input: var(--color-neutral-950);
   --color-input-border: var(--color-neutral-700);
 
-  --color-action: var(--color-sky-400);
+  --color-action: var(--accent-bright);
   --color-action-hover: color-mix(in srgb, var(--color-action), white 15%);
   --color-on-action: var(--color-neutral-950);
   --color-neutral-action: var(--color-neutral-600);
@@ -168,6 +220,45 @@
   --color-server: oklch(74% 0.13 305);
 
   --color-image-outline: rgba(255, 255, 255, 0.1);
+}
+
+/* Palette variables also scope colour samples without changing the app theme. */
+:root,
+[data-accent='cyan'] {
+  --accent-strong: var(--color-sky-700);
+  --accent-bright: var(--color-sky-400);
+}
+[data-accent='blue'] {
+  --accent-strong: var(--color-blue-700);
+  --accent-bright: var(--color-blue-400);
+}
+[data-accent='teal'] {
+  --accent-strong: var(--color-teal-800);
+  --accent-bright: var(--color-teal-400);
+}
+[data-accent='green'] {
+  --accent-strong: var(--color-green-800);
+  --accent-bright: var(--color-green-400);
+}
+[data-accent='amber'] {
+  --accent-strong: var(--color-amber-800);
+  --accent-bright: var(--color-amber-400);
+}
+[data-accent='orange'] {
+  --accent-strong: var(--color-orange-800);
+  --accent-bright: var(--color-orange-400);
+}
+[data-accent='pink'] {
+  --accent-strong: var(--color-pink-700);
+  --accent-bright: var(--color-pink-400);
+}
+[data-accent='violet'] {
+  --accent-strong: var(--color-violet-700);
+  --accent-bright: var(--color-violet-400);
+}
+[data-accent='grey'] {
+  --accent-strong: var(--color-neutral-700);
+  --accent-bright: var(--color-neutral-300);
 }
 
 @theme {
@@ -225,7 +316,13 @@
  * geometry for forms, tables, and dense lists.
  */
 @utility panel-shell {
-  @apply rounded-lg border border-border bg-surface;
+  @apply floating-frame rounded-lg border border-border;
+
+  /* The title is part of this continuous frame, not a separate solid band. */
+  & > .panel-header {
+    background-color: transparent;
+    border-bottom-color: transparent;
+  }
 }
 
 @utility panel-shell-raised {
@@ -236,7 +333,7 @@
  * component supplies p-1 around this inset.
  */
 @utility panel-inset {
-  @apply rounded-md bg-background;
+  @apply floating-inset rounded-md bg-background;
 }
 
 /* Edge-to-edge panel content is clipped to the work plane's outer radius.
@@ -289,22 +386,101 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-/* Inputs and SegmentedControl use this firm frame. Buttons use a separate flat
- * treatment, so a filled button does not read as a thin outline around a
- * smaller fill.
- */
+/* Inputs and segmented tracks share a rounded, slightly recessed frame. */
 @utility control-frame {
-  @apply rounded-md border border-input-border;
-  box-shadow:
-    var(--control-inset-shadow, 0 0 #0000),
-    0 0 0 1px black;
+  @apply surface-lowered rounded-xl border border-input-border shadow-[var(--depth-shadow-xs)];
+  --lowered-edge: 0 -1px 0 rgb(255 255 255 / calc(0.04 * var(--depth-strength)));
+}
+
+/* A padded, quiet track separates mode selection from text entry. */
+@utility segmented-track {
+  @apply control-frame bg-surface/60 border-text/10 shadow-none;
+}
+
+/* The selected segment sits just above its recessed track. */
+@utility segmented-selection {
+  @apply shell-lighting rounded-lg shadow-[var(--depth-shadow-xs)];
+  background-color: var(--segmented-fill);
+}
+
+/* Raised surfaces catch light on the upper edge. Semantic utilities select the strength.
+ * Set every parameter here so nested controls do not inherit their frame's finish.
+ * This utility owns lighting only; callers own colour, shape, and elevation.
+ */
+@utility surface-raised {
+  --lighting-top: rgb(255 255 255 / calc(0.1 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.04 * var(--depth-strength)));
+  --lighting-midpoint: 50%;
+  --lighting-edge-width: calc(1px * var(--depth-width));
+  --lighting-edge-blur: calc(0px * var(--depth-width));
+  --lighting-edge-top: rgb(255 255 255 / calc(0.16 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.08 * var(--depth-strength)));
+  @apply inset-shadow-[0_var(--lighting-edge-width)_var(--lighting-edge-blur)_var(--lighting-edge-top),0_calc(-1*var(--lighting-edge-width))_var(--lighting-edge-blur)_var(--lighting-edge-bottom)];
+  background-image: linear-gradient(to bottom, var(--lighting-top), transparent var(--lighting-midpoint), var(--lighting-bottom));
+}
+
+/* Lowered surfaces shade their interior. Reset both parameters so nested
+ * controls do not inherit a surrounding panel's depth. No fill or outer shadow.
+ */
+@utility surface-lowered {
+  --lowered-shadow: 0 1px 2px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
+  --lowered-edge: 0 0 #0000;
+  @apply inset-shadow-[var(--lowered-shadow),var(--lowered-edge)];
+}
+
+/* Empty checkbox and radio indicators share one recessed well. */
+@utility control-well {
+  @apply surface-lowered;
+}
+
+/* Small selected indicators need a softer finish than full-size action buttons. */
+@utility selection-indicator {
+  @apply surface-raised;
+  --lighting-top: rgb(255 255 255 / calc(0.04 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.02 * var(--depth-strength)));
+  --lighting-edge-top: rgb(255 255 255 / calc(0.07 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.04 * var(--depth-strength)));
+}
+
+/* Palette samples interpolate from solid colour to a stronger sheen with depth. */
+@utility accent-swatch {
+  @apply surface-raised shadow-[var(--depth-shadow-sm)];
+  --lighting-edge-top: rgb(255 255 255 / calc(0.3 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.15 * var(--depth-strength)));
+  background-image:
+    linear-gradient(to bottom, rgb(255 255 255 / calc(max(0, var(--depth-strength) - 1) * 0.2)), transparent 55%),
+    linear-gradient(to bottom right, color-mix(in srgb, var(--accent-strong), var(--accent-bright) calc(min(1, var(--depth-strength)) * 100%)), var(--accent-strong));
+}
+
+/* Shared lighting for filled buttons and selected header icon controls. */
+@utility control-raised {
+  @apply surface-raised shadow-[0_1px_2px_rgb(0_0_0/calc(0.12*var(--depth-strength)))];
+  /* Keep white labels readable even at the strongest depth setting. */
+  --lighting-top: rgb(255 255 255 / min(0.14, calc(0.1 * var(--depth-strength))));
+  @apply enabled:active:shadow-none enabled:active:inset-shadow-[0_1px_2px_rgb(0_0_0/calc(0.12*var(--depth-strength)))];
+  @apply disabled:shadow-none disabled:inset-shadow-none;
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    background-image: none;
+  }
+
+  &[aria-disabled='true'] {
+    @apply shadow-none inset-shadow-none;
+  }
 }
 
 @utility btn {
-  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 py-1.5 font-medium;
-  @apply transition-[background-color,border-color,color] duration-150;
+  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-1.5 font-medium;
+  @apply transition-[background-color,border-color,color,box-shadow] duration-150;
+  @apply control-raised;
   @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Compact actions and independent toggles share the standard button foundation. */
+@utility toggle-chip {
+  @apply btn shell-lighting shadow-none feedback-quick gap-1.5 px-2.5 text-xs;
 }
 
 @utility button-content {
@@ -341,7 +517,7 @@
 }
 
 @utility btn-action {
-  @apply btn border-action bg-action font-semibold text-on-action hover:border-(--color-action-hover) hover:bg-(--color-action-hover);
+  @apply btn border-(--color-button-action) bg-(--color-button-action) font-semibold text-(--color-on-button-action) hover:border-(--color-button-action-hover) hover:bg-(--color-button-action-hover);
 }
 
 @utility btn-success {
@@ -354,7 +530,8 @@
 }
 
 @utility btn-ghost {
-  @apply btn bg-transparent text-text hover:bg-action/10 hover:text-action;
+  @apply btn bg-transparent text-text shadow-none inset-shadow-none hover:bg-action/10 hover:text-action enabled:active:inset-shadow-none;
+  background-image: none;
 }
 
 @utility btn-warning {
@@ -374,7 +551,8 @@
 
 /* Quiet room-membership action that reveals its destructive meaning on hover. */
 @utility btn-danger-ghost {
-  @apply btn bg-transparent text-muted;
+  @apply btn bg-transparent text-muted shadow-none inset-shadow-none enabled:active:inset-shadow-none;
+  background-image: none;
   @apply hover:bg-danger/10 hover:text-danger;
 }
 
@@ -384,12 +562,12 @@
 
 /* Dense embedded action for toasts and other constrained surfaces. */
 @utility btn-xs {
-  @apply min-h-8 min-w-0 rounded-md px-3 py-1 text-xs;
+  @apply min-h-8 min-w-0 px-3 py-1 text-xs;
 }
 
 /* Equal-width icon action used inside the current-call control row. */
 @utility btn-compact {
-  @apply h-10 min-h-10 w-full min-w-0 shrink-0 p-0 text-xs;
+  @apply h-10 min-h-10 w-full min-w-0 shrink-0 rounded-md p-0 text-xs;
 }
 
 @utility btn-lg {
@@ -397,7 +575,7 @@
 }
 
 @utility btn-icon-action {
-  @apply btn-action h-10 w-10 shrink-0 p-0 text-sm;
+  @apply btn-action h-10 w-10 shrink-0 rounded-md p-0 text-sm;
 }
 
 /* Form input utilities */
@@ -415,9 +593,39 @@
   @apply input resize-none;
 }
 
+/* Fast, symmetric feedback for menu, navigation, and selection controls.
+ * Each control keeps its own transition properties; timing is shared here.
+ */
+@utility feedback-quick {
+  @apply duration-50 ease-out;
+}
+
+/* Option rows sit just above the panel work plane; their empty indicators sit below it. */
+@utility option-depth {
+  @apply surface-raised;
+  --lighting-top: rgb(255 255 255 / calc(0.015 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.01 * var(--depth-strength)));
+  --lighting-midpoint: 60%;
+  --lighting-edge-top: rgb(255 255 255 / calc(0.02 * var(--depth-strength)));
+  --lighting-edge-bottom: transparent;
+
+  &:disabled,
+  &:has(input:disabled) {
+    @apply shadow-none inset-shadow-none;
+    background-image: none;
+  }
+
+  &:disabled .choice-indicator,
+  &:has(input:disabled) .checkbox-box {
+    @apply shadow-none inset-shadow-none;
+    background-image: none;
+  }
+}
+
 @utility checkbox-option {
+  @apply option-depth;
   @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2;
-  @apply transition-[background-color,border-color,box-shadow] duration-100;
+  @apply transition-[background-color,border-color,box-shadow] feedback-quick;
   @apply hover:border-input-border hover:bg-surface;
 }
 
@@ -430,11 +638,13 @@
 }
 
 @utility checkbox-box {
+  @apply control-well;
   @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
-  @apply transition-[background-color,border-color,color] duration-100;
+  @apply transition-[background-color,border-color,color] feedback-quick;
 }
 
 @utility checkbox-box-selected {
+  @apply selection-indicator;
   @apply border-action bg-action text-on-action;
 }
 
@@ -444,7 +654,8 @@
 
 /* Single-choice rows used by settings radio groups. */
 @utility choice-row {
-  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors;
+  @apply option-depth;
+  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors feedback-quick;
   @apply hover:border-input-border hover:bg-surface;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -454,15 +665,17 @@
 }
 
 @utility choice-indicator {
-  @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors;
+  @apply control-well;
+  @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors feedback-quick;
 }
 
 @utility choice-indicator-selected {
+  @apply selection-indicator;
   @apply border-action bg-action;
 }
 
 @utility choice-indicator-dot {
-  @apply h-2 w-2 rounded-full bg-white;
+  @apply h-2 w-2 rounded-full bg-on-action;
 }
 
 /* Celebration is painted on real elements: native track pseudo-elements do not
@@ -697,13 +910,18 @@
   @apply min-w-0 flex-1 space-y-1;
 }
 
+/* Quiet icon feedback follows the surface beneath it instead of adding a solid tile. */
+@utility icon-action-feedback {
+  @apply rounded-lg text-muted transition-[background-color,color] duration-150;
+  @apply not-disabled:hover:bg-text/5 not-disabled:hover:text-text-top not-disabled:active:bg-text/10;
+  @apply focus-visible:bg-text/5 focus-visible:outline-2 focus-visible:outline-action;
+}
+
 /* Pane header icon button — fixed padded hit area for icon-only controls in PaneHeader.
    Resting inactive state is intentionally transparent; pair with
    `pane-header-icon-button-active` for selected/toggled backgrounds. */
 @utility pane-header-icon-button {
-  @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-transparent leading-none text-muted transition-[background-color,color] duration-150;
-  @apply hover:bg-surface-emphasized hover:text-text-top active:bg-surface-selected;
-  @apply focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action;
+  @apply icon-action-feedback inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center bg-transparent leading-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -712,7 +930,8 @@
 }
 
 @utility pane-header-icon-button-active {
-  @apply bg-surface-emphasized text-text-top hover:text-text-top;
+  @apply control-raised transition-[background-color,color,box-shadow];
+  @apply bg-surface-emphasized text-text-top not-disabled:hover:bg-surface-emphasized not-disabled:active:bg-surface-selected focus-visible:bg-surface-emphasized;
 }
 
 /* Sidebar navigation utilities */
@@ -722,7 +941,7 @@
 
 @utility sidebar-item {
   @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
-  @apply transition-[background-color,color] duration-150 hover:bg-surface hover:text-text active:bg-surface-emphasized;
+  @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
 
   /* A current route declares itself semantically. The shared item then gives
@@ -741,26 +960,38 @@
   @apply font-medium text-text-top hover:text-text-top;
 }
 
-/* Shared shimmer pseudo-element rules for all shimmer-enabled elements */
+/* One broad highlight crosses the overlay, leaving ::after for the tile rim. */
 .shimmer-hover::before,
 .server-gutter-item::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--shimmer-gradient);
-  transform: translateX(-100%);
+  background-image: var(--shimmer-gradient);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  background-position: 150% 0;
   pointer-events: none;
   z-index: 5;
 }
 
 .shimmer-hover:hover::before,
 .server-gutter-item:hover::before {
-  animation: shimmer-sweep 400ms ease-out forwards;
+  animation: shimmer-sweep 450ms ease-out forwards;
 }
 
 @keyframes shimmer-sweep {
-  to {
-    transform: translateX(100%);
+  to { background-position: -50% 0; }
+}
+
+/* A gutter logo sits inside another shimmer surface; only the outer one sweeps. */
+.server-gutter-item .shimmer-hover::before {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-hover:hover::before,
+  .server-gutter-item:hover::before {
+    animation: none;
   }
 }
 
@@ -782,12 +1013,15 @@
   @apply inline-flex h-5 w-5 shrink-0 items-center justify-center text-base;
 }
 
-/* Icon button in the app header: 44px tap target, negative margin to keep
-   visual alignment tight, subtle hover/active feedback. */
+/* Header actions highlight their glyph or text, keeping the 44px hit area. */
 @utility app-header-icon {
-  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-md text-muted transition-[background-color,color] duration-150;
-  @apply hover:bg-surface-emphasized hover:text-text active:bg-surface-selected;
-  @apply focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action;
+  @apply relative -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors feedback-quick;
+  @apply not-disabled:hover:text-text-top focus-visible:text-text-top focus-visible:outline-2 focus-visible:outline-action;
+}
+
+/* Text actions share the icon highlight and hit-area height. */
+@utility app-header-text-action {
+  @apply app-header-icon min-w-11 w-auto px-3;
 }
 
 /* Compact inline icon-only action for row/input affordances such as dismiss
@@ -795,9 +1029,7 @@
  * pane-header-icon-button instead.
  */
 @utility icon-action {
-  @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color] duration-150;
-  @apply hover:bg-surface-emphasized hover:text-text active:bg-surface-selected;
-  @apply focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action;
+  @apply icon-action-feedback inline-flex h-10 w-10 cursor-pointer items-center justify-center;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
@@ -905,16 +1137,30 @@
   }
 }
 
-/* Composer input and formatting surfaces share the app shell's compact radius. */
-@utility composer-surface {
-  @apply rounded-xl bg-surface;
+/* Resting shell surfaces have a soft rim, without button elevation or press feedback. */
+@utility shell-lighting {
+  @apply surface-raised;
+  --lighting-top: rgb(255 255 255 / calc(0.025 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.025 * var(--depth-strength)));
+  --lighting-midpoint: 55%;
+  --lighting-edge-top: rgb(255 255 255 / calc(0.08 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.12 * var(--depth-strength)));
 }
 
-/* Chat input rows share one stable height and surface treatment. Keep compact
- * shelves on composer-surface when they do not contain the primary input.
+@utility shell-surface {
+  @apply shell-lighting rounded-xl bg-surface;
+}
+
+/* Composer input and formatting surfaces share the app shell's compact radius. */
+@utility composer-surface {
+  @apply shell-surface;
+}
+
+/* Chat inputs share the quiet raised finish of the user card and server tiles.
+ * Keep compact formatting shelves on composer-surface.
  */
 @utility chat-input-surface {
-  @apply min-h-12 rounded-xl bg-surface;
+  @apply shell-surface min-h-12;
 }
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
@@ -922,6 +1168,13 @@
   @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] duration-150;
   @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text active:bg-surface-strong;
   @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+}
+
+/* Paint above server artwork so image logos and fallback initials get the same rim.
+ * The overlay does not intercept links or notification controls. */
+.server-gutter-item::after {
+  @apply shell-lighting pointer-events-none absolute inset-0 z-1 rounded-xl;
+  content: '';
 }
 
 @utility server-gutter-item-active {
@@ -953,12 +1206,74 @@
   @apply h-11 w-11;
 }
 
+/* Light falls across the padded outer frame; inset content keeps its own fill.
+ * Inset shadows compose with each floating surface's existing outer shadow. */
+@utility floating-frame {
+  @apply surface-raised bg-surface;
+  --lighting-top: rgb(255 255 255 / calc(0.06 * var(--depth-strength)));
+  --lighting-bottom: var(--frame-shade);
+  --lighting-midpoint: 45%;
+  --lighting-edge-top: rgb(255 255 255 / calc(0.1 * var(--depth-strength)));
+  --lighting-edge-bottom: var(--frame-edge-shade);
+}
+
+/* A soft inner edge makes content sit below the surrounding floating frame. */
+@utility floating-inset {
+  @apply surface-lowered;
+  --lowered-shadow: var(--frame-inset-shadow);
+  --lowered-edge: 0 0 0 1px var(--frame-inset-edge);
+}
+
+/* Desktop chrome keeps the shared frame bevel, with a flat fill across the window. */
+@utility app-frame-shell {
+  @apply floating-frame inset-shadow-[1px_1px_0_var(--lighting-edge-top),-1px_-1px_0_var(--lighting-edge-bottom)];
+  background-image: none;
+}
+
+/* Pane backgrounds cover ordinary inset shadows. A non-interactive overlay
+ * keeps the dark-theme recess visible across every pane. Light mode uses a
+ * raised edge and outer shadow instead.
+ */
+@utility app-frame-inset {
+  @apply relative shadow-[-1px_-1px_0_var(--app-edge-upper),1px_1px_0_var(--app-edge-lower),var(--app-frame-elevation)];
+
+  &::after {
+    @apply floating-inset pointer-events-none absolute inset-0 z-40 rounded-[inherit] opacity-[var(--app-inset-opacity)];
+    content: '';
+  }
+}
+
 /* Menus (popup/context) */
 @utility menu {
   /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
      (which is pure white in dark mode, not the app's slightly-off neutral-100).
      Menu items that need a different color still override it on their own. */
-  @apply rounded-lg border border-text/10 bg-surface p-1 text-sm text-text shadow-xl;
+  @apply floating-frame rounded-lg border border-text/10 p-1 text-sm text-text shadow-xl;
+
+  & :is(.menu-section, .menu-section-sm) {
+    @apply floating-inset;
+  }
+}
+
+/* Quick navigation uses the menu frame with a larger search and result rhythm. */
+@utility command-palette {
+  @apply menu flex w-140 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg p-1 text-sm;
+}
+
+@utility command-palette-leading {
+  @apply inline-flex size-5 shrink-0 items-center justify-center text-muted;
+}
+
+@utility command-palette-result {
+  @apply menu-entry gap-2 px-2 py-1;
+}
+
+@utility command-palette-result-active {
+  @apply bg-surface text-text-top;
+}
+
+@utility keycap {
+  @apply inline-flex shrink-0 items-center justify-center rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted;
 }
 
 @utility menu-section {
@@ -970,7 +1285,7 @@
 }
 
 @utility menu-item {
-  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left transition-[background-color,scale] hover:bg-surface active:scale-[0.96];
+  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96];
 }
 
 @utility menu-item-active {
@@ -980,7 +1295,7 @@
 /* Semantic command rows for ContextMenu and related action surfaces. */
 @utility menu-entry {
   @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
-  @apply transition-[background-color,color] duration-150 hover:bg-surface hover:text-text active:bg-surface-emphasized;
+  @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 
@@ -1093,4 +1408,8 @@ body[data-resizing-sidebar] * {
 }
 body[data-resizing-sidebar] {
   user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { transition: none; }
 }

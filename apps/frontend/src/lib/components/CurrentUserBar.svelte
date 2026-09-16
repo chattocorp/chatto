@@ -284,7 +284,7 @@ sidebar. Shows the avatar with presence and the live display name.
     {/if}
 
     <div
-      class="flex h-12 max-h-12 min-h-12 items-center gap-2 overflow-hidden rounded-xl bg-surface px-2"
+      class="flex h-12 max-h-12 min-h-12 items-center gap-2 overflow-hidden shell-surface px-2"
       data-testid="current-user-identity-card"
     >
       <button
@@ -315,7 +315,7 @@ sidebar. Shows the avatar with presence and the live display name.
           class={[
             'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors',
             privilegedMode.active
-              ? 'bg-warning/15 text-warning hover:bg-warning/25'
+              ? 'control-raised bg-warning/15 text-warning hover:bg-warning/25'
               : 'hover:bg-elevated text-muted hover:text-text'
           ]}
           title={privilegedMode.active

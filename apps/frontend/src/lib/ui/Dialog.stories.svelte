@@ -5,7 +5,8 @@
 
   const componentDescription = `
     Use Dialog for focused overlays that need custom body content. Use FormDialog for submit/cancel
-    forms and ConfirmDialog for destructive or high-risk confirmations.
+    forms and ConfirmDialog for destructive or high-risk confirmations. The padded outer frame
+    has subtle lighting; the solid content surface has a soft inset shadow to give it depth.
   `.trim();
 
   const { Story } = defineMeta({

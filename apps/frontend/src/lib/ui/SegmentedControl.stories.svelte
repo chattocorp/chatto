@@ -11,7 +11,7 @@
       docs: {
         description: {
           component:
-            'Compact one-of-many mode switch for alternate views, filters, and sort orders. Use ToggleChip when choices can be selected independently.'
+            'Compact one-of-many mode switch with a recessed track and a softly raised selected pill for alternate views, filters, and sort orders. Use ToggleChip when choices can be selected independently.'
         }
       }
     }

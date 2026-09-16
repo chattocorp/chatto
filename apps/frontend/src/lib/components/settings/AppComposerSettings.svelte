@@ -45,7 +45,6 @@
   <div class="flex flex-col gap-6">
     <Panel title={m('settings.preferences.editor.title')} icon="iconify icon-[uil--edit]">
       <div class="max-w-md">
-        <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
         <div
           class="flex flex-col gap-2"
           role="radiogroup"
@@ -65,7 +64,6 @@
 
     <Panel title={m('settings.preferences.send_mode.title')} icon="iconify icon-[uil--message]">
       <div class="max-w-md">
-        <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
         <div
           class="flex flex-col gap-2"
           role="radiogroup"

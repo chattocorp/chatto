@@ -51,6 +51,29 @@ function pasteText(target: Element, text: string) {
 }
 
 describe('MarkdownEditor', () => {
+  it('uses native caret and selection after refocusing', async () => {
+    const { container } = await renderEditor();
+    const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+    const outside = document.createElement('button');
+    outside.textContent = 'Outside editor';
+    container.append(outside);
+    await textbox.click();
+    await userEvent.click(outside);
+    await textbox.click();
+    await expect.element(textbox).toHaveFocus();
+
+    const content = textbox.element();
+    expect(container.querySelector('.cm-cursorLayer, .cm-selectionLayer')).toBeNull();
+    expect(getComputedStyle(content).caretColor).toBe(getComputedStyle(content).color);
+    expect(content.contains(window.getSelection()?.anchorNode ?? null)).toBe(true);
+
+    await userEvent.keyboard('hello');
+    await userEvent.keyboard('{Shift>}{ArrowLeft}{ArrowLeft}{/Shift}');
+    expect(window.getSelection()?.toString()).toBe('lo');
+    await userEvent.keyboard('p');
+    expect(content.textContent).toBe('help');
+  });
+
   it('synchronizes its accessible name, placeholder, and disabled state', async () => {
     const rendered = await renderEditor();
     const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
@@ -218,8 +241,7 @@ describe('MarkdownEditor', () => {
     await vi.waitFor(() => expect(container.querySelectorAll('.cm-line')).toHaveLength(2));
 
     api.focus();
-    await vi.waitFor(() => expect(container.querySelector('.cm-cursor')).toBeTruthy());
-    expect(getComputedStyle(container.querySelector('.cm-cursor')!).borderLeftColor).toBe(
+    expect(getComputedStyle(content!).caretColor).toBe(
       getComputedStyle(content!).color
     );
   });

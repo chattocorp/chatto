@@ -215,7 +215,26 @@
       },
       "save_button": "Salvesta ajaseaded",
       "saved": "Ajaseaded salvestatud",
-      "save_failed": "Ajaseadete salvestamine ebaõnnestus"
+      "save_failed": "Ajaseadete salvestamine ebaõnnestus",
+      "accent": {
+        "title": "Rõhuvärv",
+        "blue": "Sinine",
+        "cyan": "Tsüaan",
+        "teal": "Sinakasroheline",
+        "green": "Roheline",
+        "amber": "Merevaik",
+        "orange": "Oranž",
+        "pink": "Roosa",
+        "violet": "Violetne",
+        "grey": "Hall",
+        "preview": "Eelvaade"
+      },
+      "depth": {
+        "title": "Pinna sügavus",
+        "flat": "Lame",
+        "three_d": "3D",
+        "very_3d": "Tugev 3D"
+      }
     },
     "notifications": {
       "title": "Märguanded",

@@ -215,7 +215,26 @@
       },
       "save_button": "Saat ayarlarını kaydet",
       "saved": "Saat ayarları kaydedildi",
-      "save_failed": "Saat ayarları kaydedilemedi"
+      "save_failed": "Saat ayarları kaydedilemedi",
+      "accent": {
+        "title": "Vurgu rengi",
+        "blue": "Mavi",
+        "cyan": "Camgöbeği",
+        "teal": "Turkuaz",
+        "green": "Yeşil",
+        "amber": "Kehribar",
+        "orange": "Turuncu",
+        "pink": "Pembe",
+        "violet": "Mor",
+        "grey": "Gri",
+        "preview": "Önizleme"
+      },
+      "depth": {
+        "title": "Yüzey derinliği",
+        "flat": "Düz",
+        "three_d": "3D",
+        "very_3d": "Belirgin 3D"
+      }
     },
     "notifications": {
       "title": "Bildirimler",

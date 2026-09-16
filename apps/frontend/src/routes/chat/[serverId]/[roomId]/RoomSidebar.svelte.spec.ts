@@ -457,7 +457,7 @@ describe('RoomSidebar', () => {
       .toBeVisible();
     await userEvent.click(rendered.getByRole('button', { name: 'Try Again' }));
     await expect.element(rendered.getByRole('searchbox')).toBeVisible();
-    await expect.element(rendered.getByRole('searchbox')).toHaveFocus();
+    await expect.element(rendered.getByRole('searchbox')).not.toHaveFocus();
     expect(getStatus).toHaveBeenCalledTimes(2);
   });
 
@@ -519,7 +519,8 @@ describe('RoomSidebar', () => {
     });
 
     const input = container.querySelector('input') as HTMLInputElement;
-    await vi.waitFor(() => expect(document.activeElement).toBe(input));
+    await expect.element(input).toBeVisible();
+    await expect.element(input).not.toHaveFocus();
     await userEvent.fill(input, 'roadmap');
     expect(
       [...container.querySelectorAll('button')].some(

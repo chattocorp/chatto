@@ -174,9 +174,9 @@ Room sidebar panel for voice/video calls.
     if (isConnecting) return hasActiveCall ? m('voice.joining') : m('voice.starting');
     return hasActiveCall ? m('voice.join_call') : m('voice.start_call');
   });
-  const controlButtonClass = 'btn-secondary btn-sm h-9 w-full !px-0';
-  const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
-  const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
+  const controlButtonClass = 'btn-secondary btn-sm h-9 w-full rounded-md !px-0';
+  const activeControlButtonClass = 'btn-success btn-sm h-9 w-full rounded-md !px-0';
+  const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full rounded-md !px-0';
   const callTileCardClass =
     'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-lg border border-text/10 bg-surface p-1.5 text-left text-text shadow-sm transition-colors hover:bg-surface-emphasized/70';
   const callTileHeaderClass = 'flex min-w-0 items-center gap-2';
@@ -617,7 +617,7 @@ Room sidebar panel for voice/video calls.
     <div class={isStageLayout ? 'mx-auto max-w-sm' : ''}>
       <button
         type="button"
-        class="btn-action w-full btn-sm"
+        class="btn-action min-h-12 w-full"
         data-testid="call-join-button"
         onclick={handleJoin}
         disabled={!canEnterCall || isInAnotherCall || isConnecting}
@@ -637,7 +637,7 @@ Room sidebar panel for voice/video calls.
   class="flex min-h-0 flex-1 flex-col"
   data-testid={isInThisCall ? 'call-participant-panel' : 'call-observer-panel'}
 >
-  {#if !isStageLayout}
+  {#if !isStageLayout && isInThisCall}
     <div class="border-b border-border bg-background p-3" data-testid="call-controls-bar">
       {@render callControls()}
     </div>
@@ -700,8 +700,11 @@ Room sidebar panel for voice/video calls.
     {/if}
   </div>
 
-  {#if isStageLayout}
-    <div class="border-t border-border bg-background p-3" data-testid="call-controls-bar">
+  {#if isStageLayout || !isInThisCall}
+    <div
+      class={isInThisCall ? 'border-t border-border bg-background p-3' : 'shrink-0 p-2'}
+      data-testid="call-controls-bar"
+    >
       {@render callControls()}
     </div>
   {/if}

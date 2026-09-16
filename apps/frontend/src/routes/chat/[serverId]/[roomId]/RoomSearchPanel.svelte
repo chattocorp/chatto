@@ -112,7 +112,6 @@ so switching rooms cannot leak a query or plaintext results into another room.
         testid="room-search-query"
         bind:value={store.query}
         placeholder={m('search.query.placeholder')}
-        focusOnMount
         oninput={scheduleSearch}
         onsubmit={() => search.submitNow()}
       />

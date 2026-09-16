@@ -100,6 +100,7 @@
     class={[
       variantClasses[variant],
       sizeClasses[size],
+      label && 'rounded-md',
       'shrink-0 whitespace-nowrap',
       fullWidth ? 'w-full' : '',
       disabled || loading ? 'pointer-events-none opacity-60' : ''
@@ -123,6 +124,7 @@
     class={[
       variantClasses[variant],
       sizeClasses[size],
+      label && 'rounded-md',
       'shrink-0 whitespace-nowrap',
       fullWidth ? 'w-full' : ''
     ]}

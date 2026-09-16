@@ -215,7 +215,26 @@
       },
       "save_button": "Tijdinstellingen opslaan",
       "saved": "Tijdinstellingen opgeslagen",
-      "save_failed": "Tijdinstellingen konden niet worden opgeslagen"
+      "save_failed": "Tijdinstellingen konden niet worden opgeslagen",
+      "accent": {
+        "title": "Accentkleur",
+        "blue": "Blauw",
+        "cyan": "Cyaan",
+        "teal": "Turkoois",
+        "green": "Groen",
+        "amber": "Amber",
+        "orange": "Oranje",
+        "pink": "Roze",
+        "violet": "Violet",
+        "grey": "Grijs",
+        "preview": "Voorbeeld"
+      },
+      "depth": {
+        "title": "Oppervlaktediepte",
+        "flat": "Vlak",
+        "three_d": "3D",
+        "very_3d": "Sterk 3D"
+      }
     },
     "notifications": {
       "title": "Meldingen",

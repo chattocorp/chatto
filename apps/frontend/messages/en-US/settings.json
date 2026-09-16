@@ -6,6 +6,12 @@
           "vacation": "Vacation"
         }
       }
+    },
+    "preferences": {
+      "accent": {
+        "title": "Accent color",
+        "grey": "Gray"
+      }
     }
   }
 }

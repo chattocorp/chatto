@@ -7,7 +7,8 @@
     Use Checkbox for independent boolean settings. Prefer immediate-save behavior for settings where
     one checkbox maps to one backend change, and keep supporting text inside the component instead of
     building custom option rows. Its selected row matches ChoiceRow, while the square check indicator
-    distinguishes a boolean setting from a one-of-many choice.
+    distinguishes a boolean setting from a one-of-many choice. Rows have a soft raised
+    edge, with an inset empty indicator and a glossy checked indicator.
   `.trim();
 
   const { Story } = defineMeta({

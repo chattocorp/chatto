@@ -10,6 +10,7 @@
   actions. It owns the canonical \`panel-shell panel-shell-raised\` container
   and the shared \`panel-header\` treatment. A slim surface frame wraps its rounded
   background work plane so forms, tables, and dense lists share one geometry.
+  A faint frame highlight and inner shadow give the content a recessed appearance.
   `.trim();
 
   const { Story } = defineMeta({

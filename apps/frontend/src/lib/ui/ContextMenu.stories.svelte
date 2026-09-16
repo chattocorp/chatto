@@ -12,7 +12,7 @@
       docs: {
         description: {
           component:
-            'Responsive menu primitive: a top-layer floating menu on hover-capable devices and a bottom sheet on touch devices.'
+            'Responsive menu primitive: a top-layer floating menu on hover-capable devices and a bottom sheet on touch devices. Floating menus use a subtly lit outer frame around solid content sections with soft inset shadows.'
         }
       }
     }

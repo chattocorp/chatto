@@ -215,7 +215,26 @@
       },
       "save_button": "Konservi horajn agordojn",
       "saved": "Horaj agordoj konservitaj",
-      "save_failed": "Ne eblis konservi horajn agordojn"
+      "save_failed": "Ne eblis konservi horajn agordojn",
+      "accent": {
+        "title": "Akcenta koloro",
+        "blue": "Blua",
+        "cyan": "Cejana",
+        "teal": "Bluverda",
+        "green": "Verda",
+        "amber": "Sukcena",
+        "orange": "Oranĝa",
+        "pink": "Rozkolora",
+        "violet": "Viola",
+        "grey": "Griza",
+        "preview": "Antaŭrigardo"
+      },
+      "depth": {
+        "title": "Surfaca profundo",
+        "flat": "Plata",
+        "three_d": "3D",
+        "very_3d": "Tre 3D"
+      }
     },
     "notifications": {
       "title": "Sciigoj",

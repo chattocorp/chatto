@@ -13,6 +13,50 @@ import {
   notificationSounds
 } from '$lib/audio/notificationSounds';
 import { Codecs, globalSlot } from '$lib/storage/slot';
+/** Curated app-wide accents. Keep the first-paint allowlist in app.html in sync. */
+export const accentColors = [
+  'blue',
+  'cyan',
+  'teal',
+  'green',
+  'amber',
+  'orange',
+  'pink',
+  'violet',
+  'grey'
+] as const;
+
+export type AccentColor = (typeof accentColors)[number];
+
+/** Preserve the familiar cyan when the stored choice is absent or invalid. */
+export const defaultAccentColor: AccentColor = 'cyan';
+
+/** Only known palette names may select an application accent. */
+export function isAccentColor(value: unknown): value is AccentColor {
+  return typeof value === 'string' && accentColors.includes(value as AccentColor);
+}
+
+/** Apply the palette without changing the user's light/dark theme. */
+export function applyAccentColor(value: AccentColor): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.accent = isAccentColor(value) ? value : defaultAccentColor;
+}
+
+/** App-wide bevel modes. Keep the first-paint allowlist in app.html in sync. */
+export const surfaceDepths = ['flat', '3d', 'very-3d'] as const;
+export type SurfaceDepth = (typeof surfaceDepths)[number];
+export const defaultSurfaceDepth: SurfaceDepth = '3d';
+
+/** Reject unknown modes from stored preferences or external callers. */
+export function isSurfaceDepth(value: unknown): value is SurfaceDepth {
+  return typeof value === 'string' && surfaceDepths.includes(value as SurfaceDepth);
+}
+
+/** Apply bevel strength without changing the palette or light/dark theme. */
+export function applySurfaceDepth(value: SurfaceDepth): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.depth = isSurfaceDepth(value) ? value : defaultSurfaceDepth;
+}
 
 export type DisplayTheme = 'system' | 'light' | 'dark';
 export type ComposerEditorKind = 'visual' | 'markdown';
@@ -22,6 +66,8 @@ type EffectiveTheme = 'light' | 'dark';
 
 interface AppPreferences {
   displayTheme: DisplayTheme;
+  accentColor: AccentColor;
+  surfaceDepth: SurfaceDepth;
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
   composerFormattingToolbarVisible: boolean;
@@ -37,6 +83,8 @@ interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPrefe
 
 const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
+  accentColor: defaultAccentColor,
+  surfaceDepth: defaultSurfaceDepth,
   composerEditor: 'markdown',
   composerSendMode: 'enter',
   composerFormattingToolbarVisible: false,
@@ -49,7 +97,11 @@ const defaultStoredPreferences: StoredPreferences = {
   notificationSoundFilters: defaultNotificationSoundFilters
 };
 
-const slot = globalSlot('preferences', defaultStoredPreferences, Codecs.json<StoredPreferences>());
+const slot = globalSlot(
+  'preferences',
+  defaultStoredPreferences,
+  Codecs.json<StoredPreferences>((value): value is StoredPreferences => isRecord(value))
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -141,6 +193,8 @@ function loadAppPreferences(): AppPreferences {
     getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultAppPreferences.displayTheme;
   return {
     displayTheme,
+    accentColor: isAccentColor(stored.accentColor) ? stored.accentColor : defaultAccentColor,
+    surfaceDepth: isSurfaceDepth(stored.surfaceDepth) ? stored.surfaceDepth : defaultSurfaceDepth,
     composerEditor: isComposerEditorKind(stored.composerEditor)
       ? stored.composerEditor
       : defaultAppPreferences.composerEditor,
@@ -189,6 +243,30 @@ export class UserPreferencesState {
 
   get effectiveDisplayTheme(): EffectiveTheme {
     return resolveDisplayTheme(this.#preferences.displayTheme);
+  }
+
+  /** Accent shared by every registered server in this browser. */
+  get accentColor(): AccentColor {
+    return this.#preferences.accentColor;
+  }
+
+  set accentColor(value: AccentColor) {
+    const accentColor = isAccentColor(value) ? value : defaultAccentColor;
+    this.#preferences.accentColor = accentColor;
+    this.#persist();
+    applyAccentColor(accentColor);
+  }
+
+  /** Bevel strength shared by all servers in this browser. */
+  get surfaceDepth(): SurfaceDepth {
+    return this.#preferences.surfaceDepth;
+  }
+
+  set surfaceDepth(value: SurfaceDepth) {
+    const depth = isSurfaceDepth(value) ? value : defaultSurfaceDepth;
+    this.#preferences.surfaceDepth = depth;
+    this.#persist();
+    applySurfaceDepth(depth);
   }
 
   get composerEditor(): ComposerEditorKind {

@@ -215,7 +215,26 @@
       },
       "save_button": "Lagre tidsinnstillinger",
       "saved": "Tidsinnstillinger lagret",
-      "save_failed": "Kunne ikke lagre tidsinnstillinger"
+      "save_failed": "Kunne ikke lagre tidsinnstillinger",
+      "accent": {
+        "title": "Aksentfarge",
+        "blue": "Blå",
+        "cyan": "Cyan",
+        "teal": "Turkis",
+        "green": "Grønn",
+        "amber": "Rav",
+        "orange": "Oransje",
+        "pink": "Rosa",
+        "violet": "Fiolett",
+        "grey": "Grå",
+        "preview": "Forhåndsvisning"
+      },
+      "depth": {
+        "title": "Overflatedybde",
+        "flat": "Flat",
+        "three_d": "3D",
+        "very_3d": "Tydelig 3D"
+      }
     },
     "notifications": {
       "title": "Varsler",
