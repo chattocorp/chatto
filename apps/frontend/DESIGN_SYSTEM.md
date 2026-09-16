@@ -300,7 +300,7 @@ instead of adding local gradients or arbitrary inset shadows.
 | `shell-lighting` | The same quiet finish over server gutter artwork; does not change the image or intercept clicks. |
 | `floating-frame` | Lit panel, dialog, and menu frames. |
 | `floating-inset` | Recessed content inside those frames. |
-| `app-frame-shell` / `app-frame-inset` | Desktop app border with a flat fill and edge bevel. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
+| `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no outer border or highlight in any depth mode. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
 | `accent-swatch` | Palette samples with their own colour gradient and shared lit edges. |
 
 Keep the `--lighting-*` and `--lowered-*` parameters inside semantic utilities.

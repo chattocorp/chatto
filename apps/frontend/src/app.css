@@ -1224,10 +1224,9 @@
   --lowered-edge: 0 0 0 1px var(--frame-inset-edge);
 }
 
-/* Desktop chrome keeps the shared frame bevel, with a flat fill across the window. */
+/* The outer app frame meets the window edge without a border or highlight. */
 @utility app-frame-shell {
-  @apply floating-frame inset-shadow-[1px_1px_0_var(--lighting-edge-top),-1px_-1px_0_var(--lighting-edge-bottom)];
-  background-image: none;
+  @apply bg-surface;
 }
 
 /* Pane backgrounds cover ordinary inset shadows. A non-interactive overlay
