@@ -517,6 +517,8 @@ matches the action.
   bare `transition` utility or `transition-all`.
 - Press feedback uses `active:scale-[0.96]` where it does not interfere with
   drag, resize, or text-selection behavior.
+- Shared buttons fade disabled/pending opacity over 150 ms in both directions.
+  Pill buttons retain 50 ms hover colour feedback. Reduced motion skips both.
 - Respect `prefers-reduced-motion` for non-essential animation.
 - Wrap conditional compact toolbars in `FadeScale` for a shared 180 ms
   fade and 96–100% zoom with exponential ease-out entry and cubic ease-in-out

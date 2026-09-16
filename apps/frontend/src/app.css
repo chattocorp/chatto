@@ -483,7 +483,7 @@
 
 @utility btn {
   @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-1.5 font-medium;
-  @apply transition-[background-color,border-color,color,box-shadow] duration-150;
+  @apply transition-[background-color,border-color,color,box-shadow,opacity] duration-150 ease-out motion-reduce:transition-none;
   @apply control-raised;
   @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
@@ -564,7 +564,9 @@
   @apply shell-lighting;
   border-radius: calc(4px * min(1, var(--depth-strength)) * var(--pill-separation, 1));
   @apply relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 px-2 py-1 text-muted;
-  @apply feedback-quick transition-[background-color,color] hover:bg-surface-selected hover:text-text;
+  @apply feedback-quick transition-[background-color,color,opacity] hover:bg-surface-selected hover:text-text motion-reduce:transition-none;
+  /* Keep hover colours immediate; ease pending/disabled opacity in both directions. */
+  transition-duration: 50ms, 50ms, 150ms;
   @apply focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
 }
