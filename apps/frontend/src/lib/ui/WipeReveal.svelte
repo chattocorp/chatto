@@ -1,7 +1,7 @@
 <!--
 @component
 
-Reveal replacement content from left to right with a straight wipe edge.
+Reveal replacement content from left to right with a soft, diagonal wipe edge.
 Place outgoing and incoming wrappers in the same grid cell. The outgoing
 content clears behind the incoming edge. Reduced motion skips the wipe.
 -->
@@ -17,9 +17,14 @@ content clears behind the incoming edge. Reduced motion skips the wipe.
     return {
       ...expoOutTransition(320),
       easing: cubicInOut,
-      css: (t: number) => outgoing
-        ? `clip-path: inset(0 0 0 ${(1 - t) * 100}%);`
-        : `clip-path: inset(0 ${(1 - t) * 100}% 0 0);`
+      css: (t: number) => {
+        // Move the entire feather beyond either edge at the endpoints. Opposite
+        // masks keep outgoing and incoming content on either side of the sweep.
+        const edge = -12 + (outgoing ? 1 - t : t) * 124;
+        const before = outgoing ? 'transparent' : '#000';
+        const after = outgoing ? '#000' : 'transparent';
+        return `mask-image: linear-gradient(110deg, ${before} ${edge - 6}%, ${after} ${edge + 6}%);`;
+      }
     };
   }
 </script>
