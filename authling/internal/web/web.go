@@ -7,7 +7,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"net/url"
 	"strings"
@@ -72,11 +71,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 	}
 	mux := http.NewServeMux()
-	assets, err := fs.Sub(embeddedAssets, "assets")
-	if err != nil {
-		panic("open embedded web assets: " + err.Error())
-	}
-	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
+	mux.Handle("GET /assets/", browserAssets)
 	mux.HandleFunc("GET "+changePasswordWellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		redirect(w, r, accountPasswordPath)
 	})
