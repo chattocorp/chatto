@@ -5,6 +5,7 @@ Displays the current (server-scoped) user at the bottom of the secondary
 sidebar. Shows the avatar with presence and the live display name.
 -->
 <script lang="ts">
+  import FadeScale from '$lib/ui/FadeScale.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -236,52 +237,54 @@ sidebar. Shows the avatar with presence and the live display name.
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
     {#if activeCallRoomId && voiceCallState}
-      <PillButtonGroup compact label={m('room.sidebar.call')} testId="current-user-call-card">
-        <VoiceCallControlButton
-          class={compactCallButtonClass}
-          label={`Open ${activeCallRoomName}`}
-          testId="current-user-call-link"
-          icon="icon-[uil--phone]"
-          iconClass="text-action"
-          onclick={openActiveCallRoom}
-        />
-        <VoiceCallControlButton
-          class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
-          label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
-          testId="current-user-call-mute"
-          icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
-          onclick={() => voiceCallState.toggleMute()}
-          pending={voiceCallState.isMicrophonePending}
-          disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
-        />
-        <VoiceCallControlButton
-          class={voiceCallState.isCameraEnabled
-            ? compactCallActiveButtonClass
-            : compactCallButtonClass}
-          label={voiceCallState.isCameraEnabled
-            ? m('voice.turn_off_camera')
-            : m('voice.turn_on_camera')}
-          testId="current-user-call-camera"
-          icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
-          onclick={() => voiceCallState.toggleCamera()}
-          pending={voiceCallState.isCameraPending}
-          disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
-        />
-        <ScreenShareControlButton
-          {voiceCallState}
-          class={voiceCallState.isScreenShareEnabled
-            ? compactCallActiveButtonClass
-            : compactCallButtonClass}
-          testId="current-user-call-screen-share"
-        />
-        <VoiceCallControlButton
-          class={compactCallDangerButtonClass}
-          label={m('voice.leave')}
-          testId="current-user-call-leave"
-          icon="icon-[uil--phone-slash]"
-          onclick={() => voiceCallState.leave()}
-        />
-      </PillButtonGroup>
+      <FadeScale>
+        <PillButtonGroup compact label={m('room.sidebar.call')} testId="current-user-call-card">
+          <VoiceCallControlButton
+            class={compactCallButtonClass}
+            label={`Open ${activeCallRoomName}`}
+            testId="current-user-call-link"
+            icon="icon-[uil--phone]"
+            iconClass="text-action"
+            onclick={openActiveCallRoom}
+          />
+          <VoiceCallControlButton
+            class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
+            label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
+            testId="current-user-call-mute"
+            icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
+            onclick={() => voiceCallState.toggleMute()}
+            pending={voiceCallState.isMicrophonePending}
+            disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
+          />
+          <VoiceCallControlButton
+            class={voiceCallState.isCameraEnabled
+              ? compactCallActiveButtonClass
+              : compactCallButtonClass}
+            label={voiceCallState.isCameraEnabled
+              ? m('voice.turn_off_camera')
+              : m('voice.turn_on_camera')}
+            testId="current-user-call-camera"
+            icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
+            onclick={() => voiceCallState.toggleCamera()}
+            pending={voiceCallState.isCameraPending}
+            disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
+          />
+          <ScreenShareControlButton
+            {voiceCallState}
+            class={voiceCallState.isScreenShareEnabled
+              ? compactCallActiveButtonClass
+              : compactCallButtonClass}
+            testId="current-user-call-screen-share"
+          />
+          <VoiceCallControlButton
+            class={compactCallDangerButtonClass}
+            label={m('voice.leave')}
+            testId="current-user-call-leave"
+            icon="icon-[uil--phone-slash]"
+            onclick={() => voiceCallState.leave()}
+          />
+        </PillButtonGroup>
+      </FadeScale>
     {/if}
 
     <div

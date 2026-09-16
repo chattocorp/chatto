@@ -544,6 +544,7 @@ describe('CurrentUserBar', () => {
 
     const callGroup = q(container, '[data-testid="current-user-call-card"]')!;
     const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
+    await vi.waitFor(() => expect(getComputedStyle(callGroup.parentElement!).opacity).toBe('1'));
     expect(callGroup.getBoundingClientRect().height).toBe(
       (identityCard.getBoundingClientRect().height * 7) / 12
     );
@@ -571,7 +572,7 @@ describe('CurrentUserBar', () => {
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
   });
 
-  it('aligns the equal-width call controls with the user card', () => {
+  it('aligns the equal-width call controls with the user card', async () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
 
@@ -581,6 +582,7 @@ describe('CurrentUserBar', () => {
 
     const callCard = q(container, '[data-testid="current-user-call-card"]')!;
     const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
+    await vi.waitFor(() => expect(getComputedStyle(callCard.parentElement!).opacity).toBe('1'));
     const callCardRect = callCard.getBoundingClientRect();
     const identityCardRect = identityCard.getBoundingClientRect();
     const controlWidths = Array.from(

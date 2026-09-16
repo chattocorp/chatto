@@ -518,6 +518,11 @@ matches the action.
 - Press feedback uses `active:scale-[0.96]` where it does not interfere with
   drag, resize, or text-selection behavior.
 - Respect `prefers-reduced-motion` for non-essential animation.
+- Wrap conditional compact toolbars in `FadeScale` for a shared 180 ms
+  fade and 96–100% zoom with exponential ease-out entry and cubic ease-in-out
+  exit, anchored at the bottom start
+  corner. Reduced motion skips the transition. The composer formatting bar
+  and current-user call toolbar use this component.
 - Keep interactive hit areas at least 40 by 40 pixels unless a dense desktop
   toolbar has a documented non-overlapping exception. `mini-icon-action` is
   the narrow exception for a subordinate icon placed directly beside the text
