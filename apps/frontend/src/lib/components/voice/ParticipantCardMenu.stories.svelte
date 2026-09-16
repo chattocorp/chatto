@@ -14,7 +14,6 @@
   import type { ParticipantAudioPreferences } from '$lib/state/server/callPreferences.svelte';
 
   let settings = $state<ParticipantAudioPreferences>({ voiceVolume: 150, streamVolume: 60 });
-  let muted = $state(false);
 </script>
 
 <Story
@@ -26,8 +25,7 @@
     const menu = within(document.body);
     const voice = menu.getByRole('slider', { name: /Voice volume/ });
     await expect(voice).toHaveAttribute('max', '200');
-    await userEvent.click(menu.getByRole('button', { name: 'Mute locally' }));
-    await expect(menu.getByRole('button', { name: 'Unmute locally' })).toBeVisible();
+    await expect(menu.queryByRole('button', { name: 'Mute locally' })).not.toBeInTheDocument();
     await expect(voice).toHaveValue('150');
     await expect(voice).toHaveAttribute('step', '5');
     fireEvent.input(voice, { target: { value: '100' } });
@@ -38,9 +36,7 @@
   <div class="w-72 rounded-lg border border-border bg-surface p-2">
     <ParticipantCardMenu
       {settings}
-      {muted}
       onVolumeChange={(control, value) => (settings = { ...settings, [control]: value })}
-      onToggleMute={() => (muted = !muted)}
     />
   </div>
 </Story>
@@ -49,10 +45,8 @@
   <div class="w-72 rounded-lg border border-border bg-surface p-2">
     <ParticipantCardMenu
       {settings}
-      {muted}
       boostAvailable={false}
       onVolumeChange={(control, value) => (settings = { ...settings, [control]: value })}
-      onToggleMute={() => (muted = !muted)}
     />
   </div>
 </Story>

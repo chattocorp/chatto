@@ -6,22 +6,17 @@
     ParticipantVolumeControl
   } from '$lib/state/server/callPreferences.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
   import RangeField from '$lib/ui/form/RangeField.svelte';
 
   let {
     settings,
-    muted,
     boostAvailable = true,
-    onVolumeChange,
-    onToggleMute
+    onVolumeChange
   }: {
     settings: Readonly<ParticipantAudioPreferences>;
-    muted: boolean;
     boostAvailable?: boolean;
     onVolumeChange: (control: ParticipantVolumeControl, value: number) => void;
-    onToggleMute: () => void;
   } = $props();
   const id = $props.id();
   let anchor = $state<{ top: number; bottom: number; left: number } | null>(null);
@@ -32,7 +27,7 @@
 
 <button
   type="button"
-  class="flex h-9 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-action"
+  class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-action"
   aria-label={m('voice.participant_audio.title')}
   title={m('voice.participant_audio.title')}
   aria-haspopup="dialog"
@@ -83,14 +78,6 @@
       {#if !boostAvailable}
         <p class="px-3 py-1 text-sm text-muted">{m('voice.participant_audio.boost_unavailable')}</p>
       {/if}
-    </MenuSection>
-    <MenuSection>
-      <MenuItem
-        icon={muted ? 'icon-[uil--volume-up]' : 'icon-[uil--volume-mute]'}
-        onclick={onToggleMute}
-      >
-        {muted ? m('voice.locally_unmute_participant') : m('voice.locally_mute_participant')}
-      </MenuItem>
     </MenuSection>
   </ContextMenu>
 {/if}

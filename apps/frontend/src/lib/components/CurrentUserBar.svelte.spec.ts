@@ -8,6 +8,7 @@ import '../../app.css';
 import { q } from '$lib/test-utils';
 
 import { presencePreference } from '$lib/state/presencePreference.svelte';
+import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
@@ -526,7 +527,6 @@ describe('CurrentUserBar', () => {
     const link = q(container, '[data-testid="current-user-call-link"]') as HTMLButtonElement;
     expect(link.getAttribute('aria-label')).toBe('Open # general');
     expect(link.textContent?.trim()).toBe('');
-    link.click();
 
     const muteButton = q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement;
     const cameraButton = q(
@@ -542,15 +542,27 @@ describe('CurrentUserBar', () => {
       '[data-testid="current-user-call-leave"]'
     ) as HTMLButtonElement;
 
-    expect(muteButton.className).toContain('btn-success');
-    expect(cameraButton.className).toContain('btn-secondary');
-    expect(screenShareButton.className).toContain('btn-secondary');
-    expect(leaveButton.className).toContain('btn-danger');
+    const callGroup = q(container, '[data-testid="current-user-call-card"]')!;
+    const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
+    await vi.waitFor(() => expect(getComputedStyle(callGroup.parentElement!).opacity).toBe('1'));
+    expect(callGroup.getBoundingClientRect().height).toBe(
+      (identityCard.getBoundingClientRect().height * 7) / 12
+    );
+    expect(callGroup.getBoundingClientRect().width).toBe(
+      identityCard.getBoundingClientRect().width
+    );
+
+    expect(muteButton.className).toContain('pill-button-success');
+    expect(cameraButton.className).toContain('pill-button');
+    expect(screenShareButton.className).toContain('pill-button');
+    expect(leaveButton.className).toContain('pill-button-danger');
 
     muteButton.click();
     cameraButton.click();
     screenShareButton.click();
     leaveButton.click();
+    link.click();
+    await expect.poll(() => q(container, '[data-testid="current-user-call-card"]')).toBeNull();
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
     expect(getRoomSidebarPanelState('origin', 'room-1')).toBe(
@@ -562,7 +574,36 @@ describe('CurrentUserBar', () => {
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
   });
 
-  it('aligns the equal-width call controls with the user card', () => {
+  it('reactively hides duplicate controls only for the visible sidebar of the same call', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    let appUi!: AppUiState;
+    const { container } = render(CurrentUserBarTestHarness, { onReady: (state) => { appUi = state; } });
+    const toolbar = () => q(container, '[data-testid="current-user-call-card"]');
+    const desktop = window.matchMedia('(min-width: 1024px)').matches;
+    const open = () => desktop ? appUi.openDesktopRoomSidebarPanel('call') : appUi.openMobileRoomSidebarPanel('call');
+    expect(toolbar()).toBeTruthy();
+    open();
+    await expect.poll(toolbar).toBeNull();
+    if (desktop) appUi.closeDesktopRoomSidebarPanel();
+    else appUi.closeMobileRoomSidebarPanel();
+    await expect.poll(toolbar).toBeTruthy();
+    open();
+    await expect.poll(toolbar).toBeNull();
+    appUi.setActiveRoomScope('origin', 'room-2');
+    open();
+    await expect.poll(toolbar).toBeTruthy();
+    appUi.setActiveRoomScope('origin', 'room-1');
+    open();
+    await expect.poll(toolbar).toBeNull();
+    appUi.openRoomSidebarProfile('user-2', desktop ? 'desktop' : 'mobile');
+    await expect.poll(toolbar).toBeTruthy();
+    appUi.setActiveRoomScope('another-server', 'room-1');
+    open();
+    await expect.poll(toolbar).toBeTruthy();
+  });
+
+  it('aligns the equal-width call controls with the user card', async () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
 
@@ -572,6 +613,7 @@ describe('CurrentUserBar', () => {
 
     const callCard = q(container, '[data-testid="current-user-call-card"]')!;
     const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
+    await vi.waitFor(() => expect(getComputedStyle(callCard.parentElement!).opacity).toBe('1'));
     const callCardRect = callCard.getBoundingClientRect();
     const identityCardRect = identityCard.getBoundingClientRect();
     const controlWidths = Array.from(
@@ -582,7 +624,7 @@ describe('CurrentUserBar', () => {
     expect(callCardRect.left).toBe(identityCardRect.left);
     expect(callCardRect.right).toBe(identityCardRect.right);
     expect(controlWidths).toHaveLength(5);
-    expect(controlWidths.every((width) => width === controlWidths[0])).toBe(true);
+    expect(controlWidths.every((width) => Math.abs(width - controlWidths[0]) < 1)).toBe(true);
   });
 
   it('opens the native chooser when the host exposes screen sharing', async () => {
@@ -631,16 +673,16 @@ describe('CurrentUserBar', () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     expect(q(container, '[data-testid="current-user-call-mute"]')!.className).toContain(
-      'btn-secondary'
+      'pill-button'
     );
     expect(q(container, '[data-testid="current-user-call-camera"]')!.className).toContain(
-      'btn-success'
+      'pill-button-success'
     );
     expect(q(container, '[data-testid="current-user-call-screen-share"]')!.className).toContain(
-      'btn-success'
+      'pill-button-success'
     );
     expect(q(container, '[data-testid="current-user-call-leave"]')!.className).toContain(
-      'btn-danger'
+      'pill-button-danger'
     );
   });
 

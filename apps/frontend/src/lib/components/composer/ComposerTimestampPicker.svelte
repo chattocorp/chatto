@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import { tick } from 'svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { m } from '$lib/i18n/messages';
@@ -99,18 +100,16 @@
   }
 </script>
 
-<button
+<CompactActionButton
+  label={m('composer.timestamp.insert_label')}
   type="button"
   onpointerdown={(event) => event.preventDefault()}
   onclick={openPicker}
-  bind:this={triggerElement}
   {disabled}
-  class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-  aria-label={m('composer.timestamp.insert_label')}
   title={m('composer.timestamp.insert_label')}
 >
   <span class="iconify icon-[uil--clock] text-[15px]"></span>
-</button>
+</CompactActionButton>
 
 {#if pickerOpen}
   <ContextMenu

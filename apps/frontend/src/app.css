@@ -94,6 +94,12 @@
   --depth-shadow-sm: 0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))), 0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
   color-scheme: light;
   --segmented-fill: white;
+  /* Pale shell surfaces need a soft bevel, not a dark stamped lower rim. */
+  --shell-highlight: 0.045;
+  --shell-shade: 0.008;
+  --shell-edge-highlight: 0.35;
+  --shell-edge-shade: 0.045;
+  --shell-edge-blur: 0.6px;
   --app-edge-upper: rgb(255 255 255 / calc(0.65 * var(--depth-strength)));
   --app-edge-lower: rgb(0 0 0 / calc(0.12 * var(--depth-strength)));
   --app-frame-elevation: 0 2px 4px rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
@@ -177,6 +183,11 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
   --segmented-fill: var(--color-neutral-700);
+  --shell-highlight: 0.025;
+  --shell-shade: 0.025;
+  --shell-edge-highlight: 0.08;
+  --shell-edge-shade: 0.12;
+  --shell-edge-blur: 0px;
   --app-edge-upper: rgb(0 0 0 / calc(0.34 * var(--depth-strength)));
   --app-edge-lower: rgb(255 255 255 / calc(0.12 * var(--depth-strength)));
   --app-frame-elevation: 0 0 #0000;
@@ -472,7 +483,7 @@
 
 @utility btn {
   @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-1.5 font-medium;
-  @apply transition-[background-color,border-color,color,box-shadow] duration-150;
+  @apply transition-[background-color,border-color,color,box-shadow,opacity] duration-150 ease-out motion-reduce:transition-none;
   @apply control-raised;
   @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
@@ -510,6 +521,78 @@
   & > :is(button, a):first-child:not(:last-child) {
     flex-shrink: 0;
   }
+}
+
+/* One shell with flat separators or softly rounded, individually lit segments.
+ * Geometry and highlights follow the shared animated depth preference. */
+@utility pill-button-group {
+  @apply relative isolate grid auto-cols-fr grid-flow-col min-h-12 w-full min-w-0 overflow-hidden rounded-xl bg-surface;
+  --pill-separation: 1;
+  &[data-gaps='false'] {
+    --pill-separation: 0;
+  }
+  gap: calc(2px * min(1, var(--depth-strength)) * var(--pill-separation));
+  & > button + button {
+    border-inline-start: calc(1px * (1 - min(1, var(--depth-strength)) * var(--pill-separation))) solid var(--color-border);
+  }
+  & > button:first-child {
+    border-start-start-radius: inherit;
+    border-end-start-radius: inherit;
+  }
+  & > button:last-child {
+    border-start-end-radius: inherit;
+    border-end-end-radius: inherit;
+  }
+}
+
+@utility pill-button-group-hover-bevel {
+  background-color: transparent;
+  & > button[aria-pressed='true'] {
+    color: var(--color-action);
+  }
+  & > button:enabled:is(:hover, :focus-visible) {
+    background-color: var(--color-surface-emphasized);
+  }
+  & > button:not(:hover):not(:focus-visible),
+  & > button:disabled {
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+  }
+}
+
+@utility pill-button-group-compact {
+  @apply h-7 min-h-7 rounded-lg;
+  & > button {
+    @apply min-w-7 px-1 py-0 leading-none;
+  }
+  & > button > .iconify {
+    width: 15px;
+    height: 15px;
+    font-size: 15px;
+  }
+}
+
+@utility pill-button {
+  &[aria-pressed='true'] {
+    @apply bg-surface-emphasized text-text;
+  }
+  @apply shell-lighting;
+  border-radius: calc(4px * min(1, var(--depth-strength)) * var(--pill-separation, 1));
+  @apply relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 px-2 py-1 text-muted;
+  @apply feedback-quick transition-[background-color,color,opacity] hover:bg-surface-selected hover:text-text motion-reduce:transition-none;
+  /* Keep hover colours immediate; ease pending/disabled opacity in both directions. */
+  transition-duration: 50ms, 50ms, 150ms;
+  @apply focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
+  @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility pill-button-success {
+  @apply pill-button bg-(--color-button-success) text-white hover:bg-(--color-button-success-hover) hover:text-white enabled:active:bg-(--color-button-success-hover);
+}
+
+@utility pill-button-danger {
+  @apply pill-button bg-(--color-button-danger) text-white hover:bg-(--color-button-danger-hover) hover:text-white enabled:active:bg-(--color-button-danger-hover);
 }
 
 @utility btn-neutral {
@@ -1140,11 +1223,12 @@
 /* Resting shell surfaces have a soft rim, without button elevation or press feedback. */
 @utility shell-lighting {
   @apply surface-raised;
-  --lighting-top: rgb(255 255 255 / calc(0.025 * var(--depth-strength)));
-  --lighting-bottom: rgb(0 0 0 / calc(0.025 * var(--depth-strength)));
+  --lighting-top: rgb(255 255 255 / calc(var(--shell-highlight) * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(var(--shell-shade) * var(--depth-strength)));
   --lighting-midpoint: 55%;
-  --lighting-edge-top: rgb(255 255 255 / calc(0.08 * var(--depth-strength)));
-  --lighting-edge-bottom: rgb(0 0 0 / calc(0.12 * var(--depth-strength)));
+  --lighting-edge-blur: calc(var(--shell-edge-blur) * var(--depth-width));
+  --lighting-edge-top: rgb(255 255 255 / calc(var(--shell-edge-highlight) * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(var(--shell-edge-shade) * var(--depth-strength)));
 }
 
 @utility shell-surface {

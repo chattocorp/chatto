@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
@@ -14,6 +15,14 @@ import type { CreateMessageInput } from '$lib/api-client/messages';
 import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
 import { Code, ConnectError } from '$lib/api-client/connect';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+
+async function expectAccentColour(button: HTMLElement) {
+  const reference = document.createElement('span');
+  reference.style.color = 'var(--color-action)';
+  button.parentElement!.append(reference);
+  await expect.poll(() => getComputedStyle(button).color).toBe(getComputedStyle(reference).color);
+  reference.remove();
+}
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -484,8 +493,8 @@ describe('MessageComposer', () => {
       );
       expect(document.activeElement).toBe(editor);
       expect(userPreferences.composerFormattingToolbarVisible).toBe(true);
-      expect(q(first.container, '[data-testid="composer-formatting-shelf"]')).toHaveClass(
-        'composer-surface'
+      expect(q(first.container, '[data-testid="composer-formatting-shelf"] [role="group"]')).toHaveClass(
+        'pill-button-group-compact'
       );
 
       first.unmount();
@@ -535,6 +544,33 @@ describe('MessageComposer', () => {
       expect(window.getSelection()?.toString()).toBe('keep this selected');
     });
 
+    it('keeps the editor usable when a narrow pane needs a second action row', async () => {
+      const { container } = renderMessageComposer({ roomId: 'narrow-composer' });
+      container.style.width = '200px';
+      const editor = await findEditor(container);
+      const row = q(container, '[data-testid="composer-editor-row"]')!;
+      const actions = q(container, '[data-testid="composer-action-toolbar"]')!;
+      const surface = q(container, '[data-testid="composer-input-surface"]')!;
+      await expect.poll(() => row.getBoundingClientRect().width).toBeGreaterThan(100);
+      expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(row.getBoundingClientRect().bottom);
+      expect(surface.getBoundingClientRect().height).toBeLessThan(120);
+      expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
+      await userEvent.type(editor, 'A readable message');
+      expect(editor.textContent).toContain('A readable message');
+
+      container.style.width = '600px';
+      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+      expect(row.getBoundingClientRect().width).toBeGreaterThan(200);
+      const formattingToggle = surface.querySelector('button[aria-controls]')!;
+      const centre = (element: Element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      };
+      expect(Math.abs(centre(formattingToggle) - centre(row))).toBeLessThan(1);
+      expect(Math.abs(centre(actions) - centre(row))).toBeLessThan(1);
+      expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
+    });
+
     it('uses the composer width to control labels and keeps formatting controls on one row', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
@@ -543,7 +579,7 @@ describe('MessageComposer', () => {
 
       expect(q(container, '[data-testid="composer-input-surface"]')).toHaveClass('@container');
       expect(q(container, '[data-testid="composer-formatting-toolbar"]')).toHaveClass(
-        'flex-nowrap'
+        'overflow-x-auto'
       );
     });
 
@@ -3093,6 +3129,7 @@ describe('MessageComposer', () => {
       );
       expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
       echoToggle.click();
+      await expectAccentColour(echoToggle);
       const sendButton = q(container, 'button[aria-label="Send message"]') as HTMLButtonElement;
       expect(sendButton).toHaveTextContent('Send');
       expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass(
@@ -3143,6 +3180,7 @@ describe('MessageComposer', () => {
       expect(threadToggle).not.toHaveClass('active:scale-[0.96]');
       await typeInEditor(editor, 'discuss this');
       await userEvent.click(threadToggle);
+      await expectAccentColour(threadToggle);
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());

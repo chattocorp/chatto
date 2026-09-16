@@ -562,6 +562,18 @@ describe('QuickSwitcher', () => {
     });
   });
 
+  it('selects the result under a moving pointer', async () => {
+    const { container } = await renderOpenSwitcher();
+    const target = resultButtons(container).find((button) => button.textContent?.includes('xylophone-chat'))!;
+    target.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+    input(container).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() => {
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-xylophone');
+    });
+  });
+
   it('preserves keyboard selection when a slower server changes the ranking', async () => {
     mocks.servers.push({
       id: 'second',
@@ -604,6 +616,9 @@ describe('QuickSwitcher', () => {
 
     resolveSlow({ results: [message('slow-high', 'Slow highest result', 10)], nextCursor: null });
     await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(3));
+    // Reordering can move a different row under a stationary pointer. A boundary
+    // event must not replace the selection made with the keyboard.
+    resultButtons(container)[1].dispatchEvent(new PointerEvent('pointerenter'));
     input(container).dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
     );

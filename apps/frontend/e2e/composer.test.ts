@@ -127,7 +127,7 @@ test.describe('Composer focus', () => {
     // Click the composer container area (the outer padding area, not the editor itself).
     // The composer wrapper contains the input container with the editor inside.
     // Clicking its padding should focus the editor.
-    const composerContainer = page.locator('.flex.flex-col.gap-2.p-2').filter({
+    const composerContainer = page.getByTestId('message-composer').filter({
       has: editor
     });
     const box = await composerContainer.boundingBox();

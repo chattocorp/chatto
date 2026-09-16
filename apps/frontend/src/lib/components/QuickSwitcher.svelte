@@ -126,7 +126,7 @@
                   index === model.selectedIndex ? 'command-palette-result-active' : ''
                 ]}
                 onclick={() => model.select(item)}
-                onpointerenter={() => model.selectIndex(index)}
+                onpointermove={() => model.selectIndex(index)}
               >
                 {#if item.kind === 'message'}
                   <span class="command-palette-leading">

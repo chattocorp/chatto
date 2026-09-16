@@ -867,7 +867,7 @@ describe('RoomSidebar', () => {
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
     await userEvent.click(participantMenuButton);
-    const voiceLocalMuteButton = page.getByRole('button', { name: 'Mute locally', exact: true });
+    const voiceLocalMuteButton = q(participantCards[1], '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
     expect(mutedIndicator).toBeTruthy();
     expect(participantCards[1].hasAttribute('data-speaking-ring')).toBe(true);
     expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
@@ -888,16 +888,22 @@ describe('RoomSidebar', () => {
     ) as HTMLButtonElement;
     const leaveButton = q(container, '[data-testid="call-leave-button"]') as HTMLButtonElement;
 
-    expect(deviceButton.className).toContain('btn-secondary');
-    expect(muteButton.className).toContain('btn-success');
-    expect(cameraButton.className).toContain('btn-secondary');
-    expect(screenShareButton.className).toContain('btn-secondary');
-    expect(leaveButton.className).toContain('btn-danger');
+    const controlsBar = q(container, '[data-testid="call-controls-bar"]')!;
+    const participantList = q(container, '[data-testid="call-participants-list"]')!;
+    expect(
+      participantList.compareDocumentPosition(controlsBar) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    expect(deviceButton.className).toContain('pill-button');
+    expect(muteButton.className).toContain('pill-button-success');
+    expect(cameraButton.className).toContain('pill-button');
+    expect(screenShareButton.className).toContain('pill-button');
+    expect(leaveButton.className).toContain('pill-button-danger');
 
     muteButton.click();
     cameraButton.click();
     screenShareButton.click();
-    await voiceLocalMuteButton.click();
+    voiceLocalMuteButton.click();
     leaveButton.click();
     await tick();
 
@@ -924,12 +930,16 @@ describe('RoomSidebar', () => {
       }
     });
 
-    expect(q(container, '[data-testid="call-mute-toggle"]')!.className).toContain('btn-secondary');
-    expect(q(container, '[data-testid="call-camera-toggle"]')!.className).toContain('btn-success');
-    expect(q(container, '[data-testid="call-screen-share-toggle"]')!.className).toContain(
-      'btn-success'
+    expect(q(container, '[data-testid="call-mute-toggle"]')!.className).toContain('pill-button');
+    expect(q(container, '[data-testid="call-camera-toggle"]')!.className).toContain(
+      'pill-button-success'
     );
-    expect(q(container, '[data-testid="call-leave-button"]')!.className).toContain('btn-danger');
+    expect(q(container, '[data-testid="call-screen-share-toggle"]')!.className).toContain(
+      'pill-button-success'
+    );
+    expect(q(container, '[data-testid="call-leave-button"]')!.className).toContain(
+      'pill-button-danger'
+    );
   });
 
   it('shows an accent speaking ring for active speakers', async () => {
@@ -1242,7 +1252,6 @@ describe('RoomSidebar', () => {
     });
 
     const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
-    const mediaActions = q(featured, '[data-testid="call-media-actions"]')!;
     const fullscreenButton = q(
       featured,
       '[data-testid="call-feed-fullscreen-button"]'
@@ -1252,12 +1261,11 @@ describe('RoomSidebar', () => {
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
 
-    expect(mediaActions.className).toContain('border-text/10');
-    expect(mediaActions.className).toContain('bg-surface');
-    expect(mediaActions.className).toContain('flex');
+    const mediaActions = fullscreenButton.closest('.pill-button-group')!;
+    expect(mediaActions.className).toContain('pill-button-group-compact');
     expect(mediaActions.className).not.toContain('absolute');
     expect(fullscreenButton).toBeTruthy();
-    expect(fullscreenButton.className).toContain('text-muted');
+    expect(fullscreenButton.className).toContain('pill-button');
     expect(fullscreenButton.className).not.toContain('bg-black');
     expect(fullscreenButton.querySelector('[class~="icon-[mdi--fullscreen]"]')).toBeTruthy();
     expect(participantMenuButton).toBeTruthy();
@@ -1269,10 +1277,9 @@ describe('RoomSidebar', () => {
     expect(requestFullscreen).toHaveBeenCalledOnce();
     expect(fullscreenTargets[0]).toBe(featured);
 
-    await userEvent.click(participantMenuButton);
-    const localMuteButton = page.getByRole('button', { name: 'Unmute locally', exact: true });
-    await expect.element(localMuteButton).toBeVisible();
-    await localMuteButton.click();
+    const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
+    localMuteButton.click();
 
     expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');
 
