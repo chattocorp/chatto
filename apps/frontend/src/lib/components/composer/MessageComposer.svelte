@@ -185,6 +185,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   {@attach composer.observeResize}
+  data-testid="message-composer"
   class="@container/composer flex min-w-0 flex-col gap-1 p-2"
   onpointerdown={(event) => {
     const target = event.target;

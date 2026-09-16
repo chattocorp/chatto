@@ -16,6 +16,14 @@ import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
 import { Code, ConnectError } from '$lib/api-client/connect';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
+async function expectAccentColour(button: HTMLElement) {
+  const reference = document.createElement('span');
+  reference.style.color = 'var(--color-action)';
+  button.parentElement!.append(reference);
+  await expect.poll(() => getComputedStyle(button).color).toBe(getComputedStyle(reference).color);
+  reference.remove();
+}
+
 function postedMessageEvent(
   id = 'msg_123',
   roomId = 'room_456',
@@ -3121,6 +3129,7 @@ describe('MessageComposer', () => {
       );
       expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
       echoToggle.click();
+      await expectAccentColour(echoToggle);
       const sendButton = q(container, 'button[aria-label="Send message"]') as HTMLButtonElement;
       expect(sendButton).toHaveTextContent('Send');
       expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass(
@@ -3171,6 +3180,7 @@ describe('MessageComposer', () => {
       expect(threadToggle).not.toHaveClass('active:scale-[0.96]');
       await typeInEditor(editor, 'discuss this');
       await userEvent.click(threadToggle);
+      await expectAccentColour(threadToggle);
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());

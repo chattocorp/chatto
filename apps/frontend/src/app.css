@@ -547,6 +547,9 @@
 
 @utility pill-button-group-hover-bevel {
   background-color: transparent;
+  & > button[aria-pressed='true'] {
+    color: var(--color-action);
+  }
   & > button:enabled:is(:hover, :focus-visible) {
     background-color: var(--color-surface-emphasized);
   }

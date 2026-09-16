@@ -8,7 +8,6 @@ Use PillButtonGroup directly for joined toolbars.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { HTMLButtonAttributes, ClassValue } from 'svelte/elements';
-  import PillButtonGroup from './PillButtonGroup.svelte';
 
   let {
     label,
@@ -23,7 +22,7 @@ Use PillButtonGroup directly for joined toolbars.
   } = $props();
 </script>
 
-<PillButtonGroup compact bevelOnHover {label} class={['w-auto shrink-0', wrapperClass]}>
+<div class={['pill-button-group pill-button-group-compact pill-button-group-hover-bevel w-auto shrink-0', wrapperClass]}>
   <button
     type="button"
     aria-label={label}
@@ -33,4 +32,4 @@ Use PillButtonGroup directly for joined toolbars.
   >
     {@render children()}
   </button>
-</PillButtonGroup>
+</div>

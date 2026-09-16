@@ -1261,7 +1261,7 @@ describe('RoomSidebar', () => {
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
 
-    const mediaActions = fullscreenButton.closest('[role="group"]')!;
+    const mediaActions = fullscreenButton.closest('.pill-button-group')!;
     expect(mediaActions.className).toContain('pill-button-group-compact');
     expect(mediaActions.className).not.toContain('absolute');
     expect(fullscreenButton).toBeTruthy();
