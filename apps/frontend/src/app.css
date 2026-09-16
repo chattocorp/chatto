@@ -547,6 +547,9 @@
 
 @utility pill-button-group-hover-bevel {
   background-color: transparent;
+  & > button:enabled:is(:hover, :focus-visible) {
+    background-color: var(--color-surface-emphasized);
+  }
   & > button:not(:hover):not(:focus-visible),
   & > button:disabled {
     background-color: transparent;
