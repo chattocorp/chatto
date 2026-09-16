@@ -2,7 +2,6 @@
   import { resolve } from '$app/paths';
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
-  import { startRemoteReauthentication } from '$lib/auth/reauth';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -11,7 +10,6 @@
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, Button, Form } from '$lib/ui/form';
-  import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
 
   const { data } = $props();
 
@@ -21,7 +19,6 @@
   let isLoading = $state(false);
   let selectedProviderId = $state<string | null>(null);
   let pageErrorDismissed = $state(false);
-  let connectingServerId = $state<string | null>(null);
 
   const canSubmit = $derived(identifier.trim() && password);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
@@ -32,7 +29,6 @@
     pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
   );
   const displayedError = $derived(error || pageError);
-  const signedOutServers = $derived(serverRegistry.servers.filter((server) => !serverRegistry.isAuthenticated(server.id)));
 
   // Standalone detection: if public server info failed to load, there is no local
   // backend to log in to. Redirect URLs are backend-driven flows, so keep the
@@ -89,17 +85,6 @@
     window.setTimeout(() => {
       window.location.href = providerLoginHref(provider);
     }, 250);
-  }
-
-  async function handleKnownServerSignIn(server: RegisteredServer) {
-    error = '';
-    connectingServerId = server.id;
-    try {
-      await startRemoteReauthentication(server);
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : m('add_server.start_failed');
-      connectingServerId = null;
-    }
   }
 
   async function handleSubmit(e: Event) {
@@ -177,26 +162,6 @@
         </div>
       {/if}
 
-      {#if signedOutServers.length > 0}
-        <div class="mt-8 flex w-full flex-col gap-3 text-left">
-          {#await import('./KnownServerSignInCard.svelte') then { default: KnownServerSignInCard }}
-            {#each signedOutServers as server (server.id)}
-              <KnownServerSignInCard
-                {server}
-                connecting={connectingServerId === server.id}
-                disabled={connectingServerId !== null}
-                onSignIn={() => handleKnownServerSignIn(server)}
-              />
-            {/each}
-          {/await}
-        </div>
-      {/if}
-
-      <p class="mt-4 flex items-start gap-2 text-left text-sm text-muted">
-        <span class="iconify mt-0.5 icon-[mdi--open-in-new] shrink-0 text-base" aria-hidden="true"
-        ></span>
-        <span>{m('auth.login.welcome_sign_in_hint')}</span>
-      </p>
     </div>
   </AuthLayout>
 {:else}
