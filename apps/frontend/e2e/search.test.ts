@@ -59,6 +59,24 @@ async function openQuickSwitcher(page: Page): Promise<Locator> {
 test.describe('message search', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  test('room search does not take focus when opened or restored after reload', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const toggle = page.getByRole('button', { name: 'Search in this room', exact: true });
+    await toggle.click();
+    const input = page.getByTestId('room-search-query');
+    await expect(input).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Hide room extras', pressed: true })).toBeFocused();
+    await expect(input).not.toBeFocused();
+
+    await page.reload();
+    await expect(input).toBeVisible();
+    await expect(page.getByTestId('message-input')).toBeFocused();
+    await expect(input).not.toBeFocused();
+  });
+
   test('indexes messages, follows results, tracks edits and deletion, and enforces room access', async ({
     page,
     chatPage,
