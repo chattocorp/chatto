@@ -424,6 +424,9 @@
         "already_set": "Dit account heeft al een wachtwoord."
       },
       "sso": {
+        "popup_blocked": "Sta pop-ups voor deze website toe en probeer opnieuw te koppelen.",
+        "account_mismatch": "Meld je op deze server aan met het juiste account en start het koppelen opnieuw vanuit het oorspronkelijke venster.",
+        "provider_unavailable": "Deze aanmeldprovider is niet meer beschikbaar.",
         "title": "Eenmalige aanmelding",
         "loading": "Aanmeldingsproviders laden...",
         "load_failed": "Kan aanmeldingsproviders niet laden",

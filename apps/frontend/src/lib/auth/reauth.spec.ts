@@ -81,6 +81,7 @@ function browserHarness(openResult: Window | null) {
   const open = vi.fn(() => openResult);
   const owner = {
     location: { origin: 'https://app.example' },
+    screen: { availWidth: 1280, availHeight: 900 },
     screenX: 0,
     screenY: 0,
     outerWidth: 1280,
@@ -172,7 +173,7 @@ describe('remote server OAuth popup', () => {
     expect(open).toHaveBeenCalledWith(
       'about:blank',
       expect.stringMatching(/^chatto-oauth-/),
-      expect.stringContaining('width=520,height=600')
+      expect.stringContaining('width=560,height=760')
     );
     await vi.waitFor(() => expect(popup.location.href).toContain('/oauth/authorize?'));
     expect(popup.opener).toBeNull();
@@ -243,14 +244,17 @@ describe('remote server OAuth popup', () => {
       'fetch',
       vi.fn(
         async () =>
-          new Response(JSON.stringify({
-            access_token: 'cht_ATtoken',
-            refresh_token: 'cht_RT_token',
-            expires_in: 900,
-            refresh_token_expires_in: 7_776_000
-          }), {
-            headers: { 'Content-Type': 'application/json' }
-          })
+          new Response(
+            JSON.stringify({
+              access_token: 'cht_ATtoken',
+              refresh_token: 'cht_RT_token',
+              expires_in: 900,
+              refresh_token_expires_in: 7_776_000
+            }),
+            {
+              headers: { 'Content-Type': 'application/json' }
+            }
+          )
       )
     );
 
@@ -381,5 +385,14 @@ describe('origin server reauthentication', () => {
       invalidateAll: true
     });
     expect(sessionStorage.getItem('returnUrl')).toBe('/chat/origin?room=general');
+  });
+});
+
+describe('authorization window dimensions', () => {
+  it('reserves room for browser chrome on smaller screens', async () => {
+    const { authorizationWindowFeatures } = await import('../oauth/authorizationWindow');
+    const { owner } = browserHarness(null);
+    Object.assign(owner.screen, { availWidth: 500, availHeight: 700 });
+    expect(authorizationWindowFeatures(owner)).toContain('width=468,height=600');
   });
 });

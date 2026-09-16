@@ -424,6 +424,9 @@
         "already_set": "此账号已有密码。"
       },
       "sso": {
+        "popup_blocked": "请允许此网站的弹出窗口，然后重试关联。",
+        "account_mismatch": "请在此服务器上登录正确的账户，然后从原来的窗口重新开始关联。",
+        "provider_unavailable": "此登录服务提供商已不可用。",
         "title": "单点登录",
         "loading": "正在加载登录提供商...",
         "load_failed": "登录提供商加载失败",

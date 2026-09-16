@@ -424,6 +424,9 @@
         "already_set": "Esta conta já possui uma senha."
       },
       "sso": {
+        "popup_blocked": "Permita pop-ups para este site e tente vincular novamente.",
+        "account_mismatch": "Entre na conta correta neste servidor e inicie a vinculação novamente pela janela original.",
+        "provider_unavailable": "Este provedor de login não está mais disponível.",
         "title": "Logon único",
         "loading": "Carregando provedores de login...",
         "load_failed": "Falha ao carregar provedores de login",

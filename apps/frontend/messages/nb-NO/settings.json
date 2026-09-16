@@ -424,6 +424,9 @@
         "already_set": "Denne kontoen har allerede et passord."
       },
       "sso": {
+        "popup_blocked": "Tillat sprettoppvinduer for dette nettstedet, og prøv å koble til igjen.",
+        "account_mismatch": "Logg inn på riktig konto på denne serveren, og start koblingen på nytt fra det opprinnelige vinduet.",
+        "provider_unavailable": "Denne innloggingsleverandøren er ikke lenger tilgjengelig.",
         "title": "Enkel pålogging",
         "loading": "Laster påloggingsleverandører ...",
         "load_failed": "Kunne ikke laste inn påloggingsleverandører",

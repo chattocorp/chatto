@@ -424,6 +424,9 @@
         "already_set": "Tento účet již má heslo."
       },
       "sso": {
+        "popup_blocked": "Povol vyskakovací okna pro tento web a zkus propojení znovu.",
+        "account_mismatch": "Přihlas se ke správnému účtu na tomto serveru a pak spusť propojení znovu z původního okna.",
+        "provider_unavailable": "Tento poskytovatel přihlášení už není dostupný.",
         "title": "Jednotné přihlášení",
         "loading": "Načítání poskytovatelů přihlášení...",
         "load_failed": "Nepodařilo se načíst poskytovatele přihlášení",

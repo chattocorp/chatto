@@ -424,6 +424,9 @@
         "already_set": "To konto ma już hasło."
       },
       "sso": {
+        "popup_blocked": "Zezwól na wyskakujące okna w tej witrynie i spróbuj ponownie połączyć konto.",
+        "account_mismatch": "Zaloguj się na właściwe konto na tym serwerze, a następnie rozpocznij łączenie ponownie w pierwotnym oknie.",
+        "provider_unavailable": "Ten dostawca logowania nie jest już dostępny.",
         "title": "Pojedyncze logowanie",
         "loading": "Ładowanie dostawców logowania...",
         "load_failed": "Nie udało się załadować dostawców logowania",

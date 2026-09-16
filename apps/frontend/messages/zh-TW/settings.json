@@ -424,6 +424,9 @@
         "already_set": "此帳號已有密碼。"
       },
       "sso": {
+        "popup_blocked": "請允許此網站的彈出式視窗，然後再試一次連結。",
+        "account_mismatch": "請在此伺服器登入正確的帳號，然後從原本的視窗重新開始連結。",
+        "provider_unavailable": "此登入服務供應商已無法使用。",
         "title": "單一登入",
         "loading": "正在載入登入供應商...",
         "load_failed": "無法載入登入供應商",

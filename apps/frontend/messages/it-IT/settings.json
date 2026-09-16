@@ -424,6 +424,9 @@
         "already_set": "Questo account ha già una password."
       },
       "sso": {
+        "popup_blocked": "Consenti i popup per questo sito, poi riprova il collegamento.",
+        "account_mismatch": "Accedi all’account corretto su questo server, poi avvia di nuovo il collegamento dalla finestra originale.",
+        "provider_unavailable": "Questo provider di accesso non è più disponibile.",
         "title": "Accesso singolo",
         "loading": "Caricamento dei provider di accesso...",
         "load_failed": "Impossibile caricare i provider di accesso",

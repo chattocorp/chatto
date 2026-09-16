@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toast } from '$lib/ui/toast';
   import { ConnectError } from '@connectrpc/connect';
   import { onMount } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -33,7 +34,6 @@
   let customError = $state('');
   let probing = $state(false);
   let pendingOrigin = $state<string | null>(null);
-  let actionError = $state('');
   let directoryConsentGranted = $state(serverDirectoryDiscoveryConsent.get());
   let directoryState = $state<ServerDirectorySnapshot | null>(null);
   let scrollContainer = $state<HTMLDivElement>();
@@ -213,7 +213,6 @@
   }
 
   async function openOrJoin(origin: string, profile: PublicServerInfo | null) {
-    actionError = '';
     const joined = registeredServer(origin);
     if (!joined && (!profile || !profile.authorizeUrl)) return;
     pendingOrigin = origin;
@@ -226,7 +225,7 @@
         await startServerOAuthFlow(origin, profile);
       }
     } catch {
-      actionError = m('add_server.start_failed');
+      toast.error(m('add_server.start_failed'));
     } finally {
       pendingOrigin = null;
     }
@@ -373,9 +372,6 @@
         subtitle={m('add_server.directory.servers_description')}
         count={entries.length || undefined}
       >
-        {#if actionError}
-          <div class="mb-4"><Hint tone="danger">{actionError}</Hint></div>
-        {/if}
         {#if someSourcesFailed}
           <div class="mb-4"><Hint tone="warning">{m('add_server.directory.partial')}</Hint></div>
         {/if}

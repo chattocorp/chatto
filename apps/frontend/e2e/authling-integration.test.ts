@@ -1,12 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 import { startStack, stopStack, type TestStack } from '../../../authling/e2e/fixtures/stack';
 import { waitForVerificationCode } from '../../../authling/e2e/fixtures/mailpit';
-import {
-  serverBaseURLForTest,
-  startServer,
-  stopServer,
-  type ServerInfo
-} from './fixtures/server';
+import { serverBaseURLForTest, startServer, stopServer, type ServerInfo } from './fixtures/server';
 import * as routes from './routes';
 
 const test = base.extend<{ authling: TestStack; server: ServerInfo }>({
@@ -91,4 +86,95 @@ test('transfers an editable Authling profile into a new Chatto account', async (
   await page.goto(routes.settings);
   await expect(page.getByPlaceholder('Enter your display name')).toHaveValue(chattoName);
   await expect(page.getByPlaceholder('Enter your username')).toHaveValue(preferredUsername);
+});
+
+test('links a remote identity in one popup and refreshes the original client', async ({
+  browser,
+  page,
+  request,
+  authling,
+  server
+}, testInfo) => {
+  const { createUserOnRemote } = await import('./fixtures/multiServer');
+  const clientServer = await startServer(testInfo, { instanceId: 'link-client', portOffset: 5 });
+  const clientContext = await browser.newContext({ baseURL: clientServer.baseURL });
+  const clientPage = await clientContext.newPage();
+  const errors: string[] = [];
+  clientPage.on('pageerror', (error) => errors.push(error.message));
+  try {
+    const password = 'correct horse battery staple';
+    const email = `remote-link-${Date.now()}@example.invalid`;
+    await page.goto(new URL('/signup', authling.baseURL).href);
+    await page.getByLabel('Email address').fill(email);
+    await page.getByRole('button', { name: 'Email me a code' }).click();
+    await page
+      .getByLabel('Verification code')
+      .fill(await waitForVerificationCode(request, authling.mailpitURL));
+    await page.getByRole('button', { name: 'Verify email' }).click();
+    await page.getByLabel('Password', { exact: true }).fill(password);
+    await page.getByLabel('Confirm password').fill(password);
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+
+    await createUserOnRemote(clientServer.baseURL, 'local-link-user', password);
+    const remoteUser = await createUserOnRemote(server.baseURL, 'remote-link-user', password);
+    await clientPage.goto('/login');
+    await clientPage.getByLabel('Username or Email').fill('local-link-user');
+    await clientPage.getByLabel('Password', { exact: true }).fill(password);
+    await clientPage.getByRole('button', { name: 'Sign In', exact: true }).click();
+    await expect(clientPage).toHaveURL(/\/chat\//);
+
+    // Establish a real delegated OAuth session for the remote account.
+    await clientPage.getByTitle('Add Server').click();
+    await clientPage.getByLabel('Server URL').fill(server.baseURL);
+    await clientPage.getByRole('button', { name: 'Find server' }).click();
+    const authPopupPromise = clientPage.waitForEvent('popup');
+    await clientPage.getByRole('button', { name: 'Join', exact: true }).click();
+    const authPopup = await authPopupPromise;
+    await authPopup.getByLabel('Username or Email').fill('remote-link-user');
+    await authPopup.getByLabel('Password', { exact: true }).fill(password);
+    await authPopup.getByRole('button', { name: 'Sign In', exact: true }).click();
+    const authClosed = authPopup.waitForEvent('close');
+    await authPopup.getByRole('button', { name: 'Allow Access' }).click();
+    await authClosed;
+    await expect(clientPage).toHaveURL(/\/chat\/127\.0\.0\.1/);
+
+    // Remove only the remote browser cookie, leaving the main client's OAuth
+    // session intact. This exercises continuation through first-party sign-in.
+    await clientContext.clearCookies({ domain: '127.0.0.1' });
+    await clientPage.goto('/chat/127.0.0.1/settings/account');
+    const remoteRow = clientPage.locator('div.rounded.border').filter({ hasText: 'Authling' });
+    const linkPopupPromise = clientPage.waitForEvent('popup');
+    await remoteRow.getByRole('button', { name: 'Link', exact: true }).click();
+    const linkPopup = await linkPopupPromise;
+    linkPopup.on('pageerror', (error) => errors.push(error.message));
+    await expect(linkPopup).toHaveURL(new RegExp(`${new URL(server.baseURL).host}/login`));
+    expect(await linkPopup.evaluate(() => window.opener === null)).toBe(true);
+    await linkPopup.getByLabel('Username or Email').fill('remote-link-user');
+    await linkPopup.getByLabel('Password', { exact: true }).fill(password);
+    await linkPopup.getByRole('button', { name: 'Sign In', exact: true }).click();
+
+    // The same popup continues to the real provider and returns to confirmation.
+    await linkPopup.getByLabel('Email address').fill(email);
+    await linkPopup.getByLabel('Password', { exact: true }).fill(password);
+    await linkPopup.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await linkPopup.getByRole('button', { name: 'Authorize' }).click();
+    await expect(linkPopup.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
+    await linkPopup.getByRole('button', { name: 'Link Account', exact: true }).click();
+    await expect(linkPopup).toHaveURL(`${server.baseURL}/chat/-/settings/account`);
+    await expect(linkPopup.getByText(remoteUser.userId, { exact: true })).toBeVisible();
+    await expect(
+      linkPopup
+        .locator('div.rounded.border')
+        .filter({ hasText: 'Authling' })
+        .getByRole('button', { name: 'Disconnect' })
+    ).toBeVisible();
+    await linkPopup.close();
+    await expect(remoteRow.getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    await expect(clientPage).toHaveURL(/\/chat\/127\.0\.0\.1\/settings\/account$/);
+    expect(errors).toEqual([]);
+  } finally {
+    await clientContext.close();
+    await stopServer(clientServer, testInfo);
+  }
 });

@@ -342,7 +342,6 @@ func oauthClientCacheAge(header string) (time.Duration, bool) {
 }
 
 func oauthClientMetadataTransport(allowLoopback bool) *http.Transport {
-	dialer := &net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}
 	return &http.Transport{
 		Proxy: nil,
 		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -354,11 +353,33 @@ func oauthClientMetadataTransport(allowLoopback bool) *http.Transport {
 			if err != nil {
 				return nil, err
 			}
-			return dialer.DialContext(ctx, network, net.JoinHostPort(addresses[0].String(), port))
+			return dialOAuthClientAddresses(ctx, network, port, addresses)
 		},
 		ForceAttemptHTTP2: true, MaxIdleConns: 16, MaxIdleConnsPerHost: 2,
 		IdleConnTimeout: 30 * time.Second, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: 3 * time.Second,
 	}
+}
+
+// dialOAuthClientAddresses tries the already-validated addresses in resolver order.
+// Dial numeric addresses only: a second DNS lookup could bypass the destination
+// checks. A refused IPv6 connection must not hide an available IPv4 frontend.
+func dialOAuthClientAddresses(ctx context.Context, network, port string, addresses []netip.Addr) (net.Conn, error) {
+	dialer := &net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}
+	var lastErr error
+	for _, address := range addresses {
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(address.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no validated CIMD destination addresses")
+	}
+	return nil, lastErr
 }
 
 func resolveOAuthClientAddresses(ctx context.Context, host string, allowLoopback bool) ([]netip.Addr, error) {

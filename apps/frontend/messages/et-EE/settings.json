@@ -424,6 +424,9 @@
         "already_set": "Sellel kontol on juba parool."
       },
       "sso": {
+        "popup_blocked": "Luba selle saidi hüpikaknad ja proovi uuesti siduda.",
+        "account_mismatch": "Logi selles serveris sisse õigesse kontosse ja alusta sidumist uuesti algsest aknast.",
+        "provider_unavailable": "See sisselogimisteenuse pakkuja pole enam saadaval.",
         "title": "Ühekordne sisselogimine",
         "loading": "Sisselogimisteenuse pakkujate laadimine...",
         "load_failed": "Sisselogimisteenuse pakkujate laadimine ebaõnnestus",

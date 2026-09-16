@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -337,5 +339,60 @@ func TestResolveOAuthClientProvidesExactDesktopRegistration(t *testing.T) {
 	}
 	if !client.BuiltIn || client.ClientName != "Chatto Desktop" || !client.allowsRedirectURI("chatto://desktop/servers/callback?mode=popup") {
 		t.Fatalf("client = %#v", client)
+	}
+}
+
+// localhost commonly resolves to IPv6 first, while a frontend may bind only IPv4.
+func TestOAuthClientResolverLocalhostIPv4Only(t *testing.T) {
+	var clientID string
+	metadataServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cimdDocument{
+			ClientID: clientID, ClientName: "Local frontend", ApplicationType: "web",
+			RedirectURIs:            []string{strings.TrimSuffix(clientID, "/metadata.json") + "/callback"},
+			TokenEndpointAuthMethod: "none", GrantTypes: []string{"authorization_code"},
+			ResponseTypes: []string{"code"},
+		})
+	}))
+	defer metadataServer.Close()
+	clientID = strings.Replace(metadataServer.URL, "127.0.0.1", "localhost", 1) + "/metadata.json"
+	resolver, err := newOAuthClientResolver("https://chatto.dev.localhost", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolver.Resolve(context.Background(), clientID); err != nil {
+		t.Fatalf("resolve metadata served on IPv4 localhost: %v", err)
+	}
+}
+
+func TestDialOAuthClientAddressesFallsBackAfterRefusal(t *testing.T) {
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	conn, err := dialOAuthClientAddresses(ctx, "tcp", port, []netip.Addr{
+		netip.MustParseAddr("::1"), netip.MustParseAddr("127.0.0.1"),
+	})
+	if err != nil {
+		t.Fatalf("fallback to reachable IPv4 address: %v", err)
+	}
+	conn.Close()
+}
+
+func TestDialOAuthClientAddressesHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := dialOAuthClientAddresses(ctx, "tcp", "1", []netip.Addr{
+		netip.MustParseAddr("::1"), netip.MustParseAddr("127.0.0.1"),
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context cancellation", err)
 	}
 }

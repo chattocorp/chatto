@@ -424,6 +424,9 @@
         "already_set": "Ce compte a déjà un mot de passe."
       },
       "sso": {
+        "popup_blocked": "Autorisez les fenêtres contextuelles pour ce site, puis réessayez de lier le compte.",
+        "account_mismatch": "Connectez-vous au bon compte sur ce serveur, puis relancez la liaison depuis la fenêtre initiale.",
+        "provider_unavailable": "Ce fournisseur de connexion n’est plus disponible.",
         "title": "Authentification unique",
         "loading": "Chargement des fournisseurs d'authentification...",
         "load_failed": "Échec du chargement des fournisseurs d'authentification",

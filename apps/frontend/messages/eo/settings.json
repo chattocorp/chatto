@@ -424,6 +424,9 @@
         "already_set": "Ĉi tiu konto jam havas pasvorton."
       },
       "sso": {
+        "popup_blocked": "Permesu ŝprucfenestrojn por ĉi tiu retejo, poste reprovu la ligon.",
+        "account_mismatch": "Ensalutu en la ĝustan konton ĉe ĉi tiu servilo, poste rekomencu la ligon el la origina fenestro.",
+        "provider_unavailable": "Ĉi tiu ensalutprovizanto ne plu disponeblas.",
         "title": "Ununura Ensaluto",
         "loading": "Ŝarĝante ensalutprovizantoj...",
         "load_failed": "Malsukcesis ŝargi ensalutprovizantoj",
