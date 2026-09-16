@@ -578,4 +578,5 @@ not stop the reveal. Reduced motion removes the shell without a transition.
 
 Server banners fill the sidebar width with square corners and a bottom
 `border-border` separator. They form part of the app grid and use no bevel,
-gloss overlay, or outer shadow. Keep the image cover-fitted within its height cap.
+gloss overlay, or outer shadow. Display the complete image at its original aspect ratio, with no height cap.
+Server operators control the banner shape through the uploaded image.
