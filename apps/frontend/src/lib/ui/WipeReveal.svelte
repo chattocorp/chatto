@@ -20,10 +20,10 @@ content clears behind the incoming edge. Reduced motion skips the wipe.
       css: (t: number) => {
         // Move the entire feather beyond either edge at the endpoints. Opposite
         // masks keep outgoing and incoming content on either side of the sweep.
-        const edge = -12 + (outgoing ? 1 - t : t) * 124;
+        const edge = -20 + (outgoing ? 1 - t : t) * 140;
         const before = outgoing ? 'transparent' : '#000';
         const after = outgoing ? '#000' : 'transparent';
-        return `mask-image: linear-gradient(110deg, ${before} ${edge - 6}%, ${after} ${edge + 6}%);`;
+        return `mask-image: linear-gradient(135deg, ${before} ${edge - 12}%, ${after} ${edge + 12}%);`;
       }
     };
   }
