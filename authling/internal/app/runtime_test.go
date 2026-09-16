@@ -808,10 +808,14 @@ func completeAuthorization(t *testing.T, handler http.Handler, verifier string, 
 func completeAuthorizationForScopes(t *testing.T, handler http.Handler, verifier string, cookie *http.Cookie, scopes string) string {
 	t.Helper()
 	challenge := "7w_YNF9DSfIdPf_pRjSq646_kPr-2-o9NAl16JGghdM"
-	if verifier != strings.Repeat("v", 43) {
+	if verifier != "" && verifier != strings.Repeat("v", 43) {
 		t.Fatal("test verifier and challenge fixture diverged")
 	}
 	query := url.Values{"client_id": {"test-client"}, "redirect_uri": {"http://localhost:9999/callback"}, "response_type": {"code"}, "scope": {scopes}, "state": {"state-value"}, "nonce": {"nonce-value"}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}
+	if verifier == "" {
+		query.Del("code_challenge")
+		query.Del("code_challenge_method")
+	}
 	authorize := requestHandler(t, handler, http.MethodGet, "http://localhost:8080/oauth/authorize?"+query.Encode(), "", cookie)
 	location := authorize.Header().Get("Location")
 	if authorize.Code < 300 || authorize.Code >= 400 || !strings.HasPrefix(location, "/oidc/consent?id=") {
@@ -2578,4 +2582,92 @@ func TestTransactionalEmailsUseConfiguredSiteName(t *testing.T) {
 		t.Fatal(err)
 	}
 	check("email address changed")
+}
+
+func TestConfidentialClientOptionalPKCEAndDowngradeProtection(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	optional := false
+	secret := strings.Repeat("s", 32)
+	cfg.OIDC.Clients = []config.OIDCClientConfig{{ID: "test-client", Name: "Test Client", Secret: secret, RequirePKCE: &optional, RedirectURIs: []string{"http://localhost:9999/callback"}}}
+	cfg.OIDC.Clients = append(cfg.OIDC.Clients,
+		config.OIDCClientConfig{ID: "default-confidential", Name: "Default Confidential", Secret: secret, RedirectURIs: []string{"http://localhost:9999/callback"}},
+		config.OIDCClientConfig{ID: "public-client", Name: "Public Client", RedirectURIs: []string{"http://localhost:9999/callback"}},
+	)
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "oidc@example.com", "a deliberately uncommon password"); err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{Accounts: runtime.Accounts, Authentication: runtime.Authentication, Registration: runtime.Registration, Sessions: runtime.Sessions, Authorizations: runtime.Authorizations, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault()})
+
+	for _, id := range []string{"default-confidential", "public-client"} {
+		query := url.Values{"client_id": {id}, "redirect_uri": {"http://localhost:9999/callback"}, "response_type": {"code"}, "scope": {"openid"}}
+		response := requestHandler(t, handler, http.MethodGet, "http://localhost:8080/oauth/authorize?"+query.Encode(), "", nil)
+		location, err := url.Parse(response.Header().Get("Location"))
+		if err != nil || response.Code != http.StatusFound || location.Query().Get("error") != "invalid_request" {
+			t.Fatal("client without an exception bypassed PKCE")
+		}
+	}
+	exchange := func(code, verifier, credential string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"grant_type": {"authorization_code"}, "redirect_uri": {"http://localhost:9999/callback"}, "code": {code}}
+		if verifier != "" {
+			form.Set("code_verifier", verifier)
+		}
+		req := httptest.NewRequest(http.MethodPost, "http://localhost:8080/oauth/token", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.SetBasicAuth("test-client", credential)
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, req)
+		return res
+	}
+	for _, tc := range []struct {
+		name, challenge, verifier, credential string
+		ok                                    bool
+	}{
+		{"without PKCE", "", "", secret, true},
+		{"wrong secret", "", "", "incorrect", false},
+		{"unexpected verifier", "", strings.Repeat("v", 43), secret, false},
+		{"missing verifier", strings.Repeat("v", 43), "", secret, false},
+		{"wrong verifier", strings.Repeat("v", 43), strings.Repeat("w", 43), secret, false},
+		{"correct verifier", strings.Repeat("v", 43), strings.Repeat("v", 43), secret, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code := completeAuthorization(t, handler, tc.challenge, nil)
+			response := exchange(code, tc.verifier, tc.credential)
+			if (response.Code == http.StatusOK) != tc.ok {
+				t.Fatalf("unexpected token HTTP status: %d", response.Code)
+			}
+			if tc.ok && exchange(code, tc.verifier, tc.credential).Code == http.StatusOK {
+				t.Fatal("code reuse succeeded")
+			}
+		})
+	}
+}
+
+func TestDiscoveryReflectsUnregisteredClientAdmission(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprint(enabled), func(t *testing.T) {
+			cfg := embeddedTestConfig(t)
+			cfg.OIDC.AllowUnregisteredClients = enabled
+			cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+			runtime, cancel, runErrors := startTestRuntime(t, cfg)
+			defer stopTestRuntime(t, runtime, cancel, runErrors)
+			handler := web.Handler(web.Dependencies{OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault()})
+			response := requestHandler(t, handler, http.MethodGet, "http://localhost:8080/.well-known/openid-configuration", "", nil)
+			if response.Code != http.StatusOK {
+				t.Fatalf("discovery status: %d", response.Code)
+			}
+			var metadata struct {
+				CIMD bool `json:"client_id_metadata_document_supported"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &metadata); err != nil {
+				t.Fatal(err)
+			}
+			if metadata.CIMD != enabled {
+				t.Fatal("discovery differs from configured CIMD policy")
+			}
+		})
+	}
 }

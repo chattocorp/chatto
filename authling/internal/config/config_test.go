@@ -245,3 +245,65 @@ func TestValidateCIMDTrustedPrivateHosts(t *testing.T) {
 		t.Fatalf("cross-list duplicate validation error = %v", err)
 	}
 }
+
+func TestClientPKCEConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		name, secret, setting   string
+		wantError, wantRequired bool
+	}{
+		{"default public", "", "", false, true},
+		{"default confidential", strings.Repeat("s", 32), "", false, true},
+		{"explicit required", strings.Repeat("s", 32), "require_pkce = true", false, true},
+		{"confidential exception", strings.Repeat("s", 32), "require_pkce = false", false, false},
+		{"public exception rejected", "", "require_pkce = false", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "authling.toml")
+			data := "[nats.embedded]\nenabled = true\n[[oidc.clients]]\nid = 'test'\nname = 'Test'\nredirect_uris = ['https://client.example/callback']\nsecret = '" + tc.secret + "'\n" + tc.setting + "\n"
+			if err := os.WriteFile(file, []byte(data), 0600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Read(file)
+			if tc.wantError {
+				if err == nil || !strings.Contains(err.Error(), "require_pkce") {
+					t.Fatal("public PKCE exception was not rejected")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			required := cfg.OIDC.Clients[0].RequirePKCE
+			if (required == nil || *required) != tc.wantRequired {
+				t.Fatal("incorrect PKCE default")
+			}
+		})
+	}
+}
+
+func TestUnregisteredClientAdmissionConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		name, setting, override string
+		enabled                 bool
+	}{
+		{"default", "", "", false},
+		{"toml opt in", "allow_unregistered_clients = true", "", true},
+		{"environment opt in", "", "true", true},
+		{"environment opt out", "allow_unregistered_clients = true", "false", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS", tc.override)
+			file := filepath.Join(t.TempDir(), "authling.toml")
+			if err := os.WriteFile(file, []byte("[nats.embedded]\nenabled = true\n[oidc]\n"+tc.setting+"\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Read(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.OIDC.AllowUnregisteredClients != tc.enabled {
+				t.Fatal("incorrect CIMD opt-in state")
+			}
+		})
+	}
+}

@@ -35,6 +35,8 @@ type Client struct {
 	Secret      string
 	Source      ClientSource
 	Development bool
+	// AllowWithoutPKCE is an operator exception for configured confidential clients only.
+	AllowWithoutPKCE bool
 }
 
 func (c *Client) GetID() string                     { return c.IDValue }
@@ -81,8 +83,12 @@ func NewResolver(cfg config.Config, cimd *CIMDResolver) *Resolver {
 		configured[declared.ID] = &Client{
 			IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: "configured by this site’s operator",
 			Redirects: append([]string(nil), declared.RedirectURIs...), Method: method,
-			Secret: declared.Secret, Source: ClientSourceConfigured, Development: development,
+			AllowWithoutPKCE: declared.RequirePKCE != nil && !*declared.RequirePKCE,
+			Secret:           declared.Secret, Source: ClientSourceConfigured, Development: development,
 		}
+	}
+	if !cfg.OIDC.AllowUnregisteredClients {
+		cimd = nil
 	}
 	return &Resolver{configured: configured, cimd: cimd}
 }
@@ -118,3 +124,9 @@ type clientNotFoundError struct{ clientID string }
 
 func (e clientNotFoundError) Error() string { return "OIDC client not found" }
 func (clientNotFoundError) IsNotFound()     {}
+
+// requiresPKCE fails closed for public and CIMD clients, even if constructed
+// without configuration validation. A client secret alone does not opt out.
+func (c *Client) requiresPKCE() bool {
+	return !(c.AllowWithoutPKCE && c.Source == ClientSourceConfigured && c.Method == liboidc.AuthMethodBasic && c.Secret != "")
+}

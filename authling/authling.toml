@@ -14,6 +14,9 @@ public_url = 'http://localhost:8080'
 password_minimum_length = 10
 
 [oidc]
+# Allow clients without operator registration (currently discovered through CIMD).
+# Override with AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS=true.
+allow_unregistered_clients = false
 signing_key_rotation_interval_days = 90
 
 [nats]

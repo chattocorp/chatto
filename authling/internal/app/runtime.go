@@ -154,14 +154,17 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 	}); err != nil {
 		return closeOnError(fmt.Errorf("configure account erasure: %w", err))
 	}
-	cimd, err := oidcprovider.NewCIMDResolver(
-		cfg.HTTP.PublicURLOrDefault(),
-		nil,
-		cfg.OIDC.TrustedPrivateCIMDHosts(),
-		cfg.OIDC.TrustedLoopbackCIMDHosts(),
-	)
-	if err != nil {
-		return closeOnError(fmt.Errorf("construct CIMD resolver: %w", err))
+	var cimd *oidcprovider.CIMDResolver
+	if cfg.OIDC.AllowUnregisteredClients {
+		cimd, err = oidcprovider.NewCIMDResolver(
+			cfg.HTTP.PublicURLOrDefault(),
+			nil,
+			cfg.OIDC.TrustedPrivateCIMDHosts(),
+			cfg.OIDC.TrustedLoopbackCIMDHosts(),
+		)
+		if err != nil {
+			return closeOnError(fmt.Errorf("construct CIMD resolver: %w", err))
+		}
 	}
 	clients := oidcprovider.NewResolver(cfg, cimd)
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService, func(ctx context.Context, accountID string) (string, string, error) {

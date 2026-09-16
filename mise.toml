@@ -401,6 +401,7 @@ cd authling
 mise build
 export AUTHLING_HTTP_PUBLIC_URL="$authling_url"
 export AUTHLING_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
+export AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS=true
 export AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS="$chatto_host"
 exec portless \
   "authling.$CHATTO_DEV_ROUTE_SUFFIX" \

@@ -60,8 +60,13 @@ fallback. Fields have corresponding `AUTHLING_SMTP_*` environment overrides.
 Each `[[oidc.clients]]` table declares a conventional OIDC client with `id`,
 `name`, and one or more exact `redirect_uris`. An omitted `secret` creates a
 public client; a secret of at least 32 characters enables
-`client_secret_basic`. URL client IDs are reserved for CIMD and need no local
-configuration. HTTPS redirects are mandatory outside loopback development.
+`client_secret_basic`. The optional `require_pkce` field defaults to true;
+only clients with a secret may set it to false. URL client IDs are reserved for
+CIMD. Admission of unregistered clients requires `oidc.allow_unregistered_clients = true` or
+`AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS=true`; the default is false. The runtime constructs
+no CIMD resolver when disabled, rejects unregistered URL clients without DNS
+or metadata requests, and advertises the capability as false in discovery.
+Configured clients are independent of this setting. HTTPS redirects are mandatory outside loopback development.
 `oidc.cimd_trusted_private_hosts` and `oidc.cimd_trusted_loopback_hosts` are
 separate, exact-host development exceptions. They permit named CIMD hosts to
 resolve only to private or loopback addresses respectively; neither permits
@@ -351,7 +356,9 @@ return target through login. Other submitted return targets are ignored.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
-requires exactly the `openid` scope and S256 PKCE.
+requires exactly the `openid` scope. S256 PKCE is mandatory except for
+configured confidential clients with `require_pkce = false`. Supplied PKCE
+challenges always require matching verifiers; unexpected verifiers are rejected.
 Signed-out requests resume through an opaque server-side request ID after
 login. Encrypted session state carries a separate authentication timestamp;
 email-change session replacement preserves it. Encrypted OIDC request state
@@ -372,8 +379,8 @@ opaque grant ID under the current account and commits revocation. Revocation
 forces future authorization to ask again but does not terminate already issued
 five-minute tokens or relying-party sessions.
 
-Conventional clients resolve from configuration. Unconfigured HTTPS URL client
-IDs resolve through the bounded CIMD fetcher, which disables redirects and
+Conventional clients resolve from configuration. With CIMD explicitly enabled,
+unconfigured HTTPS URL client IDs resolve through the bounded CIMD fetcher, which disables redirects and
 proxies, validates DNS destinations before fetch and dial, and caps fetch time,
 body size, concurrency, and cache lifetime. Each process admits at most eight
 cache-miss lookups without a waiting queue, before DNS work starts. One

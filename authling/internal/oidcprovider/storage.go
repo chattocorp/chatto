@@ -72,6 +72,9 @@ func (r *authRequestState) GetAudience() []string  { return []string{r.ClientID}
 func (r *authRequestState) GetAuthTime() time.Time { return r.AuthTime }
 func (r *authRequestState) GetClientID() string    { return r.ClientID }
 func (r *authRequestState) GetCodeChallenge() *liboidc.CodeChallenge {
+	if r.CodeChallenge == "" {
+		return nil
+	}
 	return &liboidc.CodeChallenge{Challenge: r.CodeChallenge, Method: r.CodeMethod}
 }
 func (r *authRequestState) GetNonce() string                      { return r.Nonce }
@@ -128,6 +131,10 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRe
 	client, err := s.clients.Resolve(ctx, request.ClientID)
 	if err != nil {
 		return nil, err
+	}
+	if (client.requiresPKCE() || request.CodeChallenge != "" || request.CodeChallengeMethod != "") &&
+		(!validPKCEValue(request.CodeChallenge) || request.CodeChallengeMethod != liboidc.CodeChallengeMethodS256) {
+		return nil, liboidc.ErrInvalidRequest().WithDescription("S256 PKCE is required")
 	}
 	id, err := ids.New("ar")
 	if err != nil {
