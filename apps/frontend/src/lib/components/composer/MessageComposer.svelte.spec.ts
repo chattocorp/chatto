@@ -494,6 +494,28 @@ describe('MessageComposer', () => {
       expect(q(second.container, '[data-testid="composer-formatting-shelf"]')).toBeTruthy();
     });
 
+    it.each(['visual', 'markdown'] as const)(
+      'restores the %s caret when clicking composer padding after blur',
+      async (kind) => {
+        userPreferences.composerEditor = kind;
+        const { container } = renderMessageComposer({ roomId: `refocus-${kind}` });
+        const editor = await findEditor(container);
+        const surface = q(container, '[data-testid="composer-input-surface"]')!;
+        // Component tests omit app CSS; provide a real padding hit area.
+        surface.style.padding = '20px';
+        const outside = document.createElement('button');
+        outside.textContent = 'Outside composer';
+        container.append(outside);
+
+        await userEvent.click(editor);
+        await userEvent.click(outside);
+        await userEvent.click(surface, { position: { x: 4, y: 4 } });
+
+        await expect.element(editor).toHaveFocus();
+        await expect.poll(() => editor.contains(window.getSelection()?.anchorNode ?? null)).toBe(true);
+      }
+    );
+
     it('preserves an editor selection when a mouse drag ends over composer padding', async () => {
       const { container } = renderMessageComposer({ roomId: 'room-selection-padding' });
       const editor = await findEditor(container);

@@ -194,6 +194,8 @@
       target instanceof Element &&
       !target.closest('button, a, input, label, select, [data-composer-editor]')
     ) {
+      // The padding click must not move focus or selection after we restore the caret.
+      event.preventDefault();
       composer.editorApi?.focus();
     }
   }}
