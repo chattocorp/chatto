@@ -14,7 +14,7 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
-  import FadeScale from '$lib/ui/FadeScale.svelte';
+  import WipeReveal from '$lib/ui/WipeReveal.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -579,7 +579,7 @@ Room sidebar panel for voice/video calls.
   {/if}
   <div class="grid items-end">
     {#if isInThisCall}
-      <FadeScale class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-2xl']}>
+      <WipeReveal class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-2xl']}>
         <PillButtonGroup label={m('room.sidebar.call')}>
           <VoiceCallControlButton
             class={controlButtonClass}
@@ -632,9 +632,9 @@ Room sidebar panel for voice/video calls.
             iconClass="text-lg"
           />
         </PillButtonGroup>
-      </FadeScale>
+      </WipeReveal>
     {:else}
-      <FadeScale class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-sm']}>
+      <WipeReveal class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-sm']}>
         <button
           type="button"
           class="btn-action min-h-12 w-full"
@@ -649,7 +649,7 @@ Room sidebar panel for voice/video calls.
         >
           {joinLabel}
         </button>
-      </FadeScale>
+      </WipeReveal>
     {/if}
   </div>
 {/snippet}

@@ -523,6 +523,9 @@ matches the action.
   exit, anchored at the bottom start
   corner. Reduced motion skips the transition. The composer formatting bar
   and current-user call toolbar use this component.
+- Use `WipeReveal` for the start-call button and active call controls. Place
+  both states in the same grid cell for a 320 ms left-to-right wipe with
+  cubic ease-in-out. Reduced motion skips the wipe.
 - Keep interactive hit areas at least 40 by 40 pixels unless a dense desktop
   toolbar has a documented non-overlapping exception. `mini-icon-action` is
   the narrow exception for a subordinate icon placed directly beside the text
