@@ -16,7 +16,8 @@ describe('ServerBanner', () => {
     const image = q(container, 'img[alt="Server banner"]');
     await expect.element(image).toBeInTheDocument();
     await expect.element(image).toHaveAttribute('src', url);
-    await expect.poll(() => (image as HTMLImageElement).naturalWidth).toBe(600);
+    if (!(image instanceof HTMLImageElement)) throw new Error('Server banner image is missing');
+    await expect.poll(() => image.naturalWidth).toBe(600);
     await expect.poll(() => {
       const { width, height } = image.getBoundingClientRect();
       return width / height;
