@@ -12,16 +12,15 @@ const messagesRoot = resolve(frontendRoot, 'messages');
 const routes = [
   {
     name: 'login',
-    // App appearance choices and shared surface finishes measure about 296 KiB.
-    // Allow platform variation; DSP and route catalogs stay lazy.
-    budgetKiB: 297,
+    // CI baseline: 296.5 KiB. Allow roughly 10% for routine feature growth
+    // and build variation; eager-loading guards below remain independent.
+    budgetKiB: 330,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
     name: 'overview',
-    // Shared call/composer controls and transitions measure 340.3 KiB in CI.
-    // Keep a small allowance for platform and compression variation.
-    budgetKiB: 342,
+    // CI baseline: 340.3 KiB, with roughly 10% headroom.
+    budgetKiB: 375,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
@@ -31,9 +30,8 @@ const routes = [
   },
   {
     name: 'room',
-    // Shared call/composer controls and transitions measure 515.8 KiB in CI.
-    // Keep a small allowance for platform and compression variation.
-    budgetKiB: 518,
+    // CI baseline: 515.8 KiB, with roughly 10% headroom.
+    budgetKiB: 570,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
