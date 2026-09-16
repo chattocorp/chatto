@@ -29,8 +29,23 @@ is not loaded from the image's `/data` working directory.
 
 The `build Authling image` workflow builds and checks Linux amd64 images for
 pull requests. Relevant changes on `main` and manual workflow runs also publish
-`ghcr.io/chattocorp/authling:<full-commit-sha>`. Deployment promotion is manual;
-pin the published digest after staging verification.
+`ghcr.io/chattocorp/authling:<full-commit-sha>` when run from a branch.
+
+Merging Authling's Release Please PR creates an independent `authling/v<version>`
+tag. A tag push builds and publishes `ghcr.io/chattocorp/authling:<version>`;
+for example, `authling/v0.1.0-alpha.1` publishes `:0.1.0-alpha.1`. The workflow
+rejects a release tag that differs from `version.go` or the Release Please
+manifest, and checks the executable's version before publishing. Manual runs
+on an Authling release tag use the same checks and versioned image name.
+Release versions can include a prerelease suffix, but not `+` build metadata.
+The workflow does not publish floating `latest` or `stable` tags.
+
+The workflow summary reports the published image digest. Deploy that digest to
+staging and verify the release image, then promote the same digest to production
+through a separate deployment PR. Flux applies the digest recorded in Git;
+publishing a release does not select or deploy a production version. A workflow
+rerun can rebuild a tag, so use the verified digest as the deployment identity.
+Never rebuild an image as part of production promotion.
 
 For an external NATS server with a private CA, mount its CA in a dedicated
 directory and add that directory to `SSL_CERT_DIR` alongside `/etc/ssl/certs`.

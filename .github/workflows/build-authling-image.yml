@@ -13,6 +13,8 @@ on:
       - ".github/workflows/build-authling-image.yml"
   push:
     branches: [main]
+    tags: ["authling/v*"]
+    # GitHub does not apply path filters to tag pushes.
     paths:
       - "authling/**"
       - "pkg/**"
@@ -23,6 +25,10 @@ on:
       - "NOTICE"
       - ".github/workflows/build-authling-image.yml"
   workflow_dispatch:
+
+concurrency:
+  group: authling-image-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -35,6 +41,38 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
+      - name: Resolve image metadata
+        id: metadata
+        shell: python
+        run: |
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          source = pathlib.Path("authling/version.go").read_text()
+          version = re.search(r'const Version = "([^"]+)"', source).group(1)
+          ref = os.environ["GITHUB_REF"]
+          tag = sha
+          if ref.startswith("refs/tags/"):
+              prefix = "refs/tags/authling/v"
+              if not ref.startswith(prefix):
+                  raise SystemExit("Only authling/v release tags are supported")
+              tag = ref[len(prefix):]
+              # Docker tags cannot contain SemVer build metadata (+suffix).
+              number = r"(?:0|[1-9][0-9]*)"
+              identifier = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+              semver = rf"{number}\.{number}\.{number}(?:-{identifier}(?:\.{identifier})*)?"
+              if not re.fullmatch(semver, tag) or len(tag) > 128:
+                  raise SystemExit("Release version is not a supported SemVer image tag")
+              manifest = json.loads(pathlib.Path(".release-please-manifest.json").read_text())
+              if tag != version or tag != manifest["authling"]:
+                  raise SystemExit("Release tag, version.go and release manifest must agree")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"sha={sha}\nversion={version}\ntag={tag}\n")
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to GitHub Container Registry
@@ -56,15 +94,26 @@ jobs:
           cache-to: type=gha,mode=max,scope=authling-amd64
           labels: |
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ steps.metadata.outputs.sha }}
+            org.opencontainers.image.version=${{ steps.metadata.outputs.version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
       - name: Check executable
-        run: docker run --rm --network none --read-only authling:check version
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          actual="$(docker run --rm --network none --read-only authling:check version)"
+          test "$actual" = "authling version ${VERSION}"
       - name: Publish verified image
         if: github.event_name != 'pull_request'
         env:
-          IMAGE: ghcr.io/chattocorp/authling:${{ github.sha }}
+          IMAGE: ghcr.io/chattocorp/authling:${{ steps.metadata.outputs.tag }}
         run: |
           docker tag authling:check "$IMAGE"
           docker push "$IMAGE"
-          echo "Published $IMAGE (linux/amd64). Pin its digest in the staging deployment." >> "$GITHUB_STEP_SUMMARY"
+          digest_ref="$(docker image inspect "$IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' | awk '/^ghcr.io\/chattocorp\/authling@sha256:/ {print; exit}')"
+          test -n "$digest_ref"
+          {
+            echo "Published ${IMAGE} (linux/amd64)."
+            echo
+            echo "Deploy ${digest_ref} to staging, verify it, then promote that same digest to production."
+          } >> "$GITHUB_STEP_SUMMARY"
