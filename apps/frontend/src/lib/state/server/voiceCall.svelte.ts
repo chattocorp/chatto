@@ -1093,7 +1093,10 @@ export class VoiceCallState {
       this.isScreenShareEnabled = newEnabled;
     } catch (err) {
       if (this.room !== room) return;
-      if (newEnabled) {
+      // The browser uses the same error for dismissing its picker and denying
+      // capture permission. Neither needs a toast; other capture failures do.
+      const pickerDismissed = ['NotAllowedError', 'PermissionDeniedError'].includes(errorName(err));
+      if (newEnabled && !pickerDismissed) {
         this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('screen', err, 'enable'));
       }
       this.isScreenShareEnabled = newEnabled ? false : this.isScreenShareEnabled;

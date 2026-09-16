@@ -58,3 +58,9 @@
 		<VoiceCallPanelStoryHarness layout="sidebar" scenario="voice" />
 	</div>
 </Story>
+
+<Story name="Screen share with equal voice columns" asChild>
+	<div class="flex h-[720px] w-[500px] overflow-hidden rounded-md border border-border bg-background">
+		<VoiceCallPanelStoryHarness layout="sidebar" scenario="screen-voice" />
+	</div>
+</Story>

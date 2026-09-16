@@ -22,7 +22,7 @@
 		scenario = 'screen'
 	}: {
 		layout?: 'sidebar' | 'stage';
-		scenario?: 'screen' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
+		scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
 	} = $props();
 
 	const roomId = 'storybook-call-room';
@@ -137,6 +137,13 @@
 			connectionQuality: 'poor'
 		});
 
+		if (scenario === 'screen-voice') {
+			return [
+				participant('viewer', 'Alice with a longer display name', { isLocal: true }),
+				participant('bob', 'Bob', { isScreenShareEnabled: true, screenShareTrack: screenTrack })
+			];
+		}
+
 		if (scenario === 'screen-single-secondary') {
 			return [
 				participant('viewer', 'Alice', {
@@ -230,7 +237,7 @@
 		store.voiceCall.audioBoostAvailable = true;
 		store.voiceCall.connecting = false;
 		store.voiceCall.isMuted = false;
-		store.voiceCall.isCameraEnabled = scenario !== 'voice';
+		store.voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
 		store.voiceCall.isScreenShareEnabled = scenario === 'screen';
 		store.voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
 	}

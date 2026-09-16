@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -102,4 +103,63 @@ it('places the overflow menu in the screen-share card header', async () => {
   const card = screen.container.querySelector('[data-testid="call-featured-stage-card"]')!;
   expect(card.querySelector('[data-testid="call-participant-menu-button"]')).not.toBeNull();
   expect(card.querySelector('input[type="range"]')).toBeNull();
+});
+
+it('keeps voice cards equal in height with compact direct mute controls', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const store = serverRegistry.getStore(serverRegistry.originServer!.id);
+  const muteRemote = vi.spyOn(store.voiceCall, 'toggleParticipantLocalMute');
+  const muteSelf = vi.spyOn(store.voiceCall, 'toggleMute').mockResolvedValue();
+  const cards = [
+    ...screen.container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
+  ];
+  const heights = cards.map((card) => card.getBoundingClientRect().height);
+  expect(cards).toHaveLength(3);
+  expect(heights[0]).toBeGreaterThan(0);
+  expect(heights.every((height) => height === heights[0])).toBe(true);
+  for (const card of cards) {
+    const button = card.querySelector<HTMLElement>('[data-testid="call-feed-local-mute-button"]')!;
+    expect(button.getBoundingClientRect().height).toBeLessThanOrEqual(28);
+  }
+  const bob = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
+  bob.querySelector<HTMLButtonElement>('[data-testid="call-feed-local-mute-button"]')!.click();
+  expect(muteRemote).toHaveBeenCalledWith('bob');
+  const alice = screen.container.querySelector<HTMLElement>('[title="Alice"]')!;
+  alice.querySelector<HTMLButtonElement>('[data-testid="call-feed-local-mute-button"]')!.click();
+  expect(muteSelf).toHaveBeenCalledOnce();
+});
+
+it('keeps voice columns equal below a single screen share and stacks in a narrow pane', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'screen-voice' }
+  });
+  screen.container.style.width = '500px';
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const cards = [
+    ...screen.container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
+  ];
+  const list = screen.container.querySelector<HTMLElement>(
+    '[data-testid="call-participants-list"]'
+  )!;
+  const share = list.querySelector<HTMLElement>('[data-call-media-card]')!;
+  await expect
+    .poll(() =>
+      Math.abs(cards[0].getBoundingClientRect().width - cards[1].getBoundingClientRect().width)
+    )
+    .toBeLessThan(1);
+  expect(cards[0].getBoundingClientRect().top).toBe(cards[1].getBoundingClientRect().top);
+  expect(share.getBoundingClientRect().width).toBe(list.getBoundingClientRect().width);
+  expect(cards[0].getBoundingClientRect().width).toBeLessThan(list.getBoundingClientRect().width);
+
+  screen.container.style.width = '280px';
+  await expect
+    .poll(() => cards[0].getBoundingClientRect().width)
+    .toBe(list.getBoundingClientRect().width);
+  expect(cards[1].getBoundingClientRect().top).toBeGreaterThan(
+    cards[0].getBoundingClientRect().top
+  );
+  expect(share.getBoundingClientRect().width).toBe(list.getBoundingClientRect().width);
 });

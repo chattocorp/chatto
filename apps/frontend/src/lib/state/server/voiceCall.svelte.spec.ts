@@ -1249,6 +1249,30 @@ describe('VoiceCallState', () => {
     expect(state.isScreenShareEnabled).toBe(true);
   });
 
+  it.each(['NotAllowedError', 'PermissionDeniedError'])(
+    'silently handles a dismissed screen picker (%s) and permits retry',
+    async (name) => {
+      const state = createPermittedCallState(createVoiceCallClient());
+      await state.join('wss://livekit.example.test', 'R1');
+      toastMocks.error.mockClear();
+      screenShareFailure = Object.assign(new Error('Permission denied'), { name });
+
+      await state.toggleScreenShare();
+
+      expect(state.isScreenSharePending).toBe(false);
+      expect(state.isScreenShareEnabled).toBe(false);
+      expect(state.isInAnyCall).toBe(true);
+      expect(toastMocks.error).not.toHaveBeenCalled();
+
+      screenShareFailure = null;
+      await state.toggleScreenShare();
+
+      expect(state.isScreenShareEnabled).toBe(true);
+      expect(state.isScreenSharePending).toBe(false);
+      expect(toastMocks.error).not.toHaveBeenCalled();
+    }
+  );
+
   it('keeps the call connected when screen capture fails', async () => {
     const client = createVoiceCallClient();
     const state = createPermittedCallState(client);

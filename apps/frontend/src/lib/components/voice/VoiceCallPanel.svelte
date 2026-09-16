@@ -14,6 +14,7 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
@@ -29,8 +30,6 @@ Room sidebar panel for voice/video calls.
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
   import VoiceCallControlButton from './VoiceCallControlButton.svelte';
   import ScreenShareControlButton from './ScreenShareControlButton.svelte';
-  import CallTileActionButton from './CallTileActionButton.svelte';
-  import CallTileActionToolbar from './CallTileActionToolbar.svelte';
   import ParticipantCardMenu from './ParticipantCardMenu.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
@@ -175,11 +174,11 @@ Room sidebar panel for voice/video calls.
     if (isConnecting) return hasActiveCall ? m('voice.joining') : m('voice.starting');
     return hasActiveCall ? m('voice.join_call') : m('voice.start_call');
   });
-  const controlButtonClass = 'btn-secondary btn-sm h-9 w-full rounded-md !px-0';
-  const activeControlButtonClass = 'btn-success btn-sm h-9 w-full rounded-md !px-0';
-  const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full rounded-md !px-0';
+  const controlButtonClass = 'pill-button';
+  const activeControlButtonClass = 'pill-button-success';
+  const dangerControlButtonClass = 'pill-button-danger';
   const callTileCardClass =
-    'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden shell-surface border border-text/10 p-2 text-start text-text shadow-[var(--depth-shadow-xs)]';
+    'call-speaking-card participant-card group/media relative flex w-full min-w-0 flex-col gap-1 overflow-hidden shell-surface border border-text/10 p-1.5 text-start text-text shadow-[var(--depth-shadow-xs)]';
   const callTileHeaderClass = 'flex min-w-0 shrink-0 items-center gap-2 p-1';
   const callTileIdentityButtonClass =
     'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
@@ -328,42 +327,39 @@ Room sidebar panel for voice/video calls.
     ? voiceCallState.isMuted
     : participant.isLocallyMuted}
   {#if !participant.isLocal || !isMutedForViewer || voiceCallState.canUseVoice}
-    <CallTileActionButton
-      icon={isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]'}
-      active={isMutedForViewer}
-      label={participant.isLocal
-        ? isMutedForViewer
-          ? m('voice.unmute')
-          : m('voice.mute')
-        : isMutedForViewer
-          ? m('voice.locally_unmute_participant')
-          : m('voice.locally_mute_participant')}
-      testId="call-feed-local-mute-button"
-      onclick={(event) => toggleFeedMute(participant, event)}
-    />
+    <PillButtonGroup compact label={m('room.sidebar.call')} class="w-7 shrink-0">
+      <VoiceCallControlButton
+        icon={isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]'}
+        class={isMutedForViewer ? 'pill-button bg-surface-emphasized text-text' : 'pill-button'}
+        label={participant.isLocal
+          ? isMutedForViewer
+            ? m('voice.unmute')
+            : m('voice.mute')
+          : isMutedForViewer
+            ? m('voice.locally_unmute_participant')
+            : m('voice.locally_mute_participant')}
+        testId="call-feed-local-mute-button"
+        onclick={(event) => toggleFeedMute(participant, event)}
+      />
+    </PillButtonGroup>
   {/if}
 {/snippet}
 
-{#snippet mediaTileActions(participant: DisplayParticipant)}
-  <CallTileActionToolbar testId="call-media-actions">
-    <CallTileActionButton
+{#snippet mediaTileActions()}
+  <PillButtonGroup
+    compact
+    label={m('voice.fullscreen_feed')}
+    class="w-7 shrink-0"
+    testId="call-media-actions"
+  >
+    <VoiceCallControlButton
+      class="pill-button"
       icon="icon-[mdi--fullscreen]"
       label={m('voice.fullscreen_feed')}
       testId="call-feed-fullscreen-button"
       onclick={toggleClosestMediaFullscreen}
     />
-    {#if isInThisCall && participant.isLocal}
-      {@render localMuteButton(participant)}
-    {/if}
-  </CallTileActionToolbar>
-{/snippet}
-
-{#snippet voiceTileActions(participant: DisplayParticipant)}
-  {#if isInThisCall && participant.isLocal}
-    <CallTileActionToolbar testId="call-voice-actions">
-      {@render localMuteButton(participant)}
-    </CallTileActionToolbar>
-  {/if}
+  </PillButtonGroup>
 {/snippet}
 
 {#snippet participantIndicators(participant: DisplayParticipant)}
@@ -398,7 +394,7 @@ Room sidebar panel for voice/video calls.
 {#snippet participantHeader(
   participant: DisplayParticipant,
   label: string,
-  actions: 'media' | 'voice' | 'none',
+  actions: 'media' | 'none',
   showIndicators = true
 )}
   <div class={callTileHeaderClass}>
@@ -415,9 +411,10 @@ Room sidebar panel for voice/video calls.
     </button>
 
     {#if actions === 'media'}
-      {@render mediaTileActions(participant)}
-    {:else if actions === 'voice'}
-      {@render voiceTileActions(participant)}
+      {@render mediaTileActions()}
+    {/if}
+    {#if isInThisCall}
+      {@render localMuteButton(participant)}
     {/if}
     {@render participantAudio(participant)}
   </div>
@@ -427,19 +424,16 @@ Room sidebar panel for voice/video calls.
   {#if isInThisCall && !participant.isLocal}
     <ParticipantCardMenu
       settings={voiceCallState.getParticipantAudio(participant.key)}
-      muted={voiceCallState.isParticipantLocallyMuted(participant.key)}
       boostAvailable={voiceCallState.audioBoostAvailable}
       onVolumeChange={(source, value) =>
         voiceCallState.setParticipantVolume(participant.key, source, value)}
-      onToggleMute={() => voiceCallState.toggleParticipantLocalMute(participant.key)}
     />
   {/if}
 {/snippet}
 
 {#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
   {@const showVideo = mode === 'video' && hasVideo(participant)}
-  {@const showVoiceActions = isInThisCall && !showVideo}
-  {@const actions = showVideo ? 'media' : showVoiceActions ? 'voice' : 'none'}
+  {@const actions = showVideo ? 'media' : 'none'}
   <div
     class={[
       callTileCardClass,
@@ -477,7 +471,7 @@ Room sidebar panel for voice/video calls.
 
 {#snippet screenShareCard(participant: DisplayParticipant)}
   <div
-    class={[callTileCardClass, 'participant-card-video @min-[368px]:col-span-2']}
+    class={[callTileCardClass, 'participant-card-video col-span-full']}
     {@attach isInThisCall && speakingCard(participant.key)}
     title={m('voice.screen_title', { name: participant.displayName })}
     data-testid="call-screen-share-card"
@@ -525,7 +519,7 @@ Room sidebar panel for voice/video calls.
       isScreen
         ? m('voice.screen_title', { name: participant.displayName })
         : participant.displayName,
-      isScreen || isVideo ? 'media' : 'voice',
+      isScreen || isVideo ? 'media' : 'none',
       true
     )}
     <button
@@ -584,7 +578,7 @@ Room sidebar panel for voice/video calls.
   {/if}
   {#if isInThisCall}
     <div class={isStageLayout ? 'mx-auto max-w-2xl' : ''}>
-      <div class="grid grid-cols-5 gap-2">
+      <PillButtonGroup label={m('room.sidebar.call')}>
         <VoiceCallControlButton
           class={controlButtonClass}
           label={m('voice.devices')}
@@ -635,7 +629,7 @@ Room sidebar panel for voice/video calls.
           icon="icon-[uil--phone-slash]"
           iconClass="text-lg"
         />
-      </div>
+      </PillButtonGroup>
     </div>
   {:else}
     <div class={isStageLayout ? 'mx-auto max-w-sm' : ''}>
@@ -661,12 +655,6 @@ Room sidebar panel for voice/video calls.
   class="flex min-h-0 flex-1 flex-col"
   data-testid={isInThisCall ? 'call-participant-panel' : 'call-observer-panel'}
 >
-  {#if !isStageLayout && isInThisCall}
-    <div class="border-b border-border bg-background p-3" data-testid="call-controls-bar">
-      {@render callControls()}
-    </div>
-  {/if}
-
   <div
     class={[
       'flex min-h-0 flex-1 flex-col gap-5',
@@ -703,7 +691,9 @@ Room sidebar panel for voice/video calls.
           <div
             class={[
               'grid grid-cols-1 gap-3',
-              isInThisCall && mediaTileCount > 1 && '@min-[368px]:grid-cols-2'
+              isInThisCall &&
+                (screenShareParticipants.length > 0 || mediaTileCount > 1) &&
+                '@min-[368px]:grid-cols-2'
             ]}
             data-testid="call-participants-list"
           >
@@ -724,14 +714,9 @@ Room sidebar panel for voice/video calls.
     {/if}
   </div>
 
-  {#if isStageLayout || !isInThisCall}
-    <div
-      class={isInThisCall ? 'border-t border-border bg-background p-3' : 'shrink-0 p-2'}
-      data-testid="call-controls-bar"
-    >
-      {@render callControls()}
-    </div>
-  {/if}
+  <div class="shrink-0 p-2" data-testid="call-controls-bar">
+    {@render callControls()}
+  </div>
 </div>
 
 {#if deviceMenuAnchor}

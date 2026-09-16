@@ -47,7 +47,7 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
   } = $props();
 </script>
 
-<div class="mb-1.5 flex shrink-0 items-center gap-1" data-testid="composer-action-toolbar">
+<div class="col-span-2 mb-1.5 flex shrink-0 items-center justify-self-end gap-1" data-testid="composer-action-toolbar">
   <div class="flex items-center gap-0.5">
     {#if !isEditing && canAttach}
       <button

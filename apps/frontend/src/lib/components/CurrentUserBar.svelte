@@ -5,6 +5,7 @@ Displays the current (server-scoped) user at the bottom of the secondary
 sidebar. Shows the avatar with presence and the live display name.
 -->
 <script lang="ts">
+  import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
@@ -87,9 +88,9 @@ sidebar. Shows the avatar with presence and the live display name.
     }
     return `# ${room.name}`;
   });
-  const compactCallButtonClass = 'btn-secondary btn-compact';
-  const compactCallActiveButtonClass = 'btn-success btn-compact';
-  const compactCallDangerButtonClass = 'btn-danger btn-compact';
+  const compactCallButtonClass = 'pill-button';
+  const compactCallActiveButtonClass = 'pill-button-success';
+  const compactCallDangerButtonClass = 'pill-button-danger';
   const useSheetDialog = prefersTouchActions() && !supportsHoverActions();
   const presenceModes: PresenceMode[] = ['online', 'away', 'doNotDisturb', 'invisible'];
   const currentPresence = $derived.by(() => {
@@ -235,7 +236,7 @@ sidebar. Shows the avatar with presence and the live display name.
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
     {#if activeCallRoomId && voiceCallState}
-      <div class="grid min-w-0 grid-cols-5 gap-1.5" data-testid="current-user-call-card">
+      <PillButtonGroup compact label={m('room.sidebar.call')} testId="current-user-call-card">
         <VoiceCallControlButton
           class={compactCallButtonClass}
           label={`Open ${activeCallRoomName}`}
@@ -280,7 +281,7 @@ sidebar. Shows the avatar with presence and the live display name.
           icon="icon-[uil--phone-slash]"
           onclick={() => voiceCallState.leave()}
         />
-      </div>
+      </PillButtonGroup>
     {/if}
 
     <div
@@ -315,7 +316,7 @@ sidebar. Shows the avatar with presence and the live display name.
           class={[
             'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors',
             privilegedMode.active
-              ? 'control-raised bg-warning/15 text-warning hover:bg-warning/25'
+              ? 'bg-warning/15 control-raised text-warning hover:bg-warning/25'
               : 'hover:bg-elevated text-muted hover:text-text'
           ]}
           title={privilegedMode.active

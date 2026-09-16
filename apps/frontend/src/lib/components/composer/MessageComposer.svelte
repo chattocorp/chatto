@@ -184,7 +184,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   {@attach composer.observeResize}
-  class="flex flex-col gap-2 p-2"
+  class="@container/composer flex min-w-0 flex-col gap-1 p-2"
   onpointerdown={(event) => {
     const target = event.target;
     // Keep this on pointerdown: a release-time click after selecting into the
@@ -252,7 +252,7 @@
 
   <div
     data-testid="composer-input-surface"
-    class="@container relative flex chat-input-surface min-w-0 items-end gap-1 px-2.5 py-1.5"
+    class="@container relative grid grid-cols-[1.5rem_minmax(0,1fr)] chat-input-surface min-w-0 items-end gap-1 px-2.5 py-1.5 @min-[320px]/composer:flex"
     class:opacity-50={composer.inputDisabled}
   >
     {#if composer.autocomplete.emoji}

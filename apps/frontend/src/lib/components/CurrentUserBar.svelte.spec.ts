@@ -542,10 +542,19 @@ describe('CurrentUserBar', () => {
       '[data-testid="current-user-call-leave"]'
     ) as HTMLButtonElement;
 
-    expect(muteButton.className).toContain('btn-success');
-    expect(cameraButton.className).toContain('btn-secondary');
-    expect(screenShareButton.className).toContain('btn-secondary');
-    expect(leaveButton.className).toContain('btn-danger');
+    const callGroup = q(container, '[data-testid="current-user-call-card"]')!;
+    const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
+    expect(callGroup.getBoundingClientRect().height).toBe(
+      (identityCard.getBoundingClientRect().height * 7) / 12
+    );
+    expect(callGroup.getBoundingClientRect().width).toBe(
+      identityCard.getBoundingClientRect().width
+    );
+
+    expect(muteButton.className).toContain('pill-button-success');
+    expect(cameraButton.className).toContain('pill-button');
+    expect(screenShareButton.className).toContain('pill-button');
+    expect(leaveButton.className).toContain('pill-button-danger');
 
     muteButton.click();
     cameraButton.click();
@@ -582,7 +591,7 @@ describe('CurrentUserBar', () => {
     expect(callCardRect.left).toBe(identityCardRect.left);
     expect(callCardRect.right).toBe(identityCardRect.right);
     expect(controlWidths).toHaveLength(5);
-    expect(controlWidths.every((width) => width === controlWidths[0])).toBe(true);
+    expect(controlWidths.every((width) => Math.abs(width - controlWidths[0]) < 1)).toBe(true);
   });
 
   it('opens the native chooser when the host exposes screen sharing', async () => {
@@ -631,16 +640,16 @@ describe('CurrentUserBar', () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     expect(q(container, '[data-testid="current-user-call-mute"]')!.className).toContain(
-      'btn-secondary'
+      'pill-button'
     );
     expect(q(container, '[data-testid="current-user-call-camera"]')!.className).toContain(
-      'btn-success'
+      'pill-button-success'
     );
     expect(q(container, '[data-testid="current-user-call-screen-share"]')!.className).toContain(
-      'btn-success'
+      'pill-button-success'
     );
     expect(q(container, '[data-testid="current-user-call-leave"]')!.className).toContain(
-      'btn-danger'
+      'pill-button-danger'
     );
   });
 

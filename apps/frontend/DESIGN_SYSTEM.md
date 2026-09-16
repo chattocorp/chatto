@@ -101,6 +101,31 @@ It keeps a compact search field and aligned result rows through
 `command-palette-result`. The active result uses a flat neutral fill and a quiet
 Enter cue. `keycap` supplies the shared keyboard-hint shape.
 
+## Joined Action Pills
+
+Use `PillButtonGroup` for related independent actions in one shell. Each native
+button uses `pill-button`; `pill-button-success` and `pill-button-danger`
+supply semantic fills. Unlike `SegmentedControl`, this group does not represent
+one choice. Buttons retain independent labels, disabled states, and keyboard focus.
+
+The group owns the rounded corners. Each segment uses the same `shell-lighting`
+as the composer and user card, without a second lighting layer on the group. Flat mode
+uses separators; 3D adds narrow gaps, softly rounded segment corners, and faint
+individual highlights. These changes follow the animated depth preference.
+Do not add `btn` or local bevels to its segments. The default height is
+48 px, aligned with the composer and user card. Use `compact` for a 28 px
+secondary row with 15 px icons and a smaller corner radius, such as the call controls above the user card
+or the composer formatting bar. Use `gaps={false}` for a continuous surface with separators and square inner
+corners in every depth mode. The composer and user-card control rows use a 4 px gap above their main surface.
+The composer uses this variant for three groups: inline text styles, block
+formats, and lists with indentation. Only the groups have gaps between them. Formatting buttons use `aria-pressed` for the
+shared active fill. Keep an intrinsic-width group inside a horizontal scroller
+when the controls must stay on one row in a narrow pane.
+
+Below 320 px of composer content width, message actions move below the editor.
+The editor keeps the remaining width beside the formatting toggle instead of
+competing with every action button. Wider composers keep the single input row.
+
 ## Standard Dialogs
 
 Use the standard dialog family for focused tasks:
@@ -295,13 +320,18 @@ instead of adding local gradients or arbitrary inset shadows.
 | `option-depth` | Quiet checkbox and radio rows; removes depth when disabled. |
 | `control-well` | Empty checkbox and radio indicators. |
 | `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow. |
-| `shell-surface` | User card, call participant cards, and composer formatting shelf; soft rim with no button elevation or pressed finish. |
+| `shell-surface` | User card and call participant cards; soft rim with no button elevation or pressed finish. |
 | `chat-input-surface` | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card. |
 | `shell-lighting` | The same quiet finish over server gutter artwork; does not change the image or intercept clicks. |
 | `floating-frame` | Lit panel, dialog, and menu frames. |
 | `floating-inset` | Recessed content inside those frames. |
 | `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no outer border or highlight in any depth mode. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
 | `accent-swatch` | Palette samples with their own colour gradient and shared lit edges. |
+
+The shared `--shell-*` theme tokens soften shell bevels in light mode with a
+cleaner top highlight, less lower shading, and a small edge blur. Dark mode
+keeps its sharper, low-light finish. Composer, user card, and pill segments
+all use the same recipe.
 
 Keep the `--lighting-*` and `--lowered-*` parameters inside semantic utilities.
 Each depth primitive resets its parameters so a nested control does not inherit the
