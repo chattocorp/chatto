@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+services:
+  mongodb:
+    image: mongo@sha256:b415b12f638e2685d06c58ab7fb5943577c50fadec6d9340ef67d21aeac72070
+    volumes: ['${CONFORMANCE_STATE}/mongo:/data/db']
+    logging: {driver: none}
+  server:
+    image: registry.gitlab.com/openid/conformance-suite@sha256:3b9d97449861f8255163dc8e7c3efbe02522aa01056e659874d7aee84720c26f
+    environment:
+      BASE_URL: https://conformance.localhost:8443
+      MONGODB_HOST: mongodb
+      SPRING_PROFILES_ACTIVE: dev
+      OIDC_GOOGLE_CLIENTID: local-unused
+      OIDC_GOOGLE_SECRET: local-unused
+      OIDC_GITLAB_CLIENTID: local-unused
+      OIDC_GITLAB_SECRET: local-unused
+    depends_on: [mongodb]
+    logging: {driver: none}
+  nginx:
+    image: registry.gitlab.com/openid/conformance-suite/nginx@sha256:feefb355803d8051f6cd9c586325e3595078e45b57967ec89b4c8138a389b0ef
+    ports: ['127.0.0.1:8443:8443', '127.0.0.1:9443:9443']
+    volumes: ['${CONFORMANCE_SOURCE}/nginx.conf:/etc/nginx/nginx.conf:ro']
+    networks:
+      default:
+        aliases: [conformance.localhost]
+    depends_on: [server]
+    logging: {driver: none}

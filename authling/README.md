@@ -111,6 +111,43 @@ isolated temporary embedded-NATS directory and Mailpit database. The harness
 removes that state after the test. Set `AUTHLING_E2E_KEEP_STATE=1` to preserve
 it while diagnosing a failure.
 
+### Official OIDC conformance tests
+
+On macOS with Docker Desktop or OrbStack running, use:
+
+```sh
+mise test-conformance
+```
+
+The task starts the pinned OpenID Foundation suite, an isolated Authling
+instance, and Mailpit. It runs the discovery test, then prints a link to a
+running S256 PKCE test. Open that link in Chrome and follow the test's browser
+link. Create a synthetic account if needed, get its verification code from
+Mailpit, and complete consent. The suite then checks the token exchange.
+Accept the self-signed certificate only for this local test site. No system
+certificate settings change.
+
+Use the suite at `https://conformance.localhost:8443/` to inspect results and
+run more tests. Run one test at a time because they share a callback alias.
+The two confidential suite clients explicitly set `require_pkce = false`.
+Public and CIMD clients retain mandatory PKCE. This task does not run the
+complete Basic OP plan or prove certification. See the
+[local conformance baseline](tools/conformance/README.md) for the full manual
+run and its remaining failures.
+
+Press Ctrl-C to stop the processes and containers. Test accounts, suite results,
+and generated client configuration remain in `.authling/conformance/`. This
+directory is separate from normal development data. Do not publish it: the
+suite stores test tokens and secrets. Only use synthetic accounts.
+
+The task uses loopback ports 8443, 9443, 19400, 19408, and 19409. It needs `curl`
+and Docker Compose. Image downloads contact GitLab and Docker registries;
+test traffic stays local. The suite runs in development mode without a hosted
+login. Its endpoints must remain local. Linux networking is not yet supported
+by this task.
+
+### Build and run
+
 Build and inspect the executable:
 
 ```sh
@@ -199,7 +236,7 @@ binary; Node.js is not needed to run the resulting executable.
 
 Authling publishes discovery at `/.well-known/openid-configuration`. The
 initial profile supports Authorization Code, requires `openid` and S256 PKCE
-for every client, signs ID tokens with RS256, and exposes a minimal UserInfo
+by default, signs ID tokens with RS256, and exposes a minimal UserInfo
 response containing the account ID as `sub` plus non-empty
 `preferred_username` and `name` identity hints. It exposes no application-data
 scopes.
@@ -237,9 +274,31 @@ failed work does not refund it. Update all replicas to enforce these limits.
 Revocation makes future requests ask again; it does not end already issued
 five-minute tokens or sessions held by the relying party.
 
-CIMD public clients use their HTTPS metadata-document URL directly as
-`client_id`; they need no Authling-side registration. Conventional consumers
-can instead be declared in `authling.toml`:
+Admission of unregistered clients is disabled by default. To allow it, set
+`AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS=true` or add this to `authling.toml`:
+
+```toml
+[oidc]
+allow_unregistered_clients = true
+```
+
+This setting controls client admission, not the metadata format or client
+authentication method. Currently, unregistered clients are discovered through
+CIMD. Explicitly registered CIMD URL clients are not yet supported.
+
+Restart Authling after changing the setting. Existing CIMD deployments must
+explicitly enable it when upgrading. All replicas must use the same setting.
+When disabled, discovery advertises `client_id_metadata_document_supported`
+as false and unregistered URL clients are rejected without DNS or metadata
+requests. Trusted-host exceptions do not allow unregistered clients on their own.
+
+When enabled, CIMD public clients use their HTTPS metadata-document URL as
+`client_id`; they need no per-client Authling registration. Authling contacts
+the document host, which can observe the issuer server's outbound IP address
+and requested document path. The user's browser does not fetch the document.
+PKCE remains mandatory for these public clients.
+
+Conventional consumers can be declared regardless of the CIMD setting:
 
 ```toml
 [[oidc.clients]]
@@ -249,6 +308,9 @@ redirect_uris = ['https://app.example.com/oidc/callback']
 # Omit secret for a public client, or configure at least 32 characters for
 # client_secret_basic authentication.
 secret = 'replace-with-a-secret-from-your-secret-store'
+# Optional compatibility exception for confidential clients only.
+# Prefer true; clients that opt out need other code-injection defenses.
+require_pkce = true
 ```
 
 CIMD fetches reject private and other special-use destinations by default.

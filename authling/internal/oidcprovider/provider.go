@@ -209,7 +209,15 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 			return
 		}
 		if r.URL.Path == "/oauth/authorize" {
-			if err := validateAuthorizeRequest(r); err != nil {
+			requirePKCE := true
+			// Use only local configuration here. Bound parsing before admission;
+			// CIMD resolution and state creation happen after request validation.
+			if len(r.URL.RawQuery) <= 8<<10 && s.storage != nil && s.storage.clients != nil {
+				if client := s.storage.clients.configured[r.URL.Query().Get("client_id")]; client != nil {
+					requirePKCE = client.requiresPKCE()
+				}
+			}
+			if err := validateAuthorizeRequest(r, requirePKCE); err != nil {
 				if s.redirectAuthorizationError(w, r, err) {
 					return
 				}
@@ -373,11 +381,11 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 		"claims_supported":                      []string{"sub", "preferred_username", "name", "auth_time"},
 		"code_challenge_methods_supported":      []string{"S256"},
 		"request_parameter_supported":           false,
-		"client_id_metadata_document_supported": true,
+		"client_id_metadata_document_supported": s.storage != nil && s.storage.clients != nil && s.storage.clients.cimd != nil,
 	})
 }
 
-func validateAuthorizeRequest(r *http.Request) *authorizationRequestError {
+func validateAuthorizeRequest(r *http.Request, requirePKCE bool) *authorizationRequestError {
 	localError := func() *authorizationRequestError {
 		return &authorizationRequestError{code: "invalid_request"}
 	}
@@ -414,7 +422,7 @@ func validateAuthorizeRequest(r *http.Request) *authorizationRequestError {
 		return clientError("invalid_scope")
 	}
 	challenge := query.Get("code_challenge")
-	if !validPKCEValue(challenge) || query.Get("code_challenge_method") != string(liboidc.CodeChallengeMethodS256) {
+	if (requirePKCE || query.Has("code_challenge") || query.Has("code_challenge_method")) && (!validPKCEValue(challenge) || query.Get("code_challenge_method") != string(liboidc.CodeChallengeMethodS256)) {
 		return clientError("invalid_request")
 	}
 	prompts := strings.Fields(query.Get("prompt"))
@@ -484,7 +492,7 @@ func validateTokenRequest(w http.ResponseWriter, r *http.Request) error {
 			return fmt.Errorf("duplicate token parameter")
 		}
 	}
-	if r.PostForm.Get("grant_type") != string(liboidc.GrantTypeCode) || r.PostForm.Get("code") == "" || !validPKCEValue(r.PostForm.Get("code_verifier")) {
+	if r.PostForm.Get("grant_type") != string(liboidc.GrantTypeCode) || r.PostForm.Get("code") == "" || (r.PostForm.Has("code_verifier") && !validPKCEValue(r.PostForm.Get("code_verifier"))) {
 		return fmt.Errorf("unsupported token request")
 	}
 	if len(r.PostForm.Get("client_id")) > 2048 || len(r.PostForm.Get("redirect_uri")) > 2048 || len(r.PostForm.Get("code")) > 1024 || len(r.PostForm.Get("client_secret")) > 4096 {

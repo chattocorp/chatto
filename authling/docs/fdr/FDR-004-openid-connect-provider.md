@@ -1,12 +1,12 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-16
 
 ## Overview
 
 Authling acts as an OpenID Provider for conventional configured clients and
-automatically discovered CIMD public clients. A person authenticates with
+CIMD public clients when registration-less discovery is explicitly enabled. A person authenticates with
 their Authling browser session, authorizes the client when consent is required,
 and returns to the relying party with an Authorization Code.
 
@@ -15,7 +15,8 @@ and returns to the relying party with an Authorization Code.
 - Discovery is available at `/.well-known/openid-configuration`; public keys
   are published at the advertised JWKS endpoint.
 - Authling advertises and accepts only Authorization Code. Every request
-  requires exactly `openid` and S256 PKCE, including confidential clients.
+  requires exactly `openid`. S256 PKCE is required by default. Operators may
+  set `require_pkce = false` only for configured confidential clients.
 - Redirect URI matching is exact. Authorization errors are sent to a client
   only after that client and redirect have been validated.
 - A signed-out person is sent through local login and then resumes the pending
@@ -47,12 +48,45 @@ and returns to the relying party with an Authorization Code.
 An operator declares conventional clients with `[[oidc.clients]]`. An empty
 secret creates a public client using token endpoint authentication method
 `none`; a secret of at least 32 characters creates a `client_secret_basic`
-client. Both still require PKCE.
+client. Both require PKCE by default. Only a client with a configured secret may
+set `require_pkce = false`. Public and CIMD clients cannot opt out.
+If either PKCE parameter is present, the request must contain a valid S256
+challenge and method. Token exchange must then contain the matching verifier.
+A verifier without an original challenge is rejected.
+
+This exception supports confidential OIDC clients that use other code-injection
+defenses, such as a transaction-bound nonce with ID Token validation. A client
+secret alone does not provide all PKCE protections. Prefer PKCE for new clients.
+The exception must not be used to authenticate a browser or native app with
+a distributed secret.
+
+The default preserves existing behavior. No event or runtime-state schema
+changes are required. During mixed-version deployment, old replicas reject
+non-PKCE requests and exchanges. Enable the exception only after all replicas
+have been upgraded. Existing short-lived codes retain the challenge recorded
+when authorization started.
 
 ## CIMD Clients
 
-An unconfigured HTTPS URL client ID is resolved as a Client ID Metadata
-Document. It must describe that exact client ID, public token authentication,
+Admission of unregistered clients is disabled by default. Operators must set
+`oidc.allow_unregistered_clients = true` or `AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS=true` to allow it.
+This is an admission policy, independent of client authentication and metadata
+format. Currently, CIMD is the only supported discovery mechanism for
+unregistered clients; explicitly registered CIMD URL clients are not supported.
+When disabled, discovery advertises the capability as false and Authling
+rejects URL clients without resolving DNS or fetching metadata. Configured
+clients remain available. Trusted-host exceptions do not enable this feature.
+This makes outbound metadata discovery and admission of unregistered clients
+an explicit operator decision. Enabling it reveals the issuer server's outbound
+IP address and requested path to each metadata host; it does not make the
+user's browser fetch that document.
+
+Existing CIMD deployments must opt in on upgrade. Restart all replicas with
+the same policy; the setting does not migrate or delete accounts or grants.
+It is not a general token or relying-party session revocation mechanism.
+
+When enabled, an unconfigured HTTPS URL client ID is resolved as a Client ID
+Metadata Document. It must describe that exact client ID, public token authentication,
 one or more safe redirect URIs, and no flow outside Authorization Code. Fetches
 are HTTPS-only, do not follow redirects, reject special-use destinations except
 for the development cases below, ignore proxy configuration, and have strict
@@ -139,8 +173,8 @@ freshness parameters in [OpenID Connect Core](https://openid.net/specs/openid-co
 ## Security and Failure Behavior
 
 - An issuer mismatch or signing-key mismatch prevents readiness.
-- Duplicate security-sensitive authorization parameters, missing or weak
-  PKCE, unsupported scopes and response modes, and request objects fail closed.
+- Duplicate security-sensitive authorization parameters, missing required PKCE,
+  malformed or weak PKCE, unsupported scopes and response modes, and request objects fail closed.
 - Consent and login POSTs require Authling's exact browser origin. Pending IDs
   are resolved server-side and cannot carry an arbitrary return URL. Login and
   recovery forms permit only the validated client redirect origin in addition

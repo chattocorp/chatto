@@ -55,8 +55,11 @@ func (c SiteConfig) Resolve(publicURL string) SiteConfig {
 }
 
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
-// URL-identified CIMD clients require no configuration.
+// Registration-less CIMD clients require explicit operator opt-in.
 type OIDCConfig struct {
+	// AllowUnregisteredClients permits clients not declared in operator configuration.
+	// It defaults to false. Currently, admission uses HTTPS CIMD discovery.
+	AllowUnregisteredClients       bool               `toml:"allow_unregistered_clients" env:"AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS"`
 	Clients                        []OIDCClientConfig `toml:"clients"`
 	CIMDTrustedPrivateHosts        []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
 	CIMDTrustedLoopbackHosts       []string           `toml:"cimd_trusted_loopback_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS"`
@@ -80,6 +83,8 @@ type OIDCClientConfig struct {
 	Name         string   `toml:"name"`
 	Secret       string   `toml:"secret"`
 	RedirectURIs []string `toml:"redirect_uris"`
+	// RequirePKCE defaults to true. Only clients with a secret may set it to false.
+	RequirePKCE *bool `toml:"require_pkce"`
 }
 
 // TrustedPrivateCIMDHosts returns normalized hostnames whose CIMD documents
@@ -306,6 +311,9 @@ func (c Config) Validate() error {
 		}
 		if client.Secret != "" && len(client.Secret) < 32 {
 			problems = append(problems, field+".secret must contain at least 32 characters when configured")
+		}
+		if client.RequirePKCE != nil && !*client.RequirePKCE && client.Secret == "" {
+			problems = append(problems, field+".require_pkce may be false only for confidential clients")
 		}
 		if len(client.RedirectURIs) == 0 {
 			problems = append(problems, field+".redirect_uris must contain at least one URI")

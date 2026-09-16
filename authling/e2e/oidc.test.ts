@@ -34,7 +34,7 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     code_challenge_methods_supported: ['S256'],
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code'],
-    client_id_metadata_document_supported: true
+    client_id_metadata_document_supported: false
   });
   expect(discovery.claims_supported).toEqual(['sub', 'preferred_username', 'name', 'auth_time']);
   expect(discovery).not.toHaveProperty('registration_endpoint');

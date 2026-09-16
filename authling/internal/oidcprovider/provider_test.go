@@ -167,7 +167,7 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 				raw += "&max_age=0"
 			}
 			req := httptest.NewRequest(http.MethodGet, raw, nil)
-			if got := validateAuthorizeRequest(req) == nil; got != test.want {
+			if got := validateAuthorizeRequest(req, true) == nil; got != test.want {
 				t.Fatalf("valid = %v, want %v", got, test.want)
 			}
 		})
@@ -250,7 +250,7 @@ func TestResolverSupportsConventionalPublicAndBasicClients(t *testing.T) {
 
 func TestValidateAuthorizeRequestRejectsDuplicateSecurityParameters(t *testing.T) {
 	raw := "https://auth.example/oauth/authorize?client_id=one&client_id=two&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
-	if err := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, raw, nil)); err == nil {
+	if err := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, raw, nil), true); err == nil {
 		t.Fatal("duplicate client_id was accepted")
 	}
 }
@@ -478,9 +478,76 @@ func TestFreshnessParameterValidation(t *testing.T) {
 		{"prompt=login+login", false}, {"prompt=none+login", false}, {"prompt=select_account", false},
 	} {
 		t.Run(tt.query, func(t *testing.T) {
-			err := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, valid+"&"+tt.query, nil))
+			err := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, valid+"&"+tt.query, nil), true)
 			if (err == nil) != tt.want {
 				t.Fatalf("validation = %v, want allowed %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestOptionalPKCEStillRejectsMalformedChallenges(t *testing.T) {
+	base := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid"
+	for _, tc := range []struct {
+		query string
+		valid bool
+	}{
+		{"", true},
+		{"&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256", true},
+		{"&code_challenge=", false},
+		{"&code_challenge_method=", false},
+		{"&code_challenge_method=S256", false},
+		{"&code_challenge=" + strings.Repeat("a", 43), false},
+		{"&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=plain", false},
+	} {
+		if got := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, base+tc.query, nil), false) == nil; got != tc.valid {
+			t.Fatal("incorrect optional PKCE validation")
+		}
+	}
+}
+
+func TestPKCEExceptionRequiresConfiguredConfidentialClient(t *testing.T) {
+	for _, tc := range []struct {
+		source          ClientSource
+		method          liboidc.AuthMethod
+		secret          string
+		allow, required bool
+	}{
+		{ClientSourceConfigured, liboidc.AuthMethodBasic, "secret", false, true},
+		{ClientSourceConfigured, liboidc.AuthMethodBasic, "secret", true, false},
+		{ClientSourceConfigured, liboidc.AuthMethodNone, "", true, true},
+		{ClientSourceCIMD, liboidc.AuthMethodNone, "", true, true},
+		{ClientSourceCIMD, liboidc.AuthMethodBasic, "secret", true, true},
+	} {
+		c := &Client{Source: tc.source, Method: tc.method, Secret: tc.secret, AllowWithoutPKCE: tc.allow}
+		if c.requiresPKCE() != tc.required {
+			t.Fatal("unsafe PKCE policy")
+		}
+	}
+}
+
+func TestCombinedResolverRequiresUnregisteredClientOptInBeforeFetching(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprint(enabled), func(t *testing.T) {
+			var fetches atomic.Int32
+			cimd := newCIMDTestResolver(t, func(request *http.Request) (*http.Response, error) {
+				fetches.Add(1)
+				return cimdTestResponse(request, "no-store"), nil
+			})
+			cfg := config.Config{OIDC: config.OIDCConfig{AllowUnregisteredClients: enabled, Clients: []config.OIDCClientConfig{{ID: "local", Name: "Local"}}}}
+			resolver := NewResolver(cfg, cimd)
+			if _, err := resolver.Resolve(t.Context(), "local"); err != nil {
+				t.Fatal("configured client was disabled")
+			}
+			_, err := resolver.Resolve(t.Context(), "https://client.example/metadata")
+			if enabled {
+				if err != nil || fetches.Load() != 1 {
+					t.Fatalf("enabled resolution failed: %v", err)
+				}
+			} else {
+				if err == nil || fetches.Load() != 0 {
+					t.Fatal("disabled CIMD resolved or fetched a document")
+				}
 			}
 		})
 	}
