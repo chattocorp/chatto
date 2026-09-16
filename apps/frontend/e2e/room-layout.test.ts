@@ -396,7 +396,13 @@ async function dragWithPointer(
   // its live position only after the drag has crossed the start threshold.
   const targetBox = await target.boundingBox();
   if (!targetBox) throw new Error('Expected a visible drag target');
-  const targetX = targetBox.x + targetBox.width / 2;
+  const draggedBox = await page.locator('#dnd-action-dragged-el').boundingBox();
+  if (!draggedBox) throw new Error('Expected a visible dragged item');
+  // The library detects the dragged item's centre, not the pointer. Handles
+  // sit at the leading edge, so align the item horizontally with the target
+  // instead of leaving its centre near the target's far edge.
+  const pointerOffsetX = draggedBox.x + draggedBox.width / 2 - (startX + 8);
+  const targetX = targetBox.x + targetBox.width / 2 - pointerOffsetX;
   const targetY = targetBox.y + targetBox.height * targetYRatio;
   await page.mouse.move(targetX, targetY, { steps: 12 });
 }
