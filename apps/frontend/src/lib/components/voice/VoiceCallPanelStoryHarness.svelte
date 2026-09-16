@@ -207,6 +207,7 @@
 	}
 
 	function seedStore() {
+		serverRegistry.init();
 		const server = ensureStorybookServer();
 		const store = serverRegistry.getStore(server.id);
 
@@ -226,6 +227,7 @@
 		store.permissions = permissions;
 		store.voiceCall.roomId = scenario === 'idle' ? null : roomId;
 		store.voiceCall.connected = scenario !== 'idle';
+		store.voiceCall.audioBoostAvailable = true;
 		store.voiceCall.connecting = false;
 		store.voiceCall.isMuted = false;
 		store.voiceCall.isCameraEnabled = scenario !== 'voice';

@@ -93,6 +93,16 @@
       "voice_normal": "Tavaline",
       "voice_cool": "Päris lahe",
       "voice_awesome": "VÕIMAS"
+    },
+    "participant_audio": {
+      "title": "Osaleja heli",
+      "local_only": "Muudab ainult seda, mida sina kuuled",
+      "voice": "Hääle helitugevus",
+      "stream": "Ülekande helitugevus",
+      "reset": "Lähtesta helitugevus",
+      "boost_unavailable": "Heli võimendamine pole selles brauseris saadaval.",
+      "enable_audio": "Luba kõne heli",
+      "system_output": "See brauser kasutab kõnede jaoks süsteemi heliväljundit."
     }
   }
 }

@@ -93,6 +93,16 @@
       "voice_normal": "Normal",
       "voice_cool": "Pretty cool",
       "voice_awesome": "AWESOME"
+    },
+    "participant_audio": {
+      "title": "Participant audio",
+      "local_only": "Only changes what you hear",
+      "voice": "Voice volume",
+      "stream": "Stream volume",
+      "reset": "Reset volume",
+      "boost_unavailable": "Volume boost is unavailable in this browser.",
+      "enable_audio": "Enable call audio",
+      "system_output": "This browser uses the system audio output for calls."
     }
   }
 }

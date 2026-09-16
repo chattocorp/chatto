@@ -84,6 +84,7 @@ Frontend, Examples, and Documentation Components:
 - LiveKit client SDK for JS (https://github.com/livekit/client-sdk-js) -
   Apache License 2.0
 - lowlight (https://github.com/wooorm/lowlight) - MIT License
+- machina (https://github.com/ifandelse/machina.js) - MIT License
 - markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
 - node-semver (https://github.com/npm/node-semver) - ISC License
 - Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License

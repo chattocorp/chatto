@@ -79,7 +79,7 @@ func NewResolver(cfg config.Config, cimd *CIMDResolver) *Resolver {
 			method = liboidc.AuthMethodBasic
 		}
 		configured[declared.ID] = &Client{
-			IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: "configured by this Authling operator",
+			IDValue: declared.ID, NameValue: strings.TrimSpace(declared.Name), DisplayHost: "configured by this site’s operator",
 			Redirects: append([]string(nil), declared.RedirectURIs...), Method: method,
 			Secret: declared.Secret, Source: ClientSourceConfigured, Development: development,
 		}

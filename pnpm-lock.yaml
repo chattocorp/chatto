@@ -87,8 +87,8 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2
       livekit-client:
-        specifier: ^2.22.0
-        version: 2.22.0(@types/dom-mediacapture-record@1.0.22)
+        specifier: ^2.22.3
+        version: 2.22.3(@types/dom-mediacapture-record@1.0.22)
       semver:
         specifier: ^7.8.5
         version: 7.8.5
@@ -4382,8 +4382,8 @@ packages:
   lit-html@2.8.0:
     resolution: {integrity: sha512-o9t+MQM3P4y7M7yNzqAyjp7z+mQGa4NS4CxiyLqFPyFWyc4O+nodLrkrxSaCTrla6M5YOLaT3RpbbqjszB5g3Q==}
 
-  livekit-client@2.22.0:
-    resolution: {integrity: sha512-GLtYQfRh/RsvXaOX1x609bFZ17yyKmKWDqu9JmkMKn9vIFLi2GsapRv9gT8OJO/1R2dsitrkbGmloyUfxWQsaA==}
+  livekit-client@2.22.3:
+    resolution: {integrity: sha512-jw9zBKXY5Gtr5MZ7vEON3QhMNccuDvYHck1PFSyG1aaateQPqgKZFBMgZkFZaXHIf9RV4MDW5xpTK2b/+qbwOg==}
     peerDependencies:
       '@types/dom-mediacapture-record': ^1
 
@@ -4420,6 +4420,10 @@ packages:
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
+
+  machina@7.0.1:
+    resolution: {integrity: sha512-0Xkgs8NeBvO2hW6bjJT8ewLWrMfh1haMPstaghpASWjXkLjRhtDiaJG1Kb7mslaOHxZYxpH7PIjpmirRVYbMMA==}
+    engines: {node: '>=22.22'}
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -10182,7 +10186,7 @@ snapshots:
     dependencies:
       '@types/trusted-types': 2.0.7
 
-  livekit-client@2.22.0(@types/dom-mediacapture-record@1.0.22):
+  livekit-client@2.22.3(@types/dom-mediacapture-record@1.0.22):
     dependencies:
       '@livekit/mutex': 1.1.1
       '@livekit/protocol': 1.50.4
@@ -10190,6 +10194,7 @@ snapshots:
       events: 3.3.0
       jose: 6.2.9
       loglevel: 1.9.2
+      machina: 7.0.1
       sdp-transform: 2.15.0
       tslib: 2.8.1
       typed-emitter: 2.1.0
@@ -10220,6 +10225,8 @@ snapshots:
   lru-cache@11.5.1: {}
 
   lz-string@1.5.0: {}
+
+  machina@7.0.1: {}
 
   magic-string@0.30.21:
     dependencies:

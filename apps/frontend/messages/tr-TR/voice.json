@@ -93,6 +93,16 @@
       "voice_normal": "Normal",
       "voice_cool": "Oldukça iyi",
       "voice_awesome": "MUHTEŞEM"
+    },
+    "participant_audio": {
+      "title": "Katılımcı sesi",
+      "local_only": "Yalnızca sizin duyduklarınızı değiştirir",
+      "voice": "Konuşma ses düzeyi",
+      "stream": "Yayın ses düzeyi",
+      "reset": "Ses düzeyini sıfırla",
+      "boost_unavailable": "Bu tarayıcıda ses yükseltme kullanılamıyor.",
+      "enable_audio": "Arama sesini etkinleştir",
+      "system_output": "Bu tarayıcı aramalar için sistem ses çıkışını kullanır."
     }
   }
 }

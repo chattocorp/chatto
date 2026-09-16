@@ -31,6 +31,22 @@ using the browser's window/tab/screen chooser.
 
 Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. These call facts update the active call UI without appearing as room timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
+## Adjust another participant's volume
+
+During a call, open the three-dot menu in a participant card's header. Adjust
+**Voice volume** for their microphone and **Stream volume** for shared audio.
+The menu is also available on camera and screen-share cards.
+Each control ranges from 0% to 200%; 100% keeps the original level. Higher
+levels amplify quiet audio and can distort audio that is already loud.
+
+These settings affect only what you hear. This browser remembers them per
+server and participant. **Mute locally** silences both sources and keeps your
+levels. Sliders move in 5% steps, with a mark at 100% to help restore the original level.
+
+Boost requires browser Web Audio support. If boost is unavailable, the controls
+show a 100% limit. Browsers without Web Audio output selection use the system
+output for calls. Select **Enable call audio** if playback is blocked.
+
 ## Call permissions
 
 Room membership is required for all calls. Configure these permissions at

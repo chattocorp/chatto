@@ -19,6 +19,7 @@
 
 <script lang="ts">
   let volume = $state(70);
+  let steppedVolume = $state(100);
   let disabledValue = $state(35);
   let awesome = $state(100);
   let warmingUp = $state(90);
@@ -90,6 +91,21 @@
       bind:value={warmingUp}
       displayValue={`${warmingUp}%`}
       rainbow
+    />
+  </div>
+</Story>
+
+<Story name="Steps and reference mark" asChild>
+  <div class="max-w-md">
+    <RangeField
+      id="stepped-volume"
+      label="Participant volume"
+      min={0}
+      max={200}
+      step={5}
+      ticks={[100]}
+      bind:value={steppedVolume}
+      displayValue={`${steppedVolume}%`}
     />
   </div>
 </Story>

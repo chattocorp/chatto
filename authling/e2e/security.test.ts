@@ -11,7 +11,7 @@ test('serves the public pages with browser security headers', async ({ page }) =
   expect(response?.headers()['x-content-type-options']).toBe('nosniff');
   expect(response?.headers()['x-frame-options']).toBe('DENY');
 
-  await expect(page).toHaveTitle('Authling');
+  await expect(page).toHaveTitle('Test Accounts');
   await page.getByRole('link', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
 });

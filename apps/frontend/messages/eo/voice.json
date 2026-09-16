@@ -93,6 +93,16 @@
       "voice_normal": "Normala",
       "voice_cool": "Sufiĉe mojosa",
       "voice_awesome": "MIRINDA"
+    },
+    "participant_audio": {
+      "title": "Sono de partoprenanto",
+      "local_only": "Ŝanĝas nur tion, kion vi aŭdas",
+      "voice": "Voĉa laŭteco",
+      "stream": "Elsenda laŭteco",
+      "reset": "Restarigi laŭtecon",
+      "boost_unavailable": "Laŭteca plifortigo ne disponeblas en ĉi tiu retumilo.",
+      "enable_audio": "Ebligi voksonon",
+      "system_output": "Ĉi tiu retumilo uzas la sisteman soneligon por vokoj."
     }
   }
 }

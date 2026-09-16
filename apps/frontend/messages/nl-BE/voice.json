@@ -93,6 +93,16 @@
       "voice_normal": "Normaal",
       "voice_cool": "Best cool",
       "voice_awesome": "GEWELDIG"
+    },
+    "participant_audio": {
+      "title": "Deelnemersaudio",
+      "local_only": "Verandert alleen wat je hoort",
+      "voice": "Stemvolume",
+      "stream": "Streamvolume",
+      "reset": "Volume herstellen",
+      "boost_unavailable": "Volumeversterking is niet beschikbaar in deze browser.",
+      "enable_audio": "Gespreksaudio inschakelen",
+      "system_output": "Deze browser gebruikt de systeemaudio-uitgang voor gesprekken."
     }
   }
 }

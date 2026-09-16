@@ -33,6 +33,7 @@ Reads available devices and current selection from `voiceCallState`.
     devices: MediaDeviceInfo[];
     selectedId: string | null;
     select: (deviceId: string) => Promise<void>;
+    unavailable?: boolean;
   };
 
   const sections = $derived<DeviceSection[]>([
@@ -44,6 +45,7 @@ Reads available devices and current selection from `voiceCallState`.
     },
     {
       label: m('voice.speaker'),
+      unavailable: voiceCallState.outputSelectionAvailable === false,
       devices: voiceCallState.audioOutputDevices,
       selectedId: voiceCallState.selectedOutputDeviceId,
       select: (id) => voiceCallState.setAudioOutputDevice(id)
@@ -71,7 +73,10 @@ Reads available devices and current selection from `voiceCallState`.
   {#each sections as section (section.label)}
     <MenuSection ariaLabel={section.label}>
       <div class="px-3 py-1.5 text-xs font-medium text-muted">{section.label}</div>
-      {#each section.devices as device (device.deviceId)}
+      {#if section.unavailable}
+        <p class="px-3 py-1.5 text-sm text-muted">{m('voice.participant_audio.system_output')}</p>
+      {/if}
+      {#each section.unavailable ? [] : section.devices as device (device.deviceId)}
         <MenuItem
           onclick={async () => {
             await section.select(device.deviceId);

@@ -9,6 +9,11 @@ here unless Authling uses the same word with an explicitly defined meaning.
 trusted by Chatto servers but is not itself a Chatto server, application-data
 store, or a user's home server.
 
+**Site identity** — The public service name and optional description set by the
+operator for account pages and transactional emails. It is independent of the
+Authling software name and the immutable OIDC issuer URL. See
+[FDR-014](fdr/FDR-014-site-identity.md).
+
 **Account** — Authling's opaque aggregate for one user identity. Its account ID
 is the stable OpenID Connect subject (`sub`) exposed to authorized clients. A local
 account may have an encrypted, verified email/password credential, one or more

@@ -168,6 +168,29 @@ Requests through another hostname, port, or scheme redirect to `http.public_url`
 with HTTP 307 before Authling processes them. The redirect preserves the path,
 query, and request method. DNS, certificates, and proxy routes must still allow
 the alias to reach Authling. OIDC clients must use the canonical issuer URL.
+
+Configure the public site name separately from the Authling software name:
+
+```toml
+[site]
+name = "chatto.id"
+description = "Your account for Chatto."
+```
+
+`AUTHLING_SITE_NAME` and `AUTHLING_SITE_DESCRIPTION` override these TOML values.
+The name appears in page headers, page titles, account messages, and transactional
+email subjects and bodies. The optional description appears on the home page and
+in page metadata. Values are plain text; HTML is escaped. Names allow up to 120
+Unicode characters and descriptions up to 500, with no control characters.
+Leading and trailing spaces are removed.
+
+When the name is empty, the site uses the hostname from `http.public_url` (or the
+local listener default). An empty description is omitted. Request host headers
+do not set the display name. Restart Authling after changing these settings.
+Display settings do not change the issuer URL, account IDs, client names, SMTP
+sender address, or authentication policy. Set `smtp.from` separately to use your
+site's sender name and address.
+
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go
 binary; Node.js is not needed to run the resulting executable.

@@ -4,6 +4,33 @@ import { availableCallDevice, CallPreferencesState } from './callPreferences.sve
 describe('CallPreferencesState', () => {
   beforeEach(() => localStorage.clear());
 
+  it('persists independent participant levels by server and restores defaults on reset', () => {
+    const state = new CallPreferencesState('participant-audio');
+    state.setParticipantVolume('bob', 'voiceVolume', 175);
+    state.setParticipantVolume('bob', 'streamVolume', 30);
+    state.setParticipantVolume('alice', 'voiceVolume', 0);
+    const restored = new CallPreferencesState('participant-audio');
+    expect(restored.getParticipantAudio('bob')).toEqual({ voiceVolume: 175, streamVolume: 30 });
+    expect(restored.getParticipantAudio('alice')).toEqual({ voiceVolume: 0, streamVolume: 100 });
+    expect(new CallPreferencesState('other').getParticipantAudio('bob').voiceVolume).toBe(100);
+    restored.resetParticipantAudio('bob');
+    expect(new CallPreferencesState('participant-audio').getParticipantAudio('bob')).toEqual({
+      voiceVolume: 100,
+      streamVolume: 100
+    });
+    expect(restored.getParticipantAudio('alice').voiceVolume).toBe(0);
+  });
+
+  it('bounds participant volume and rejects non-finite levels', () => {
+    const state = new CallPreferencesState('audio-bounds');
+    state.setParticipantVolume('bob', 'voiceVolume', 900);
+    state.setParticipantVolume('bob', 'streamVolume', -10);
+    expect(state.getParticipantAudio('bob')).toEqual({ voiceVolume: 200, streamVolume: 0 });
+    state.setParticipantVolume('bob', 'voiceVolume', NaN);
+    state.setParticipantVolume('bob', 'streamVolume', Infinity);
+    expect(state.getParticipantAudio('bob')).toEqual({ voiceVolume: 100, streamVolume: 100 });
+  });
+
   it('persists sensitivity per server and defaults older preferences to off', () => {
     const state = new CallPreferencesState('sensitivity');
     expect(state.microphoneThreshold).toBe(-60);

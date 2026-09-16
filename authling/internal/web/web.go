@@ -3,6 +3,7 @@
 package web
 
 import (
+	"context"
 	"crypto/tls"
 	"embed"
 	"errors"
@@ -16,6 +17,7 @@ import (
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/authorizations"
+	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/passwordreset"
@@ -36,6 +38,8 @@ var errAmbiguousSessionCookie = errors.New("ambiguous session cookie")
 // Dependencies are the Authling-owned services used by the server-rendered
 // browser surface.
 type Dependencies struct {
+	// Site is display text shared by every browser page.
+	Site           config.SiteConfig
 	Accounts       *accounts.Service
 	Authentication *authentication.Service
 	Registration   *registration.Service
@@ -95,7 +99,10 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	if deps.TrustProxyHeaders {
 		handler = useTrustedProxyOrigin(handler)
 	}
-	return securityHeaders(handler)
+	site := deps.Site.Resolve(deps.PublicURL)
+	return securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), siteContextKey{}, site)))
+	}))
 }
 
 func useTrustedProxyOrigin(next http.Handler) http.Handler {
@@ -405,4 +412,20 @@ func contentSecurityPolicy(additionalFormOrigin string) string {
 		formAction += " " + additionalFormOrigin
 	}
 	return "default-src 'none'; connect-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action " + formAction + "; frame-ancestors 'none'"
+}
+
+// siteContextKey keeps each handler's display configuration local to its requests.
+type siteContextKey struct{}
+
+func siteFromContext(ctx context.Context) config.SiteConfig {
+	site, _ := ctx.Value(siteContextKey{}).(config.SiteConfig)
+	return site.Resolve("")
+}
+
+func sitePageTitle(ctx context.Context, title string) string {
+	name := siteFromContext(ctx).Name
+	if title == "" {
+		return name
+	}
+	return title + " · " + name
 }

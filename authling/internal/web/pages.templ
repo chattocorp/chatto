@@ -11,49 +11,58 @@ import (
 )
 
 templ layout(title, signedInAs string) {
+	@pageLayout(title, signedInAs, false) {
+		{ children... }
+	}
+}
+
+templ pageLayout(title, signedInAs string, wide bool) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<meta name="color-scheme" content="light dark"/>
-			<meta name="description" content="Authling is a self-hosted OpenID Connect identity provider."/>
-			<title>{ title }</title>
+			if siteFromContext(ctx).Description != "" {
+				<meta name="description" content={ siteFromContext(ctx).Description }/>
+			}
+			<title>{ sitePageTitle(ctx, title) }</title>
 			<link rel="preload" href={ browserAssets.url("ibm-plex-sans-latin-wght-normal.woff2") } as="font" type="font/woff2" crossorigin="anonymous"/>
 			<link rel="stylesheet" href={ browserAssets.url("app.css") }/>
 		</head>
 		<body class="min-h-screen">
-			<header class="border-b border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/80">
-				<div class="mx-auto flex max-w-xl items-center justify-between gap-4 px-6 py-4">
-					<a class="flex items-center gap-3 font-semibold" href="/">
-						<span class="flex size-9 items-center justify-center rounded-xl bg-authling-500 text-white shadow-md shadow-authling-500/20"><span class="iconify uil--shield-check text-xl" aria-hidden="true"></span></span>
-						<span>Authling</span>
+			<a class="skip-link" href="#main-content">Skip to content</a>
+			<header class="site-header">
+				<div class="mx-auto flex max-w-4xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+					<a class="site-brand" href="/">
+						<span class="iconify uil--shield-check shrink-0 text-2xl text-neutral-600 dark:text-neutral-200" aria-hidden="true"></span>
+						<span class="min-w-0 break-words">{ siteFromContext(ctx).Name }</span>
 					</a>
 					if signedInAs != "" {
-						<a class="flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 text-right text-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-authling-500 dark:hover:bg-slate-900" href="/account" aria-label={ "Signed in as " + signedInAs + ". View your account." }>
-							<span class="min-w-0">
-								<span class="block text-xs font-medium text-slate-500 dark:text-slate-400">Signed in as</span>
-								<span class="block max-w-64 truncate font-semibold" title={ signedInAs }>{ signedInAs }</span>
-							</span>
-							<span class="iconify uil--user-circle shrink-0 text-2xl text-slate-400" aria-hidden="true"></span>
+						<a class="account-link" href="/account" aria-label={ "Signed in as " + signedInAs + ". View your account." }>
+							<span class="iconify uil--user-circle shrink-0 text-xl" aria-hidden="true"></span>
+							<span class="hidden max-w-56 truncate sm:block" title={ signedInAs }>{ signedInAs }</span>
+							<span class="sm:hidden">Account</span>
 						</a>
 					}
 				</div>
 			</header>
-			<main class="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-xl items-center px-6 py-12 sm:py-16">
-				<section class="w-full rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-12 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+			<main id="main-content" tabindex="-1" class={ "page-main", templ.KV("page-main-wide", wide) }>
+				<div class={ "page-surface", templ.KV("page-surface-wide", wide) }>
 					{ children... }
-				</section>
+				</div>
 			</main>
 		</body>
 	</html>
 }
 
 templ homePage() {
-	@layout("Authling", "") {
-		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Authling</p>
-		<h1 class="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">Identity, under your control.</h1>
-		<p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Sign in with your verified email address, or create a new account.</p>
+	@layout("", "") {
+		<h1 class="text-3xl font-semibold tracking-tight text-balance">Welcome to { siteFromContext(ctx).Name }</h1>
+		if siteFromContext(ctx).Description != "" {
+			<p class="mt-4 text-lg leading-7 text-neutral-600 dark:text-neutral-300">{ siteFromContext(ctx).Description }</p>
+		}
+		<p class="mt-4 leading-7 text-neutral-600 dark:text-neutral-300">Sign in with your verified email address, or create a new account.</p>
 		<div class="mt-8 flex flex-wrap gap-3">
 			<a class="button button-primary" href="/login">Sign in</a>
 			<a class="button button-secondary" href="/signup">Create account</a>
@@ -62,9 +71,9 @@ templ homePage() {
 }
 
 templ loginPage(message, oidcRequest, returnPath string) {
-	@layout("Sign in to Authling", "") {
+	@layout("Sign in", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Sign in</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Use the email address and password for your account.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Sign in to { siteFromContext(ctx).Name } with your email address and password.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -80,7 +89,7 @@ templ loginPage(message, oidcRequest, returnPath string) {
 			<button class="button button-primary w-full" type="submit">Sign in</button>
 		</form>
 		<p class="mt-4 text-sm"><a class="text-link" href={ passwordResetURL(oidcRequest) }>Forgot your password?</a></p>
-		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">No account yet? <a class="text-link" href={ signupURL(oidcRequest) }>Create one</a>.</p>
+		<p class="mt-6 text-sm text-neutral-500 dark:text-neutral-400">No account yet? <a class="text-link" href={ signupURL(oidcRequest) }>Create one</a>.</p>
 	}
 }
 
@@ -101,7 +110,7 @@ func passwordResetURL(oidcRequest string) string {
 templ passwordResetPage(message, oidcRequest string) {
 	@layout("Reset your password", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Reset your password</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit password reset code.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">We’ll email you a six-digit password reset code.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -112,14 +121,14 @@ templ passwordResetPage(message, oidcRequest string) {
 			<label class="block"><span class="font-medium">Email address</span><input class="form-control" type="email" name="email" autocomplete="email" autofocus required/></label>
 			<button class="button button-primary w-full" type="submit">Email me a reset code</button>
 		</form>
-		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400"><a class="text-link" href="/login">Return to sign in</a>.</p>
+		<p class="mt-6 text-sm text-neutral-500 dark:text-neutral-400"><a class="text-link" href="/login">Return to sign in</a>.</p>
 	}
 }
 
 templ passwordResetCodePage(flow, message, oidcRequest string) {
 	@layout("Enter your password reset code", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -137,7 +146,7 @@ templ passwordResetCodePage(flow, message, oidcRequest string) {
 templ newPasswordPage(flow, message string, passwordMinimumLength int, oidcRequest string) {
 	@layout("Choose a new password", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Choose a new password</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Changing your password signs out your other Authling browser sessions.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Changing your password signs out your other browser sessions on { siteFromContext(ctx).Name }.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -155,7 +164,7 @@ templ newPasswordPage(flow, message string, passwordMinimumLength int, oidcReque
 templ passwordResetCompletePage() {
 	@layout("Password reset", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Your password was reset</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Your new password is ready. Sign in to continue.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Your new password is ready. Sign in to continue.</p>
 		<a class="button button-primary mt-8" href="/login">Sign in</a>
 	}
 }
@@ -163,7 +172,7 @@ templ passwordResetCompletePage() {
 templ emailChangePage(message, signedInAs string) {
 	@layout("Change your email address", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Change your email address</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Enter your current password, then verify the new address. This signs out your other Authling browser sessions.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Enter your current password, then verify the new address. This signs out your other browser sessions on { siteFromContext(ctx).Name }.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -178,7 +187,7 @@ templ emailChangePage(message, signedInAs string) {
 templ emailChangeCodePage(flow, message, signedInAs string) {
 	@layout("Verify your new email address", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Check your new email address</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">We sent a six-digit code. It expires in 15 minutes.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">We sent a six-digit code. It expires in 15 minutes.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -193,7 +202,7 @@ templ emailChangeCodePage(flow, message, signedInAs string) {
 templ emailChangeConfirmPage(flow, message, signedInAs string) {
 	@layout("Confirm your email change", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Your new email address is verified</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Confirming will change your sign-in address and sign out your other Authling browser sessions.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Confirming will change your sign-in address and sign out your other browser sessions on { siteFromContext(ctx).Name }.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -207,10 +216,10 @@ templ emailChangeConfirmPage(flow, message, signedInAs string) {
 templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID string, profile accounts.Profile) {
 	@layout("Authorize access", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300"><strong>{ request.ClientHost }</strong> is asking for access to your account.</p>
-		<div class="mt-5 rounded-xl border border-slate-300 p-4 dark:border-slate-700">
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300"><strong>{ request.ClientHost }</strong> is asking for access to your account.</p>
+		<div class="mt-5 rounded-xl border border-neutral-300 p-4 dark:border-neutral-700">
 			<p class="font-medium">This application will be able to:</p>
-			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-neutral-600 dark:text-neutral-300">
 				<li>Know your stable account ID: <span class="break-all font-medium">{ accountID }</span>.</li>
 				<li>Read your username: <span class="break-all font-medium">{ profile.PreferredUsername }</span>.</li>
 				if profile.FullName != "" {
@@ -220,7 +229,7 @@ templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID str
 				}
 			</ul>
 		</div>
-		<p class="mt-4 text-sm text-slate-600 dark:text-slate-300">This access includes future changes to your username and full name. You can revoke this access from your account page.</p>
+		<p class="mt-4 text-sm text-neutral-600 dark:text-neutral-300">This access includes future changes to your username and full name. You can revoke this access from your account page.</p>
 		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">
 			<input type="hidden" name="consent_version" value={ strconv.FormatUint(uint64(authorizations.ConsentVersion), 10) }/>
 			<input type="hidden" name="id" value={ request.ID }/>
@@ -231,9 +240,9 @@ templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID str
 }
 
 templ signupPage(message, oidcRequest string) {
-	@layout("Create your Authling account", "") {
+	@layout("Create your account", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Create your account</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit verification code.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">We’ll email you a six-digit verification code.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -250,7 +259,7 @@ templ signupPage(message, oidcRequest string) {
 templ codePage(flow, message, oidcRequest string) {
 	@layout("Verify your email", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -268,7 +277,7 @@ templ codePage(flow, message, oidcRequest string) {
 templ passwordPage(flow, message string, passwordMinimumLength int, oidcRequest string) {
 	@layout("Choose a password", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Choose a password</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Spaces and passphrases are welcome.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Spaces and passphrases are welcome.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -287,18 +296,18 @@ templ passwordPage(flow, message string, passwordMinimumLength int, oidcRequest 
 templ accountCreatedPage(accountID string) {
 	@layout("Account created", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account is ready</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Your email was verified and your account was created.</p>
-		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Your email was verified and your account was created.</p>
+		<p class="mt-6 text-sm text-neutral-500 dark:text-neutral-400">Account ID: <code>{ accountID }</code></p>
 		<a class="button button-primary mt-8" href="/login">Sign in</a>
 	}
 }
 
 templ accountPage(accountID, signedInAs string, browserSessions []sessions.BrowserSession, authorizationGrants []authorizations.Grant, passwordChanged, emailChanged, profileUpdated, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing, appRevoked, appMissing bool) {
-	@layout("Your Authling account", signedInAs) {
+	@pageLayout("Your account", signedInAs, true) {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Manage your profile, security, and connected apps.</p>
 		if passwordChanged {
-			<p role="status" class="notice notice-success">Your password was changed. Your other Authling browser sessions were signed out.</p>
+			<p role="status" class="notice notice-success">Your password was changed. Your other browser sessions on { siteFromContext(ctx).Name } were signed out.</p>
 		}
 		if emailChanged {
 			<p role="status" class="notice notice-success">Your email address was changed. Use your new email address the next time you sign in.</p>
@@ -324,28 +333,36 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 		if appMissing {
 			<p role="status" class="notice notice-neutral">That app is no longer authorized.</p>
 		}
-		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
-		<a class="button button-secondary mt-8 w-full" href="/account/profile">Edit profile</a>
-		<a class="button button-secondary mt-3 w-full" href="/account/email">Change email address</a>
-		<a class="button button-secondary mt-3 w-full" href="/account/password">Change password</a>
-		<a class="button button-secondary mt-3 w-full" href="/account/delete">Delete account</a>
-		<form class="mt-3" method="post" action="/logout">
-			<button class="button button-secondary w-full" type="submit">Sign out</button>
-		</form>
-		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
-			<h2 class="text-xl font-semibold tracking-tight">Authorized apps</h2>
-			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Apps you authorized through Authling. Access can include your account ID, username, and full name. Revoking an app makes it ask again next time; existing app sessions and issued tokens are not ended here.</p>
+		<section class="settings-section" aria-labelledby="profile-heading">
+			<h2 id="profile-heading" class="settings-heading">Profile</h2>
+			<p class="settings-description">Choose how you appear in connected apps.</p>
+			<div class="settings-actions">
+				<a class="settings-link" href="/account/profile"><span>Edit profile</span><span aria-hidden="true">›</span></a>
+				<a class="settings-link" href="/account/email"><span>Change email address</span><span aria-hidden="true">›</span></a>
+			</div>
+			<p class="mt-4 break-all text-xs text-neutral-500 dark:text-neutral-400">Account ID: <code>{ accountID }</code></p>
+		</section>
+		<section class="settings-section" aria-labelledby="security-heading">
+			<h2 id="security-heading" class="settings-heading">Security</h2>
+			<p class="settings-description">Keep your sign-in details up to date.</p>
+			<div class="settings-actions">
+				<a class="settings-link" href="/account/password"><span>Change password</span><span aria-hidden="true">›</span></a>
+			</div>
+		</section>
+		<section class="settings-section">
+			<h2 class="settings-heading">Connected apps</h2>
+			<p class="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Apps you allowed to access your { siteFromContext(ctx).Name } account. Access can include your account ID, username, and full name. Revoking access makes the app ask again next time. It does not sign you out of the app or invalidate tokens it already has.</p>
 			if len(authorizationGrants) == 0 {
-				<p class="mt-5 rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">You haven’t authorized any apps yet.</p>
+				<p class="mt-4 text-sm text-neutral-500 dark:text-neutral-400">You haven’t authorized any apps yet.</p>
 			} else {
 				<div class="mt-5 space-y-3">
 					for _, grant := range authorizationGrants {
-						<div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+						<div class="settings-item">
 							<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
 								<div class="min-w-0">
 									<p class="font-semibold">{ grant.ClientName }</p>
-									<p class="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{ grant.ClientHost }</p>
-									<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Authorized { formatSessionTime(grant.AuthorizedAt) }</p>
+									<p class="mt-1 break-words text-sm text-neutral-500 dark:text-neutral-400">{ grant.ClientHost }</p>
+									<p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Authorized { formatSessionTime(grant.AuthorizedAt) }</p>
 								</div>
 								<form class="w-full sm:w-auto" method="post" action="/account/authorizations/revoke">
 									<input type="hidden" name="grant_id" value={ grant.ID }/>
@@ -356,22 +373,22 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 					}
 				</div>
 			}
-		</div>
-		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
-			<h2 class="text-xl font-semibold tracking-tight">Browser sessions</h2>
-			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Review where your account is signed in. Authling does not store browser names, IP addresses, or locations.</p>
+		</section>
+		<section class="settings-section">
+			<h2 class="settings-heading">Sessions</h2>
+			<p class="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Review your sign-ins on { siteFromContext(ctx).Name }. We do not store browser names, IP addresses, or locations.</p>
 			<div class="mt-5 space-y-3">
 				for _, browserSession := range browserSessions {
-					<div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+					<div class="settings-item">
 						<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
 							<div>
 								<div class="flex flex-wrap items-center gap-2">
 									<p class="font-semibold">Browser session</p>
 									if browserSession.Current {
-										<span class="rounded-full bg-authling-100 px-2.5 py-1 text-xs font-semibold text-authling-800 dark:bg-authling-950 dark:text-authling-100">This browser</span>
+										<span class="rounded-full bg-neutral-50 px-2.5 py-1 text-xs font-semibold text-neutral-600 dark:bg-neutral-950 dark:text-neutral-200">This browser</span>
 									}
 								</div>
-								<dl class="mt-2 space-y-1 text-sm text-slate-500 dark:text-slate-400">
+								<dl class="mt-2 space-y-1 text-sm text-neutral-500 dark:text-neutral-400">
 									<div><dt class="inline">Started:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.CreatedAt) }</dd></div>
 									<div><dt class="inline">Last active:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.LastSeenAt) }</dd></div>
 									<div><dt class="inline">Expires:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.ExpiresAt) }</dd></div>
@@ -392,7 +409,15 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 					<button class="button button-danger w-full" type="submit">Sign out all other browsers</button>
 				</form>
 			}
-		</div>
+		</section>
+		<section class="settings-section" aria-labelledby="delete-heading">
+			<h2 id="delete-heading" class="settings-heading">Delete account</h2>
+			<p class="settings-description">Permanently close your account on { siteFromContext(ctx).Name }.</p>
+			<a class="button button-danger button-compact mt-4" href="/account/delete">Delete account</a>
+		</section>
+		<form class="settings-section" method="post" action="/logout">
+			<button class="button button-secondary button-compact" type="submit">Sign out</button>
+		</form>
 	}
 }
 
@@ -412,12 +437,12 @@ func formatSessionTime(value time.Time) string {
 templ profilePage(profile accounts.Profile, message, signedInAs string) {
 	@layout("Edit your profile", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Edit your profile</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">These non-unique identity hints are shared with applications you authorize.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Connected apps can see your username and full name. Other people can use the same names.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
 		<form class="mt-8 space-y-5" method="post" action="/account/profile">
-			<label class="block"><span class="font-medium">Preferred username</span><input class="form-control" type="text" name="preferred_username" autocomplete="username" minlength="2" maxlength="64" value={ profile.PreferredUsername } autofocus required/><span class="mt-2 block text-sm text-slate-500 dark:text-slate-400">This does not have to be unique.</span></label>
+			<label class="block"><span class="font-medium">Preferred username</span><input class="form-control" type="text" name="preferred_username" autocomplete="username" minlength="2" maxlength="64" value={ profile.PreferredUsername } autofocus required/><span class="mt-2 block text-sm text-neutral-500 dark:text-neutral-400">This does not have to be unique.</span></label>
 			<label class="block"><span class="font-medium">Full name</span><input class="form-control" type="text" name="full_name" autocomplete="name" maxlength="128" value={ profile.FullName }/></label>
 			<button class="button button-primary w-full" type="submit">Save profile</button>
 		</form>
@@ -428,7 +453,7 @@ templ profilePage(profile accounts.Profile, message, signedInAs string) {
 templ passwordChangePage(message string, passwordMinimumLength int, signedInAs string) {
 	@layout("Change your password", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Change your password</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Enter your current password and choose a new one. This signs out your other Authling browser sessions.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Enter your current password and choose a new one. This signs out your other browser sessions on { siteFromContext(ctx).Name }.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
@@ -445,15 +470,15 @@ templ passwordChangePage(message string, passwordMinimumLength int, signedInAs s
 templ deleteAccountPage(message string) {
 	@layout("Delete account", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Delete your account</h1>
-		<p class="mt-4 leading-7">This cannot be undone. You will be signed out of Authling on every device. Your private account details will become unreadable when background key erasure finishes. Encrypted history and basic audit records remain.</p>
-		<p class="mt-4 leading-7">This does not delete your data or end sessions in other apps. Those apps may still accept identity tokens already issued by Authling until they expire.</p>
+		<p class="mt-4 leading-7">This cannot be undone. You will be signed out of { siteFromContext(ctx).Name } on every device. Your private account details will become unreadable when background key erasure finishes. Encrypted history and basic audit records remain.</p>
+		<p class="mt-4 leading-7">This does not delete your data or end sessions in other apps. Those apps may still accept identity tokens already issued by { siteFromContext(ctx).Name } until they expire.</p>
 		<p class="mt-4 leading-7">Short-lived verification records expire separately. Backup copies follow the operator’s retention policy. You can sign up again with the same email address, but you will get a new account ID.</p>
 		if message != "" {
 			<p class="notice notice-error" role="alert">{ message }</p>
 		}
 		<form class="mt-8 space-y-5" method="post" action="/account/delete">
 			<label class="block"><span class="font-medium">Current password</span><input class="form-control" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
-			<label class="flex items-start gap-3"><input class="mt-1" type="checkbox" name="confirm" value="delete" required/><span>I understand that this permanently deletes my Authling account.</span></label>
+			<label class="flex items-start gap-3"><input class="mt-1" type="checkbox" name="confirm" value="delete" required/><span>I understand that this permanently deletes my account on { siteFromContext(ctx).Name }.</span></label>
 			<button class="button button-danger w-full" type="submit">Permanently delete account</button>
 			<a class="button button-secondary w-full" href="/account">Keep my account</a>
 		</form>
@@ -463,7 +488,7 @@ templ deleteAccountPage(message string) {
 templ accountDeletedPage() {
 	@layout("Account deleted", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account is closed</h1>
-		<p class="mt-4 leading-7">Authling access has ended. Background key erasure will finish automatically, including after a restart.</p>
+		<p class="mt-4 leading-7">You can no longer sign in to { siteFromContext(ctx).Name } with this account. We will finish removing access to your private account details automatically.</p>
 		<a class="button button-secondary mt-8 w-full" href="/">Return home</a>
 	}
 }
