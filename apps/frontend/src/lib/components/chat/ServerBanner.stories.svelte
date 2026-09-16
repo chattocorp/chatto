@@ -11,7 +11,18 @@
 </script>
 
 <Story name="Sidebar artwork" asChild>
-	<div class="w-64 bg-background py-4">
+	<div class="w-64 border-x border-border bg-background">
+		<div class="border-b border-border px-4 py-3 font-semibold">Design studio</div>
 		<ServerBanner url={artwork} />
+		<nav class="sidebar-nav p-2" aria-label="Server navigation">
+			<button type="button" class="sidebar-item">
+				<span class="iconify sidebar-icon icon-[uil--estate]" aria-hidden="true"></span>
+				Overview
+			</button>
+			<button type="button" class="sidebar-item">
+				<span class="iconify sidebar-icon icon-[uil--comment-alt]" aria-hidden="true"></span>
+				General
+			</button>
+		</nav>
 	</div>
 </Story>

@@ -5,12 +5,11 @@
   let { url }: { url: string } = $props();
 </script>
 
-<div class="w-full p-2">
-  <div class="media-surface aspect-[1200/630] max-h-32 w-full">
-    <SkeletonImg
-      src={url}
-      alt={m('media.server_banner_alt')}
-      class="absolute inset-0 h-full w-full object-cover"
-    />
-  </div>
+<!-- @component Full-width server artwork separated from the sidebar navigation. -->
+<div class="relative aspect-[1200/630] max-h-32 w-full overflow-hidden border-b border-border bg-surface">
+  <SkeletonImg
+    src={url}
+    alt={m('media.server_banner_alt')}
+    class="absolute inset-0 h-full w-full object-cover"
+  />
 </div>

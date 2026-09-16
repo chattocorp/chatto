@@ -1151,23 +1151,6 @@
   @apply shell-lighting rounded-xl bg-surface;
 }
 
-/* Image surfaces keep their artwork visible under a glossy bevel overlay. */
-@utility media-surface {
-  @apply relative isolate overflow-hidden rounded-2xl bg-surface shadow-[var(--depth-shadow-sm)];
-
-  &::after {
-    @apply surface-raised pointer-events-none absolute inset-0 z-1 rounded-[inherit];
-    --lighting-top: rgb(255 255 255 / calc(0.045 * var(--depth-strength)));
-    --lighting-bottom: rgb(0 0 0 / calc(0.03 * var(--depth-strength)));
-    --lighting-midpoint: 45%;
-    --lighting-edge-width: calc(2px * var(--depth-width));
-    --lighting-edge-blur: calc(1px * var(--depth-width));
-    --lighting-edge-top: rgb(255 255 255 / calc(0.2 * var(--depth-strength)));
-    --lighting-edge-bottom: rgb(0 0 0 / calc(0.12 * var(--depth-strength)));
-    content: '';
-  }
-}
-
 /* Composer input and formatting surfaces share the app shell's compact radius. */
 @utility composer-surface {
   @apply shell-surface;

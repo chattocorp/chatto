@@ -576,7 +576,6 @@ when this transition ends. Keyboard or pointer input ends all startup
 animations and shows the complete page immediately. Automatic form focus does
 not stop the reveal. Reduced motion removes the shell without a transition.
 
-Server banners use `media-surface`: a glossy `surface-raised` overlay with a
-soft two-pixel bevel, larger corner radius, and soft outer shadow.
-`--lighting-edge-width` and `--lighting-edge-blur` control bevel geometry in
-the shared raised primitive; other surfaces retain their one-pixel edges. The overlay preserves the image crop and does not intercept input.
+Server banners fill the sidebar width with square corners and a bottom
+`border-border` separator. They form part of the app grid and use no bevel,
+gloss overlay, or outer shadow. Keep the image cover-fitted within its height cap.
