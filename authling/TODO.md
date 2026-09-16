@@ -33,7 +33,6 @@ current runtime in `docs/architecture/`.
 - [ ] Add rotating refresh tokens bound to durable authorization-grant generations
 - [ ] Add token-revocation and RP-initiated logout behavior
 - [ ] Define identity-claim release policies before adding further scopes and claims
-- [ ] Fix Basic OP conformance failures: missing response_type error and client_secret_post authentication (see tools/conformance/README.md)
 - [ ] Assess conformance warnings for extra ID Token claims, requested claims, and token revocation after code reuse
 - [ ] Automate browser flows and CI for the official OpenID Provider suite; `mise test-conformance` provides a local interactive session
 - [ ] Add version-skew fixtures for CIMD-aware Chatto consumers

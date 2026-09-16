@@ -77,7 +77,8 @@ func (c OIDCConfig) SigningKeyRotationInterval() time.Duration {
 }
 
 // OIDCClientConfig declares one conventional OpenID Connect client. An empty
-// secret creates a public client; a non-empty secret enables client_secret_basic.
+// secret creates a public client; a non-empty secret enables client_secret_basic
+// and client_secret_post.
 type OIDCClientConfig struct {
 	ID           string   `toml:"id"`
 	Name         string   `toml:"name"`

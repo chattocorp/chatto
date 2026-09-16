@@ -60,7 +60,7 @@ fallback. Fields have corresponding `AUTHLING_SMTP_*` environment overrides.
 Each `[[oidc.clients]]` table declares a conventional OIDC client with `id`,
 `name`, and one or more exact `redirect_uris`. An omitted `secret` creates a
 public client; a secret of at least 32 characters enables
-`client_secret_basic`. The optional `require_pkce` field defaults to true;
+`client_secret_basic` or `client_secret_post`. The optional `require_pkce` field defaults to true;
 only clients with a secret may set it to false. URL client IDs are reserved for
 CIMD. Admission of unregistered clients requires `oidc.allow_unregistered_clients = true` or
 `AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS=true`; the default is false. The runtime constructs

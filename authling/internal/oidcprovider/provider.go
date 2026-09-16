@@ -79,7 +79,7 @@ func (s *Service) Initialize(ctx context.Context) error {
 		options = append(options, op.WithAllowInsecure())
 	}
 	provider, err := op.NewProvider(&op.Config{
-		CryptoKey: tokenKey, CryptoKeyId: "authling-oidc-token-v1", CodeMethodS256: true,
+		CryptoKey: tokenKey, CryptoKeyId: "authling-oidc-token-v1", CodeMethodS256: true, AuthMethodPost: true,
 		SupportedClaims: []string{"sub", "preferred_username", "name", "auth_time"}, SupportedScopes: []string{liboidc.ScopeOpenID},
 	}, s.storage, op.StaticIssuer(state.Issuer), options...)
 	if err != nil {
@@ -254,7 +254,9 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 		if r.URL.Path == "/oauth/token" {
 			if err := validateTokenRequest(w, r); err != nil {
 				w.Header().Set("Cache-Control", "no-store")
-				http.Error(w, "invalid token request", http.StatusBadRequest)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"error":"invalid_request"}`))
 				return
 			}
 		}
@@ -377,7 +379,7 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 		"grant_types_supported":                 []string{"authorization_code"},
 		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
-		"token_endpoint_auth_methods_supported": []string{"none", "client_secret_basic"},
+		"token_endpoint_auth_methods_supported": []string{"none", "client_secret_basic", "client_secret_post"},
 		"claims_supported":                      []string{"sub", "preferred_username", "name", "auth_time"},
 		"code_challenge_methods_supported":      []string{"S256"},
 		"request_parameter_supported":           false,
@@ -415,8 +417,11 @@ func validateAuthorizeRequest(r *http.Request, requirePKCE bool) *authorizationR
 	if responseMode := query.Get("response_mode"); responseMode != "" && responseMode != string(liboidc.ResponseModeQuery) {
 		return localError()
 	}
+	if query.Get("response_type") == "" {
+		return clientError("invalid_request")
+	}
 	if query.Get("response_type") != string(liboidc.ResponseTypeCode) {
-		return clientError("unauthorized_client")
+		return clientError("unsupported_response_type")
 	}
 	if !validAuthorizeScopes(query.Get("scope")) {
 		return clientError("invalid_scope")
@@ -486,6 +491,25 @@ func validateTokenRequest(w http.ResponseWriter, r *http.Request) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil {
 		return err
+	}
+	// The library decodes the merged Form map. Reject query parameters so
+	// credentials cannot be accepted from URLs or override body parameters.
+	if r.URL.RawQuery != "" {
+		return fmt.Errorf("token parameters must be in the body")
+	}
+	if r.PostForm.Has("client_assertion") || r.PostForm.Has("client_assertion_type") {
+		return fmt.Errorf("unsupported client authentication")
+	}
+	if len(r.Header.Values("Authorization")) > 1 {
+		return fmt.Errorf("multiple authorization headers")
+	}
+	if r.Header.Get("Authorization") != "" {
+		if _, _, ok := r.BasicAuth(); !ok {
+			return fmt.Errorf("unsupported authorization header")
+		}
+		if r.PostForm.Has("client_secret") {
+			return fmt.Errorf("multiple client authentication methods")
+		}
 	}
 	for _, name := range []string{"grant_type", "client_id", "client_secret", "redirect_uri", "code", "code_verifier"} {
 		if len(r.PostForm[name]) > 1 {
