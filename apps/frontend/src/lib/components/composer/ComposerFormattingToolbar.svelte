@@ -6,6 +6,8 @@ whether the shelf is visible and keeps message-level actions in its compact
 input row.
 -->
 <script lang="ts">
+  import { scale } from 'svelte/transition';
+  import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from '$lib/ui/motion';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { m } from '$lib/i18n/messages';
   import type {
@@ -71,7 +73,12 @@ input row.
   }
 </script>
 
-<div {id} class="w-fit max-w-full self-start" data-testid="composer-formatting-shelf">
+<div
+  {id}
+  class="w-fit max-w-full origin-bottom-left self-start rtl:origin-bottom-right"
+  transition:scale|global={{ ...expoOutTransition(COMPACT_MOTION_DURATION_MS), start: 0.96 }}
+  data-testid="composer-formatting-shelf"
+>
   <div
     class="flex min-w-0 [scrollbar-width:none] gap-1.5 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
     data-testid="composer-formatting-toolbar"

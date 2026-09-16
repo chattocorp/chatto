@@ -12,6 +12,8 @@
 <script lang="ts">
   import type { ComposerEditorApi, ComposerFormattingState } from './editorTypes';
 
+  let visible = $state(false);
+
   let formattingState = $state<ComposerFormattingState>({
     bold: true,
     italic: false,
@@ -36,6 +38,23 @@
     insertQuote: () => {}
   };
 </script>
+
+<Story name="Reveal motion" asChild>
+  <div class="flex w-80 flex-col items-start gap-1">
+    {#if visible}
+      <ComposerFormattingToolbar
+        id="formatting-motion"
+        {formattingState}
+        {editorApi}
+        indentState={{ canIndent: true, canOutdent: false }}
+        inputDisabled={false}
+      />
+    {/if}
+    <button class="btn" onclick={() => (visible = !visible)} aria-expanded={visible}>
+      Toggle formatting
+    </button>
+  </div>
+</Story>
 
 <Story name="Compact" asChild>
   <ComposerFormattingToolbar
