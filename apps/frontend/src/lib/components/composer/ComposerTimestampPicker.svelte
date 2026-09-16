@@ -1,5 +1,5 @@
 <script lang="ts">
-  import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
+  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import { tick } from 'svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { m } from '$lib/i18n/messages';
@@ -100,20 +100,16 @@
   }
 </script>
 
-<PillButtonGroup compact label={m('composer.timestamp.insert_label')} class="w-auto shrink-0">
-  <button
-    type="button"
-    onpointerdown={(event) => event.preventDefault()}
-    onclick={openPicker}
-    bind:this={triggerElement}
-    {disabled}
-    class="pill-button"
-    aria-label={m('composer.timestamp.insert_label')}
-    title={m('composer.timestamp.insert_label')}
-  >
-    <span class="iconify icon-[uil--clock] text-[15px]"></span>
-  </button>
-</PillButtonGroup>
+<CompactActionButton
+  label={m('composer.timestamp.insert_label')}
+  type="button"
+  onpointerdown={(event) => event.preventDefault()}
+  onclick={openPicker}
+  {disabled}
+  title={m('composer.timestamp.insert_label')}
+>
+  <span class="iconify icon-[uil--clock] text-[15px]"></span>
+</CompactActionButton>
 
 {#if pickerOpen}
   <ContextMenu

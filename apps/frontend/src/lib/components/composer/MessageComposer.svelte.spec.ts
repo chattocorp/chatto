@@ -553,6 +553,13 @@ describe('MessageComposer', () => {
       container.style.width = '600px';
       await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
       expect(row.getBoundingClientRect().width).toBeGreaterThan(200);
+      const formattingToggle = surface.querySelector('button[aria-controls]')!;
+      const centre = (element: Element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      };
+      expect(Math.abs(centre(formattingToggle) - centre(row))).toBeLessThan(1);
+      expect(Math.abs(centre(actions) - centre(row))).toBeLessThan(1);
       expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
     });
 

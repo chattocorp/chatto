@@ -26,6 +26,7 @@
   import MentionAutocomplete from './MentionAutocomplete.svelte';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
   import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
+  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
   import ComposerToolbar from './ComposerToolbar.svelte';
   import ComposerModeIndicators from './ComposerModeIndicators.svelte';
@@ -252,7 +253,7 @@
 
   <div
     data-testid="composer-input-surface"
-    class="@container relative grid grid-cols-[1.5rem_minmax(0,1fr)] chat-input-surface min-w-0 items-end gap-1 px-2.5 py-1.5 @min-[320px]/composer:flex"
+    class="@container relative grid chat-input-surface min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] items-end gap-1 px-2.5 py-1.5 @min-[320px]/composer:flex"
     class:opacity-50={composer.inputDisabled}
   >
     {#if composer.autocomplete.emoji}
@@ -275,26 +276,27 @@
       />
     {/if}
 
-    <button
+    <CompactActionButton
+      wrapperClass="mb-1 w-7"
+      label={m('composer.formatting_options')}
       type="button"
       onpointerdown={(event) => event.preventDefault()}
       onclick={() =>
         (userPreferences.composerFormattingToolbarVisible =
           !userPreferences.composerFormattingToolbarVisible)}
-      aria-label={m('composer.formatting_options')}
       aria-controls={formattingToolbarId}
       aria-expanded={userPreferences.composerFormattingToolbarVisible}
       aria-pressed={userPreferences.composerFormattingToolbarVisible}
       title={m('composer.formatting_options')}
       class={[
-        'mb-1.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-sm font-semibold transition-[background-color,color,scale] duration-100 active:scale-[0.96]',
+        'text-sm font-semibold',
         userPreferences.composerFormattingToolbarVisible
           ? 'bg-surface-emphasized text-text'
           : 'text-muted hover:bg-surface-emphasized hover:text-text'
       ]}
     >
       <span aria-hidden="true">Aa</span>
-    </button>
+    </CompactActionButton>
 
     <div class="min-h-9 min-w-0 flex-1 px-0.5 py-0.5" data-testid="composer-editor-row">
       {#await editorModule}

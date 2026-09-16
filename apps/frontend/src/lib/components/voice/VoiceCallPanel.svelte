@@ -15,6 +15,7 @@ Room sidebar panel for voice/video calls.
 -->
 <script lang="ts">
   import WipeReveal from '$lib/ui/WipeReveal.svelte';
+  import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -328,39 +329,34 @@ Room sidebar panel for voice/video calls.
     ? voiceCallState.isMuted
     : participant.isLocallyMuted}
   {#if !participant.isLocal || !isMutedForViewer || voiceCallState.canUseVoice}
-    <PillButtonGroup compact label={m('room.sidebar.call')} class="w-7 shrink-0">
-      <VoiceCallControlButton
-        icon={isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]'}
-        class={isMutedForViewer ? 'pill-button bg-surface-emphasized text-text' : 'pill-button'}
-        label={participant.isLocal
-          ? isMutedForViewer
-            ? m('voice.unmute')
-            : m('voice.mute')
-          : isMutedForViewer
-            ? m('voice.locally_unmute_participant')
-            : m('voice.locally_mute_participant')}
-        testId="call-feed-local-mute-button"
-        onclick={(event) => toggleFeedMute(participant, event)}
-      />
-    </PillButtonGroup>
+    <CompactActionButton
+      class={isMutedForViewer ? 'bg-surface-emphasized text-text' : undefined}
+      label={participant.isLocal
+        ? isMutedForViewer
+          ? m('voice.unmute')
+          : m('voice.mute')
+        : isMutedForViewer
+          ? m('voice.locally_unmute_participant')
+          : m('voice.locally_mute_participant')}
+      data-testid="call-feed-local-mute-button"
+      onclick={(event) => toggleFeedMute(participant, event)}
+    >
+      <span
+        class={['iconify', isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]']}
+        aria-hidden="true"
+      ></span>
+    </CompactActionButton>
   {/if}
 {/snippet}
 
 {#snippet mediaTileActions()}
-  <PillButtonGroup
-    compact
+  <CompactActionButton
     label={m('voice.fullscreen_feed')}
-    class="w-7 shrink-0"
-    testId="call-media-actions"
+    data-testid="call-feed-fullscreen-button"
+    onclick={toggleClosestMediaFullscreen}
   >
-    <VoiceCallControlButton
-      class="pill-button"
-      icon="icon-[mdi--fullscreen]"
-      label={m('voice.fullscreen_feed')}
-      testId="call-feed-fullscreen-button"
-      onclick={toggleClosestMediaFullscreen}
-    />
-  </PillButtonGroup>
+    <span class="iconify icon-[mdi--fullscreen]" aria-hidden="true"></span>
+  </CompactActionButton>
 {/snippet}
 
 {#snippet participantIndicators(participant: DisplayParticipant)}
@@ -607,7 +603,9 @@ Room sidebar panel for voice/video calls.
             class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
             label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
             testId="call-mute-toggle"
-            icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
+            icon={voiceCallState.isMuted
+              ? 'icon-[uil--microphone-slash]'
+              : 'icon-[uil--microphone]'}
             iconClass="text-lg"
             onclick={() => voiceCallState.toggleMute()}
             pending={voiceCallState.isMicrophonePending}

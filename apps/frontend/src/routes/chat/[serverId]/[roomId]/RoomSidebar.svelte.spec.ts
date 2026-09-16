@@ -1252,7 +1252,6 @@ describe('RoomSidebar', () => {
     });
 
     const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
-    const mediaActions = q(featured, '[data-testid="call-media-actions"]')!;
     const fullscreenButton = q(
       featured,
       '[data-testid="call-feed-fullscreen-button"]'
@@ -1262,6 +1261,7 @@ describe('RoomSidebar', () => {
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
 
+    const mediaActions = fullscreenButton.closest('[role="group"]')!;
     expect(mediaActions.className).toContain('pill-button-group-compact');
     expect(mediaActions.className).not.toContain('absolute');
     expect(fullscreenButton).toBeTruthy();

@@ -545,6 +545,16 @@
   }
 }
 
+@utility pill-button-group-hover-bevel {
+  background-color: transparent;
+  & > button:not(:hover):not(:focus-visible),
+  & > button:disabled {
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+  }
+}
+
 @utility pill-button-group-compact {
   @apply h-7 min-h-7 rounded-lg;
   & > button {

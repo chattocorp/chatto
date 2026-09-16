@@ -303,6 +303,10 @@ inside a `surface` card. Filled buttons and selected pane-header icon buttons
 share the `control-raised` finish. Inactive header icons stay flat. Do not add
 local gloss, blur, transparency, or extra shadows.
 
+Compact standalone composer actions and participant-card actions use
+`CompactActionButton`. Their backgrounds are transparent at rest and show
+the shared bevel on hover or keyboard focus. Disabled controls remain flat.
+
 ### Shared Depth Utilities
 
 `surface-raised` owns the gradient and lit-edge recipe. `surface-lowered` owns
