@@ -19,9 +19,9 @@ const routes = [
   },
   {
     name: 'overview',
-    // Shared toolbar transitions bring the local build to 339.1 KiB.
+    // Shared call/composer controls and transitions measure 340.3 KiB in CI.
     // Keep a small allowance for platform and compression variation.
-    budgetKiB: 340,
+    budgetKiB: 342,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
@@ -31,8 +31,9 @@ const routes = [
   },
   {
     name: 'room',
-    // The merged PR build measures 511.6 KiB in CI.
-    budgetKiB: 514,
+    // Shared call/composer controls and transitions measure 515.8 KiB in CI.
+    // Keep a small allowance for platform and compression variation.
+    budgetKiB: 518,
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
