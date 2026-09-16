@@ -223,6 +223,14 @@ Sans, and Iconify glyphs during the build; the resulting assets are embedded
 in the Go executable and served below `/assets/`. The runtime has no Node.js or
 third-party asset-host dependency.
 
+The server computes one content hash from the embedded asset names and bytes.
+Pages use `/assets/<hash>/` URLs, which have a one-year immutable public cache
+lifetime. Relative font URLs in CSS use the same version. The shared page layout
+preloads the Latin IBM Plex Sans font so the browser can reuse it on each page.
+Unversioned asset URLs require cache revalidation with an ETag. Missing files and
+unknown versions are not cached. HTML and authentication responses retain
+`Cache-Control: no-store`.
+
 The initial Content Security Policy prohibits scripts and third-party content.
 All essential future authentication interactions must continue to work through
 ordinary server-rendered links and forms.

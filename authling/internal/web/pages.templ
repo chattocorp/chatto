@@ -19,7 +19,8 @@ templ layout(title, signedInAs string) {
 			<meta name="color-scheme" content="light dark"/>
 			<meta name="description" content="Authling is a self-hosted OpenID Connect identity provider."/>
 			<title>{ title }</title>
-			<link rel="stylesheet" href="/assets/app.css"/>
+			<link rel="preload" href={ browserAssets.url("ibm-plex-sans-latin-wght-normal.woff2") } as="font" type="font/woff2" crossorigin="anonymous"/>
+			<link rel="stylesheet" href={ browserAssets.url("app.css") }/>
 		</head>
 		<body class="min-h-screen">
 			<header class="border-b border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/80">
