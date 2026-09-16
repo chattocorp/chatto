@@ -2,6 +2,13 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
+  import Interval from '$lib/lifecycle/Interval.svelte';
+  import {
+    browserAuthorizationWindow,
+    authorizationWindowFeatures,
+    type AuthorizationWindow
+  } from '$lib/oauth/authorizationWindow';
+  import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
   import {
     beginExplicitSignOutRedirect,
     cancelExplicitSignOutRedirect,
@@ -89,6 +96,81 @@
   );
   const loading = $derived(identitiesQuery.isPending && !identitiesQuery.data);
   let actionError = $state('');
+  // Keep refreshes bound to the account and session that opened this window.
+  let remoteLinkWindow = $state.raw<{
+    window: AuthorizationWindow;
+    scope: IdentityMutationScope;
+    userId: string;
+  } | null>(null);
+  let checkingWindow = false;
+
+  function remoteLinkIsCurrent() {
+    return (
+      remoteLinkWindow !== null &&
+      isCurrentSession(remoteLinkWindow.scope) &&
+      remoteLinkWindow.userId === currentUser.user?.id
+    );
+  }
+
+  function refreshAfterRemoteLink() {
+    if (remoteLinkIsCurrent()) void identitiesQuery.refetch();
+  }
+
+  async function checkRemoteLinkWindow() {
+    const pending = remoteLinkWindow;
+    if (!pending || checkingWindow) return;
+    if (!remoteLinkIsCurrent()) {
+      remoteLinkWindow = null;
+      return;
+    }
+    checkingWindow = true;
+    try {
+      if ((await pending.window.isClosed()) && remoteLinkWindow === pending) {
+        refreshAfterRemoteLink();
+        remoteLinkWindow = null;
+      }
+    } finally {
+      checkingWindow = false;
+    }
+  }
+
+  function openRemoteLink(provider: ExternalIdentityProviderInfo) {
+    actionError = '';
+    const userId = currentUser.user?.id;
+    if (!userId) return;
+    const url = new URL('/chat/-/settings/account', serverScope.connection.connectBaseUrl);
+    url.searchParams.set('link_provider', provider.id);
+    url.searchParams.set('link_user', userId);
+    const popup = window.open('about:blank', '_blank', authorizationWindowFeatures(window));
+    if (!popup) {
+      actionError = m('settings.account.sso.popup_blocked');
+      return;
+    }
+    const authorizationWindow = browserAuthorizationWindow(popup);
+    authorizationWindow.detachOpener();
+    const pending = { window: authorizationWindow, scope: mutationScope(), userId };
+    remoteLinkWindow = pending;
+    void authorizationWindow.navigate(url.href).catch(() => {
+      if (remoteLinkWindow !== pending) return;
+      if (remoteLinkIsCurrent()) actionError = m('settings.account.sso.link_failed');
+      remoteLinkWindow = null;
+      void authorizationWindow.close();
+    });
+  }
+
+  function continueProviderLink(providerId: string, userId: string) {
+    if (!userId || userId !== currentUser.user?.id) {
+      actionError = m('settings.account.sso.account_mismatch');
+      return;
+    }
+    const provider = providers.find((provider) => provider.id === providerId);
+    if (!provider) {
+      actionError = m('settings.account.sso.provider_unavailable');
+      return;
+    }
+    if (!provider.linked) void startProviderLink(provider);
+  }
+
   let linkFreshAuthProvider = $state<ExternalIdentityProviderInfo | null>(null);
   let linkCurrentPassword = $state('');
   let linkFreshAuthError = $state('');
@@ -201,6 +283,10 @@
     provider: ExternalIdentityProviderInfo,
     currentPassword?: string
   ) {
+    if (!serverRegistry.isOriginServer(serverScope.serverId)) {
+      openRemoteLink(provider);
+      return;
+    }
     const variables: LinkVariables = { ...mutationScope(), provider, currentPassword };
     actionError = '';
     try {
@@ -209,11 +295,20 @@
       window.location.href = startUrl;
     } catch (err) {
       if (!isCurrentSession(variables)) return;
-      if (err instanceof ConnectError && err.code === Code.FailedPrecondition && hasPassword) {
+      if (
+        err instanceof ConnectError &&
+        err.code === Code.FailedPrecondition &&
+        hasPassword &&
+        currentPassword === undefined
+      ) {
         linkFreshAuthProvider = provider;
         linkCurrentPassword = '';
         linkFreshAuthError = '';
-      } else if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
+      } else if (
+        err instanceof ConnectError &&
+        err.code === Code.FailedPrecondition &&
+        currentPassword === undefined
+      ) {
         actionError = m('settings.account.sso.fresh_auth_required');
       } else if (currentPassword !== undefined) {
         linkFreshAuthError =
@@ -372,6 +467,16 @@
   }
 </script>
 
+<svelte:window onfocus={refreshAfterRemoteLink} />
+
+{#if remoteLinkWindow}
+  <Interval milliseconds={500} ontick={checkRemoteLinkWindow} />
+{/if}
+
+{#if serverRegistry.isOriginServer(serverScope.serverId) && currentUser.user?.id && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
+  <IdentityLinkContinuation oncontinue={continueProviderLink} />
+{/if}
+
 <Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
   <div class="flex max-w-md flex-col gap-4">
     {#if loading}
@@ -419,7 +524,9 @@
                   variant="secondary"
                   size="sm"
                   loading={linkingProviderId === provider.id}
-                  disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                  disabled={linkingProviderId !== '' ||
+                    disconnectingSubjectHash !== '' ||
+                    remoteLinkWindow !== null}
                   onclick={() => startProviderLink(provider)}
                 >
                   <span class="iconify icon-[uil--link]"></span>

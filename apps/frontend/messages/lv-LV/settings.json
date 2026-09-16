@@ -424,6 +424,9 @@
         "already_set": "Šim kontam jau ir parole."
       },
       "sso": {
+        "popup_blocked": "Atļauj uznirstošos logus šai vietnei un mēģini saistīt vēlreiz.",
+        "account_mismatch": "Pieraksties pareizajā kontā šajā serverī un sāc saistīšanu vēlreiz sākotnējā logā.",
+        "provider_unavailable": "Šis pierakstīšanās pakalpojumu sniedzējs vairs nav pieejams.",
         "title": "Vienotā pierakstīšanās",
         "loading": "Notiek pierakstīšanās nodrošinātāju ielāde...",
         "load_failed": "Neizdevās ielādēt pierakstīšanās pakalpojumu sniedzējus",

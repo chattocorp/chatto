@@ -424,6 +424,9 @@
         "already_set": "Dieses Konto hat bereits ein Passwort."
       },
       "sso": {
+        "popup_blocked": "Erlaube Pop-ups für diese Website und versuche die Verknüpfung erneut.",
+        "account_mismatch": "Melde dich auf diesem Server mit dem richtigen Konto an und starte die Verknüpfung im ursprünglichen Fenster erneut.",
+        "provider_unavailable": "Dieser Anmeldeanbieter ist nicht mehr verfügbar.",
         "title": "Single Sign-On",
         "loading": "Anmeldeanbieter werden geladen...",
         "load_failed": "Anmeldeanbieter konnten nicht geladen werden",

@@ -424,6 +424,9 @@
         "already_set": "Bu hesabın zaten bir şifresi var."
       },
       "sso": {
+        "popup_blocked": "Bu site için açılır pencerelere izin ver ve bağlamayı tekrar dene.",
+        "account_mismatch": "Bu sunucuda doğru hesapla oturum aç, ardından ilk pencereden bağlamayı yeniden başlat.",
+        "provider_unavailable": "Bu oturum açma sağlayıcısı artık kullanılamıyor.",
         "title": "Tek Oturum Açma",
         "loading": "Oturum açma sağlayıcıları yükleniyor...",
         "load_failed": "Oturum açma sağlayıcıları yüklenemedi",

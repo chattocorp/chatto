@@ -424,6 +424,9 @@
         "already_set": "Esta conta já tem uma palavra-passe."
       },
       "sso": {
+        "popup_blocked": "Permite janelas pop-up para este site e tenta associar novamente.",
+        "account_mismatch": "Inicia sessão na conta correta neste servidor e volta a iniciar a associação a partir da janela original.",
+        "provider_unavailable": "Este fornecedor de início de sessão já não está disponível.",
         "title": "Logon único",
         "loading": "A carregar fornecedores de login...",
         "load_failed": "Falha ao carregar fornecedores de login",

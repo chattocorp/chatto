@@ -21,8 +21,11 @@ const mocks = vi.hoisted(() => ({
   getPublicServerInfo: vi.fn(),
   startServerOAuthFlow: vi.fn(),
   startRemoteReauthentication: vi.fn(),
+  toastError: vi.fn(),
   goto: vi.fn()
 }));
+
+vi.mock('$lib/ui/toast', () => ({ toast: { error: mocks.toastError } }));
 
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
@@ -344,6 +347,39 @@ describe('Server Directory page', () => {
         remoteProfile
       );
     });
+  });
+
+  it('shows OAuth failures as a toast instead of a directory panel error', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://remote.example',
+          profile: profile('Remote'),
+          sourceOrigins: ['https://source.example']
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 1
+    });
+    mocks.startServerOAuthFlow.mockRejectedValueOnce(new Error('Sign-in window closed'));
+    const { container } = render(Page);
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[data-testid="server-directory-entry-icon-action"]')
+      ).toBeTruthy()
+    );
+    container
+      .querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-icon-action"]')!
+      .click();
+    await vi.waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith('Failed to start sign-in.')
+    );
+    expect(container.textContent).not.toContain('Failed to start sign-in.');
+    expect(
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="server-directory-entry-icon-action"]'
+      )!.disabled
+    ).toBe(false);
   });
 
   it('hands an incompatible advertised server off to its own client', async () => {

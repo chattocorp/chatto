@@ -20,6 +20,8 @@
   let selectedProviderId = $state<string | null>(null);
   let pageErrorDismissed = $state(false);
 
+  const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
+
   const canSubmit = $derived(identifier.trim() && password);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
@@ -145,12 +147,7 @@
       </div>
 
       <div class="mt-8 w-full">
-        <Button
-          variant="action"
-          size="lg"
-          fullWidth
-          href={resolve('/chat/servers')}
-        >
+        <Button variant="action" size="lg" fullWidth href={resolve('/chat/servers')}>
           <span class="iconify icon-[mdi--plus] text-lg"></span>
           {m('auth.login.add_server')}
         </Button>
@@ -161,12 +158,13 @@
           <Hint tone="danger">{displayedError}</Hint>
         </div>
       {/if}
-
     </div>
   </AuthLayout>
 {:else}
-  <AuthLayout>
-    <h1 class="mb-6 text-center text-2xl font-bold">{m('auth.login.title')}</h1>
+  <AuthLayout {compact}>
+    <h1 class={[compact ? 'mb-4' : 'mb-6', 'text-center text-2xl font-bold']}>
+      {m('auth.login.title')}
+    </h1>
 
     {#if data.passwordResetSuccess}
       <div class="mb-4">
@@ -182,7 +180,7 @@
         {#each authProviders as provider (provider.id)}
           <Button
             variant="secondary"
-            size="lg"
+            size={compact ? 'md' : 'lg'}
             fullWidth
             href={providerLoginHref(provider)}
             disabled={selectedProviderId !== null && selectedProviderId !== provider.id}
@@ -235,7 +233,7 @@
 
         <Button
           type="submit"
-          size="lg"
+          size={compact ? 'md' : 'lg'}
           disabled={!canSubmit || isAuthenticating}
           loading={isLoading}
           loadingText={m('auth.login.signing_in')}
@@ -253,7 +251,12 @@
     {#if directRegistrationEnabled}
       <Divider label={m('common.or')} />
 
-      <Button href={resolve('/register')} variant="secondary" size="lg" fullWidth>
+      <Button
+        href={resolve('/register')}
+        variant="secondary"
+        size={compact ? 'md' : 'lg'}
+        fullWidth
+      >
         {m('common.create_account')}
       </Button>
     {/if}

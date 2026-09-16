@@ -424,6 +424,9 @@
         "already_set": "Esta cuenta ya tiene contraseña."
       },
       "sso": {
+        "popup_blocked": "Permite las ventanas emergentes de este sitio y vuelve a intentar la vinculación.",
+        "account_mismatch": "Inicia sesión en la cuenta correcta de este servidor y vuelve a iniciar la vinculación desde la ventana original.",
+        "provider_unavailable": "Este proveedor de inicio de sesión ya no está disponible.",
         "title": "Inicio de sesión único",
         "loading": "Cargando proveedores de inicio de sesión...",
         "load_failed": "Error al cargar proveedores de inicio de sesión",

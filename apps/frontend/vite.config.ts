@@ -262,13 +262,16 @@ export default defineConfig(async ({ command }) => {
           // Vite's public Host so resource and token audiences stay aligned.
           changeOrigin: false
         },
-        '/oauth': {
-          target: backendTarget,
-          // Cookie authentication compares the browser Origin with the
-          // request target. Preserve Vite's public Host so both values match.
-          changeOrigin: false,
-          cookieDomainRewrite: { '*': '' }
-        },
+        // The consent page is a Svelte route. Proxy only OAuth HTTP endpoints;
+        // proxying the page would mix embedded production HTML with Vite assets.
+        '^/oauth/(?:authorize|token|client-metadata\\.json|frontend-client-metadata\\.json|consent/(?:request|approve|deny))(?:/?(?:\\?|$))':
+          {
+            target: backendTarget,
+            // Cookie authentication compares the browser Origin with the
+            // request target. Preserve Vite's public Host so both values match.
+            changeOrigin: false,
+            cookieDomainRewrite: { '*': '' }
+          },
         '/.well-known/oauth-': {
           target: backendTarget,
           // OAuth metadata contains URLs for the public development origin.

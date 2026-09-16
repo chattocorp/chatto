@@ -424,6 +424,9 @@
         "already_set": "This account already has a password."
       },
       "sso": {
+        "popup_blocked": "Allow pop-ups for this site, then try linking again.",
+        "account_mismatch": "Sign in to the correct account on this server, then start linking again from the original window.",
+        "provider_unavailable": "This sign-in provider is no longer available.",
         "title": "Single Sign-On",
         "loading": "Loading sign-on providers...",
         "load_failed": "Failed to load sign-on providers",

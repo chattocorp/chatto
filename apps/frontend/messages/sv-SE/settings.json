@@ -424,6 +424,9 @@
         "already_set": "Detta konto har redan ett lösenord."
       },
       "sso": {
+        "popup_blocked": "Tillåt popupfönster för denna webbplats och försök länka igen.",
+        "account_mismatch": "Logga in på rätt konto på denna server och starta sedan länkningen igen från det ursprungliga fönstret.",
+        "provider_unavailable": "Denna inloggningsleverantör är inte längre tillgänglig.",
         "title": "Enkel inloggning",
         "loading": "Laddar inloggningsleverantörer...",
         "load_failed": "Det gick inte att ladda inloggningsleverantörer",
