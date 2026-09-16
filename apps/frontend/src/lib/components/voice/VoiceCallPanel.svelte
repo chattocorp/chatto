@@ -14,6 +14,7 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import FadeScale from '$lib/ui/FadeScale.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -576,79 +577,81 @@ Room sidebar panel for voice/video calls.
       {m('voice.participant_audio.enable_audio')}
     </button>
   {/if}
-  {#if isInThisCall}
-    <div class={isStageLayout ? 'mx-auto max-w-2xl' : ''}>
-      <PillButtonGroup label={m('room.sidebar.call')}>
-        <VoiceCallControlButton
-          class={controlButtonClass}
-          label={m('voice.devices')}
-          testId="call-device-menu-button"
-          icon="icon-[uil--setting]"
-          iconClass="text-lg"
-          onclick={openDeviceMenu}
-        />
+  <div class="grid items-end">
+    {#if isInThisCall}
+      <FadeScale class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-2xl']}>
+        <PillButtonGroup label={m('room.sidebar.call')}>
+          <VoiceCallControlButton
+            class={controlButtonClass}
+            label={m('voice.devices')}
+            testId="call-device-menu-button"
+            icon="icon-[uil--setting]"
+            iconClass="text-lg"
+            onclick={openDeviceMenu}
+          />
 
-        <VoiceCallControlButton
-          class={voiceCallState.isCameraEnabled ? activeControlButtonClass : controlButtonClass}
-          label={voiceCallState.isCameraEnabled
-            ? m('voice.turn_off_camera')
-            : m('voice.turn_on_camera')}
-          testId="call-camera-toggle"
-          icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
-          iconClass="text-lg"
-          onclick={() => voiceCallState.toggleCamera()}
-          pending={voiceCallState.isCameraPending}
-          disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
-        />
+          <VoiceCallControlButton
+            class={voiceCallState.isCameraEnabled ? activeControlButtonClass : controlButtonClass}
+            label={voiceCallState.isCameraEnabled
+              ? m('voice.turn_off_camera')
+              : m('voice.turn_on_camera')}
+            testId="call-camera-toggle"
+            icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
+            iconClass="text-lg"
+            onclick={() => voiceCallState.toggleCamera()}
+            pending={voiceCallState.isCameraPending}
+            disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
+          />
 
-        <VoiceCallControlButton
-          class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
-          label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
-          testId="call-mute-toggle"
-          icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
-          iconClass="text-lg"
-          onclick={() => voiceCallState.toggleMute()}
-          pending={voiceCallState.isMicrophonePending}
-          disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
-        />
+          <VoiceCallControlButton
+            class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
+            label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
+            testId="call-mute-toggle"
+            icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
+            iconClass="text-lg"
+            onclick={() => voiceCallState.toggleMute()}
+            pending={voiceCallState.isMicrophonePending}
+            disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
+          />
 
-        <ScreenShareControlButton
-          {voiceCallState}
-          class={voiceCallState.isScreenShareEnabled
-            ? activeControlButtonClass
-            : controlButtonClass}
-          testId="call-screen-share-toggle"
-          iconClass="text-lg"
-        />
+          <ScreenShareControlButton
+            {voiceCallState}
+            class={voiceCallState.isScreenShareEnabled
+              ? activeControlButtonClass
+              : controlButtonClass}
+            testId="call-screen-share-toggle"
+            iconClass="text-lg"
+          />
 
-        <VoiceCallControlButton
-          class={dangerControlButtonClass}
-          onclick={() => voiceCallState.leave()}
-          label={m('voice.leave')}
-          testId="call-leave-button"
-          icon="icon-[uil--phone-slash]"
-          iconClass="text-lg"
-        />
-      </PillButtonGroup>
-    </div>
-  {:else}
-    <div class={isStageLayout ? 'mx-auto max-w-sm' : ''}>
-      <button
-        type="button"
-        class="btn-action min-h-12 w-full"
-        data-testid="call-join-button"
-        onclick={handleJoin}
-        disabled={!canEnterCall || isInAnotherCall || isConnecting}
-        title={!canEnterCall
-          ? m('voice.permission_denied')
-          : isInAnotherCall
-            ? m('voice.already_in_another_call')
-            : joinLabel}
-      >
-        {joinLabel}
-      </button>
-    </div>
-  {/if}
+          <VoiceCallControlButton
+            class={dangerControlButtonClass}
+            onclick={() => voiceCallState.leave()}
+            label={m('voice.leave')}
+            testId="call-leave-button"
+            icon="icon-[uil--phone-slash]"
+            iconClass="text-lg"
+          />
+        </PillButtonGroup>
+      </FadeScale>
+    {:else}
+      <FadeScale class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-sm']}>
+        <button
+          type="button"
+          class="btn-action min-h-12 w-full"
+          data-testid="call-join-button"
+          onclick={handleJoin}
+          disabled={!canEnterCall || isInAnotherCall || isConnecting}
+          title={!canEnterCall
+            ? m('voice.permission_denied')
+            : isInAnotherCall
+              ? m('voice.already_in_another_call')
+              : joinLabel}
+        >
+          {joinLabel}
+        </button>
+      </FadeScale>
+    {/if}
+  </div>
 {/snippet}
 
 <div
