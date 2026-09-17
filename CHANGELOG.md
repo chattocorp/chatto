@@ -3,6 +3,31 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.1](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.9...v0.5.0-beta.1) (2026-09-17)
+
+
+### Features
+
+* **calls:** detect silent microphones and improve call controls ([#2415](https://github.com/chattocorp/chatto/issues/2415)) ([0f0fb41](https://github.com/chattocorp/chatto/commit/0f0fb41f537452a7719fa0569e3970cf2ed055c2))
+* **calls:** show shared connection quality warnings ([#2422](https://github.com/chattocorp/chatto/issues/2422)) ([cb7ce47](https://github.com/chattocorp/chatto/commit/cb7ce47725d0a86dfbdbb2366d89eec0600b2d3b))
+* **frontend:** improve mobile spacing and collapsible pane actions ([#2409](https://github.com/chattocorp/chatto/issues/2409)) ([3fe6030](https://github.com/chattocorp/chatto/commit/3fe60301292033e62af2475480fb68c25359c6c7))
+* **frontend:** replace voice quality slider with default-on boosting ([#2418](https://github.com/chattocorp/chatto/issues/2418)) ([383fff6](https://github.com/chattocorp/chatto/commit/383fff6a0106f656fb0fecbd221c6326beeed8c4))
+* **frontend:** unify call and composer controls with pill buttons ([#2404](https://github.com/chattocorp/chatto/issues/2404)) ([e879c0f](https://github.com/chattocorp/chatto/commit/e879c0f799d2ee8c3687648b0e36948b80d70a2b))
+* **frontend:** unify user cards and participant context menus ([#2410](https://github.com/chattocorp/chatto/issues/2410)) ([ab6aaa1](https://github.com/chattocorp/chatto/commit/ab6aaa12bad825998005775df75272f4b8aacbcd))
+* **frontend:** use themed selects for call devices ([#2420](https://github.com/chattocorp/chatto/issues/2420)) ([0fe4f28](https://github.com/chattocorp/chatto/commit/0fe4f28450effda1c6827f6cea2b2106c652a9bb))
+* **frontend:** visualize voice activity with layered fog ([#2411](https://github.com/chattocorp/chatto/issues/2411)) ([7eb0b60](https://github.com/chattocorp/chatto/commit/7eb0b6027e37081c17ccaa51407fbf2eb5c2796e))
+
+
+### Bug Fixes
+
+* **calls:** drive remote voice fog from received audio ([#2417](https://github.com/chattocorp/chatto/issues/2417)) ([a66fc02](https://github.com/chattocorp/chatto/commit/a66fc02fb225d504df2e4f4df10e13357fa17d5a))
+* **calls:** use a perceptual participant volume curve ([#2419](https://github.com/chattocorp/chatto/issues/2419)) ([291fe32](https://github.com/chattocorp/chatto/commit/291fe32f619f4ef2ad0ec3b4b8385ddad0571b57))
+* **core:** commit room patches and reply echoes atomically ([#2416](https://github.com/chattocorp/chatto/issues/2416)) ([0e9dc00](https://github.com/chattocorp/chatto/commit/0e9dc000637fd56dd827b0cbd9a5c3578e94df7a))
+* **frontend:** rename surface depth preference to UI Style ([#2408](https://github.com/chattocorp/chatto/issues/2408)) ([b7fc045](https://github.com/chattocorp/chatto/commit/b7fc0458e26e5ca4888dca19aad6e183ba4843c8))
+* **frontend:** separate screen-share audio meters and controls ([#2412](https://github.com/chattocorp/chatto/issues/2412)) ([2e15bda](https://github.com/chattocorp/chatto/commit/2e15bda9804d15869783f6acca1d5304a60adfd3))
+* **push:** use local notification routes for custom domains ([#2423](https://github.com/chattocorp/chatto/issues/2423)) ([6411d2d](https://github.com/chattocorp/chatto/commit/6411d2d28dcb393722c00ac840a368554ce30aa3))
+* **realtime:** reload private data only for relevant permission changes ([#2421](https://github.com/chattocorp/chatto/issues/2421)) ([932364e](https://github.com/chattocorp/chatto/commit/932364e58558b338a0978e6ec44d71d43e6fa655))
+
 ## [0.5.0-alpha.9](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.8...v0.5.0-alpha.9) (2026-09-16)
 
 
