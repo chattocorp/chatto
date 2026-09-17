@@ -14,6 +14,7 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import UserCard from '$lib/ui/UserCard.svelte';
   import WipeReveal from '$lib/ui/WipeReveal.svelte';
   import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
@@ -32,7 +33,10 @@ Room sidebar panel for voice/video calls.
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
   import VoiceCallControlButton from './VoiceCallControlButton.svelte';
   import ScreenShareControlButton from './ScreenShareControlButton.svelte';
-  import ParticipantCardMenu from './ParticipantCardMenu.svelte';
+  import {
+    contextMenuTrigger,
+    type ContextMenuTriggerDetails
+  } from '$lib/ui/contextMenuTrigger.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
@@ -180,10 +184,7 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'pill-button-success';
   const dangerControlButtonClass = 'pill-button-danger';
   const callTileCardClass =
-    'call-speaking-card participant-card group/media relative flex w-full min-w-0 flex-col gap-1 overflow-hidden shell-surface border border-text/10 p-1.5 text-start text-text shadow-[var(--depth-shadow-xs)]';
-  const callTileHeaderClass = 'flex min-w-0 shrink-0 items-center gap-2 p-1';
-  const callTileIdentityButtonClass =
-    'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
+    'call-speaking-card participant-card group/media relative flex w-full min-w-0 flex-col overflow-hidden shell-surface text-start text-text';
   const callTileMediaButtonClass =
     'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
 
@@ -261,18 +262,33 @@ Room sidebar panel for voice/video calls.
   // User context menu popover
   let popoverParticipant = $state<DisplayParticipant | null>(null);
   let popoverAnchorRect = $state<{ top: number; bottom: number; left: number } | null>(null);
+  let popoverPosition = $state<{ x: number; y: number } | undefined>();
+  let popoverPresentation = $state<'auto' | 'sheet'>('auto');
 
   function showUserMenu(participant: DisplayParticipant, e: MouseEvent) {
-    const button = (e.target as HTMLElement).closest('button');
+    const button = e.currentTarget as HTMLElement;
     const rect = button?.getBoundingClientRect();
     if (!rect) return;
     popoverParticipant = participant;
+    popoverPosition = undefined;
+    popoverPresentation = 'auto';
     popoverAnchorRect = { top: rect.top, bottom: rect.bottom, left: rect.left };
+  }
+
+  function showParticipantContextMenu(
+    participant: DisplayParticipant,
+    details: ContextMenuTriggerDetails
+  ) {
+    popoverParticipant = participant;
+    popoverAnchorRect = null;
+    popoverPosition = details.position;
+    popoverPresentation = details.presentation;
   }
 
   function closeUserMenu() {
     popoverParticipant = null;
     popoverAnchorRect = null;
+    popoverPosition = undefined;
   }
 
   function openDeviceMenu(e: MouseEvent) {
@@ -360,72 +376,64 @@ Room sidebar panel for voice/video calls.
 {/snippet}
 
 {#snippet participantIndicators(participant: DisplayParticipant)}
-  <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
-    {#if participant.isMuted}
-      <span
-        class="iconify icon-[uil--microphone-slash] text-danger"
-        aria-label={m('voice.muted')}
-        data-testid="call-muted-indicator"
-      ></span>
-    {/if}
-    {#if participant.isLocallyMuted}
-      <span
-        class="iconify icon-[uil--volume-mute] text-muted"
-        aria-label={m('voice.locally_muted')}
-        data-testid="call-locally-muted-indicator"
-      ></span>
-    {/if}
-    {#if hasConnectionWarning(participant)}
-      <span
-        class={[
-          'iconify icon-[uil--exclamation-triangle]',
-          participant.connectionQuality === 'lost' && 'text-danger',
-          participant.connectionQuality === 'poor' && 'text-warning'
-        ]}
-        aria-label={m('voice.poor_connection')}
-      ></span>
-    {/if}
-  </span>
+  {#if participant.isMuted || hasConnectionWarning(participant)}
+    <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
+      {#if participant.isMuted}
+        <span
+          class="iconify icon-[uil--microphone-slash] text-danger"
+          aria-label={m('voice.muted')}
+          data-testid="call-muted-indicator"
+        ></span>
+      {/if}
+      {#if hasConnectionWarning(participant)}
+        <span
+          class={[
+            'iconify icon-[uil--exclamation-triangle]',
+            participant.connectionQuality === 'lost' && 'text-danger',
+            participant.connectionQuality === 'poor' && 'text-warning'
+          ]}
+          aria-label={m('voice.poor_connection')}
+        ></span>
+      {/if}
+    </span>
+  {/if}
 {/snippet}
 
 {#snippet participantHeader(
   participant: DisplayParticipant,
   label: string,
-  actions: 'media' | 'none',
+  headerActions: 'media' | 'none',
   showIndicators = true
 )}
-  <div class={callTileHeaderClass}>
-    <button
-      type="button"
-      class={callTileIdentityButtonClass}
-      onclick={(e) => showUserMenu(participant, e)}
-    >
+  <UserCard
+    name={label}
+    username={participant.avatarUser.login}
+    class="shrink-0"
+    identityAttributes={{ onclick: (e) => showUserMenu(participant, e) }}
+    menu={{
+      label: m('room.sidebar.view_profile', { name: participant.displayName }),
+      onclick: (event) => showUserMenu(participant, event),
+      expanded: popoverParticipant?.key === participant.key,
+      testId: 'call-participant-menu-button'
+    }}
+  >
+    {#snippet avatar()}
       <UserAvatar user={participant.avatarUser} size="sm" />
-      <span class="min-w-0 flex-1 truncate text-sm font-medium">{label}</span>
+    {/snippet}
+    {#snippet indicators()}
       {#if showIndicators}
         {@render participantIndicators(participant)}
       {/if}
-    </button>
-
-    {#if actions === 'media'}
-      {@render mediaTileActions()}
-    {/if}
-    {#if isInThisCall}
-      {@render localMuteButton(participant)}
-    {/if}
-    {@render participantAudio(participant)}
-  </div>
-{/snippet}
-
-{#snippet participantAudio(participant: DisplayParticipant)}
-  {#if isInThisCall && !participant.isLocal}
-    <ParticipantCardMenu
-      settings={voiceCallState.getParticipantAudio(participant.key)}
-      boostAvailable={voiceCallState.audioBoostAvailable}
-      onVolumeChange={(source, value) =>
-        voiceCallState.setParticipantVolume(participant.key, source, value)}
-    />
-  {/if}
+    {/snippet}
+    {#snippet actions()}
+      {#if headerActions === 'media'}
+        {@render mediaTileActions()}
+      {/if}
+      {#if isInThisCall}
+        {@render localMuteButton(participant)}
+      {/if}
+    {/snippet}
+  </UserCard>
 {/snippet}
 
 {#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
@@ -439,6 +447,7 @@ Room sidebar panel for voice/video calls.
     {@attach isInThisCall && speakingCard(participant.key)}
     title={participantTitle(participant)}
     data-testid="call-participant-card"
+    {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
     data-speaking-ring={isInThisCall ? true : undefined}
     data-call-media-card={showVideo ? true : undefined}
   >
@@ -472,6 +481,7 @@ Room sidebar panel for voice/video calls.
     {@attach isInThisCall && speakingCard(participant.key)}
     title={m('voice.screen_title', { name: participant.displayName })}
     data-testid="call-screen-share-card"
+    {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
     data-speaking-ring={isInThisCall ? true : undefined}
     data-call-media-card
   >
@@ -508,6 +518,7 @@ Room sidebar panel for voice/video calls.
       ? m('voice.screen_title', { name: participant.displayName })
       : participantTitle(participant)}
     data-testid="call-featured-stage-card"
+    {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
     data-speaking-ring={isInThisCall ? true : undefined}
     data-call-media-card={isScreen || isVideo ? true : undefined}
   >
@@ -663,7 +674,7 @@ Room sidebar panel for voice/video calls.
   <div
     class={[
       'flex min-h-0 flex-1 flex-col gap-5',
-      isStageLayout ? 'p-4' : 'p-3',
+      isStageLayout ? 'p-4' : 'px-2 py-3',
       isStageLayout ? 'overflow-hidden' : 'overflow-y-auto'
     ]}
   >
@@ -728,10 +739,12 @@ Room sidebar panel for voice/video calls.
   <AudioDeviceMenu anchor={deviceMenuAnchor} onclose={() => (deviceMenuAnchor = null)} />
 {/if}
 
-{#if popoverParticipant && popoverAnchorRect}
+{#if popoverParticipant && (popoverAnchorRect || popoverPosition)}
   <UserContextMenu
     user={popoverParticipant.avatarUser}
     anchorRect={popoverAnchorRect}
+    position={popoverPosition}
+    presentation={popoverPresentation}
     canSendMessage={canStartDMs}
     viewerSettings={serverScope.store.currentUser.user?.settings}
     onSendMessage={() => startDMWith(activeServerId, popoverParticipant!.avatarUser.id)}

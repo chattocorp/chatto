@@ -1,11 +1,11 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import { expect, fireEvent, userEvent, within } from 'storybook/test';
-  import ParticipantCardMenu from './ParticipantCardMenu.svelte';
+  import { expect, fireEvent, within } from 'storybook/test';
+  import ParticipantAudioControls from './ParticipantAudioControls.svelte';
 
   const { Story } = defineMeta({
     title: 'Voice/Participant audio',
-    component: ParticipantCardMenu,
+    component: ParticipantAudioControls,
     tags: ['autodocs']
   });
 </script>
@@ -21,8 +21,7 @@
   asChild
   play={async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Participant audio' }));
-    const menu = within(document.body);
+    const menu = canvas;
     const voice = menu.getByRole('slider', { name: /Voice volume/ });
     await expect(voice).toHaveAttribute('max', '200');
     await expect(menu.queryByRole('button', { name: 'Mute locally' })).not.toBeInTheDocument();
@@ -34,7 +33,7 @@
   }}
 >
   <div class="w-72 rounded-lg border border-border bg-surface p-2">
-    <ParticipantCardMenu
+    <ParticipantAudioControls
       {settings}
       onVolumeChange={(control, value) => (settings = { ...settings, [control]: value })}
     />
@@ -43,7 +42,7 @@
 
 <Story name="Boost unavailable" asChild>
   <div class="w-72 rounded-lg border border-border bg-surface p-2">
-    <ParticipantCardMenu
+    <ParticipantAudioControls
       {settings}
       boostAvailable={false}
       onVolumeChange={(control, value) => (settings = { ...settings, [control]: value })}

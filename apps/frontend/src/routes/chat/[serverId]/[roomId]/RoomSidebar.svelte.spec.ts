@@ -724,8 +724,28 @@ describe('RoomSidebar', () => {
       memberButton = q(container, '[title="View profile of User 1"]') as HTMLButtonElement | null;
       expect(memberButton).toBeTruthy();
     });
+    const login = q(container, '[data-testid="room-member-login"]')!;
+    expect(login.closest('button')).toBeNull();
+    expect(memberButton!.getAttribute('aria-haspopup')).toBe('dialog');
     memberButton!.click();
 
+    await vi.waitFor(() => {
+      expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
+    });
+  });
+
+  it('opens a member context menu by right-clicking the passive identity', async () => {
+    callStore.permissions.canStartDMs = true;
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="room-member-login"]')).toBeTruthy();
+    });
+    const login = q(container, '[data-testid="room-member-login"]')!;
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    login.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
     await vi.waitFor(() => {
       expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
     });
@@ -1269,7 +1289,10 @@ describe('RoomSidebar', () => {
     expect(fullscreenButton.className).not.toContain('bg-black');
     expect(fullscreenButton.querySelector('[class~="icon-[mdi--fullscreen]"]')).toBeTruthy();
     expect(participantMenuButton).toBeTruthy();
-    expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
+    expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeNull();
+    expect(
+      q(featured, '[data-testid="call-feed-local-mute-button"]')?.getAttribute('aria-label')
+    ).toBe('Unmute locally');
 
     fullscreenButton.click();
     await Promise.resolve();
@@ -2281,9 +2304,9 @@ describe('RoomSidebar', () => {
     });
 
     await vi.waitFor(() => {
-      expect(buttonByText(container, 'Other Member')).toBeTruthy();
+      expect(q(container, '[aria-label="View profile of Other Member"]')).toBeTruthy();
     });
-    buttonByText(container, 'Other Member')!.click();
+    (q(container, '[aria-label="View profile of Other Member"]') as HTMLButtonElement).click();
     await tick();
 
     expect(container.textContent).toContain('Ban from room');
@@ -2304,9 +2327,9 @@ describe('RoomSidebar', () => {
     });
 
     await vi.waitFor(() => {
-      expect(buttonByText(container, 'Other Member')).toBeTruthy();
+      expect(q(container, '[aria-label="View profile of Other Member"]')).toBeTruthy();
     });
-    buttonByText(container, 'Other Member')!.click();
+    (q(container, '[aria-label="View profile of Other Member"]') as HTMLButtonElement).click();
     await tick();
 
     expect(container.textContent).not.toContain('Ban from room');

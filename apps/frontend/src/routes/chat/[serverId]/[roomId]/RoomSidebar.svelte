@@ -19,6 +19,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { m } from '$lib/i18n/messages';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserCard from '$lib/ui/UserCard.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
@@ -554,44 +555,42 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {@const callPresence = member.deleted
     ? null
     : activeCallRooms.getParticipantCallPresenceInAnyRoom(member.id)}
-  <button
-    type="button"
-    class={[
-      'sidebar-item w-full text-start',
-      member.deleted ? 'cursor-default' : 'cursor-pointer',
-      !isOnline && 'opacity-50'
-    ]}
-    disabled={member.deleted}
-    onclick={(e: MouseEvent) => {
-      if (!member.deleted) togglePopover(member.id, e);
-    }}
-    oncontextmenu={(e: MouseEvent) => {
-      e.preventDefault();
-      if (!member.deleted) togglePopover(member.id, e);
-    }}
-    title={member.deleted
-      ? m('common.deleted_user')
-      : m('room.sidebar.view_profile', { name: getLiveDisplayName(member.id, member.displayName) })}
+  <UserCard
+    variant="row"
+    username={getLiveLogin(member.id, member.login)}
+    class={!isOnline ? 'opacity-50' : undefined}
+    secondaryTestId="room-member-login"
+    menu={member.deleted
+      ? undefined
+      : {
+          label: m('room.sidebar.view_profile', {
+            name: getLiveDisplayName(member.id, member.displayName)
+          }),
+          onclick: (event) => togglePopover(member.id, event),
+          revealOnHover: true,
+          oncontextmenu: (event) => {
+            popoverMemberId = member.id;
+            popoverAnchorRect = event.currentTarget.getBoundingClientRect();
+          },
+          expanded: popoverMemberId === member.id
+        }}
   >
-    <UserAvatar user={member} serverId={serverScope.serverId} size="sm" showPresence />
-    <div class="min-w-0 flex-1">
-      <div class="flex min-w-0 items-center gap-1.5">
-        <span class="min-w-0 truncate">
-          {#if member.deleted}
-            <DeletedUserLabel />
-          {:else}
-            <bdi>{getLiveDisplayName(member.id, member.displayName)}</bdi>
-          {/if}
-        </span>
-        <UserCustomStatusBadge
-          status={getLiveCustomStatus(member.id, member.customStatus)}
-          class="shrink-0 text-xs"
-        />
-        {@render callPresenceIcon(callPresence)}
-      </div>
-      <span class="block truncate text-start text-xs text-muted" data-testid="room-member-login">
-        <bdi dir="ltr">@{getLiveLogin(member.id, member.login)}</bdi>
-      </span>
-    </div>
-  </button>
+    {#snippet avatar()}
+      <UserAvatar user={member} serverId={serverScope.serverId} size="sm" showPresence />
+    {/snippet}
+    {#snippet name()}
+      {#if member.deleted}
+        <DeletedUserLabel />
+      {:else}
+        <bdi>{getLiveDisplayName(member.id, member.displayName)}</bdi>
+      {/if}
+    {/snippet}
+    {#snippet badges()}
+      <UserCustomStatusBadge
+        status={getLiveCustomStatus(member.id, member.customStatus)}
+        class="shrink-0 text-xs"
+      />
+      {@render callPresenceIcon(callPresence)}
+    {/snippet}
+  </UserCard>
 {/snippet}
