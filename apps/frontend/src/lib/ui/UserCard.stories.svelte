@@ -27,7 +27,6 @@
   asChild
   play={async ({ canvas }) => {
     const menu = canvas.getByRole('button', { name: 'User options' });
-    await expect(getComputedStyle(menu.parentElement!).opacity).toBe('0');
     menu.focus();
     await expect(getComputedStyle(menu.parentElement!).opacity).toBe('1');
     await userEvent.click(canvas.getByText('Alice', { exact: true }));

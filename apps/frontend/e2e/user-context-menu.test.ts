@@ -206,11 +206,15 @@ test.describe('User context menu', () => {
       await roomPage.getMemberDisplayName(user.login).click();
       await expect(page.getByRole('dialog', { name: 'User profile' })).not.toBeVisible();
 
-      // Open the dedicated menu button.
-      await roomPage.getMember(user.login).hover();
+      // Control the real pointer before checking CSS hover visibility.
       const memberButton = roomPage.memberList.getByRole('button', {
         name: new RegExp(user.displayName)
       });
+      const menuSurface = memberButton.locator('..');
+      await page.mouse.move(0, 0);
+      await expect(menuSurface).toHaveCSS('opacity', '0');
+      await roomPage.getMember(user.login).hover();
+      await expect(menuSurface).toHaveCSS('opacity', '1');
       await memberButton.click();
 
       // Verify user profile dialog appears
