@@ -3873,9 +3873,12 @@ type TimelineBodySnapshot struct {
 	// Number of non-empty attachment references in the current body.
 	AttachmentCount uint32 `protobuf:"varint,6,opt,name=attachment_count,json=attachmentCount,proto3" json:"attachment_count,omitempty"`
 	// False after retraction or key shredding. Sequence history remains stored.
-	Active        bool `protobuf:"varint,7,opt,name=active,proto3" json:"active,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Active bool `protobuf:"varint,7,opt,name=active,proto3" json:"active,omitempty"`
+	// Latest source for text, attachments, preview, and descriptions, in that
+	// order. Clear values retain their source just like non-empty values.
+	FieldSequences []uint64 `protobuf:"varint,8,rep,packed,name=field_sequences,json=fieldSequences,proto3" json:"field_sequences,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *TimelineBodySnapshot) Reset() {
@@ -3955,6 +3958,13 @@ func (x *TimelineBodySnapshot) GetActive() bool {
 		return x.Active
 	}
 	return false
+}
+
+func (x *TimelineBodySnapshot) GetFieldSequences() []uint64 {
+	if x != nil {
+		return x.FieldSequences
+	}
+	return nil
 }
 
 type StringTimestampSnapshot struct {
@@ -4406,7 +4416,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"event_type\x18\x06 \x01(\tR\teventType\x12/\n" +
 	"\x14thread_root_event_id\x18\a \x01(\tR\x11threadRootEventId\x12'\n" +
 	"\x10echo_of_event_id\x18\b \x01(\tR\rechoOfEventId\x12+\n" +
-	"\x12in_thread_event_id\x18\t \x01(\tR\x0finThreadEventId\"\xb9\x02\n" +
+	"\x12in_thread_event_id\x18\t \x01(\tR\x0finThreadEventId\"\xe2\x02\n" +
 	"\x14TimelineBodySnapshot\x12(\n" +
 	"\x10message_event_id\x18\x01 \x01(\tR\x0emessageEventId\x120\n" +
 	"\x14body_event_sequences\x18\x02 \x03(\x04R\x12bodyEventSequences\x122\n" +
@@ -4414,7 +4424,8 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x15current_body_event_id\x18\x04 \x01(\tR\x12currentBodyEventId\x12\x1b\n" +
 	"\tauthor_id\x18\x05 \x01(\tR\bauthorId\x12)\n" +
 	"\x10attachment_count\x18\x06 \x01(\rR\x0fattachmentCount\x12\x16\n" +
-	"\x06active\x18\a \x01(\bR\x06active\"]\n" +
+	"\x06active\x18\a \x01(\bR\x06active\x12'\n" +
+	"\x0ffield_sequences\x18\b \x03(\x04R\x0efieldSequences\"]\n" +
 	"\x17StringTimestampSnapshot\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05value\"\x96\x01\n" +

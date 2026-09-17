@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-17
 
 ## Overview
 
@@ -88,9 +88,9 @@ body from EVT.
 
 ### 6. Delete physically removes the body payload, not just hides it
 
-**Decision:** Message body content is stored in private body payload events separate from public post/edit facts. Delete appends the public retraction fact, securely deletes body payload events where the storage backend supports it, and removes attachment storage only after verifying that the asset is durably attached to that exact message. Only the placeholder rendering remains.
+**Decision:** Message content is stored in private payloads. An edit changes only selected fields and preserves the source of each unchanged field. Durable edit metadata records the complete current source set so replay works after obsolete payloads are erased. Delete appends a retraction, securely deletes all message payloads where the backend supports it, and removes attachment storage only after it verifies message ownership. See [ADR-099](../adr/ADR-099-partial-message-body-updates.md).
 **Why:** GDPR. Soft-delete leaves user-generated content in the database, which is the wrong default for an open-source chat app where users expect "delete" to mean delete. Separating public message facts from body payloads preserves the conversation audit trail while allowing body material to be removed. See ADR-007.
-**Tradeoff:** No undo. Moderators can't restore a deleted message. Older embedded-body EVT histories remain readable for compatibility but cannot be physically shredded at body granularity.
+**Tradeoff:** No undo. Moderators cannot restore a deleted message. After an edit, a payload can retain an old value while another current field still uses it. Current reads exclude that old value; message deletion erases all payloads. Older embedded-body histories remain readable but cannot be erased at body granularity.
 
 ### 7. Context-free tombstones disappear immediately
 
@@ -118,5 +118,5 @@ message's thread summary contains a reply.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-090 (EVT timeline payload hydration)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-090 (EVT timeline payload hydration), ADR-099 (partial message body updates)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-012 (Notifications), FDR-039 (Message Access & Interactions), FDR-045 (Privileged Mode)

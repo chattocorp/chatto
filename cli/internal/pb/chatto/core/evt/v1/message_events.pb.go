@@ -9,6 +9,7 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -418,7 +419,17 @@ type MessageBodyEvent struct {
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Encrypted body envelope. For new writes body.body_event_id must match the
 	// outer Event envelope ID that carries this MessageBodyEvent.
-	Body          *MessageBody `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	Body *MessageBody `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// Paths in body to replace or clear. Absent means complete replacement for
+	// historical events and new posts; present with no paths changes no fields.
+	// Text selects encrypted_body, encryption_nonce, encryption_version, and
+	// content_key_epoch together. Attachment identity selects attachments and
+	// asset_ids together. Other paths are link_preview and attachment_descriptions.
+	// Repeated fields are replaced as lists. Identity and timestamps are metadata,
+	// not selectable paths. Edits also publish MessageEditedEvent in the same
+	// atomic EVT batch. Keep clear events until a later update selects the same
+	// fields, so replay cannot restore an older value.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,4,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -470,6 +481,13 @@ func (x *MessageBodyEvent) GetEventId() string {
 func (x *MessageBodyEvent) GetBody() *MessageBody {
 	if x != nil {
 		return x.Body
+	}
+	return nil
+}
+
+func (x *MessageBodyEvent) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
 	}
 	return nil
 }
@@ -878,7 +896,7 @@ var File_chatto_core_evt_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\xf7\x02\n" +
+	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a google/protobuf/field_mask.proto\"\xf7\x02\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
@@ -900,11 +918,13 @@ const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\x04role\x18\x03 \x01(\v2&.chatto.core.evt.v1.RoleMessageMentionH\x00R\x04role\x12<\n" +
 	"\x04here\x18\x04 \x01(\v2&.chatto.core.evt.v1.HereMessageMentionH\x00R\x04here\x129\n" +
 	"\x03all\x18\x05 \x01(\v2%.chatto.core.evt.v1.AllMessageMentionH\x00R\x03allB\a\n" +
-	"\x05cause\"{\n" +
+	"\x05cause\"\xb8\x01\n" +
 	"\x10MessageBodyEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x123\n" +
-	"\x04body\x18\x03 \x01(\v2\x1f.chatto.core.evt.v1.MessageBodyR\x04body\"T\n" +
+	"\x04body\x18\x03 \x01(\v2\x1f.chatto.core.evt.v1.MessageBodyR\x04body\x12;\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMask\"T\n" +
 	"\x12MessageEditedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventIdJ\x04\b\x03\x10\x04R\x04body\"c\n" +
@@ -959,6 +979,7 @@ var file_chatto_core_evt_v1_message_events_proto_goTypes = []any{
 	(*MessageUpdatedEvent)(nil),   // 11: chatto.core.evt.v1.MessageUpdatedEvent
 	(*MessageDeletedEvent)(nil),   // 12: chatto.core.evt.v1.MessageDeletedEvent
 	(*MessageBody)(nil),           // 13: chatto.core.evt.v1.MessageBody
+	(*fieldmaskpb.FieldMask)(nil), // 14: google.protobuf.FieldMask
 }
 var file_chatto_core_evt_v1_message_events_proto_depIdxs = []int32{
 	5,  // 0: chatto.core.evt.v1.MessagePostedEvent.mentions:type_name -> chatto.core.evt.v1.MessageMention
@@ -967,11 +988,12 @@ var file_chatto_core_evt_v1_message_events_proto_depIdxs = []int32{
 	3,  // 3: chatto.core.evt.v1.MessageMention.here:type_name -> chatto.core.evt.v1.HereMessageMention
 	4,  // 4: chatto.core.evt.v1.MessageMention.all:type_name -> chatto.core.evt.v1.AllMessageMention
 	13, // 5: chatto.core.evt.v1.MessageBodyEvent.body:type_name -> chatto.core.evt.v1.MessageBody
-	6,  // [6:6] is the sub-list for method output_type
-	6,  // [6:6] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	14, // 6: chatto.core.evt.v1.MessageBodyEvent.update_mask:type_name -> google.protobuf.FieldMask
+	7,  // [7:7] is the sub-list for method output_type
+	7,  // [7:7] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_message_events_proto_init() }

@@ -138,11 +138,15 @@ func (c *ChattoCore) decryptAttachmentDescriptions(ctx context.Context, eventID,
 			}
 			keys[epoch] = contentKey
 		}
+		sourceID := encryptedDescription.GetSourceBodyEventId()
+		if sourceID == "" {
+			sourceID = msg.GetBodyEventId()
+		}
 		plaintext, err := encryption.DecryptWithContentKey(
 			contentKey.key,
 			encryptedDescription.GetEncryptedDescription(),
 			encryptedDescription.GetEncryptionNonce(),
-			attachmentDescriptionAAD(canonicalMessageEventID, msg.GetBodyEventId(), roomID, msg.GetAuthorId(), assetID, epoch),
+			attachmentDescriptionAAD(canonicalMessageEventID, sourceID, roomID, msg.GetAuthorId(), assetID, epoch),
 		)
 		if err != nil {
 			return nil, messageBodyEnvelopeError(err)

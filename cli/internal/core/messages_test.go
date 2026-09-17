@@ -839,7 +839,8 @@ func TestMessageAttachmentDescriptionsAreEncryptedAndFollowMessageEdits(t *testi
 	storedAfterBodyEdit, err := chattoCore.currentMessageBody(ctx, result.Event.Id)
 	require.NoError(t, err)
 	require.NotEqual(t, stored.GetBodyEventId(), storedAfterBodyEdit.GetBodyEventId())
-	require.NotEqual(t, firstEnvelope.GetEncryptedDescription(), storedAfterBodyEdit.GetAttachmentDescriptions()[0].GetEncryptedDescription())
+	require.Equal(t, firstEnvelope.GetEncryptedDescription(), storedAfterBodyEdit.GetAttachmentDescriptions()[0].GetEncryptedDescription(), "text edits preserve the original description ciphertext")
+	require.Equal(t, stored.GetBodyEventId(), storedAfterBodyEdit.GetAttachmentDescriptions()[0].GetSourceBodyEventId())
 	body, err = chattoCore.GetFullMessageBody(ctx, result.Event.Id)
 	require.NoError(t, err)
 	require.Equal(t, initialDescription, body.AttachmentDescriptions[attachment.Id])
@@ -868,7 +869,7 @@ func TestMessageAttachmentDescriptionsAreEncryptedAndFollowMessageEdits(t *testi
 	_, err = chattoCore.decryptAttachmentDescriptions(ctx, result.Event.Id, room.Id, tampered)
 	require.ErrorIs(t, err, ErrMessageBodyCorrupt)
 	aadTampered := proto.Clone(storedAfterBodyEdit).(*evtv1.MessageBody)
-	aadTampered.BodyEventId = "different-body-event"
+	aadTampered.AttachmentDescriptions[0].SourceBodyEventId = "different-body-event"
 	_, err = chattoCore.decryptAttachmentDescriptions(ctx, result.Event.Id, room.Id, aadTampered)
 	require.ErrorIs(t, err, ErrMessageBodyCorrupt)
 }
@@ -1240,7 +1241,7 @@ func TestEditMessageIgnoresUnrelatedEVTMutation(t *testing.T) {
 	require.Len(t, edits, 1, "the mutation must commit one logical edit")
 	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody))
 	require.NoError(t, err)
-	require.Len(t, bodyEvents, 1, "the mutation must commit one replacement body after obsolete-body cleanup")
+	require.Len(t, bodyEvents, 1, "the mutation must commit one text patch after obsolete-body cleanup")
 }
 
 func TestEditMessageReauthorizesAfterRoomConflictFollowingManageRevocation(t *testing.T) {

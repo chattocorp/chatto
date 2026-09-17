@@ -78,17 +78,34 @@ func (p *AssetProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil || (event.GetMessageBody() == nil && !isAssetLifecycleEvent(event)) {
 		return nil
 	}
+	fields, err := evtstream.ParseMessageBodyMask(event.GetMessageBody().GetUpdateMask())
+	if err != nil {
+		return err
+	}
+	if body := event.GetMessageBody(); body.GetUpdateMask() != nil {
+		if body.GetBody() == nil || body.GetBody().GetBodyEventId() != event.GetId() {
+			return ErrMessageBodyCorrupt
+		}
+	}
 	p.Lock()
 	defer p.Unlock()
 
 	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
-
 	if bodyEvent := event.GetMessageBody(); bodyEvent != nil {
 		body := bodyEvent.GetBody()
 		if body != nil && body.GetBodyEventId() != "" && body.GetBodyEventId() != event.GetId() {
 			return nil
+		}
+		if body != nil && bodyEvent.GetUpdateMask() != nil {
+			body = proto.Clone(body).(*evtv1.MessageBody)
+			if !fields.Attachments {
+				body.Attachments, body.AssetIds = nil, nil
+			}
+			if !fields.LinkPreview {
+				body.LinkPreview = nil
+			}
 		}
 		p.rememberMessageBodyAssetsLocked(bodyEvent.GetRoomId(), bodyEvent.GetEventId(), body, event.GetActorId())
 		return nil

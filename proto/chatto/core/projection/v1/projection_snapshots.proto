@@ -448,6 +448,9 @@ message TimelineBodySnapshot {
   uint32 attachment_count = 6;
   // False after retraction or key shredding. Sequence history remains stored.
   bool active = 7;
+  // Latest source for text, attachments, preview, and descriptions, in that
+  // order. Clear values retain their source just like non-empty values.
+  repeated uint64 field_sequences = 8;
 }
 
 message StringTimestampSnapshot {

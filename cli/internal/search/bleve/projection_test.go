@@ -302,6 +302,60 @@ func TestProjectionFailedStartupBatchDoesNotAdvanceDurableCheckpoint(t *testing.
 	require.Zero(t, checkpoint.CutoffSequence)
 }
 
+func TestProjectionMetadataPatchPreservesSearchText(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	dek := &evtv1.UserDEKGeneratedEvent{
+		UserId: "U1", Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Epoch: 1, ContentKeyRef: "dek.test", WrappingKeyRef: "kek.test",
+	}
+	wrapper := staticKeyWrapper{key: key, expectedAAD: encryption.UserDEKAAD("U1", dek.GetPurpose(), 1)}
+	store := staticDEKStore{value: &runtimestatev1.UserDataEncryptionKey{WrappingKeyRef: "kek.test"}}
+	p, err := NewProjection(t.TempDir()+"/index", []string{"en"}, wrapper, nil, store, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = p.Close() })
+	createdAt := time.Unix(100, 0)
+	body := v2MessageBodyEvent(t, key, "M1", "B1", "R1", "U1", "searchable original", createdAt)
+	body.GetMessageBody().Body.AssetIds = []string{"A1"}
+	require.NoError(t, p.ApplyStartupBatch([]evtstream.SequencedEvent{
+		{Event: &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: dek}}, Sequence: 1},
+		{Event: body, Sequence: 2},
+		{Event: messagePostedEvent("M1", "R1", "U1", createdAt), Sequence: 3},
+	}))
+	// Removing the attachment supplies no text ciphertext. The masked body
+	// preserves text and advances the revision used by query guards.
+	patch := &evtv1.Event{Id: "P1", Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{
+		RoomId: "R1", EventId: "M1",
+		Body:       &evtv1.MessageBody{BodyEventId: "P1", AuthorId: "U1"},
+		UpdateMask: (evtstream.MessageBodyFields{Attachments: true}).Mask(),
+	}}}
+	require.NoError(t, p.ApplyStartupBatch([]evtstream.SequencedEvent{{Event: patch, Sequence: 4}}))
+	response, err := p.query(context.Background(), relevanceRequest([]string{"searchable"}, nil))
+	require.NoError(t, err)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
+	state, err := p.loadMessage("M1")
+	require.NoError(t, err)
+	require.Equal(t, "searchable original", state.Body)
+	require.Equal(t, "P1", state.BodyEventID)
+	require.Equal(t, uint64(4), state.BodySequence)
+	require.False(t, state.HasAttachments)
+
+	// The clear stays in EVT as the current attachment source. Cold replay
+	// must not restore the attachments from the retained text source.
+	replayed, err := NewProjection(t.TempDir()+"/index", []string{"en"}, wrapper, nil, store, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = replayed.Close() })
+	require.NoError(t, replayed.ApplyStartupBatch([]evtstream.SequencedEvent{
+		{Event: &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: dek}}, Sequence: 1},
+		{Event: body, Sequence: 2},
+		{Event: messagePostedEvent("M1", "R1", "U1", createdAt), Sequence: 3},
+		{Event: patch, Sequence: 4},
+	}))
+	replayedState, err := replayed.loadMessage("M1")
+	require.NoError(t, err)
+	require.Equal(t, state, replayedState)
+}
+
 func TestProjectionNonDEKBatchRetainsDEKMap(t *testing.T) {
 	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, nil, nil, log.New(nil))
 	require.NoError(t, err)

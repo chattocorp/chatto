@@ -97,29 +97,7 @@ func (h *RoomTimelineHydrator) bodies(ctx context.Context, references []Timeline
 		}
 		return result, nil
 	}
-	sequences := make([]uint64, len(references))
-	for i, reference := range references {
-		if reference.StreamSeq == 0 {
-			return nil, fmt.Errorf("hydrate message body %q: sequence must be positive", reference.MessageEventID)
-		}
-		sequences[i] = reference.StreamSeq
-	}
-	records, err := h.reader.EventsAt(ctx, sequences)
-	if err != nil {
-		return nil, fmt.Errorf("hydrate message bodies: %w", err)
-	}
-	if len(records) != len(references) {
-		return nil, fmt.Errorf("hydrate message bodies: reader returned %d records for %d references", len(records), len(references))
-	}
-	bodies := make([]*evtv1.MessageBody, len(references))
-	for i, record := range records {
-		body, err := validateTimelineBodyRecord(references[i], record)
-		if err != nil {
-			return nil, fmt.Errorf("%w: hydrate message body %q: %w", ErrMessageBodyCorrupt, references[i].MessageEventID, err)
-		}
-		bodies[i] = body
-	}
-	return bodies, nil
+	return h.assembleBodyRecords(ctx, references)
 }
 
 func validateTimelineBodyRecord(reference TimelineBodyReference, record *evtstream.SubjectEvent) (*evtv1.MessageBody, error) {
@@ -151,7 +129,7 @@ func validateTimelineBodyRecord(reference TimelineBodyReference, record *evtstre
 	if body.GetAuthorId() != reference.AuthorID {
 		return nil, fmt.Errorf("author does not match projection reference")
 	}
-	if messageBodyAttachmentCount(body) != reference.AttachmentCount {
+	if reference.FieldSequences == [4]uint64{} && messageBodyAttachmentCount(body) != reference.AttachmentCount {
 		return nil, fmt.Errorf("attachment count does not match projection reference")
 	}
 	return body, nil

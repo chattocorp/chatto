@@ -316,6 +316,7 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 				AuthorID:        message.BodyAuthorID,
 				StreamSeq:       message.BodySequence,
 				AttachmentCount: message.AttachmentCount,
+				FieldSequences:  message.BodyFieldSequences,
 			}
 		}
 		bodies, err := c.hydrateCurrentMessageBodies(ctx, references)

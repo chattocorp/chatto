@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-03
 
-**Status:** Accepted
+**Status:** Accepted. ADR-099 refines current body references and payload erasure.
 
 ## Context
 
@@ -34,9 +34,10 @@ The component keeps its existing derived indexes for room order, event lookup,
 pins, tombstones, echo links, attachment-bearing messages, slow mode, and
 secure deletion.
 
-Message body state stores the current body-event sequence and the sequences of
-superseded body events. It also stores small derived values that a bounded read
-needs before payload hydration, such as the current attachment count.
+Message body state stores the current body reference and the sequences needed
+for payload cleanup. For partial edits, [ADR-099](ADR-099-partial-message-body-updates.md)
+defines projection-owned source positions for current fields, including clears. State
+also stores small derived values needed before hydration, such as attachment count.
 Retraction and key shredding deactivate the current reference but retain the
 complete sequence history needed for secure deletion.
 

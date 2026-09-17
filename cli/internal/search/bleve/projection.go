@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	checkpointContractBaseID = "bleve-message-index-v10"
+	checkpointContractBaseID = "bleve-message-index-v11"
 	checkpointInternalKey    = "chatto/search/checkpoint"
 	dekInternalKey           = "chatto/search/deks"
 	startupReplayBatchSize   = 256
@@ -252,7 +252,11 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *evtv1.Event, seq 
 			batch.dekChanged = true
 		}
 	case *evtv1.Event_MessageBody:
-		bodyEvent := payload.MessageBody
+		bodyEvent := event.GetMessageBody()
+		changes, err := evtstream.ParseMessageBodyMask(bodyEvent.GetUpdateMask())
+		if err != nil {
+			return err
+		}
 		if bodyEvent != nil && bodyEvent.GetBody() != nil {
 			if claimed := bodyEvent.GetBody().GetBodyEventId(); claimed != "" && claimed != event.GetId() {
 				break
@@ -265,17 +269,21 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *evtv1.Event, seq 
 				break
 			}
 			if seq > state.BodySequence {
-				plaintext, err := p.decryptBodyWithDEKs(context.Background(), bodyEvent.GetEventId(), bodyEvent.GetRoomId(), bodyEvent.GetBody(), batch.deks)
-				if err != nil && !errors.Is(err, encryption.ErrKeyNotFound) {
-					return err
+				if changes.Text {
+					plaintext, err := p.decryptBodyWithDEKs(context.Background(), bodyEvent.GetEventId(), bodyEvent.GetRoomId(), bodyEvent.GetBody(), batch.deks)
+					if err != nil && !errors.Is(err, encryption.ErrKeyNotFound) {
+						return err
+					}
+					state.Body = string(plaintext)
 				}
 				body := bodyEvent.GetBody()
 				state.MessageID = bodyEvent.GetEventId()
 				state.RoomID = bodyEvent.GetRoomId()
 				state.AuthorID = body.GetAuthorId()
 				state.BodyEventID = event.GetId()
-				state.Body = string(plaintext)
-				state.HasAttachments = len(body.GetAttachments()) > 0 || len(body.GetAssetIds()) > 0
+				if changes.Attachments {
+					state.HasAttachments = len(body.GetAttachments()) > 0 || len(body.GetAssetIds()) > 0
+				}
 				if body.GetCreatedAt() != nil {
 					state.CreatedAt = body.GetCreatedAt().AsTime()
 				}

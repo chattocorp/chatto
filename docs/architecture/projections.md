@@ -155,14 +155,14 @@ atomically commit its derived changes and supplied final stream sequence.
 
 The bundled search provider owns the first locally checkpointed projection. It
 is registered by its runtime unit rather than by `ChattoCore`. It consumes only
-message body, message posting, message retraction, room deletion, user DEK
+complete and masked body events, message posting, message retraction, room deletion, user DEK
 generation, and user key shredding event families, and uses projector key
 `message_search`.
 
 During captured startup replay it commits up to 256 ordered events and the
 final checkpoint in one Bleve transaction, including a smaller final batch;
 once current, each relevant live event is committed immediately.
-Its checkpoint contract starts with `bleve-message-index-v10-` and includes a
+Its checkpoint contract starts with `bleve-message-index-v11-` and includes a
 stable fingerprint of the configured language analyzer set, so changing that
 set forces a cold EVT replay.
 
@@ -172,6 +172,8 @@ posting event is a stored, non-indexed field in that same Bleve document; it is
 not duplicated as one internal Bolt key per message. Candidate revisions must
 match current core state before hydration, fencing provider catch-up races.
 Attachment descriptions are not indexed or copied into this projection.
+Metadata-only updates preserve indexed text. Body masks advance its current
+revision and attachment filter. Clear events remain available on replay.
 
 Message bodies use BM25 scoring over a language-neutral field plus the
 operator-selected subset of all 22 complete language analyzers available in
@@ -198,8 +200,8 @@ generation prefix. The contract covers serialized state, replay semantics,
 consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
-semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v8`.
+semantic token `v1`; Assets uses `v4`, user profile uses `v4`, and Room Timeline
+uses `v9`.
 
 The 0.5 internal protobuf package split changes full protobuf names and selects
 new snapshot contract IDs. A server ignores older snapshots, cold-replays EVT,
@@ -397,12 +399,15 @@ same room. Body selection and attachment indexes use the original body
 reference. Echo bodies from historical EVT records remain indexed only for
 physical record ownership and secure deletion. Snapshot restore rebuilds
 attachment membership from these links. The Room Timeline snapshot semantics
-token is `v8`. Timeline pages batch original metadata reads and reuse metadata
+token is `v9`. Partial body edits retain four projected source positions and
+erasable payload history. Hydration batches source reads; cleanup keeps every
+current source, including clears, plus the latest body event for timestamps.
+Timeline pages batch original metadata reads and reuse metadata
 and canonical bodies within the response. Missing or invalid original metadata
 is omitted for the affected echo; storage errors still fail the read. Historical
 echo metadata is never used as a fallback. Projections do not retain decrypted
 content.
 
-The Bleve search checkpoint contract is `bleve-message-index-v10`. Echo posts
+The Bleve search checkpoint contract is `bleve-message-index-v11`. Echo posts
 are not searchable contributions. Historical echo bodies cannot replace the
 original search document or create a second result.

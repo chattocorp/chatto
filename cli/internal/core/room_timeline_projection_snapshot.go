@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -11,7 +12,7 @@ import (
 	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v8", &projectionv1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v9", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -47,6 +48,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			AuthorId:            state.authorID,
 			AttachmentCount:     uint32(state.attachmentCount),
 			Active:              state.active,
+			FieldSequences:      state.fieldSequences[:],
 		}
 		snapshot.Bodies = append(snapshot.Bodies, row)
 	}
@@ -168,6 +170,16 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if !row.GetActive() && row.GetAttachmentCount() != 0 {
 			return fmt.Errorf("room timeline snapshot inactive body %q has attachments", id)
 		}
+		var sources [4]uint64
+		if len(row.GetFieldSequences()) != len(sources) {
+			return fmt.Errorf("invalid body field source count")
+		}
+		copy(sources[:], row.GetFieldSequences())
+		for _, seq := range sources {
+			if seq != 0 && !slices.Contains(sequences, seq) {
+				return fmt.Errorf("body source missing from cleanup history")
+			}
+		}
 		restored.bodyStates[id] = timelineBodyState{
 			currentSequence:     row.GetCurrentBodySequence(),
 			currentEventID:      row.GetCurrentBodyEventId(),
@@ -175,6 +187,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			attachmentCount:     int(row.GetAttachmentCount()),
 			active:              row.GetActive(),
 			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
+			fieldSequences:      sources,
 		}
 	}
 	restoreTimes := func(rows []*projectionv1.StringTimestampSnapshot) (map[string]time.Time, error) {

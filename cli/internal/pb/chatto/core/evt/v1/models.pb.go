@@ -1315,8 +1315,12 @@ type EncryptedAttachmentDescription struct {
 	EncryptedDescription []byte `protobuf:"bytes,4,opt,name=encrypted_description,json=encryptedDescription,proto3" json:"encrypted_description,omitempty"`
 	// XChaCha20-Poly1305 nonce for encrypted_description.
 	EncryptionNonce []byte `protobuf:"bytes,5,opt,name=encryption_nonce,json=encryptionNonce,proto3" json:"encryption_nonce,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Original encryption context. Empty means the containing body's event ID.
+	// Hydration sets this when sources differ. A masked description-list update
+	// preserves it when copying unchanged ciphertext from an older payload.
+	SourceBodyEventId string `protobuf:"bytes,6,opt,name=source_body_event_id,json=sourceBodyEventId,proto3" json:"source_body_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *EncryptedAttachmentDescription) Reset() {
@@ -1382,6 +1386,13 @@ func (x *EncryptedAttachmentDescription) GetEncryptionNonce() []byte {
 		return x.EncryptionNonce
 	}
 	return nil
+}
+
+func (x *EncryptedAttachmentDescription) GetSourceBodyEventId() string {
+	if x != nil {
+		return x.SourceBodyEventId
+	}
+	return ""
 }
 
 // LinkPreview stores OpenGraph/oEmbed metadata for a URL in a message.
@@ -2109,13 +2120,14 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\vattachments\x18\x1e \x03(\v2\x1e.chatto.core.evt.v1.AttachmentR\vattachments\x12\x1b\n" +
 	"\tasset_ids\x18\x1f \x03(\tR\bassetIds\x12k\n" +
 	"\x17attachment_descriptions\x18  \x03(\v22.chatto.core.evt.v1.EncryptedAttachmentDescriptionR\x16attachmentDescriptions\x12B\n" +
-	"\flink_preview\x18( \x01(\v2\x1f.chatto.core.evt.v1.LinkPreviewR\vlinkPreview\"\xf6\x01\n" +
+	"\flink_preview\x18( \x01(\v2\x1f.chatto.core.evt.v1.LinkPreviewR\vlinkPreview\"\xa7\x02\n" +
 	"\x1eEncryptedAttachmentDescription\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12-\n" +
 	"\x12encryption_version\x18\x02 \x01(\x05R\x11encryptionVersion\x12*\n" +
 	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\x123\n" +
 	"\x15encrypted_description\x18\x04 \x01(\fR\x14encryptedDescription\x12)\n" +
-	"\x10encryption_nonce\x18\x05 \x01(\fR\x0fencryptionNonce\"\x88\x03\n" +
+	"\x10encryption_nonce\x18\x05 \x01(\fR\x0fencryptionNonce\x12/\n" +
+	"\x14source_body_event_id\x18\x06 \x01(\tR\x11sourceBodyEventId\"\x88\x03\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +

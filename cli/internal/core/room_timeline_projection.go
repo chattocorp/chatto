@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -116,9 +117,10 @@ type projectedRoomAttachmentMessage struct {
 	BodyEventID        string
 	BodyAuthorID       string
 	AttachmentCount    int
+	BodyFieldSequences [4]uint64
 }
 
-// TimelineBodyReference identifies one active MessageBodyEvent in EVT. The
+// TimelineBodyReference identifies the current body payloads in EVT. The
 // reference is detached from projection state and contains no message payload.
 type TimelineBodyReference struct {
 	MessageEventID  string
@@ -127,6 +129,9 @@ type TimelineBodyReference struct {
 	AuthorID        string
 	StreamSeq       uint64
 	AttachmentCount int
+	// Latest text, attachment, preview, and description sources. Empty means
+	// a single complete body. The fixed array keeps RYW references comparable.
+	FieldSequences [4]uint64
 }
 
 type timelineBodyState struct {
@@ -136,6 +141,8 @@ type timelineBodyState struct {
 	attachmentCount     int
 	active              bool
 	supersededSequences []uint64
+	// Clear events are sources too: deleting them could restore older values.
+	fieldSequences [4]uint64
 }
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Event) int {
@@ -258,13 +265,21 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if !eventMutatesRoomTimelineProjection(event) {
 		return nil
 	}
+	fields, err := evtstream.ParseMessageBodyMask(event.GetMessageBody().GetUpdateMask())
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrMessageBodyCorrupt, err)
+	}
+	if body := event.GetMessageBody(); body != nil {
+		if err := rejectUnknownBodyFields(body.ProtoReflect()); err != nil {
+			return err
+		}
+	}
 
 	// Idempotency is envelope-ID based during startup replay. A clean history
 	// switches to the monotonic stream-sequence guard once replay completes.
 	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
-
 	if ev := event.GetMessageBody(); ev != nil {
 		targetID := ev.GetEventId()
 		body := ev.GetBody()
@@ -283,7 +298,21 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 					if bodyEventID == "" {
 						bodyEventID = event.GetId()
 					}
+					previous := p.bodyStates[targetID]
 					p.setCurrentBodyLocked(targetID, bodyEventID, authorID, messageBodyAttachmentCount(body), seq)
+					if ev.GetUpdateMask() != nil {
+						state := p.bodyStates[targetID]
+						state.fieldSequences = previous.fieldSequences
+						for i, selected := range []bool{fields.Text, fields.Attachments, fields.LinkPreview, fields.Descriptions} {
+							if selected {
+								state.fieldSequences[i] = seq
+							}
+						}
+						if !fields.Attachments {
+							state.attachmentCount = previous.attachmentCount
+						}
+						p.bodyStates[targetID] = state
+					}
 					// Retractions are monotonic. Mixed-version replicas or historical
 					// replay can present a late body after the tombstone. Retain its
 					// sequence for secure deletion without making it active again.
@@ -485,6 +514,7 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID, bodyEventID, auth
 	if exists {
 		state.supersededSequences = append(state.supersededSequences, state.currentSequence)
 	}
+	state.fieldSequences = [4]uint64{sequence, sequence, sequence, sequence}
 	state.currentSequence = sequence
 	state.currentEventID = bodyEventID
 	state.authorID = authorID
@@ -650,7 +680,7 @@ func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (t
 	return value, ok && !value.IsZero()
 }
 
-// LatestBodyReference returns the current MessageBodyEvent reference for a
+// LatestBodyReference returns the current body field references for a
 // message, or a zero reference plus retracted=true after retraction.
 //
 // Echo references identify the original content owner, not the echo's
@@ -715,9 +745,15 @@ func (p *RoomTimelineProjection) latestBodyReferenceLocked(eventID string) (Time
 		return TimelineBodyReference{}, true, true
 	}
 	if state, has := p.bodyStates[entry.EventID]; has && state.active {
+		sources := state.fieldSequences
+		seq := state.currentSequence
+		if sources == [4]uint64{seq, seq, seq, seq} {
+			sources = [4]uint64{}
+		}
 		return TimelineBodyReference{
 			MessageEventID: entry.EventID, BodyEventID: state.currentEventID, RoomID: entry.RoomID,
 			AuthorID: state.authorID, StreamSeq: state.currentSequence, AttachmentCount: state.attachmentCount,
+			FieldSequences: sources,
 		}, false, true
 	}
 	return TimelineBodyReference{}, false, true
@@ -768,6 +804,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 			BodyEventID:        reference.BodyEventID,
 			BodyAuthorID:       reference.AuthorID,
 			AttachmentCount:    reference.AttachmentCount,
+			BodyFieldSequences: reference.FieldSequences,
 		})
 	}
 	return out
@@ -846,7 +883,7 @@ func (p *RoomTimelineProjection) removeAttachmentMessageLocked(eventID string) {
 	delete(p.attachmentMessageRoom, eventID)
 }
 
-// BodyEventSeqs returns all projected MessageBodyEvent stream sequences for
+// BodyEventSeqs returns all complete-body and patch payload stream sequences for
 // a message and identifies the most recently observed body sequence. A
 // retracted or hidden message retains this history for secure deletion.
 func (p *RoomTimelineProjection) BodyEventSeqs(eventID string) (seqs []uint64, current uint64, ok bool) {
@@ -888,10 +925,10 @@ func (p *RoomTimelineProjection) ObsoleteBodyEventSeqs(eventID string) []uint64 
 	if _, hidden := p.hiddenEchoes[eventID]; hidden {
 		return appendBodySequences(nil, state)
 	}
-	return append([]uint64(nil), state.supersededSequences...)
+	return obsoleteBodySequences(state)
 }
 
-// AllObsoleteBodyEventSeqs returns every projected MessageBodyEvent seq
+// AllObsoleteBodyEventSeqs returns every complete-body or patch payload sequence
 // whose payload is no longer needed for the current message state.
 func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
 	p.RLock()
@@ -906,7 +943,7 @@ func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
 			out = appendBodySequences(out, state)
 			continue
 		}
-		out = append(out, state.supersededSequences...)
+		out = append(out, obsoleteBodySequences(state)...)
 	}
 	return out
 }
@@ -914,6 +951,21 @@ func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
 func appendBodySequences(dst []uint64, state timelineBodyState) []uint64 {
 	dst = append(dst, state.supersededSequences...)
 	return append(dst, state.currentSequence)
+}
+
+func obsoleteBodySequences(state timelineBodyState) []uint64 {
+	// The latest payload supplies timestamps even for an empty update mask.
+	live := map[uint64]bool{state.currentSequence: true}
+	for _, sequence := range state.fieldSequences {
+		live[sequence] = true
+	}
+	var obsolete []uint64
+	for _, seq := range appendBodySequences(nil, state) {
+		if !live[seq] {
+			obsolete = append(obsolete, seq)
+		}
+	}
+	return obsolete
 }
 
 func (p *RoomTimelineProjection) echoOriginalIDLocked(eventID string) string {

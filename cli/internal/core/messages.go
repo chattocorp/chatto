@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"maps"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -1765,35 +1766,42 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		if !ok || !entry.IsMessagePost() || entry.RoomID != roomID || entry.EchoOfEventID != "" {
 			return "", ErrMessageNotFound
 		}
-		current, err := c.currentMessageBody(ctx, eventID)
+		reference, retracted, known := c.roomModel.latestBodyReference(eventID)
+		if !known || retracted || reference.StreamSeq == 0 {
+			return "", ErrMessageNotFound
+		}
+		current, err := c.timelineHydrator.body(ctx, reference)
 		if err != nil {
+			if !c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+				lastErr = events.ErrConflict
+				continue
+			}
 			return "", err
 		}
 		if current == nil {
 			return "", ErrMessageNotFound
+		}
+		if !c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+			lastErr = events.ErrConflict
+			continue
 		}
 		updated := proto.Clone(current).(*evtv1.MessageBody)
 		descriptions, err := c.decryptAttachmentDescriptions(ctx, eventID, roomID, current)
 		if err != nil {
 			return "", fmt.Errorf("decrypt attachment descriptions for edit: %w", err)
 		}
+		oldDescriptions := maps.Clone(descriptions)
 		plaintext, err := mutate(ctx, updated, descriptions)
 		if err != nil {
 			return "", err
 		}
-		updated.UpdatedAt = timestamppb.Now()
-		if err := c.encryptMessageContent(ctx, updated, roomID, eventID, c.attachmentDescriptionCanonicalEventID(eventID), bodyEventID, plaintext, descriptions); err != nil {
+		patch, err := c.buildMessageBodyPatch(ctx, roomID, eventID, bodyEventID, current, updated, plaintext, oldDescriptions, descriptions)
+		if err != nil {
 			return "", err
 		}
 		bodyEvent := newEvent(actorID, &evtv1.Event{
-			Id: bodyEventID,
-			Event: &evtv1.Event_MessageBody{
-				MessageBody: &evtv1.MessageBodyEvent{
-					RoomId:  roomID,
-					EventId: eventID,
-					Body:    updated,
-				},
-			},
+			Id:    bodyEventID,
+			Event: &evtv1.Event_MessageBody{MessageBody: patch},
 		})
 		event := newEvent(actorID, &evtv1.Event{
 			Id: editEventID,
@@ -2050,9 +2058,9 @@ func validateLinkPreviewAsset(name string, asset *evtv1.AssetRecord) error {
 // editEmbeddedBody is the shared engine behind partial-edit
 // operations (SetAttachmentDescription, DeleteAttachmentFromMessage,
 // DeleteLinkPreviewFromMessage).
-// Reads the current body from the projection, applies `mutate` to a
-// clone, re-encrypts all PII for the replacement MessageBodyEvent, and emits a
-// MessageEditedEvent.
+// Hydrates the current body, applies mutate to a clone, and emits a sparse
+// MessageBodyEvent with an update mask, followed by MessageEditedEvent.
+// Unchanged fields retain their original encrypted payloads.
 func (c *ChattoCore) editEmbeddedBody(
 	ctx context.Context,
 	actorID string,

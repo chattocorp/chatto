@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 
 import "chatto/core/evt/v1/models.proto";
+import "google/protobuf/field_mask.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -106,6 +107,17 @@ message MessageBodyEvent {
   // Encrypted body envelope. For new writes body.body_event_id must match the
   // outer Event envelope ID that carries this MessageBodyEvent.
   MessageBody body = 3;
+
+  // Paths in body to replace or clear. Absent means complete replacement for
+  // historical events and new posts; present with no paths changes no fields.
+  // Text selects encrypted_body, encryption_nonce, encryption_version, and
+  // content_key_epoch together. Attachment identity selects attachments and
+  // asset_ids together. Other paths are link_preview and attachment_descriptions.
+  // Repeated fields are replaced as lists. Identity and timestamps are metadata,
+  // not selectable paths. Edits also publish MessageEditedEvent in the same
+  // atomic EVT batch. Keep clear events until a later update selects the same
+  // fields, so replay cannot restore an older value.
+  google.protobuf.FieldMask update_mask = 4;
 }
 
 // MessageEditedEvent is the durable semantic event published when a message's

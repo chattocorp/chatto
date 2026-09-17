@@ -256,9 +256,9 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent`                           |
 | `evt.room.{roomId}.room_member_added`                        | `RoomMemberAddedEvent`                              |
 | `evt.room.{roomId}.room_member_removed`                      | `RoomMemberRemovedEvent`                            |
-| `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`; encrypted message text and separately encrypted attachment descriptions, plus non-PII content metadata |
+| `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`; absent update mask means complete body; a present mask selects fields to replace or clear |
 | `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
-| `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
+| `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`; bodyless semantic edit signal |
 | `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
 | `evt.room.{roomId}.message_pinned`                           | `MessagePinnedEvent`                                |
 | `evt.room.{roomId}.message_unpinned`                         | `MessageUnpinnedEvent`                              |
@@ -389,9 +389,10 @@ the Started fact to that batch. The batch guards the room and authorization
 boundaries and the complete aggregate of every attached asset, so concurrent
 attachments, pending expiry, and deletion cannot commit conflicting transitions.
 The asset event is permanent ownership evidence and does not contain an attachment
-description. The current `MessageBodyEvent` holds each description as a separate
-author-key envelope. A message edit encrypts retained descriptions again against
-the replacement body event, and obsolete body events use secure deletion.
+description. Each description has a separate author-key envelope. Partial edits
+encrypt only changed text and descriptions. The projection derives current field
+sources from body masks, including clears. Cleanup erases only obsolete payloads. See
+[ADR-099](../adr/ADR-099-partial-message-body-updates.md).
 
 Failed or losing processing attempts perform bounded prompt cleanup by
 appending ordinary derivative `AssetDeletedEvent` facts. If cleanup is

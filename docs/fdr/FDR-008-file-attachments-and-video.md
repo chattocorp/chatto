@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-17
 
 ## Overview
 
@@ -121,11 +121,11 @@ already in the cache and newly posted attachments are inserted directly.
 
 ### 13. Attachment descriptions are encrypted message metadata
 
-**Decision:** `MessageBody` stores one encrypted description envelope per described attachment, keyed by asset ID. Each envelope records its encryption version, the original author's message-body DEK epoch, nonce, and ciphertext. Its authenticated data is domain-separated and binds the description to the room, canonical message, body event, author, asset, key epoch, and description purpose. Every body replacement decrypts descriptions transiently and encrypts them again for the new body event, including linked channel echoes. Obsolete body events use the existing secure-delete process. `AssetAttachedEvent` remains the permanent asset-to-message ownership link and contains no description. `Asset`, upload-session state, snapshots, logs, realtime event payloads, and search indexes do not contain description plaintext.
+**Decision:** Each attachment description is encrypted under the original author's content key. Its authenticated context binds the room, canonical message, source event, author, asset, key epoch, and description purpose. Partial edits encrypt only changed values. Text edits preserve descriptions and their original encryption context; echoes read the same canonical content. The projection keeps current field sources, including clear events, available during payload cleanup. Permanent asset ownership evidence contains no description. Upload state, snapshots, logs, realtime payloads, and search indexes do not contain description plaintext. See [ADR-099](../adr/ADR-099-partial-message-body-updates.md).
 
 **Why:** A description can identify a person or disclose message context. It must follow message editing, retraction, secure deletion, and author-key shredding. It describes one use of an asset in one message, so it is not intrinsic file metadata. Permanent asset lifecycle evidence must remain useful after message PII is deleted.
 
-**Tradeoff:** Hydrating a message or room-file row must decrypt the current description. Editing any message-body field encrypts every retained description again because the body-event ID is part of authenticated data. Existing messages need no migration and return no description. All message-writing replicas must understand this metadata before clients create it. A rollback to an older writer after descriptions exist is not supported.
+**Tradeoff:** Message and room-file reads can fetch several source payloads and key epochs. A cleared description is absent from current reads, but its ciphertext can remain while another field uses the same payload. Deleting the message erases all its payloads. Existing messages need no history rewrite. All serving replicas must understand partial edits before they are written; rollback to a complete-body writer is unsupported.
 
 ### 14. Attachment types share one viewer shell
 
@@ -146,5 +146,5 @@ Fresh servers seed `message.attach` for `everyone` so new deployments keep uploa
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-090 (EVT timeline payload hydration)
+- **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-090 (EVT timeline payload hydration), ADR-099 (partial message body updates)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-034 (Chatto Desktop), FDR-039 (Message Access & Interactions)

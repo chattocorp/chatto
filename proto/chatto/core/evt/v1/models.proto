@@ -284,6 +284,10 @@ message EncryptedAttachmentDescription {
   bytes encrypted_description = 4;
   // XChaCha20-Poly1305 nonce for encrypted_description.
   bytes encryption_nonce = 5;
+  // Original encryption context. Empty means the containing body's event ID.
+  // Hydration sets this when sources differ. A masked description-list update
+  // preserves it when copying unchanged ciphertext from an older payload.
+  string source_body_event_id = 6;
 }
 
 // LinkPreview stores OpenGraph/oEmbed metadata for a URL in a message.

@@ -241,6 +241,17 @@ schema. Stop the provider, move or delete only its configured Search directory,
 then restart it to rebuild the index safely from `EVT`. Chatto does not modify
 or remove an incompatible index directory automatically.
 
+## Upgrading Search
+
+The release that introduces partial message-body updates changes the Search
+index format. Stop the provider, move or delete only its configured Search
+directory, then start the upgraded provider to rebuild from `EVT`. For embedded
+Search, stop and restart the server instead. Keep the durable NATS data.
+
+Upgrade all providers together with the server replicas. An older provider
+cannot correctly index the new message edits. The server rebuilds its own
+projection snapshots automatically; you do not need to remove those snapshots.
+
 ## Run Bleve Separately
 
 Use a standalone provider when you want indexing CPU, memory, and storage away

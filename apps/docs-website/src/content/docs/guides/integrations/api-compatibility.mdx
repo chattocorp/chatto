@@ -365,6 +365,16 @@ clients and servers from opposite sides of that development-only change.
 
 ## Before upgrading
 
+When upgrading from a version that predates partial message-body updates, stop
+all server replicas and search providers before starting the upgraded versions.
+Do not use a rolling upgrade across this boundary. Older servers can misread new
+message edits and delete payloads that current messages still need. After the
+first new edit, rollback to an older server is unsupported. Existing messages
+remain readable without an event-data migration.
+
+If you use Search, rebuild its local index as described in the
+[Search guide](/guides/operations/search/#upgrading-search).
+
 1. Check the release's data-migration and rollback constraints, and prepare a
    tested recovery plan.
 2. Regenerate or update your client from the candidate release's protobufs.
