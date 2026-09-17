@@ -680,6 +680,11 @@
 @utility select-control {
   @apply input max-w-full min-w-0 cursor-pointer text-base;
   @apply control-raised bg-surface;
+  /* Select fields use softer lighting than action buttons. */
+  --lighting-top: rgb(255 255 255 / min(0.112, calc(0.08 * var(--depth-strength))));
+  --lighting-bottom: rgb(0 0 0 / calc(0.03 * var(--depth-strength)));
+  --lighting-edge-top: rgb(255 255 255 / calc(0.12 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
   text-overflow: ellipsis;
 
   @supports (appearance: base-select) {
