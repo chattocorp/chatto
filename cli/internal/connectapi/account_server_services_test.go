@@ -347,8 +347,8 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateSettings clear timezone: %v", err)
 	}
-	if clearResp.Msg.GetSettings().Timezone != nil {
-		t.Fatalf("cleared timezone = %q, want nil", clearResp.Msg.GetSettings().GetTimezone())
+	if settings := clearResp.Msg.GetSettings(); settings.Timezone == nil || settings.GetTimezone() != "" {
+		t.Fatalf("cleared timezone must preserve the explicit browser default: %+v", settings)
 	}
 }
 
@@ -1529,7 +1529,7 @@ func TestMyAccountServiceSettingsPatchPresence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := response.Msg.GetSettings(); got.Timezone != nil || got.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_AUTO {
+	if got := response.Msg.GetSettings(); got.Timezone == nil || got.GetTimezone() != "" || got.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_AUTO {
 		t.Fatalf("explicit defaults must clear overrides: %+v", got)
 	}
 }
