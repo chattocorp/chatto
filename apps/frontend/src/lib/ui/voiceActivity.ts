@@ -96,7 +96,7 @@ export function voiceActivity(readLevel: () => number): Attachment<HTMLCanvasEle
         previousTime = time;
         level = motion.matches
           ? target
-          : level + (target - level) * (1 - Math.exp(-elapsed / (target > level ? 75 : 350)));
+          : level + (target - level) * (1 - Math.exp(-elapsed / (target > level ? 75 : 220)));
         if (target === 0 && level < 0.002) {
           level = 0;
           if (painted) clear();
