@@ -48,7 +48,8 @@
       "complete": "Chatto rebuilt. Final score: {count} points"
     },
     "pane_header": {
-      "back": "Back"
+      "back": "Back",
+      "actions": "Pane actions"
     },
     "sidebar_nav": {
       "back_to_chat": "Back to Chat"

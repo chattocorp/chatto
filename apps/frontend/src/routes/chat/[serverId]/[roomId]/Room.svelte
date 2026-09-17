@@ -730,28 +730,34 @@
       >
         <DropZoneOverlay visible={isDraggingFiles} />
 
+        {#snippet roomPanelActions(panels: RoomSidebarPanel[])}
+          <RoomSidebarToggle
+            mode="mobile"
+            activePanel={activeMobileRoomSidebarProfileUserId ? null : mobileRoomSidebarPanel}
+            {panels}
+            hasActiveCall={hasActiveRoomCall}
+            hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
+            onToggle={(panel) => appUi.toggleMobileRoomSidebarPanel(panel)}
+          />
+          <RoomSidebarToggle
+            mode="desktop"
+            activePanel={activeRoomSidebarPanel}
+            {panels}
+            hasActiveCall={hasActiveRoomCall}
+            hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
+            onToggle={toggleDesktopRoomSidebarPanel}
+          />
+        {/snippet}
+
         <PaneHeader
           title={presentation.title}
           subtitle={presentation.description}
           loading={!room.roomData}
+          collapseActions
+          actionsLabel={m('room_list.room_actions', { room: room.roomData?.room.name ?? '' })}
         >
           {#snippet actions()}
-            <RoomSidebarToggle
-              mode="mobile"
-              activePanel={activeMobileRoomSidebarProfileUserId ? null : mobileRoomSidebarPanel}
-              panels={roomSidebarTogglePanels}
-              hasActiveCall={hasActiveRoomCall}
-              hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
-              onToggle={(panel) => appUi.toggleMobileRoomSidebarPanel(panel)}
-            />
-            <RoomSidebarToggle
-              mode="desktop"
-              activePanel={activeRoomSidebarPanel}
-              panels={roomSidebarTogglePanels}
-              hasActiveCall={hasActiveRoomCall}
-              hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
-              onToggle={toggleDesktopRoomSidebarPanel}
-            />
+            {@render roomPanelActions(roomSidebarTogglePanels)}
             {#if room.isDM && directMessageProfileUserId}
               <HeaderIconButton
                 icon="icon-[uil--info-circle]"
@@ -761,8 +767,10 @@
               />
             {/if}
             {#if showLeaveRoom}
-              <button
-                class="group/pane-header-icon-button pane-header-icon-button"
+              <HeaderIconButton
+                icon="icon-[uil--sign-out-alt]"
+                label={m('room.leave.title')}
+                disabled={leavingRoom}
                 onclick={() =>
                   pushState('', {
                     modal: {
@@ -772,12 +780,12 @@
                       roomName: room.roomData!.room.name
                     }
                   })}
-                disabled={leavingRoom}
-                title={m('room.leave.title')}
-              >
-                <span class="icon-[uil--sign-out-alt] pane-header-icon-glyph" aria-hidden="true"
-                ></span>
-              </button>
+              />
+            {/if}
+          {/snippet}
+          {#snippet collapsedActions()}
+            {#if hasActiveRoomCall && roomSidebarTogglePanels.includes('call')}
+              {@render roomPanelActions(['call'])}
             {/if}
           {/snippet}
         </PaneHeader>

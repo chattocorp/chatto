@@ -539,7 +539,23 @@ matches the action.
   or value it acts on; do not use it for standalone or toolbar actions.
 
 Chatto deliberately uses browser/platform text rendering. Do not add global
-font smoothing. Controls use solid semantic fills, with a subtle gloss on filled buttons;
+font smoothing. Keep the browser's default root text size on mobile as well as
+desktop. Below the `md` breakpoint, room and thread timelines add `px-1`
+padding around their rows to give avatars and message content more space at
+the screen edges.
+
+Set `collapseActions` on `PaneHeader` to collapse its `actions` snippet behind
+a three-dot button when the pane is narrower than 32 rem. Use `actionsLabel`
+for a context-specific accessible label. The button expands the actions inside the pane
+header; the room title truncates as needed. A second press or Escape collapses
+the actions. Wider panes keep the actions beside the title.
+Use the optional `collapsedActions` snippet for important actions that must
+remain visible while collapsed. Room headers use this option for active calls.
+When a call is active, the collapsed header keeps the call button visible
+beside the three-dot button. It uses the same active-call colour and pulse as
+the expanded toolbar.
+
+Controls use solid semantic fills, with a subtle gloss on filled buttons;
 borders define structure, and shadows are reserved for genuinely floating or
 raised surfaces. Do not use decorative one-sided accent borders or inset edge
 stripes on cards, rows, panels, or selected states. When a boundary is needed,

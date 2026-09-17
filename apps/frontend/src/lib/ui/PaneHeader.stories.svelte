@@ -61,3 +61,19 @@
     <PaneHeader title="" loading skeletonButtons={2} />
   </div>
 </Story>
+
+<Story name="Responsive actions" asChild>
+  <div class="w-[390px] max-w-full resize-x overflow-auto rounded-md border border-border">
+    <PaneHeader title="#general-discussion" collapseActions>
+      {#snippet actions()}
+        <HeaderIconButton icon="icon-[uil--users-alt]" label="Members" />
+        <HeaderIconButton icon="icon-[uil--search]" label="Search" />
+        <HeaderIconButton icon="icon-[uil--phone]" label="Active call" tone="active" />
+        <HeaderIconButton icon="icon-[uil--sign-out-alt]" label="Leave room" />
+      {/snippet}
+      {#snippet collapsedActions()}
+        <HeaderIconButton icon="icon-[uil--phone]" label="Active call" tone="active" />
+      {/snippet}
+    </PaneHeader>
+  </div>
+</Story>
