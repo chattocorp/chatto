@@ -11,10 +11,9 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 - Open a participant's user context menu with the three-dot button or a
   right-click on their card. Touch users can long-press the card. For remote
-  participants in the active call, the menu includes **Voice volume** and
-  **Stream volume** alongside profile actions. These controls are also available
-  when opening that user's menu from the members list. The same menu is available on camera
-  and screen-share cards without covering the media with persistent controls.
+  participants in the active call, participant and camera card menus include
+  **Voice volume** alongside profile actions. This control is also available
+  from the members list. Screen-share card menus show **Stream volume** instead.
   Adjust each independently from 0% to 200%. 100% is the original
   level. These settings change only what this listener hears. The browser saves
   levels per server and user for later calls. Native game-share audio uses the
@@ -179,6 +178,9 @@ and fades away in silence. Video and screen-share content stays clear. Muted
 microphones show no activity. Muting someone locally does not hide their
 speaking activity. Reduced motion keeps the glow stationary and updates its
 intensity without animation.
+Screen-share tiles use their screen audio track's level, including native
+companion publishers. They stay quiet when the share has no audio; microphone
+activity and microphone mute do not affect this separate meter.
 **Why:** The card background makes active speakers easy to find without a
 pulsing outline or an extra status icon. The effect uses existing call audio
 levels and needs no additional audio capture or external connection.

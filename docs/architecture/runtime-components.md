@@ -317,3 +317,11 @@ both gains without replacing preferences. Track subscription and reconnect
 reapply these gains. Call cleanup closes the context after detaching tracks.
 No new network connection is required. If context creation fails, media-element
 playback remains available with gain capped at 1.
+
+The call state also owns screen-audio meters in
+[`TrackAudioLevels`](../../apps/frontend/src/lib/audio/trackAudioLevels.ts).
+These meters share the call's AudioContext and sample existing screen audio
+tracks before listener-local gain. Companion tracks use their owner's identity.
+The 60 ms call sampler updates non-reactive RMS levels for screen tiles.
+Track replacement, mute, unsubscription, and call cleanup disconnect meter
+nodes without stopping the media tracks. Meter nodes do not connect to playback.

@@ -1,5 +1,6 @@
 import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { microphoneMeter } from '$lib/audio/noiseGate';
+import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
  *
@@ -280,6 +281,7 @@ export class VoiceCallState {
   // Deliberately NOT $state to avoid triggering Svelte reactivity at 60Hz.
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- deliberately non-reactive, polled imperatively at 60Hz
   private audioLevelCache = new Map<string, AudioLevelInfo>();
+  private screenAudioLevels = new TrackAudioLevels();
 
   // Local microphone audio analysis (Web Audio API) for instant level feedback.
   private microphoneProcessor: MicrophoneProcessor | null = null;
@@ -423,6 +425,11 @@ export class VoiceCallState {
    */
   getAudioLevel(identity: string): AudioLevelInfo {
     return this.audioLevelCache.get(identity) ?? { isSpeaking: false, audioLevel: 0 };
+  }
+
+  /** Screen-share audio only, before listener volume; absent tracks return silence. */
+  getScreenShareAudioLevel(identity: string): number {
+    return this.screenAudioLevels.get(identity);
   }
 
   /** Saved listener-local levels for a logical Chatto participant. */
@@ -1327,6 +1334,7 @@ export class VoiceCallState {
   private updateParticipants(): void {
     if (!this.room) {
       this.participants = [];
+      this.screenAudioLevels.clear();
       return;
     }
 
@@ -1345,6 +1353,7 @@ export class VoiceCallState {
       this.isNativeScreenShareEnabled;
     this.applyAllParticipantAudioVolumes();
 
+    const screenAudioTracks: Array<readonly [string, MediaStreamTrack]> = [];
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
       const isLocal = p === this.room!.localParticipant;
@@ -1354,6 +1363,15 @@ export class VoiceCallState {
       const screenShareTrack =
         getParticipantScreenShareTrack(p) ??
         (companion ? getParticipantScreenShareTrack(companion) : null);
+      const { Track } = getLoadedLiveKit();
+      // Match the publisher that supplies the visible screen tile.
+      const screenPublisher = getParticipantScreenShareTrack(p) ? p : companion;
+      const audio = screenPublisher
+        ?.getTrackPublications()
+        .find((publication) => publication.track?.source === Track.Source.ScreenShareAudio);
+      if (audio?.track?.mediaStreamTrack && !audio.isMuted) {
+        screenAudioTracks.push([p.identity, audio.track.mediaStreamTrack]);
+      }
       return {
         identity: p.identity,
         name: p.name ?? p.identity,
@@ -1371,6 +1389,7 @@ export class VoiceCallState {
         isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
     });
+    this.screenAudioLevels.sync(this.playbackContext, screenAudioTracks);
   }
 
   private applyAllParticipantAudioVolumes(): void {
@@ -1424,6 +1443,7 @@ export class VoiceCallState {
    */
   private updateAudioLevels(): void {
     if (!this.room) return;
+    this.screenAudioLevels.sample();
 
     this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? -60);
     if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
@@ -1497,6 +1517,7 @@ export class VoiceCallState {
       this.room.removeAllListeners();
       this.room = null;
     }
+    this.screenAudioLevels.clear();
     if (this.playbackContext) void this.playbackContext.close().catch(() => undefined);
     this.playbackContext = null;
     this.audioBoostAvailable = false;

@@ -253,13 +253,21 @@
 		if (!animateVoice) return;
 		const call = serverRegistry.getStore(getScopedServerId()).voiceCall;
 		const original = call.getAudioLevel;
+		const originalScreen = call.getScreenShareAudioLevel;
 		call.getAudioLevel = (identity) => {
 			const time = performance.now() / 1000 + identity.length;
 			const audioLevel = time % 7 < 4.5
 				? 0.005 + Math.pow((Math.sin(time * 8) + 1) / 2, 2) * 0.075 : 0;
 			return { isSpeaking: audioLevel > 0, audioLevel };
 		};
-		return () => { call.getAudioLevel = original; };
+		call.getScreenShareAudioLevel = () => {
+			const time = performance.now() / 1000;
+			return time % 9 < 5 ? 0.03 + (Math.sin(time * 2) + 1) * 0.06 : 0;
+		};
+		return () => {
+			call.getAudioLevel = original;
+			call.getScreenShareAudioLevel = originalScreen;
+		};
 	});
 </script>
 
