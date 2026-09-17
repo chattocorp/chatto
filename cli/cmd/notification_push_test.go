@@ -29,6 +29,33 @@ type recordingNotificationPushSender struct {
 	results   func([]*runtimestatev1.PushSubscription) []*push.SendResult
 }
 
+func TestNotificationPushCustomDomain(t *testing.T) {
+	chattoCore, ctx, recipient, _, occurrence := notificationPushFixture(t, 1)
+	if _, err := chattoCore.SavePushSubscriptionForClientWithCleanupToken(ctx, recipient.Id,
+		"https://push.example.test/custom", "key", "auth", "browser", "custom.example.test", "custom-domain-test-cleanup-token-1234"); err != nil {
+		t.Fatal(err)
+	}
+	sender := &recordingNotificationPushSender{results: func(subscriptions []*runtimestatev1.PushSubscription) []*push.SendResult {
+		return []*push.SendResult{{Endpoint: subscriptions[0].GetEndpoint(), Success: true}}
+	}}
+	handler := notificationAlertHandler(chattoCore, config.ChattoConfig{
+		Webserver: config.WebserverConfig{
+			URL:            "https://official.example.test",
+			AllowedOrigins: []string{"https://custom.example.test", "*"},
+		},
+	}, sender, log.New(io.Discard))
+	if err := handler(ctx, occurrence); err != nil {
+		t.Fatal(err)
+	}
+	if len(sender.payload) != 1 {
+		t.Fatalf("payload count = %d, want 1", len(sender.payload))
+	}
+	want := "https://custom.example.test/chat/-/" + occurrence.GetSignal().GetDirectMessageReceived().GetMessage().GetRoomId()
+	if sender.payload[0].URL != want {
+		t.Fatalf("URL = %q, want %q", sender.payload[0].URL, want)
+	}
+}
+
 func (s *recordingNotificationPushSender) SendToMany(ctx context.Context, subscriptions []*runtimestatev1.PushSubscription, payload *push.Payload) []*push.SendResult {
 	return s.SendToManyMapped(ctx, subscriptions, func(*runtimestatev1.PushSubscription) *push.Payload {
 		return payload

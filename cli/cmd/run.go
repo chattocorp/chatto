@@ -432,7 +432,7 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			return &push.Payload{
 				Title: "Test notification",
 				Body:  "Push notifications are working.",
-				URL:   push.NavigationBaseURL(subscription, cfg.Webserver.URL),
+				URL:   push.NavigationBaseURL(subscription, cfg.Webserver.URL, cfg.Webserver.ServerOrigins()...),
 				Icon:  "/icons/icon-192.png",
 				Badge: "/icons/icon-192.png",
 				Tag:   "push-test",
@@ -536,6 +536,7 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 				cfg.Webserver.URL,
 				subscription,
 				payloadCtx,
+				cfg.Webserver.ServerOrigins()...,
 			)
 			payload.AppBadge = appBadge
 			payload.DeliveryDeadline = alertDeadline

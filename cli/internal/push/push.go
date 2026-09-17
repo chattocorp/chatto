@@ -445,24 +445,29 @@ func BuildPayloadFromOccurrence(occurrence *notificationv1.NotificationOccurrenc
 
 // BuildPayloadFromOccurrenceForSubscription creates a payload whose click
 // target opens the server in the web client that owns this subscription.
+// serverOrigins contains the trusted, exact public origins of this server.
 func BuildPayloadFromOccurrenceForSubscription(
 	occurrence *notificationv1.NotificationOccurrence,
 	actorDisplayName, serverBaseURL string,
 	subscription *runtimestatev1.PushSubscription,
 	payloadCtx *PayloadContext,
+	serverOrigins ...string,
 ) *Payload {
 	return buildPayloadFromOccurrence(
 		occurrence,
 		actorDisplayName,
 		serverBaseURL,
-		NavigationBaseURL(subscription, serverBaseURL),
+		NavigationBaseURL(subscription, serverBaseURL, serverOrigins...),
 		payloadCtx,
 	)
 }
 
 // NavigationBaseURL reconstructs the client route for a subscription. Records
 // without a usable client host fall back to this server's bundled app route.
-func NavigationBaseURL(subscription *runtimestatev1.PushSubscription, serverBaseURL string) string {
+// serverOrigins must contain only trusted, exact HTTP or HTTPS public origins
+// of this server, such as WebserverConfig.ServerOrigins. Matching aliases use
+// the bundled app route and the configured origin's scheme.
+func NavigationBaseURL(subscription *runtimestatev1.PushSubscription, serverBaseURL string, serverOrigins ...string) string {
 	legacyURL := buildAppURL(serverBaseURL, []string{"chat", "-"}, "", "")
 	if subscription == nil || subscription.ClientHost == "" {
 		return legacyURL
@@ -481,6 +486,18 @@ func NavigationBaseURL(subscription *runtimestatev1.PushSubscription, serverBase
 		return legacyURL
 	}
 	clientURL.Host = hostnameWithOptionalPort(clientHostname, clientURL.Port())
+
+	for _, origin := range serverOrigins {
+		aliasURL, err := url.Parse(origin)
+		if err != nil || (aliasURL.Scheme != "https" && aliasURL.Scheme != "http") || aliasURL.Hostname() == "" {
+			continue
+		}
+		candidate := *clientURL
+		candidate.Scheme = aliasURL.Scheme
+		if sameOriginHost(&candidate, aliasURL) {
+			return buildAppURL(candidate.String(), []string{"chat", "-"}, "", "")
+		}
+	}
 
 	if sameOriginHost(clientURL, serverURL) {
 		return buildAppURL(clientURL.String(), []string{"chat", "-"}, "", "")

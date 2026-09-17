@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-09-05
+**Last reviewed:** 2026-09-17
 
 ## Overview
 
@@ -27,6 +27,7 @@ tab is not open. Push is opt-in for each device, requires operator configuration
 - User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly.
 - Notification pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
+- If the subscription's client host matches one of the server's configured exact public origins, regular and test notifications use that origin's scheme and the local `/chat/-` route. This includes custom domains in `webserver.allowed_origins`. Other client hosts use the sending server's primary hostname in the route. Wildcard origins do not identify aliases. Subscriptions without a client host keep the primary URL fallback.
 - Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries. It then confirms that the occurrence is still unread and has the Push notification mode, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
 - While Chatto is visible, its notification stores are authoritative for the aggregate app-icon badge. Declarative Web Push supplies the sending server's exact unread-occurrence count while the app is closed or suspended.
 - Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
@@ -98,7 +99,7 @@ server and account metadata are not eligible for automatic cleanup.
 
 ### 8. One native push registration per server
 
-**Decision:** The serving server uses SvelteKit's root service-worker registration. Every remote server uses another registration of the same worker script under a stable narrow scope, giving that server an independent browser subscription bound to its own VAPID key. Every subscription records the URL host of the Chatto server that supplied the installed app with the subscription. The sending server combines that client host with its own hostname to reconstruct the click route; production client hosts use HTTPS and loopback development hosts use HTTP.
+**Decision:** The serving server uses SvelteKit's root service-worker registration. Every remote server uses another registration of the same worker script under a stable narrow scope, giving that server an independent browser subscription bound to its own VAPID key. Every subscription records the URL host of the Chatto server that supplied the installed app with the subscription. If this host matches an exact configured server origin, the click route uses that origin's scheme and the local server route. Otherwise, the sending server combines the client host with its own primary hostname; production client hosts use HTTPS and loopback development hosts use HTTP.
 **Why:** Push subscriptions belong to service-worker registrations, not to an origin as a single undifferentiated slot. Separate scopes let one installed PWA receive direct pushes from multiple servers without sharing private VAPID keys or routing notifications through the server that hosted the frontend. A host is enough to reconstruct Chatto's conventional route while avoiding storage of an arbitrary client-provided navigation URL. Per-subscription client context also supports the same server account from PWAs hosted at different origins.
 **Tradeoff:** Each server consumes one of the account's 16 stored subscription slots for each installed client origin. Reconstructing the scheme assumes HTTPS outside loopback development, so an HTTP PWA on a non-loopback host is unsupported. This 0.5 behavior requires the 0.5 client and server subscription contract; no pre-0.5 mixed-version path is provided.
 
