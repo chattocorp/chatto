@@ -91,10 +91,8 @@
       "test_failed": "Kunde inte testa mikrofonen. Kontrollera enhetsåtkomsten och försök igen.",
       "test_in_call": "Lämna samtalet innan du testar mikrofonen.",
       "processing": "Mikrofonbearbetning",
-      "voice_quality": "Röstkvalitet",
-      "voice_normal": "Normal",
-      "voice_cool": "Rätt cool",
-      "voice_awesome": "FANTASTISK"
+      "voice_boosting": "Röstförbättring",
+      "voice_boosting_description": "Förbättra ljudet från din mikrofon. Stäng av detta om det orsakar ljudproblem."
     },
     "participant_audio": {
       "title": "Deltagarljud",

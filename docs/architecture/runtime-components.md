@@ -220,11 +220,12 @@ stream, or snapshot contract is required.
 
 The server-owned frontend store gives each call state a browser-local
 `CallPreferencesState`. It saves device IDs, join-muted, microphone threshold,
-voice processing amount, and per-user voice/stream playback levels at the
+voice boosting, and per-user voice/stream playback levels at the
 existing per-server storage boundary. These settings do not enter Chatto APIs or EVT.
-The voice amount is a finite number from 0 to 100. Invalid values use 0.
-Previous presets map to 0 (none), 50 (subtle), and 100 (strong).
-Legacy enabled effect settings map to 50. Other saved choices remain intact.
+Voice boosting is a boolean that defaults to true; only an explicit false
+disables it. Previous voice amounts, presets, and experimental effect settings
+are ignored. Other saved choices remain intact. The preference selects the
+existing processing amount of 100 when enabled and 0 when disabled.
 LiveKit capture defaults use the saved input choices; a missing output device
 uses the browser default. Device switches save only after success.
 
@@ -233,7 +234,8 @@ track processor. Its bundled audio worklet calculates input RMS and applies
 one gate envelope across channels. Processing uses the audio sample clock,
 not browser UI timers: attack 5 ms, hold 150 ms, release 80 ms, and a closing
 threshold half the opening amplitude (about 6 dB lower). The -60 dB control
-position disables gating. Voice Quality derives a polish amount from 0 to 1.
+position disables gating. Voice Boosting selects a polish amount of 1 when
+enabled and 0 when disabled.
 This widens the closed gate's smooth gain transition from 0 to 12 dB below the
 opening threshold and extends release from 80 to 180 ms. Hold and hysteresis
 remain unchanged. The input meter maps -60 to 0 dBFS onto 0–1.
@@ -243,8 +245,8 @@ baseline and full-band energy to identify audible bass bursts. Its cut is
 bounded to 3 dB, with 1 ms gain attack and 80 ms release. A separate 250 Hz
 low-pass stage reduces sustained audible bass dominance by up to 1.5 dB, with
 150 ms detection/attack and 500 ms release. Both share gains across channels,
-scale with the existing polish amount, and bypass exactly at Normal. Partial
-threshold messages do not change their amount. The heuristic can react to
+scale with the existing polish amount, and bypass exactly when boosting is off.
+Partial threshold messages do not change their amount. The heuristic can react to
 very low-pitched vowels; bounded cuts limit that tradeoff. No new worklet node,
 look-ahead buffer, saved setting, or external connection is required.
 `MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
@@ -252,12 +254,11 @@ look-ahead buffer, saved setting, or external connection is required.
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
 compressor. Each EQ band is bounded to ±12 dB. At full strength, compressor amount maps 0–100
 to threshold -12…-20 dB and ratio 1.5…3.5, with 15 ms attack and 200 ms release.
-The voice slider scales linearly from neutral at 0 to low-cut 60 Hz,
-EQ +8/+6/+10 dB, compressor threshold -18 dB and ratio 3 at 100. At the
-midpoint the cutoff is 30 Hz, EQ is +4/+3/+5 dB, threshold is -9 dB,
-and ratio is 2. The compressor receives the boosted EQ signal directly;
+Voice Boosting selects low-cut 60 Hz, EQ +8/+6/+10 dB, compressor threshold
+-18 dB and ratio 3. Disabling it selects neutral processing.
+The compressor receives the boosted EQ signal directly;
 pre-EQ attenuation reserves headroom only when compression is disabled.
-Post-compressor gain scales from 0 to +3 dB before the final peak limiter;
+Voice Boosting adds +3 dB of post-compressor gain before the final peak limiter;
 this is a gain-stage setting, not the net output increase. Fractional DSP
 parameters are not rounded. There is no
 saturation branch; ordinary speech must retain its harmonic balance.
@@ -269,9 +270,8 @@ gains preserve balance. A final sample-peak limiter has immediate attack and
 80 ms release and a fixed ceiling of 0.99 while processing is enabled.
 This is a pre-encoding sample ceiling, not an inter-sample peak guarantee.
 Polish amount changes use 15 ms smoothing and blend held corrections directly,
-so slow release does not produce a level step when returning to Normal.
-Normal bypasses the added stage
-exactly. Neither stage adds a look-ahead buffer. Both worklets are owned by
+so slow release does not produce a level step when disabling Voice Boosting.
+Disabling Voice Boosting bypasses the added stage exactly. Neither stage adds a look-ahead buffer. Both worklets are owned by
 `MicrophoneProcessor`; a failure in either stops both and routes raw input to
 the existing output track and fallback meter. Restart restores derived settings.
 Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
@@ -286,7 +286,7 @@ failure preserves ordinary audio. The processor owns an analyser fallback when t
 call state does not create a separate audio context or sampling path. The worklet asset comes from the frontend
 origin and sends only input levels to the UI, with no external connection.
 
-The settings page owns `CallDeviceTest`. At Normal with the gate Off, an audio
+The settings page owns `CallDeviceTest`. With Voice Boosting off and the gate Off, an audio
 element plays the original capture stream. A parallel analyser measures input;
 it does not feed playback, and no custom processor initializes. Browser echo
 cancellation, noise suppression, and automatic gain control are disabled on

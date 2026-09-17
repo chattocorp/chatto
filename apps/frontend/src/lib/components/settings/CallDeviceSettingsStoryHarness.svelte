@@ -7,16 +7,15 @@
     preferences.setDevice('audiooutput', '');
     preferences.setDevice('videoinput', '');
     preferences.setJoinMuted(unavailable);
-    preferences.setVoiceAmount(0);
+    preferences.setVoiceBoosting(effects);
     preferences.setMicrophoneThreshold(threshold);
-    if (effects) preferences.setVoiceAmount(100);
     return preferences;
   }
   let {
     unavailable = false,
     inCall = false,
     threshold = -60,
-    effects = false,
+    effects = true,
     gateUnavailable = false
   }: {
     effects?: boolean;

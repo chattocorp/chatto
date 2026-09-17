@@ -43,7 +43,7 @@ export class LowFrequencyControl {
     this.#amount = this.#target = normalizePolish(amount);
   }
 
-  /** Match the existing Voice Quality amount, with a 15 ms transition. */
+  /** Match the processing amount, with a 15 ms transition. */
   set amount(value: number) {
     this.#target = normalizePolish(value);
   }

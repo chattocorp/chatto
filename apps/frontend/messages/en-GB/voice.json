@@ -91,10 +91,8 @@
       "test_failed": "Could not test the microphone. Check device access and try again.",
       "test_in_call": "Leave your call before testing the microphone.",
       "processing": "Microphone processing",
-      "voice_quality": "Voice Quality",
-      "voice_normal": "Normal",
-      "voice_cool": "Pretty cool",
-      "voice_awesome": "AWESOME"
+      "voice_boosting": "Voice Boosting",
+      "voice_boosting_description": "Enhance your microphone audio. Turn this off if it causes audio problems."
     },
     "participant_audio": {
       "title": "Participant audio",

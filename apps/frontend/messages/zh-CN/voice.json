@@ -91,10 +91,8 @@
       "test_failed": "无法测试麦克风。请检查设备访问权限后重试。",
       "test_in_call": "请先退出通话，再测试麦克风。",
       "processing": "麦克风处理",
-      "voice_quality": "语音质量",
-      "voice_normal": "普通",
-      "voice_cool": "挺酷",
-      "voice_awesome": "超棒"
+      "voice_boosting": "语音增强",
+      "voice_boosting_description": "改善麦克风音质。如果此功能导致音频问题，请将其关闭。"
     },
     "participant_audio": {
       "title": "参与者音频",

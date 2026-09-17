@@ -1,4 +1,4 @@
-import { microphoneEffectsForAmount, normalizeVoiceAmount } from '$lib/audio/microphoneEffects';
+import { microphoneEffectsForAmount } from '$lib/audio/microphoneEffects';
 import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
@@ -49,8 +49,8 @@ export interface CallPreferences {
   joinMuted: boolean;
   /** dBFS threshold; -60 disables the optional gate. */
   microphoneThreshold: number;
-  /** Voice processing amount, 0–100; the noise gate remains independent. */
-  voiceAmount: number;
+  /** Full microphone enhancement, enabled by default; the noise gate remains independent. */
+  voiceBoosting: boolean;
 }
 
 const defaults: CallPreferences = {
@@ -59,7 +59,7 @@ const defaults: CallPreferences = {
   speaker: '',
   camera: '',
   joinMuted: false,
-  voiceAmount: 0,
+  voiceBoosting: true,
   microphoneThreshold: GATE_OFF
 };
 
@@ -71,32 +71,14 @@ export class CallPreferencesState {
   constructor(serverId: string) {
     this.#slot = serverSlot(serverId, 'callPreferences', defaults, Codecs.json());
     const raw = this.#slot.get();
-    // Preserve the previous preset positions; experimental enabled effects use the midpoint.
-    const legacy = raw as unknown as {
-      processingPreset?: string;
-      effects?: { lowCut?: unknown; equalizer?: unknown; compressor?: unknown };
-    } | null;
-    const oldAmount =
-      legacy?.processingPreset === 'strong'
-        ? 100
-        : legacy?.processingPreset === 'subtle'
-          ? 50
-          : legacy?.processingPreset !== undefined
-            ? 0
-            : legacy?.effects?.lowCut === true ||
-                legacy?.effects?.equalizer === true ||
-                legacy?.effects?.compressor === true
-              ? 50
-              : 0;
     this.#value = $state({
       participantAudio: normalizeParticipantAudio(raw?.participantAudio),
       microphone: typeof raw?.microphone === 'string' ? raw.microphone : '',
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
       microphoneThreshold: normalizeGateThreshold(raw?.microphoneThreshold),
-      voiceAmount: normalizeVoiceAmount(
-        raw?.voiceAmount === undefined ? oldAmount : raw.voiceAmount
-      ),
+      // Old amounts and presets do not opt out of the new default.
+      voiceBoosting: raw?.voiceBoosting !== false,
       joinMuted: raw?.joinMuted === true
     });
   }
@@ -129,16 +111,16 @@ export class CallPreferencesState {
   }
 
   get effects() {
-    return microphoneEffectsForAmount(this.#value.voiceAmount);
+    return microphoneEffectsForAmount(this.#value.voiceBoosting ? 100 : 0);
   }
 
-  get voiceAmount(): number {
-    return this.#value.voiceAmount;
+  get voiceBoosting(): boolean {
+    return this.#value.voiceBoosting;
   }
 
   /** Change voice processing without changing the gate or capture choices. */
-  setVoiceAmount(amount: number): void {
-    this.#value.voiceAmount = normalizeVoiceAmount(amount);
+  setVoiceBoosting(enabled: boolean): void {
+    this.#value.voiceBoosting = enabled;
     this.#slot.set(this.#value);
   }
 

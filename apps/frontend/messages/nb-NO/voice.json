@@ -91,10 +91,8 @@
       "test_failed": "Kunne ikke teste mikrofonen. Kontroller enhetstilgangen og prøv igjen.",
       "test_in_call": "Forlat samtalen før du tester mikrofonen.",
       "processing": "Mikrofonbehandling",
-      "voice_quality": "Stemmekvalitet",
-      "voice_normal": "Normal",
-      "voice_cool": "Ganske kul",
-      "voice_awesome": "FANTASTISK"
+      "voice_boosting": "Stemmeforbedring",
+      "voice_boosting_description": "Forbedre lyden fra mikrofonen din. Slå av dette hvis det gir lydproblemer."
     },
     "participant_audio": {
       "title": "Deltakerlyd",

@@ -91,10 +91,8 @@
       "test_failed": "לא ניתן לבדוק את המיקרופון. יש לבדוק את הגישה למכשיר ולנסות שוב.",
       "test_in_call": "יש לצאת מהשיחה לפני בדיקת המיקרופון.",
       "processing": "עיבוד מיקרופון",
-      "voice_quality": "איכות הקול",
-      "voice_normal": "רגיל",
-      "voice_cool": "די מגניב",
-      "voice_awesome": "מדהים"
+      "voice_boosting": "שיפור קול",
+      "voice_boosting_description": "שיפור השמע מהמיקרופון. יש לכבות אפשרות זו אם היא גורמת לבעיות שמע."
     },
     "participant_audio": {
       "title": "שמע המשתתף",

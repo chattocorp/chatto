@@ -35,31 +35,25 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Calls use the system output when the browser cannot select a Web Audio
   output device. If the browser blocks playback, **Enable call audio** resumes it.
 
-- **Voice Quality** in App Preferences is a continuous processing slider.
-  **Normal** (the default) disables the added effects, **Pretty cool** marks
-  gentle processing at the midpoint, and **AWESOME** adds warmth, clarity,
-  and loudness with stronger EQ and moderate compression. Saturation
-  is excluded because the combined effects must not distort ordinary speech. At the maximum,
-  the voice slider shows a moving rainbow and the AWESOME readout dances in
-  rainbow colours, with each letter moving in sequence. The rainbow fades in
-  and moves faster over the final fifth of the slider. Reduced motion keeps
-  both the rainbow and readout static; unavailable processing uses the standard
-  disabled control.
-  The low-cut filter, equaliser, and compression parameters interpolate between
-  these positions. Automatic plosive control reduces brief bass thumps, and
-  adaptive bass control reduces sustained boom while preserving vocal warmth.
-  These cuts increase toward AWESOME and run before compression so excessive
-  bass is less likely to lower the whole voice. Automatic de-essing reduces
-  sharp S and SH sounds, and a
-  final limiter catches near-clipping sample peaks. Automatic corrections stay
-  conservative even at AWESOME. An enabled
-  gate gets a softer closing transition to preserve quiet word endings; Off
-  still disables the gate. These additions need no separate controls and are
-  bypassed at Normal. Changes use short ramps to avoid clicks while dragging.
+- **Voice Boosting** in Voice & video settings is a checkbox that is enabled by default
+  for new and existing users. It adds warmth, clarity, and loudness with EQ and
+  moderate compression. Users can turn it off if it causes audio problems.
+  Previous slider and preset choices do not disable the new default. An explicit
+  opt-out with the checkbox is saved.
+  Saturation is excluded because the combined effects must not distort ordinary
+  speech. Automatic plosive control reduces brief bass thumps, and adaptive bass
+  control reduces sustained boom while preserving vocal warmth. These cuts run
+  before compression so excessive bass is less likely to lower the whole voice.
+  Automatic de-essing reduces sharp S and SH sounds, and a final limiter catches
+  near-clipping sample peaks. Automatic corrections stay conservative.
+  An enabled gate gets a softer closing transition to preserve quiet word
+  endings; Off still disables the gate. These additions need no separate controls
+  and are bypassed when Voice Boosting is off. Changes use short ramps to avoid
+  clicks. The checkbox is disabled when processing is unavailable.
   The noise gate stays separate because its threshold depends on the microphone
-  and room. The slider affects microphone audio in calls and the local test,
-  not received audio or screen sharing. Its position is saved per browser and
-  server without changing gate, device, or join-muted choices.
+  and room. Voice Boosting affects microphone audio in calls and the local test,
+  not received audio or screen sharing. Its state is saved per browser and server
+  without changing gate, device, or join-muted choices.
   Compression receives the boosted EQ signal to reduce loud peaks and uses the
   browser compressor's built-in makeup gain. A small additional gain after
   compression increases loudness before the final peak limiter. Browser automatic gain control is disabled
@@ -99,7 +93,7 @@ Rooms support real-time voice conversations with optional camera video and scree
   Stop and navigation release capture and stop playback. Input changes restart
   an active test; output changes keep capture active. Camera choices do not
   interrupt the microphone test. Late capture results are stopped.
-  At Normal with the gate Off, the test plays the original capture stream,
+  With Voice Boosting off and the gate Off, the test plays the original capture stream,
   disables browser noise suppression, and does not initialize custom processing.
   Switching between this bypass and processing restarts capture and keeps the
   selected speaker. Use headphones for local monitoring to avoid feedback.
