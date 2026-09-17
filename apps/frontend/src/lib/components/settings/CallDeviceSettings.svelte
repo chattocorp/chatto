@@ -11,11 +11,14 @@
 
   let {
     preferences,
+    onDeviceChange,
     inCall = false,
     callLevel = 0,
     gateUnavailable = false
   }: {
     preferences: CallPreferencesState;
+    /** The active call owns switching and persists only successful changes. */
+    onDeviceChange?: (kind: MediaDeviceKind, deviceId: string) => Promise<void>;
     inCall?: boolean;
     callLevel?: number;
     gateUnavailable?: boolean;
@@ -72,6 +75,10 @@
   }
 
   async function select(kind: MediaDeviceKind, value: string) {
+    if (inCall && onDeviceChange) {
+      await onDeviceChange(kind, value);
+      return;
+    }
     if (kind === 'audiooutput' && test.active) {
       if (await test.setSpeaker(value)) preferences.setDevice(kind, value);
       return;

@@ -265,10 +265,18 @@ Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) w
 
 ## Device preferences and microphone test
 
+If your microphone input stays nearly silent for ten seconds, a warning icon
+appears on your user card and your call participant card. Select it for an
+explanation. Use the call toolbar's gear to open Voice & video preferences and
+check your input device. The hint clears when input sound returns, you mute, change the
+microphone, or leave the call. Short pauses do not trigger it. A long pause in
+a very quiet room can also show the hint; it does not prove a microphone fault.
+
 Open **App Preferences → Voice & video** to choose a microphone, speaker,
 and camera for the selected server. Choices stay in this browser. Enable
 **Join calls with microphone muted** to start calls quietly. Selecting a
 camera does not turn it on.
+Changing a device here during a call also switches that call's device.
 
 If a saved device is missing, calls use the system default and keep the saved
 choice for a later call. Successful device changes during a call are also

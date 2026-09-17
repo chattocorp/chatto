@@ -37,6 +37,24 @@ describe('Call device settings', () => {
     expect(new CallPreferencesState('threshold-control').microphoneThreshold).toBe(-59);
   });
 
+  it('routes in-call microphone changes through the active call instead of only saving a preference', async () => {
+    vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleMicrophone]);
+    const preferences = new CallPreferencesState('active-device-switch');
+    const change = vi.fn(async () => {});
+    const screen = render(CallDeviceSettings, {
+      preferences,
+      inCall: true,
+      onDeviceChange: change
+    });
+    await screen
+      .getByRole('radiogroup', { name: 'Microphone', exact: true })
+      .getByRole('radio', { name: 'Microphone', exact: true })
+      .click();
+    expect(change).toHaveBeenCalledWith('audioinput', 'microphone');
+    // The call persists a successful switch; a failed switch must not claim this device.
+    expect(preferences.microphone).toBe('');
+  });
+
   it('shows remembered unavailable devices without requesting capture', async () => {
     vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
       visibleCamera,

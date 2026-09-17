@@ -51,9 +51,12 @@ let lastRoom: {
 } | null = null;
 let mockMicrophonePublication:
   | {
+      source?: string;
+      isMuted?: boolean;
       audioTrack: {
         getProcessor: ReturnType<typeof vi.fn>;
         setProcessor: ReturnType<typeof vi.fn>;
+        mediaStream?: MediaStream;
       };
     }
   | undefined;
@@ -67,6 +70,7 @@ let screenShareGate: { promise: Promise<void>; resolve: () => void } | null = nu
 let screenShareFailure: Error | null = null;
 let screenShareFailureAfterUpdate: Error | null = null;
 let switchActiveDeviceFailure: Error | null = null;
+let activeMicrophone: string | undefined;
 let roomEventHandlers = new Map<string, (...args: unknown[]) => void>();
 let localTrackPublications: Array<{
   isMuted: boolean;
@@ -205,7 +209,11 @@ vi.mock('livekit-client', () => {
         roomEventHandlers.get('MediaDevicesError')?.(switchActiveDeviceFailure, kind);
         throw switchActiveDeviceFailure;
       }
+      if (kind === 'audioinput') activeMicrophone = deviceId;
     });
+    getActiveDevice(kind: MediaDeviceKind) {
+      return kind === 'audioinput' ? activeMicrophone : undefined;
+    }
     connect = vi.fn(async () => {
       calls.push('connect');
       await connectGate?.promise;
@@ -239,6 +247,8 @@ vi.mock('livekit-client', () => {
       TrackPublished: 'TrackPublished',
       TrackUnpublished: 'TrackUnpublished',
       LocalTrackPublished: 'LocalTrackPublished',
+      LocalAudioSilenceDetected: 'LocalAudioSilenceDetected',
+      ActiveDeviceChanged: 'ActiveDeviceChanged',
       LocalTrackUnpublished: 'LocalTrackUnpublished'
     },
     Track: {
@@ -323,6 +333,7 @@ describe('VoiceCallState', () => {
     screenShareFailure = null;
     screenShareFailureAfterUpdate = null;
     switchActiveDeviceFailure = null;
+    activeMicrophone = undefined;
     roomEventHandlers = new Map();
     localTrackPublications = [];
     mockRemoteParticipants = new Map();
@@ -545,6 +556,92 @@ describe('VoiceCallState', () => {
     }
   );
 
+  it.each([false, true])(
+    'monitors sustained raw silence without SDK events (processor failed: %s)',
+    async (failed) => {
+      processorConstructionFails = failed;
+      let input = 0.0001; // Tiny hardware noise must not suppress the hint.
+      const track = { enabled: true, readyState: 'live' } as MediaStreamTrack;
+      const sync = vi.spyOn(TrackAudioLevels.prototype, 'sync').mockImplementation(() => {});
+      const has = vi.spyOn(TrackAudioLevels.prototype, 'has').mockReturnValue(true);
+      const level = vi.spyOn(TrackAudioLevels.prototype, 'get').mockImplementation(() => input);
+      let now = 100;
+      const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+      mockMicrophonePublication = {
+        source: 'microphone',
+        isMuted: false,
+        audioTrack: {
+          getProcessor: vi.fn(),
+          setProcessor: vi.fn().mockResolvedValue(undefined),
+          mediaStream: { getAudioTracks: () => [track] } as MediaStream
+        }
+      };
+      const state = createPermittedCallState(createVoiceCallClient());
+      try {
+        await state.join('wss://livekit.example.test', 'R1');
+        const sample = async () => {
+          state.microphoneLevel = 0.5;
+          await expect.poll(() => state.microphoneLevel).toBe(0);
+        };
+        await sample();
+        expect(sync).toHaveBeenCalledWith(expect.anything(), [['microphone', track]]);
+        now += 3000;
+        await sample();
+        expect(state.microphoneSilent).toBe(false);
+        now += 7100;
+        await expect.poll(() => state.microphoneSilent).toBe(true);
+        input = 0.001; // Pre-gate audio clears even when below the configured speech threshold.
+        await expect.poll(() => state.microphoneSilent).toBe(false);
+        expect(state.getAudioLevel('local-user')).toEqual({ isSpeaking: true, audioLevel: 0.002 });
+        input = 0;
+        await sample();
+        now += 10100;
+        await expect.poll(() => state.microphoneSilent).toBe(true);
+        await state.toggleMute();
+        expect(state.microphoneSilent).toBe(false);
+        now += 20000;
+        expect(state.microphoneSilent).toBe(false);
+        await state.toggleMute();
+        expect(state.microphoneSilent).toBe(false);
+        await sample();
+        now += 10100;
+        await expect.poll(() => state.microphoneSilent).toBe(true);
+        await state.setAudioDevice('audio-input-2');
+        expect(state.microphoneSilent).toBe(false);
+        await sample();
+        now += 10100;
+        await expect.poll(() => state.microphoneSilent).toBe(true);
+        has.mockReturnValue(false);
+        await expect.poll(() => state.microphoneSilent).toBe(false);
+        await state.leave();
+        expect(state.microphoneSilent).toBe(false);
+      } finally {
+        await state.leave();
+        level.mockRestore();
+        sync.mockRestore();
+        has.mockRestore();
+        processorConstructionFails = false;
+        clock.mockRestore();
+      }
+    }
+  );
+
+  it('does not diagnose silence when there is no microphone capture', async () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    try {
+      expect(state.microphoneSilent).toBe(false);
+      // An absent meter is not a silent microphone.
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 10000);
+      state.microphoneLevel = 0.5;
+      await expect.poll(() => state.microphoneLevel).toBe(0);
+      expect(state.microphoneSilent).toBe(false);
+      clock.mockRestore();
+    } finally {
+      await state.leave();
+    }
+  });
+
   it('applies saved processing settings and live changes to the call processor', async () => {
     const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
     const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
@@ -597,7 +694,7 @@ describe('VoiceCallState', () => {
     );
     await state.join('wss://livekit.example.test', 'R1');
     expect(lastRoomOptions?.audioCaptureDefaults).toMatchObject({
-      deviceId: { ideal: 'preferred-mic' },
+      deviceId: { exact: 'preferred-mic' },
       autoGainControl: false
     });
     expect(lastRoomOptions?.videoCaptureDefaults).toMatchObject({
@@ -611,6 +708,63 @@ describe('VoiceCallState', () => {
     expect(preferences.speaker).toBe('missing-speaker');
     await state.toggleMute();
     expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    await state.leave();
+  });
+
+  it('reports the active microphone rather than the remembered preference', async () => {
+    const preferences = new CallPreferencesState('actual-microphone');
+    preferences.setDevice('audioinput', 'preferred-mic');
+    activeMicrophone = 'actual-mic';
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    expect(state.selectedDeviceId).toBe('actual-mic');
+    expect(preferences.microphone).toBe('preferred-mic');
+    roomEventHandlers.get('ActiveDeviceChanged')?.('audioinput', 'reported-input');
+    expect(state.selectedDeviceId).toBe('reported-input');
+    await state.setAudioDevice('');
+    expect(lastRoom?.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default');
+    expect(preferences.microphone).toBe('');
+    await state.leave();
+  });
+
+  it('falls back from a missing saved microphone without forgetting it', async () => {
+    const preferences = new CallPreferencesState('missing-microphone');
+    preferences.setDevice('audioinput', 'missing-mic');
+    preferences.setJoinMuted(true);
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    lastRoom!.localParticipant.setMicrophoneEnabled.mockRejectedValueOnce(
+      Object.assign(new Error('missing input'), {
+        name: 'OverconstrainedError',
+        constraint: 'deviceId'
+      })
+    );
+    await state.toggleMute();
+    expect(state.isMuted).toBe(false);
+    expect(lastRoom?.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default');
+    expect(preferences.microphone).toBe('missing-mic');
+    await state.refreshDevices();
+    expect(state.selectedDeviceId).toBe('default');
     await state.leave();
   });
 

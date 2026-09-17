@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Kontrolu la silentigan ŝaltilon de via mikrofono aŭ elektu alian enigon.",
+    "microphone_silent_hint": "Neniu mikrofona sono",
     "connecting": "Konektante...",
     "joining": "Aliĝo...",
     "starting": "Komencante...",

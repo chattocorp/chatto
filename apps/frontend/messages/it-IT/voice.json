@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Controlla l’interruttore di disattivazione del microfono o scegli un altro ingresso.",
+    "microphone_silent_hint": "Nessun suono dal microfono",
     "connecting": "Connessione...",
     "joining": "Partecipazione...",
     "starting": "A partire...",

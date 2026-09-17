@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Controleer de dempschakelaar van je microfoon of kies een andere ingang.",
+    "microphone_silent_hint": "Geen microfoongeluid",
     "connecting": "Verbinden...",
     "joining": "Deelnemen...",
     "starting": "Bezig met starten...",

@@ -22,6 +22,16 @@ Rooms support real-time voice conversations with optional camera video and scree
   Sliders move in 5% steps and mark 100% as the original level.
   Boost needs Web Audio; if it is unavailable, playback is limited to 100%
   and the controls explain the limit. Saved boosted levels are retained.
+- A local microphone with raw input at or below -70 dBFS for ten seconds shows
+  a quiet warning action on both the current-user card and the local call
+  participant card. The meter is independent of optional voice processing and
+  SDK silence events. The action opens an explanation dialog with a preferences
+  shortcut and a Close button. The call toolbar's
+  gear opens Voice & video preferences. Pre-gate input activity,
+  intentional mute, an input-device change, and leaving the call clear the hint.
+  Short pauses and screen audio cannot trigger the microphone warning. A long
+  pause in a very quiet room can trigger it; this is a check-input hint, not a
+  diagnosis of a hardware fault. Missing meters do not count as silence.
 - Calls use the system output when the browser cannot select a Web Audio
   output device. If the browser blocks playback, **Enable call audio** resumes it.
 
@@ -74,6 +84,9 @@ Rooms support real-time voice conversations with optional camera video and scree
   changes during a call update those choices. Missing devices use a system
   default without erasing the saved choice. The next call can use a device
   that returns.
+  Changes from this preferences page also switch the connected call. An explicit
+  microphone uses an exact capture constraint; only a missing device permits
+  fallback.
 - Camera selection does not start video. Joining muted does not request
   microphone access merely to list devices. Browser support controls whether
   a speaker can be selected.
@@ -124,7 +137,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - A desktop active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route.
 - Camera and screen-share tiles expose a compact fullscreen button in their header. Joined participant cards expose a compact mute button directly in the header; remote cards keep volume controls in their three-dot menu. Voice cards use the same height for local and remote participants. In a wide sidebar with a screen share or multiple video feeds, participant cards use equal-width columns; screen shares span the full row. Narrow sidebars use one column. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. The local participant card controls the viewer's own microphone.
 - Call controls form one joined pill with separators at the bottom of the call pane. Its height and rounded corners match the composer and other bottom-row controls. Participant content scrolls above it.
-- While the viewer is in any call, a compact joined pill above the lower-left current-user card provides the active call room link plus mute, camera, screen-share, and leave controls. It matches the user card width and keeps the call available outside the room tab. Hide this pill while the same server and room show the call sidebar; restore it when that sidebar closes or the viewer changes rooms or panels. Use the visible desktop or mobile sidebar, not a saved choice for the other layout.
+- While the viewer is in a call, a compact joined pill above the lower-left current-user card provides the active call room link plus mute, camera, screen-share, and leave controls. It matches the user card width and remains visible when the call sidebar is open. Both toolbars place the microphone before the camera.
 - While the viewer is connected to a call, supported browsers request a screen wake lock so the display does not automatically dim or lock. The lock is released when the call ends and requested again when the app returns to the foreground. Browsers that do not support or grant wake locks continue the call without this enhancement; a wake lock does not prevent mobile operating systems from suspending an app that the user backgrounds or manually locks.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
 - Message author names show a compact call presence icon when the author is in the current room's active call: phone for voice-only participants, video camera when the viewer has joined the LiveKit call and can see an active camera track.

@@ -282,12 +282,23 @@ export class VoiceCallState {
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- deliberately non-reactive, polled imperatively at 60Hz
   private audioLevelCache = new Map<string, AudioLevelInfo>();
   private screenAudioLevels = new TrackAudioLevels();
+  private microphoneAudioLevels = new TrackAudioLevels();
 
   // Local microphone audio analysis (Web Audio API) for instant level feedback.
   private microphoneProcessor: MicrophoneProcessor | null = null;
   /** Pre-gate level for the settings meter; zero while muted. */
   microphoneLevel = $state(0);
   microphoneGateUnavailable = $state(false);
+  private microphoneSilenceDetected = $state(false);
+  private changingMicrophoneDevice = false;
+  /** Sustained near-silent raw input; hidden while muted or disconnected. */
+  microphoneSilent = $derived(this.connected && !this.isMuted && this.microphoneSilenceDetected);
+  private microphoneSilenceCandidate: { track: MediaStreamTrack; since: number } | null = null;
+
+  private clearMicrophoneSilence(): void {
+    this.microphoneSilenceCandidate = null;
+    this.microphoneSilenceDetected = false;
+  }
 
   /** The call owns this context; LiveKit uses its gain nodes for received audio. */
   private playbackContext: (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | null =
@@ -611,7 +622,7 @@ export class VoiceCallState {
           : {}),
         audioCaptureDefaults: {
           ...(this.preferences?.microphone
-            ? { deviceId: { ideal: this.preferences.microphone } }
+            ? { deviceId: { exact: this.preferences.microphone } }
             : {}),
           channelCount: { ideal: 1 },
           autoGainControl: false,
@@ -652,9 +663,7 @@ export class VoiceCallState {
       this.isMuted = true;
       if (this.canUseVoice && !this.preferences?.joinMuted)
         try {
-          await this.runExplicitMediaDeviceOperation(() =>
-            room.localParticipant.setMicrophoneEnabled(true)
-          );
+          await this.runExplicitMediaDeviceOperation(() => this.enableMicrophone(room));
           if (this.room === room) {
             this.isMuted = false;
             await this.setupMicrophoneProcessor();
@@ -810,9 +819,10 @@ export class VoiceCallState {
   private async performToggleMute(room: Room): Promise<void> {
     const newMuted = !this.isMuted;
     try {
-      await this.runExplicitMediaDeviceOperation(() =>
-        room.localParticipant.setMicrophoneEnabled(!newMuted)
-      );
+      await this.runExplicitMediaDeviceOperation(async () => {
+        if (newMuted) await room.localParticipant.setMicrophoneEnabled(false);
+        else await this.enableMicrophone(room);
+      });
       if (this.room !== room) return;
     } catch (err) {
       if (this.room === room && !newMuted) {
@@ -824,12 +834,29 @@ export class VoiceCallState {
     }
 
     this.isMuted = newMuted;
+    this.clearMicrophoneSilence();
 
     if (!newMuted) {
       await this.setupMicrophoneProcessor();
     }
 
     this.updateParticipants();
+  }
+
+  /** Honour the explicit input; fall back only if that saved device is unavailable. */
+  private async enableMicrophone(room: Room): Promise<void> {
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true);
+    } catch (error) {
+      const missingDevice =
+        errorName(error) === 'NotFoundError' ||
+        (errorName(error) === 'OverconstrainedError' &&
+          (error as OverconstrainedError).constraint === 'deviceId');
+      if (!this.preferences?.microphone || !missingDevice || this.room !== room) throw error;
+      // Preserve the saved choice so it can be restored when the device returns.
+      await room.switchActiveDevice('audioinput', 'default');
+      if (this.room === room) await room.localParticipant.setMicrophoneEnabled(true);
+    }
   }
 
   /**
@@ -1132,7 +1159,10 @@ export class VoiceCallState {
       this.videoDevices = videoInputDevices;
 
       // Set default selections if not already set
-      if (!this.selectedDeviceId && inputDevices.length > 0) {
+      const actualMicrophone = room?.getActiveDevice('audioinput');
+      if (actualMicrophone) {
+        this.selectedDeviceId = actualMicrophone;
+      } else if (!this.selectedDeviceId && inputDevices.length > 0) {
         this.selectedDeviceId =
           availableCallDevice(this.preferences?.microphone ?? '', inputDevices) ||
           inputDevices[0].deviceId;
@@ -1160,18 +1190,22 @@ export class VoiceCallState {
   async setAudioDevice(deviceId: string): Promise<void> {
     const room = this.room;
     if (!room) return;
+    this.clearMicrophoneSilence();
+    this.changingMicrophoneDevice = true;
 
     try {
       const changed = await this.runExplicitMediaDeviceOperation(() =>
-        room.switchActiveDevice('audioinput', deviceId)
+        room.switchActiveDevice('audioinput', deviceId || 'default')
       );
       if (changed === false) throw new Error('Device switch failed');
       if (this.room !== room) return;
-      this.selectedDeviceId = deviceId;
+      this.selectedDeviceId = room.getActiveDevice('audioinput') || deviceId || 'default';
       this.preferences?.setDevice('audioinput', deviceId);
     } catch (err) {
       this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('microphone', err, 'switch'));
       return;
+    } finally {
+      this.changingMicrophoneDevice = false;
     }
 
     // Attach processing if the device change created a new local track.
@@ -1196,7 +1230,7 @@ export class VoiceCallState {
           if (!this.playbackContext.setSinkId) throw new Error('Output selection unavailable');
           await this.playbackContext.setSinkId(deviceId === 'default' ? '' : deviceId);
         }
-        return room.switchActiveDevice('audiooutput', deviceId);
+        return room.switchActiveDevice('audiooutput', deviceId || 'default');
       });
       if (changed === false) throw new Error('Device switch failed');
       if (this.room !== room) return;
@@ -1221,7 +1255,7 @@ export class VoiceCallState {
 
     try {
       const changed = await this.runExplicitMediaDeviceOperation(() =>
-        room.switchActiveDevice('videoinput', deviceId)
+        room.switchActiveDevice('videoinput', deviceId || 'default')
       );
       if (changed === false) throw new Error('Device switch failed');
       if (this.room !== room) return;
@@ -1235,6 +1269,11 @@ export class VoiceCallState {
   private setupRoomEventListeners(): void {
     if (!this.room) return;
     const { RoomEvent, Track } = getLoadedLiveKit();
+    const room = this.room;
+    this.room.on(RoomEvent.ActiveDeviceChanged, (kind: MediaDeviceKind, deviceId: string) => {
+      if (this.room !== room) return;
+      if (kind === 'audioinput') this.selectedDeviceId = deviceId;
+    });
 
     this.room.on(RoomEvent.AudioPlaybackStatusChanged, (playing: boolean) => {
       this.audioPlaybackBlocked = !playing;
@@ -1321,6 +1360,10 @@ export class VoiceCallState {
     });
 
     this.room.on(RoomEvent.LocalTrackUnpublished, () => {
+      const { Track } = getLoadedLiveKit();
+      if (!room.localParticipant.getTrackPublication(Track.Source.Microphone)) {
+        this.clearMicrophoneSilence();
+      }
       this.updateParticipants();
     });
 
@@ -1449,7 +1492,12 @@ export class VoiceCallState {
     if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
     if (this.microphoneProcessor)
       this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
-    const inputLevel = this.isMuted ? 0 : (this.microphoneProcessor?.level ?? 0);
+    this.updateMicrophoneSilence();
+    const inputLevel = this.isMuted
+      ? 0
+      : this.microphoneAudioLevels.has('microphone')
+        ? this.microphoneAudioLevels.get('microphone')
+        : (this.microphoneProcessor?.level ?? 0);
     const localAudioLevel = Math.min(inputLevel * 2, 1);
     this.microphoneLevel = microphoneMeter(inputLevel);
 
@@ -1463,10 +1511,49 @@ export class VoiceCallState {
     for (const p of allParticipants) {
       const isLocal = p === this.room!.localParticipant;
       this.audioLevelCache.set(p.identity, {
-        isSpeaking: p.isSpeaking,
+        isSpeaking: isLocal ? inputLevel > 0.000316 : p.isSpeaking,
         audioLevel: isLocal ? localAudioLevel : p.audioLevel
       });
     }
+  }
+
+  /** Monitor the capture before effects; SDK publication events and processing are optional. */
+  private updateMicrophoneSilence(): void {
+    const { Track } = getLoadedLiveKit();
+    const publication = this.room?.localParticipant.getTrackPublication(Track.Source.Microphone);
+    // LocalTrack.mediaStream retains the original capture, unlike mediaStreamTrack,
+    // which can refer to the processor's output (and thus to a closed noise gate).
+    const track = publication?.audioTrack?.mediaStream?.getAudioTracks()[0];
+    const canMeasure =
+      this.connected &&
+      !this.connecting &&
+      !this.isMuted &&
+      !this.changingMicrophoneDevice &&
+      !publication?.isMuted &&
+      track &&
+      track.enabled &&
+      track.readyState === 'live' &&
+      this.playbackContext?.state === 'running';
+    this.microphoneAudioLevels.sync(
+      this.playbackContext,
+      canMeasure ? [['microphone', track]] : []
+    );
+    this.microphoneAudioLevels.sample();
+    // -70 dBFS tolerates a tiny noise floor. Ten seconds avoids short speech pauses.
+    if (
+      !canMeasure ||
+      !this.microphoneAudioLevels.has('microphone') ||
+      this.microphoneAudioLevels.get('microphone') > 0.000316
+    ) {
+      this.clearMicrophoneSilence();
+      return;
+    }
+    if (this.microphoneSilenceCandidate?.track !== track) {
+      this.clearMicrophoneSilence();
+      this.microphoneSilenceCandidate = { track, since: performance.now() };
+    }
+    this.microphoneSilenceDetected =
+      performance.now() - this.microphoneSilenceCandidate.since >= 10000;
   }
 
   /**
@@ -1497,6 +1584,7 @@ export class VoiceCallState {
     this.microphoneProcessor?.dispose();
     this.microphoneProcessor = null;
     this.microphoneLevel = 0;
+    this.clearMicrophoneSilence();
     this.microphoneGateUnavailable = false;
     const disconnectedRoomId = this.roomId;
     const disconnectedCallId = this.activeCallId;
@@ -1518,6 +1606,7 @@ export class VoiceCallState {
       this.room = null;
     }
     this.screenAudioLevels.clear();
+    this.microphoneAudioLevels.clear();
     if (this.playbackContext) void this.playbackContext.close().catch(() => undefined);
     this.playbackContext = null;
     this.audioBoostAvailable = false;

@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "יש לבדוק את מתג ההשתקה של המיקרופון או לבחור קלט אחר.",
+    "microphone_silent_hint": "אין קול מהמיקרופון",
     "connecting": "מתחבר...",
     "joining": "מצטרף...",
     "starting": "מתחיל...",

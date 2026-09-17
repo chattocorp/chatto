@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Zkontroluj přepínač ztlumení mikrofonu nebo vyber jiný vstup.",
+    "microphone_silent_hint": "Žádný zvuk mikrofonu",
     "connecting": "Připojování...",
     "joining": "Připojování...",
     "starting": "Spouštění...",

@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "マイクのミュートスイッチを確認するか、別の入力を選択してください。",
+    "microphone_silent_hint": "マイクの音が届いていません",
     "connecting": "接続中...",
     "joining": "参加中...",
     "starting": "開始中...",

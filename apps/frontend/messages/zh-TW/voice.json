@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "請檢查麥克風的靜音開關，或選擇其他輸入裝置。",
+    "microphone_silent_hint": "麥克風沒有聲音",
     "connecting": "連線中...",
     "joining": "加入中...",
     "starting": "啟動中...",

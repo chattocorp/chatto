@@ -310,6 +310,20 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it('explains sustained quiet microphone input in a modal', async () => {
+  mocks.modal = { type: 'microphoneSilence', serverId: 'remote' };
+  const screen = render(ModalContainer);
+  await expect
+    .element(screen.getByText('Check your microphone’s mute switch or choose another input.'))
+    .toBeInTheDocument();
+  await screen.getByRole('button', { name: 'Voice & video' }).click();
+  expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.test/settings/voice', {
+    replaceState: true
+  });
+  await screen.getByRole('button', { name: 'Close', exact: true }).click();
+  expect(window.history.back).toHaveBeenCalledOnce();
+});
+
 describe('ModalContainer image viewer', () => {
   it('refreshes compressed display and original URLs independently', async () => {
     vi.useFakeTimers();
