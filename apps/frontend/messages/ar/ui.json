@@ -52,7 +52,8 @@
       "complete": "تمت إعادة بناء Chatto. النتيجة النهائية: {count} نقطة"
     },
     "pane_header": {
-      "back": "العودة"
+      "back": "العودة",
+      "actions": "إجراءات اللوحة"
     },
     "sidebar_nav": {
       "back_to_chat": "العودة إلى الدردشة"

@@ -49,7 +49,8 @@
       "complete": "Chatto נבנה מחדש. ניקוד סופי: {count} נקודות"
     },
     "pane_header": {
-      "back": "חזרה"
+      "back": "חזרה",
+      "actions": "פעולות החלונית"
     },
     "sidebar_nav": {
       "back_to_chat": "חזרה לצ'אט"

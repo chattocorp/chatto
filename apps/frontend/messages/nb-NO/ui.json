@@ -48,7 +48,8 @@
       "complete": "Chatto ble bygd opp igjen. Sluttpoengsum: {count} poeng"
     },
     "pane_header": {
-      "back": "Tilbake"
+      "back": "Tilbake",
+      "actions": "Panelhandlinger"
     },
     "sidebar_nav": {
       "back_to_chat": "Tilbake til chat"

@@ -48,7 +48,8 @@
       "complete": "O Chatto foi reconstruído. Pontuação final: {count} pontos"
     },
     "pane_header": {
-      "back": "Voltar"
+      "back": "Voltar",
+      "actions": "Ações do painel"
     },
     "sidebar_nav": {
       "back_to_chat": "Voltar ao chat"

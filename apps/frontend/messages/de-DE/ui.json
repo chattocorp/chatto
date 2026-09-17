@@ -48,7 +48,8 @@
       "complete": "Chatto wurde wieder aufgebaut. Endpunktzahl: {count} Punkte"
     },
     "pane_header": {
-      "back": "Zurück"
+      "back": "Zurück",
+      "actions": "Bereichsaktionen"
     },
     "sidebar_nav": {
       "back_to_chat": "Zurück zum Chat"

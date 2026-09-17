@@ -48,7 +48,8 @@
       "complete": "Chatto ehitati uuesti üles. Lõppskoor: {count} punkti"
     },
     "pane_header": {
-      "back": "Tagasi"
+      "back": "Tagasi",
+      "actions": "Paneeli toimingud"
     },
     "sidebar_nav": {
       "back_to_chat": "Tagasi vestlusesse"

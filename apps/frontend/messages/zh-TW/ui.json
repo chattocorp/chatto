@@ -48,7 +48,8 @@
       "complete": "Chatto 已重建。最終得分：{count} 分"
     },
     "pane_header": {
-      "back": "返回"
+      "back": "返回",
+      "actions": "面板操作"
     },
     "sidebar_nav": {
       "back_to_chat": "返回聊天"

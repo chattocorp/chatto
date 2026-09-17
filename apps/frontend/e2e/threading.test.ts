@@ -1078,10 +1078,7 @@ test.describe('Message Threading', () => {
     await serverResizeTarget.dblclick();
     await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
 
-    await page
-      .locator('[data-testid="room-sidebar-toggle"]:visible')
-      .getByLabel('Show members')
-      .click();
+    await roomPage.openMembersPanel();
     await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
     await expect(page.getByTestId('room-sidebar-desktop-pane')).toBeVisible();
     await expect(page).toHaveURL(/\/chat\/-\/[^/]+\/[^/]+$/);

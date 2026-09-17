@@ -48,7 +48,8 @@
       "complete": "Chatto a été reconstruit. Score final : {count} points"
     },
     "pane_header": {
-      "back": "Retour"
+      "back": "Retour",
+      "actions": "Actions du panneau"
     },
     "sidebar_nav": {
       "back_to_chat": "Retour au clavardage"

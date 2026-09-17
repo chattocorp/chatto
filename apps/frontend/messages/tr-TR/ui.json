@@ -48,7 +48,8 @@
       "complete": "Chatto yeniden oluşturuldu. Son puan: {count}"
     },
     "pane_header": {
-      "back": "Geri"
+      "back": "Geri",
+      "actions": "Panel işlemleri"
     },
     "sidebar_nav": {
       "back_to_chat": "Sohbete Geri Dön"

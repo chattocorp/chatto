@@ -48,7 +48,8 @@
       "complete": "Chatto восстановлен. Итоговый счёт: {count} очков"
     },
     "pane_header": {
-      "back": "Назад"
+      "back": "Назад",
+      "actions": "Действия панели"
     },
     "sidebar_nav": {
       "back_to_chat": "Вернуться в чат"
