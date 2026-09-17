@@ -7,7 +7,7 @@ Room sidebar panel for voice/video calls.
 - **Observer mode**: Call is active but user hasn't joined. Shows participants
   from server state and a Join button.
 - **Participant mode**: User is connected to LiveKit. Shows live audio levels,
-  mute toggle, camera/screen-share controls, audio device selector, and hang-up button.
+  mute toggle, camera/screen-share controls, preferences shortcut, and hang-up button.
 
 **Props:**
 - `roomId` - The room ID
@@ -30,7 +30,10 @@ Room sidebar panel for voice/video calls.
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
-  import AudioDeviceMenu from './AudioDeviceMenu.svelte';
+  import MicrophoneSilenceHint from './MicrophoneSilenceHint.svelte';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
+  import { serverIdToSegment } from '$lib/navigation';
   import VoiceCallControlButton from './VoiceCallControlButton.svelte';
   import ScreenShareControlButton from './ScreenShareControlButton.svelte';
   import {
@@ -62,7 +65,6 @@ Room sidebar panel for voice/video calls.
   let callPermissions = $derived(voiceCallState.permissionsFor(roomId));
   let canEnterCall = $derived(callPermissions.join && (hasActiveCall || callPermissions.start));
   let isStageLayout = $derived(layout === 'stage');
-  let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
   /** Unified participant shape for rendering (structural data only). */
   type DisplayParticipant = {
@@ -251,11 +253,10 @@ Room sidebar panel for voice/video calls.
     popoverPosition = undefined;
   }
 
-  function openDeviceMenu(e: MouseEvent) {
-    const button = e.currentTarget as HTMLElement;
-    const rect = button.getBoundingClientRect();
-    voiceCallState.refreshDevices();
-    deviceMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+  function openVoicePreferences() {
+    void goto(
+      resolve('/chat/[serverId]/settings/voice', { serverId: serverIdToSegment(activeServerId) })
+    );
   }
 
   async function handleJoin() {
@@ -393,6 +394,9 @@ Room sidebar panel for voice/video calls.
       {/if}
     {/snippet}
     {#snippet actions()}
+      {#if isInThisCall && participant.isLocal && !screen}
+        <MicrophoneSilenceHint />
+      {/if}
       {#if headerActions === 'media'}
         {@render mediaTileActions()}
       {/if}
@@ -558,11 +562,24 @@ Room sidebar panel for voice/video calls.
           <PillButtonGroup label={m('room.sidebar.call')}>
             <VoiceCallControlButton
               class={controlButtonClass}
-              label={m('voice.devices')}
+              label={m('voice.preferences.title')}
               testId="call-device-menu-button"
               icon="icon-[uil--setting]"
               iconClass="text-lg"
-              onclick={openDeviceMenu}
+              onclick={openVoicePreferences}
+            />
+
+            <VoiceCallControlButton
+              class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
+              label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
+              testId="call-mute-toggle"
+              icon={voiceCallState.isMuted
+                ? 'icon-[uil--microphone-slash]'
+                : 'icon-[uil--microphone]'}
+              iconClass="text-lg"
+              onclick={() => voiceCallState.toggleMute()}
+              pending={voiceCallState.isMicrophonePending}
+              disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
             />
 
             <VoiceCallControlButton
@@ -578,19 +595,6 @@ Room sidebar panel for voice/video calls.
               onclick={() => voiceCallState.toggleCamera()}
               pending={voiceCallState.isCameraPending}
               disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
-            />
-
-            <VoiceCallControlButton
-              class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
-              label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
-              testId="call-mute-toggle"
-              icon={voiceCallState.isMuted
-                ? 'icon-[uil--microphone-slash]'
-                : 'icon-[uil--microphone]'}
-              iconClass="text-lg"
-              onclick={() => voiceCallState.toggleMute()}
-              pending={voiceCallState.isMicrophonePending}
-              disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
             />
 
             <ScreenShareControlButton
@@ -701,10 +705,6 @@ Room sidebar panel for voice/video calls.
     {@render callControls()}
   </div>
 </div>
-
-{#if deviceMenuAnchor}
-  <AudioDeviceMenu anchor={deviceMenuAnchor} onclose={() => (deviceMenuAnchor = null)} />
-{/if}
 
 {#if popoverParticipant && (popoverAnchorRect || popoverPosition)}
   <UserContextMenu

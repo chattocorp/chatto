@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Kontrollera mikrofonens ljudavstängningsknapp eller välj en annan ingång.",
+    "microphone_silent_hint": "Inget mikrofonljud",
     "connecting": "Ansluter...",
     "joining": "Går med...",
     "starting": "Startar...",

@@ -5,8 +5,46 @@ import { flushSync } from 'svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
+import { serverIdToSegment } from '$lib/navigation';
+
+const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
+vi.mock('$app/navigation', async (original) => ({
+  ...(await original<typeof import('$app/navigation')>()),
+  goto
+}));
 
 afterEach(() => vi.restoreAllMocks());
+
+it('opens voice preferences from the toolbar gear', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  await screen.getByTestId('call-device-menu-button').click();
+  expect(goto).toHaveBeenCalledWith(
+    `/chat/${serverIdToSegment(serverRegistry.originServer!.id)}/settings/voice`
+  );
+});
+
+it('shows the microphone warning only on the local participant card', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+  flushSync(() => {
+    call.microphoneSilent = true;
+  });
+  await expect.element(screen.getByTestId('microphone-silence-hint')).toBeInTheDocument();
+  expect(
+    screen.container.querySelector('[title="Alice"] [data-testid="microphone-silence-hint"]')
+  ).not.toBeNull();
+  expect(
+    screen.container.querySelector('[title="Bob"] [data-testid="microphone-silence-hint"]')
+  ).toBeNull();
+  flushSync(() => {
+    call.microphoneSilent = false;
+  });
+  await expect.element(screen.getByTestId('microphone-silence-hint')).not.toBeInTheDocument();
+});
 
 it('removes voice activity and participant controls when a call becomes observed', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {

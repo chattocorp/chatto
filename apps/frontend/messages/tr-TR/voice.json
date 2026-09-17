@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Mikrofonunun sessize alma düğmesini kontrol et veya başka bir giriş seç.",
+    "microphone_silent_hint": "Mikrofondan ses gelmiyor",
     "connecting": "Bağlanıyor...",
     "joining": "Katılıyor...",
     "starting": "Başlıyor...",

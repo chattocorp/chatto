@@ -62,6 +62,11 @@ export class TrackAudioLevels {
     return this.meters.get(identity)?.level ?? 0;
   }
 
+  /** Distinguish a working meter from missing or unsupported capture. */
+  has(identity: string): boolean {
+    return this.meters.has(identity);
+  }
+
   /** Disconnect only meter nodes; the call still owns its context and tracks. */
   clear() {
     this.sync(null, new Map());

@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Проверь переключатель отключения звука на микрофоне или выбери другой вход.",
+    "microphone_silent_hint": "Нет звука с микрофона",
     "connecting": "Подключение...",
     "joining": "Присоединяюсь...",
     "starting": "Начало...",

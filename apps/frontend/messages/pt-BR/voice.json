@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Verifique o botão de silenciar do microfone ou escolha outra entrada.",
+    "microphone_silent_hint": "Sem som do microfone",
     "connecting": "Conectando...",
     "joining": "Entrando...",
     "starting": "Iniciando...",

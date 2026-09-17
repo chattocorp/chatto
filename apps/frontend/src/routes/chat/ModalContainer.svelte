@@ -10,6 +10,7 @@
   import LeaveRoomModal from './modals/LeaveRoomModal.svelte';
   import RemoveServerModal from './modals/RemoveServerModal.svelte';
   import SignOutDialog from './SignOutDialog.svelte';
+  import MicrophoneSilenceDialog from '$lib/components/voice/MicrophoneSilenceDialog.svelte';
 
   const modal = $derived(page.state.modal);
 
@@ -27,6 +28,8 @@
       <SignOutDialog onclose={closeModal} />
     {:else if modal.type === 'aboutChatto'}
       <AboutChattoModal onclose={closeModal} />
+    {:else if modal.type === 'microphoneSilence'}
+      <MicrophoneSilenceDialog serverId={modal.serverId} onclose={closeModal} />
     {:else if modal.type === 'leaveRoom'}
       <LeaveRoomModal {modal} onclose={closeModal} />
     {:else if modal.type === 'removeServer'}

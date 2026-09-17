@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Check your microphone’s mute switch or choose another input.",
+    "microphone_silent_hint": "No microphone sound",
     "connecting": "Connecting...",
     "joining": "Joining...",
     "starting": "Starting...",

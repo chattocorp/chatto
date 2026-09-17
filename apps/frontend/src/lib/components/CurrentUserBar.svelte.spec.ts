@@ -68,6 +68,11 @@ const {
     connected: false,
     roomId: null as string | null,
     isMuted: false,
+    microphoneSilent: false,
+    refreshDevices: vi.fn(),
+    audioDevices: [],
+    audioOutputDevices: [],
+    videoDevices: [],
     isMicrophonePending: false,
     isCameraEnabled: false,
     isCameraPending: false,
@@ -187,6 +192,8 @@ describe('CurrentUserBar', () => {
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
+    voiceCallState.microphoneSilent = false;
+    voiceCallState.refreshDevices.mockClear();
     voiceCallState.isMicrophonePending = false;
     voiceCallState.isCameraEnabled = false;
     voiceCallState.isCameraPending = false;
@@ -216,6 +223,23 @@ describe('CurrentUserBar', () => {
     privilegedModeActions.set.mockResolvedValue(undefined);
     privilegedModeActions.expire.mockReset();
     delete window.chattoDesktop;
+  });
+
+  it('opens an explanation from the microphone silence hint', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    voiceCallState.microphoneSilent = true;
+    const screen = render(CurrentUserBarTestHarness);
+    await userEvent.click(screen.getByTestId('microphone-silence-hint'));
+    expect(navigation.pushState).toHaveBeenCalledWith('', {
+      modal: { type: 'microphoneSilence', serverId: 'origin' }
+    });
+  });
+
+  it('does not show a microphone warning during normal call activity', () => {
+    voiceCallState.connected = true;
+    const { container } = render(CurrentUserBarTestHarness);
+    expect(q(container, '[data-testid="microphone-silence-hint"]')).toBeNull();
   });
 
   it('asks before enabling privileged mode for this server', async () => {
@@ -562,7 +586,7 @@ describe('CurrentUserBar', () => {
     screenShareButton.click();
     leaveButton.click();
     link.click();
-    await expect.poll(() => q(container, '[data-testid="current-user-call-card"]')).toBeNull();
+    await expect.poll(() => q(container, '[data-testid="current-user-call-card"]')).toBeTruthy();
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
     expect(getRoomSidebarPanelState('origin', 'room-1')).toBe(
@@ -574,28 +598,35 @@ describe('CurrentUserBar', () => {
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
   });
 
-  it('reactively hides duplicate controls only for the visible sidebar of the same call', async () => {
+  it('keeps call controls visible while opening the same call sidebar and navigating', async () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
     let appUi!: AppUiState;
-    const { container } = render(CurrentUserBarTestHarness, { onReady: (state) => { appUi = state; } });
+    const { container } = render(CurrentUserBarTestHarness, {
+      onReady: (state) => {
+        appUi = state;
+      }
+    });
     const toolbar = () => q(container, '[data-testid="current-user-call-card"]');
     const desktop = window.matchMedia('(min-width: 1024px)').matches;
-    const open = () => desktop ? appUi.openDesktopRoomSidebarPanel('call') : appUi.openMobileRoomSidebarPanel('call');
+    const open = () =>
+      desktop
+        ? appUi.openDesktopRoomSidebarPanel('call')
+        : appUi.openMobileRoomSidebarPanel('call');
     expect(toolbar()).toBeTruthy();
     open();
-    await expect.poll(toolbar).toBeNull();
+    await expect.poll(toolbar).toBeTruthy();
     if (desktop) appUi.closeDesktopRoomSidebarPanel();
     else appUi.closeMobileRoomSidebarPanel();
     await expect.poll(toolbar).toBeTruthy();
     open();
-    await expect.poll(toolbar).toBeNull();
+    await expect.poll(toolbar).toBeTruthy();
     appUi.setActiveRoomScope('origin', 'room-2');
     open();
     await expect.poll(toolbar).toBeTruthy();
     appUi.setActiveRoomScope('origin', 'room-1');
     open();
-    await expect.poll(toolbar).toBeNull();
+    await expect.poll(toolbar).toBeTruthy();
     appUi.openRoomSidebarProfile('user-2', desktop ? 'desktop' : 'mobile');
     await expect.poll(toolbar).toBeTruthy();
     appUi.setActiveRoomScope('another-server', 'room-1');

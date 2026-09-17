@@ -25,9 +25,20 @@
     threshold?: number;
     gateUnavailable?: boolean;
   } = $props();
+  let lastSwitch = $state('');
 </script>
 
 {#key `${unavailable}:${threshold}:${effects}`}
   {@const preferences = createPreferences(unavailable, threshold, effects)}
-  <CallDeviceSettings {preferences} {inCall} {gateUnavailable} callLevel={inCall ? 0.6 : 0} />
+  <CallDeviceSettings
+    {preferences}
+    {inCall}
+    {gateUnavailable}
+    callLevel={inCall ? 0.6 : 0}
+    onDeviceChange={async (kind, id) => {
+      preferences.setDevice(kind, id);
+      lastSwitch = `${kind}: ${id || 'default'}`;
+    }}
+  />
+  {#if inCall}<p data-testid="active-device-switch">{lastSwitch}</p>{/if}
 {/key}

@@ -1,5 +1,7 @@
 {
   "voice": {
+    "microphone_silence_explanation": "Prüfe den Stummschalter deines Mikrofons oder wähle einen anderen Eingang.",
+    "microphone_silent_hint": "Kein Mikrofonton",
     "connecting": "Verbindung wird hergestellt...",
     "joining": "Beitritt läuft...",
     "starting": "Anruf wird gestartet...",

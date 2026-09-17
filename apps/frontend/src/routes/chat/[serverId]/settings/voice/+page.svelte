@@ -11,6 +11,12 @@
       inCall={scope.store.voiceCall.isInAnyCall}
       callLevel={scope.store.voiceCall.microphoneLevel}
       gateUnavailable={scope.store.voiceCall.microphoneGateUnavailable}
+      onDeviceChange={(kind, id) =>
+        kind === 'audioinput'
+          ? scope.store.voiceCall.setAudioDevice(id)
+          : kind === 'audiooutput'
+            ? scope.store.voiceCall.setAudioOutputDevice(id)
+            : scope.store.voiceCall.setVideoDevice(id)}
     />
   {/if}
 {/key}
