@@ -44,6 +44,31 @@ message search results:
 
 ## Sidebar Navigation
 
+### User identity cards
+
+Use `UserCard` for member entries, the current-user card, and call participant
+headers. It owns identity alignment, name truncation, secondary text, and
+action placement. All variants use a 3 rem identity row, the same padding, and
+a semibold display name. Pass `username` to show the isolated `@username`
+below the name. Use `row` for a shell surface only on hover or keyboard focus,
+`card` for a permanent shell surface, and `plain` inside an existing card.
+Call cards use the same shell surface without an extra border. Supply avatar,
+badge, indicator, action, and optional body snippets. Avatar snippets normally use `UserAvatar`
+at size `sm`.
+
+Pass `identityAttributes` for a clickable identity. Put independent controls in
+the `actions` snippet so buttons never nest. Pass `menu` with a label, click
+callback, and expanded state for the standard three-dot button. Member entries
+use this button and leave identity text passive. Use `menu.revealOnHover` to
+hide the button until hover or keyboard focus; touch devices keep it visible.
+Use `menu.oncontextmenu` for right-click access from the whole card.
+The identity row cannot shrink below the shared control height. For the current-user card, omit
+the identity button and supply the presence button in `avatar`. Callers own
+profile menus, presence lookup, permissions, speaking attachments, and media
+lifecycles; the shared component does not read application stores.
+
+### Sidebar links
+
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
 route. The shared primitive then uses a quiet action-coloured fill and an
 action-coloured icon. Current links and selected menu rows use flat fills,

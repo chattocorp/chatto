@@ -132,14 +132,14 @@ export class RoomPage {
    * Get a member's list item by their display name or login.
    */
   getMember(name: string): Locator {
-    return this.memberList.locator('button.sidebar-item', { hasText: name });
+    return this.memberList.getByTestId('room-member-card').filter({ hasText: name });
   }
 
   /**
    * Get a member's display name element.
    */
   getMemberDisplayName(name: string): Locator {
-    return this.getMember(name).locator('.min-w-0 > div').first();
+    return this.getMember(name).getByTestId('user-card-name');
   }
 
   /**
@@ -464,12 +464,12 @@ export class RoomPage {
    */
   async getMemberDisplayNamesInOrder(): Promise<string[]> {
     await this.openMembersPanel();
-    const memberItems = this.memberList.locator('button.sidebar-item');
+    const memberItems = this.memberList.getByTestId('room-member-card');
     const count = await memberItems.count();
     const displayNames: string[] = [];
 
     for (let i = 0; i < count; i++) {
-      const displayNameElement = memberItems.nth(i).locator('.min-w-0 > div').first();
+      const displayNameElement = memberItems.nth(i).getByTestId('user-card-name');
       const text = await displayNameElement.textContent();
       if (text) {
         displayNames.push(text);

@@ -5,6 +5,7 @@ Displays the current (server-scoped) user at the bottom of the secondary
 sidebar. Shows the avatar with presence and the live display name.
 -->
 <script lang="ts">
+  import UserCard from '$lib/ui/UserCard.svelte';
   import { MediaQuery } from 'svelte/reactivity';
   import FadeScale from '$lib/ui/FadeScale.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
@@ -270,7 +271,9 @@ sidebar. Shows the avatar with presence and the live display name.
             class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
             label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
             testId="current-user-call-mute"
-            icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
+            icon={voiceCallState.isMuted
+              ? 'icon-[uil--microphone-slash]'
+              : 'icon-[uil--microphone]'}
             onclick={() => voiceCallState.toggleMute()}
             pending={voiceCallState.isMicrophonePending}
             disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
@@ -306,64 +309,63 @@ sidebar. Shows the avatar with presence and the live display name.
       </FadeScale>
     {/if}
 
-    <div
-      class="flex h-12 max-h-12 min-h-12 items-center gap-2 overflow-hidden shell-surface px-2"
-      data-testid="current-user-identity-card"
+    <UserCard
+      variant="card"
+      name={displayName}
+      username={login}
+      testId="current-user-identity-card"
+      textTestId="current-user-identity-text"
+      secondaryTestId="current-user-login"
     >
-      <button
-        type="button"
-        title={m('settings.profile.presence.button', { status: presenceLabel })}
-        aria-label={m('settings.profile.presence.button', { status: presenceLabel })}
-        class="flex h-10 shrink-0 cursor-pointer items-center rounded-full"
-        data-testid="current-user-presence-menu"
-        onclick={openStatusMenu}
-      >
-        <UserAvatar user={activeServerUser} serverId={activeServerId} size="sm" showPresence />
-      </button>
-      <div
-        class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight"
-        data-testid="current-user-identity-text"
-      >
-        <span class="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm font-semibold">
-          <bdi class="min-w-0 truncate">{displayName}</bdi>
-          <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
-        </span>
-        <span class="block truncate text-start text-xs text-muted" data-testid="current-user-login">
-          <bdi dir="ltr">@{login}</bdi>
-        </span>
-      </div>
-      {#if privilegedMode?.available}
+      {#snippet avatar()}
         <button
           type="button"
-          class={[
-            'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors',
-            privilegedMode.active
-              ? 'bg-warning/15 control-raised text-warning hover:bg-warning/25'
-              : 'hover:bg-elevated text-muted hover:text-text'
-          ]}
-          title={privilegedMode.active
-            ? m('chat.privileged_mode.disable')
-            : m('chat.privileged_mode.enable')}
-          aria-label={privilegedMode.active
-            ? m('chat.privileged_mode.disable')
-            : m('chat.privileged_mode.enable')}
-          data-testid="privileged-mode-toggle"
-          disabled={privilegedModeLoading}
-          onclick={() =>
-            privilegedMode.active
-              ? void setPrivilegedMode(false)
-              : (privilegedModeDialogVisible = true)}
+          title={m('settings.profile.presence.button', { status: presenceLabel })}
+          aria-label={m('settings.profile.presence.button', { status: presenceLabel })}
+          class="flex h-10 shrink-0 cursor-pointer items-center rounded-full"
+          data-testid="current-user-presence-menu"
+          onclick={openStatusMenu}
         >
-          <span
-            class={[
-              'iconify text-lg',
-              privilegedMode.active ? 'icon-[uil--shield-check]' : 'icon-[uil--shield]'
-            ]}
-            aria-hidden="true"
-          ></span>
+          <UserAvatar user={activeServerUser} serverId={activeServerId} size="sm" showPresence />
         </button>
-      {/if}
-    </div>
+      {/snippet}
+      {#snippet badges()}
+        <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
+      {/snippet}
+      {#snippet actions()}
+        {#if privilegedMode?.available}
+          <button
+            type="button"
+            class={[
+              'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors',
+              privilegedMode.active
+                ? 'bg-warning/15 control-raised text-warning hover:bg-warning/25'
+                : 'hover:bg-elevated text-muted hover:text-text'
+            ]}
+            title={privilegedMode.active
+              ? m('chat.privileged_mode.disable')
+              : m('chat.privileged_mode.enable')}
+            aria-label={privilegedMode.active
+              ? m('chat.privileged_mode.disable')
+              : m('chat.privileged_mode.enable')}
+            data-testid="privileged-mode-toggle"
+            disabled={privilegedModeLoading}
+            onclick={() =>
+              privilegedMode.active
+                ? void setPrivilegedMode(false)
+                : (privilegedModeDialogVisible = true)}
+          >
+            <span
+              class={[
+                'iconify text-lg',
+                privilegedMode.active ? 'icon-[uil--shield-check]' : 'icon-[uil--shield]'
+              ]}
+              aria-hidden="true"
+            ></span>
+          </button>
+        {/if}
+      {/snippet}
+    </UserCard>
   </div>
 {/if}
 

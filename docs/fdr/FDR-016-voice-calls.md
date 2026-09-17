@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-09-16
+**Last reviewed:** 2026-09-17
 
 ## Overview
 
@@ -9,8 +9,11 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
-- Open the three-dot menu in a remote participant card's header to adjust
-  **Voice volume** and **Stream volume**. The same menu is available on camera
+- Open a participant's user context menu with the three-dot button or a
+  right-click on their card. Touch users can long-press the card. For remote
+  participants in the active call, the menu includes **Voice volume** and
+  **Stream volume** alongside profile actions. These controls are also available
+  when opening that user's menu from the members list. The same menu is available on camera
   and screen-share cards without covering the media with persistent controls.
   Adjust each independently from 0% to 200%. 100% is the original
   level. These settings change only what this listener hears. The browser saves

@@ -28,6 +28,7 @@ keep the compact menu without a navigation action.
 
   import { RoomKind } from '$lib/api-client/roomDirectory';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import ParticipantAudioControls from '$lib/components/voice/ParticipantAudioControls.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
@@ -91,6 +92,15 @@ keep the compact menu without a navigation action.
   } = $props();
 
   const serverScope = useServerScope();
+  const voiceCall = $derived(serverScope.store.voiceCall);
+  // Only the active call's remote participants have listener-local volume controls.
+  const audioParticipant = $derived(
+    voiceCall?.connected
+      ? voiceCall.participants?.find(
+          (participant) => participant.identity === user.id && !participant.isLocal
+        )
+      : undefined
+  );
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
   const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
   const bio = $derived(getLiveBio(user.id, user.bio ?? null));
@@ -168,7 +178,7 @@ keep the compact menu without a navigation action.
   {presentation}
   role="dialog"
   ariaLabel={m('chat.user_menu.profile')}
-  class="w-64"
+  class={audioParticipant ? 'w-72' : 'w-64'}
   onclose={() => onClose?.()}
 >
   <div class="flex items-center gap-3 menu-section p-3">
@@ -244,6 +254,14 @@ keep the compact menu without a navigation action.
         </MenuItem>
       {/if}
     </MenuSection>
+  {/if}
+
+  {#if audioParticipant}
+    <ParticipantAudioControls
+      settings={voiceCall.getParticipantAudio(audioParticipant.identity)}
+      boostAvailable={voiceCall.audioBoostAvailable}
+      onVolumeChange={(source, value) => voiceCall.setParticipantVolume(user.id, source, value)}
+    />
   {/if}
 
   <MenuSection>

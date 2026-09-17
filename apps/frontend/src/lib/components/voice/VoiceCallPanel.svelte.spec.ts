@@ -70,7 +70,7 @@ it('gates entry and media controls from the current room permissions', async () 
   await expect.element(screen.getByTestId('call-join-button')).toBeDisabled();
 });
 
-it('opens volume controls from the remote card menu without opening a profile', async () => {
+it('includes volume controls in the remote user context menu', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'sidebar', scenario: 'voice' }
   });
@@ -81,6 +81,7 @@ it('opens volume controls from the remote card menu without opening a profile', 
   expect(bob.querySelector('input[type="range"]')).toBeNull();
   bob.querySelector<HTMLButtonElement>('[data-testid="call-participant-menu-button"]')!.click();
   await expect.poll(() => document.querySelector('input[type="range"]')).not.toBeNull();
+  expect(document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
   const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
   expect(input.max).toBe('200');
   input.value = '175';
@@ -88,10 +89,42 @@ it('opens volume controls from the remote card menu without opening a profile', 
   expect(change).toHaveBeenCalledWith('bob', 'voiceVolume', 175);
   expect(
     screen.container.querySelector('[title="Alice"] [data-testid="call-participant-menu-button"]')
-  ).toBeNull();
+  ).not.toBeNull();
   flushSync(() => {
     store.voiceCall.connected = false;
   });
+  expect(document.querySelector('input[type="range"]')).toBeNull();
+});
+
+it('opens the user menu and volume controls by right-clicking a media card', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'stage', scenario: 'screen' }
+  });
+  await expect.element(screen.getByTestId('call-featured-stage-card')).toBeInTheDocument();
+  const card = screen.container.querySelector('[data-testid="call-featured-stage-card"]')!;
+  const event = new MouseEvent('contextmenu', {
+    bubbles: true,
+    cancelable: true,
+    clientX: 120,
+    clientY: 80
+  });
+  card.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
+  expect(document.querySelectorAll('input[type="range"]')).toHaveLength(2);
+});
+
+it('keeps the current user menu free of listener volume controls', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  screen.container
+    .querySelector<HTMLButtonElement>(
+      '[title="Alice"] [data-testid="call-participant-menu-button"]'
+    )!
+    .click();
+  await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
   expect(document.querySelector('input[type="range"]')).toBeNull();
 });
 
@@ -118,13 +151,15 @@ it('keeps voice cards equal in height with compact direct mute controls', async 
   ];
   const heights = cards.map((card) => card.getBoundingClientRect().height);
   expect(cards).toHaveLength(3);
-  expect(heights[0]).toBeGreaterThan(0);
+  expect(heights[0]).toBe(3 * parseFloat(getComputedStyle(document.documentElement).fontSize));
   expect(heights.every((height) => height === heights[0])).toBe(true);
   for (const card of cards) {
     const button = card.querySelector<HTMLElement>('[data-testid="call-feed-local-mute-button"]')!;
     expect(button.getBoundingClientRect().height).toBeLessThanOrEqual(28);
   }
   const bob = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
+  expect(bob.textContent).toContain('@bob');
+  expect(getComputedStyle(bob).borderTopWidth).toBe('0px');
   bob.querySelector<HTMLButtonElement>('[data-testid="call-feed-local-mute-button"]')!.click();
   expect(muteRemote).toHaveBeenCalledWith('bob');
   const alice = screen.container.querySelector<HTMLElement>('[title="Alice"]')!;

@@ -183,10 +183,7 @@ test.describe('User context menu', () => {
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
 
       // Right-click on the member in the member list
-      const memberButton = roomPage.memberList.getByRole('button', {
-        name: new RegExp(user.displayName)
-      });
-      await memberButton.click({ button: 'right' });
+      await roomPage.getMember(user.login).click({ button: 'right' });
 
       // Verify user profile dialog appears
       const profileDialog = page.getByRole('dialog', { name: 'User profile' });
@@ -195,7 +192,7 @@ test.describe('User context menu', () => {
       await expect(profileDialog.getByText(`@${user.login}`)).toBeVisible();
     });
 
-    test('left-clicking a member also shows user profile dialog', async ({
+    test('the member menu button opens the profile while the identity stays passive', async ({
       page,
       chatPage,
       roomPage
@@ -206,10 +203,18 @@ test.describe('User context menu', () => {
 
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
 
-      // Left-click on the member
+      await roomPage.getMemberDisplayName(user.login).click();
+      await expect(page.getByRole('dialog', { name: 'User profile' })).not.toBeVisible();
+
+      // Control the real pointer before checking CSS hover visibility.
       const memberButton = roomPage.memberList.getByRole('button', {
         name: new RegExp(user.displayName)
       });
+      const menuSurface = memberButton.locator('..');
+      await page.mouse.move(0, 0);
+      await expect(menuSurface).toHaveCSS('opacity', '0');
+      await roomPage.getMember(user.login).hover();
+      await expect(menuSurface).toHaveCSS('opacity', '1');
       await memberButton.click();
 
       // Verify user profile dialog appears
