@@ -34,6 +34,7 @@ import {
 } from './voiceCall.svelte';
 import { Room } from 'livekit-client';
 import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
+import { participantVolumeGain } from '$lib/audio/participantVolume';
 
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
@@ -1703,14 +1704,14 @@ describe('VoiceCallState', () => {
     );
     await state.join('wss://livekit.example.test', 'R1');
     expect(lastRoomOptions?.webAudioMix).toHaveProperty('audioContext');
-    expect(setVolume).toHaveBeenCalledWith(1.75, 'microphone');
-    expect(setVolume).toHaveBeenCalledWith(0.4, 'screen_share_audio');
+    expect(setVolume).toHaveBeenCalledWith(participantVolumeGain(175), 'microphone');
+    expect(setVolume).toHaveBeenCalledWith(participantVolumeGain(40), 'screen_share_audio');
     state.toggleParticipantLocalMute('remote-user');
     expect(setVolume).toHaveBeenCalledWith(0, 'microphone');
     state.setParticipantVolume('remote-user', 'voiceVolume', 150);
     expect(setVolume).toHaveBeenLastCalledWith(0, 'screen_share_audio');
     state.toggleParticipantLocalMute('remote-user');
-    expect(setVolume).toHaveBeenCalledWith(1.5, 'microphone');
+    expect(setVolume).toHaveBeenCalledWith(participantVolumeGain(150), 'microphone');
     const companionVolume = vi.fn();
     const companion = {
       ...participant,
@@ -1720,10 +1721,10 @@ describe('VoiceCallState', () => {
     };
     mockRemoteParticipants.set('publisher', companion);
     roomEventHandlers.get('TrackSubscribed')?.({ kind: 'audio', attach: vi.fn() }, {}, companion);
-    expect(companionVolume).toHaveBeenCalledWith(0.4, 'screen_share_audio');
+    expect(companionVolume).toHaveBeenCalledWith(participantVolumeGain(40), 'screen_share_audio');
     setVolume.mockClear();
     roomEventHandlers.get('Reconnected')?.();
-    expect(setVolume).toHaveBeenCalledWith(1.5, 'microphone');
+    expect(setVolume).toHaveBeenCalledWith(participantVolumeGain(150), 'microphone');
     await state.leave();
     await state.join('wss://livekit.example.test', 'R2');
     expect(state.getParticipantAudio('remote-user')).toEqual({

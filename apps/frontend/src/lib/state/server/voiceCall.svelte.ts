@@ -1,6 +1,7 @@
 import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { microphoneMeter } from '$lib/audio/noiseGate';
 import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
+import { participantVolumeGain } from '$lib/audio/participantVolume';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
  *
@@ -1470,13 +1471,12 @@ export class VoiceCallState {
       logicalIdentity === this.room?.localParticipant.identity ||
       this.isParticipantLocallyMuted(logicalIdentity);
     const settings = this.getParticipantAudio(logicalIdentity);
-    const maximum = this.audioBoostAvailable ? 2 : 1;
     participant.setVolume(
-      muted ? 0 : Math.min(maximum, settings.voiceVolume / 100),
+      muted ? 0 : participantVolumeGain(settings.voiceVolume, this.audioBoostAvailable),
       Track.Source.Microphone
     );
     participant.setVolume(
-      muted ? 0 : Math.min(maximum, settings.streamVolume / 100),
+      muted ? 0 : participantVolumeGain(settings.streamVolume, this.audioBoostAvailable),
       Track.Source.ScreenShareAudio
     );
   }

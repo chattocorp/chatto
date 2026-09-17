@@ -15,7 +15,10 @@ Rooms support real-time voice conversations with optional camera video and scree
   **Voice volume** alongside profile actions. This control is also available
   from the members list. Screen-share card menus show **Stream volume** instead.
   Adjust each independently from 0% to 200%. 100% is the original
-  level. These settings change only what this listener hears. The browser saves
+  level. A perceptual curve maps 50% to -10 dB and 200% to +10 dB;
+  percentages approximate relative loudness, not signal amplitude. Both sources
+  use the same curve, including saved slider positions. These settings change
+  only what this listener hears. The browser saves
   levels per server and user for later calls. Native game-share audio uses the
   sharing user's stream level.
 - **Mute locally** silences both sources without changing saved levels.
