@@ -183,10 +183,7 @@ test.describe('User context menu', () => {
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
 
       // Right-click on the member in the member list
-      const memberButton = roomPage.memberList.getByRole('button', {
-        name: new RegExp(user.displayName)
-      });
-      await memberButton.click({ button: 'right' });
+      await roomPage.getMember(user.login).click({ button: 'right' });
 
       // Verify user profile dialog appears
       const profileDialog = page.getByRole('dialog', { name: 'User profile' });
@@ -195,7 +192,7 @@ test.describe('User context menu', () => {
       await expect(profileDialog.getByText(`@${user.login}`)).toBeVisible();
     });
 
-    test('left-clicking a member also shows user profile dialog', async ({
+    test('the member menu button opens the profile while the identity stays passive', async ({
       page,
       chatPage,
       roomPage
@@ -206,7 +203,11 @@ test.describe('User context menu', () => {
 
       await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
 
-      // Left-click on the member
+      await roomPage.getMemberDisplayName(user.login).click();
+      await expect(page.getByRole('dialog', { name: 'User profile' })).not.toBeVisible();
+
+      // Open the dedicated menu button.
+      await roomPage.getMember(user.login).hover();
       const memberButton = roomPage.memberList.getByRole('button', {
         name: new RegExp(user.displayName)
       });

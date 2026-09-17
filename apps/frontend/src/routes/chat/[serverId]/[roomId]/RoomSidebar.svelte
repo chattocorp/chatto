@@ -560,6 +560,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     username={getLiveLogin(member.id, member.login)}
     class={!isOnline ? 'opacity-50' : undefined}
     secondaryTestId="room-member-login"
+    testId="room-member-card"
     menu={member.deleted
       ? undefined
       : {
