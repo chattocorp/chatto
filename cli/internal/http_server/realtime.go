@@ -801,19 +801,6 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 			},
 		}}, nil
 	}
-	if core.IsRBACEvent(event.EVTEvent()) {
-		// RBAC payloads are internal, but an RBAC fact can invalidate any
-		// authorization-dependent resource that the caller retained. Ask the
-		// client to reconnect without exposing that fact. Its cursor remains
-		// before this durable sequence, so replay selects the authorized fallback.
-		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-			Close: &realtimev1.RealtimeClose{
-				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_RESYNC_REQUIRED,
-				Message:   "realtime authorization changed",
-				Reconnect: true,
-			},
-		}}, nil
-	}
 	publicEvent, err := s.publicRealtimeEvent(ctx, viewerID, event)
 	if err != nil {
 		return nil, err
@@ -922,6 +909,21 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID string, event *evtv1.Event) (*realtimev1.RealtimeEvent, error) {
 	if event == nil || event.GetEvent() == nil {
 		return nil, nil
+	}
+	// Bots have an additional authority boundary: their human owner's current
+	// permissions. That dependency is private and cannot be inferred by a
+	// public client from the bot's own role list.
+	if core.IsRBACEvent(event) {
+		viewer, err := s.core.GetUser(ctx, viewerID)
+		if err != nil && !errors.Is(err, core.ErrNotFound) {
+			return nil, err
+		}
+		if viewer.GetIsBot() && rbacMayChangeBotAuthority(event, viewer.GetBotOwnerUserId(), viewerID) {
+			return &realtimev1.RealtimeEvent{
+				Id: event.GetId(), CreatedAt: event.GetCreatedAt(),
+				Event: &realtimev1.RealtimeEvent_ViewerPermissionsChanged{ViewerPermissionsChanged: &realtimev1.ViewerPermissionsChangedEvent{}},
+			}, nil
+		}
 	}
 	base := func() *realtimev1.RealtimeEvent {
 		result := &realtimev1.RealtimeEvent{Id: event.GetId(), CreatedAt: event.GetCreatedAt()}

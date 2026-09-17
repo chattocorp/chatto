@@ -9,7 +9,7 @@ import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { RoomGroup, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomLayoutChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPreferencesChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoleAssignedEvent, RoleCreatedEvent, RoleDeletedEvent, RolePermissionsChangedEvent, RoleRevokedEvent, RolesReorderedEvent, RoleUpdatedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomLayoutChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPermissionsChangedEvent, ViewerPreferencesChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -733,6 +733,54 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
      */
     value: RoomLayoutChangedEvent;
     case: "roomLayoutChanged";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoleCreatedEvent role_created = 60;
+     */
+    value: RoleCreatedEvent;
+    case: "roleCreated";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoleUpdatedEvent role_updated = 61;
+     */
+    value: RoleUpdatedEvent;
+    case: "roleUpdated";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoleDeletedEvent role_deleted = 62;
+     */
+    value: RoleDeletedEvent;
+    case: "roleDeleted";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RolesReorderedEvent roles_reordered = 63;
+     */
+    value: RolesReorderedEvent;
+    case: "rolesReordered";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoleAssignedEvent role_assigned = 64;
+     */
+    value: RoleAssignedEvent;
+    case: "roleAssigned";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoleRevokedEvent role_revoked = 65;
+     */
+    value: RoleRevokedEvent;
+    case: "roleRevoked";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RolePermissionsChangedEvent role_permissions_changed = 66;
+     */
+    value: RolePermissionsChangedEvent;
+    case: "rolePermissionsChanged";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.ViewerPermissionsChangedEvent viewer_permissions_changed = 67;
+     */
+    value: ViewerPermissionsChangedEvent;
+    case: "viewerPermissionsChanged";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeEvent>) {
@@ -786,6 +834,14 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 57, name: "notification_unread_state_changed", kind: "message", T: NotificationUnreadStateChangedEvent, oneof: "event" },
     { no: 58, name: "room_read_state_changed", kind: "message", T: RoomReadStateChangedEvent, oneof: "event" },
     { no: 59, name: "room_layout_changed", kind: "message", T: RoomLayoutChangedEvent, oneof: "event" },
+    { no: 60, name: "role_created", kind: "message", T: RoleCreatedEvent, oneof: "event" },
+    { no: 61, name: "role_updated", kind: "message", T: RoleUpdatedEvent, oneof: "event" },
+    { no: 62, name: "role_deleted", kind: "message", T: RoleDeletedEvent, oneof: "event" },
+    { no: 63, name: "roles_reordered", kind: "message", T: RolesReorderedEvent, oneof: "event" },
+    { no: 64, name: "role_assigned", kind: "message", T: RoleAssignedEvent, oneof: "event" },
+    { no: 65, name: "role_revoked", kind: "message", T: RoleRevokedEvent, oneof: "event" },
+    { no: 66, name: "role_permissions_changed", kind: "message", T: RolePermissionsChangedEvent, oneof: "event" },
+    { no: 67, name: "viewer_permissions_changed", kind: "message", T: ViewerPermissionsChangedEvent, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {

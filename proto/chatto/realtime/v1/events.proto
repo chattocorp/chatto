@@ -2,6 +2,67 @@ syntax = "proto3";
 
 package chatto.realtime.v1;
 
+// A public role was created. Read its current metadata with RoleService.
+message RoleCreatedEvent {
+  // Stable role name.
+  string role_name = 1;
+}
+
+// Public role metadata changed. Read its current metadata with RoleService.
+// This event does not change permission decisions.
+message RoleUpdatedEvent {
+  // Stable role name.
+  string role_name = 1;
+}
+
+// A role was deleted. Remove it from role catalogues and member role lists.
+// Clients retaining this role for their viewer must discard private cached
+// data and load current authorized state before displaying it again.
+message RoleDeletedEvent {
+  // Stable name of the deleted role.
+  string role_name = 1;
+}
+
+// Custom roles changed display order. Permission decisions are unchanged.
+message RolesReorderedEvent {
+  // Custom role names in ascending display position.
+  repeated string role_names = 1;
+}
+
+// A user was assigned a role. The named user's clients must discard private
+// cached data and load current authorized state. Other viewers update member
+// role lists without a full reload.
+message RoleAssignedEvent {
+  // User whose assignment changed.
+  string user_id = 1;
+  // Stable role name.
+  string role_name = 2;
+}
+
+// A user's role assignment was removed. The named user's clients must discard
+// private cached data and load current authorized state.
+message RoleRevokedEvent {
+  // User whose assignment changed.
+  string user_id = 1;
+  // Stable role name.
+  string role_name = 2;
+}
+
+// A role's permission decisions changed. Clients whose viewer has this role
+// must discard private cached data and load current authorized state. The
+// implicit everyone role applies to every viewer. Private scopes and permission
+// decisions are not included. Read current decisions through authorized APIs.
+message RolePermissionsChangedEvent {
+  // Stable role name.
+  string role_name = 1;
+}
+
+// The authenticated viewer's permission decisions may have changed. This also
+// covers changes to a bot's owner permission ceiling. Delivered only to the
+// affected viewer. Discard private cached data and load current authorized
+// state before displaying it again. The connection itself remains open.
+message ViewerPermissionsChangedEvent {}
+
 import "chatto/api/v1/common.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/rooms.proto";

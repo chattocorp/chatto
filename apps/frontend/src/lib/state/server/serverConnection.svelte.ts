@@ -72,6 +72,17 @@ export class ServerConnection {
   #pendingForcedReconnectReason: string | null = null;
   #apis = new WeakMap<object, unknown>();
   readonly #queryScope = `connection-${++nextQueryScope}`;
+  #dataGeneration = 0;
+
+  /** Generation of private data owned by this connection, independent of navigation. */
+  get dataGeneration(): number {
+    return this.#dataGeneration;
+  }
+
+  /** Reject all older API responses before they reach caches or API side effects. */
+  invalidatePrivateData(): void {
+    this.#dataGeneration++;
+  }
 
   get isConnected() {
     return this.status === 'connected';
@@ -114,6 +125,7 @@ export class ServerConnection {
       serverId: this.#serverId,
       baseUrl: this.#connectBaseUrl,
       bearerToken: this.#token,
+      dataGeneration: () => this.#dataGeneration,
       renewBearerToken:
         this.#serverId && this.#token
           ? (force) => serverRegistry.renewServerAuthentication(this.#serverId!, force)

@@ -273,6 +273,27 @@ work succeed.
 
 ## Handle errors and reconnects
 
+Role changes use normal events. Read current role metadata after `role_created`
+or `role_updated`; apply `roles_reordered` to display order. Use `role_assigned`
+and `role_revoked` to update member role lists. These events do not close the
+connection.
+
+If an assignment event names your viewer, discard private cached data and load
+current authorized state. Do the same for `role_deleted` or
+`role_permissions_changed` when your viewer holds that role, and for permission
+changes to `everyone`. If you do not know your viewer's roles, reload
+conservatively. `viewer_permissions_changed` applies only to the authenticated
+viewer and contains no private permission details.
+
+Bots also receive `viewer_permissions_changed` when their owner's authority
+can change. Role permission changes and deletion conservatively notify bots;
+cosmetic role changes do not.
+
+Clear data before starting replacement reads, and reject older responses that
+arrive later. Snapshot clients can discard their cursor and subscribe again
+without one. Cosmetic changes and unrelated users' assignments do not require
+this full reload.
+
 | Frame                           | Client action                                                                                       |
 | ------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `close` with `reconnect: true`  | Close the socket, wait for `retry_after` or local backoff, and subscribe with the last safe cursor. |
@@ -285,7 +306,7 @@ cookie clients can receive a session-renewal close and must renew the browser
 session before they reconnect. A `SESSION_TERMINATED` close means that the
 session ended. Clients must stop reconnecting and return to sign-in.
 
-For `RESYNC_REQUIRED`, discard the cursor before reconnecting. Snapshot clients
+For `RESYNC_REQUIRED`, discard private cached data and the cursor before reconnecting. Snapshot clients
 replace their state. Live-only clients must decide which current resources to
 read; the next startup cannot recover the skipped history.
 

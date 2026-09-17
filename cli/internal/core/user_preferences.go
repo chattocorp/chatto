@@ -88,7 +88,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 		if input.Timezone != nil {
 			tz := *input.Timezone
 			if tz == "" {
-				if current != nil && current.Timezone != nil {
+				if current == nil || current.Timezone == nil || current.GetTimezone() != "" {
 					evs = append(evs, newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneCleared{
 						UserTimezoneCleared: &evtv1.UserTimezoneClearedEvent{UserId: userID},
 					}}))

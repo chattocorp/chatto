@@ -261,9 +261,21 @@ visibility cache. Its stable admission boundary includes room creation,
 deletion, Universal changes, joins, leaves, member additions, member removals,
 bans, and unbans. Facts for a room that a caller never saw are suppressed.
 
-RBAC facts can revoke access without a public room fact. The server closes
-affected connections with `projection_reset_required`. The next subscription
-uses current authorization and normally receives a snapshot. A replay can
+RBAC facts use normal public events in both live delivery and replay. Role
+creation, metadata changes, and ordering changes refresh role data without a
+full reload. Role catalogue, individual role, and role-member reads wait for
+the committed RBAC boundary before reading their local projection. Thus a
+follow-up read can use a different replica from the realtime connection.
+Assignment and removal events name the user and role so member
+lists can update. Role permission events name only the role; direct user
+permission events go only to that viewer and contain no private decisions or
+scope IDs. Bots also receive a viewer permission event for changes to their
+owner's direct decisions or assignments. Role permission changes and deletion
+conservatively notify bots because deleted roles no longer retain their former
+owner assignments. Cosmetic changes do not reset bots. The client discards
+private state when its own assignments, a
+retained role's permissions, the `everyone` role, or its direct permissions
+change. A replay can
 send a viewer's own leave, removal, or ban fact even when current membership
 is false. This closing fact removes state that the client could have retained.
 Effective membership and message-read permission changes are authorization
@@ -307,8 +319,9 @@ that exceeds its queue count or byte limit closes independently.
 
 Known durable room-group, room-layout, and public server-configuration facts
 map to dedicated public events. An unknown content-affecting server fact still
-quarantines the hub. RBAC and key-shredding changes force affected sessions to
-rebuild from current authorized state. These fail-closed paths prevent a
+quarantines the hub. Key-shredding changes force sessions to rebuild from
+current authorized state. Role and permission events leave the connection open;
+the client decides when to rebuild its local data. These paths prevent a
 client from continuing with state that the server can no longer validate.
 
 Message and asset facts are delivered only when the viewer is a member. A
@@ -317,6 +330,36 @@ viewer also needs broad `message.read`, or
 The hub and public event mapper both check this boundary.
 
 ## Bundled frontend
+
+The per-server store checks permission events before it changes retained role
+assignments. It clears its cursor, viewer authority, query observers, message
+and thread stores, notifications, search results, and admin layout before it
+requests a new snapshot. Unknown viewer role membership requires a conservative
+reload. Unrelated users' assignments and cosmetic role changes keep the current
+projection. `RESYNC_REQUIRED` remains a fallback and uses the same immediate
+privacy cleanup.
+
+An active local call stays connected while private data reloads. Fresh room
+permissions then stop only revoked media, or disconnect the call if membership
+or `call.join` access was removed. The server independently enforces LiveKit
+participant permissions, including when the client cannot finish its reload.
+New media actions remain disabled while their permission data is absent.
+Catch-up always
+loads the viewer's own member record so later role checks have current explicit
+assignments, even when no visible room references that viewer.
+
+Each connection has a private-data generation. The ConnectRPC interceptor
+rejects older responses before API helpers can publish their data. Reset
+handlers run independently; a failed required store cleanup prevents catch-up
+from marking the projection ready. The server route hides private children
+while the projection is unusable.
+
+Role create/delete completion runs inside the request operation, outside the
+route's mutation observer. The application layout owns page-visit tracking.
+A reset does not end a visit, but navigation does, including leave and return
+to the same URL. A successful obsolete mutation can navigate using submitted
+IDs while its response data stays discarded. Connection or session replacement
+also prevents old navigation. See ADR-062.
 
 Notification creation hints carry `created_notification_id`, including during
 Do Not Disturb and for initially read occurrences. Updates and removals omit it.

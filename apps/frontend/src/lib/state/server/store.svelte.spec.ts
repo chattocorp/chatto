@@ -347,6 +347,7 @@ import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
 class FakeServerConnection {
+  invalidatePrivateData = vi.fn();
   serverId = 'store-event-test';
   connectBaseUrl = 'https://store-event.test';
   reconnectCount = $state(0);
@@ -828,6 +829,76 @@ describe('ServerStateStore room search state', () => {
 });
 
 describe('ServerStateStore unified realtime resources', () => {
+  it.each([true, false])('retains a call during reset and checks fresh join access: %s', (join) => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.voiceCall.roomId = 'R1';
+    store.voiceCall.connected = true;
+    const revoked = vi.spyOn(store.voiceCall, 'handleRoomAccessRevoked');
+    const reconcile = vi.spyOn(store.voiceCall, 'reconcilePermissions').mockResolvedValue();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
+    );
+    expect(store.voiceCall.connected).toBe(true);
+    expect(store.voiceCall.roomId).toBe('R1');
+    expect(store.voiceCall.canUseVoice).toBe(false);
+    expect(revoked).not.toHaveBeenCalled();
+    expect(reconcile).not.toHaveBeenCalled();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        resource: roomResource([
+          new RoomWithViewerState({
+            room: new Room({ id: 'R1' }),
+            viewerState: new RoomViewerState({
+              isMember: true,
+              permissions: [new PermissionGrant({ permission: 'call.join', granted: join })]
+            })
+          })
+        ])
+      })
+    );
+    expect(reconcile).toHaveBeenCalledOnce();
+    expect(store.voiceCall.permissionsFor('R1').join).toBe(join);
+  });
+
+  it('clears viewer authority and sensitive mirrors immediately for its own permission event', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.realtimeSync.markCaughtUp('old');
+    store.permissions = { ...store.permissions, loaded: true, canAdminManageRoles: true };
+    const resetMessages = vi.spyOn(store.messagesForRoom('room'), 'resetProjectionState');
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          event: { case: 'viewerPermissionsChanged', value: {} }
+        })
+      })
+    );
+    expect(fake.invalidatePrivateData).toHaveBeenCalledOnce();
+    expect(store.permissions.loaded).toBe(false);
+    expect(store.projection.viewer).toBeNull();
+    expect(store.realtimeSync.resumeCursor).toBeNull();
+    expect(resetMessages).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.groups).toEqual([]);
+  });
+
+  it('keeps its cursor and messages when another user receives a role', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.realtimeSync.markCaughtUp('retained');
+    const resetMessages = vi.spyOn(store.messagesForRoom('room'), 'resetProjectionState');
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          event: { case: 'roleAssigned', value: { userId: 'U2', roleName: 'helper' } }
+        })
+      })
+    );
+    expect(fake.invalidatePrivateData).not.toHaveBeenCalled();
+    expect(resetMessages).not.toHaveBeenCalled();
+    expect(store.realtimeSync.resumeCursor).toBe('retained');
+  });
   it('applies canonical room resources without a realtime-specific room shape', () => {
     const store = makeStore(new FakeServerConnection([]));
 
@@ -1153,7 +1224,7 @@ describe('ServerStateStore unified realtime resources', () => {
       'opaque-reset-cursor'
     );
     const [catchUpUserIds, catchUpUserCursor] = apiMocks.readRealtimeUsers.mock.calls[0];
-    expect([...catchUpUserIds]).toEqual(['U2']);
+    expect([...catchUpUserIds]).toEqual(['U2', 'U1']);
     expect(catchUpUserCursor).toBe('opaque-reset-cursor');
     expect(hydrate).toHaveBeenCalledWith('opaque-reset-cursor', expect.any(Function));
 

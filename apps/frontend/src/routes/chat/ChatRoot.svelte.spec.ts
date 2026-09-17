@@ -393,32 +393,35 @@ describe('ChatRoot', () => {
     expect(mocks.updateSettings).toHaveBeenCalledExactlyOnceWith({ timezone: 'Europe/Berlin' });
   });
 
-  it('does not report over an explicit viewer time zone', async () => {
-    vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
-    mocks.remoteCurrentUser.user = {
-      ...originUser,
-      id: 'remote-user',
-      settings: {
-        timezone: 'America/New_York',
-        timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-        shareTimezone: false
-      }
-    };
-    const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
-    const profileCache = {
-      update: vi.fn(),
-      updateStatus: vi.fn(),
-      remove: vi.fn(),
-      clear: vi.fn()
-    };
+  it.each(['America/New_York', ''])(
+    'does not report over an explicit viewer time zone: %s',
+    async (timezone) => {
+      vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
+      mocks.remoteCurrentUser.user = {
+        ...originUser,
+        id: 'remote-user',
+        settings: {
+          timezone,
+          timeFormat: TimeFormat.TIME_FORMAT_AUTO,
+          shareTimezone: false
+        }
+      };
+      const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
+      const profileCache = {
+        update: vi.fn(),
+        updateStatus: vi.fn(),
+        remove: vi.fn(),
+        clear: vi.fn()
+      };
 
-    render(ChatRoot, {
-      props: { user: null, profileCache, presenceCache, children }
-    });
+      render(ChatRoot, {
+        props: { user: null, profileCache, presenceCache, children }
+      });
 
-    await Promise.resolve();
-    expect(mocks.updateSettings).not.toHaveBeenCalled();
-  });
+      await Promise.resolve();
+      expect(mocks.updateSettings).not.toHaveBeenCalled();
+    }
+  );
 
   it('does not immediately retry a failed time-zone report', async () => {
     vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');

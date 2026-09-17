@@ -91,7 +91,7 @@ func TestConnectJSONIntegrationSmoke(t *testing.T) {
 	current = call(token, viewer, "{}", 200)
 	settings := object(object(current["user"])["settings"])
 	require.Equal(t, settings, call(token, account+"GetSettings", "{}", 200)["settings"])
-	require.NotContains(t, settings, "timezone")
+	require.Equal(t, "", settings["timezone"])
 	require.Equal(t, false, settings["shareTimezone"])
 	require.Equal(t, "TIME_FORMAT_24_HOUR", settings["timeFormat"])
 

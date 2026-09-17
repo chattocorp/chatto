@@ -334,6 +334,10 @@ scope, bot access, and the timing of in-call permission changes.
   targets with the caller's original recipient decision. Layout changes use
   one refresh hint. Asset processing and deletion events identify the affected
   room and message; processed asset detail stays in message resources.
+  Role metadata and assignments also use normal events. Cosmetic changes and
+  other users' assignments do not force a full reload. Clients must clear
+  private cached data and reload when an event can affect their viewer's
+  permissions.
   Minimum-cursor RPCs wait for the requested content boundary, with a 10-second
   server limit, rather than waiting for unrelated projections.
   The client sends one `RealtimeSubscribe`

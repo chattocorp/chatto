@@ -33,8 +33,7 @@ export type RoomMovePlan = {
 };
 
 export type StoreResult<T extends object = object> =
-  | ({ ok: true } & T)
-  | { ok: false; error: string };
+  ({ ok: true } & T) | { ok: false; error: string };
 
 export type RoomMoveFlushResult =
   | {
@@ -249,6 +248,23 @@ export class AdminRoomLayoutStore {
 
   get loading(): boolean {
     return this.isRefreshing && !this.initialized;
+  }
+
+  /** Discard private layout and invalidate pending loads and optimistic restoration. */
+  resetProjectionState(): void {
+    this.#loadId++;
+    this.#interactionGeneration++;
+    this.deactivateProjectionRefresh();
+    this.groups = [];
+    this.initialized = false;
+    this.isRefreshing = false;
+    this.error = null;
+    this.isDragging = false;
+    this.draggingGroupId = null;
+    this.#preDragSnapshot = null;
+    this.#preReorderIds = null;
+    this.#activeRoomDragGeneration = null;
+    this.#activeGroupDragGeneration = null;
   }
 
   async refresh(): Promise<void> {

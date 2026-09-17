@@ -4,6 +4,8 @@
  */
 
 import { CallPreferencesState } from './callPreferences.svelte';
+import { affectsViewerPermissions } from './permissionEvents';
+import { runResetHandlers } from './resetHandlers';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -67,6 +69,7 @@ import {
   reconcileRegisteredAdminRoomGroupQueries,
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
+  refreshRegisteredRoleQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -151,6 +154,7 @@ export class ServerStateStore {
   readonly projection = new ServerProjectionStore();
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
+  #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (event) =>
     this.ingestProjectionEvent(event);
@@ -349,6 +353,7 @@ export class ServerStateStore {
    * Room groups must also be read: their viewer permissions can change when
    * privileged mode changes without a durable room-layout event. */
   async completeRealtimeCatchUp(cursor: string): Promise<void> {
+    if (this.#privacyCleanupFailed) throw new Error('Private data cleanup did not complete');
     const generation = this.#realtimeProjectionGeneration;
     const batches = await Promise.all(
       (
@@ -370,6 +375,8 @@ export class ServerStateStore {
     // Refresh every user that the retained projection still references after
     // the authoritative room read has been applied.
     const userIds = new SvelteSet(this.projection.users.keys());
+    const viewerId = this.currentUserId();
+    if (viewerId) userIds.add(viewerId);
     for (const room of this.projection.rooms.values()) {
       for (const userId of room.memberUserIds) userIds.add(userId);
     }
@@ -605,6 +612,18 @@ export class ServerStateStore {
   }
 
   private ingestProjectionEvent(update: RealtimeProjectionUpdate): void {
+    if (
+      update.event &&
+      affectsViewerPermissions(
+        update.event,
+        this.currentUserId(),
+        this.projection.users.get(this.currentUserId() ?? '')?.roles
+      )
+    ) {
+      this.realtimeSync.reset();
+      this.ingestProjectionEvent(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
+      return;
+    }
     const previousViewer = this.projection.viewer;
     const previousUserIds = new SvelteSet(this.projection.users.keys());
     const previousRoomIds = new SvelteSet(this.projection.rooms.keys());
@@ -612,6 +631,12 @@ export class ServerStateStore {
     let adminRoomLayoutChanged = update.reset;
 
     if (update.reset) {
+      if (update.privacyReset) {
+        this.#serverConnection.invalidatePrivateData();
+        this.permissions = EMPTY_PERMISSIONS;
+        // Clear authority first; optional mirrors must not prevent this boundary.
+        this.projection.reset();
+      }
       const generation = ++this.#realtimeProjectionGeneration;
       this.#realtimeSnapshotPending = true;
       this.#deletedRealtimeUserIds.clear();
@@ -620,9 +645,19 @@ export class ServerStateStore {
       this.#pendingUserRefreshIds.clear();
       this.#pendingUserRefreshCursor = undefined;
       this.#pendingUserRefreshGeneration = generation;
-      resetRegisteredFollowedThreadQueries(this.serverId);
-      this.resetProjectionMirrors();
-      this.forEachMessageSearch((store) => store.clearResults());
+      this.#privacyCleanupFailed = !runResetHandlers([
+        () => {
+          if (update.privacyReset && !removeRegisteredServerQueries(this.serverId))
+            throw new Error('Query cleanup incomplete');
+        },
+        () => resetRegisteredFollowedThreadQueries(this.serverId),
+        () => {
+          if (!this.resetProjectionMirrors()) throw new Error('Mirror cleanup incomplete');
+        },
+        ...[this.messageSearch, ...Object.values(this.#roomMessageSearch)].map(
+          (store) => () => store.clearResults()
+        )
+      ]);
     }
 
     this.projection.apply(update);
@@ -659,6 +694,9 @@ export class ServerStateStore {
           break;
         }
         case 'rooms':
+          // A reset temporarily removes room data, not call access. Keep the
+          // media session until fresh permissions arrive; LiveKit access is
+          // also enforced independently by the server.
           void this.voiceCall.reconcilePermissions();
           for (const [roomId, room] of this.projection.rooms) {
             this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
@@ -857,6 +895,40 @@ export class ServerStateStore {
     const roomId = rawValue?.roomId ?? '';
 
     switch (payload.case) {
+      case 'roleAssigned':
+      case 'roleRevoked': {
+        const member = this.projection.users.get(payload.value.userId);
+        if (member) {
+          const updated = member.clone();
+          updated.roles = updated.roles.filter((role) => role !== payload.value.roleName);
+          if (payload.case === 'roleAssigned') updated.roles.push(payload.value.roleName);
+          this.projection.users.set(payload.value.userId, updated);
+        }
+        this.refreshRealtimeUsers([payload.value.userId]);
+        refreshRegisteredRoleQueries(this.serverId);
+        return;
+      }
+      case 'roleDeleted':
+        for (const [userId, member] of this.projection.users) {
+          if (!member.roles.includes(payload.value.roleName)) continue;
+          const updated = member.clone();
+          updated.roles = updated.roles.filter((role) => role !== payload.value.roleName);
+          this.projection.users.set(userId, updated);
+        }
+        this.mentionRoles.invalidate();
+        void this.mentionRoles.load();
+        refreshRegisteredRoleQueries(this.serverId);
+        return;
+      case 'roleCreated':
+      case 'roleUpdated':
+      case 'rolesReordered':
+        this.mentionRoles.invalidate();
+        void this.mentionRoles.load();
+        refreshRegisteredRoleQueries(this.serverId);
+        return;
+      case 'rolePermissionsChanged':
+        refreshRegisteredRoleQueries(this.serverId);
+        return;
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
         this.#deletedRealtimeUserIds.add(userId);
@@ -1312,24 +1384,29 @@ export class ServerStateStore {
   }
 
   /** Clear every mirror whose authority was invalidated by a reset frame. */
-  private resetProjectionMirrors(): void {
-    refreshRegisteredAdminQueries(this.serverId);
-    clearUserSummaryCache(this.serverId);
-    for (const store of Object.values(this.#roomMessages)) store.resetProjectionState();
-    for (const store of Object.values(this.#threadMessages)) store.resetProjectionState();
-    for (const store of Object.values(this.#roomFiles)) {
-      store.reset({ rehydrateRetained: true });
-    }
-    for (const store of Object.values(this.#roomPins)) {
-      store.reset({ rehydrateRetained: true });
-    }
-    this.roomDirectory.resetOptimisticState();
-    this.notifications.resetProjectionState();
-    this.roomUnread.clear();
-    this.pendingHighlights.clear();
-    this.activeCallRooms.clear();
-    this.serverInfo.resetProjectionState();
+  private resetProjectionMirrors(): boolean {
+    const complete = runResetHandlers([
+      () => refreshRegisteredAdminQueries(this.serverId),
+      () => clearUserSummaryCache(this.serverId),
+      ...Object.values(this.#roomMessages).map((store) => () => store.resetProjectionState()),
+      ...Object.values(this.#threadMessages).map((store) => () => store.resetProjectionState()),
+      ...Object.values(this.#roomFiles).map(
+        (store) => () => store.reset({ rehydrateRetained: true })
+      ),
+      ...Object.values(this.#roomPins).map(
+        (store) => () => store.reset({ rehydrateRetained: true })
+      ),
+      () => this.roomDirectory.resetOptimisticState(),
+      () => this.adminRoomLayout.resetProjectionState(),
+      () => this.mentionRoles.invalidate(),
+      () => this.notifications.resetProjectionState(),
+      () => this.roomUnread.clear(),
+      () => this.pendingHighlights.clear(),
+      () => this.activeCallRooms.clear(),
+      () => this.serverInfo.resetProjectionState()
+    ]);
     this.#playedCallSoundEventIds.length = 0;
+    return complete;
   }
 
   /** Complete current room membership resolved through the warm user cache. */
@@ -1462,6 +1539,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.#serverConnection.invalidatePrivateData();
     removeRegisteredServerQueries(this.serverId);
     this.#disposeEffects();
     this.adminRoomLayout.deactivateProjectionRefresh();

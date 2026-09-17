@@ -9,6 +9,12 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ## Behavior
 
+An explicit browser-default time zone is stored as an empty optional value.
+An absent value means no choice has been recorded. Automatic device reporting
+must respect the empty value, including after reload or on another device.
+Existing timezone-clear events rebuild this distinction during replay. The
+config snapshot contract is `v3` so older snapshots cannot erase that choice.
+
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card
   includes the room’s message and profile actions, subject to viewer permissions. This row

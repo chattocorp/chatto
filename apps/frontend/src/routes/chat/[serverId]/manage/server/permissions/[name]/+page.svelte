@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
@@ -46,6 +47,7 @@
     queryKey: ReturnType<typeof adminQueryKeys.role>;
     api: ReturnType<typeof createRoleAPI>;
     privacyGeneration: number;
+    canComplete: () => boolean;
   };
 
   type UpdateRoleVariables = RoleMutationScope & {
@@ -154,15 +156,19 @@
 
   const deleteMutation = createMutation(
     () => ({
-      mutationFn: ({ api, roleName: targetRoleName }: RoleMutationScope) =>
-        api.deleteRole(targetRoleName),
-      onSuccess: (_deleted, variables) => {
-        if (!isCurrentSession(variables)) return;
-        removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
-        if (isCurrentRole(variables)) {
-          goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));
-        }
-      },
+      mutationFn: (variables: RoleMutationScope) =>
+        completeMutation(
+          () => variables.api.deleteRole(variables.roleName),
+          variables.canComplete,
+          () => {
+            removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
+            void goto(
+              resolve('/chat/[serverId]/manage/server/permissions', {
+                serverId: serverIdToSegment(variables.serverId)
+              })
+            );
+          }
+        ),
       onError: (_error, variables) => {
         if (isCurrentRole(variables)) deleteConfirmRoleName = null;
       }
@@ -179,7 +185,8 @@
       roleName: targetRole.name,
       queryKey: adminQueryKeys.role(serverId, connection, targetRole.name),
       api: connection.getAPI(createRoleAPI),
-      privacyGeneration
+      privacyGeneration,
+      canComplete: captureMutationCompletion(serverScope)
     };
   }
 

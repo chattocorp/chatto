@@ -318,7 +318,20 @@ class EventBusManager {
       if (projectionHandlers.size === 0) {
         throw new Error('projection update received before reducer registration');
       }
-      for (const handler of projectionHandlers) handler(update);
+      let canonicalFailure: unknown;
+      for (const handler of projectionHandlers) {
+        if (!update.reset) {
+          handler(update);
+          continue;
+        }
+        try {
+          handler(update);
+        } catch (error) {
+          if (handler === projectionHandler) canonicalFailure = error;
+          console.error(`[eventBus:${serverId}] reset handler failed`);
+        }
+      }
+      if (canonicalFailure) throw canonicalFailure;
     };
 
     const dispatchRealtimeEvent = (event: RealtimeEvent) => {
@@ -359,7 +372,7 @@ class EventBusManager {
       socket = nextSocket;
 
       const failReconciliation = (error: unknown) => {
-        if (reconciliationFailed) return;
+        if (reconciliationFailed || stopped || socket !== nextSocket) return;
         reconciliationFailed = true;
         console.error(`[eventBus:${serverId}] resource reconciliation failed`, error);
         nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource reconciliation failed');
@@ -424,7 +437,9 @@ class EventBusManager {
                 }
                 snapshotReceived = true;
                 try {
-                  dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
+                  dispatchProjectionUpdate(
+                    new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
+                  );
                   sync.acceptProjectionEvent(undefined, true);
                   const resources = [
                     { case: 'server' as const, value: frame.frame.value.server },
@@ -455,11 +470,23 @@ class EventBusManager {
                 }
                 return;
               case 'event': {
+                const resetGeneration = sync.resetGeneration;
                 try {
                   dispatchRealtimeEvent(frame.frame.value);
                 } catch (error) {
                   console.error(`[eventBus:${serverId}] projection reducer failed`, error);
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+                  return;
+                }
+                if (sync.resetGeneration !== resetGeneration) {
+                  // The client chose to reload after a permission event. Do not
+                  // advance the discarded cursor or process queued old frames.
+                  detachSocket();
+                  if (mode === 'live') scheduleReconnect('viewer permissions changed', 0);
+                  else {
+                    resolvePoll(false);
+                    mode = 'dormant';
+                  }
                   return;
                 }
                 commitEventCursor(frame.frame.value.cursor);
@@ -490,6 +517,12 @@ class EventBusManager {
                 return;
               }
               case 'close':
+                if (frame.frame.value.code === RealtimeCloseCode.RESYNC_REQUIRED) {
+                  sync.reset();
+                  dispatchProjectionUpdate(
+                    new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
+                  );
+                }
                 if (frame.frame.value.code === RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED) {
                   sync.invalidateAuthorization();
                 }

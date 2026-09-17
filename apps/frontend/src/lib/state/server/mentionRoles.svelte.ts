@@ -12,6 +12,15 @@ export class MentionRolesStore {
 
   readonly #api: MentionRoleAPI;
   #loadPromise: Promise<boolean> | null = null;
+  #generation = 0;
+
+  /** Discard obsolete reads so an event can request a fresh catalogue. */
+  invalidate(): void {
+    this.#generation++;
+    this.#loadPromise = null;
+    this.roles = [];
+    this.status = 'idle';
+  }
 
   constructor(api: MentionRoleAPI) {
     this.#api = api;
@@ -28,9 +37,11 @@ export class MentionRolesStore {
     if (this.#loadPromise) return this.#loadPromise;
 
     this.status = 'loading';
+    const generation = this.#generation;
     const request = this.#api
       .listRoles()
       .then(({ roles }) => {
+        if (generation !== this.#generation) return false;
         this.roles = roles
           .filter(({ name }) => name !== 'everyone')
           .map(({ name, isSystem, position, pingable }) => ({
@@ -43,6 +54,7 @@ export class MentionRolesStore {
         return true;
       })
       .catch(() => {
+        if (generation !== this.#generation) return false;
         this.roles = [];
         this.status = 'failed';
         return false;

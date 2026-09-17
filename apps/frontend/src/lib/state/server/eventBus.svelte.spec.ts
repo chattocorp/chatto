@@ -345,6 +345,63 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(2);
   });
 
+  it('purges on resync before reconnect even when an optional reset handler fails', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('rejected');
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    const cleared = vi.fn();
+    const handlers = eventBusManager.getBus(TEST_SERVER)!.projectionHandlers;
+    handlers.add(() => {
+      throw new Error('optional mirror');
+    });
+    handlers.add((update) => {
+      if (update.privacyReset) cleared();
+    });
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({ code: RealtimeCloseCode.RESYNC_REQUIRED, reconnect: true })
+      })
+    );
+    expect(cleared).toHaveBeenCalledOnce();
+    expect(sync.resumeCursor).toBeNull();
+    expect(sync.hasUsableProjection).toBe(false);
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[1].open();
+    expect(RealtimeSubscribe.fromBinary(sockets[1].sent[0]).resumeCursor).toBeUndefined();
+  });
+
+  it('does not commit an event cursor after the client chooses a permission reload', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('old');
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    sockets[0].open();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add((update) => {
+      if (update.event?.event.case === 'viewerPermissionsChanged') sync.reset();
+    });
+    await sockets[0].receive(
+      serverFrame({
+        case: 'event',
+        value: new RealtimeEvent({
+          cursor: 'must-not-resume',
+          event: { case: 'viewerPermissionsChanged', value: {} }
+        })
+      })
+    );
+    expect(sync.resumeCursor).toBeNull();
+    await vi.advanceTimersByTimeAsync(0);
+    sockets[1].open();
+    expect(RealtimeSubscribe.fromBinary(sockets[1].sent[0]).resumeCursor).toBeUndefined();
+  });
+
   it('replaces retained state when a resume cursor falls back to a snapshot', async () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('cursor-expired');

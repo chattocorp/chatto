@@ -158,6 +158,14 @@ message RealtimeEvent {
     NotificationUnreadStateChangedEvent notification_unread_state_changed = 57;
     RoomReadStateChangedEvent room_read_state_changed = 58;
     RoomLayoutChangedEvent room_layout_changed = 59;
+    RoleCreatedEvent role_created = 60;
+    RoleUpdatedEvent role_updated = 61;
+    RoleDeletedEvent role_deleted = 62;
+    RolesReorderedEvent roles_reordered = 63;
+    RoleAssignedEvent role_assigned = 64;
+    RoleRevokedEvent role_revoked = 65;
+    RolePermissionsChangedEvent role_permissions_changed = 66;
+    ViewerPermissionsChangedEvent viewer_permissions_changed = 67;
   }
 }
 

@@ -24,7 +24,7 @@ export class ServerProjectionStore {
   activeCalls = $state.raw<ActiveCall[]>([]);
 
   apply(update: RealtimeProjectionUpdate): void {
-    if (update.reset) this.reset({ preserveViewer: true });
+    if (update.reset) this.reset({ preserveViewer: !update.privacyReset });
     const chunk = update.resource;
     if (chunk) {
       switch (chunk.case) {

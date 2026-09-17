@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test } from './setup';
 import { GetRolePermissionMatrixRequest } from '@chatto/api-types/admin/v1/permissions_pb';
 import { AdminRoleServiceListMembersRequest } from '@chatto/api-types/admin/v1/roles_pb';
@@ -139,18 +140,26 @@ async function denyPermission(
 }
 
 test.describe('Server Roles Management', () => {
-  test('permission matrix loads scope pages at the horizontal edge', async ({ serverRolesPage }) => {
+  test('permission matrix loads scope pages at the horizontal edge', async ({
+    serverRolesPage
+  }) => {
     const { page } = serverRolesPage;
     const server = await usePrimaryServerViaAPI(page);
-    const otherGroup = await connectPost<{ group: { id: string } }>(page,
-      'chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup', { name: 'Other scope group' });
+    const otherGroup = await connectPost<{ group: { id: string } }>(
+      page,
+      'chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup',
+      { name: 'Other scope group' }
+    );
     const groupId = [await getDefaultRoomGroupId(page), otherGroup.group.id].sort()[0];
-    for (let i = 0; i < 24; i++) await createRoomViaConnect(page, `paged-permissions-${i}`, groupId);
+    for (let i = 0; i < 24; i++)
+      await createRoomViaConnect(page, `paged-permissions-${i}`, groupId);
     const offsets: number[] = [];
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.stack ?? error.message));
-    page.on('request', request => {
-      if (request.url().endsWith('/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix')) {
+    page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
+    page.on('request', (request) => {
+      if (
+        request.url().endsWith('/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix')
+      ) {
         const body = request.postDataBuffer();
         if (body) offsets.push(GetRolePermissionMatrixRequest.fromBinary(body).page?.offset ?? 0);
       }
@@ -158,15 +167,66 @@ test.describe('Server Roles Management', () => {
     await page.setViewportSize({ width: 1000, height: 800 });
     await page.goto(routes.serverAdminPermission('moderator'));
     await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
-    const viewport = page.locator('.data-table-viewport').filter({ has: page.locator('th[data-scope]') });
+    const viewport = page
+      .locator('.data-table-viewport')
+      .filter({ has: page.locator('th[data-scope]') });
     await expect(viewport.locator('th[data-scope]')).toHaveCount(20);
-    const initialColumns = await viewport.locator('th[data-scope]').evaluateAll(heads => heads.map(head => head.getAttribute('data-scope')));
+    const initialColumns = await viewport
+      .locator('th[data-scope]')
+      .evaluateAll((heads) => heads.map((head) => head.getAttribute('data-scope')));
     await viewport.hover();
     await page.mouse.wheel(3000, 0);
     await expect.poll(() => offsets.includes(20)).toBe(true);
     await expect.poll(() => viewport.locator('th[data-scope]').count()).toBeGreaterThan(20);
-    const allColumns = await viewport.locator('th[data-scope]').evaluateAll(heads => heads.map(head => head.getAttribute('data-scope')));
+    const allColumns = await viewport
+      .locator('th[data-scope]')
+      .evaluateAll((heads) => heads.map((head) => head.getAttribute('data-scope')));
     expect(allColumns.slice(0, initialColumns.length)).toEqual(initialColumns);
+    expect(errors).toEqual([]);
+  });
+
+  test('another user role assignment and a role rename update the UI without a snapshot', async ({
+    serverRolesPage
+  }) => {
+    const { page } = serverRolesPage;
+    const server = await usePrimaryServerViaAPI(page);
+    const roleName = generateRoleName('live');
+    const other = await createSecondTestUser(page);
+    await connectPost(page, 'chatto.admin.v1.AdminRoleService/CreateRole', {
+      name: roleName,
+      displayName: 'Before rename'
+    });
+    let snapshots = 0;
+    let assignments = 0;
+    let updates = 0;
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('websocket', (socket) =>
+      socket.on('framereceived', ({ payload }) => {
+        if (typeof payload === 'string') return;
+        const frame = RealtimeServerFrame.fromBinary(payload).frame;
+        if (frame.case === 'snapshot') snapshots++;
+        if (frame.case === 'event' && frame.value.event.case === 'roleAssigned') assignments++;
+        if (frame.case === 'event' && frame.value.event.case === 'roleUpdated') updates++;
+      })
+    );
+    await serverRolesPage.gotoEditRole(server.id, roleName);
+    const before = snapshots;
+    await connectPost(page, 'chatto.admin.v1.AdminUserService/AssignRole', {
+      userId: other.id!,
+      roleName
+    });
+    await expect.poll(() => assignments).toBe(1);
+    await expect(page.getByRole('cell', { name: other.displayName, exact: true })).toBeVisible();
+    await connectPost(page, 'chatto.admin.v1.AdminRoleService/UpdateRole', {
+      name: roleName,
+      displayName: 'After rename',
+      updateMask: 'displayName'
+    });
+    await expect.poll(() => updates).toBe(1);
+    // The page label updates; the edit form keeps its draft across background reads.
+    await expect(page.getByText('After rename', { exact: true })).toBeVisible();
+    expect(snapshots).toBe(before);
     expect(errors).toEqual([]);
   });
 
@@ -175,21 +235,26 @@ test.describe('Server Roles Management', () => {
     const server = await usePrimaryServerViaAPI(page);
     const roleName = generateRoleName('roster');
     await connectPost(page, 'chatto.admin.v1.AdminRoleService/CreateRole', {
-      name: roleName, displayName: 'Paged roster'
+      name: roleName,
+      displayName: 'Paged roster'
     });
     for (let i = 0; i < 21; i++) {
       const user = await createSecondTestUser(page);
       await connectPost(page, 'chatto.admin.v1.AdminUserService/AssignRole', {
-        userId: user.id!, roleName
+        userId: user.id!,
+        roleName
       });
     }
     const memberRequests: number[] = [];
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
-    page.on('request', request => {
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('request', (request) => {
       if (request.url().endsWith('/chatto.admin.v1.AdminRoleService/ListMembers')) {
         const body = request.postDataBuffer();
-        if (body) memberRequests.push(AdminRoleServiceListMembersRequest.fromBinary(body).page?.offset ?? 0);
+        if (body)
+          memberRequests.push(
+            AdminRoleServiceListMembersRequest.fromBinary(body).page?.offset ?? 0
+          );
       }
     });
     await serverRolesPage.gotoEditRole(server.id, roleName);
@@ -198,7 +263,10 @@ test.describe('Server Roles Management', () => {
     // Real wheel interaction reaches the trailing table sentinel.
     await rosterHeading.hover();
     await page.mouse.wheel(0, 3000);
-    await page.getByText('Showing 20 of 21 member(s)', { exact: true }).or(page.getByText('Showing 21 of 21 member(s)', { exact: true })).waitFor();
+    await page
+      .getByText('Showing 20 of 21 member(s)', { exact: true })
+      .or(page.getByText('Showing 21 of 21 member(s)', { exact: true }))
+      .waitFor();
     const table = page.locator('table').last();
     await table.hover();
     await page.mouse.wheel(0, 3000);
@@ -355,7 +423,13 @@ test.describe('Server Roles Management', () => {
         displayName: 'Updated Role Name',
         description: 'Updated description'
       });
-      await serverRolesPage.saveChangesButton.click();
+      const [saved] = await Promise.all([
+        page.waitForResponse((response) =>
+          response.url().endsWith('/chatto.admin.v1.AdminRoleService/UpdateRole')
+        ),
+        serverRolesPage.saveChangesButton.click()
+      ]);
+      expect(saved.ok()).toBe(true);
 
       // Verify changes persist after reload
       await page.reload();
@@ -440,6 +514,59 @@ test.describe('Server Roles Management', () => {
   });
 
   test.describe('Delete role', () => {
+    test('role deletion still navigates when its permission reset arrives before the response', async ({
+      serverRolesPage
+    }) => {
+      const { page } = serverRolesPage;
+      const server = await usePrimaryServerViaAPI(page);
+      const roleName = generateRoleName('resetdelete');
+      await connectPost(page, 'chatto.admin.v1.AdminRoleService/CreateRole', {
+        name: roleName,
+        displayName: 'Reset deletion'
+      });
+      const viewer = await connectPost<{ user: { profile: { id: string } } }>(
+        page,
+        'chatto.api.v1.ViewerService/GetViewer',
+        {}
+      );
+      await connectPost(page, 'chatto.admin.v1.AdminUserService/AssignRole', {
+        userId: viewer.user.profile.id,
+        roleName
+      });
+      let snapshots = 0;
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      page.on('websocket', (socket) =>
+        socket.on('framereceived', ({ payload }) => {
+          if (
+            typeof payload !== 'string' &&
+            RealtimeServerFrame.fromBinary(payload).frame.case === 'snapshot'
+          )
+            snapshots++;
+        })
+      );
+      await serverRolesPage.gotoEditRole(server.id, roleName);
+      const before = snapshots;
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await page.route('**/chatto.admin.v1.AdminRoleService/DeleteRole', async (route) => {
+        const response = await route.fetch();
+        await held;
+        await route.fulfill({ response });
+      });
+      const deletion = serverRolesPage.deleteCurrentRole();
+      try {
+        await expect.poll(() => snapshots).toBeGreaterThan(before);
+      } finally {
+        release();
+      }
+      await deletion;
+      await serverRolesPage.expectRolesListVisible();
+      expect(errors).toEqual([]);
+    });
+
     test('server admin can delete a custom role', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 

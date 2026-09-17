@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
@@ -41,6 +42,7 @@
     api: ReturnType<typeof createRoleAPI>;
     input: CreateRoleInput;
     privacyGeneration: number;
+    canComplete: () => boolean;
   };
 
   const roleCatalogQuery = createQuery(
@@ -69,17 +71,20 @@
 
   const createRoleMutation = createMutation(
     () => ({
-      mutationFn: ({ api, input }: CreateRoleVariables) => api.createRole(input),
-      onSuccess: (createdRole, variables) => {
-        if (!isCurrentSession(variables)) return;
-        invalidatePermissionTiers(variables.serverId, variables.connection);
-        goto(
-          resolve('/chat/[serverId]/manage/server/permissions/[name]', {
-            serverId: serverIdToSegment(variables.serverId),
-            name: createdRole.name
-          })
-        );
-      }
+      mutationFn: (variables: CreateRoleVariables) =>
+        completeMutation(
+          () => variables.api.createRole(variables.input),
+          variables.canComplete,
+          () => {
+            invalidatePermissionTiers(variables.serverId, variables.connection);
+            void goto(
+              resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+                serverId: serverIdToSegment(variables.serverId),
+                name: variables.input.name
+              })
+            );
+          }
+        )
     }),
     () => queryClient
   );
@@ -93,6 +98,7 @@
       connection,
       api: connection.getAPI(createRoleAPI),
       privacyGeneration,
+      canComplete: captureMutationCompletion(serverScope),
       input: {
         name: targetName,
         displayName: displayName.trim(),

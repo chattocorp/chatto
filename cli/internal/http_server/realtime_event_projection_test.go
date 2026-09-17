@@ -392,6 +392,14 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 		"room_read_state_changed":           "room_read_state_changed",
 	}
 	evtSourceNames := map[string]string{
+		"role_created":               "rbac_role_created",
+		"role_updated":               "rbac_role_display_name_changed",
+		"role_deleted":               "rbac_role_deleted",
+		"roles_reordered":            "rbac_roles_reordered",
+		"role_assigned":              "rbac_role_assigned",
+		"role_revoked":               "rbac_role_revoked",
+		"role_permissions_changed":   "rbac_permission_granted",
+		"viewer_permissions_changed": "rbac_permission_denied",
 		"user_profile_changed":       "user_login_changed",
 		"viewer_preferences_changed": "user_time_format_changed",
 		"server_profile_changed":     "server_name_changed",
@@ -421,7 +429,13 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 			if err := proto.Unmarshal(wire, &event); err != nil {
 				t.Fatalf("unmarshal %s: %v", canonicalField.FullName(), err)
 			}
-			if publicField.Name() == "viewer_preferences_changed" {
+			if publicField.Name() == "role_permissions_changed" {
+				event.GetRbacPermissionGranted().Subject = &evtv1.RbacPermissionSubject{Kind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, Id: "helpers"}
+				projected = projectRealtimeEvent("viewer", &event)
+			} else if publicField.Name() == "viewer_permissions_changed" {
+				event.GetRbacPermissionDenied().Subject = &evtv1.RbacPermissionSubject{Kind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, Id: "viewer"}
+				projected = projectRealtimeEvent("viewer", &event)
+			} else if publicField.Name() == "viewer_preferences_changed" {
 				projected = &realtimev1.RealtimeEvent{Event: &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{}}}
 			} else {
 				projected = projectRealtimeEvent("viewer", &event)

@@ -26,6 +26,8 @@ export class RealtimeProjectionUpdate {
   readonly cursor: string | null;
   /** Clear the retained projection before applying this update. */
   readonly reset: boolean;
+  /** A privacy reset clears viewer authority as well as snapshot resources. */
+  readonly privacyReset: boolean;
 
   constructor(
     init: {
@@ -33,6 +35,7 @@ export class RealtimeProjectionUpdate {
       resource?: RealtimeResourceUpdate | null;
       cursor?: string | null;
       reset?: boolean;
+      privacyReset?: boolean;
       id?: string;
       actorId?: string;
     } = {}
@@ -41,6 +44,7 @@ export class RealtimeProjectionUpdate {
     this.replaceResource = init.resource?.replace ?? false;
     this.cursor = init.cursor ?? null;
     this.reset = init.reset ?? false;
+    this.privacyReset = init.privacyReset ?? false;
     this.event =
       init.event ??
       (init.id || init.actorId ? new RealtimeEvent({ id: init.id, actorId: init.actorId }) : null);

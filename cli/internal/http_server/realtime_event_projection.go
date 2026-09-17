@@ -24,6 +24,30 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.ActorId = proto.String(source.GetActorId())
 	}
 	switch e := source.GetEvent().(type) {
+	case *evtv1.Event_RbacRoleCreated:
+		target.Event = &realtimev1.RealtimeEvent_RoleCreated{RoleCreated: &realtimev1.RoleCreatedEvent{RoleName: e.RbacRoleCreated.GetRoleName()}}
+	case *evtv1.Event_RbacRoleDisplayNameChanged:
+		target.Event = &realtimev1.RealtimeEvent_RoleUpdated{RoleUpdated: &realtimev1.RoleUpdatedEvent{RoleName: e.RbacRoleDisplayNameChanged.GetRoleName()}}
+	case *evtv1.Event_RbacRoleDescriptionChanged:
+		target.Event = &realtimev1.RealtimeEvent_RoleUpdated{RoleUpdated: &realtimev1.RoleUpdatedEvent{RoleName: e.RbacRoleDescriptionChanged.GetRoleName()}}
+	case *evtv1.Event_RbacRolePingableChanged:
+		target.Event = &realtimev1.RealtimeEvent_RoleUpdated{RoleUpdated: &realtimev1.RoleUpdatedEvent{RoleName: e.RbacRolePingableChanged.GetRoleName()}}
+	case *evtv1.Event_RbacRoleDeleted:
+		target.Event = &realtimev1.RealtimeEvent_RoleDeleted{RoleDeleted: &realtimev1.RoleDeletedEvent{RoleName: e.RbacRoleDeleted.GetRoleName()}}
+	case *evtv1.Event_RbacRolesReordered:
+		target.Event = &realtimev1.RealtimeEvent_RolesReordered{RolesReordered: &realtimev1.RolesReorderedEvent{RoleNames: append([]string(nil), e.RbacRolesReordered.GetRoleNames()...)}}
+	case *evtv1.Event_RbacRoleAssigned:
+		v := e.RbacRoleAssigned
+		target.Event = &realtimev1.RealtimeEvent_RoleAssigned{RoleAssigned: &realtimev1.RoleAssignedEvent{UserId: v.GetUserId(), RoleName: v.GetRoleName()}}
+	case *evtv1.Event_RbacRoleRevoked:
+		v := e.RbacRoleRevoked
+		target.Event = &realtimev1.RealtimeEvent_RoleRevoked{RoleRevoked: &realtimev1.RoleRevokedEvent{UserId: v.GetUserId(), RoleName: v.GetRoleName()}}
+	case *evtv1.Event_RbacPermissionGranted:
+		return projectRealtimePermissionChange(target, viewerID, e.RbacPermissionGranted.GetSubject())
+	case *evtv1.Event_RbacPermissionDenied:
+		return projectRealtimePermissionChange(target, viewerID, e.RbacPermissionDenied.GetSubject())
+	case *evtv1.Event_RbacPermissionCleared:
+		return projectRealtimePermissionChange(target, viewerID, e.RbacPermissionCleared.GetSubject())
 	case *evtv1.Event_RoomCreated:
 		v := e.RoomCreated
 		target.Event = &realtimev1.RealtimeEvent_RoomCreated{RoomCreated: &realtimev1.RoomCreatedEvent{RoomId: v.GetRoomId(), Name: v.GetName(), Description: v.GetDescription(), Kind: realtimeRoomKind(v.GetKind()), Universal: v.GetUniversal(), ThreadingMode: realtimeRoomThreadingMode(v.GetThreadingMode())}}
@@ -142,6 +166,54 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		return nil
 	}
 	return target
+}
+
+// Permission events disclose no scope or decision. User-specific decisions are
+// visible only to their subject; public role names are already in RoleService.
+func projectRealtimePermissionChange(target *realtimev1.RealtimeEvent, viewerID string, subject *evtv1.RbacPermissionSubject) *realtimev1.RealtimeEvent {
+	switch subject.GetKind() {
+	case evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE:
+		if subject.GetId() == "" {
+			target.Event = &realtimev1.RealtimeEvent_ViewerPermissionsChanged{ViewerPermissionsChanged: &realtimev1.ViewerPermissionsChangedEvent{}}
+			return target
+		}
+		target.Event = &realtimev1.RealtimeEvent_RolePermissionsChanged{RolePermissionsChanged: &realtimev1.RolePermissionsChangedEvent{RoleName: subject.GetId()}}
+	case evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER:
+		if subject.GetId() != viewerID {
+			return nil
+		}
+		target.Event = &realtimev1.RealtimeEvent_ViewerPermissionsChanged{ViewerPermissionsChanged: &realtimev1.ViewerPermissionsChangedEvent{}}
+	default:
+		// Legacy permission facts can lack a typed subject. Do not silently
+		// skip an authorization change whose recipients cannot be determined.
+		target.Event = &realtimev1.RealtimeEvent_ViewerPermissionsChanged{ViewerPermissionsChanged: &realtimev1.ViewerPermissionsChangedEvent{}}
+	}
+	return target
+}
+
+// A bot's owner ceiling can depend on any role. Deleted roles no longer retain
+// their former assignments, so role authority changes conservatively notify
+// bots without disclosing their owner's roles or private decisions.
+func rbacMayChangeBotAuthority(event *evtv1.Event, ownerID, botID string) bool {
+	var subject *evtv1.RbacPermissionSubject
+	switch e := event.GetEvent().(type) {
+	case *evtv1.Event_RbacRoleAssigned:
+		return e.RbacRoleAssigned.GetUserId() == ownerID
+	case *evtv1.Event_RbacRoleRevoked:
+		return e.RbacRoleRevoked.GetUserId() == ownerID
+	case *evtv1.Event_RbacRoleDeleted:
+		return true
+	case *evtv1.Event_RbacPermissionGranted:
+		subject = e.RbacPermissionGranted.GetSubject()
+	case *evtv1.Event_RbacPermissionDenied:
+		subject = e.RbacPermissionDenied.GetSubject()
+	case *evtv1.Event_RbacPermissionCleared:
+		subject = e.RbacPermissionCleared.GetSubject()
+	default:
+		return false
+	}
+	return subject.GetKind() != evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER ||
+		subject.GetId() == ownerID || subject.GetId() == botID
 }
 
 // projectRealtimePubSubEvent admits one restricted pubsub variant into the

@@ -310,12 +310,12 @@ func TestRealtimeInternalEncryptedEventIsOmitted(t *testing.T) {
 	}
 }
 
-func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
+func TestRealtimeRBACEventUsesNormalPermissionEvent(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	event := &evtv1.Event{
 		Id: "rbac-change",
 		Event: &evtv1.Event_RbacPermissionDenied{
-			RbacPermissionDenied: &evtv1.RbacPermissionDeniedEvent{},
+			RbacPermissionDenied: &evtv1.RbacPermissionDeniedEvent{Subject: &evtv1.RbacPermissionSubject{Kind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, Id: "viewer"}},
 		},
 	}
 	frame, err := env.httpServer.realtimeServerFrameForEvent(
@@ -326,9 +326,8 @@ func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeServerFrameForEvent() error = %v", err)
 	}
-	closeFrame := frame.GetClose()
-	if closeFrame == nil || closeFrame.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_RESYNC_REQUIRED || !closeFrame.GetReconnect() {
-		t.Fatalf("realtimeServerFrameForEvent() = %+v, want authorization reconnect", frame)
+	if frame.GetClose() != nil || frame.GetEvent().GetViewerPermissionsChanged() == nil {
+		t.Fatalf("realtimeServerFrameForEvent() = %+v, want viewer permission event", frame)
 	}
 }
 

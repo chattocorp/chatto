@@ -197,14 +197,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			return RealtimeReplayPlan{}, fmt.Errorf("read EVT sequence %d: %w", seq, err)
 		}
 
-		if strings.HasPrefix(msg.Subject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">")) {
-			// RBAC changes can revoke visibility without producing a room event.
-			// Rebuild from current authorized state rather than risk retaining a
-			// resource that the viewer may no longer read.
-			plan.Reset = true
-			plan.Events = nil
-			return plan, nil
-		}
 		if realtimeReplayRequiresReset(msg.Subject) {
 			plan.Reset = true
 			plan.Events = nil
@@ -236,6 +228,12 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		userIDFromSubject, userSubject := evtstream.ParseUserSubject(msg.Subject)
 		configSubjectID, configSubject := liveEVTConfigSubjectID(msg.Subject)
 		switch {
+		case strings.HasPrefix(msg.Subject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">")):
+			if !IsRBACEvent(&event) {
+				plan.Reset = true
+				plan.Events = nil
+				return plan, nil
+			}
 		case roomSubject:
 			if !isDeliverableLiveEVTRoomEvent(&event) {
 				continue

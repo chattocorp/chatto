@@ -33,6 +33,8 @@
     >
       {#if reauthRequired}
         <Chrome />
+      {:else if !serverStore.realtimeSync.hasUsableProjection}
+        <Chrome />
       {:else}
         <Chrome>
           {@render children?.()}
