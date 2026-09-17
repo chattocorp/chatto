@@ -17,6 +17,12 @@
 	});
 </script>
 
+<Story name="Live voice glow" asChild>
+	<div class="flex h-[600px] w-80 overflow-hidden rounded-md border border-border bg-background">
+		<VoiceCallPanelStoryHarness layout="sidebar" scenario="screen" animateVoice />
+	</div>
+</Story>
+
 <Story name="Stage with screen share" asChild>
 	<div class="flex h-[720px] w-[1080px] overflow-hidden rounded-md border border-border bg-background">
 		<VoiceCallPanelStoryHarness layout="stage" scenario="screen" />

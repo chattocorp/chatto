@@ -120,7 +120,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Members of a room with the right permission see a phone tab alongside the room sidebar's members/files tabs when LiveKit is configured.
 - Opening the call tab shows the current room call. If no call is active, it offers a "Start call" action. If a call is active and the viewer has not joined, it shows projected participants as ungrouped participant cards and a "Join call" action.
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
-- Joining the call switches the call tab into participant mode with pinned screen-share tiles first, larger camera video participant cards next, and compact voice-only participant cards after that, without separate Video or Voice section headings. Participant mode exposes neutral speaking indicators, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
+- Joining the call switches the call tab into participant mode with pinned screen-share tiles first, larger camera video participant cards next, and compact voice-only participant cards after that, without separate Video or Voice section headings. Participant mode exposes a voice activity glow, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
 - On desktop, an active call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout: the first screen share is featured, otherwise the first camera participant is featured, otherwise the first voice participant is featured; remaining screen shares, camera feeds, and voice cards stay visible as secondary tiles.
 - A desktop active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route.
 - Camera and screen-share tiles expose a compact fullscreen button in their header. Joined participant cards expose a compact mute button directly in the header; remote cards keep volume controls in their three-dot menu. Voice cards use the same height for local and remote participants. In a wide sidebar with a screen share or multiple video feeds, participant cards use equal-width columns; screen shares span the full row. Narrow sidebars use one column. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. The local participant card controls the viewer's own microphone.
@@ -167,11 +167,23 @@ Rooms support real-time voice conversations with optional camera video and scree
 **Why:** LiveKit delivers audio data over WebRTC, but the browser doesn't autoplay it without an attached element. Without explicit attach, the UI looks like everything works — participant rings even animate — but nobody hears anything. The pattern lives in `apps/frontend/src/lib/state/voiceCall.svelte.ts`; any refactor that touches LiveKit subscription handling needs to keep the `track.attach()` / `track.detach()` calls intact.
 **Tradeoff:** A subtle requirement that's easy to miss when refactoring; the skill warns explicitly.
 
-### 5. Speaking indicators use neutral inline glyphs
+### 5. Voice activity fills the identity row
 
-**Decision:** Participant cards read audio levels through the existing 60ms cache and show a neutral inline volume glyph for active speakers instead of an accent outline around the card.
-**Why:** The fast audio-level cache gives responsive speaking feedback, while keeping the visual treatment quiet and avoiding the blue outline around participant and screen-share tiles.
-**Tradeoff:** The indicator is intentionally more subtle than the previous animated card outline.
+**Decision:** Soft, flowing accent-coloured fog illuminates each speaking
+participant's identity row. Microphone volume controls the fog's brightness,
+spread, and movement speed. Quiet speech produces a gentle drift; louder speech
+moves the fog faster. Three translucent layers of broad wisps move independently
+and overlap. Animated simplex noise gives them uneven density and shape.
+Speed changes smoothly. The glow responds quickly to speech
+and fades away in silence. Video and screen-share content stays clear. Muted
+microphones show no activity. Muting someone locally does not hide their
+speaking activity. Reduced motion keeps the glow stationary and updates its
+intensity without animation.
+**Why:** The card background makes active speakers easy to find without a
+pulsing outline or an extra status icon. The effect uses existing call audio
+levels and needs no additional audio capture or external connection.
+**Tradeoff:** Glow intensity conveys relative activity rather than a calibrated
+volume measurement. Only users who joined the call receive this feedback.
 
 ### 6. Screen sharing is joined-client LiveKit track state
 

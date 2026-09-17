@@ -887,9 +887,12 @@ describe('RoomSidebar', () => {
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
     await userEvent.click(participantMenuButton);
-    const voiceLocalMuteButton = q(participantCards[1], '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
+    const voiceLocalMuteButton = q(
+      participantCards[1],
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
     expect(mutedIndicator).toBeTruthy();
-    expect(participantCards[1].hasAttribute('data-speaking-ring')).toBe(true);
+    expect(q(participantCards[1], '[data-testid="voice-activity"]')).toBeTruthy();
     expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
     await expect.element(voiceLocalMuteButton).toBeVisible();
     await expect
@@ -962,7 +965,7 @@ describe('RoomSidebar', () => {
     );
   });
 
-  it('shows an accent speaking ring for active speakers', async () => {
+  it('shows voice activity for active speakers', async () => {
     callStore.voiceCall.connected = true;
     callStore.voiceCall.isInAnyCall = true;
     callStore.voiceCall.roomId = 'room-1';
@@ -996,14 +999,11 @@ describe('RoomSidebar', () => {
 
     const card = q(container, '[data-testid="call-participant-card"]') as HTMLElement;
 
+    for (const observer of MockIntersectionObserver.instances) observer.trigger();
     await vi.waitFor(() => {
       expect(callStore.voiceCall.getAudioLevel).toHaveBeenCalledWith('viewer');
-      expect(card.dataset.callSpeaking).toBe('true');
-      expect(Number(card.style.getPropertyValue('--call-speaking-ring-opacity'))).toBeGreaterThan(
-        0
-      );
+      expect(q(card, '[data-testid="voice-activity"]')?.getAttribute('data-active')).toBe('true');
     });
-    expect(card.className).toContain('call-speaking-card');
     expect(q(card, '[data-testid="call-speaking-indicator"]')).toBeFalsy();
   });
 
@@ -1300,7 +1300,10 @@ describe('RoomSidebar', () => {
     expect(requestFullscreen).toHaveBeenCalledOnce();
     expect(fullscreenTargets[0]).toBe(featured);
 
-    const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
+    const localMuteButton = q(
+      featured,
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
     expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
     localMuteButton.click();
 
@@ -1401,14 +1404,14 @@ describe('RoomSidebar', () => {
     expect(featured).toBeTruthy();
     expect(featured!.textContent).toContain('Alice');
     expect(featured!.querySelector('video')).toBeFalsy();
+    for (const observer of MockIntersectionObserver.instances) observer.trigger();
     await vi.waitFor(() => {
       expect(callStore.voiceCall.getAudioLevel).toHaveBeenCalledWith('viewer');
-      expect(featured!.dataset.callSpeaking).toBe('true');
-      expect(
-        Number(featured!.style.getPropertyValue('--call-speaking-ring-opacity'))
-      ).toBeGreaterThan(0);
+      expect(q(featured!, '[data-testid="voice-activity"]')?.getAttribute('data-active')).toBe(
+        'true'
+      );
     });
-    expect(featured!.hasAttribute('data-speaking-ring')).toBe(true);
+    expect(q(featured!, '[data-testid="voice-activity"]')).toBeTruthy();
     expect(q(featured!, '[aria-label="Poor connection"]')).toBeTruthy();
     const localMuteButton = q(
       featured!,
