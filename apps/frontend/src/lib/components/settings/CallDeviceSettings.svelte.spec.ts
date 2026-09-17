@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,6 +24,111 @@ describe('Call device settings', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
 
+  it.each([
+    ['Microphone', 'microphone', 'microphone'],
+    ['Speaker', 'speaker', 'speaker'],
+    ['Camera', 'camera', 'camera']
+  ] as const)(
+    'commits %s chosen by clicking the enhanced native picker',
+    async (label, id, field) => {
+      vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
+        visibleCamera,
+        visibleMicrophone,
+        { kind: 'audiooutput', deviceId: 'speaker', label: 'Speaker' } as MediaDeviceInfo
+      ]);
+      const preferences = new CallPreferencesState('pointer-device-selection');
+      const screen = render(CallDeviceSettings, { preferences });
+      const control = screen.getByRole('combobox', { name: label, exact: true });
+      await control.click();
+      await control.getByRole('option', { name: label, exact: true }).click();
+      await expect.element(control).toHaveValue(id);
+      expect(control.element().matches(':open')).toBe(false);
+      expect(preferences[field]).toBe(id);
+      expect(new CallPreferencesState('pointer-device-selection')[field]).toBe(id);
+      await control.click();
+      await control.getByRole('option', { name: 'System default' }).click();
+      await expect.element(control).toHaveValue('');
+      expect(new CallPreferencesState('pointer-device-selection')[field]).toBe('');
+    }
+  );
+
+  it('saves each device selection and retains a removed camera as unavailable', async () => {
+    const speaker = {
+      kind: 'audiooutput',
+      deviceId: 'speaker',
+      label: 'Speakers'
+    } as MediaDeviceInfo;
+    const enumerate = vi
+      .spyOn(navigator.mediaDevices, 'enumerateDevices')
+      .mockResolvedValue([visibleCamera, visibleMicrophone, speaker]);
+    vi.spyOn(HTMLMediaElement.prototype, 'setSinkId').mockResolvedValue();
+    const preferences = new CallPreferencesState('select-devices');
+    const screen = render(CallDeviceSettings, { preferences });
+    await screen
+      .getByRole('combobox', { name: 'Microphone', exact: true })
+      .selectOptions('microphone');
+    await screen.getByRole('combobox', { name: 'Speaker', exact: true }).selectOptions('speaker');
+    const camera = screen.getByRole('combobox', { name: 'Camera', exact: true });
+    await camera.selectOptions('camera');
+    const saved = new CallPreferencesState('select-devices');
+    expect([saved.microphone, saved.speaker, saved.camera]).toEqual([
+      'microphone',
+      'speaker',
+      'camera'
+    ]);
+    enumerate.mockResolvedValue([visibleMicrophone, speaker]);
+    navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
+    await expect
+      .element(camera.getByRole('option', { name: 'Saved device unavailable' }))
+      .toBeInTheDocument();
+    await expect.element(camera).toHaveValue('camera');
+    await camera.selectOptions('');
+    expect(preferences.camera).toBe('');
+  });
+
+  it('shows the applied in-call device and restores it after a failed switch', async () => {
+    vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleMicrophone]);
+    const preferences = new CallPreferencesState('committed-device');
+    const screen = render(CallDeviceSettings, {
+      preferences,
+      inCall: true,
+      onDeviceChange: async (kind, value) => {
+        if (!value) throw new Error('Switch failed');
+        preferences.setDevice(kind, value);
+      }
+    });
+    const microphone = screen.getByRole('combobox', { name: 'Microphone', exact: true });
+    await microphone.selectOptions('microphone');
+    await expect.element(microphone).toHaveValue('microphone');
+    await microphone.selectOptions('');
+    await expect.element(microphone).toBeEnabled();
+    await expect.element(microphone).toHaveValue('microphone');
+    expect(preferences.microphone).toBe('microphone');
+  });
+
+  it('disables speaker selection when the browser has no output routing', async () => {
+    vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
+      visibleCamera,
+      visibleMicrophone
+    ]);
+    const mediaSink = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'setSinkId');
+    const audioSink = Object.getOwnPropertyDescriptor(AudioContext.prototype, 'setSinkId');
+    Reflect.deleteProperty(HTMLMediaElement.prototype, 'setSinkId');
+    Reflect.deleteProperty(AudioContext.prototype, 'setSinkId');
+    const screen = render(CallDeviceSettings, {
+      preferences: new CallPreferencesState('no-output-routing')
+    });
+    try {
+      const speaker = screen.getByRole('combobox', { name: 'Speaker', exact: true });
+      await expect.element(speaker).toBeDisabled();
+      await expect.element(speaker).toHaveAttribute('aria-describedby', 'call-speaker-description');
+    } finally {
+      await screen.unmount();
+      if (mediaSink) Object.defineProperty(HTMLMediaElement.prototype, 'setSinkId', mediaSink);
+      if (audioSink) Object.defineProperty(AudioContext.prototype, 'setSinkId', audioSink);
+    }
+  });
+
   it('persists threshold changes made with the keyboard', async () => {
     vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
       visibleCamera,
@@ -47,12 +153,14 @@ describe('Call device settings', () => {
       onDeviceChange: change
     });
     await screen
-      .getByRole('radiogroup', { name: 'Microphone', exact: true })
-      .getByRole('radio', { name: 'Microphone', exact: true })
-      .click();
+      .getByRole('combobox', { name: 'Microphone', exact: true })
+      .selectOptions('microphone');
     expect(change).toHaveBeenCalledWith('audioinput', 'microphone');
     // The call persists a successful switch; a failed switch must not claim this device.
     expect(preferences.microphone).toBe('');
+    await expect
+      .element(screen.getByRole('combobox', { name: 'Microphone', exact: true }))
+      .toHaveValue('');
   });
 
   it('shows remembered unavailable devices without requesting capture', async () => {
@@ -65,15 +173,12 @@ describe('Call device settings', () => {
     preferences.setDevice('audioinput', 'missing');
     const screen = render(CallDeviceSettings, { preferences });
     await expect
-      .element(screen.getByRole('radio', { name: 'Saved device unavailable' }))
+      .element(screen.getByRole('option', { name: 'Saved device unavailable' }))
       .toBeInTheDocument();
     expect(capture).not.toHaveBeenCalled();
-    await screen.getByRole('checkbox', { name: 'Join calls with microphone muted' }).click();
+    await screen.getByText('Join calls with microphone muted', { exact: true }).click();
     expect(new CallPreferencesState('settings-test').joinMuted).toBe(true);
-    await screen
-      .getByRole('radiogroup', { name: 'Microphone', exact: true })
-      .getByRole('radio', { name: 'System default' })
-      .click();
+    await screen.getByRole('combobox', { name: 'Microphone', exact: true }).selectOptions('');
     expect(new CallPreferencesState('settings-test').microphone).toBe('');
   });
 
@@ -152,10 +257,10 @@ describe('Call device settings', () => {
       preferences: new CallPreferencesState('audio-discovery')
     });
     await expect
-      .element(screen.getByRole('radio', { name: 'Speakers', exact: true }))
+      .element(screen.getByRole('option', { name: 'Speakers', exact: true }))
       .toBeInTheDocument();
     await expect
-      .element(screen.getByRole('radio', { name: 'Microphone', exact: true }))
+      .element(screen.getByRole('option', { name: 'Microphone', exact: true }))
       .toBeInTheDocument();
     expect(capture).toHaveBeenCalledExactlyOnceWith({ audio: true, video: false });
     expect(stop).toHaveBeenCalledOnce();
@@ -178,7 +283,7 @@ describe('Call device settings', () => {
       });
       await vi.waitFor(() => expect(capture).toHaveBeenCalledTimes(2));
       await expect
-        .element(screen.getByRole('radio', { name: 'Microphone', exact: true }))
+        .element(screen.getByRole('option', { name: 'Microphone', exact: true }))
         .toBeInTheDocument();
       expect(stop).toHaveBeenCalledOnce();
     }
@@ -197,7 +302,7 @@ describe('Call device settings', () => {
       preferences: new CallPreferencesState('denied-mic')
     });
     await expect
-      .element(screen.getByRole('radio', { name: 'Camera', exact: true }))
+      .element(screen.getByRole('option', { name: 'Camera', exact: true }))
       .toBeInTheDocument();
     expect(capture).toHaveBeenCalledTimes(2);
     expect(stop).toHaveBeenCalledOnce();
@@ -327,16 +432,15 @@ it('switches the selected test output without stopping capture or requiring anot
   try {
     await screen.getByRole('button', { name: 'Start microphone test' }).click();
     await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
-    await screen.getByRole('radio', { name: 'Headphones' }).click();
+    await screen
+      .getByRole('combobox', { name: 'Speaker', exact: true })
+      .selectOptions('headphones');
     await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith('headphones'));
     await vi.waitFor(() => expect(preferences.speaker).toBe('headphones'));
     expect(capture).toHaveBeenCalledOnce();
     expect(stream.getAudioTracks()[0].readyState).toBe('live');
     await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
-    await screen
-      .getByRole('radiogroup', { name: 'Speaker', exact: true })
-      .getByRole('radio', { name: 'System default' })
-      .click();
+    await screen.getByRole('combobox', { name: 'Speaker', exact: true }).selectOptions('');
     await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith(''));
     expect(capture).toHaveBeenCalledOnce();
   } finally {
