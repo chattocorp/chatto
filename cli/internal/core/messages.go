@@ -28,7 +28,6 @@ type postMessageOptions struct {
 	createThread            bool
 	commitAuthorize         func(context.Context, string) error
 	messageAttemptPrepared  func(context.Context) error
-	echoAttemptPrepared     func(context.Context) error
 }
 
 func withAttachmentDescriptions(descriptions map[string]string) PostMessageOption {
@@ -97,15 +96,6 @@ func withPostMessageCommitAuthorization(authorize func(context.Context, string) 
 func withPostMessageAttemptPrepared(hook func(context.Context) error) PostMessageOption {
 	return func(options *postMessageOptions) {
 		options.messageAttemptPrepared = hook
-	}
-}
-
-// withThreadReplyEchoAttemptPrepared installs a package-private test hook
-// after echo policy validation but before the guarded append. Concurrency tests
-// use it to force a room-policy conflict at that exact boundary.
-func withThreadReplyEchoAttemptPrepared(hook func(context.Context) error) PostMessageOption {
-	return func(options *postMessageOptions) {
-		options.echoAttemptPrepared = hook
 	}
 }
 
@@ -373,75 +363,6 @@ func (c *ChattoCore) prepareMessageRetractionAttempt(
 	return roomFilter, roomSeq, nil
 }
 
-func (c *ChattoCore) appendBodyAndMessage(
-	ctx context.Context,
-	agg evtstream.Aggregate,
-	bodyEvent, messageEvent *evtv1.Event,
-	assetAttachedEvents []*evtv1.Event,
-	processingEvents []*evtv1.Event,
-	authorize func(context.Context) error,
-	prepareMessageAttempt func(context.Context) error,
-) (uint64, error) {
-	bodySubject := agg.SubjectFor(bodyEvent)
-	messageSubject := agg.SubjectFor(messageEvent)
-	var lastErr error
-
-	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
-		if err != nil {
-			return 0, err
-		}
-		if prepareMessageAttempt != nil {
-			if err := prepareMessageAttempt(ctx); err != nil {
-				return 0, err
-			}
-		}
-		entries := []evtstream.BatchEntry{
-			{
-				Subject:       bodySubject,
-				Event:         bodyEvent,
-				ExpectedSeq:   guard.roomSeq,
-				FilterSubject: guard.roomFilter,
-				HasOCC:        true,
-			},
-			{
-				Subject: messageSubject,
-				Event:   messageEvent,
-			},
-		}
-		baseEntries := len(entries)
-		entries, err = c.prepareMessageAssetBatchEntries(ctx, entries, assetAttachedEvents, processingEvents)
-		if err != nil {
-			return 0, err
-		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
-		if err == nil {
-			messageSeq := seqs[1]
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
-				return messageSeq, err
-			}
-			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
-				return messageSeq, err
-			}
-			if err := c.waitForMessageAssetBatch(ctx, entries, seqs, baseEntries); err != nil {
-				return messageSeq, err
-			}
-			return messageSeq, nil
-		}
-		if !errors.Is(err, events.ErrConflict) {
-			return 0, err
-		}
-		lastErr = err
-		select {
-		case <-ctx.Done():
-			return 0, ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
-	}
-
-	return 0, fmt.Errorf("append message body batch after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
-}
-
 func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *evtv1.Event, assetAttachedEvents, processingEvents []*evtv1.Event, authorize func(context.Context) error, prepareMessageAttempt func(context.Context) error) (uint64, error) {
 	messageSubject := agg.SubjectFor(messageEvent)
 	bodySubject := agg.SubjectFor(bodyEvent)
@@ -538,97 +459,6 @@ func cloneMessageMentions(mentions []*evtv1.MessageMention) []*evtv1.MessageMent
 	return result
 }
 
-func (c *ChattoCore) appendThreadReplyEcho(
-	ctx context.Context,
-	actorID string,
-	kind RoomKind,
-	agg evtstream.Aggregate,
-	originalEvent *evtv1.Event,
-	originalPost *evtv1.MessagePostedEvent,
-	attemptPrepared func(context.Context) error,
-) (string, bool, error) {
-	if originalEvent == nil || originalPost == nil {
-		return "", false, ErrMessageNotFound
-	}
-	originalID := originalEvent.GetId()
-	roomID := originalPost.GetRoomId()
-	messageSubject := agg.Subject(evtstream.EventMessagePosted)
-	roomFilter := agg.AllEventsFilter()
-	var lastErr error
-
-	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		roomSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
-		if err != nil {
-			return "", false, fmt.Errorf("read echo room OCC tail: %w", err)
-		}
-		if roomSeq > 0 {
-			if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(roomFilter, roomSeq)); err != nil {
-				return "", false, fmt.Errorf("wait for echo room policy: %w", err)
-			}
-		}
-		if echoID, ok := c.roomModel.channelEchoEventID(originalID); ok {
-			return echoID, false, nil
-		}
-		if kind == KindChannel {
-			room, err := c.GetRoom(ctx, kind, roomID)
-			if err != nil {
-				return "", false, err
-			}
-			if EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
-				return "", false, fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
-			}
-		}
-
-		reference, retracted, known := c.roomModel.latestBodyReference(originalID)
-		if !known || retracted || reference.StreamSeq == 0 {
-			return "", false, ErrMessageNotFound
-		}
-
-		echoID := NewEventID()
-		echoEvent, err := buildThreadReplyEchoEvent(actorID, originalEvent, echoID)
-		if err != nil {
-			return "", false, err
-		}
-
-		entries := []evtstream.BatchEntry{
-			{
-				Subject:       messageSubject,
-				Event:         echoEvent,
-				ExpectedSeq:   roomSeq,
-				FilterSubject: roomFilter,
-				HasOCC:        true,
-			},
-		}
-		if attemptPrepared != nil {
-			if err := attemptPrepared(ctx); err != nil {
-				return "", false, err
-			}
-		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
-		if err == nil {
-			echoSeq := seqs[len(seqs)-1]
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, echoSeq)); err != nil {
-				return echoID, true, err
-			}
-			c.logger.Debug("Thread reply echo posted",
-				"kind", kind, "room_id", roomID,
-				"echo_event_id", echoID, "original_event_id", originalID,
-				"echo_sequence_id", echoSeq)
-			return echoID, true, nil
-		}
-		if !errors.Is(err, events.ErrConflict) {
-			return "", false, fmt.Errorf("publish thread reply echo: %w", err)
-		}
-		lastErr = err
-		select {
-		case <-ctx.Done():
-			return "", false, ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
-	}
-	return "", false, fmt.Errorf("publish thread reply echo after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
-}
-
 func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, originalEventID string) error {
 	retractSubject := agg.Subject(evtstream.EventMessageRetracted)
 	var lastErr error
@@ -677,28 +507,23 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 	return fmt.Errorf("publish echo retraction after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
+// appendMessageWithOptionalThreadCreated commits the body, reply, requested
+// channel echo, and any initial thread/asset facts as one room-guarded batch.
+// Every conflict repeats authorization and rebuilds projection-dependent facts.
 func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 	ctx context.Context,
 	agg evtstream.Aggregate,
 	bodyEvent, messageEvent, threadCreatedEvent *evtv1.Event,
 	threadRootEventID string,
+	alsoSendToChannel bool,
 	assetAttachedEvents []*evtv1.Event,
 	processingEvents []*evtv1.Event,
 	authorize func(context.Context) error,
 	prepareMessageAttempt func(context.Context) error,
 ) (uint64, error) {
-	if threadCreatedEvent == nil || threadRootEventID == "" || c.roomModel.threadExists(threadRootEventID) {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, assetAttachedEvents, processingEvents, authorize, prepareMessageAttempt)
-	}
-	if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
-		return 0, fmt.Errorf("check existing thread creation: %w", err)
-	} else if exists {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, assetAttachedEvents, processingEvents, authorize, prepareMessageAttempt)
-	}
-
-	threadCreatedSubject := agg.Subject(evtstream.EventThreadCreated)
 	bodySubject := agg.SubjectFor(bodyEvent)
 	messageSubject := agg.SubjectFor(messageEvent)
+	echoID := NewEventID()
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
@@ -711,23 +536,32 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 				return 0, err
 			}
 		}
-		entries := []evtstream.BatchEntry{
-			{
-				Subject:       threadCreatedSubject,
-				Event:         threadCreatedEvent,
-				ExpectedSeq:   guard.roomSeq,
-				FilterSubject: guard.roomFilter,
-				HasOCC:        true,
-			},
-			{
-				Subject: bodySubject,
-				Event:   bodyEvent,
-			},
-			{
-				Subject: messageSubject,
-				Event:   messageEvent,
-			},
+		var entries []evtstream.BatchEntry
+		if threadCreatedEvent != nil && threadRootEventID != "" && !c.roomModel.threadExists(threadRootEventID) {
+			exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID)
+			if err != nil {
+				return 0, fmt.Errorf("check existing thread creation: %w", err)
+			}
+			if !exists {
+				// Preserve thread-before-reply replay order for the first reply.
+				entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent})
+			}
 		}
+		bodyIndex := len(entries)
+		entries = append(entries, evtstream.BatchEntry{Subject: bodySubject, Event: bodyEvent})
+		entries[0].HasOCC = true
+		entries[0].ExpectedSeq = guard.roomSeq
+		entries[0].FilterSubject = guard.roomFilter
+		messageIndex := len(entries)
+		entries = append(entries, evtstream.BatchEntry{Subject: messageSubject, Event: messageEvent})
+		if alsoSendToChannel {
+			echo, err := buildThreadReplyEchoEvent(messageEvent.ActorId, messageEvent, echoID)
+			if err != nil {
+				return 0, err
+			}
+			entries = append(entries, evtstream.BatchEntry{Subject: messageSubject, Event: echo})
+		}
+		lastRoomIndex := len(entries) - 1
 		baseEntries := len(entries)
 		entries, err = c.prepareMessageAssetBatchEntries(ctx, entries, assetAttachedEvents, processingEvents)
 		if err != nil {
@@ -735,11 +569,16 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			messageSeq := seqs[2]
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
+			messageSeq := seqs[messageIndex]
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, seqs[lastRoomIndex])); err != nil {
 				return messageSeq, err
 			}
-			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[1]); err != nil {
+			if threadRootEventID != "" {
+				if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(messageSubject, seqs[lastRoomIndex])); err != nil {
+					return messageSeq, err
+				}
+			}
+			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[bodyIndex]); err != nil {
 				return messageSeq, err
 			}
 			if err := c.waitForMessageAssetBatch(ctx, entries, seqs, baseEntries); err != nil {
@@ -751,27 +590,13 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 			return 0, err
 		}
 		lastErr = err
-
-		currentSeq, seqErr := c.EventPublisher.LastSubjectSeq(ctx, guard.roomFilter)
-		if seqErr != nil {
-			return 0, fmt.Errorf("read room OCC tail after conflict: %w", seqErr)
-		}
-		if currentSeq > 0 {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(guard.roomFilter, currentSeq)); err != nil {
-				return 0, err
-			}
-		}
-		if c.roomModel.threadExists(threadRootEventID) {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, assetAttachedEvents, processingEvents, authorize, prepareMessageAttempt)
-		}
-		if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
-			return 0, fmt.Errorf("check existing thread creation after conflict: %w", err)
-		} else if exists {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, assetAttachedEvents, processingEvents, authorize, prepareMessageAttempt)
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
-
-	return 0, fmt.Errorf("append thread creation after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
+	return 0, fmt.Errorf("append message batch after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
 // PostMessage posts a message to a room. Publishes a
@@ -785,7 +610,8 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 // inReplyTo is the event ID of the message being responded to
 // (attribution only). alsoSendToChannel publishes an echo
 // MessagePostedEvent on the same subject with echo_of_event_id set,
-// making the reply visible in the channel timeline.
+// making the reply visible in the channel timeline. The requested echo commits
+// in the same atomic batch as the reply and its body.
 //
 // Authorization: Caller must verify room membership and
 // CanPostMessage / CanPostInThread before calling, and CanEchoMessage
@@ -914,9 +740,24 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 	var commitAuthorize func(context.Context) error
-	if options.commitAuthorize != nil {
+	if options.commitAuthorize != nil || (alsoSendToChannel && inThread != "" && kind == KindChannel) {
 		commitAuthorize = func(ctx context.Context) error {
-			return options.commitAuthorize(ctx, inThread)
+			// The low-level helper also protects requested echoes from a policy
+			// change between preparation and commit. Public callers additionally
+			// repeat the complete permission and posting-policy decision below.
+			if alsoSendToChannel && inThread != "" && kind == KindChannel {
+				current, err := c.GetRoom(ctx, kind, room_id)
+				if err != nil {
+					return err
+				}
+				if EffectiveRoomThreadingMode(current) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+					return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
+				}
+			}
+			if options.commitAuthorize != nil {
+				return options.commitAuthorize(ctx, inThread)
+			}
+			return nil
 		}
 	}
 
@@ -1067,11 +908,8 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		})
 	}
 
-	// Publish to EVT. MessagePosted is append-only per #597's design, so
-	// retrying the same payload after an OCC conflict is safe.
-	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
-	// has caught up, giving read-your-writes for subsequent reads from
-	// this request.
+	// Commit all required message facts together. Each OCC attempt repeats
+	// authorization and mention resolution before publishing the batch.
 	agg := evtstream.RoomAggregate(room_id)
 	processingEvents := make([]*evtv1.Event, 0, len(resolvedAssets))
 	if c.VideoUploadsEnabled {
@@ -1094,19 +932,12 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if options.createThread {
 		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent, assetAttachedEvents, processingEvents, commitAuthorize, prepareMessageAttempt)
 	} else {
-		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, assetAttachedEvents, processingEvents, commitAuthorize, prepareMessageAttempt)
+		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, inThread != "" && alsoSendToChannel, assetAttachedEvents, processingEvents, commitAuthorize, prepareMessageAttempt)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
 	}
 
-	// Also wait for ThreadProjection if this is a thread reply, so a
-	// subsequent thread-pane fetch from the same request sees it.
-	if inThread != "" {
-		if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), sequenceID)); err != nil {
-			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
-		}
-	}
 	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)
 
 	// Mark the room as read for the poster. For root posts, the just-
@@ -1195,18 +1026,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// Recipient attention is an asynchronous durable effect of the committed
 	// source message. The materializer owns completion and retry; posting must
 	// not make message delivery latency grow with the room's member count.
-
-	// Publish echo event to the message subject if "also send to channel" was requested.
-	// The echo references the original event ID. Reads use that message's
-	// current body and encryption context.
-	if inThread != "" && alsoSendToChannel {
-		echoID, created, err := c.appendThreadReplyEcho(ctx, user_id, kind, agg, event, event.GetMessagePosted(), options.echoAttemptPrepared)
-		if err != nil {
-			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
-		} else if created {
-			c.logger.Debug("Created channel echo for thread reply", "echo_event_id", echoID, "thread_reply_event_id", event.Id)
-		}
-	}
 
 	// The durable message fact can reach realtime subscribers before the
 	// poster's read boundary and Slow Mode state above are current. Publish one

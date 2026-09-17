@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-09-10
+**Last reviewed:** 2026-09-17
 
 ## Overview
 
@@ -11,6 +11,11 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 - **Create** — server admins (or anyone with `room.create` in the target group) can start room creation from that group in the sidebar. They give the channel a visible 1–30-code-point Unicode name, an optional description, a room group, and the desired Threading Mode, with Enabled as the default. They may also enable Universal. Names are unique across the server after Unicode compatibility normalization and full case folding.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, Threading Mode, and explicit member set of an existing channel room.
+- **Settings update** — one room-settings request commits its supplied name,
+  description, Universal, Slow Mode, and Threading Mode together. A rejected
+  commit leaves all requested fields unchanged. Omitted fields retain their
+  latest values when a concurrent update causes a retry. Group moves and
+  membership changes remain separate commands.
 - **Settings access** — a visible room's sidebar action menu links `room.manage` holders directly to that room's management page and lets them start the archive flow. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
@@ -136,6 +141,19 @@ current room state after a snapshot fallback.
 **Decision:** Every channel exposes one of Required, Encouraged, Enabled, or Disabled as ordinary room metadata. New and historically unspecified channels resolve to Enabled. DMs use fixed Enabled behavior and do not store a configurable mode. `room.manage` changes append a dedicated room event and update every room-directory and realtime representation.
 **Why:** Conversation shape is a durable property of a room, not a side effect of permissions or a client-local preference. Keeping it beside Universal and Slow Mode makes creation, administration, API use, replay, and live updates converge on one setting.
 **Tradeoff:** Threading Mode and posting permissions are separate controls. Administrators must still grant the location permissions needed by the chosen mode; Required only waives `message.post-in-thread` for the automatic creation of a root's empty thread.
+
+### 14. A settings patch is one atomic command
+
+**Decision:** All changed fields in a room-settings request commit together.
+A conflict repeats authorization, validation, name uniqueness, and change
+detection against current state before the command can commit.
+**Why:** A manager must not receive an error after only part of a settings
+request has been stored. Retrying a sparse patch must preserve concurrent
+changes to fields the manager did not supply.
+**Tradeoff:** A supplied name requires a server-wide room-name concurrency
+guard. Other settings need only the target room's guard. Concurrent edits to
+the same supplied field can still replace each other because the request does
+not contain a client revision.
 
 ## Permissions
 

@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-17
 
 ## Overview
 
@@ -15,6 +15,9 @@ conversation**.
 - The thread composer shows an echo checkbox when the user has the required
   permissions. It says **Also send to conversation** in a DM.
 - Ticking the checkbox and sending the reply produces two visible artifacts: the reply inside the thread pane, and a reference to the same message in the room timeline.
+- The reply and its requested echo commit together. If a permission or room
+  policy change rejects the command on retry, neither is posted. A successful
+  send cannot omit the requested echo.
 - The checkbox resets to unchecked after each successful send.
 - A thread reply with an echo shows a megaphone icon after its text. The icon is not a control. It updates when the echo is added or removed.
 - The echo in the room timeline shows a "Thread" indicator below the body; clicking it opens the thread.
@@ -81,6 +84,18 @@ echo state for clients that do not intend to change it and for edits by other
 users.
 **Why:** Users often realize shortly after posting in a thread that the reply should have been visible in the room. Treating the checkbox as edit-time message state keeps the interaction aligned with the composer.
 **Tradeoff:** Echo reconciliation is not a new persisted event type; adding an echo appends the existing echo-shaped `MessagePostedEvent`, and removing one appends a normal `MessageRetractedEvent` for the echo artifact.
+
+### 5. Reply and requested echo commit together
+
+**Decision:** Posting a reply with an echo is one atomic command. Each conflict
+repeats the permission and room-policy checks. Success waits until both the room
+timeline and thread views contain the result.
+**Why:** Selecting the checkbox requests both placements. A successful reply
+without its echo would silently lose part of that request.
+**Tradeoff:** Failure to commit the echo rejects the reply too. The command uses
+the existing message facts and content links; it does not add a pending state
+or an asynchronous recovery worker. Historical replies with missing echoes are
+not repaired automatically because their original echo intent was not stored.
 
 ## Permissions
 

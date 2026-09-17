@@ -12,7 +12,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 |---|---------|--------|---------------|
 | [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-09-14 |
 | [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-09-10 |
-| [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-09-15 |
+| [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-09-17 |
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-09-15 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-09-15 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-09-15 |
@@ -28,7 +28,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-09-17 |
 | [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-09-15 |
 | [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-09-15 |
-| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-09-10 |
+| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-09-17 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-08-30 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-27 |
 | [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-17 |
