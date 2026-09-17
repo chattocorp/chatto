@@ -432,6 +432,9 @@ it('switches the selected test output without stopping capture or requiring anot
   try {
     await screen.getByRole('button', { name: 'Start microphone test' }).click();
     await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
+    // Stop is available during startup too. Switch output only once capture
+    // and the audio graph are ready; a pending device change restarts the test.
+    await expect.element(screen.getByText('Waiting for microphone access…')).not.toBeInTheDocument();
     await screen
       .getByRole('combobox', { name: 'Speaker', exact: true })
       .selectOptions('headphones');

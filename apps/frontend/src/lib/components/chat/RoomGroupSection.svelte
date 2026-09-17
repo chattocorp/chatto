@@ -176,12 +176,11 @@ can slide out before its rows are removed.
     {/if}
 
     {#if visibleItems.length > 0 || (itemsAttachment && !collapsed)}
+      <!-- Update individual classes so the drag attachment keeps its active highlight. -->
       <div
-        class={[
-          'flex flex-col gap-0.5',
-          visibleItems.length === 0 ? 'min-h-8' : '',
-          itemsAttachment ? 'sidebar-drop-target' : ''
-        ]}
+        class="flex flex-col gap-0.5"
+        class:min-h-8={visibleItems.length === 0}
+        class:sidebar-drop-target={!!itemsAttachment}
         data-testid={itemsAttachment ? 'room-group-items-dropzone' : undefined}
         {@attach itemsAttachment}
         transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}
