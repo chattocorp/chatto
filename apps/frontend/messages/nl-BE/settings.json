@@ -230,9 +230,9 @@
         "preview": "Voorbeeld"
       },
       "depth": {
-        "title": "Oppervlaktediepte",
+        "title": "Interfacestijl",
         "flat": "Vlak",
-        "three_d": "3D",
+        "three_d": "Een beetje 3D",
         "very_3d": "Sterk 3D"
       }
     },

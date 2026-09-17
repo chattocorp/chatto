@@ -230,9 +230,9 @@
         "preview": "Aperçu"
       },
       "depth": {
-        "title": "Profondeur de l’interface",
+        "title": "Style de l’interface",
         "flat": "Plat",
-        "three_d": "3D",
+        "three_d": "Un peu 3D",
         "very_3d": "Très 3D"
       }
     },

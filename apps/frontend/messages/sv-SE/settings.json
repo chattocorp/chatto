@@ -230,9 +230,9 @@
         "preview": "Förhandsvisning"
       },
       "depth": {
-        "title": "Ytdjup",
+        "title": "Gränssnittsstil",
         "flat": "Platt",
-        "three_d": "3D",
+        "three_d": "Lite 3D",
         "very_3d": "Tydlig 3D"
       }
     },

@@ -230,9 +230,9 @@
         "preview": "预览"
       },
       "depth": {
-        "title": "界面立体感",
+        "title": "界面风格",
         "flat": "平面",
-        "three_d": "3D",
+        "three_d": "有点 3D",
         "very_3d": "强烈 3D"
       }
     },

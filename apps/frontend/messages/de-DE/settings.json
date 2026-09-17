@@ -230,9 +230,9 @@
         "preview": "Vorschau"
       },
       "depth": {
-        "title": "Oberflächentiefe",
+        "title": "UI-Stil",
         "flat": "Flach",
-        "three_d": "3D",
+        "three_d": "Ein bisschen 3D",
         "very_3d": "Sehr 3D"
       }
     },

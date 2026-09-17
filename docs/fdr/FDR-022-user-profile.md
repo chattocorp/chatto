@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-17
 
 ## Overview
 
@@ -50,8 +50,8 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar.
 - **Bot identity management** — an API-key-authenticated bot updates its own login, display name, and bio through `MyAccountService.UpdateProfile`. It manages its avatar through `UserService`. Human owners manage bot lifecycle, ownership, permissions, API keys, and avatars. A human with `bot.manage` or `user.manage-accounts` can also manage a bot's avatar. Bot custom-status and personal-settings management are not supported.
 
-- **Surface depth** — Appearance offers Flat, 3D, and Very 3D bevel strength.
-  3D is the default. Flat removes decorative bevels and inset shading. Very 3D
+- **UI Style** — Appearance offers Flat, Kinda 3D, and Very 3D bevel strength.
+  Kinda 3D is the default. Flat removes decorative bevels and inset shading. Very 3D
   strengthens and widens them. Changes apply immediately across registered
   servers and remain in this browser. Switching modes animates unless reduced
   motion is enabled. The accent choice, focus indicators, and layout do not change.

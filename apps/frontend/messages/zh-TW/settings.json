@@ -230,9 +230,9 @@
         "preview": "預覽"
       },
       "depth": {
-        "title": "介面立體感",
+        "title": "介面風格",
         "flat": "平面",
-        "three_d": "3D",
+        "three_d": "有點 3D",
         "very_3d": "強烈 3D"
       }
     },

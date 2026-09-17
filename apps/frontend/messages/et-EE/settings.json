@@ -230,9 +230,9 @@
         "preview": "Eelvaade"
       },
       "depth": {
-        "title": "Pinna sügavus",
+        "title": "Kasutajaliidese stiil",
         "flat": "Lame",
-        "three_d": "3D",
+        "three_d": "Veidi 3D",
         "very_3d": "Tugev 3D"
       }
     },
