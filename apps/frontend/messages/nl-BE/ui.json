@@ -48,7 +48,8 @@
       "complete": "Chatto is herbouwd. Eindscore: {count} punten"
     },
     "pane_header": {
-      "back": "Terug"
+      "back": "Terug",
+      "actions": "Paneelacties"
     },
     "sidebar_nav": {
       "back_to_chat": "Terug naar chatten"

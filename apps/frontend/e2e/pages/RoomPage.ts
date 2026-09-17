@@ -119,6 +119,11 @@ export class RoomPage {
   async openMembersPanel(): Promise<void> {
     if (await this.memberList.isVisible()) return;
 
+    const actions = this.page.getByRole('button', { name: /^Actions for #/ });
+    if ((await actions.isVisible()) && (await actions.getAttribute('aria-expanded')) === 'false') {
+      await actions.click();
+    }
+
     await this.page.getByRole('button', { name: 'Show members' }).click();
     await expect(this.memberList).toBeVisible();
   }

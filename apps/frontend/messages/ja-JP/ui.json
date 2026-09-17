@@ -48,7 +48,8 @@
       "complete": "Chattoが再構築されました。最終スコア：{count}ポイント"
     },
     "pane_header": {
-      "back": "戻る"
+      "back": "戻る",
+      "actions": "パネルの操作"
     },
     "sidebar_nav": {
       "back_to_chat": "チャットに戻る"

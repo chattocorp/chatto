@@ -48,7 +48,8 @@
       "complete": "Chatto è stato ricostruito. Punteggio finale: {count} punti"
     },
     "pane_header": {
-      "back": "Indietro"
+      "back": "Indietro",
+      "actions": "Azioni del pannello"
     },
     "sidebar_nav": {
       "back_to_chat": "Torna alla chat"

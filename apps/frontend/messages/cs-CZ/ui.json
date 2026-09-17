@@ -48,7 +48,8 @@
       "complete": "Chatto bylo obnoveno. Konečné skóre: {count} bodů"
     },
     "pane_header": {
-      "back": "Zpět"
+      "back": "Zpět",
+      "actions": "Akce panelu"
     },
     "sidebar_nav": {
       "back_to_chat": "Zpět na Chat"

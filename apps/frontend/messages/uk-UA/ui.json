@@ -48,7 +48,8 @@
       "complete": "Chatto відновлено. Підсумковий рахунок: {count} очок"
     },
     "pane_header": {
-      "back": "Назад"
+      "back": "Назад",
+      "actions": "Дії панелі"
     },
     "sidebar_nav": {
       "back_to_chat": "Назад до чату"

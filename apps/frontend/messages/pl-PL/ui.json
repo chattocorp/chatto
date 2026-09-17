@@ -48,7 +48,8 @@
       "complete": "Chatto zostało odbudowane. Wynik końcowy: {count} punktów"
     },
     "pane_header": {
-      "back": "Wróć"
+      "back": "Wróć",
+      "actions": "Działania panelu"
     },
     "sidebar_nav": {
       "back_to_chat": "Powrót do czatu"

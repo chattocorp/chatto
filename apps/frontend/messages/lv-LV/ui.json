@@ -48,7 +48,8 @@
       "complete": "Chatto tika atjaunots. Gala rezultāts: {count} punkti"
     },
     "pane_header": {
-      "back": "Atpakaļ"
+      "back": "Atpakaļ",
+      "actions": "Paneļa darbības"
     },
     "sidebar_nav": {
       "back_to_chat": "Atpakaļ uz tērzēšanu"

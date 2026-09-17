@@ -48,7 +48,8 @@
       "complete": "Chatto rekonstruiĝis. Fina poentaro: {count} poentoj"
     },
     "pane_header": {
-      "back": "Reen"
+      "back": "Reen",
+      "actions": "Panelaj agoj"
     },
     "sidebar_nav": {
       "back_to_chat": "Reen al Babilejo"
