@@ -383,6 +383,35 @@ authorization boundary that its decision uses. Room moves also guard the
 room-deletion subject, so a concurrent delete cannot leave a stale group
 membership. See ADR-086.
 
+`RoomCommandModel.UpdateRoom` commits all changed metadata, Universal, Slow
+Mode, and Threading Mode facts in one atomic batch. A patch that supplies a
+name guards `evt.room.>` for name uniqueness and target-room state. Other
+patches guard `evt.room.{roomId}.>`. Each attempt repeats stable request-time
+authorization under ADR-087, reads current room fields, and rebuilds the sparse
+patch. Success waits for the room directory and timeline through the final
+fact. See [FDR-019](../fdr/FDR-019-room-lifecycle.md) and
+[`room_command_model.go`](../../cli/internal/core/room_command_model.go).
+
+A thread reply with a requested channel echo commits its `MessageBodyEvent`,
+canonical `MessagePostedEvent`, echo `MessagePostedEvent`, and any initial
+`ThreadCreatedEvent` in one room-guarded batch. Attachment ownership and video
+processing facts remain in that batch with their asset guards. Conflicts repeat
+authorization, room-policy checks, mention resolution, and initial-thread
+detection. Success waits for the timeline through the echo, the thread view,
+and affected asset views. Automatic follows and read markers remain separate
+post-commit work. See [FDR-003](../fdr/FDR-003-thread-reply-echo.md) and
+[`messages.go`](../../cli/internal/core/messages.go).
+
+These compound-command batches use existing payloads and subjects. Historical
+replay and projection snapshots need no migration. Readers that understand the
+existing facts can read the batches. During a deployment with older writers,
+requests handled by those writers retain their former partial-write behavior;
+the atomic command guarantee starts only after all writers have the fix. A
+rollback can read the committed data but restores the old command behavior.
+This change does not relax the separate exclusive-version cutover required by
+ADR-087. Historical partial commands are not repaired, and an ambiguous commit
+acknowledgement remains subject to the existing request-retry behavior.
+
 For every attachment message, its `AssetAttachedEvent` is committed in the same
 atomic OCC batch as the owning message body and posted fact. Video messages add
 the Started fact to that batch. The batch guards the room and authorization

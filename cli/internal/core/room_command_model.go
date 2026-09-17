@@ -2,11 +2,14 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RoomCommands returns the operation-level model for public room lifecycle,
@@ -98,17 +101,22 @@ func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput
 		WithUniversalRoom(input.Universal), WithRoomThreadingMode(input.ThreadingMode))
 }
 
+// UpdateRoom commits all supplied fields atomically. Omitted fields retain
+// their latest values, including after a concurrent update forces a retry.
 func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput) (*evtv1.Room, error) {
+	return s.updateRoom(ctx, input, nil)
+}
+
+// updateRoom rebuilds the complete sparse patch after each OCC conflict. A
+// name patch guards the room catalog for uniqueness; other patches guard only
+// the target room. attemptPrepared is a test seam immediately before commit.
+func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput, attemptPrepared func(context.Context) error) (*evtv1.Room, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadingMode == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
-	}
-	room, err := s.core.GetRoom(ctx, kind, input.RoomID)
-	if err != nil {
-		return nil, err
 	}
 	if input.Universal != nil && kind == KindDM {
 		return nil, fmt.Errorf("%w: DM rooms cannot be universal", ErrInvalidArgument)
@@ -129,45 +137,84 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 			return nil, invalidArgument("invalid room threading mode")
 		}
 	}
-	name := room.GetName()
+	agg := evtstream.RoomAggregate(input.RoomID)
+	filter := agg.AllEventsFilter()
 	if input.Name != nil {
-		name = *input.Name
+		filter = evtstream.RoomSubjectFilter()
 	}
-	description := room.GetDescription()
-	if input.Description != nil {
-		description = *input.Description
-	}
-	if err := validateRoomNameAndDescription(name, description); err != nil {
-		return nil, err
-	}
-	if input.Name != nil || input.Description != nil {
-		room, err = s.core.UpdateRoom(ctx, input.ActorID, kind, input.RoomID, name, description)
+	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
+		position, err := s.core.EventPublisher.LastSubjectPosition(ctx, filter)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if input.Universal != nil {
-		room, err = s.core.SetRoomUniversal(ctx, input.ActorID, kind, input.RoomID, *input.Universal)
+		if err := s.core.roomModel.waitForDirectory(ctx, position); err != nil {
+			return nil, err
+		}
+		if err := s.core.authorizeAtStableInputs(ctx, func() error {
+			_, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
+			return err
+		}); err != nil {
+			return nil, err
+		}
+		room, err := s.core.GetRoom(ctx, kind, input.RoomID)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if input.SlowModeSeconds != nil {
-		room, err = s.core.SetRoomSlowMode(ctx, input.ActorID, kind, input.RoomID, *input.SlowModeSeconds)
+		name, description := room.GetName(), room.GetDescription()
+		if input.Name != nil {
+			name = normalizeRoomName(*input.Name)
+		}
+		if input.Description != nil {
+			description = *input.Description
+		}
+		if err := validateRoomNameAndDescription(name, description); err != nil {
+			return nil, err
+		}
+		if input.Name != nil && s.core.roomModel.nameClaimSnapshot(name, input.RoomID).ConflictingRoomID != "" {
+			return nil, ErrRoomNameExists
+		}
+		var entries []evtstream.BatchEntry
+		add := func(event *evtv1.Event) {
+			event = newEvent(input.ActorID, event)
+			entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
+		}
+		if name != room.GetName() || description != room.GetDescription() {
+			add(&evtv1.Event{Event: &evtv1.Event_RoomUpdated{RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: input.RoomID, Name: name, Description: description}}})
+		}
+		if input.Universal != nil && *input.Universal != room.GetUniversal() {
+			add(&evtv1.Event{Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: input.RoomID, Universal: *input.Universal}}})
+		}
+		if input.SlowModeSeconds != nil && *input.SlowModeSeconds != room.GetSlowModeSeconds() {
+			add(&evtv1.Event{Event: &evtv1.Event_RoomSlowModeChanged{RoomSlowModeChanged: &evtv1.RoomSlowModeChangedEvent{RoomId: input.RoomID, SlowModeSeconds: *input.SlowModeSeconds}}})
+		}
+		if input.ThreadingMode != nil && *input.ThreadingMode != EffectiveRoomThreadingMode(room) {
+			add(&evtv1.Event{Event: &evtv1.Event_RoomThreadingModeChanged{RoomThreadingModeChanged: &evtv1.RoomThreadingModeChangedEvent{RoomId: input.RoomID, ThreadingMode: *input.ThreadingMode}}})
+		}
+		if len(entries) == 0 {
+			return room, nil
+		}
+		entries[0].HasOCC = true
+		entries[0].FilterSubject = filter
+		entries[0].ExpectedSeq = position.Seq
+		if attemptPrepared != nil {
+			if err := attemptPrepared(ctx); err != nil {
+				return nil, err
+			}
+		}
+		seqs, err := s.core.EventPublisher.AppendBatch(ctx, entries)
+		if errors.Is(err, events.ErrConflict) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
-	}
-	if input.ThreadingMode != nil {
-		room, err = s.core.setRoomThreadingMode(ctx, input.ActorID, kind, input.RoomID, *input.ThreadingMode, func(attemptCtx context.Context) error {
-			_, authorizeErr := s.authorizeRoomManage(attemptCtx, input.ActorID, input.RoomID)
-			return authorizeErr
-		})
-		if err != nil {
+		last := len(entries) - 1
+		if err := s.core.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(entries[last].Subject, seqs[last])); err != nil {
 			return nil, err
 		}
+		return s.core.GetRoom(ctx, kind, input.RoomID)
 	}
-	return room, nil
+	return nil, fmt.Errorf("room update retries exhausted: %w", events.ErrConflict)
 }
 
 func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
