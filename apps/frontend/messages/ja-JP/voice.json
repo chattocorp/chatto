@@ -1,5 +1,6 @@
 {
   "voice": {
+    "connection_lost": "接続が切れました",
     "microphone_silence_explanation": "マイクのミュートスイッチを確認するか、別の入力を選択してください。",
     "microphone_silent_hint": "マイクの音が届いていません",
     "connecting": "接続中...",

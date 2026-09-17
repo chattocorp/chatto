@@ -1,5 +1,6 @@
 {
   "voice": {
+    "connection_lost": "فُقد الاتصال",
     "microphone_silence_explanation": "تحقق من مفتاح كتم الميكروفون أو اختر إدخالًا آخر.",
     "microphone_silent_hint": "لا صوت من الميكروفون",
     "connecting": "جارٍ الاتصال...",

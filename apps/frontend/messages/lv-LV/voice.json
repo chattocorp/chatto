@@ -1,5 +1,6 @@
 {
   "voice": {
+    "connection_lost": "Savienojums zaudēts",
     "microphone_silence_explanation": "Pārbaudi mikrofona izslēgšanas slēdzi vai izvēlies citu ievadi.",
     "microphone_silent_hint": "Nav mikrofona skaņas",
     "connecting": "Notiek savienojuma izveide...",

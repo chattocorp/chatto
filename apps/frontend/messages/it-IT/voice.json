@@ -1,5 +1,6 @@
 {
   "voice": {
+    "connection_lost": "Connessione persa",
     "microphone_silence_explanation": "Controlla l’interruttore di disattivazione del microfono o scegli un altro ingresso.",
     "microphone_silent_hint": "Nessun suono dal microfono",
     "connecting": "Connessione...",

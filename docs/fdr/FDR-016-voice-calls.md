@@ -9,6 +9,12 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
+- **Connection quality** comes from LiveKit, independently of microphone activity.
+  Participant cards and the current-user card show an amber network icon for a
+  poor connection and a red disconnected icon for a lost connection. Hover or
+  click the icon to read its status. Healthy and unknown connections show no
+  warning. Recovery removes the warning and closes its explanation.
+
 - Open a participant's user context menu with the three-dot button or a
   right-click on their card. Touch users can long-press the card. For remote
   participants in the active call, participant and camera card menus include

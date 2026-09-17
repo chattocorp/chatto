@@ -1,5 +1,6 @@
 {
   "voice": {
+    "connection_lost": "Spojení ztraceno",
     "microphone_silence_explanation": "Zkontroluj přepínač ztlumení mikrofonu nebo vyber jiný vstup.",
     "microphone_silent_hint": "Žádný zvuk mikrofonu",
     "connecting": "Připojování...",
