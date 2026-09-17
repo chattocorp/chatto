@@ -230,9 +230,9 @@
         "preview": "Priekšskatījums"
       },
       "depth": {
-        "title": "Virsmas dziļums",
+        "title": "Saskarnes stils",
         "flat": "Plakans",
-        "three_d": "3D",
+        "three_d": "Nedaudz 3D",
         "very_3d": "Izteikts 3D"
       }
     },

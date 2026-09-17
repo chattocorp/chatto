@@ -230,9 +230,9 @@
         "preview": "Preview"
       },
       "depth": {
-        "title": "Surface depth",
+        "title": "UI Style",
         "flat": "Flat",
-        "three_d": "3D",
+        "three_d": "Kinda 3D",
         "very_3d": "Very 3D"
       }
     },

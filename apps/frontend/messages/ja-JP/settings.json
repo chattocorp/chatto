@@ -230,9 +230,9 @@
         "preview": "プレビュー"
       },
       "depth": {
-        "title": "立体感",
+        "title": "UIスタイル",
         "flat": "フラット",
-        "three_d": "3D",
+        "three_d": "ちょっと3D",
         "very_3d": "強い3D"
       }
     },

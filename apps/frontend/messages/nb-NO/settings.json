@@ -230,9 +230,9 @@
         "preview": "Forhåndsvisning"
       },
       "depth": {
-        "title": "Overflatedybde",
+        "title": "Grensesnittstil",
         "flat": "Flat",
-        "three_d": "3D",
+        "three_d": "Litt 3D",
         "very_3d": "Tydelig 3D"
       }
     },

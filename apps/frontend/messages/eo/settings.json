@@ -230,9 +230,9 @@
         "preview": "Antaŭrigardo"
       },
       "depth": {
-        "title": "Surfaca profundo",
+        "title": "Interfaca stilo",
         "flat": "Plata",
-        "three_d": "3D",
+        "three_d": "Iom 3D",
         "very_3d": "Tre 3D"
       }
     },

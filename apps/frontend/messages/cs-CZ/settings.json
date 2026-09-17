@@ -230,9 +230,9 @@
         "preview": "Náhled"
       },
       "depth": {
-        "title": "Hloubka povrchu",
+        "title": "Styl rozhraní",
         "flat": "Plochý",
-        "three_d": "3D",
+        "three_d": "Trochu 3D",
         "very_3d": "Výrazné 3D"
       }
     },

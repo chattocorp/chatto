@@ -230,9 +230,9 @@
         "preview": "Önizleme"
       },
       "depth": {
-        "title": "Yüzey derinliği",
+        "title": "Arayüz stili",
         "flat": "Düz",
-        "three_d": "3D",
+        "three_d": "Biraz 3D",
         "very_3d": "Belirgin 3D"
       }
     },

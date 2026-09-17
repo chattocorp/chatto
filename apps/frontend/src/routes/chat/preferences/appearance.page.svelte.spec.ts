@@ -23,7 +23,8 @@ describe('App Preferences appearance page', () => {
   it('changes depth through the standard radio group and persists the choice', async () => {
     const screen = render(AppearancePage);
     await settle();
-    await expect.element(screen.getByRole('radio', { name: '3D', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect.element(screen.getByText('UI Style', { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole('radio', { name: 'Kinda 3D', exact: true })).toHaveAttribute('aria-checked', 'true');
     await screen.getByRole('radio', { name: 'Flat', exact: true }).click();
     expect(userPreferences.surfaceDepth).toBe('flat');
     expect(document.documentElement.dataset.depth).toBe('flat');
