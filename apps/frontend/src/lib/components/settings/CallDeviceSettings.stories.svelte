@@ -26,6 +26,6 @@
   <CallDeviceSettingsStoryHarness inCall threshold={-30} gateUnavailable />
 </Story>
 
-<Story name="Microphone effects" asChild>
-  <CallDeviceSettingsStoryHarness inCall threshold={-35} effects />
+<Story name="Voice boosting off" asChild>
+  <CallDeviceSettingsStoryHarness inCall threshold={-35} effects={false} />
 </Story>

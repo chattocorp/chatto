@@ -89,55 +89,69 @@ describe('CallPreferencesState', () => {
   });
 });
 
-it('persists fractional voice strength independently of gate, devices, join and server', () => {
-  const state = new CallPreferencesState('voice-strength');
+it('defaults voice boosting to on and persists opt-out independently of other preferences', () => {
+  const state = new CallPreferencesState('voice-boosting');
+  expect(state.voiceBoosting).toBe(true);
+  expect(state.effects.polish).toBe(1);
   state.setDevice('audioinput', 'chosen');
+  state.setDevice('audiooutput', 'speaker');
+  state.setDevice('videoinput', 'camera');
   state.setJoinMuted(true);
   state.setMicrophoneThreshold(-25);
-  for (const amount of [0, 12.5, 50, 87.3, 100]) {
-    state.setVoiceAmount(amount);
-    const restored = new CallPreferencesState('voice-strength');
-    expect(restored.voiceAmount).toBe(amount);
-    expect(restored.effects.compressor).toBe(amount > 0);
+  state.setParticipantVolume('bob', 'voiceVolume', 125);
+  for (const enabled of [false, true]) {
+    state.setVoiceBoosting(enabled);
+    const restored = new CallPreferencesState('voice-boosting');
+    expect(restored.voiceBoosting).toBe(enabled);
+    expect(restored.effects.compressor).toBe(enabled);
+    expect(restored.effects.polish).toBe(enabled ? 1 : 0);
     expect(restored.microphoneThreshold).toBe(-25);
-    expect(restored.microphone).toBe('chosen');
+    expect([restored.microphone, restored.speaker, restored.camera]).toEqual([
+      'chosen', 'speaker', 'camera'
+    ]);
     expect(restored.joinMuted).toBe(true);
-    expect(new CallPreferencesState('separate-strength').voiceAmount).toBe(0);
+    expect(restored.getParticipantAudio('bob').voiceVolume).toBe(125);
+    expect(new CallPreferencesState('separate-boosting').voiceBoosting).toBe(true);
   }
 });
 
 it.each([
-  [{}, 0],
-  [{ processingPreset: 'none' }, 0],
-  [{ processingPreset: 'subtle' }, 50],
-  [{ processingPreset: 'strong' }, 100],
-  [{ processingPreset: 'invalid' }, 0],
-  [{ effects: { compressor: true } }, 50],
-  [{ effects: { compressor: 'true' } }, 0],
-  [{ voiceAmount: 32.5, processingPreset: 'strong' }, 32.5],
-  [{ voiceAmount: 'bad', processingPreset: 'strong' }, 0],
-  [{ voiceAmount: null, processingPreset: 'strong' }, 0],
-  [{ voiceAmount: 200 }, 100],
-  [{ voiceAmount: -10 }, 0]
-])('restores safe voice strength from %j', (saved, expected) => {
+  {},
+  ...['none', 'subtle', 'strong', 'invalid'].map((processingPreset) => ({ processingPreset })),
+  ...[true, false, 'true'].map((compressor) => ({ effects: { compressor } })),
+  { effects: { lowCut: true } },
+  { effects: { equalizer: true } },
+  ...[0, 32.5, 50, 100, 200, -10, 'bad', null].map((voiceAmount) => ({ voiceAmount })),
+  ...[null, 0, 1, 'false', {}, []].map((voiceBoosting) => ({ voiceBoosting }))
+])('enables boosting for legacy or invalid preferences %j', (saved) => {
   localStorage.setItem(
     'chatto:i:migration:callPreferences',
-    JSON.stringify({
-      ...saved,
-      microphone: 'mic',
-      microphoneThreshold: -30
-    })
+    JSON.stringify({ ...saved, microphone: 'mic', microphoneThreshold: -30 })
   );
   const state = new CallPreferencesState('migration');
-  expect(state.voiceAmount).toBe(expected);
+  expect(state.voiceBoosting).toBe(true);
+  expect(state.effects.polish).toBe(1);
   expect(state.microphone).toBe('mic');
   expect(state.microphoneThreshold).toBe(-30);
 });
 
-it('rejects non-finite runtime voice strength', () => {
-  const state = new CallPreferencesState('invalid-strength');
-  for (const value of [NaN, Infinity, -Infinity]) {
-    state.setVoiceAmount(value);
-    expect(state.voiceAmount).toBe(0);
-  }
+it('keeps an explicit opt-out even when old processing fields remain', () => {
+  localStorage.setItem(
+    'chatto:i:opt-out:callPreferences',
+    JSON.stringify({
+      voiceBoosting: false,
+      voiceAmount: 100,
+      processingPreset: 'strong',
+      effects: { compressor: true }
+    })
+  );
+  const state = new CallPreferencesState('opt-out');
+  expect(state.voiceBoosting).toBe(false);
+  expect(state.effects.polish).toBe(0);
+  state.setJoinMuted(true);
+  const saved = JSON.parse(localStorage.getItem('chatto:i:opt-out:callPreferences')!);
+  expect(saved.voiceBoosting).toBe(false);
+  expect(saved).not.toHaveProperty('voiceAmount');
+  expect(saved).not.toHaveProperty('processingPreset');
+  expect(saved).not.toHaveProperty('effects');
 });

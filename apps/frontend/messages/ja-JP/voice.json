@@ -91,10 +91,8 @@
       "test_failed": "マイクをテストできませんでした。デバイスへのアクセスを確認して、もう一度お試しください。",
       "test_in_call": "マイクをテストする前に通話から退出してください。",
       "processing": "マイク音声処理",
-      "voice_quality": "音声品質",
-      "voice_normal": "普通",
-      "voice_cool": "いい感じ",
-      "voice_awesome": "最高"
+      "voice_boosting": "音声の強化",
+      "voice_boosting_description": "マイクの音声を改善します。音声に問題が生じる場合はオフにしてください。"
     },
     "participant_audio": {
       "title": "参加者の音声",

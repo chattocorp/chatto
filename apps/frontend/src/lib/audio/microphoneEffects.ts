@@ -36,12 +36,12 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
   };
 }
 
-/** Clamp the browser-local voice control; invalid storage restores Normal. */
+/** Clamp an internal processing amount; invalid input disables the added effects. */
 export function normalizeVoiceAmount(value: unknown): number {
   return Number.isFinite(value) ? Math.max(0, Math.min(100, value as number)) : 0;
 }
 
-/** Interpolate normalized 0–100 input across Normal → Pretty cool → AWESOME without rounding. */
+/** Derive effect parameters from a normalized 0–100 amount; boosting selects 100 or 0. */
 export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
   const strength = normalizeVoiceAmount(amount) / 100;
   return {

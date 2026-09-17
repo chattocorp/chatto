@@ -91,10 +91,8 @@
       "test_failed": "Nie udało się przetestować mikrofonu. Sprawdź dostęp do urządzenia i spróbuj ponownie.",
       "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu.",
       "processing": "Przetwarzanie mikrofonu",
-      "voice_quality": "Jakość głosu",
-      "voice_normal": "Normalny",
-      "voice_cool": "Całkiem fajny",
-      "voice_awesome": "NIESAMOWITY"
+      "voice_boosting": "Ulepszanie głosu",
+      "voice_boosting_description": "Popraw dźwięk mikrofonu. Wyłącz tę opcję, jeśli powoduje problemy z dźwiękiem."
     },
     "participant_audio": {
       "title": "Dźwięk uczestnika",

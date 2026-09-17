@@ -1,4 +1,4 @@
-/** Bound the derived Voice Quality amount before it reaches audio-thread state. */
+/** Bound the derived processing amount before it reaches audio-thread state. */
 export function normalizePolish(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 }

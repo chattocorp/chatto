@@ -91,10 +91,8 @@
       "test_failed": "Impossibile provare il microfono. Controlla l’accesso al dispositivo e riprova.",
       "test_in_call": "Esci dalla chiamata prima di provare il microfono.",
       "processing": "Elaborazione del microfono",
-      "voice_quality": "Qualità della voce",
-      "voice_normal": "Normale",
-      "voice_cool": "Niente male",
-      "voice_awesome": "FANTASTICA"
+      "voice_boosting": "Miglioramento della voce",
+      "voice_boosting_description": "Migliora l'audio del microfono. Disattiva questa opzione se causa problemi audio."
     },
     "participant_audio": {
       "title": "Audio del partecipante",

@@ -646,7 +646,7 @@ describe('VoiceCallState', () => {
     const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
     const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
     const preferences = new CallPreferencesState('call-effects');
-    preferences.setVoiceAmount(100);
+    preferences.setVoiceBoosting(true);
     const state = new VoiceCallState(
       createVoiceCallClient(),
       () => ({
@@ -663,7 +663,7 @@ describe('VoiceCallState', () => {
       expect(applied).toHaveBeenCalledWith(
         expect.objectContaining({ bass: 8, treble: 10, compressor: true })
       );
-      preferences.setVoiceAmount(0);
+      preferences.setVoiceBoosting(false);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(
           expect.objectContaining({ bass: 0, compressor: false })

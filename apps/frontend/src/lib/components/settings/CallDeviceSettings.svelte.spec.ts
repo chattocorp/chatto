@@ -92,7 +92,7 @@ describe('Call device settings', () => {
     });
     const monitor = vi.spyOn(MicrophoneProcessor.prototype, 'connectMonitor');
     const preferences = new CallPreferencesState('playback-refresh');
-    preferences.setVoiceAmount(50);
+    preferences.setVoiceBoosting(true);
     const screen = render(CallDeviceSettings, { preferences });
     try {
       await screen.getByRole('button', { name: 'Start microphone test' }).click();
@@ -270,7 +270,7 @@ describe('Call device settings', () => {
   });
 });
 
-it('offers a continuous voice slider while keeping the gate separate', async () => {
+it('offers default-on voice boosting with a persistent keyboard opt-out and separate gate', async () => {
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
     visibleCamera,
     visibleMicrophone
@@ -278,30 +278,25 @@ it('offers a continuous voice slider while keeping the gate separate', async () 
   const preferences = new CallPreferencesState('voice-ui');
   preferences.setMicrophoneThreshold(-30);
   const screen = render(CallDeviceSettings, { preferences });
-  const slider = screen.getByRole('slider', { name: /^Voice Quality/ });
-  await expect.element(slider).toHaveValue('0');
-  slider.element().focus();
-  await userEvent.keyboard('{End}');
-  expect(new CallPreferencesState('voice-ui').voiceAmount).toBe(100);
-  expect(screen.container.querySelector('[data-rainbow-band]')).not.toBeNull();
-  expect(screen.container.querySelector('.awesome-text')).not.toBeNull();
-  await expect.element(slider).toHaveAttribute('aria-valuetext', 'AWESOME');
-  const input = slider.element() as HTMLInputElement;
-  input.value = '37.5';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick();
-  expect(preferences.voiceAmount).toBe(37.5);
-  expect(screen.container.querySelector('[data-rainbow-band]')).toBeNull();
-  expect(preferences.effects.treble).toBe(3.75);
-  await userEvent.keyboard('{Home}');
+  const checkbox = screen.getByRole('checkbox', { name: 'Voice Boosting' });
+  await expect.element(checkbox).toBeChecked();
+  await expect.element(checkbox).toHaveAccessibleDescription(
+    'Enhance your microphone audio. Turn this off if it causes audio problems.'
+  );
+  checkbox.element().focus();
+  await userEvent.keyboard(' ');
+  await expect.element(checkbox).not.toBeChecked();
+  expect(new CallPreferencesState('voice-ui').voiceBoosting).toBe(false);
   expect(preferences.effects.compressor).toBe(false);
+  await userEvent.keyboard(' ');
+  await expect.element(checkbox).toBeChecked();
+  expect(new CallPreferencesState('voice-ui').voiceBoosting).toBe(true);
+  expect(preferences.effects.treble).toBe(10);
   expect(preferences.microphoneThreshold).toBe(-30);
-  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(2);
-  expect(screen.container.querySelector('details')).toBeNull();
-  await expect.element(screen.getByText('Pretty cool', { exact: true })).toBeVisible();
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(1);
 });
 
-it('disables the voice slider when processing is unavailable', async () => {
+it('disables voice boosting when processing is unavailable', async () => {
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
     visibleCamera,
     visibleMicrophone
@@ -311,14 +306,14 @@ it('disables the voice slider when processing is unavailable', async () => {
     inCall: true,
     gateUnavailable: true
   });
-  await expect.element(screen.getByRole('slider', { name: /^Voice Quality/ })).toBeDisabled();
+  await expect.element(screen.getByRole('checkbox', { name: 'Voice Boosting' })).toBeDisabled();
 });
 
 it('switches the selected test output without stopping capture or requiring another Start click', async () => {
   const context = new AudioContext();
   const stream = context.createMediaStreamDestination().stream;
   const preferences = new CallPreferencesState('live-output');
-  preferences.setVoiceAmount(50);
+  preferences.setVoiceBoosting(true);
   const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
   const sink = vi
     .spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId')

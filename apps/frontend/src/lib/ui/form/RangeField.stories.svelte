@@ -21,8 +21,6 @@
   let volume = $state(70);
   let steppedVolume = $state(100);
   let disabledValue = $state(35);
-  let awesome = $state(100);
-  let warmingUp = $state(90);
 </script>
 
 <Story name="Default" asChild>
@@ -49,48 +47,6 @@
       bind:value={disabledValue}
       displayValue={`${disabledValue}%`}
       disabled
-    />
-  </div>
-</Story>
-
-<Story name="Rainbow at maximum" asChild>
-  <div class="max-w-md">
-    <RangeField
-      id="rainbow-range"
-      label="Voice Quality"
-      min={0}
-      max={100}
-      bind:value={awesome}
-      displayValue={awesome === 100 ? 'AWESOME' : `${awesome}%`}
-      rainbow
-    />
-  </div>
-</Story>
-<Story name="Unavailable rainbow" asChild>
-  <div class="max-w-md">
-    <RangeField
-      id="disabled-rainbow"
-      label="Voice Quality"
-      min={0}
-      max={100}
-      value={100}
-      displayValue="AWESOME"
-      rainbow
-      disabled
-    />
-  </div>
-</Story>
-
-<Story name="Rainbow fading in" asChild>
-  <div class="max-w-md">
-    <RangeField
-      id="partial-rainbow"
-      label="Voice Quality"
-      min={0}
-      max={100}
-      bind:value={warmingUp}
-      displayValue={`${warmingUp}%`}
-      rainbow
     />
   </div>
 </Story>

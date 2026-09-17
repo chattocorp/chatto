@@ -91,10 +91,8 @@
       "test_failed": "Mikrofon test edilemedi. Cihaz erişimini kontrol edip tekrar deneyin.",
       "test_in_call": "Mikrofonu test etmeden önce aramadan ayrılın.",
       "processing": "Mikrofon işleme",
-      "voice_quality": "Ses kalitesi",
-      "voice_normal": "Normal",
-      "voice_cool": "Oldukça iyi",
-      "voice_awesome": "MUHTEŞEM"
+      "voice_boosting": "Ses iyileştirme",
+      "voice_boosting_description": "Mikrofon sesini iyileştirin. Ses sorunlarına neden olursa bu seçeneği kapatın."
     },
     "participant_audio": {
       "title": "Katılımcı sesi",

@@ -91,10 +91,8 @@
       "test_failed": "Neizdevās pārbaudīt mikrofonu. Pārbaudi piekļuvi ierīcei un mēģini vēlreiz.",
       "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu.",
       "processing": "Mikrofona apstrāde",
-      "voice_quality": "Balss kvalitāte",
-      "voice_normal": "Parasta",
-      "voice_cool": "Diezgan forša",
-      "voice_awesome": "LIELISKA"
+      "voice_boosting": "Balss uzlabošana",
+      "voice_boosting_description": "Uzlabojiet mikrofona skaņu. Izslēdziet šo opciju, ja tā rada skaņas problēmas."
     },
     "participant_audio": {
       "title": "Dalībnieka audio",

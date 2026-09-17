@@ -37,19 +37,20 @@ describe('CallDeviceTest', () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
     const test = new CallDeviceTest();
     const preferences = new CallPreferencesState('test-presets');
-    preferences.setVoiceAmount(50);
+    preferences.setVoiceBoosting(false);
     const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
     try {
       await test.start(
         '',
         '',
-        () => -60,
+        // Keep the gate active so this exercises live graph updates, not raw bypass.
+        () => -50,
         () => preferences.effects
       );
       expect(applied).toHaveBeenCalledWith(
-        expect.objectContaining({ strength: 0.5, compressor: true })
+        expect.objectContaining({ strength: 0, compressor: false })
       );
-      preferences.setVoiceAmount(100);
+      preferences.setVoiceBoosting(true);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(
           expect.objectContaining({ strength: 1, compressor: true })

@@ -91,10 +91,8 @@
       "test_failed": "تعذّر اختبار الميكروفون. تحقّق من الوصول إلى الجهاز وحاول مرة أخرى.",
       "test_in_call": "غادر مكالمتك قبل اختبار الميكروفون.",
       "processing": "معالجة الميكروفون",
-      "voice_quality": "جودة الصوت",
-      "voice_normal": "عادي",
-      "voice_cool": "رائع",
-      "voice_awesome": "مذهل"
+      "voice_boosting": "تحسين الصوت",
+      "voice_boosting_description": "حسّن صوت الميكروفون. أوقف هذا الخيار إذا تسبب في مشكلات صوتية."
     },
     "participant_audio": {
       "title": "صوت المشارك",
