@@ -592,7 +592,7 @@ describe('VoiceCallState', () => {
         await expect.poll(() => state.microphoneSilent).toBe(true);
         input = 0.001; // Pre-gate audio clears even when below the configured speech threshold.
         await expect.poll(() => state.microphoneSilent).toBe(false);
-        expect(state.getAudioLevel('local-user')).toEqual({ isSpeaking: true, audioLevel: 0.002 });
+        expect(state.getAudioLevel('local-user')).toEqual({ isSpeaking: true, audioLevel: 0.001 });
         input = 0;
         await sample();
         now += 10100;
@@ -1857,6 +1857,80 @@ describe('VoiceCallState', () => {
       }
     }
   );
+
+  it('meters received microphone tracks independently of speaker reports and playback gain', async () => {
+    const first = {} as MediaStreamTrack;
+    const replacement = {} as MediaStreamTrack;
+    const streams = new WeakMap<TrackAudioLevels, Map<string, MediaStreamTrack>>();
+    const levels = new Map([
+      [first, 0.1],
+      [replacement, 0.3]
+    ]);
+    const sync = vi.spyOn(TrackAudioLevels.prototype, 'sync').mockImplementation(function (
+      this: TrackAudioLevels,
+      entriesContext,
+      entries
+    ) {
+      streams.set(this, new Map(entriesContext ? entries : []));
+    });
+    const get = vi.spyOn(TrackAudioLevels.prototype, 'get').mockImplementation(function (
+      this: TrackAudioLevels,
+      identity
+    ) {
+      const track = streams.get(this)?.get(identity);
+      return track ? (levels.get(track) ?? 0) : 0;
+    });
+    const microphone = {
+      isMuted: false,
+      track: { source: 'microphone', mediaStreamTrack: first, detach: vi.fn() }
+    };
+    const publications = [microphone];
+    const volume = vi.fn();
+    mockRemoteParticipants.set('remote-user', {
+      identity: 'remote-user',
+      name: 'Remote',
+      metadata: '{}',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume: volume,
+      trackPublications: new Map(),
+      getTrackPublications: () => publications
+    });
+    const state = createPermittedCallState(createVoiceCallClient());
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      await expect.poll(() => state.getAudioLevel('remote-user').audioLevel).toBe(0.1);
+      expect(state.getAudioLevel('remote-user').isSpeaking).toBe(true);
+      state.toggleParticipantLocalMute('remote-user');
+      expect(volume).toHaveBeenCalledWith(0, 'microphone');
+      levels.set(first, 0.2);
+      await expect.poll(() => state.getAudioLevel('remote-user').audioLevel).toBe(0.2);
+      // Received silence wins even without any new server speaking event.
+      levels.set(first, 0);
+      await expect
+        .poll(() => state.getAudioLevel('remote-user'))
+        .toEqual({ isSpeaking: false, audioLevel: 0 });
+      microphone.track.mediaStreamTrack = replacement;
+      roomEventHandlers.get('TrackUnmuted')?.();
+      await expect.poll(() => state.getAudioLevel('remote-user').audioLevel).toBe(0.3);
+      microphone.isMuted = true;
+      roomEventHandlers.get('TrackMuted')?.();
+      await expect.poll(() => state.getAudioLevel('remote-user').audioLevel).toBe(0);
+      microphone.isMuted = false;
+      roomEventHandlers.get('TrackUnmuted')?.();
+      await expect.poll(() => state.getAudioLevel('remote-user').audioLevel).toBe(0.3);
+      publications.length = 0;
+      roomEventHandlers.get('TrackUnsubscribed')?.(microphone.track, {});
+      await expect.poll(() => state.getAudioLevel('remote-user').audioLevel).toBe(0);
+      await state.leave();
+      expect(state.getAudioLevel('remote-user').audioLevel).toBe(0);
+    } finally {
+      await state.leave();
+      sync.mockRestore();
+      get.mockRestore();
+    }
+  });
 
   it('merges a companion screen-share publisher into its owning participant', async () => {
     const gameVideoTrack = { source: 'screen_share' };
