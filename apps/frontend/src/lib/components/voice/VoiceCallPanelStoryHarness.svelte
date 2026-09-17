@@ -19,10 +19,12 @@
 
 	let {
 		layout = 'stage',
-		scenario = 'screen'
+		scenario = 'screen',
+		animateVoice = false
 	}: {
 		layout?: 'sidebar' | 'stage';
 		scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
+		animateVoice?: boolean;
 	} = $props();
 
 	const roomId = 'storybook-call-room';
@@ -245,6 +247,19 @@
 	onMount(async () => {
 		seedStore();
 		Panel = (await import('./VoiceCallPanel.svelte')).default as Component<VoiceCallPanelProps>;
+	});
+
+	onMount(() => {
+		if (!animateVoice) return;
+		const call = serverRegistry.getStore(getScopedServerId()).voiceCall;
+		const original = call.getAudioLevel;
+		call.getAudioLevel = (identity) => {
+			const time = performance.now() / 1000 + identity.length;
+			const audioLevel = time % 7 < 4.5
+				? 0.005 + Math.pow((Math.sin(time * 8) + 1) / 2, 2) * 0.075 : 0;
+			return { isSpeaking: audioLevel > 0, audioLevel };
+		};
+		return () => { call.getAudioLevel = original; };
 	});
 </script>
 

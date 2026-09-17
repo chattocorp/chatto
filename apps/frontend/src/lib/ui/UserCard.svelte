@@ -10,6 +10,7 @@ Actions are siblings of that button, so controls never nest inside a button.
   import type { Snippet } from 'svelte';
   import type { ClassValue, HTMLButtonAttributes, HTMLAttributes } from 'svelte/elements';
   import CompactActionButton from './CompactActionButton.svelte';
+  import VoiceActivity from './VoiceActivity.svelte';
 
   let {
     name,
@@ -19,6 +20,7 @@ Actions are siblings of that button, so controls never nest inside a button.
     badges,
     indicators,
     actions,
+    voiceLevel,
     menu,
     children,
     variant = 'plain',
@@ -37,6 +39,8 @@ Actions are siblings of that button, so controls never nest inside a button.
     badges?: Snippet;
     indicators?: Snippet;
     actions?: Snippet;
+    /** Optional normalized audio-level getter. The layer stays behind the identity header. */
+    voiceLevel?: () => number;
     /** Optional overflow action. Icons and other controls go in actions. */
     menu?: {
       label: string;
@@ -65,7 +69,10 @@ Actions are siblings of that button, so controls never nest inside a button.
   <span class="flex shrink-0 items-center">{@render avatar()}</span>
   <span class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight" data-testid={textTestId}>
     <span class="flex min-w-0 items-center gap-1.5">
-      <span class={['min-w-0 truncate text-sm font-semibold', nameClass]} data-testid="user-card-name">
+      <span
+        class={['min-w-0 truncate text-sm font-semibold', nameClass]}
+        data-testid="user-card-name"
+      >
         {#if typeof name === 'string'}<bdi>{name}</bdi>{:else}{@render name()}{/if}
       </span>
       {@render badges?.()}
@@ -96,7 +103,10 @@ Actions are siblings of that button, so controls never nest inside a button.
       }
     : undefined}
 >
-  <div class="flex h-12 min-h-12 min-w-0 shrink-0 items-center gap-2 px-2">
+  <div
+    class="relative isolate flex h-12 min-h-12 min-w-0 shrink-0 items-center gap-2 rounded-[inherit] px-2"
+  >
+    {#if voiceLevel}<VoiceActivity level={voiceLevel} />{/if}
     {#if identityAttributes}
       <button
         type="button"

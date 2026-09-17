@@ -8,7 +8,7 @@ import VoiceCallPanelStoryHarness from './VoiceCallPanelStoryHarness.svelte';
 
 afterEach(() => vi.restoreAllMocks());
 
-it('clears speaking styles and participant controls when a call becomes observed', async () => {
+it('removes voice activity and participant controls when a call becomes observed', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'sidebar', scenario: 'voice' }
   });
@@ -20,8 +20,9 @@ it('clears speaking styles and participant controls when a call becomes observed
     { userId: 'bob', login: 'bob', displayName: 'Bob', avatarUrl: null, isBot: false }
   ]);
   const bob = screen.container.querySelector<HTMLElement>('[title="Bob"]')!;
-  await expect.poll(() => bob.style.getPropertyValue('--call-speaking-ring-opacity')).not.toBe('0');
-  await expect.poll(() => bob.dataset.callSpeaking).toBe('true');
+  await expect
+    .poll(() => bob.querySelector('[data-testid="voice-activity"]')?.getAttribute('data-active'))
+    .toBe('true');
 
   flushSync(() => {
     store.voiceCall.connected = false;
@@ -31,11 +32,25 @@ it('clears speaking styles and participant controls when a call becomes observed
   await expect.element(screen.getByTestId('call-observer-panel')).toBeInTheDocument();
   await expect.element(screen.getByTestId('call-join-button')).toBeInTheDocument();
   expect(screen.container.querySelector('[title="Bob"]')).toBe(bob);
-  expect(bob.style.getPropertyValue('--call-speaking-ring-opacity')).toBe('');
-  expect(bob.style.getPropertyValue('--call-speaking-ring-strength')).toBe('');
-  expect(bob.dataset.callSpeaking).toBeUndefined();
-  expect(bob.hasAttribute('data-speaking-ring')).toBe(false);
+  expect(bob.querySelector('[data-testid="voice-activity"]')).toBeNull();
   expect(screen.container.querySelector('[data-testid="call-feed-local-mute-button"]')).toBeNull();
+});
+
+it('settles voice activity when the participant mutes their microphone', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+  vi.spyOn(call, 'getAudioLevel').mockReturnValue({ isSpeaking: true, audioLevel: 0.5 });
+  const canvas = screen.container.querySelector<HTMLCanvasElement>(
+    '[title="Bob"] [data-testid="voice-activity"]'
+  )!;
+  await expect.poll(() => canvas.dataset.active).toBe('true');
+  flushSync(() => {
+    call.participants = call.participants.map((participant) => ({ ...participant, isMuted: true }));
+  });
+  await expect.poll(() => canvas.dataset.active, { timeout: 4000 }).toBe('false');
 });
 
 it('gates entry and media controls from the current room permissions', async () => {

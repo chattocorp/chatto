@@ -9,6 +9,12 @@
 
 <script lang="ts">
   let lastAction = $state('No action yet');
+  let speaking = $state(true);
+
+  function speechLevel() {
+    const time = performance.now() / 1000;
+    return speaking && time % 7 < 4.5 ? 0.005 + Math.pow((Math.sin(time * 8) + 1) / 2, 2) * 0.075 : 0;
+  }
 </script>
 
 {#snippet avatar()}
@@ -50,6 +56,38 @@
       }}
     />
     <p class="mt-2 text-muted" aria-live="polite">{lastAction}</p>
+  </div>
+</Story>
+
+<Story name="Voice activity" asChild>
+  <div class="flex w-72 flex-col gap-2">
+    <UserCard
+      name="Alice"
+      username="alice"
+      variant="card"
+      {avatar}
+      voiceLevel={speechLevel}
+      menu={{ label: 'User options', onclick: () => {} }}
+    />
+    <UserCard
+      name="Quiet participant"
+      username="quiet"
+      variant="card"
+      {avatar}
+      voiceLevel={() => 0}
+    />
+    <UserCard
+      name="Camera participant"
+      username="camera"
+      variant="card"
+      {avatar}
+      voiceLevel={speechLevel}
+    >
+      <div class="grid aspect-video place-items-center bg-background text-muted">Video feed</div>
+    </UserCard>
+    <button class="btn-neutral btn" onclick={() => (speaking = !speaking)}
+      >{speaking ? 'Stop speaking' : 'Start speaking'}</button
+    >
   </div>
 </Story>
 
@@ -136,6 +174,14 @@
     </UserCard>
   </div>
   <p class="mt-2 text-muted" aria-live="polite">{lastAction}</p>
+</Story>
+
+<Story name="Voice glow levels" asChild>
+  <div class="flex w-72 flex-col gap-2">
+    <UserCard name="Quiet speech" username="quiet" variant="card" {avatar} voiceLevel={() => 0.005} />
+    <UserCard name="Normal speech" username="normal" variant="card" {avatar} voiceLevel={() => 0.03} />
+    <UserCard name="Loud speech" username="loud" variant="card" {avatar} voiceLevel={() => 0.2} />
+  </div>
 </Story>
 
 <Story name="Right to left" asChild>

@@ -64,8 +64,23 @@ hide the button until hover or keyboard focus; touch devices keep it visible.
 Use `menu.oncontextmenu` for right-click access from the whole card.
 The identity row cannot shrink below the shared control height. For the current-user card, omit
 the identity button and supply the presence button in `avatar`. Callers own
-profile menus, presence lookup, permissions, speaking attachments, and media
+profile menus, presence lookup, permissions, audio-level sources, and media
 lifecycles; the shared component does not read application stores.
+
+Pass `voiceLevel` as a getter returning a normalized 0–1 microphone level to
+show voice activity. The internal `VoiceActivity` canvas stays behind the
+identity row, so video and screen shares remain clear. Distorted two-dimensional
+simplex noise forms three translucent layers of broad fog wisps. Each layer has
+its own scale, seed, and drift direction; source-over composition lets them
+overlap without becoming an opaque fill.
+The renderer enlarges a bounded alpha texture and tints it with the accent colour.
+Microphone volume controls opacity and spread, with a quick rise and a gentle
+fade. Smoothed volume also controls travel speed: quiet speech drifts and louder
+speech moves faster, without position jumps when the level changes. The fog
+disappears in silence. Reduced motion fixes the texture
+and updates intensity without animation. All layers share a sampling clock and an
+animation loop; silent and offscreen cards do not request animation frames.
+Do not add a separate speaking border or pulse to the card.
 
 ### Sidebar links
 

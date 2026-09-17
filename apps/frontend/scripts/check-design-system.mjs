@@ -11,7 +11,6 @@ const styleBlockAllowlist = new Set([
   'src/lib/components/chat/FullscreenVideoOverlay.svelte',
   'src/lib/components/chat/VideoPlayer.svelte',
   'src/lib/components/composer/TipTapEditor.svelte',
-  'src/lib/components/voice/VoiceCallPanel.svelte',
   'src/lib/ui/AppHeader.svelte',
   'src/lib/ui/BottomSheet.svelte',
   'src/lib/ui/Dialog.svelte',

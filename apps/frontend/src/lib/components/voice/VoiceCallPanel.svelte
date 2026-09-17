@@ -40,7 +40,6 @@ Room sidebar panel for voice/video calls.
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
-  import type { Attachment } from 'svelte/attachments';
   import { startDMWith } from '$lib/dm/startDM';
   import { toast } from '$lib/ui/toast';
 
@@ -184,7 +183,7 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'pill-button-success';
   const dangerControlButtonClass = 'pill-button-danger';
   const callTileCardClass =
-    'call-speaking-card participant-card group/media relative flex w-full min-w-0 flex-col overflow-hidden shell-surface text-start text-text';
+    'participant-card group/media relative flex w-full min-w-0 flex-col overflow-hidden shell-surface text-start text-text';
   const callTileMediaButtonClass =
     'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
 
@@ -208,53 +207,10 @@ Room sidebar panel for voice/video calls.
     return participant.displayName;
   }
 
-  const speakingCards: Array<{ identity: string; node: HTMLElement }> = [];
-  let speakingIndicatorInterval: ReturnType<typeof setInterval> | null = null;
-
-  function updateSpeakingIndicators() {
-    for (const { identity, node } of speakingCards) {
-      const { isSpeaking, audioLevel } = voiceCallState.getAudioLevel(identity);
-      const opacity = audioLevel > 0.01 ? 0.35 + Math.pow(audioLevel, 0.35) * 0.65 : 0;
-      const visible = isSpeaking || opacity > 0;
-
-      node.style.setProperty(
-        '--call-speaking-ring-opacity',
-        visible ? String(opacity || 0.85) : '0'
-      );
-      node.style.setProperty('--call-speaking-ring-strength', visible ? String(audioLevel) : '0');
-      node.dataset.callSpeaking = visible ? 'true' : 'false';
-    }
-  }
-
-  function startSpeakingIndicatorLoop() {
-    if (speakingIndicatorInterval) return;
-
-    speakingIndicatorInterval = setInterval(updateSpeakingIndicators, 60);
-  }
-
-  function stopSpeakingIndicatorLoopIfIdle() {
-    if (speakingCards.length > 0 || !speakingIndicatorInterval) return;
-
-    clearInterval(speakingIndicatorInterval);
-    speakingIndicatorInterval = null;
-  }
-
-  function speakingCard(identity: string): Attachment<HTMLElement> {
-    return (node) => {
-      const entry = { identity, node };
-      speakingCards.push(entry);
-      updateSpeakingIndicators();
-      startSpeakingIndicatorLoop();
-
-      return () => {
-        const index = speakingCards.indexOf(entry);
-        if (index !== -1) speakingCards.splice(index, 1);
-        stopSpeakingIndicatorLoopIfIdle();
-        node.style.removeProperty('--call-speaking-ring-opacity');
-        node.style.removeProperty('--call-speaking-ring-strength');
-        delete node.dataset.callSpeaking;
-      };
-    };
+  function participantVoiceLevel(participant: DisplayParticipant) {
+    if (participant.isMuted || (participant.isLocal && voiceCallState.isMuted)) return 0;
+    const { audioLevel, isSpeaking } = voiceCallState.getAudioLevel(participant.key);
+    return audioLevel > 0 ? audioLevel : isSpeaking ? 0.06 : 0;
   }
 
   const canStartDMs = $derived(stores.permissions.canStartDMs);
@@ -408,6 +364,7 @@ Room sidebar panel for voice/video calls.
   <UserCard
     name={label}
     username={participant.avatarUser.login}
+    voiceLevel={isInThisCall ? () => participantVoiceLevel(participant) : undefined}
     class="shrink-0"
     identityAttributes={{ onclick: (e) => showUserMenu(participant, e) }}
     menu={{
@@ -444,11 +401,9 @@ Room sidebar panel for voice/video calls.
       callTileCardClass,
       mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
     ]}
-    {@attach isInThisCall && speakingCard(participant.key)}
     title={participantTitle(participant)}
     data-testid="call-participant-card"
     {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
-    data-speaking-ring={isInThisCall ? true : undefined}
     data-call-media-card={showVideo ? true : undefined}
   >
     {@render participantHeader(
@@ -478,11 +433,9 @@ Room sidebar panel for voice/video calls.
 {#snippet screenShareCard(participant: DisplayParticipant)}
   <div
     class={[callTileCardClass, 'participant-card-video col-span-full']}
-    {@attach isInThisCall && speakingCard(participant.key)}
     title={m('voice.screen_title', { name: participant.displayName })}
     data-testid="call-screen-share-card"
     {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
-    data-speaking-ring={isInThisCall ? true : undefined}
     data-call-media-card
   >
     {@render participantHeader(
@@ -513,13 +466,11 @@ Room sidebar panel for voice/video calls.
   {@const isVideo = tile.kind === 'video'}
   <div
     class={[callTileCardClass, 'participant-card-video h-full min-h-0']}
-    {@attach isInThisCall && speakingCard(participant.key)}
     title={isScreen
       ? m('voice.screen_title', { name: participant.displayName })
       : participantTitle(participant)}
     data-testid="call-featured-stage-card"
     {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
-    data-speaking-ring={isInThisCall ? true : undefined}
     data-call-media-card={isScreen || isVideo ? true : undefined}
   >
     {@render participantHeader(
@@ -752,34 +703,3 @@ Room sidebar panel for voice/video calls.
     onClose={closeUserMenu}
   />
 {/if}
-
-<style>
-  :global(.call-speaking-card) {
-    --call-speaking-ring-opacity: 0;
-    --call-speaking-ring-strength: 0;
-  }
-
-  :global(.call-speaking-card)::after {
-    position: absolute;
-    inset: 0;
-    border: 2px solid var(--color-action);
-    border-radius: inherit;
-    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-action) 30%, transparent);
-    content: '';
-    opacity: var(--call-speaking-ring-opacity);
-    pointer-events: none;
-    transition: opacity 80ms linear;
-    animation: call-speaking-ring-pulse 1.25s ease-in-out infinite;
-  }
-
-  @keyframes call-speaking-ring-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-
-    50% {
-      transform: scale(1.012);
-    }
-  }
-</style>
