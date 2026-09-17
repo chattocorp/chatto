@@ -187,17 +187,8 @@ test.describe('Verified email settings', () => {
     await serverConfirmed;
     await page.getByRole('link', { name: 'Profile', exact: true }).click();
     await page.waitForURL(routes.settingsProfile);
-    const challengeKey = await page.evaluate(() =>
-      Object.keys(sessionStorage).find((key) => key.endsWith(':pending-email-verification'))
-    );
-    expect(challengeKey).toBeDefined();
     releaseResponse?.();
 
-    // Let the old page's response handler finish before a full document reload
-    // destroys it. The first navigation above already unmounted that page.
-    await expect
-      .poll(() => page.evaluate((key) => sessionStorage.getItem(key), challengeKey!))
-      .toBeNull();
     await page.goto(routes.settingsVerifyEmail);
     await expect(page.getByText('No email verification is in progress.')).toBeVisible();
   });

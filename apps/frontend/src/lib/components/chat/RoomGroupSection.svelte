@@ -177,9 +177,11 @@ can slide out before its rows are removed.
 
     {#if visibleItems.length > 0 || (itemsAttachment && !collapsed)}
       <div
-        class="flex flex-col gap-0.5"
-        class:min-h-8={visibleItems.length === 0}
-        class:sidebar-drop-target={!!itemsAttachment}
+        class={[
+          'flex flex-col gap-0.5',
+          visibleItems.length === 0 ? 'min-h-8' : '',
+          itemsAttachment ? 'sidebar-drop-target' : ''
+        ]}
         data-testid={itemsAttachment ? 'room-group-items-dropzone' : undefined}
         {@attach itemsAttachment}
         transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}

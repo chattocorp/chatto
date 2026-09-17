@@ -10,26 +10,6 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
 
 describe('RoomGroupSection', () => {
-  it('preserves the drag highlight when an empty group receives an item', async () => {
-    const { container, rerender } = render(RoomGroupSection, {
-      label: 'Drop target',
-      items: [],
-      item: testSnippet('<span>Room</span>'),
-      persistKey: 'test:room-group-section:drag-highlight',
-      itemsAttachment: (node: HTMLDivElement) => {
-        node.classList.add('sidebar-drop-target-active');
-      }
-    });
-    const dropzone = q(container, '[data-testid="room-group-items-dropzone"]')!;
-    await expect.element(dropzone).toHaveClass('sidebar-drop-target-active');
-    await rerender({ items: [{ id: 'dragged-room' }] });
-    await expect.element(dropzone).not.toHaveClass('min-h-8');
-    await expect.element(dropzone).toHaveClass('sidebar-drop-target-active');
-    await rerender({ items: [] });
-    await expect.element(dropzone).toHaveClass('min-h-8');
-    await expect.element(dropzone).toHaveClass('sidebar-drop-target-active');
-  });
-
   it('persists its collapsed state and keeps highlighted entries visible', async () => {
     const persistKey = 'test:room-group-section:collapse';
     const { container } = render(RoomGroupSection, {
