@@ -311,8 +311,9 @@ The test does not contact a media server.
 ### Participant playback gain
 
 The browser call state owns one AudioContext per call and supplies it to
-LiveKit's Web Audio mixer. Remote participant volume applies a 0–2 gain per
-source. Companion publishers use their owner's user ID. Local mute overrides
+LiveKit's Web Audio mixer. Remote participant volume uses the shared
+[`participantVolumeGain`](../../apps/frontend/src/lib/audio/participantVolume.ts)
+mapping per source. Companion publishers use their owner's user ID. Local mute overrides
 both gains without replacing preferences. Track subscription and reconnect
 reapply these gains. Call cleanup closes the context after detaching tracks.
 No new network connection is required. If context creation fails, media-element
