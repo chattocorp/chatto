@@ -31,6 +31,13 @@ using the browser's window/tab/screen chooser.
 
 Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. These call facts update the active call UI without appearing as room timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
+## Connection quality
+
+An amber network icon on a participant card means a poor connection; a red
+disconnected icon means the connection is lost. Click the icon to read its status.
+Your current-user card shows the same warning for your connection, even outside
+the call sidebar. These warnings describe network quality, not microphone volume.
+
 ## Adjust another participant's volume
 
 During a call, open the three-dot menu in a participant card's header, or

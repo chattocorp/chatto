@@ -31,6 +31,7 @@ Room sidebar panel for voice/video calls.
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
   import MicrophoneSilenceHint from './MicrophoneSilenceHint.svelte';
+  import ConnectionQualityHint from './ConnectionQualityHint.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -41,7 +42,10 @@ Room sidebar panel for voice/video calls.
     type ContextMenuTriggerDetails
   } from '$lib/ui/contextMenuTrigger.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
-  import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
+  import {
+    getVoiceCallJoinErrorMessage,
+    type CallParticipantInfo
+  } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
   import { startDMWith } from '$lib/dm/startDM';
   import { toast } from '$lib/ui/toast';
@@ -81,7 +85,7 @@ Room sidebar panel for voice/video calls.
     isMuted: boolean;
     isLocal: boolean;
     isLocallyMuted: boolean;
-    connectionQuality: string;
+    connectionQuality: CallParticipantInfo['connectionQuality'];
     isCameraEnabled: boolean;
     videoTrack: Track | null;
     isScreenShareEnabled: boolean;
@@ -195,18 +199,6 @@ Room sidebar panel for voice/video calls.
 
   function hasScreenShare(participant: DisplayParticipant) {
     return participant.isScreenShareEnabled && participant.screenShareTrack;
-  }
-
-  function hasConnectionWarning(participant: DisplayParticipant) {
-    return participant.connectionQuality === 'poor' || participant.connectionQuality === 'lost';
-  }
-
-  function participantTitle(participant: DisplayParticipant) {
-    if (isInThisCall && hasConnectionWarning(participant)) {
-      return `${participant.displayName} — poor connection`;
-    }
-
-    return participant.displayName;
   }
 
   function participantVoiceLevel(participant: DisplayParticipant) {
@@ -337,25 +329,13 @@ Room sidebar panel for voice/video calls.
 {/snippet}
 
 {#snippet participantIndicators(participant: DisplayParticipant)}
-  {#if participant.isMuted || hasConnectionWarning(participant)}
+  {#if participant.isMuted}
     <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
-      {#if participant.isMuted}
-        <span
-          class="iconify icon-[uil--microphone-slash] text-danger"
-          aria-label={m('voice.muted')}
-          data-testid="call-muted-indicator"
-        ></span>
-      {/if}
-      {#if hasConnectionWarning(participant)}
-        <span
-          class={[
-            'iconify icon-[uil--exclamation-triangle]',
-            participant.connectionQuality === 'lost' && 'text-danger',
-            participant.connectionQuality === 'poor' && 'text-warning'
-          ]}
-          aria-label={m('voice.poor_connection')}
-        ></span>
-      {/if}
+      <span
+        class="iconify icon-[uil--microphone-slash] text-danger"
+        aria-label={m('voice.muted')}
+        data-testid="call-muted-indicator"
+      ></span>
     </span>
   {/if}
 {/snippet}
@@ -394,6 +374,9 @@ Room sidebar panel for voice/video calls.
       {/if}
     {/snippet}
     {#snippet actions()}
+      {#if isInThisCall && !screen}
+        <ConnectionQualityHint quality={participant.connectionQuality} />
+      {/if}
       {#if isInThisCall && participant.isLocal && !screen}
         <MicrophoneSilenceHint />
       {/if}
@@ -415,7 +398,7 @@ Room sidebar panel for voice/video calls.
       callTileCardClass,
       mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
     ]}
-    title={participantTitle(participant)}
+    title={participant.displayName}
     data-testid="call-participant-card"
     {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
     data-call-media-card={showVideo ? true : undefined}
@@ -485,7 +468,7 @@ Room sidebar panel for voice/video calls.
     class={[callTileCardClass, 'participant-card-video h-full min-h-0']}
     title={isScreen
       ? m('voice.screen_title', { name: participant.displayName })
-      : participantTitle(participant)}
+      : participant.displayName}
     data-testid="call-featured-stage-card"
     {@attach contextMenuTrigger((details) =>
       showParticipantContextMenu(participant, details, isScreen)

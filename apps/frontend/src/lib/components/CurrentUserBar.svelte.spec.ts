@@ -66,6 +66,7 @@ const {
     canUseCamera: true,
     canScreenShare: true,
     connected: false,
+    participants: [] as { isLocal: boolean; connectionQuality: 'poor' | 'lost' | 'excellent' }[],
     roomId: null as string | null,
     isMuted: false,
     microphoneSilent: false,
@@ -190,6 +191,7 @@ describe('CurrentUserBar', () => {
     presencePreference.mode = 'online';
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
+    voiceCallState.participants = [];
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
     voiceCallState.microphoneSilent = false;
@@ -234,6 +236,26 @@ describe('CurrentUserBar', () => {
     expect(navigation.pushState).toHaveBeenCalledWith('', {
       modal: { type: 'microphoneSilence', serverId: 'origin' }
     });
+  });
+
+  it('shows only the local participant network warning on the current-user card', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.participants = [
+      { isLocal: false, connectionQuality: 'poor' },
+      { isLocal: true, connectionQuality: 'lost' }
+    ];
+    const screen = render(CurrentUserBarTestHarness);
+    await screen.getByRole('button', { name: 'Connection lost', exact: true }).click();
+    await expect
+      .element(screen.getByRole('dialog', { name: 'Connection lost' }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole('button', { name: 'Poor connection', exact: true }))
+      .not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await expect
+      .element(screen.getByRole('dialog', { name: 'Connection lost' }))
+      .not.toBeInTheDocument();
   });
 
   it('does not show a microphone warning during normal call activity', () => {

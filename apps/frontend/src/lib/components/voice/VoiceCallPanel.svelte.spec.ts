@@ -15,6 +15,34 @@ vi.mock('$app/navigation', async (original) => ({
 
 afterEach(() => vi.restoreAllMocks());
 
+it('updates network warnings independently of microphone activity and clears them on recovery', async () => {
+  const screen = render(VoiceCallPanelStoryHarness, {
+    props: { layout: 'sidebar', scenario: 'voice' }
+  });
+  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+  await expect
+    .element(screen.getByRole('button', { name: 'Poor connection', exact: true }))
+    .toBeInTheDocument();
+  flushSync(() => {
+    call.participants = call.participants.map((p) => ({
+      ...p,
+      connectionQuality: p.isLocal ? 'lost' : 'excellent'
+    }));
+  });
+  await expect
+    .element(screen.getByRole('button', { name: 'Poor connection', exact: true }))
+    .not.toBeInTheDocument();
+  await screen.getByRole('button', { name: 'Connection lost', exact: true }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Connection lost' })).toBeInTheDocument();
+  flushSync(() => {
+    call.participants = call.participants.map((p) => ({ ...p, connectionQuality: 'excellent' }));
+  });
+  await expect.element(screen.getByTestId('call-connection-quality')).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole('dialog', { name: 'Connection lost' }))
+    .not.toBeInTheDocument();
+});
+
 it('opens voice preferences from the toolbar gear', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'sidebar', scenario: 'voice' }

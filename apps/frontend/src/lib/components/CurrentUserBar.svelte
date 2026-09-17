@@ -7,6 +7,7 @@ sidebar. Shows the avatar with presence and the live display name.
 <script lang="ts">
   import UserCard from '$lib/ui/UserCard.svelte';
   import MicrophoneSilenceHint from './voice/MicrophoneSilenceHint.svelte';
+  import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
   import FadeScale from '$lib/ui/FadeScale.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
@@ -315,6 +316,11 @@ sidebar. Shows the avatar with presence and the live display name.
         <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
       {/snippet}
       {#snippet actions()}
+        {#if voiceCallState?.connected}
+          <ConnectionQualityHint
+            quality={voiceCallState.participants.find((p) => p.isLocal)?.connectionQuality}
+          />
+        {/if}
         <MicrophoneSilenceHint />
         {#if privilegedMode?.available}
           <button

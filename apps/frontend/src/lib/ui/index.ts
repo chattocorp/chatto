@@ -14,6 +14,7 @@ export { default as EmptyState } from './EmptyState.svelte';
 export { default as FormDialog } from './FormDialog.svelte';
 export { default as FormSection } from './FormSection.svelte';
 export { default as FloatingPopover } from './FloatingPopover.svelte';
+export { default as CompactActionButton } from './CompactActionButton.svelte';
 export { default as FloatingTooltip } from './FloatingTooltip.svelte';
 export { default as Frame } from './Frame.svelte';
 export { default as HeaderIconButton } from './HeaderIconButton.svelte';

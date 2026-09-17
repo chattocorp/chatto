@@ -1,5 +1,6 @@
 {
   "voice": {
+    "connection_lost": "Ühendus katkes",
     "microphone_silence_explanation": "Kontrolli mikrofoni vaigistuslülitit või vali teine sisend.",
     "microphone_silent_hint": "Mikrofoni heli puudub",
     "connecting": "Ühendamine...",
