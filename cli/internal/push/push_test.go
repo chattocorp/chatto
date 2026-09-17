@@ -592,8 +592,37 @@ func TestNavigationBaseURL(t *testing.T) {
 		name          string
 		subscription  *runtimestatev1.PushSubscription
 		serverBaseURL string
+		serverOrigins []string
 		want          string
 	}{
+		{
+			name:          "custom domain uses bundled client route",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "custom.example.com"},
+			serverBaseURL: "https://chat.example.com",
+			serverOrigins: []string{"https://chat.example.com", "https://custom.example.com"},
+			want:          "https://custom.example.com/chat/-",
+		},
+		{
+			name:          "alias uses configured HTTP scheme and default port",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "CUSTOM.EXAMPLE.COM:80"},
+			serverBaseURL: "https://chat.example.com",
+			serverOrigins: []string{"http://custom.example.com"},
+			want:          "http://custom.example.com:80/chat/-",
+		},
+		{
+			name:          "different alias port remains a remote client",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "custom.example.com:8443"},
+			serverBaseURL: "https://chat.example.com",
+			serverOrigins: []string{"https://custom.example.com"},
+			want:          "https://custom.example.com:8443/chat/chat.example.com",
+		},
+		{
+			name:          "unrelated client remains remote with aliases configured",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://chat.example.com",
+			serverOrigins: []string{"https://custom.example.com"},
+			want:          "https://app.example.com/chat/chat.example.com",
+		},
 		{
 			name:          "legacy subscription uses bundled client",
 			subscription:  &runtimestatev1.PushSubscription{},
@@ -664,7 +693,7 @@ func TestNavigationBaseURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := NavigationBaseURL(test.subscription, test.serverBaseURL); got != test.want {
+			if got := NavigationBaseURL(test.subscription, test.serverBaseURL, test.serverOrigins...); got != test.want {
 				t.Fatalf("NavigationBaseURL() = %q, want %q", got, test.want)
 			}
 		})
