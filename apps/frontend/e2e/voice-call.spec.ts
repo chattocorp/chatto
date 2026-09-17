@@ -366,14 +366,14 @@ test.describe('Voice calls', () => {
       await expect(page.getByTestId('call-join-button')).toBeVisible();
 
       // User A should see User B's display name in the participant list
-      await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
+      await expect(observerPanel.getByTitle(userB.displayName, { exact: true })).toBeVisible();
 
       // Simulate User B leaving — the open call tab falls back to its idle start-call state
       await page.request.post('/webhooks/test/call-leave', {
         data: { spaceId, roomId, userId: userB.id }
       });
 
-      await expect(observerPanel.getByTitle(userB.displayName)).not.toBeVisible({
+      await expect(observerPanel.getByTitle(userB.displayName, { exact: true })).not.toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       await expect(page.getByTestId('call-join-button')).toHaveText('Start call');
@@ -414,7 +414,7 @@ test.describe('Voice calls', () => {
         const observerPanel = page.getByTestId('call-observer-panel');
 
         await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-        await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
+        await expect(observerPanel.getByTitle(userB.displayName, { exact: true })).toBeVisible();
 
         // User C joins the call
         await page.request.post('/webhooks/test/call-join', {
@@ -428,20 +428,20 @@ test.describe('Voice calls', () => {
         });
 
         // Both participants should be visible
-        await expect(observerPanel.getByTitle(userC.displayName)).toBeVisible({
+        await expect(observerPanel.getByTitle(userC.displayName, { exact: true })).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await expect(observerPanel.getByTitle(userB.displayName)).toBeVisible();
+        await expect(observerPanel.getByTitle(userB.displayName, { exact: true })).toBeVisible();
 
         // User B leaves — User C should still be visible, panel still showing
         await page.request.post('/webhooks/test/call-leave', {
           data: { spaceId, roomId, userId: userB.id }
         });
 
-        await expect(observerPanel.getByTitle(userB.displayName)).not.toBeVisible({
+        await expect(observerPanel.getByTitle(userB.displayName, { exact: true })).not.toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await expect(observerPanel.getByTitle(userC.displayName)).toBeVisible();
+        await expect(observerPanel.getByTitle(userC.displayName, { exact: true })).toBeVisible();
         await expect(observerPanel).toBeVisible();
 
         // User C leaves — the open call tab falls back to its idle start-call state
@@ -449,7 +449,7 @@ test.describe('Voice calls', () => {
           data: { spaceId, roomId, userId: userC.id }
         });
 
-        await expect(observerPanel.getByTitle(userC.displayName)).not.toBeVisible({
+        await expect(observerPanel.getByTitle(userC.displayName, { exact: true })).not.toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
         await expect(page.getByTestId('call-join-button')).toHaveText('Start call');
@@ -543,7 +543,7 @@ test.describe('Voice calls', () => {
 
       const observerPanel = page2.getByTestId('call-observer-panel');
       await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(observerPanel.getByTitle(alice.displayName)).toBeVisible();
+      await expect(observerPanel.getByTitle(alice.displayName, { exact: true })).toBeVisible();
       await expect(page2.getByTestId('call-join-button')).toHaveText('Join call');
     });
   });
