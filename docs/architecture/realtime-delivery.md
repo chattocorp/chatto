@@ -263,7 +263,10 @@ bans, and unbans. Facts for a room that a caller never saw are suppressed.
 
 RBAC facts use normal public events in both live delivery and replay. Role
 creation, metadata changes, and ordering changes refresh role data without a
-full reload. Assignment and removal events name the user and role so member
+full reload. Role catalogue, individual role, and role-member reads wait for
+the committed RBAC boundary before reading their local projection. Thus a
+follow-up read can use a different replica from the realtime connection.
+Assignment and removal events name the user and role so member
 lists can update. Role permission events name only the role; direct user
 permission events go only to that viewer and contain no private decisions or
 scope IDs. Bots also receive a viewer permission event for changes to their

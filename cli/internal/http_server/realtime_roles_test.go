@@ -1,10 +1,11 @@
 package http_server
 
 import (
+	"testing"
+
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"testing"
 )
 
 func TestRealtimeRoleEventsDoNotExposePrivatePermissionDecisions(t *testing.T) {

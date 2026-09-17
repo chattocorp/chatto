@@ -380,6 +380,9 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 // GetRoleUsers returns all user IDs explicitly assigned to a role.
 // The implicit `everyone` role returns []; all authenticated users carry it.
 func (c *ChattoCore) GetRoleUsers(ctx context.Context, roleName string) ([]string, error) {
+	if err := c.waitForCurrentRoleState(ctx); err != nil {
+		return nil, err
+	}
 	if roleName == RoleEveryone {
 		return []string{}, nil
 	}
@@ -494,6 +497,9 @@ func (c *ChattoCore) GetUserServerPermissions(ctx context.Context, userID string
 // ListServerRoles returns all roles with their permissions.
 // Note: Admin roles are NOT special-cased - permissions are read from the RBAC projection.
 func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions, error) {
+	if err := c.waitForCurrentRoleState(ctx); err != nil {
+		return nil, err
+	}
 	roles := c.rbacModel.roles()
 	result := make([]RoleWithPermissions, 0, len(roles))
 	for _, role := range roles {
@@ -693,6 +699,9 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 // GetServerRole returns a single role by name.
 // Note: Admin roles are NOT special-cased - permissions are read from the RBAC projection.
 func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithPermissions, error) {
+	if err := c.waitForCurrentRoleState(ctx); err != nil {
+		return nil, err
+	}
 	role, ok := c.rbacModel.role(name)
 	if !ok {
 		return nil, ErrRoleNotFound
@@ -875,6 +884,25 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind 
 	}
 
 	return result, nil
+}
+
+// waitForCurrentRoleState makes role reads include facts already committed when
+// the request starts. A realtime update and its follow-up read can use different
+// replicas. Wait for the RBAC stream prefix, not unrelated content or effects.
+func (c *ChattoCore) waitForCurrentRoleState(ctx context.Context) error {
+	// Reads inside a content-view callback must use its already captured
+	// generation. Waiting there would prevent the projector from advancing.
+	if active, ok := ctx.Value(serverContentViewReadContextKey{}).(serverContentViewReadContext); ok && active.view == c.contentView {
+		return nil
+	}
+	position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+	if err != nil {
+		return fmt.Errorf("read role boundary: %w", err)
+	}
+	if err := c.rbacModel.waitFor(ctx, position); err != nil {
+		return fmt.Errorf("wait for role boundary: %w", err)
+	}
+	return nil
 }
 
 // RevokeAllUserRoles removes every role assignment for a user. Post-#330

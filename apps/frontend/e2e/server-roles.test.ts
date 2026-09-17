@@ -423,7 +423,13 @@ test.describe('Server Roles Management', () => {
         displayName: 'Updated Role Name',
         description: 'Updated description'
       });
-      await serverRolesPage.saveChangesButton.click();
+      const [saved] = await Promise.all([
+        page.waitForResponse((response) =>
+          response.url().endsWith('/chatto.admin.v1.AdminRoleService/UpdateRole')
+        ),
+        serverRolesPage.saveChangesButton.click()
+      ]);
+      expect(saved.ok()).toBe(true);
 
       // Verify changes persist after reload
       await page.reload();
