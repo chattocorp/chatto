@@ -98,6 +98,7 @@ it('includes volume controls in the remote user context menu', async () => {
   await expect.poll(() => document.querySelector('input[type="range"]')).not.toBeNull();
   expect(document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
   const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
+  expect(document.querySelectorAll('input[type="range"]')).toHaveLength(1);
   expect(input.max).toBe('200');
   input.value = '175';
   input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -126,8 +127,42 @@ it('opens the user menu and volume controls by right-clicking a media card', asy
   card.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(true);
   await expect.poll(() => document.querySelector('[data-testid="copy-user-id"]')).not.toBeNull();
-  expect(document.querySelectorAll('input[type="range"]')).toHaveLength(2);
+  expect(document.querySelectorAll('input[type="range"]')).toHaveLength(1);
+  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+  const change = vi.spyOn(call, 'setParticipantVolume');
+  const input = document.querySelector<HTMLInputElement>('input[type="range"]')!;
+  input.value = '60';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  expect(change).toHaveBeenCalledWith('dana', 'streamVolume', 60);
 });
+
+it.each(['sidebar', 'stage'] as const)(
+  'uses screen audio independently in the %s screen tile',
+  async (layout) => {
+    const screen = render(VoiceCallPanelStoryHarness, {
+      props: { layout, scenario: 'screen' }
+    });
+    await expect.element(screen.getByTestId('call-participant-panel')).toBeInTheDocument();
+    const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
+    const mic = vi
+      .spyOn(call, 'getAudioLevel')
+      .mockReturnValue({ isSpeaking: true, audioLevel: 0.5 });
+    const stream = vi.spyOn(call, 'getScreenShareAudioLevel').mockReturnValue(0);
+    const tile = screen.container.querySelector(
+      layout === 'stage'
+        ? '[data-testid="call-featured-stage-card"]'
+        : '[data-testid="call-screen-share-card"]'
+    )!;
+    const canvas = tile.querySelector<HTMLCanvasElement>('[data-testid="voice-activity"]')!;
+    await expect.poll(() => stream.mock.calls.length).toBeGreaterThan(1);
+    expect(canvas.dataset.active).toBe('false');
+    mic.mockReturnValue({ isSpeaking: false, audioLevel: 0 });
+    stream.mockReturnValue(0.5);
+    await expect.poll(() => canvas.dataset.active).toBe('true');
+    stream.mockReturnValue(0);
+    await expect.poll(() => canvas.dataset.active, { timeout: 3000 }).toBe('false');
+  }
+);
 
 it('keeps the current user menu free of listener volume controls', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {

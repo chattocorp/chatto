@@ -10,44 +10,36 @@
 
   let {
     settings,
+    source = 'voiceVolume',
     boostAvailable = true,
     onVolumeChange
   }: {
     settings: Readonly<ParticipantAudioPreferences>;
+    /** The card's audio source; each menu owns one volume control. */
+    source?: ParticipantVolumeControl;
     boostAvailable?: boolean;
     onVolumeChange: (control: ParticipantVolumeControl, value: number) => void;
   } = $props();
   const id = $props.id();
   const maximum = $derived(boostAvailable ? 200 : 100);
-  const voice = $derived(Math.min(maximum, settings.voiceVolume));
-  const stream = $derived(Math.min(maximum, settings.streamVolume));
+  const volume = $derived(Math.min(maximum, settings[source]));
 </script>
 
 <MenuSection>
   <p class="px-3 py-1 text-sm text-muted">{m('voice.participant_audio.local_only')}</p>
   <RangeField
-    id={`${id}-voice`}
-    label={m('voice.participant_audio.voice')}
-    value={voice}
-    displayValue={`${voice}%`}
+    id={`${id}-${source}`}
+    label={source === 'voiceVolume'
+      ? m('voice.participant_audio.voice')
+      : m('voice.participant_audio.stream')}
+    value={volume}
+    displayValue={`${volume}%`}
     min={0}
     max={maximum}
     step={5}
     ticks={[100]}
     oninput={(event) =>
-      onVolumeChange('voiceVolume', (event.currentTarget as HTMLInputElement).valueAsNumber)}
-  />
-  <RangeField
-    id={`${id}-stream`}
-    label={m('voice.participant_audio.stream')}
-    value={stream}
-    displayValue={`${stream}%`}
-    min={0}
-    max={maximum}
-    step={5}
-    ticks={[100]}
-    oninput={(event) =>
-      onVolumeChange('streamVolume', (event.currentTarget as HTMLInputElement).valueAsNumber)}
+      onVolumeChange(source, (event.currentTarget as HTMLInputElement).valueAsNumber)}
   />
   {#if !boostAvailable}
     <p class="px-3 py-1 text-sm text-muted">{m('voice.participant_audio.boost_unavailable')}</p>

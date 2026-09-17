@@ -49,3 +49,13 @@
     />
   </div>
 </Story>
+
+<Story name="Screen-share audio" asChild>
+  <div class="w-72 rounded-lg border border-border bg-surface p-2">
+    <ParticipantAudioControls
+      {settings}
+      source="streamVolume"
+      onVolumeChange={(control, value) => (settings = { ...settings, [control]: value })}
+    />
+  </div>
+</Story>

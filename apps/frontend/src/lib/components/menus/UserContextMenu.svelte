@@ -29,6 +29,7 @@ keep the compact menu without a navigation action.
   import { RoomKind } from '$lib/api-client/roomDirectory';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ParticipantAudioControls from '$lib/components/voice/ParticipantAudioControls.svelte';
+  import type { ParticipantVolumeControl } from '$lib/state/server/callPreferences.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
@@ -63,6 +64,7 @@ keep the compact menu without a navigation action.
     canBanFromRoom = false,
     banningFromRoom = false,
     viewerSettings,
+    audioSource = 'voiceVolume',
     onSendMessage,
     onBanFromRoom,
     onOpenProfile,
@@ -85,6 +87,8 @@ keep the compact menu without a navigation action.
     canBanFromRoom?: boolean;
     banningFromRoom?: boolean;
     viewerSettings?: ViewerTimeSettings | null;
+    /** Defaults to microphone controls; screen-share cards select streamVolume. */
+    audioSource?: ParticipantVolumeControl;
     onSendMessage?: () => void;
     onBanFromRoom?: () => void;
     onOpenProfile?: (userId: string) => void;
@@ -258,6 +262,7 @@ keep the compact menu without a navigation action.
 
   {#if audioParticipant}
     <ParticipantAudioControls
+      source={audioSource}
       settings={voiceCall.getParticipantAudio(audioParticipant.identity)}
       boostAvailable={voiceCall.audioBoostAvailable}
       onVolumeChange={(source, value) => voiceCall.setParticipantVolume(user.id, source, value)}

@@ -33,6 +33,7 @@ import {
   VoiceCallState
 } from './voiceCall.svelte';
 import { Room } from 'livekit-client';
+import { TrackAudioLevels } from '$lib/audio/trackAudioLevels';
 
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
@@ -1647,6 +1648,61 @@ describe('VoiceCallState', () => {
       state.participants.find((participant) => participant.identity === 'automation-bot')
     ).toMatchObject({ login: 'automation_bot', isBot: true });
   });
+
+  it.each(['local', 'remote', 'companion'])(
+    'meters the %s screen publisher independently of its microphone',
+    async (kind) => {
+      const media = { id: 'screen-audio' } as MediaStreamTrack;
+      const audio = {
+        isMuted: false,
+        track: { source: 'screen_share_audio', mediaStreamTrack: media }
+      };
+      const publications = [{ isMuted: false, track: { source: 'screen_share' } }, audio];
+      const remote = (identity: string, metadata = '{}') => ({
+        identity,
+        metadata,
+        name: identity,
+        connectionQuality: 'good',
+        isSpeaking: true,
+        audioLevel: 0.9,
+        setVolume: vi.fn(),
+        trackPublications: new Map(),
+        getTrackPublications: () =>
+          identity === 'remote-user' && kind === 'companion' ? [] : publications
+      });
+      if (kind === 'local') localTrackPublications = publications;
+      else {
+        mockRemoteParticipants.set('remote-user', remote('remote-user'));
+        if (kind === 'companion')
+          mockRemoteParticipants.set(
+            'publisher-1',
+            remote('publisher-1', '{"publisherKind":"game_share","ownerIdentity":"remote-user"}')
+          );
+      }
+      const sync = vi.spyOn(TrackAudioLevels.prototype, 'sync').mockImplementation(() => {});
+      const tracks = () => new Map(sync.mock.calls.at(-1)?.[1]);
+      const state = createPermittedCallState(createVoiceCallClient());
+      try {
+        await state.join('wss://livekit.example.test', 'R1');
+        const identity = kind === 'local' ? 'local-user' : 'remote-user';
+        expect(tracks().get(identity)).toBe(media);
+        expect(tracks().has('publisher-1')).toBe(false);
+        expect(state.getScreenShareAudioLevel(identity)).toBe(0);
+        audio.isMuted = true;
+        roomEventHandlers.get('TrackMuted')?.();
+        expect(tracks().size).toBe(0);
+        audio.isMuted = false;
+        roomEventHandlers.get('TrackUnmuted')?.();
+        expect(tracks().get(identity)).toBe(media);
+        publications.splice(1, 1);
+        roomEventHandlers.get('TrackUnsubscribed')?.({ detach: vi.fn() }, {});
+        expect(tracks().size).toBe(0);
+      } finally {
+        await state.leave();
+        sync.mockRestore();
+      }
+    }
+  );
 
   it('merges a companion screen-share publisher into its owning participant', async () => {
     const gameVideoTrack = { source: 'screen_share' };

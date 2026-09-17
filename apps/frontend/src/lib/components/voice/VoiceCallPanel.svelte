@@ -217,15 +217,17 @@ Room sidebar panel for voice/video calls.
 
   // User context menu popover
   let popoverParticipant = $state<DisplayParticipant | null>(null);
+  let popoverScreen = $state(false);
   let popoverAnchorRect = $state<{ top: number; bottom: number; left: number } | null>(null);
   let popoverPosition = $state<{ x: number; y: number } | undefined>();
   let popoverPresentation = $state<'auto' | 'sheet'>('auto');
 
-  function showUserMenu(participant: DisplayParticipant, e: MouseEvent) {
+  function showUserMenu(participant: DisplayParticipant, e: MouseEvent, screen = false) {
     const button = e.currentTarget as HTMLElement;
     const rect = button?.getBoundingClientRect();
     if (!rect) return;
     popoverParticipant = participant;
+    popoverScreen = screen;
     popoverPosition = undefined;
     popoverPresentation = 'auto';
     popoverAnchorRect = { top: rect.top, bottom: rect.bottom, left: rect.left };
@@ -233,9 +235,11 @@ Room sidebar panel for voice/video calls.
 
   function showParticipantContextMenu(
     participant: DisplayParticipant,
-    details: ContextMenuTriggerDetails
+    details: ContextMenuTriggerDetails,
+    screen = false
   ) {
     popoverParticipant = participant;
+    popoverScreen = screen;
     popoverAnchorRect = null;
     popoverPosition = details.position;
     popoverPresentation = details.presentation;
@@ -359,18 +363,24 @@ Room sidebar panel for voice/video calls.
   participant: DisplayParticipant,
   label: string,
   headerActions: 'media' | 'none',
-  showIndicators = true
+  showIndicators = true,
+  screen = false
 )}
   <UserCard
     name={label}
     username={participant.avatarUser.login}
-    voiceLevel={isInThisCall ? () => participantVoiceLevel(participant) : undefined}
+    voiceLevel={isInThisCall
+      ? () =>
+          screen
+            ? voiceCallState.getScreenShareAudioLevel(participant.key)
+            : participantVoiceLevel(participant)
+      : undefined}
     class="shrink-0"
-    identityAttributes={{ onclick: (e) => showUserMenu(participant, e) }}
+    identityAttributes={{ onclick: (e) => showUserMenu(participant, e, screen) }}
     menu={{
       label: m('room.sidebar.view_profile', { name: participant.displayName }),
-      onclick: (event) => showUserMenu(participant, event),
-      expanded: popoverParticipant?.key === participant.key,
+      onclick: (event) => showUserMenu(participant, event, screen),
+      expanded: popoverParticipant?.key === participant.key && popoverScreen === screen,
       testId: 'call-participant-menu-button'
     }}
   >
@@ -435,19 +445,22 @@ Room sidebar panel for voice/video calls.
     class={[callTileCardClass, 'participant-card-video col-span-full']}
     title={m('voice.screen_title', { name: participant.displayName })}
     data-testid="call-screen-share-card"
-    {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
+    {@attach contextMenuTrigger((details) =>
+      showParticipantContextMenu(participant, details, true)
+    )}
     data-call-media-card
   >
     {@render participantHeader(
       participant,
       m('voice.screen_title', { name: participant.displayName }),
       'media',
-      false
+      false,
+      true
     )}
     <button
       type="button"
       class={callTileMediaButtonClass}
-      onclick={(e) => showUserMenu(participant, e)}
+      onclick={(e) => showUserMenu(participant, e, true)}
     >
       <VideoThumbnail
         track={participant.screenShareTrack!}
@@ -470,7 +483,9 @@ Room sidebar panel for voice/video calls.
       ? m('voice.screen_title', { name: participant.displayName })
       : participantTitle(participant)}
     data-testid="call-featured-stage-card"
-    {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
+    {@attach contextMenuTrigger((details) =>
+      showParticipantContextMenu(participant, details, isScreen)
+    )}
     data-call-media-card={isScreen || isVideo ? true : undefined}
   >
     {@render participantHeader(
@@ -479,7 +494,8 @@ Room sidebar panel for voice/video calls.
         ? m('voice.screen_title', { name: participant.displayName })
         : participant.displayName,
       isScreen || isVideo ? 'media' : 'none',
-      true
+      !isScreen,
+      isScreen
     )}
     <button
       type="button"
@@ -488,7 +504,7 @@ Room sidebar panel for voice/video calls.
         'min-h-0 items-center justify-center',
         !isScreen && !isVideo && 'p-6'
       ]}
-      onclick={(e) => showUserMenu(participant, e)}
+      onclick={(e) => showUserMenu(participant, e, isScreen)}
     >
       {#if isScreen}
         <VideoThumbnail
@@ -692,6 +708,7 @@ Room sidebar panel for voice/video calls.
 
 {#if popoverParticipant && (popoverAnchorRect || popoverPosition)}
   <UserContextMenu
+    audioSource={popoverScreen ? 'streamVolume' : 'voiceVolume'}
     user={popoverParticipant.avatarUser}
     anchorRect={popoverAnchorRect}
     position={popoverPosition}
