@@ -184,8 +184,8 @@ func TestChattoCore_UpdateUserSettings_ClearTimezone(t *testing.T) {
 		t.Fatalf("UpdateUserSettings failed: %v", err)
 	}
 
-	if settings.Timezone != nil {
-		t.Errorf("Expected nil timezone after clearing, got %v", *settings.Timezone)
+	if settings.Timezone == nil || settings.GetTimezone() != "" {
+		t.Errorf("Expected explicit browser default after clearing, got %v", settings.Timezone)
 	}
 }
 

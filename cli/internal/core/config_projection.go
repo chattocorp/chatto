@@ -123,7 +123,10 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 		tz := e.UserTimezoneChanged.GetTimezone()
 		u.timezone = &tz
 	case *evtv1.Event_UserTimezoneCleared:
-		p.ensureUserLocked(e.UserTimezoneCleared.GetUserId()).timezone = nil
+		// Preserve an explicit browser-default choice separately from a user
+		// who has never set a time zone, so device reporting cannot replace it.
+		empty := ""
+		p.ensureUserLocked(e.UserTimezoneCleared.GetUserId()).timezone = &empty
 	case *evtv1.Event_UserTimezoneSharingChanged:
 		p.ensureUserLocked(e.UserTimezoneSharingChanged.GetUserId()).shareTimezone = e.UserTimezoneSharingChanged.GetShareTimezone()
 	case *evtv1.Event_UserTimeFormatChanged:

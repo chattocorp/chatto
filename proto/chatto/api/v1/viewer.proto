@@ -20,8 +20,9 @@ enum TimeFormat {
 
 // Server-level display settings for the authenticated user.
 message UserSettings {
-  // Optional IANA timezone override. Absent means the client should use the
-  // browser's local timezone.
+  // Optional IANA timezone override. Absent means no choice has been recorded.
+  // Empty means the user explicitly chose the browser's local timezone.
+  // Both use browser-local time; only absence permits automatic device reporting.
   optional string timezone = 1;
   // Preferred time format.
   TimeFormat time_format = 2;

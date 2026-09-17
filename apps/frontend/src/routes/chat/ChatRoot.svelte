@@ -210,7 +210,9 @@
       if (user.settings?.shareTimezone === undefined) continue;
       const key = `${server.id}:${user.id}`;
       if (!timezoneReports.begin(key)) continue;
-      if (user.settings?.timezone) {
+      // Empty means the user explicitly selected browser default. Only an
+      // absent preference permits automatic device reporting.
+      if (user.settings?.timezone != null) {
         continue;
       }
       const api = serverConnectionManager.getClient(server.id).getAPI(createAccountAPI);
@@ -221,7 +223,7 @@
           if (currentUser.user?.id !== user.id) return;
           if (!currentUser.user.settings) {
             currentUser.user = { ...currentUser.user, settings };
-          } else if (!currentUser.user.settings.timezone) {
+          } else if (currentUser.user.settings.timezone == null) {
             currentUser.user = {
               ...currentUser.user,
               settings: { ...currentUser.user.settings, timezone: settings.timezone ?? null }

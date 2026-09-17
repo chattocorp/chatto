@@ -1,5 +1,9 @@
 # Projection Inventory
 
+The config component uses snapshot contract `v3`. Timezone-clear events retain
+an empty optional value for an explicit browser-default choice. Older snapshots
+are rebuilt from EVT because they represented that choice as an absent value.
+
 Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/internal/core/server_content_view.go`](../../cli/internal/core/server_content_view.go), [`cli/internal/core/room_timeline_projection.go`](../../cli/internal/core/room_timeline_projection.go), [`cli/internal/core/room_timeline_hydrator.go`](../../cli/internal/core/room_timeline_hydrator.go), [`cli/internal/evtstream/reader.go`](../../cli/internal/evtstream/reader.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/component_projection.go`](../../pkg/events/component_projection.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/projectionsnapshot/cohort.go`](../../cli/internal/projectionsnapshot/cohort.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go), and [`proto/chatto/core/projection/v1`](../../proto/chatto/core/projection/v1)
 
 Projections are derived read models rebuilt from an event log. Most live in

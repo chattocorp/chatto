@@ -28,6 +28,25 @@ func newConfigProjectionUnderModel() (*ConfigProjection, *ConfigModel) {
 	return p, NewConfigModel(nil, detachedTestProjectionHandle(p))
 }
 
+func TestConfigProjection_PreservesExplicitBrowserTimezoneThroughSnapshot(t *testing.T) {
+	p, model := newConfigProjectionUnderModel()
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserTimezoneCleared{
+		UserTimezoneCleared: &evtv1.UserTimezoneClearedEvent{UserId: "viewer"},
+	}}, 1))
+	settings, ok := model.userSettings("viewer")
+	require.True(t, ok)
+	require.NotNil(t, settings.Timezone)
+	require.Empty(t, settings.GetTimezone())
+	payload, err := p.Snapshot()
+	require.NoError(t, err)
+	restored, restoredModel := newConfigProjectionUnderModel()
+	require.NoError(t, restored.Restore(payload))
+	settings, ok = restoredModel.userSettings("viewer")
+	require.True(t, ok)
+	require.NotNil(t, settings.Timezone)
+	require.Empty(t, settings.GetTimezone())
+}
+
 func TestConfigProjection_FreshState(t *testing.T) {
 	_, model := newConfigProjectionUnderModel()
 

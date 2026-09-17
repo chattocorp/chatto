@@ -68,7 +68,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 	}{
 		{assetSnapshotContractID, "v3", &projectionv1.AssetProjectionSnapshot{}},
 		{callStateSnapshotContractID, "v1", &projectionv1.CallStateProjectionSnapshot{}},
-		{configSnapshotContractID, "v2", &projectionv1.ConfigProjectionSnapshot{}},
+		{configSnapshotContractID, "v3", &projectionv1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &projectionv1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &projectionv1.MentionablesProjectionSnapshot{}},
 		{notificationDecisionSnapshotContractID, "v2", &projectionv1.NotificationDecisionProjectionSnapshot{}},
@@ -348,7 +348,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	}
 
 	expectedContractPrefix := map[string]string{
-		"room_directory": "v1-", "server_config": "v2-", "room_group_layout": "v1-",
+		"room_directory": "v1-", "server_config": "v3-", "room_group_layout": "v1-",
 		"notification_decisions": "v2-", "notifications": "v2-",
 		"room_timeline": "v8-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v2-", "mentionables": "v2-", "users": "v4-",

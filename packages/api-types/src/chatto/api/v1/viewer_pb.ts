@@ -57,8 +57,9 @@ proto3.util.setEnumType(TimeFormat, "chatto.api.v1.TimeFormat", [
  */
 export class UserSettings extends Message<UserSettings> {
   /**
-   * Optional IANA timezone override. Absent means the client should use the
-   * browser's local timezone.
+   * Optional IANA timezone override. Absent means no choice has been recorded.
+   * Empty means the user explicitly chose the browser's local timezone.
+   * Both use browser-local time; only absence permits automatic device reporting.
    *
    * @generated from field: optional string timezone = 1;
    */

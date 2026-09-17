@@ -56,7 +56,7 @@
   // Track if the form has been modified
   const isModified = $derived(
     settingsInitialized &&
-      ((selectedTimezone || null) !== (savedSettings?.timezone ?? null) ||
+      ((selectedTimezone || null) !== (savedSettings?.timezone || null) ||
         selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO) ||
         (savedSettings?.shareTimezone !== undefined &&
           shareTimezone !== savedSettings.shareTimezone))
@@ -99,7 +99,7 @@
 
     try {
       const input: UpdateSettingsInput = {};
-      if ((selectedTimezone || null) !== (savedSettings?.timezone ?? null)) {
+      if ((selectedTimezone || null) !== (savedSettings?.timezone || null)) {
         input.timezone = selectedTimezone || null;
       }
       if (selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO)) {
