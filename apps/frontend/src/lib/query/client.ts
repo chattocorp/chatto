@@ -43,7 +43,34 @@ export function serverQueryRoot(serverId: string): QueryKey {
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {
+  for (const query of queryClient.getQueryCache().findAll({ queryKey: serverQueryRoot(serverId) }))
+    query.reset();
   queryClient.removeQueries({ queryKey: serverQueryRoot(serverId) });
+}
+
+/** Refresh role and member snapshots after a public role event; retain other data. */
+export function refreshRoleQueries(serverId: string): void {
+  const filters = {
+    predicate: (query: { queryKey: QueryKey }) => {
+      const key = query.queryKey;
+      return (
+        key[0] === 'server' &&
+        key[1] === serverId &&
+        [
+          'roles',
+          'role',
+          'role-members',
+          'role-permissions',
+          'members',
+          'member',
+          'permission-tier'
+        ].includes(String(key[5]))
+      );
+    }
+  };
+  // An event can arrive during the first query load. Cancel that older read
+  // before invalidating so it cannot satisfy the refresh with pre-event data.
+  void queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
 }
 
 export function removeAdminQueries(serverId: string): void {
@@ -223,6 +250,7 @@ registerServerQueryCache({
   server: removeServerQueries,
   admin: removeAdminQueries,
   refreshAdmin: refreshAdminQueries,
+  roles: refreshRoleQueries,
   adminUser: removeAdminUserQueries,
   adminRoom: reconcileAdminRoomQueries,
   adminRoomGroups: reconcileAdminRoomGroupQueries

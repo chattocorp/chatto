@@ -10,6 +10,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
     afterNavigate: vi.fn(),
+    beforeNavigate: vi.fn(),
     onNavigate: vi.fn(),
     appUi: {
       setActiveRoomScope: vi.fn(),
@@ -26,6 +27,7 @@ const { mocks } = vi.hoisted(() => ({
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: mocks.afterNavigate,
+  beforeNavigate: mocks.beforeNavigate,
   goto: mocks.goto,
   onNavigate: mocks.onNavigate,
   pushState: vi.fn()

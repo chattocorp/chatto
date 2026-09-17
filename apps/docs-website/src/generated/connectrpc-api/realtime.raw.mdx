@@ -260,6 +260,47 @@ ReactionRemovedEvent reports a removed message reaction.
 
 
 
+<a id="chatto-realtime-v1-RoleAssignedEvent"></a>
+
+### RoleAssignedEvent
+
+A user was assigned a role. The named user's clients must discard private
+cached data and load current authorized state. Other viewers update member
+role lists without a full reload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User whose assignment changed. |
+| `role_name` | `string` | Stable role name. |
+
+
+
+<a id="chatto-realtime-v1-RoleCreatedEvent"></a>
+
+### RoleCreatedEvent
+
+A public role was created. Read its current metadata with RoleService.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+
+
+
+<a id="chatto-realtime-v1-RoleDeletedEvent"></a>
+
+### RoleDeletedEvent
+
+A role was deleted. Remove it from role catalogues and member role lists.
+Clients retaining this role for their viewer must discard private cached
+data and load current authorized state before displaying it again.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable name of the deleted role. |
+
+
+
 <a id="chatto-realtime-v1-RoleMessageMention"></a>
 
 ### RoleMessageMention
@@ -269,6 +310,60 @@ RoleMessageMention identifies the role that caused a mention.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role_name` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RolePermissionsChangedEvent"></a>
+
+### RolePermissionsChangedEvent
+
+A role's permission decisions changed. Clients whose viewer has this role
+must discard private cached data and load current authorized state. The
+implicit everyone role applies to every viewer. Private scopes and permission
+decisions are not included. Read current decisions through authorized APIs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+
+
+
+<a id="chatto-realtime-v1-RoleRevokedEvent"></a>
+
+### RoleRevokedEvent
+
+A user's role assignment was removed. The named user's clients must discard
+private cached data and load current authorized state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User whose assignment changed. |
+| `role_name` | `string` | Stable role name. |
+
+
+
+<a id="chatto-realtime-v1-RoleUpdatedEvent"></a>
+
+### RoleUpdatedEvent
+
+Public role metadata changed. Read its current metadata with RoleService.
+This event does not change permission decisions.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+
+
+
+<a id="chatto-realtime-v1-RolesReorderedEvent"></a>
+
+### RolesReorderedEvent
+
+Custom roles changed display order. Permission decisions are unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_names` | `repeated string` | Custom role names in ascending display position. |
 
 
 
@@ -527,6 +622,17 @@ a message in the same room or thread. No stop-typing event is sent.
 
 
 
+<a id="chatto-realtime-v1-ViewerPermissionsChangedEvent"></a>
+
+### ViewerPermissionsChangedEvent
+
+The authenticated viewer's permission decisions may have changed. This also
+covers changes to a bot's owner permission ceiling. Delivered only to the
+affected viewer. Discard private cached data and load current authorized
+state before displaying it again. The connection itself remains open.
+
+
+
 <a id="chatto-realtime-v1-ViewerPreferencesChangedEvent"></a>
 
 ### ViewerPreferencesChangedEvent
@@ -677,6 +783,14 @@ a snapshot or a ConnectRPC resource.
 | `event.notification_unread_state_changed` | [`NotificationUnreadStateChangedEvent`](#chatto-realtime-v1-NotificationUnreadStateChangedEvent) | No field description provided. |
 | `event.room_read_state_changed` | [`RoomReadStateChangedEvent`](#chatto-realtime-v1-RoomReadStateChangedEvent) | No field description provided. |
 | `event.room_layout_changed` | [`RoomLayoutChangedEvent`](#chatto-realtime-v1-RoomLayoutChangedEvent) | No field description provided. |
+| `event.role_created` | [`RoleCreatedEvent`](#chatto-realtime-v1-RoleCreatedEvent) | No field description provided. |
+| `event.role_updated` | [`RoleUpdatedEvent`](#chatto-realtime-v1-RoleUpdatedEvent) | No field description provided. |
+| `event.role_deleted` | [`RoleDeletedEvent`](#chatto-realtime-v1-RoleDeletedEvent) | No field description provided. |
+| `event.roles_reordered` | [`RolesReorderedEvent`](#chatto-realtime-v1-RolesReorderedEvent) | No field description provided. |
+| `event.role_assigned` | [`RoleAssignedEvent`](#chatto-realtime-v1-RoleAssignedEvent) | No field description provided. |
+| `event.role_revoked` | [`RoleRevokedEvent`](#chatto-realtime-v1-RoleRevokedEvent) | No field description provided. |
+| `event.role_permissions_changed` | [`RolePermissionsChangedEvent`](#chatto-realtime-v1-RolePermissionsChangedEvent) | No field description provided. |
+| `event.viewer_permissions_changed` | [`ViewerPermissionsChangedEvent`](#chatto-realtime-v1-ViewerPermissionsChangedEvent) | No field description provided. |
 
 
 

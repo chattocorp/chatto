@@ -453,8 +453,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.model.core.logger.Warn("Failed to unmarshal live RBAC event", "subject", msg.Subject, "error", err)
 			return true
 		}
-		// The protocol mapper turns this internal durable fact into a projection
-		// reset without exposing the RBAC payload.
+		// The protocol mapper emits public role events and viewer-only permission
+		// events without exposing private permission scopes or decisions.
 		h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), int64(len(msg.Data)))
 		return false
 	}

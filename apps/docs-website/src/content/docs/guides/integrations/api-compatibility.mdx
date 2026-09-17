@@ -91,6 +91,12 @@ Public payload field numbers are independent from stored EVT payloads. The
 optional cursor uses a separate field. Integrations must regenerate their
 clients for the dedicated realtime payload messages.
 
+Role changes now use normal realtime events instead of closing every client's
+connection. Update role and member displays from these events. When an event
+can affect your viewer's permissions, clear private cached data before loading
+current state. Follow the [role-event handling rules](/guides/integrations/realtime-protocol/#handle-errors-and-reconnects).
+This changes the unreleased protocol 4 behavior; it does not add a new protocol version.
+
 The `chatto.realtime.v1` protobuf package name does not select behavioral
 protocol version 1. The `RealtimeSubscribe.protocol_version` field selects the complete
 required behavior. Chatto does not publish a separate capability matrix for

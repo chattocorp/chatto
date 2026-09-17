@@ -1,3 +1,4 @@
+import { runResetHandlers } from '$lib/state/server/resetHandlers';
 type ServerCacheRemover = (serverId: string) => void;
 type AdminUserCacheRemover = (serverId: string, userId: string) => void;
 type AdminUserRemovalListener = (serverId: string, userId: string) => void;
@@ -32,6 +33,7 @@ type RoomMemberQueryCache = {
 let removeServerCache: ServerCacheRemover | undefined;
 let removeAdminCache: ServerCacheRemover | undefined;
 let refreshAdminCache: ServerCacheRemover | undefined;
+let refreshRoleCache: ServerCacheRemover | undefined;
 let removeAdminUserCache: AdminUserCacheRemover | undefined;
 let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
 let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
@@ -46,6 +48,7 @@ export function registerServerQueryCache(removers: {
   server: ServerCacheRemover;
   admin: ServerCacheRemover;
   refreshAdmin: ServerCacheRemover;
+  roles?: ServerCacheRemover;
   adminUser: AdminUserCacheRemover;
   adminRoom: AdminRoomQueryReconciler;
   adminRoomGroups: AdminRoomGroupQueryReconciler;
@@ -53,9 +56,15 @@ export function registerServerQueryCache(removers: {
   removeServerCache = removers.server;
   removeAdminCache = removers.admin;
   refreshAdminCache = removers.refreshAdmin;
+  refreshRoleCache = removers.roles;
   removeAdminUserCache = removers.adminUser;
   reconcileAdminRoomCache = removers.adminRoom;
   reconcileAdminRoomGroupCache = removers.adminRoomGroups;
+}
+
+/** Refresh role displays without invalidating the viewer's private-data generation. */
+export function refreshRegisteredRoleQueries(serverId: string): void {
+  refreshRoleCache?.(serverId);
 }
 
 /** Register the followed-thread snapshot cache without loading it into the server store bundle. */
@@ -120,10 +129,13 @@ export function updateRegisteredFollowedThreadSummary(
 }
 
 /** Purge cached private reads when a server session is disposed. */
-export function removeRegisteredServerQueries(serverId: string): void {
-  for (const listener of queryCacheRemovalListeners) listener(serverId);
-  for (const listener of serverQueryCacheRemovalListeners) listener(serverId);
-  removeServerCache?.(serverId);
+export function removeRegisteredServerQueries(serverId: string): boolean {
+  runResetHandlers([
+    ...[...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners].map(
+      (listener) => () => listener(serverId)
+    )
+  ]);
+  return runResetHandlers([() => removeServerCache?.(serverId)]);
 }
 
 /** Purge cached admin reads as soon as their authorization may have changed. */
@@ -134,7 +146,7 @@ export function removeRegisteredAdminQueries(serverId: string): void {
 
 /** Refetch mounted admin reads without discarding their stable render geometry. */
 export function refreshRegisteredAdminQueries(serverId: string): void {
-  for (const listener of queryCacheRemovalListeners) listener(serverId);
+  runResetHandlers([...queryCacheRemovalListeners].map((listener) => () => listener(serverId)));
   refreshAdminCache?.(serverId);
 }
 

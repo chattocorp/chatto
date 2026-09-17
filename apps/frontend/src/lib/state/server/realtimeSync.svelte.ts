@@ -26,6 +26,8 @@ export class RealtimeProjectionSyncState {
   #authorizationRefreshGeneration = 0;
   #completedAuthorizationRefreshGeneration = 0;
   #caughtUpGeneration = 0;
+  /** Changes when the retained data is discarded, including during event delivery. */
+  resetGeneration = 0;
   #catchUpWaiters = new SvelteSet<CatchUpWaiter>();
 
   get resumeCursor(): string | null {
@@ -121,6 +123,7 @@ export class RealtimeProjectionSyncState {
   }
 
   reset(): void {
+    this.resetGeneration++;
     this.phase = 'empty';
     this.lastCaughtUpAt = null;
     this.#resumeCursor = null;

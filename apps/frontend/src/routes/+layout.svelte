@@ -1,6 +1,7 @@
 <script lang="ts">
   import { initialPageReveal } from '$lib/attachments/initialPageReveal';
-  import { afterNavigate, goto } from '$app/navigation';
+  import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
+  import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
@@ -34,6 +35,7 @@
 
   setAuthServerInfo(() => data.serverInfo);
   const appUi = provideAppUiState();
+  beforeNavigate(() => navigationVisits.leave());
   useVisualViewport();
   usePinchZoomPrevention();
 

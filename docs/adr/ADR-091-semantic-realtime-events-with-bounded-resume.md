@@ -168,12 +168,18 @@ when replay would exceed the scan limit.
 
 The server applies current authorization, deletion, and erasure state during
 resume. When the cursor is missing, invalid, expired, from another stream
-incarnation, unsafe after an authorization change, or outside the configured
+incarnation, unsafe to replay, or outside the configured
 work budget, the server uses the subscription's requested fallback. A
 `SNAPSHOT` subscription receives current state. A `LIVE_ONLY` subscription
 starts at the current boundary. The `caught_up.recovery` value reports
 `RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`. A successful replay with zero events
 reports `RESUMED`; a live-only fallback does not claim to have repaired a gap.
+
+Role and permission changes have public semantic events in both live delivery
+and replay. Clients update role displays normally and discard private data
+only when an event can affect their viewer's permissions. The server does not
+force every client to reconnect for every RBAC fact. Direct-user permission
+events contain no private decisions and go only to that viewer.
 
 Resume uses the existing handoff pattern:
 

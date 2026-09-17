@@ -3,6 +3,7 @@ import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
+import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
 
 type RegisteredState = { reauthRequiredAt: number | null };
 
@@ -11,6 +12,7 @@ const { mocks } = vi.hoisted(() => ({
     goto: vi.fn(),
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
+      realtimeSync: null as RealtimeProjectionSyncState | null,
       currentUser: {
         loading: false,
         user: { id: 'viewer-1' }
@@ -74,9 +76,27 @@ import Layout from './+layout.svelte';
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.servers = new SvelteMap([['origin', { reauthRequiredAt: null }]]);
+  mocks.store.realtimeSync = new RealtimeProjectionSyncState();
+  mocks.store.realtimeSync.markCaughtUp('ready');
 });
 
 describe('server route authentication privacy', () => {
+  it('hides private content throughout a reset and failed reconnect', async () => {
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<main data-testid="private-route">Private data</main>') }
+    });
+    expect(container.querySelector('[data-testid="private-route"]')).not.toBeNull();
+    mocks.store.realtimeSync!.reset();
+    await tick();
+    expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
+    mocks.store.realtimeSync!.beginCatchUp();
+    mocks.store.realtimeSync!.markStale();
+    await tick();
+    expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
+    mocks.store.realtimeSync!.markCaughtUp('replacement');
+    await tick();
+    expect(container.querySelector('[data-testid="private-route"]')).not.toBeNull();
+  });
   it('unmounts private route content when reauthentication becomes required', async () => {
     const { container } = render(Layout, {
       props: {

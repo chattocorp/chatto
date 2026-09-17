@@ -65,6 +65,40 @@ func TestWaitForRealtimeCursorBringsAnotherReplicaToTheResourceBoundary(t *testi
 	}
 }
 
+func TestRealtimeReplayKeepsRoleChangesAsEvents(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "role-replay", "Role Replay", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := chatto.CreateServerRole(ctx, SystemActorID, "helper", "Helper", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := chatto.AssignServerRole(ctx, SystemActorID, viewer.GetId(), "helper"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), before.BoundaryCursor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Reset {
+		t.Fatal("role events forced a snapshot")
+	}
+	var created, assigned bool
+	for _, event := range after.Events {
+		created = created || event.EVTEvent().GetRbacRoleCreated() != nil
+		assigned = assigned || event.EVTEvent().GetRbacRoleAssigned() != nil
+	}
+	if !created || !assigned {
+		t.Fatal("role changes missing from replay")
+	}
+}
+
 func TestRealtimeCursorRoundTrip(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	identity := "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

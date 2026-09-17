@@ -632,6 +632,14 @@ type RealtimeEvent struct {
 	//	*RealtimeEvent_NotificationUnreadStateChanged
 	//	*RealtimeEvent_RoomReadStateChanged
 	//	*RealtimeEvent_RoomLayoutChanged
+	//	*RealtimeEvent_RoleCreated
+	//	*RealtimeEvent_RoleUpdated
+	//	*RealtimeEvent_RoleDeleted
+	//	*RealtimeEvent_RolesReordered
+	//	*RealtimeEvent_RoleAssigned
+	//	*RealtimeEvent_RoleRevoked
+	//	*RealtimeEvent_RolePermissionsChanged
+	//	*RealtimeEvent_ViewerPermissionsChanged
 	Event         isRealtimeEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1053,6 +1061,78 @@ func (x *RealtimeEvent) GetRoomLayoutChanged() *RoomLayoutChangedEvent {
 	return nil
 }
 
+func (x *RealtimeEvent) GetRoleCreated() *RoleCreatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoleCreated); ok {
+			return x.RoleCreated
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRoleUpdated() *RoleUpdatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoleUpdated); ok {
+			return x.RoleUpdated
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRoleDeleted() *RoleDeletedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoleDeleted); ok {
+			return x.RoleDeleted
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRolesReordered() *RolesReorderedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RolesReordered); ok {
+			return x.RolesReordered
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRoleAssigned() *RoleAssignedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoleAssigned); ok {
+			return x.RoleAssigned
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRoleRevoked() *RoleRevokedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoleRevoked); ok {
+			return x.RoleRevoked
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRolePermissionsChanged() *RolePermissionsChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RolePermissionsChanged); ok {
+			return x.RolePermissionsChanged
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetViewerPermissionsChanged() *ViewerPermissionsChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_ViewerPermissionsChanged); ok {
+			return x.ViewerPermissionsChanged
+		}
+	}
+	return nil
+}
+
 type isRealtimeEvent_Event interface {
 	isRealtimeEvent_Event()
 }
@@ -1213,6 +1293,38 @@ type RealtimeEvent_RoomLayoutChanged struct {
 	RoomLayoutChanged *RoomLayoutChangedEvent `protobuf:"bytes,59,opt,name=room_layout_changed,json=roomLayoutChanged,proto3,oneof"`
 }
 
+type RealtimeEvent_RoleCreated struct {
+	RoleCreated *RoleCreatedEvent `protobuf:"bytes,60,opt,name=role_created,json=roleCreated,proto3,oneof"`
+}
+
+type RealtimeEvent_RoleUpdated struct {
+	RoleUpdated *RoleUpdatedEvent `protobuf:"bytes,61,opt,name=role_updated,json=roleUpdated,proto3,oneof"`
+}
+
+type RealtimeEvent_RoleDeleted struct {
+	RoleDeleted *RoleDeletedEvent `protobuf:"bytes,62,opt,name=role_deleted,json=roleDeleted,proto3,oneof"`
+}
+
+type RealtimeEvent_RolesReordered struct {
+	RolesReordered *RolesReorderedEvent `protobuf:"bytes,63,opt,name=roles_reordered,json=rolesReordered,proto3,oneof"`
+}
+
+type RealtimeEvent_RoleAssigned struct {
+	RoleAssigned *RoleAssignedEvent `protobuf:"bytes,64,opt,name=role_assigned,json=roleAssigned,proto3,oneof"`
+}
+
+type RealtimeEvent_RoleRevoked struct {
+	RoleRevoked *RoleRevokedEvent `protobuf:"bytes,65,opt,name=role_revoked,json=roleRevoked,proto3,oneof"`
+}
+
+type RealtimeEvent_RolePermissionsChanged struct {
+	RolePermissionsChanged *RolePermissionsChangedEvent `protobuf:"bytes,66,opt,name=role_permissions_changed,json=rolePermissionsChanged,proto3,oneof"`
+}
+
+type RealtimeEvent_ViewerPermissionsChanged struct {
+	ViewerPermissionsChanged *ViewerPermissionsChangedEvent `protobuf:"bytes,67,opt,name=viewer_permissions_changed,json=viewerPermissionsChanged,proto3,oneof"`
+}
+
 func (*RealtimeEvent_RoomCreated) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomUpdated) isRealtimeEvent_Event() {}
@@ -1290,6 +1402,22 @@ func (*RealtimeEvent_NotificationUnreadStateChanged) isRealtimeEvent_Event() {}
 func (*RealtimeEvent_RoomReadStateChanged) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomLayoutChanged) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoleCreated) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoleUpdated) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoleDeleted) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RolesReordered) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoleAssigned) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoleRevoked) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RolePermissionsChanged) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_ViewerPermissionsChanged) isRealtimeEvent_Event() {}
 
 // Application-level heartbeat.
 type RealtimeHeartbeat struct {
@@ -1440,7 +1568,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"l\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12@\n" +
-	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xc9 \n" +
+	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xf7%\n" +
 	"\rRealtimeEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1487,7 +1615,15 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	" notification_occurrences_changed\x188 \x01(\v27.chatto.realtime.v1.NotificationOccurrencesChangedEventH\x00R\x1enotificationOccurrencesChanged\x12\x84\x01\n" +
 	"!notification_unread_state_changed\x189 \x01(\v27.chatto.realtime.v1.NotificationUnreadStateChangedEventH\x00R\x1enotificationUnreadStateChanged\x12f\n" +
 	"\x17room_read_state_changed\x18: \x01(\v2-.chatto.realtime.v1.RoomReadStateChangedEventH\x00R\x14roomReadStateChanged\x12\\\n" +
-	"\x13room_layout_changed\x18; \x01(\v2*.chatto.realtime.v1.RoomLayoutChangedEventH\x00R\x11roomLayoutChangedB\a\n" +
+	"\x13room_layout_changed\x18; \x01(\v2*.chatto.realtime.v1.RoomLayoutChangedEventH\x00R\x11roomLayoutChanged\x12I\n" +
+	"\frole_created\x18< \x01(\v2$.chatto.realtime.v1.RoleCreatedEventH\x00R\vroleCreated\x12I\n" +
+	"\frole_updated\x18= \x01(\v2$.chatto.realtime.v1.RoleUpdatedEventH\x00R\vroleUpdated\x12I\n" +
+	"\frole_deleted\x18> \x01(\v2$.chatto.realtime.v1.RoleDeletedEventH\x00R\vroleDeleted\x12R\n" +
+	"\x0froles_reordered\x18? \x01(\v2'.chatto.realtime.v1.RolesReorderedEventH\x00R\x0erolesReordered\x12L\n" +
+	"\rrole_assigned\x18@ \x01(\v2%.chatto.realtime.v1.RoleAssignedEventH\x00R\froleAssigned\x12I\n" +
+	"\frole_revoked\x18A \x01(\v2$.chatto.realtime.v1.RoleRevokedEventH\x00R\vroleRevoked\x12k\n" +
+	"\x18role_permissions_changed\x18B \x01(\v2/.chatto.realtime.v1.RolePermissionsChangedEventH\x00R\x16rolePermissionsChanged\x12q\n" +
+	"\x1aviewer_permissions_changed\x18C \x01(\v21.chatto.realtime.v1.ViewerPermissionsChangedEventH\x00R\x18viewerPermissionsChangedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idB\t\n" +
 	"\a_cursorJ\x04\b#\x10.R\x12room_group_createdR\x12room_group_updatedR\x12room_group_deletedR\x13room_added_to_groupR\x17room_removed_from_groupR\x18rooms_in_group_reorderedR\x1bsidebar_link_added_to_groupR\x14sidebar_link_updatedR\x1fsidebar_link_removed_from_groupR\x1fsidebar_group_entries_reorderedR\x15room_groups_reordered\";\n" +
@@ -1591,7 +1727,15 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*NotificationUnreadStateChangedEvent)(nil), // 52: chatto.realtime.v1.NotificationUnreadStateChangedEvent
 	(*RoomReadStateChangedEvent)(nil),           // 53: chatto.realtime.v1.RoomReadStateChangedEvent
 	(*RoomLayoutChangedEvent)(nil),              // 54: chatto.realtime.v1.RoomLayoutChangedEvent
-	(*durationpb.Duration)(nil),                 // 55: google.protobuf.Duration
+	(*RoleCreatedEvent)(nil),                    // 55: chatto.realtime.v1.RoleCreatedEvent
+	(*RoleUpdatedEvent)(nil),                    // 56: chatto.realtime.v1.RoleUpdatedEvent
+	(*RoleDeletedEvent)(nil),                    // 57: chatto.realtime.v1.RoleDeletedEvent
+	(*RolesReorderedEvent)(nil),                 // 58: chatto.realtime.v1.RolesReorderedEvent
+	(*RoleAssignedEvent)(nil),                   // 59: chatto.realtime.v1.RoleAssignedEvent
+	(*RoleRevokedEvent)(nil),                    // 60: chatto.realtime.v1.RoleRevokedEvent
+	(*RolePermissionsChangedEvent)(nil),         // 61: chatto.realtime.v1.RolePermissionsChangedEvent
+	(*ViewerPermissionsChangedEvent)(nil),       // 62: chatto.realtime.v1.ViewerPermissionsChangedEvent
+	(*durationpb.Duration)(nil),                 // 63: google.protobuf.Duration
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	0,  // 0: chatto.realtime.v1.RealtimeSubscribe.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
@@ -1646,13 +1790,21 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	52, // 49: chatto.realtime.v1.RealtimeEvent.notification_unread_state_changed:type_name -> chatto.realtime.v1.NotificationUnreadStateChangedEvent
 	53, // 50: chatto.realtime.v1.RealtimeEvent.room_read_state_changed:type_name -> chatto.realtime.v1.RoomReadStateChangedEvent
 	54, // 51: chatto.realtime.v1.RealtimeEvent.room_layout_changed:type_name -> chatto.realtime.v1.RoomLayoutChangedEvent
-	2,  // 52: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
-	55, // 53: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
-	54, // [54:54] is the sub-list for method output_type
-	54, // [54:54] is the sub-list for method input_type
-	54, // [54:54] is the sub-list for extension type_name
-	54, // [54:54] is the sub-list for extension extendee
-	0,  // [0:54] is the sub-list for field type_name
+	55, // 52: chatto.realtime.v1.RealtimeEvent.role_created:type_name -> chatto.realtime.v1.RoleCreatedEvent
+	56, // 53: chatto.realtime.v1.RealtimeEvent.role_updated:type_name -> chatto.realtime.v1.RoleUpdatedEvent
+	57, // 54: chatto.realtime.v1.RealtimeEvent.role_deleted:type_name -> chatto.realtime.v1.RoleDeletedEvent
+	58, // 55: chatto.realtime.v1.RealtimeEvent.roles_reordered:type_name -> chatto.realtime.v1.RolesReorderedEvent
+	59, // 56: chatto.realtime.v1.RealtimeEvent.role_assigned:type_name -> chatto.realtime.v1.RoleAssignedEvent
+	60, // 57: chatto.realtime.v1.RealtimeEvent.role_revoked:type_name -> chatto.realtime.v1.RoleRevokedEvent
+	61, // 58: chatto.realtime.v1.RealtimeEvent.role_permissions_changed:type_name -> chatto.realtime.v1.RolePermissionsChangedEvent
+	62, // 59: chatto.realtime.v1.RealtimeEvent.viewer_permissions_changed:type_name -> chatto.realtime.v1.ViewerPermissionsChangedEvent
+	2,  // 60: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
+	63, // 61: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
+	62, // [62:62] is the sub-list for method output_type
+	62, // [62:62] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -1709,6 +1861,14 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeEvent_NotificationUnreadStateChanged)(nil),
 		(*RealtimeEvent_RoomReadStateChanged)(nil),
 		(*RealtimeEvent_RoomLayoutChanged)(nil),
+		(*RealtimeEvent_RoleCreated)(nil),
+		(*RealtimeEvent_RoleUpdated)(nil),
+		(*RealtimeEvent_RoleDeleted)(nil),
+		(*RealtimeEvent_RolesReordered)(nil),
+		(*RealtimeEvent_RoleAssigned)(nil),
+		(*RealtimeEvent_RoleRevoked)(nil),
+		(*RealtimeEvent_RolePermissionsChanged)(nil),
+		(*RealtimeEvent_ViewerPermissionsChanged)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

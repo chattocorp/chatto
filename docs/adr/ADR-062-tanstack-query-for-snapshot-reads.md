@@ -2,6 +2,8 @@
 
 **Date:** 2026-07-31
 
+**Updated:** 2026-09-17
+
 ## Status
 
 Accepted
@@ -42,6 +44,13 @@ The cache has the following boundaries:
 - Mutations update or invalidate only explicitly related keys. Mutation
   completion is fenced to the server, connection, and resource that initiated
   it so a late result cannot update a reused route's next resource.
+- Private-data resets and navigation completion have separate lifetimes.
+  A connection generation rejects obsolete API response data. A page-visit
+  token decides whether a successful request may navigate. Reset-driven route
+  removal does not end the visit; user navigation and session replacement do.
+  Completion runs outside the component's mutation observer so observer
+  removal cannot lose a successful role create/delete navigation. A discarded
+  response can report success without exposing its old data.
 - Authorization or visibility loss must remove affected private results when
   it can occur without disposing the whole server store. Invalidating them for
   a later refetch is not a sufficient privacy fence. Active observers are

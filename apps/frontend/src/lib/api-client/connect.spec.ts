@@ -2,7 +2,43 @@
 
 import { Code, ConnectError } from '@connectrpc/connect';
 import { describe, expect, it, vi } from 'vitest';
-import { bearerRenewalInterceptor } from './connect';
+import { bearerRenewalInterceptor, dataGenerationInterceptor, StaleResponseError } from './connect';
+
+describe('private data response boundary', () => {
+  it('discards a delayed read while allowing another connection to finish', async () => {
+    let generation = 0;
+    let finish!: (value: unknown) => void;
+    const next = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const request = { method: { name: 'GetMember' } };
+    const result = dataGenerationInterceptor(() => generation)(next as never)(request as never);
+    const rejected = expect(result).rejects.toMatchObject({ mutationSucceeded: false });
+    generation++;
+    finish({ message: { secret: 'old' } });
+    await rejected;
+    const response = { message: { current: true } };
+    await expect(
+      dataGenerationInterceptor(() => 0)(vi.fn().mockResolvedValue(response))(request as never)
+    ).resolves.toBe(response);
+  });
+
+  it('reports obsolete mutation success without exposing its response body', async () => {
+    let generation = 0;
+    const next = vi.fn(async () => {
+      generation++;
+      return { message: { secret: 'old' } };
+    });
+    await expect(
+      dataGenerationInterceptor(() => generation)(next as never)({
+        method: { name: 'CreateRole' }
+      } as never)
+    ).rejects.toEqual(new StaleResponseError(true));
+  });
+});
 
 describe('bearerRenewalInterceptor', () => {
   it('rotates and retries one unauthenticated unary request with the new token', async () => {

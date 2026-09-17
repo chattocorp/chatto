@@ -44,6 +44,354 @@ proto3.util.setEnumType(AssetProcessingFailureCode, "chatto.realtime.v1.AssetPro
 ]);
 
 /**
+ * A public role was created. Read its current metadata with RoleService.
+ *
+ * @generated from message chatto.realtime.v1.RoleCreatedEvent
+ */
+export class RoleCreatedEvent extends Message<RoleCreatedEvent> {
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string role_name = 1;
+   */
+  roleName = "";
+
+  constructor(data?: PartialMessage<RoleCreatedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoleCreatedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleCreatedEvent {
+    return new RoleCreatedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoleCreatedEvent {
+    return new RoleCreatedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoleCreatedEvent {
+    return new RoleCreatedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoleCreatedEvent | PlainMessage<RoleCreatedEvent> | undefined, b: RoleCreatedEvent | PlainMessage<RoleCreatedEvent> | undefined): boolean {
+    return proto3.util.equals(RoleCreatedEvent, a, b);
+  }
+}
+
+/**
+ * Public role metadata changed. Read its current metadata with RoleService.
+ * This event does not change permission decisions.
+ *
+ * @generated from message chatto.realtime.v1.RoleUpdatedEvent
+ */
+export class RoleUpdatedEvent extends Message<RoleUpdatedEvent> {
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string role_name = 1;
+   */
+  roleName = "";
+
+  constructor(data?: PartialMessage<RoleUpdatedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoleUpdatedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleUpdatedEvent {
+    return new RoleUpdatedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoleUpdatedEvent {
+    return new RoleUpdatedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoleUpdatedEvent {
+    return new RoleUpdatedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoleUpdatedEvent | PlainMessage<RoleUpdatedEvent> | undefined, b: RoleUpdatedEvent | PlainMessage<RoleUpdatedEvent> | undefined): boolean {
+    return proto3.util.equals(RoleUpdatedEvent, a, b);
+  }
+}
+
+/**
+ * A role was deleted. Remove it from role catalogues and member role lists.
+ * Clients retaining this role for their viewer must discard private cached
+ * data and load current authorized state before displaying it again.
+ *
+ * @generated from message chatto.realtime.v1.RoleDeletedEvent
+ */
+export class RoleDeletedEvent extends Message<RoleDeletedEvent> {
+  /**
+   * Stable name of the deleted role.
+   *
+   * @generated from field: string role_name = 1;
+   */
+  roleName = "";
+
+  constructor(data?: PartialMessage<RoleDeletedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoleDeletedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleDeletedEvent {
+    return new RoleDeletedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoleDeletedEvent {
+    return new RoleDeletedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoleDeletedEvent {
+    return new RoleDeletedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoleDeletedEvent | PlainMessage<RoleDeletedEvent> | undefined, b: RoleDeletedEvent | PlainMessage<RoleDeletedEvent> | undefined): boolean {
+    return proto3.util.equals(RoleDeletedEvent, a, b);
+  }
+}
+
+/**
+ * Custom roles changed display order. Permission decisions are unchanged.
+ *
+ * @generated from message chatto.realtime.v1.RolesReorderedEvent
+ */
+export class RolesReorderedEvent extends Message<RolesReorderedEvent> {
+  /**
+   * Custom role names in ascending display position.
+   *
+   * @generated from field: repeated string role_names = 1;
+   */
+  roleNames: string[] = [];
+
+  constructor(data?: PartialMessage<RolesReorderedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RolesReorderedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RolesReorderedEvent {
+    return new RolesReorderedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RolesReorderedEvent {
+    return new RolesReorderedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RolesReorderedEvent {
+    return new RolesReorderedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RolesReorderedEvent | PlainMessage<RolesReorderedEvent> | undefined, b: RolesReorderedEvent | PlainMessage<RolesReorderedEvent> | undefined): boolean {
+    return proto3.util.equals(RolesReorderedEvent, a, b);
+  }
+}
+
+/**
+ * A user was assigned a role. The named user's clients must discard private
+ * cached data and load current authorized state. Other viewers update member
+ * role lists without a full reload.
+ *
+ * @generated from message chatto.realtime.v1.RoleAssignedEvent
+ */
+export class RoleAssignedEvent extends Message<RoleAssignedEvent> {
+  /**
+   * User whose assignment changed.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string role_name = 2;
+   */
+  roleName = "";
+
+  constructor(data?: PartialMessage<RoleAssignedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoleAssignedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleAssignedEvent {
+    return new RoleAssignedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoleAssignedEvent {
+    return new RoleAssignedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoleAssignedEvent {
+    return new RoleAssignedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoleAssignedEvent | PlainMessage<RoleAssignedEvent> | undefined, b: RoleAssignedEvent | PlainMessage<RoleAssignedEvent> | undefined): boolean {
+    return proto3.util.equals(RoleAssignedEvent, a, b);
+  }
+}
+
+/**
+ * A user's role assignment was removed. The named user's clients must discard
+ * private cached data and load current authorized state.
+ *
+ * @generated from message chatto.realtime.v1.RoleRevokedEvent
+ */
+export class RoleRevokedEvent extends Message<RoleRevokedEvent> {
+  /**
+   * User whose assignment changed.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string role_name = 2;
+   */
+  roleName = "";
+
+  constructor(data?: PartialMessage<RoleRevokedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoleRevokedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleRevokedEvent {
+    return new RoleRevokedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoleRevokedEvent {
+    return new RoleRevokedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoleRevokedEvent {
+    return new RoleRevokedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoleRevokedEvent | PlainMessage<RoleRevokedEvent> | undefined, b: RoleRevokedEvent | PlainMessage<RoleRevokedEvent> | undefined): boolean {
+    return proto3.util.equals(RoleRevokedEvent, a, b);
+  }
+}
+
+/**
+ * A role's permission decisions changed. Clients whose viewer has this role
+ * must discard private cached data and load current authorized state. The
+ * implicit everyone role applies to every viewer. Private scopes and permission
+ * decisions are not included. Read current decisions through authorized APIs.
+ *
+ * @generated from message chatto.realtime.v1.RolePermissionsChangedEvent
+ */
+export class RolePermissionsChangedEvent extends Message<RolePermissionsChangedEvent> {
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string role_name = 1;
+   */
+  roleName = "";
+
+  constructor(data?: PartialMessage<RolePermissionsChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RolePermissionsChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RolePermissionsChangedEvent {
+    return new RolePermissionsChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RolePermissionsChangedEvent {
+    return new RolePermissionsChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RolePermissionsChangedEvent {
+    return new RolePermissionsChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RolePermissionsChangedEvent | PlainMessage<RolePermissionsChangedEvent> | undefined, b: RolePermissionsChangedEvent | PlainMessage<RolePermissionsChangedEvent> | undefined): boolean {
+    return proto3.util.equals(RolePermissionsChangedEvent, a, b);
+  }
+}
+
+/**
+ * The authenticated viewer's permission decisions may have changed. This also
+ * covers changes to a bot's owner permission ceiling. Delivered only to the
+ * affected viewer. Discard private cached data and load current authorized
+ * state before displaying it again. The connection itself remains open.
+ *
+ * @generated from message chatto.realtime.v1.ViewerPermissionsChangedEvent
+ */
+export class ViewerPermissionsChangedEvent extends Message<ViewerPermissionsChangedEvent> {
+  constructor(data?: PartialMessage<ViewerPermissionsChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.ViewerPermissionsChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerPermissionsChangedEvent {
+    return new ViewerPermissionsChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ViewerPermissionsChangedEvent {
+    return new ViewerPermissionsChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ViewerPermissionsChangedEvent {
+    return new ViewerPermissionsChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ViewerPermissionsChangedEvent | PlainMessage<ViewerPermissionsChangedEvent> | undefined, b: ViewerPermissionsChangedEvent | PlainMessage<ViewerPermissionsChangedEvent> | undefined): boolean {
+    return proto3.util.equals(ViewerPermissionsChangedEvent, a, b);
+  }
+}
+
+/**
  * RoomCreatedEvent reports a new room that is visible to the caller.
  *
  * @generated from message chatto.realtime.v1.RoomCreatedEvent
