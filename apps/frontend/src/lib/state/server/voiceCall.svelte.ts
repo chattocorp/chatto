@@ -282,6 +282,7 @@ export class VoiceCallState {
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- deliberately non-reactive, polled imperatively at 60Hz
   private audioLevelCache = new Map<string, AudioLevelInfo>();
   private screenAudioLevels = new TrackAudioLevels();
+  private remoteMicrophoneAudioLevels = new TrackAudioLevels();
   private microphoneAudioLevels = new TrackAudioLevels();
 
   // Local microphone audio analysis (Web Audio API) for instant level feedback.
@@ -1378,6 +1379,7 @@ export class VoiceCallState {
     if (!this.room) {
       this.participants = [];
       this.screenAudioLevels.clear();
+      this.remoteMicrophoneAudioLevels.clear();
       return;
     }
 
@@ -1397,6 +1399,7 @@ export class VoiceCallState {
     this.applyAllParticipantAudioVolumes();
 
     const screenAudioTracks: Array<readonly [string, MediaStreamTrack]> = [];
+    const microphoneAudioTracks: Array<readonly [string, MediaStreamTrack]> = [];
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
       const isLocal = p === this.room!.localParticipant;
@@ -1407,6 +1410,12 @@ export class VoiceCallState {
         getParticipantScreenShareTrack(p) ??
         (companion ? getParticipantScreenShareTrack(companion) : null);
       const { Track } = getLoadedLiveKit();
+      const microphone = p
+        .getTrackPublications()
+        .find((publication) => publication.track?.source === Track.Source.Microphone);
+      if (!isLocal && microphone?.track?.mediaStreamTrack && !microphone.isMuted) {
+        microphoneAudioTracks.push([p.identity, microphone.track.mediaStreamTrack]);
+      }
       // Match the publisher that supplies the visible screen tile.
       const screenPublisher = getParticipantScreenShareTrack(p) ? p : companion;
       const audio = screenPublisher
@@ -1432,6 +1441,7 @@ export class VoiceCallState {
         isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
     });
+    this.remoteMicrophoneAudioLevels.sync(this.playbackContext, microphoneAudioTracks);
     this.screenAudioLevels.sync(this.playbackContext, screenAudioTracks);
   }
 
@@ -1487,6 +1497,7 @@ export class VoiceCallState {
   private updateAudioLevels(): void {
     if (!this.room) return;
     this.screenAudioLevels.sample();
+    this.remoteMicrophoneAudioLevels.sample();
 
     this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? -60);
     if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
@@ -1498,7 +1509,6 @@ export class VoiceCallState {
       : this.microphoneAudioLevels.has('microphone')
         ? this.microphoneAudioLevels.get('microphone')
         : (this.microphoneProcessor?.level ?? 0);
-    const localAudioLevel = Math.min(inputLevel * 2, 1);
     this.microphoneLevel = microphoneMeter(inputLevel);
 
     const allParticipants: Participant[] = [
@@ -1510,9 +1520,12 @@ export class VoiceCallState {
 
     for (const p of allParticipants) {
       const isLocal = p === this.room!.localParticipant;
+      // Meter decoded audio before listener gain, using the same RMS scale as
+      // local capture. Server speaker updates are too sparse for animation.
+      const audioLevel = isLocal ? inputLevel : this.remoteMicrophoneAudioLevels.get(p.identity);
       this.audioLevelCache.set(p.identity, {
-        isSpeaking: isLocal ? inputLevel > 0.000316 : p.isSpeaking,
-        audioLevel: isLocal ? localAudioLevel : p.audioLevel
+        isSpeaking: audioLevel > 0.000316,
+        audioLevel
       });
     }
   }
@@ -1606,6 +1619,7 @@ export class VoiceCallState {
       this.room = null;
     }
     this.screenAudioLevels.clear();
+    this.remoteMicrophoneAudioLevels.clear();
     this.microphoneAudioLevels.clear();
     if (this.playbackContext) void this.playbackContext.close().catch(() => undefined);
     this.playbackContext = null;

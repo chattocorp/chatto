@@ -326,7 +326,7 @@ The 60 ms call sampler updates non-reactive RMS levels for screen tiles.
 Track replacement, mute, unsubscription, and call cleanup disconnect meter
 nodes without stopping the media tracks. Meter nodes do not connect to playback.
 
-Call state also owns a raw microphone meter through `TrackAudioLevels`, using
-the same AudioContext and sampling timer. Capture replacement reconnects the
-meter; call cleanup disconnects it. See [FDR-016](../fdr/FDR-016-voice-calls.md)
+Call state also owns raw local and received microphone meters through
+`TrackAudioLevels`, using the same AudioContext and sampling timer. Track
+replacement reconnects the meters; call cleanup disconnects them. See [FDR-016](../fdr/FDR-016-voice-calls.md)
 for microphone warnings and voice activity behavior.

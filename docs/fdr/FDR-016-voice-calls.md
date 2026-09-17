@@ -182,7 +182,10 @@ Rooms support real-time voice conversations with optional camera video and scree
 ### 5. Voice activity fills the identity row
 
 **Decision:** Soft, flowing accent-coloured fog illuminates each speaking
-participant's identity row. Microphone volume controls the fog's brightness,
+participant's identity row. Local capture and received microphone audio use the
+same measured amplitude scale. Remote levels come from decoded audio before
+listener volume or local mute, rather than server speaker-status updates.
+Unavailable or unsubscribed remote audio has no glow. Microphone volume controls the fog's brightness,
 spread, and movement speed. Quiet speech produces a gentle drift; louder speech
 moves the fog faster. Three translucent layers of broad wisps move independently
 and overlap. Animated simplex noise gives them uneven density and shape.
