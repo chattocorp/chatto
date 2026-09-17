@@ -90,7 +90,9 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Camera selection does not start video. Joining muted does not request
   microphone access merely to list devices. Browser support controls whether
   a speaker can be selected.
-- Device choices use radio controls. During a local test, output changes keep
+- Device choices use compact dropdowns so long device lists do not expand the
+  settings page. The controls follow the app's depth preference where browser
+  support permits. During a local test, output changes keep
   capture active. A failed explicit output selection stops the test instead of
   silently playing through another device. An explicit local microphone test shows
   an input meter and plays the microphone immediately through the selected

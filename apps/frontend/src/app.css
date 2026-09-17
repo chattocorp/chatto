@@ -676,6 +676,57 @@
   @apply input resize-none;
 }
 
+/* Plain-text native options remain usable when customizable pickers are unavailable. */
+@utility select-control {
+  @apply input max-w-full min-w-0 cursor-pointer text-base;
+  @apply control-raised bg-surface;
+  text-overflow: ellipsis;
+
+  @supports (appearance: base-select) {
+    appearance: base-select;
+
+    &::picker(select) {
+      appearance: base-select;
+      @apply floating-frame rounded-lg border border-input-border p-1 text-base text-text shadow-lg;
+      min-inline-size: anchor-size(self-inline);
+      max-inline-size: calc(100dvw - 2rem);
+      max-block-size: min(20rem, 60dvh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    &::picker-icon {
+      @apply ms-auto shrink-0 text-muted;
+    }
+
+    & option {
+      @apply flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-text;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    & option:checked {
+      @apply bg-surface-selected;
+    }
+
+    & option:not(:disabled):hover {
+      @apply bg-surface-emphasized;
+    }
+
+    & option:focus-visible {
+      @apply outline-2 -outline-offset-2 outline-action;
+    }
+
+    & option::checkmark {
+      @apply shrink-0 text-action;
+    }
+
+    & option:disabled {
+      @apply cursor-not-allowed text-muted;
+    }
+  }
+}
+
 /* Fast, symmetric feedback for menu, navigation, and selection controls.
  * Each control keeps its own transition properties; timing is shared here.
  */

@@ -105,7 +105,8 @@ a side stripe or cast shadow for navigation selection.
 | ----------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | Committed text action or button-like link | `Button` from `$lib/ui/form`                                               | Rebuilding `btn-*` recipes in feature code                   |
 | Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField` | Raw controls unless the interaction is genuinely specialized |
-| One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
+| Short, visible settings choice list        | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
+| Compact choice from a long or variable list | `Select`                                                                 | Expanding every device or option into a separate row          |
 | Compact one-of-many mode                  | `SegmentedControl`                                                         | Separate buttons or independently styled chips               |
 | Selectable non-table collection           | `selectable-list` and `selectable-list-item`                               | Feature-local hover recipes                                  |
 | Newest-first activity record              | `ActivityListRow` inside `selectable-list`                                 | Repeating row, unread, pending, and action-shell recipes     |
@@ -126,6 +127,17 @@ a side stripe or cast shadow for navigation selection.
 | Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
 | Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
 | Loading image                             | `SkeletonImg`                                                              | `<img class="skeleton">`                                     |
+
+`Select` uses a native control and plain-text options. The shared
+`select-control` utility styles the picker where `appearance: base-select`
+is supported. Other browsers keep their platform picker. Long menus scroll
+and long option labels wrap within the viewport. The closed control uses
+`control-raised`; the picker uses `floating-frame`. Both follow the depth
+preference. Option rows keep flat selection and hover fills. Use `bind:value` for local
+form values. Use `value` with `onValueChange` when the caller must apply a
+change before it becomes the committed selection. The callback owns error
+feedback; the control blocks further changes while pending and restores the
+caller's value after completion or failure.
 
 `Checkbox` and `ChoiceRow` use the same option-row shape and selected fill.
 Use the square check indicator for an independent boolean setting. Use the

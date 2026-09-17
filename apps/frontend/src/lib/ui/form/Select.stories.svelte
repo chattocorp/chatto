@@ -36,6 +36,14 @@
   let v1 = $state('public');
   let v2 = $state('');
   let v3 = $state('');
+  let device = $state('device-12');
+  const devices = [
+    { value: '', label: 'System default' },
+    ...Array.from({ length: 30 }, (_, index) => ({
+      value: `device-${index}`,
+      label: `Studio audio interface ${index + 1} — Virtual conference and recording microphone with a long device name`
+    }))
+  ];
 </script>
 
 <Story
@@ -49,6 +57,30 @@
 >
   <div class="max-w-md">
     <Select id="visibility" label="Visibility" options={visibility} bind:value={v1} />
+  </div>
+</Story>
+
+<Story name="Many devices and long labels" asChild>
+  <div class="w-full max-w-md">
+    <Select id="many-devices" label="Microphone" options={devices} bind:value={device} />
+  </div>
+</Story>
+
+<Story name="Flat" asChild>
+  <div class="max-w-md" style="--depth-strength: 0; --depth-width: 0">
+    <Select id="flat-role" label="Role" options={role} value="member" />
+  </div>
+</Story>
+
+<Story name="Kinda 3D" asChild>
+  <div class="max-w-md" style="--depth-strength: 1; --depth-width: 1">
+    <Select id="raised-role" label="Role" options={role} value="member" />
+  </div>
+</Story>
+
+<Story name="Very 3D" asChild>
+  <div class="max-w-md" style="--depth-strength: 1.75; --depth-width: 1.5">
+    <Select id="very-raised-role" label="Role" options={role} value="member" />
   </div>
 </Story>
 

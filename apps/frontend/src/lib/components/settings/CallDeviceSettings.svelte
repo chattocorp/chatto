@@ -3,9 +3,9 @@
   import MicrophoneProcessing from './MicrophoneProcessing.svelte';
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import { ChoiceRow, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
-  import { Button, Checkbox } from '$lib/ui/form';
+  import { Button, Checkbox, Select } from '$lib/ui/form';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import { CallDeviceTest } from '$lib/state/server/callDeviceTest.svelte';
 
@@ -128,46 +128,29 @@
   <div class="flex flex-col gap-6">
     <Panel title={m('voice.devices')} icon="iconify icon-[uil--headphones]">
       <div class="flex max-w-xl flex-col gap-5">
-        <div>
-          <h3 class="mb-2 font-medium">{m('voice.microphone')}</h3>
-          <div role="radiogroup" aria-label={m('voice.microphone')} class="flex flex-col gap-2">
-            {#each options('audioinput', preferences.microphone) as option (option.value)}
-              <ChoiceRow
-                label={option.label}
-                selected={preferences.microphone === option.value}
-                onclick={() => select('audioinput', option.value)}
-              />
-            {/each}
-          </div>
-        </div>
-        <div>
-          <h3 class="mb-2 font-medium">{m('voice.speaker')}</h3>
-          <div role="radiogroup" aria-label={m('voice.speaker')} class="flex flex-col gap-2">
-            {#each options('audiooutput', preferences.speaker) as option (option.value)}
-              <ChoiceRow
-                label={option.label}
-                selected={preferences.speaker === option.value}
-                disabled={!outputSupported}
-                onclick={() => select('audiooutput', option.value)}
-              />
-            {/each}
-          </div>
-          {#if !outputSupported}<p class="mt-2 text-muted">
-              {m('voice.preferences.output_unsupported')}
-            </p>{/if}
-        </div>
-        <div>
-          <h3 class="mb-2 font-medium">{m('voice.camera')}</h3>
-          <div role="radiogroup" aria-label={m('voice.camera')} class="flex flex-col gap-2">
-            {#each options('videoinput', preferences.camera) as option (option.value)}
-              <ChoiceRow
-                label={option.label}
-                selected={preferences.camera === option.value}
-                onclick={() => select('videoinput', option.value)}
-              />
-            {/each}
-          </div>
-        </div>
+        <Select
+          id="call-microphone"
+          label={m('voice.microphone')}
+          options={options('audioinput', preferences.microphone)}
+          value={preferences.microphone}
+          onValueChange={(value) => select('audioinput', value)}
+        />
+        <Select
+          id="call-speaker"
+          label={m('voice.speaker')}
+          options={options('audiooutput', preferences.speaker)}
+          value={preferences.speaker}
+          disabled={!outputSupported}
+          description={!outputSupported ? m('voice.preferences.output_unsupported') : undefined}
+          onValueChange={(value) => select('audiooutput', value)}
+        />
+        <Select
+          id="call-camera"
+          label={m('voice.camera')}
+          options={options('videoinput', preferences.camera)}
+          value={preferences.camera}
+          onValueChange={(value) => select('videoinput', value)}
+        />
         {#if deviceError}<Hint>{m('voice.media_device_failed')}</Hint>{/if}
       </div>
     </Panel>
