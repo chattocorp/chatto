@@ -25,6 +25,7 @@ vi.mock('$app/paths', () => ({
       .replace('[serverId]', params?.serverId ?? '')
       .replace('[roomId]', params?.roomId ?? '')
       .replace('[threadId]', params?.threadId ?? '')
+      .replace('[messageId]', params?.messageId ?? '')
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -110,6 +111,27 @@ function reaction(
 describe('MessageMetaBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('links the Echo badge to the room message route on its server', async () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        serverSegment: 'chat.example.test',
+        channelEchoEventId: 'echo-1',
+        edited: true
+      }
+    });
+
+    const link = q(container, 'a[href="/chat/chat.example.test/room-1/m/echo-1"]')!;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.textContent?.trim()).toBe('Echo');
+    expect(link.previousElementSibling?.textContent).toContain('Edited');
+
+    const parentTouch = vi.fn();
+    container.addEventListener('touchstart', parentTouch);
+    link.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    expect(parentTouch).not.toHaveBeenCalled();
   });
 
   it('renders the reply count badge as a native thread link', async () => {

@@ -99,6 +99,8 @@
         "copy_link": "复制链接"
       },
       "meta": {
+        "echo": "回声",
+        "edited_short": "已编辑",
         "pinned": "已置顶消息",
         "thread": "话题串",
         "edited": "已编辑的消息",

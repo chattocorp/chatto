@@ -411,7 +411,8 @@
     (isEcho && !!onOpenThread) ||
       (hasThread && !!onOpenThread) ||
       (msg?.reactions?.length ?? 0) > 0 ||
-      isPinned
+      isPinned ||
+      ((isEdited || isEchoedToChannel) && !isDeleted)
   );
 
   // Check if current user is mentioned (but not by themselves)
@@ -582,8 +583,6 @@
     missingActorIsDeleted={deletedActor}
     body={msg.body}
     deleted={isDeleted}
-    edited={isEdited}
-    echoedToChannel={isEchoedToChannel}
     viewerLogin={currentUser.user?.login}
     {compact}
     avatarOffset={!!replyPreview}
@@ -700,6 +699,10 @@
           serverSegment={serverIdToSegment(activeServerId)}
           {threadRootEventId}
           reactions={msg?.reactions ?? []}
+          edited={isEdited && !isDeleted}
+          channelEchoEventId={isEchoedToChannel && !isDeleted
+            ? messageEvent?.channelEchoEventId
+            : null}
           action={actionModel}
           replyCount={messageEvent?.replyCount}
           threadExists={messageEvent?.threadExists}

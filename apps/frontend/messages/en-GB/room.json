@@ -99,6 +99,8 @@
         "copy_link": "Copy link"
       },
       "meta": {
+        "echo": "Echo",
+        "edited_short": "Edited",
         "pinned": "Pinned message",
         "thread": "Thread",
         "edited": "Edited message",

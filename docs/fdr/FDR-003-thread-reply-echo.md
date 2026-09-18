@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-09-17
+**Last reviewed:** 2026-09-18
 
 ## Overview
 
@@ -19,7 +19,11 @@ conversation**.
   policy change rejects the command on retry, neither is posted. A successful
   send cannot omit the requested echo.
 - The checkbox resets to unchecked after each successful send.
-- A thread reply with an echo shows a megaphone icon after its text. The icon is not a control. It updates when the echo is added or removed.
+- A thread reply with an echo shows a megaphone icon and an **Echo** link in
+  its metadata row, after **Edited** when present and before reactions. The
+  label uses a direct translation in other languages. Selecting the link
+  opens the parent room, jumps to the echo, and highlights it. The link updates
+  when the echo is added or removed.
 - The echo in the room timeline shows a "Thread" indicator below the body; clicking it opens the thread.
 - If the original reply was attributed to a specific message, the echo shows the same reply-attribution byline. Clicking the byline on the echo opens the thread and highlights the referenced message inside it.
 - Editing or deleting the original reply automatically affects the echo too — edit/delete events target the original reply, and read models apply the change to the linked echo.

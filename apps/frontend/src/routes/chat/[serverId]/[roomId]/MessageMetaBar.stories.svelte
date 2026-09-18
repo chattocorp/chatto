@@ -37,6 +37,22 @@
   <MessageMetaBarStoryFrame variant="thread-echo" />
 </Story>
 
+<Story name="Edited thread echo" asChild>
+  <MessageMetaBarStoryFrame variant="edited-thread-echo" />
+</Story>
+
+<Story name="Edited only" asChild>
+  <MessageMetaBarStoryFrame variant="edited-only" />
+</Story>
+
+<Story name="Echoed to channel" asChild>
+  <MessageMetaBarStoryFrame variant="echoed-to-channel" />
+</Story>
+
+<Story name="Edited and echoed to channel" asChild>
+  <MessageMetaBarStoryFrame variant="edited-and-echoed-to-channel" />
+</Story>
+
 <Story name="Read-only reactions" asChild>
   <MessageMetaBarStoryFrame variant="read-only-reactions" />
 </Story>

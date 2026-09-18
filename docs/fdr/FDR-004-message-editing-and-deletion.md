@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-18
 
 ## Overview
 
@@ -25,7 +25,9 @@ attachments and initially leave a "[Message deleted]" placeholder.
   authorized and do not return surrounding message state.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
-- Edited messages show a pen icon after their text. The icon is not a control.
+- Edited timeline messages show a pen icon and an **Edited** label in their
+  metadata row, after thread controls and before the echo link and reactions.
+  This label is not a control and is hidden for deleted messages.
 - Deletions remove the message body and all attachments. The client removes the
   row immediately when no visible context remains.
 - Attachment bytes are deleted only when the durable asset owner is the exact message being changed; a duplicate reference left by an older vulnerable server is removed without damaging the owning message.

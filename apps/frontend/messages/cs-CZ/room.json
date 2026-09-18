@@ -99,6 +99,8 @@
         "copy_link": "Zkopírujte odkaz"
       },
       "meta": {
+        "echo": "Ozvěna",
+        "edited_short": "Upraveno",
         "pinned": "Připnutá zpráva",
         "thread": "Závit",
         "edited": "Zpráva upravena",

@@ -99,6 +99,8 @@
         "copy_link": "リンクをコピー"
       },
       "meta": {
+        "echo": "エコー",
+        "edited_short": "編集済み",
         "pinned": "ピン留めされたメッセージ",
         "thread": "スレッド",
         "edited": "編集済みメッセージ",

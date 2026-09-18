@@ -14,6 +14,10 @@
     | 'replies-and-reactions'
     | 'unread-followed-thread'
     | 'thread-echo'
+    | 'edited-thread-echo'
+    | 'edited-only'
+    | 'echoed-to-channel'
+    | 'edited-and-echoed-to-channel'
     | 'read-only-reactions'
     | 'short-reaction-popover'
     | 'high-count-reaction-popover';
@@ -167,7 +171,18 @@
       onOpenThread={noop}
       onOpenEmojiPicker={noop}
     />
-  {:else if variant === 'thread-echo'}
+  {:else if variant === 'edited-only'}
+    <MessageMetaBar {roomId} {serverSegment} reactions={[]} edited />
+  {:else if variant === 'echoed-to-channel' || variant === 'edited-and-echoed-to-channel'}
+    <MessageMetaBar
+      {roomId}
+      {serverSegment}
+      reactions={variant === 'echoed-to-channel' ? [] : reactions}
+      {action}
+      edited={variant === 'edited-and-echoed-to-channel'}
+      channelEchoEventId="evt-channel-echo"
+    />
+  {:else if variant === 'thread-echo' || variant === 'edited-thread-echo'}
     <MessageMetaBar
       {roomId}
       {serverSegment}
@@ -175,6 +190,7 @@
       reactions={reactions.slice(0, 1)}
       {action}
       isEchoEvent
+      edited={variant === 'edited-thread-echo'}
       onOpenThread={noop}
       onOpenEmojiPicker={noop}
     />
