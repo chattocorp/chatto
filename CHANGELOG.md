@@ -3,6 +3,32 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.3](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.2...v0.5.0-beta.3) (2026-09-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **members:** cache profiles and retain room member lists ([#2444](https://github.com/chattocorp/chatto/issues/2444))
+
+### Features
+
+* **frontend:** add message status badges and echo navigation ([#2442](https://github.com/chattocorp/chatto/issues/2442)) ([168197c](https://github.com/chattocorp/chatto/commit/168197cdfac3a837ba4b727ec342a87f3dc039d6))
+
+
+### Bug Fixes
+
+* **frontend:** align typing indicator avatars ([#2440](https://github.com/chattocorp/chatto/issues/2440)) ([c65307f](https://github.com/chattocorp/chatto/commit/c65307fccb29b296d2e538b452945164743700a0))
+* **frontend:** preserve composer selection during reactive updates ([#2445](https://github.com/chattocorp/chatto/issues/2445)) ([cbca5d9](https://github.com/chattocorp/chatto/commit/cbca5d94c53e422a08609e87b9f67e28a7253ef2))
+* **frontend:** soften selected header button highlights ([#2443](https://github.com/chattocorp/chatto/issues/2443)) ([417963b](https://github.com/chattocorp/chatto/commit/417963b2663f28cbd1db0f567c4af6f5818e1034))
+* **frontend:** truncate MOTD and open full Markdown in a modal ([#2447](https://github.com/chattocorp/chatto/issues/2447)) ([41db1c3](https://github.com/chattocorp/chatto/commit/41db1c386961557d551f7f0c14f517b34f893b2a))
+* **kms:** retry missing keys after brief KV visibility lag ([#2439](https://github.com/chattocorp/chatto/issues/2439)) ([84c60f7](https://github.com/chattocorp/chatto/commit/84c60f71af19eb21bfd58b4fabfe67ae986fe4a9))
+
+
+### Performance Improvements
+
+* **members:** cache profiles and retain room member lists ([#2444](https://github.com/chattocorp/chatto/issues/2444)) ([7d4910c](https://github.com/chattocorp/chatto/commit/7d4910c26c59108998bb8685fb9b1d0647ca2280))
+* **members:** load online members independently of the full directory ([#2446](https://github.com/chattocorp/chatto/issues/2446)) ([c0ce126](https://github.com/chattocorp/chatto/commit/c0ce1261563c287e9be802d9258e6500e4ea27ea))
+
 ## [0.5.0-beta.2](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.1...v0.5.0-beta.2) (2026-09-18)
 
 
