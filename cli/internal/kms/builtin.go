@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -187,11 +188,34 @@ func decodeCallKeyRecord(keyRef string, data []byte) ([]byte, error) {
 	return append([]byte(nil), stored.GetKey()...), nil
 }
 
+// getEntry retries missing keys to tolerate brief KV follower lag. Reads remain
+// eventually consistent: a successful result can still precede a deletion.
+// The three retries add at most 85 ms of waiting, plus KV request time.
+func (b *Builtin) getEntry(ctx context.Context, keyRef string) (jetstream.KeyValueEntry, error) {
+	delays := [...]time.Duration{10 * time.Millisecond, 25 * time.Millisecond, 50 * time.Millisecond}
+	for attempt := 0; ; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		entry, err := b.kv.Get(ctx, keyPath(keyRef))
+		if !errors.Is(err, jetstream.ErrKeyNotFound) || attempt == len(delays) {
+			return entry, err
+		}
+		timer := time.NewTimer(delays[attempt])
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
 func (b *Builtin) getKey(ctx context.Context, keyRef string) ([]byte, error) {
 	if err := ValidateKeyRef(keyRef); err != nil {
 		return nil, err
 	}
-	entry, err := b.kv.Get(ctx, keyPath(keyRef))
+	entry, err := b.getEntry(ctx, keyRef)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -250,7 +274,7 @@ func (b *Builtin) KeyExists(ctx context.Context, keyRef string) (bool, error) {
 	if err := ValidateKeyRef(keyRef); err != nil {
 		return false, err
 	}
-	_, err := b.kv.Get(ctx, keyPath(keyRef))
+	_, err := b.getEntry(ctx, keyRef)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return false, nil
@@ -292,7 +316,7 @@ func (b *Builtin) GetCallKey(ctx context.Context, keyRef string) (string, error)
 	if err := ValidateCallKeyRef(keyRef); err != nil {
 		return "", err
 	}
-	entry, err := b.kv.Get(ctx, keyPath(keyRef))
+	entry, err := b.getEntry(ctx, keyRef)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return "", encryption.ErrKeyNotFound
@@ -310,7 +334,7 @@ func (b *Builtin) CallKeyExists(ctx context.Context, keyRef string) (bool, error
 	if err := ValidateCallKeyRef(keyRef); err != nil {
 		return false, err
 	}
-	_, err := b.kv.Get(ctx, keyPath(keyRef))
+	_, err := b.getEntry(ctx, keyRef)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return false, nil
