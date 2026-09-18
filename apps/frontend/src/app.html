@@ -207,9 +207,11 @@
     <!-- Critical startup styles must work before the application CSS downloads. -->
     <style>
       #app-loading {
-        /* Match the theme tokens even before the application stylesheet arrives. */
+        /* Keep startup colours available before the application stylesheet arrives. */
         --loading-background: #f3f4f6;
-        --loading-highlight: #dadde2;
+        --loading-highlight: #9ca3af;
+        --loading-first-strength: 55%;
+        --loading-second-strength: 40%;
         --loading-text: #4b5563;
         display: grid;
         place-items: center;
@@ -223,6 +225,8 @@
       :root[data-theme='dark'] #app-loading {
         --loading-background: #171717;
         --loading-highlight: #404040;
+        --loading-first-strength: 45%;
+        --loading-second-strength: 33%;
         --loading-text: #d4d4d4;
       }
       #app-loading > span {
@@ -244,18 +248,14 @@
         background:
           radial-gradient(
             ellipse at var(--loading-first-x, 35%) var(--loading-first-y, 40%),
-            color-mix(
-              in srgb,
-              var(--color-surface-emphasized, var(--loading-highlight)) 75%,
-              transparent
-            ),
+            color-mix(in srgb, var(--loading-highlight) var(--loading-first-strength), transparent),
             transparent var(--loading-first-size, 50%)
           ),
           radial-gradient(
             ellipse at var(--loading-second-x, 65%) var(--loading-second-y, 60%),
             color-mix(
               in srgb,
-              var(--color-surface-emphasized, var(--loading-highlight)) 55%,
+              var(--loading-highlight) var(--loading-second-strength),
               transparent
             ),
             transparent var(--loading-second-size, 50%)
