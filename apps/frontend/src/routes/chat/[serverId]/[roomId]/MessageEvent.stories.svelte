@@ -17,6 +17,10 @@
   <MessageRowStoryFrame variant="plain" />
 </Story>
 
+<Story name="Mobile video attachment" asChild>
+  <MessageRowStoryFrame variant="mobile-video" />
+</Story>
+
 <Story name="Message with meta bar" asChild>
   <MessageRowStoryFrame variant="with-meta-bar" />
 </Story>
