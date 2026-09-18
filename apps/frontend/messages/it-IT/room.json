@@ -99,6 +99,8 @@
         "copy_link": "Copia collegamento"
       },
       "meta": {
+        "echo": "Eco",
+        "edited_short": "Modificato",
         "pinned": "Messaggio fissato",
         "thread": "Filo",
         "edited": "Messaggio modificato",

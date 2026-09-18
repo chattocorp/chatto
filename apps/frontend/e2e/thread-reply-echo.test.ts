@@ -107,12 +107,14 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await roomPage.expectTextInThreadPane(replyMessage);
     });
 
-    await test.step('Close thread and verify echo appears in main room', async () => {
-      await roomPage.closeThread();
+    await test.step('Follow the Echo badge and highlight the echo in the room', async () => {
+      await page.getByRole('link', { name: 'Echo', exact: true }).click();
 
       // Wait for echo to arrive via WebSocket and become visible
       const echoArticle = page.locator('[role="article"]', { hasText: replyMessage });
       await expect(echoArticle.first()).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(echoArticle).toHaveCount(1);
+      await expect(echoArticle).toHaveClass(/highlight-flash/);
     });
 
     await test.step('Verify echo has "Thread" badge', async () => {

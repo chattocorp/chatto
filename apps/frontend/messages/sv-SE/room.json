@@ -99,6 +99,8 @@
         "copy_link": "Kopiera länk"
       },
       "meta": {
+        "echo": "Eko",
+        "edited_short": "Redigerat",
         "pinned": "Fäst meddelande",
         "thread": "Tråd",
         "edited": "Redigerat meddelande",

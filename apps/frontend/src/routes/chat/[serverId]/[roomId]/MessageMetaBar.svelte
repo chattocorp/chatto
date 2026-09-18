@@ -33,6 +33,8 @@ local to the footer.
     serverSegment,
     threadRootEventId,
     reactions,
+    edited = false,
+    channelEchoEventId,
     action,
     replyCount = 0,
     threadExists = false,
@@ -50,6 +52,10 @@ local to the footer.
     serverSegment: string;
     threadRootEventId?: string | null;
     reactions: ReactionSummary[];
+    /** Show the edited status before reactions. */
+    edited?: boolean;
+    /** Room echo to open through the message jump and highlight route. */
+    channelEchoEventId?: string | null;
     action?: MessageActionModel;
     replyCount?: number;
     threadExists?: boolean;
@@ -255,6 +261,31 @@ local to the footer.
         <span class="iconify icon-[mdi--pin-outline] text-base" aria-hidden="true"></span>
       </span>
     {/if}
+  {/if}
+
+  {#if edited}
+    <span
+      class="meta-badge h-[25px] gap-2 border-transparent px-2 text-xs whitespace-nowrap text-muted"
+    >
+      <span class="iconify icon-[uil--pen]" aria-hidden="true"></span>
+      <span>{m('room.message.meta.edited_short')}</span>
+    </span>
+  {/if}
+
+  {#if channelEchoEventId}
+    <a
+      href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+        serverId: serverSegment,
+        roomId,
+        messageId: channelEchoEventId
+      })}
+      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
+      title={m('room.message.meta.echoed_to_channel')}
+      {@attach threadLinkGestureBoundary}
+    >
+      <span class="iconify icon-[uil--megaphone]" aria-hidden="true"></span>
+      <span>{m('room.message.meta.echo')}</span>
+    </a>
   {/if}
 
   <!-- Reaction pills -->

@@ -99,6 +99,8 @@
         "copy_link": "Bağlantıyı kopyala"
       },
       "meta": {
+        "echo": "Yankı",
+        "edited_short": "Düzenlendi",
         "pinned": "Sabitlenmiş mesaj",
         "thread": "Konu",
         "edited": "Düzenlenmiş ileti",

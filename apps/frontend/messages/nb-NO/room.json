@@ -99,6 +99,8 @@
         "copy_link": "Kopier lenken"
       },
       "meta": {
+        "echo": "Ekko",
+        "edited_short": "Redigert",
         "pinned": "Festet melding",
         "thread": "Tråd",
         "edited": "Redigert melding",

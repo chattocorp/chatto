@@ -99,6 +99,8 @@
         "copy_link": "Kopeeri link"
       },
       "meta": {
+        "echo": "Kaja",
+        "edited_short": "Muudetud",
         "pinned": "Kinnitatud sõnum",
         "thread": "Niit",
         "edited": "Muudetud sõnum",

@@ -99,6 +99,8 @@
         "copy_link": "Kopēt saiti"
       },
       "meta": {
+        "echo": "Atbalss",
+        "edited_short": "Rediģēts",
         "pinned": "Piesprausta ziņa",
         "thread": "Pavediens",
         "edited": "Rediģēts ziņojums",

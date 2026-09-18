@@ -99,6 +99,8 @@
         "copy_link": "複製連結"
       },
       "meta": {
+        "echo": "回聲",
+        "edited_short": "已編輯",
         "pinned": "已釘選訊息",
         "thread": "討論串",
         "edited": "已編輯的訊息",

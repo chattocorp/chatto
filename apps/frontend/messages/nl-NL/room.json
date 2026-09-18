@@ -99,6 +99,8 @@
         "copy_link": "Kopieer link"
       },
       "meta": {
+        "echo": "Echo",
+        "edited_short": "Bewerkt",
         "pinned": "Vastgezet bericht",
         "thread": "Discussie",
         "edited": "Bewerkt bericht",

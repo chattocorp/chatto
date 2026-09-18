@@ -100,6 +100,8 @@
         "copy_link": "העתק קישור"
       },
       "meta": {
+        "echo": "הד",
+        "edited_short": "נערכה",
         "pinned": "הודעה מוצמדת",
         "thread": "שרשור",
         "edited": "הודעה נערכה",
