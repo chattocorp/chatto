@@ -607,6 +607,12 @@ When a call is active, the collapsed header keeps the call button visible
 beside the three-dot button. It uses the same active-call colour and pulse as
 the expanded toolbar.
 
+The app header and room header hide below the `md` breakpoint while the shared
+viewport detector reports an open software keyboard. They return when it
+closes. `PaneHeader` opts in with `hideOnKeyboard`; thread and settings headers
+stay visible. The `keyboard-hide-mobile` utility removes the complete header
+from the layout without an animation. Input focus alone does not hide it.
+
 Controls use solid semantic fills, with a subtle gloss on filled buttons;
 borders define structure, and shadows are reserved for genuinely floating or
 raised surfaces. Do not use decorative one-sided accent borders or inset edge

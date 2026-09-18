@@ -50,7 +50,9 @@
   }
 </script>
 
-<header class="app-header flex items-center justify-between gap-2 p-2 text-muted md:text-sm">
+<header
+  class="app-header keyboard-hide-mobile flex items-center justify-between gap-2 p-2 text-muted md:text-sm"
+>
   <!-- Leading: global navigation, notifications, and client-wide actions -->
   <div class="flex items-center gap-3">
     <!-- Hamburger - 44px tap target for mobile accessibility -->

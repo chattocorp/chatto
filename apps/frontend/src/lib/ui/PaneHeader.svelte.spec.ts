@@ -4,6 +4,7 @@ import { createRawSnippet } from 'svelte';
 import { q } from '$lib/test-utils';
 import PaneHeader from './PaneHeader.svelte';
 import '../../app.css';
+import { page } from 'vitest/browser';
 
 const actions = createRawSnippet(() => ({
   render: () => '<div><button type="button" data-testid="members">Members</button><button type="button">Call</button></div>'
@@ -13,6 +14,31 @@ const collapsedActions = createRawSnippet(() => ({
 }));
 
 describe('PaneHeader responsive actions', () => {
+  it('reclaims only opted-in header space on mobile and restores it on close', async () => {
+    await page.viewport(390, 800);
+    const optedIn = render(PaneHeader, { props: { title: 'Room', hideOnKeyboard: true } });
+    const normal = render(PaneHeader, { props: { title: 'Thread', onBack: () => {} } });
+    const header = optedIn.container.firstElementChild!;
+    const height = header.getBoundingClientRect().height;
+    expect(height).toBeGreaterThan(0);
+    try {
+      document.body.setAttribute('data-keyboard-open', '');
+      await expect.element(q(optedIn.container, 'h1')).not.toBeVisible();
+      expect(header.getBoundingClientRect().height).toBe(0);
+      await expect.element(normal.getByRole('button', { name: 'Back' })).toBeVisible();
+
+      await page.viewport(1024, 800);
+      await expect.element(optedIn.getByRole('heading', { name: 'Room' })).toBeVisible();
+      await page.viewport(390, 800);
+      document.body.removeAttribute('data-keyboard-open');
+      await expect.element(optedIn.getByRole('heading', { name: 'Room' })).toBeVisible();
+      expect(header.getBoundingClientRect().height).toBe(height);
+    } finally {
+      document.body.removeAttribute('data-keyboard-open');
+      await page.viewport(1280, 720);
+    }
+  });
+
   it('expands inline and restores focus on Escape', async () => {
     const { container, getByRole } = render(PaneHeader, {
       props: { title: 'General', collapseActions: true, actions, collapsedActions }
