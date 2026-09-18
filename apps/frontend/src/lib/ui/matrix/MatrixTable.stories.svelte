@@ -182,6 +182,27 @@
   </div>
 </Story>
 
+<Story name="Narrow pane" asChild>
+  <div class="w-80 max-w-full bg-background">
+    <MatrixTable
+      rows={[...rows, { id: 'long', label: 'A long permission label that wraps onto another line' }]}
+      columns={[...columns, ...columns.map((column) => ({ ...column, id: `${column.id}-extra` }))]}
+      getRowKey={(row) => row.id}
+      getColumnKey={(column) => column.id}
+      getGroupKey={() => 'permissions'}
+      {columnClass}
+      stickyHeader
+      emptyMessage="No rows"
+      leadingHeader={activityHeader}
+      rowHeader={labelRow}
+      columnHeader={labelColumn}
+      cell={interactiveCell}
+    >
+      {#snippet group()}Permissions{/snippet}
+    </MatrixTable>
+  </div>
+</Story>
+
 {#snippet activityHeader()}
   Activity
 {/snippet}

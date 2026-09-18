@@ -16,6 +16,7 @@ and optional incremental loading.
     columns,
     header,
     row,
+    beforeRow,
     emptyMessage = m('ui.data_table.empty'),
     empty,
     onRowClick,
@@ -38,6 +39,8 @@ and optional incremental loading.
     columns: number;
     header: Snippet;
     row: Snippet<[T]>;
+    /** Optional semantic table rows before each item, such as stacked matrix headings. */
+    beforeRow?: Snippet<[T]>;
     /** Optional rich empty-state content. Takes precedence over `emptyMessage`. */
     emptyMessage?: string;
     empty?: Snippet;
@@ -154,6 +157,7 @@ and optional incremental loading.
             </td>
           </tr>
         {/if}
+        {@render beforeRow?.(item)}
         <tr
           class={[
             'border-b border-border last:border-0',

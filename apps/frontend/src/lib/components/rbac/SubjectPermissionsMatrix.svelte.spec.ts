@@ -1,5 +1,6 @@
 import '../../../app.css';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -7,6 +8,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SubjectPermissionsMatrix, { type MatrixData } from './SubjectPermissionsMatrix.svelte';
 
 beforeEach(async () => {
+  await page.viewport(1280, 900);
   await loadLocaleMessages('en-GB');
   setReactiveLocale('en-GB');
 });

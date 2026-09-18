@@ -479,6 +479,13 @@ an intrinsic content width inside the viewport; ordinary record tables fill it.
 Standard record-table headings use `table-header-cell`; matrix headings remain
 bespoke because their vertical labels have different spatial needs.
 
+When a matrix container is narrower than 640px, each row label occupies a
+separate line above its cells. Labels wrap and stay visible during horizontal
+scrolling, as do category labels. Column headings and cells share one native
+scroll container so columns stay aligned. Wider matrices keep the sticky label
+column. Cells retain explicit associations with their row and column headings
+in both layouts.
+
 `noPadding` does not require every child to be flush. `DataTable` uses a
 continuous grid, so its header and rows meet the work-plane edge. A
 `selectable-list` uses independent rounded rows, so it keeps the shared `p-1`
