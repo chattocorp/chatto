@@ -8,6 +8,7 @@ import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import {
   refreshRegisteredAdminQueries,
+  removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries
 } from '$lib/query/cacheRegistry';
 
@@ -116,6 +117,52 @@ beforeEach(() => {
 afterEach(() => queryClient.clear());
 
 describe('subject permission loaders', () => {
+  it('preserves the panel, filter and height while an authorization reset clears private cells', async () => {
+    const initial = matrix({ userId: 'user-a' });
+    initial.scopes[0].label = 'Private scope';
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue(initial);
+    const { container } = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    await expect.poll(() => container.querySelector('td[data-permission]')).toBeTruthy();
+    const panel = container.querySelector<HTMLElement>(
+      '[data-testid="subject-permissions-matrix"]'
+    )!;
+    const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
+    filter.value = 'message';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    await vi.waitFor(() =>
+      expect(container.querySelector('td[data-permission="room.manage"]')).toBeNull()
+    );
+    // ResizeObserver delivers the measurement at the next rendering step.
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    const height = panel.getBoundingClientRect().height;
+    expect(height).toBeGreaterThan(0);
+    let resolveRefresh!: (value: ReturnType<typeof matrix>) => void;
+    permissionMocks.getUserPermissionMatrix.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+
+    removeRegisteredAdminQueries('origin');
+    await expect.poll(() => panel.getAttribute('aria-busy')).toBe('true');
+    expect(container.querySelector('td[data-permission]')).toBeNull();
+    expect(container.textContent).not.toContain('Private scope');
+    expect(container.querySelector('[data-testid="permission-filter"]')).toBe(filter);
+    expect(filter.value).toBe('message');
+    expect(panel.getBoundingClientRect().height).toBeGreaterThanOrEqual(height);
+
+    resolveRefresh(matrix({ userId: 'user-a' }));
+    await expect.poll(() => panel.getAttribute('aria-busy')).toBe('false');
+    expect(container.querySelector('[data-testid="subject-permissions-matrix"]')).toBe(panel);
+    expect(container.querySelector('[data-testid="permission-filter"]')).toBe(filter);
+    expect(filter.value).toBe('message');
+    expect(container.querySelector('td[data-permission="message.post"]')).not.toBeNull();
+  });
+
   it('keeps the same matrix elements mounted while refreshed data replaces their cells', async () => {
     let resolveRefresh: ((value: ReturnType<typeof matrix>) => void) | undefined;
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
@@ -529,6 +576,69 @@ describe('account membership mutations', () => {
       ]
     };
   }
+
+  it('refreshes bot permission and join controls in place across management changes', async () => {
+    viewerPermissions.canAdminManageAccounts = false;
+    const snapshot = () => ({
+      ...botMatrix(),
+      cells: [
+        {
+          permission: 'room.manage',
+          scopeId: 'room:work',
+          override: 'NONE',
+          effective: 'NONE',
+          // The owner's entitlement ceiling does not follow session activation.
+          allowPermitted: true
+        }
+      ]
+    });
+    permissionMocks.getUserPermissionMatrix.mockImplementation(async () => snapshot());
+    const { container } = render(UserPermissionsMatrix, {
+      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+    });
+    const join = () =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]');
+    await expect.poll(() => join()?.disabled).toBe(true);
+    const table = container.querySelector('table');
+
+    for (const active of [true, false, true]) {
+      viewerPermissions.canAdminManageAccounts = active;
+      refreshRegisteredAdminQueries('origin');
+      await expect.poll(() => join()?.disabled).toBe(!active);
+      await expect
+        .poll(() => scopedCellButton(container, 'room:work', 'room.manage').disabled)
+        .toBe(false);
+      expect(container.querySelector('table')).toBe(table);
+    }
+  });
+
+  it('discards an older first load when management permissions change', async () => {
+    viewerPermissions.canAdminManageAccounts = true;
+    let resolveOld!: (value: ReturnType<typeof botMatrix>) => void;
+    let oldSignal!: AbortSignal;
+    permissionMocks.getUserPermissionMatrix
+      .mockImplementationOnce((_userId, { signal }) => {
+        oldSignal = signal;
+        return new Promise((resolve) => {
+          resolveOld = resolve;
+        });
+      })
+      .mockResolvedValue(botMatrix());
+    const { container } = render(UserPermissionsMatrix, {
+      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+    });
+    await expect.poll(() => permissionMocks.getUserPermissionMatrix.mock.calls.length).toBe(1);
+    viewerPermissions.canAdminManageAccounts = false;
+    refreshRegisteredAdminQueries('origin');
+    const join = () =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]');
+    await expect.poll(() => join()?.disabled).toBe(true);
+    expect(oldSignal.aborted).toBe(true);
+    resolveOld(botMatrix());
+    await settle();
+    expect(join()?.disabled).toBe(true);
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+  });
 
   it('confirms membership before saving immediately without writing permissions', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());

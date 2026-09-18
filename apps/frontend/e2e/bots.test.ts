@@ -167,6 +167,67 @@ async function createHumanOwner(
 }
 
 test.describe('Bot account lifecycle', () => {
+  test('updates bot permissions and join controls when management is armed and unarmed', async ({
+    page
+  }) => {
+    const browserErrors: string[] = [];
+    page.on('pageerror', (error) => browserErrors.push(redactBotKeys(error.message)));
+    page.on('console', (message) => {
+      if (message.type() === 'error') browserErrors.push(redactBotKeys(message.text()));
+    });
+    await loginAsAdminAndUsePrimaryServer(page);
+    const roomGroupId = await getDefaultRoomGroupIdViaConnect(page);
+    const roomName = `bot-mode-${Date.now()}`;
+    await createRoomViaConnect(page, roomName, roomGroupId);
+    const created = await connectPost<{ bot: { user: { id: string } } }>(
+      page,
+      'chatto.api.v1.BotService/CreateBot',
+      { login: `mode_${Date.now()}_bot`, displayName: 'Mode Test Bot' }
+    );
+    await connectPost(page, 'chatto.api.v1.ViewerService/DeactivatePrivilegedMode');
+    await page.goto(`${routes.serverAdminBots}/${created.bot.user.id}`);
+    await expect(page.getByRole('button', { name: 'Enable privileged mode' })).toBeVisible();
+    const join = page.getByRole('button', { name: `Add account to #${roomName}`, exact: true });
+    const post = page.locator('td[data-scope="server"][data-permission="message.post"] button');
+    await expect(join).toBeDisabled();
+    await expect(post).toBeEnabled();
+    const botURL = page.url();
+    const filter = page.getByTestId('permission-filter');
+    await filter.fill('message');
+    await filter.evaluate((element) => element.setAttribute('data-mount-marker', 'original'));
+    const documentTimeOrigin = await page.evaluate(() => performance.timeOrigin);
+
+    for (const active of [true, false, true]) {
+      await test.step(
+        active ? 'Arm management permissions' : 'Unarm management permissions',
+        async () => {
+          if (active) {
+            await page.getByRole('button', { name: 'Enable privileged mode' }).click();
+            await page
+              .getByRole('dialog', { name: 'Enable privileged mode' })
+              .getByRole('button', { name: 'Enable privileged mode' })
+              .click();
+          } else {
+            await page.getByRole('button', { name: 'Disable privileged mode' }).click();
+          }
+          await expect(
+            page.getByRole('button', {
+              name: active ? 'Disable privileged mode' : 'Enable privileged mode',
+              exact: true
+            })
+          ).toBeEnabled();
+          await expect(join).toBeEnabled({ enabled: active });
+          await expect(post).toBeEnabled();
+          await expect(filter).toHaveValue('message');
+          await expect(filter).toHaveAttribute('data-mount-marker', 'original');
+          expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentTimeOrigin);
+          await expect(page).toHaveURL(botURL);
+        }
+      );
+    }
+    expect(browserErrors).toEqual([]);
+  });
+
   // setup.ts gives every test its own server and removes that server's data
   // directory during fixture teardown, including after an early failure.
   test('create, authorise, manage credentials, and delete through Server Admin', async ({

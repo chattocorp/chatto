@@ -55,7 +55,6 @@ rendering to `SubjectPermissionsMatrix`.
       const activeConnection = serverScope.connection;
       const activeUserId = userId;
       const isBot = ownerCapped;
-      const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
       return {
         queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
         initialPageParam: 0,
@@ -64,6 +63,8 @@ rendering to `SubjectPermissionsMatrix`.
             ? pages.reduce((count, page) => count + (page?.scopes.length ?? 0), 0)
             : undefined,
         queryFn: async ({ signal, pageParam }) => {
+          // Cache refreshes can run before reactive query options update.
+          const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
           const matrix = await activeConnection
             .getAPI(createPermissionAPI)
             .getUserPermissionMatrix(activeUserId, {
@@ -270,13 +271,12 @@ rendering to `SubjectPermissionsMatrix`.
   >
 {/if}
 
-{#if loading}
-  <div class="text-muted">{m('rbac.permissions.loading')}</div>
-{:else if !data}
+{#if !loading && !data}
   <Hint tone="info">{m('rbac.permissions.no_data')}</Hint>
 {:else}
   <SubjectPermissionsMatrix
-    {data}
+    data={data ?? { applicablePermissions: [], scopes: [], cells: [] }}
+    {loading}
     hasMore={matrixQuery.hasNextPage && !matrixQuery.isFetchNextPageError}
     loadingMore={matrixQuery.isFetching}
     onLoadMore={() => matrixQuery.fetchNextPage()}

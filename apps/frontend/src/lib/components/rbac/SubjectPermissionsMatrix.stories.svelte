@@ -113,6 +113,17 @@
   </div>
 </Story>
 
+<Story name="Reloading permissions" asChild>
+  <div class="max-w-4xl">
+    <SubjectPermissionsMatrix
+      data={{ applicablePermissions: [], scopes: [], cells: [] }}
+      loading
+      subjectKind="bot"
+      onCycle={() => undefined}
+    />
+  </div>
+</Story>
+
 <Story
   name="Narrow viewport"
   asChild
