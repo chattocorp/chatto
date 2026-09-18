@@ -490,38 +490,28 @@ export class MessageComposerState {
   }
 
   #synchronizeAutoFocus(): void {
-    // A focus request belongs to an editor and destination. Availability can
-    // defer that request, but must not create another one after it is fulfilled.
-    let request = $state.raw<{ api: ComposerEditorApi; fulfilled: boolean } | null>(null);
-    let previousDestination = '';
-    let previousApi: ComposerEditorApi | null = null;
+    // Scalar derived values filter parent updates that do not change the target.
+    const destination = $derived(this.draftKey);
+    const reply = $derived(this.#dependencies.getReplyEventId());
+    const autoFocus = $derived(this.#dependencies.getAutoFocus());
+    const target = $derived({ destination, reply, autoFocus, api: this.editorApi });
+    let focusedTarget: typeof target | null = null;
+
+    // Availability can defer initial focus, but cannot focus the same target twice.
     $effect(() => {
-      const autoFocus = this.#dependencies.getAutoFocus();
-      const destination = JSON.stringify([
-        autoFocus,
-        this.#dependencies.getRoomId(),
-        this.#dependencies.getThreadRootEventId(),
-        this.#dependencies.getReplyEventId()
-      ]);
-      const api = this.editorApi;
-      // Parent prop updates can invalidate getters without changing their values.
-      if (destination === previousDestination && api === previousApi) return;
-      previousDestination = destination;
-      previousApi = api;
-      request = autoFocus && shouldAutoFocus() && api ? { api, fulfilled: false } : null;
-    });
-    $effect(() => {
-      const pending = request;
-      if (!pending || pending.fulfilled || this.inputDisabled) return;
-      let cancelled = false;
-      tick().then(() => {
-        if (cancelled || request !== pending || this.editorApi !== pending.api) return;
-        pending.fulfilled = true;
-        pending.api.focus();
-      });
-      return () => {
-        cancelled = true;
-      };
+      const current = target;
+      const api = current.api;
+      if (
+        current === focusedTarget ||
+        !current.autoFocus ||
+        !api ||
+        !shouldAutoFocus() ||
+        this.inputDisabled
+      ) {
+        return;
+      }
+      focusedTarget = current;
+      untrack(() => api.focus());
     });
   }
 
