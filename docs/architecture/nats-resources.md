@@ -15,6 +15,20 @@ Key and subject schemas are maintained separately in the
 [runtime state](runtime-state.md) and [subject and event](subjects-and-events.md)
 inventories.
 
+## Startup provisioning
+
+Chatto provisions its core streams, KV buckets, and Object Stores through
+`events.CreateJetStreamResourceWithRetry`, including optional projection
+snapshot storage. Chatto owns resource configuration and identity metadata.
+The shared framework owns the bounded retry and cancellation mechanics.
+
+Chatto allows three attempts, with delays of 25 ms and 50 ms. Request deadline
+errors are retried only while the parent startup context remains active. The
+existing transient store-creation and stream-name conflict errors are also
+retried. Parent cancellation or expiry stops provisioning. Permanent errors
+and retry exhaustion fail startup. The JetStream default request timeout is
+30 seconds; nats.go uses a supplied context deadline instead when one exists.
+
 ## Current resources
 
 | Type         | Name                | Storage | Backup | Description                                                                 |
