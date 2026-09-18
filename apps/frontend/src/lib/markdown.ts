@@ -501,6 +501,14 @@ function initialize(): void {
 }
 
 /**
+ * Renders inline formatting and safe links on one line, without block markup.
+ */
+export function renderInlineMarkdown(body: string): string {
+  initialize();
+  return md!.renderInline(body.replace(/[\r\n]+/g, ' '));
+}
+
+/**
  * Renders markdown to HTML.
  */
 export async function renderMarkdown(body: string): Promise<string> {

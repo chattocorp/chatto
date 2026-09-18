@@ -645,6 +645,19 @@ test.describe('Instance Settings', () => {
     await expect(page.getByTestId('motd-content')).toBeVisible();
     // The markdown should render **Chatto** as bold
     await expect(page.getByTestId('motd-content').locator('strong')).toHaveText('Chatto');
+
+    // The full message opens without changing routes and closes through history.
+    const trigger = page.getByRole('button', { name: 'Message of the Day' });
+    const dialog = page.getByRole('dialog', { name: 'Message of the Day' });
+    await trigger.click();
+    await expect(dialog.locator('strong')).toHaveText('Chatto');
+    await dialog.locator('footer').getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await expect(dialog).toBeVisible();
+    await page.goBack();
+    await expect(dialog).not.toBeVisible();
   });
 
   test('instance config changes update other connected clients in real-time', async ({

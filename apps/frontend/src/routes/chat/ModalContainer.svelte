@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { chatModalKey, type ChatModal } from '$lib/modal';
   import AboutChattoModal from './modals/AboutChattoModal.svelte';
+  import MotdModal from './modals/MotdModal.svelte';
   import DeleteMessageContentModal from './modals/DeleteMessageContentModal.svelte';
   import AttachmentViewerModal from './modals/AttachmentViewerModal.svelte';
   import EditAttachmentDescriptionModal from './modals/EditAttachmentDescriptionModal.svelte';
@@ -28,6 +29,8 @@
       <SignOutDialog onclose={closeModal} />
     {:else if modal.type === 'aboutChatto'}
       <AboutChattoModal onclose={closeModal} />
+    {:else if modal.type === 'motd'}
+      <MotdModal motd={modal.motd} onclose={closeModal} />
     {:else if modal.type === 'microphoneSilence'}
       <MicrophoneSilenceDialog serverId={modal.serverId} onclose={closeModal} />
     {:else if modal.type === 'leaveRoom'}

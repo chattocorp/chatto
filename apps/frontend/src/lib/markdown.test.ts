@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderMarkdown } from './markdown';
+import { renderInlineMarkdown, renderMarkdown } from './markdown';
 import {
   canHighlightCodeLanguage,
   ensureCodeLanguageLoaded,
@@ -14,6 +14,24 @@ function tableSource(columns: number, bodyRows: number): string {
     ...Array.from({ length: bodyRows }, () => '|')
   ].join('\n');
 }
+
+describe('renderInlineMarkdown', () => {
+  it('keeps formatting and safe links without block markup or line breaks', () => {
+    const html = renderInlineMarkdown('**News**\n\n*Today*\r\n[Details](https://example.com)');
+    expect(html).toContain('<strong>News</strong>');
+    expect(html).toContain('<em>Today</em>');
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).not.toMatch(/<(?:p|br|h[1-6]|ul|ol)\b|[\r\n]/);
+  });
+
+  it('escapes source HTML and rejects unsafe links', () => {
+    const html = renderInlineMarkdown('<img src=x onerror=alert(1)> [bad](javascript:alert(1))');
+    expect(html).toContain('&lt;img');
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('href="javascript:');
+  });
+});
 
 describe('renderMarkdown', () => {
   describe('GFM tables', () => {
