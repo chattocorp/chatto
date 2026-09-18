@@ -959,6 +959,11 @@
 @utility pane-header-icon-button-active {
   @apply control-raised transition-[background-color,color,box-shadow];
   @apply bg-surface-emphasized text-text-top not-disabled:hover:bg-surface-emphasized not-disabled:active:bg-surface-selected focus-visible:bg-surface-emphasized;
+  /* Selected toolbar actions need less gloss than primary action buttons. */
+  --lighting-top: rgb(255 255 255 / calc(0.025 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.01 * var(--depth-strength)));
+  --lighting-edge-top: rgb(255 255 255 / calc(0.04 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.02 * var(--depth-strength)));
 }
 
 /* Sidebar navigation utilities */
