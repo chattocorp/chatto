@@ -5,6 +5,8 @@
  * are not scoped to an instance or room, and don't use Svelte context.
  */
 
+import { innerWidth } from 'svelte/reactivity/window';
+
 // ---------------------------------------------------------------------------
 // AppState — browser lifecycle tracking
 // ---------------------------------------------------------------------------
@@ -136,13 +138,6 @@ export const titleState = new TitleState();
 // ---------------------------------------------------------------------------
 
 /**
- * Combined width of the Server Gutter (~68px, `left-17`) + Server Sidebar
- * (256px, `md:w-64`/`max-md:w-64`). The mobile sidebars slide off-screen by
- * this amount when fully closed.
- */
-export const SIDEBAR_PANEL_WIDTH_PX = 68 + 256;
-
-/**
  * Controls the visibility of the inline-start sidebars (Server Gutter and RoomList).
  * Tracks the user's desktop preference separately from viewport-driven changes
  * within the current app session, so manual toggles on desktop "stick" across
@@ -157,6 +152,11 @@ export const SIDEBAR_PANEL_WIDTH_PX = 68 + 256;
  * CSS transitions while dragging and apply the transform from `progress`.
  */
 export class SidebarNavState {
+  /** Combined mobile drawer width; shared by transforms and gesture progress. */
+  get panelWidth(): number {
+    return innerWidth.current ?? 0;
+  }
+
   isOpen = $state(true);
   /**
    * Live drag offset in px relative to the *open* position. Negative values
@@ -206,9 +206,11 @@ export class SidebarNavState {
    */
   get progress(): number {
     if (this.dragOffset !== null) {
-      const base = this.dragBaselineOpen ? 0 : -SIDEBAR_PANEL_WIDTH_PX;
-      const px = clamp(base + this.dragOffset, -SIDEBAR_PANEL_WIDTH_PX, 0);
-      return 1 + px / SIDEBAR_PANEL_WIDTH_PX;
+      const width = this.panelWidth;
+      if (width <= 0) return this.isOpen ? 1 : 0;
+      const base = this.dragBaselineOpen ? 0 : -width;
+      const px = clamp(base + this.dragOffset, -width, 0);
+      return 1 + px / width;
     }
     return this.isOpen ? 1 : 0;
   }

@@ -12,6 +12,27 @@ describe('SidebarNavState', () => {
     expect(sidebar.isOpen).toBe(true);
   });
 
+  it('tracks finger movement across the full viewport and settles at halfway', () => {
+    const sidebar = new SidebarNavState();
+    sidebar.setMobile(true);
+    sidebar.startDrag();
+    sidebar.updateDrag(window.innerWidth * 0.4);
+    expect(sidebar.progress).toBeCloseTo(0.4);
+    sidebar.endDrag(0);
+    expect(sidebar.isOpen).toBe(false);
+
+    sidebar.startDrag();
+    sidebar.updateDrag(window.innerWidth * 0.6);
+    sidebar.endDrag(0);
+    expect(sidebar.isOpen).toBe(true);
+
+    sidebar.startDrag();
+    sidebar.updateDrag(-window.innerWidth * 0.6);
+    expect(sidebar.progress).toBeCloseTo(0.4);
+    sidebar.endDrag(0);
+    expect(sidebar.isOpen).toBe(false);
+  });
+
   it('remembers desktop toggles for the current app session', () => {
     const sidebar = new SidebarNavState(true);
 

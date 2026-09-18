@@ -84,6 +84,12 @@ Do not add a separate speaking border or pulse to the card.
 
 ### Sidebar links
 
+Below the `md` breakpoint, the mobile drawer fills the viewport width. The
+server gutter keeps its width and the navigation pane fills the remaining
+space. Both panes use the viewport width for their shared slide and swipe
+distance. Select a destination, use the app-header toggle, or swipe towards
+the inline start to close the drawer. Desktop sidebar sizing is unchanged.
+
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
 route. The shared primitive then uses a quiet action-coloured fill and an
 action-coloured icon. Current links and selected menu rows use flat fills,

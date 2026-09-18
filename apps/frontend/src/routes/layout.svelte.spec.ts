@@ -262,7 +262,7 @@ describe('root layout mobile sidebar animation', () => {
     expect(q(container, '[data-testid="mobile-sidebar-backdrop"]')).toBe(backdrop);
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.style.opacity).toBe('0');
-    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
+    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
   });
 
@@ -283,7 +283,7 @@ describe('root layout mobile sidebar animation', () => {
     await tick();
 
     expect(sidebarNav.isOpen).toBe(false);
-    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
+    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
   });
 
   it('opens the inline-start sidebar from a leftward drag in RTL', async () => {

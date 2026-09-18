@@ -1,4 +1,4 @@
-import { sidebarNav, SIDEBAR_PANEL_WIDTH_PX } from '$lib/state/globals.svelte';
+import { sidebarNav } from '$lib/state/globals.svelte';
 import { toInlineEndDelta } from '$lib/i18n/direction';
 import { panGesture } from './panGesture.svelte';
 
@@ -56,5 +56,3 @@ export function sidebarSwipe(node: HTMLElement) {
     onCancel: () => sidebarNav.endDrag(0)
   });
 }
-
-export { SIDEBAR_PANEL_WIDTH_PX };
