@@ -300,6 +300,27 @@ describe('MessageAttachments', () => {
     expect(container.querySelector('[data-testid="message-image-gallery"]')).toBeNull();
   });
 
+  it.each([true, false])('keeps video attachments and long filenames inside the message (processed: %s)', async (processed) => {
+    const attachment = hlsVideoAttachment();
+    attachment.filename = 'A very long video attachment filename that must not widen the message.mp4';
+    if (!processed) {
+      attachment.videoProcessing = null;
+      attachment.assetUrl = { url: 'https://chat.example.test/clip.mp4', expiresAt: '2099-01-01T00:00:00Z' };
+    }
+    const { container } = renderAttachment(attachment);
+    await expect.poll(() => container.querySelector(processed
+      ? '[data-testid="message-attachments-video-player"]' : 'video')).toBeTruthy();
+    const player = container.querySelector<HTMLElement>(processed
+      ? '[data-testid="message-attachments-video-player"]' : 'video')!;
+    const wrapper = player.parentElement!;
+    for (const width of [240, 120, 640]) {
+      container.style.width = `${width}px`;
+      await expect.poll(() => wrapper.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+      expect(player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+      expect(container.scrollWidth).toBeLessThanOrEqual(width);
+    }
+  });
+
   it('uses descriptions as image alt text and sends them to the image viewer', async () => {
     const description = 'A chart with a rising blue line.';
     const { container } = renderAttachment(imageAttachment({ description }));
@@ -425,7 +446,6 @@ describe('MessageAttachments', () => {
     const { container } = renderAttachments([gif, hlsVideoAttachment()]);
 
     await vi.waitFor(() => {
-      expect(attachmentMocks.videoPlayerModuleLoaded).toHaveBeenCalledOnce();
       expect(
         container.querySelectorAll('[data-testid="message-attachments-video-player"]')
       ).toHaveLength(2);

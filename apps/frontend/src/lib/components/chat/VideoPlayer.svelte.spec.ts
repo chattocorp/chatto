@@ -1,4 +1,5 @@
 import { tick } from 'svelte';
+import '../../../app.css';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { VideoProcessingStatus } from '$lib/render/messageAttachments';
@@ -127,6 +128,17 @@ describe('VideoPlayer', () => {
 
     await expect.poll(() => player.src?.src).toBe('https://chat.example.test/clip.mp4');
     expect(player.src?.type).toBe('video/mp4');
+  });
+
+  it('scales the inline player proportionally in narrow containers', async () => {
+    const { container } = renderPostedVideo({ width: 1280, height: 720 });
+    await mediaPlayer(container);
+    for (const width of [240, 120, 640]) {
+      container.style.width = `${width}px`;
+      await expect.poll(() => frame(container).getBoundingClientRect().width).toBeLessThanOrEqual(width);
+      const bounds = frame(container).getBoundingClientRect();
+      expect(bounds.height).toBeCloseTo(bounds.width * 9 / 16, 0);
+    }
   });
 
   it('frames 16:9 videos as 16:9 embeds', () => {

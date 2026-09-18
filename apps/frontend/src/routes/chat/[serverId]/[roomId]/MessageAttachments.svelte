@@ -500,7 +500,7 @@
     <div class="flex max-w-full min-w-0 flex-col items-start">
       {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
         {@const autoLoop = attachment.contentType === 'image/gif'}
-        <div class="group/attachment relative min-w-0">
+        <div class="group/attachment relative max-w-full min-w-0">
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
             <div
               class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
@@ -557,7 +557,7 @@
           or processing has never been requested for this asset. Render the raw
           original so the user can at least play it.
         -->
-        <div class="group/attachment relative embed-frame">
+        <div class="group/attachment relative embed-frame max-w-full min-w-0">
           <video
             controls
             preload="metadata"
