@@ -3,18 +3,18 @@
   import MarkdownHtml from './MarkdownHtml.svelte';
 
   let { motd, onclick }: { motd: string; onclick: () => void } = $props();
-  const html = $derived(
-    import('$lib/markdown').then(({ renderInlineMarkdown }) => renderInlineMarkdown(motd))
-  );
+  const html = $derived.by(() => {
+    const body = motd;
+    return import('$lib/markdown').then(({ renderInlineMarkdown }) => renderInlineMarkdown(body));
+  });
 </script>
 
 <!-- @component Single-line MOTD preview. The owner opens the full message. -->
 <div class="flex min-w-0 flex-1 justify-center">
-  <div class="app-header-text-action max-w-full text-sm" dir="auto">
+  <div data-testid="motd-content" class="app-header-text-action max-w-full text-sm" dir="auto">
     <!-- Keep the modal trigger and Markdown links as separate controls. -->
     <button
       type="button"
-      data-testid="motd-content"
       class="absolute inset-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-action"
       aria-label={m('server_settings.motd_label')}
       aria-haspopup="dialog"

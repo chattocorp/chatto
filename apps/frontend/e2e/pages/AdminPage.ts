@@ -551,7 +551,7 @@ export class AdminPage {
 
   /** MOTD input — on /manage/server/general. */
   get motdInput(): Locator {
-    return this.page.getByLabel('Message of the Day');
+    return this.page.getByRole('textbox', { name: 'Message of the Day', exact: true });
   }
 
   /** Welcome Message textarea — on /manage/server/general. */

@@ -7,7 +7,10 @@
   let { motd, onclose }: { motd: string; onclose: () => void } = $props();
   let visible = $state(true);
 
-  const html = $derived(import('$lib/markdown').then(({ renderMarkdown }) => renderMarkdown(motd)));
+  const html = $derived.by(() => {
+    const body = motd;
+    return import('$lib/markdown').then(({ renderMarkdown }) => renderMarkdown(body));
+  });
 </script>
 
 <Dialog bind:visible title={m('server_settings.motd_label')} {onclose}>

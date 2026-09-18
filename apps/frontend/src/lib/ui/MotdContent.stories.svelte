@@ -24,7 +24,8 @@
     const trigger = canvas.getByRole('button', { name: 'Message of the Day' });
     const preview = canvas.getByTestId('motd-preview');
     await expect(await canvas.findByRole('link', { name: 'Read details' })).toHaveAttribute(
-      'href', 'https://example.com'
+      'href',
+      'https://example.com'
     );
     await expect(preview.querySelector('strong')).toHaveTextContent('Maintenance window:');
     await expect(preview.querySelector('br, p')).toBeNull();
@@ -37,9 +38,9 @@
       'href',
       'https://example.com'
     );
-    await waitFor(() => expect(
-      within(dialog).getByText('Please save your work before maintenance starts.')
-    ).toBeVisible());
+    await waitFor(() =>
+      expect(within(dialog).getByText('Please save your work before maintenance starts.')).toBeVisible()
+    );
     const footer = within(dialog.querySelector('footer')!);
     await userEvent.click(footer.getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(dialog).not.toBeVisible());
