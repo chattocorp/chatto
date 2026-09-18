@@ -9,7 +9,7 @@
 @property --depth-strength {
   syntax: '<number>';
   inherits: true;
-  initial-value: 1;
+  initial-value: 0.75;
 }
 
 @property --depth-width {
@@ -95,9 +95,9 @@
  * `data-theme="dark"`.
  */
 :root {
-  /* 3D is the baseline. Modes scale decorative depth, never focus or boundaries. */
+  /* Kinda 3D softens decorative depth. Modes never scale focus or boundaries. */
   transition: --depth-strength 220ms ease-out, --depth-width 220ms ease-out;
-  --depth-strength: 1;
+  --depth-strength: 0.75;
   --depth-width: 1;
   --depth-shadow-xs: 0 1px 2px rgb(0 0 0 / calc(0.05 * var(--depth-strength)));
   --depth-shadow-sm: 0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))), 0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));

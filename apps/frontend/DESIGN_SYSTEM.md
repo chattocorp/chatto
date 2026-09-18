@@ -397,7 +397,7 @@ finish; callers must not stack a second finish on them.
 
 Appearance exposes `data-depth="flat|3d|very-3d"` on the document root. The
 registered `--depth-strength` and `--depth-width` numbers scale decorative
-lighting, inset shadows, and bevel width. 3D preserves the baseline. Flat uses
+lighting, inset shadows, and bevel width. Kinda 3D uses 0.75 strength and 1 width. Flat uses
 zero strength; Very 3D uses 1.75 strength and 1.5 width. Changes interpolate over
 220 ms, with no transition under reduced motion. The preference is restored
 before the first paint. Keep boundaries, focus rings, status colours, and
