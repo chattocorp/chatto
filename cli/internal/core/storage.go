@@ -12,6 +12,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/notificationstream"
+	"hmans.de/chatto/pkg/events"
 )
 
 const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
@@ -296,46 +297,13 @@ func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[
 	return metadata, nil
 }
 
+// createJetStreamResourceWithRetry applies Chatto's startup retry budget to the
+// shared provisioning mechanics. The callback retains ownership of configuration.
 func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(context.Context) (T, error)) (T, error) {
-	const maxAttempts = 3
-
-	var zero T
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		resource, err := create(ctx)
-		if err == nil {
-			return resource, nil
-		}
-		if attempt == maxAttempts || !isTransientJetStreamStoreCreateError(err) {
-			return zero, err
-		}
-
-		timer := time.NewTimer(time.Duration(attempt) * 25 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return zero, ctx.Err()
-		case <-timer.C:
-		}
-	}
-
-	return zero, nil
-}
-
-func isTransientJetStreamStoreCreateError(err error) bool {
-	type apiErrorProvider interface {
-		APIError() *jetstream.APIError
-	}
-
-	var provider apiErrorProvider
-	if !errors.As(err, &provider) {
-		return false
-	}
-	apiErr := provider.APIError()
-	if apiErr == nil {
-		return false
-	}
-	return (apiErr.ErrorCode == 10049 && strings.Contains(apiErr.Description, "error creating store for stream")) ||
-		(apiErr.ErrorCode == 10058 && strings.Contains(apiErr.Description, "stream name already in use"))
+	return events.CreateJetStreamResourceWithRetry(ctx, events.JetStreamResourceRetryPolicy{
+		MaxAttempts: 3,
+		RetryDelay:  25 * time.Millisecond,
+	}, create)
 }
 
 // ============================================================================

@@ -14,6 +14,26 @@ subjects, authorization, stream identity, consumer configuration, and domain
 completion rules. The package must not import an application's envelope or
 domain types.
 
+## Provision JetStream resources
+
+`CreateJetStreamResourceWithRetry` runs a repeatable resource callback with a
+bounded `JetStreamResourceRetryPolicy`. Applications choose `MaxAttempts`
+(including the first call) and `RetryDelay`. After failed attempt N, the helper
+waits for N times `RetryDelay`. The helper rejects invalid policy values.
+
+The helper retries request deadline errors only while the parent context is
+active. It also retries the specific JetStream store-creation and stream-name
+conflict errors used during concurrent provisioning. Parent cancellation or
+expiry stops the operation and takes precedence over the callback result.
+Other errors and retry exhaustion remain fatal to the caller.
+
+Callbacks must honor the context and be safe to repeat when the server has
+already committed an operation but its response was lost. Use this helper for
+streams, KV buckets, and Object Stores, not event writes. Applications retain
+resource names, configuration, identity metadata, and timeout policy. With
+nats.go, the default request timeout applies only when the supplied context
+has no deadline; an expired parent deadline cannot be retried.
+
 ## Read exact stream messages
 
 `StreamMessageReader` loads opaque records by exact stream sequence. It limits
