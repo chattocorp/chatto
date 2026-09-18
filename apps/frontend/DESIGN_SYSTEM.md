@@ -596,6 +596,20 @@ desktop. Below the `md` breakpoint, room and thread timelines add `px-1`
 padding around their rows to give avatars and message content more space at
 the screen edges.
 
+On iOS, the Home Screen app uses the `default` status-bar style so the system
+places web content below the status bar. Do not use `black-translucent`, which
+allows the status bar to cover web content. Keep the root layout's safe-area
+padding for browser and device layouts that expose these insets.
+The `html` and `body` backgrounds use the frame's `surface` colour so system
+bars that sample the page match the app frame. The early theme script and
+display preferences keep the root background and `theme-color` hint in sync.
+The app header is sticky with an opaque `surface` background so WebKit can
+extend its colour into the top system bar. A page background alone does not
+meet WebKit's fixed-or-sticky header condition for this colour extension.
+On mobile, a fixed one-pixel `surface` at the bottom edge provides the same
+colour source for Safari's bottom toolbar. It does not receive pointer input
+or take layout space, so it cannot block controls or reduce the composer area.
+
 Set `collapseActions` on `PaneHeader` to collapse its `actions` snippet behind
 a three-dot button when the pane is narrower than 32 rem. Use `actionsLabel`
 for a context-specific accessible label. The button expands the actions inside the pane

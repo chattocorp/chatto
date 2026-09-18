@@ -255,7 +255,7 @@ describe('app.html theme bootstrap', () => {
     });
 
     expect(root.dataset.theme).toBe('light');
-    expect(root.style.backgroundColor).toBe('#f3f4f6');
+    expect(root.style.backgroundColor).toBe('#e5e7eb');
     expect(root.style.colorScheme).toBe('light');
     expect(themeColor.content).toBe('#e5e7eb');
   });
@@ -263,6 +263,7 @@ describe('app.html theme bootstrap', () => {
   it('uses legacy localStorage.theme when no display preference exists', () => {
     const { root, themeColor } = runThemeScript({ legacyTheme: 'dark', systemDark: false });
     expect(root.dataset.theme).toBe('dark');
+    expect(root.style.backgroundColor).toBe('#262626');
     expect(root.style.colorScheme).toBe('dark');
     expect(themeColor.content).toBe('#262626');
   });

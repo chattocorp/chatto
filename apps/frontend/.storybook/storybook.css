@@ -10,8 +10,8 @@
 
 /* The app fixes <body> with `position: fixed; inset: 0; overflow: hidden` so
    the SPA fills the viewport without scrolling. Storybook's docs and canvas
-   pages need to scroll normally, so undo it inside the iframe. The body's
-   themed background still comes from `--color-background` in app.css. */
+   pages need to scroll normally, so undo it inside the iframe. Components
+   sit on the content background, not the outer app frame's surface. */
 html,
 body {
   position: static !important;
@@ -19,6 +19,7 @@ body {
   overflow: auto !important;
   height: auto;
   min-height: 100%;
+  background-color: var(--color-background);
   /* Re-enable text selection — the app disables it globally. */
   user-select: text;
   -webkit-user-select: text;
