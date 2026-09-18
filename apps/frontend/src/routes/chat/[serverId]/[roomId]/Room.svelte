@@ -13,7 +13,6 @@
     useRoomData,
     useRoomUnread,
     useProjectionEvent,
-    usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
   import { appState } from '$lib/state/globals.svelte';
@@ -353,10 +352,6 @@
       }
       return;
     }
-  });
-
-  usePresenceChange((userId, status) => {
-    roomMembersStore.setPresence(userId, status);
   });
 
   // Header action visibility — flat derivations keep the template clean

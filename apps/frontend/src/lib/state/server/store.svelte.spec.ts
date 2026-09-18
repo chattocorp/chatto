@@ -49,6 +49,7 @@ import {
   ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
+  PresenceChangedEvent,
   NotificationUnreadStateChangedEvent,
   NotificationOccurrencesChangedEvent,
   ThreadViewerStateChangedEvent
@@ -874,6 +875,22 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('keeps presence current in inactive and newly opened rooms', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const a = store.membersForRoom('a');
+    store.membersForRoom('b');
+    store.realtimePresenceHandler(
+      new RealtimeEvent({
+        actorId: 'U2',
+        event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 2 }) }
+      })
+    );
+    expect(a.livePresence.get('U2')).toBe(2);
+    expect(store.membersForRoom('c').livePresence.get('U2')).toBe(2);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    expect(a.livePresence.has('U2')).toBe(false);
+    expect(store.membersForRoom('d').livePresence.has('U2')).toBe(false);
+  });
   it('retains member lists across A to B to A navigation and clears them on reset', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.membersForRoom('a');

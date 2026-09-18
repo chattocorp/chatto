@@ -334,7 +334,10 @@ The hub and public event mapper both check this boundary.
 `ServerStateStore` owns retained `RoomMembersStore` instances for the session.
 Room navigation selects an existing store. Public join and leave events update
 its membership, and canonical user reads update its profiles. These updates also
-apply while the room is not mounted. An event during offset pagination restarts
+apply while the room is not mounted.
+The session store also retains presence updates for inactive rooms and rooms
+opened later. Catch-up refreshes profiles and presence for retained members.
+An event during offset pagination restarts
 the membership read with the event's minimum cursor. Recovery resets and room
 access loss clear retained membership. Universal-room eligibility changes require
 a new authoritative read rather than client-side permission calculations.

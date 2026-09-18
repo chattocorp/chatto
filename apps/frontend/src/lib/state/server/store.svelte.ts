@@ -177,6 +177,18 @@ export class ServerStateStore {
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #roomMembers: Record<string, RoomMembersStore> = Object.create(null);
+  #memberPresence = new SvelteMap<string, PresenceStatus>();
+
+  /** Keep presence current for retained rooms and rooms first opened later. */
+  readonly realtimePresenceHandler = (event: RealtimeEvent): void => {
+    if (event.event.case !== 'presenceChanged' || !event.actorId) return;
+    this.updateMemberPresence(event.actorId, event.event.value.status);
+  };
+
+  private updateMemberPresence(userId: string, status: PresenceStatus): void {
+    this.#memberPresence.set(userId, status);
+    for (const store of Object.values(this.#roomMembers)) store.setPresence(userId, status);
+  }
   #roomFiles: Record<string, RoomFilesStore> = Object.create(null);
   #roomPins: Record<string, RoomPinsStore> = Object.create(null);
   #roomMessageSearch: Record<string, MessageSearchStore> = Object.create(null);
@@ -286,8 +298,10 @@ export class ServerStateStore {
         const bus = eventBusManager.getBus(this.serverId);
         if (!bus) return;
         bus.projectionHandlers.add(this.realtimeProjectionHandler);
+        bus.handlers.add(this.realtimePresenceHandler);
         return () => {
           bus.projectionHandlers.delete(this.realtimeProjectionHandler);
+          bus.handlers.delete(this.realtimePresenceHandler);
         };
       });
     });
@@ -383,6 +397,9 @@ export class ServerStateStore {
     // Refresh every user that the retained projection still references after
     // the authoritative room read has been applied.
     const userIds = new SvelteSet(this.projection.users.keys());
+    for (const store of Object.values(this.#roomMembers)) {
+      for (const member of store.members) userIds.add(member.id);
+    }
     const viewerId = this.currentUserId();
     if (viewerId) userIds.add(viewerId);
     for (const room of this.projection.rooms.values()) {
@@ -533,6 +550,8 @@ export class ServerStateStore {
     if (!store) {
       store = new RoomMembersStore(this.#serverConnection);
       store.setRoom(roomId);
+      // Initialize before exposing the store; selectors can run in a derived.
+      store.livePresence = new SvelteMap(this.#memberPresence);
       this.#roomMembers[roomId] = store;
     }
     return store;
@@ -722,6 +741,7 @@ export class ServerStateStore {
         }
         case 'users': {
           const members = resource.value.users.map(mapDirectoryMember);
+          for (const member of members) this.updateMemberPresence(member.id, member.presenceStatus);
           primeRegisteredDirectoryUsers(this.serverId, this.#serverConnection.queryScope, members);
           for (const store of Object.values(this.#roomMembers)) store.updateUsers(members);
           notifyUserSummaries(this.serverId, members);
@@ -1439,6 +1459,7 @@ export class ServerStateStore {
       () => refreshRegisteredAdminQueries(this.serverId),
       () => clearUserSummaryCache(this.serverId),
       () => resetRegisteredDirectoryUsers(this.serverId),
+      () => this.#memberPresence.clear(),
       ...Object.values(this.#roomMembers).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#roomMessages).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#threadMessages).map((store) => () => store.resetProjectionState()),
@@ -1602,6 +1623,7 @@ export class ServerStateStore {
     removeRegisteredServerQueries(this.serverId);
     for (const store of Object.values(this.#roomMembers)) store.resetProjectionState();
     this.#roomMembers = Object.create(null);
+    this.#memberPresence.clear();
     this.#disposeEffects();
     this.adminRoomLayout.deactivateProjectionRefresh();
     this.#adminRoomLayoutSubscriptions = 0;
