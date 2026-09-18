@@ -69,6 +69,83 @@ function createStore(results: Array<MemberDirectoryPage | Promise<MemberDirector
 }
 
 describe('RoomMembersStore', () => {
+  it('restarts an in-flight offset scan at the membership event boundary', async () => {
+    const oldPage = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([
+      oldPage.promise,
+      pageResult([user('first'), user('joined')])
+    ]);
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    const oldLoad = store.loadInitial();
+    await store.applyMembership('joined', true, 'event-boundary');
+    expect(api.listRoomMembers).toHaveBeenNthCalledWith(2, 'room', '', 250, 0, {
+      minimumCursor: 'event-boundary'
+    });
+    oldPage.resolve(pageResult([user('first')]));
+    await oldLoad;
+    expect(store.members.map((member) => member.id)).toEqual(['first', 'joined']);
+    expect(store.totalCount).toBe(2);
+  });
+  it('resolves mention names before the initial directory page finishes', async () => {
+    const initial = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([
+      initial.promise,
+      pageResult([user('far-away-id', 'zelda')])
+    ]);
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    const loading = store.loadInitial();
+    const matches = await store.searchMembers('zel');
+    expect(matches.map((member) => member.login)).toEqual(['zelda']);
+    expect(store.hasFirstPage).toBe(false);
+    expect(api.listRoomMembers).toHaveBeenNthCalledWith(2, 'room', 'zel', 10, 0);
+    initial.resolve(pageResult([user('first', 'alice')], false, 1));
+    await loading;
+  });
+  it('advances by membership IDs when a profile disappears between list and hydration', async () => {
+    const api = new FakeMemberDirectoryAPI([
+      { members: [], consumedCount: 250, hasMore: true, totalCount: 251 },
+      pageResult([user('last')], false, 251)
+    ]);
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    await store.loadInitial();
+    expect(api.listRoomMembers).toHaveBeenNthCalledWith(2, 'room', '', 250, 250);
+    expect(store.members.map((member) => member.id)).toEqual(['last']);
+  });
+
+  it('applies joins, leaves, and profile updates without relisting a complete room', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);
+    api.batchGetUsers = vi.fn(async () => [user('second')]);
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    await store.loadInitial();
+    await store.applyMembership('second', true);
+    await store.applyMembership('second', true);
+    store.updateUsers([user('first', 'renamed')]);
+    expect(store.members.map((member) => member.login)).toEqual(['renamed', 'second']);
+    expect(store.totalCount).toBe(2);
+    await store.applyMembership('first', false);
+    expect(store.members.map((member) => member.id)).toEqual(['second']);
+    expect(store.totalCount).toBe(1);
+    expect(api.listRoomMembers).toHaveBeenCalledTimes(1);
+    expect(api.batchGetUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards a pending join after that member leaves', async () => {
+    const pending = deferred<ReturnType<typeof user>[]>();
+    const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);
+    api.batchGetUsers = vi.fn(() => pending.promise);
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    await store.loadInitial();
+    const join = store.applyMembership('second', true);
+    await store.applyMembership('second', false);
+    pending.resolve([user('second')]);
+    await join;
+    expect(store.members.map((member) => member.id)).toEqual(['first']);
+  });
   it('requests room members in 250-member pages', () => {
     expect(ROOM_MEMBERS_PAGE_SIZE).toBe(250);
   });
@@ -280,7 +357,7 @@ describe('RoomMembersStore', () => {
     }
   });
 
-  it('refresh clears a stale initial loading state when it invalidates an initial load', async () => {
+  it('refresh keeps initial loading pending until the replacement first page arrives', async () => {
     const initial = deferred<MemberDirectoryPage>();
     const refresh = deferred<MemberDirectoryPage>();
     const store = createStore([initial.promise, refresh.promise]);
@@ -290,7 +367,7 @@ describe('RoomMembersStore', () => {
     expect(store.isInitialLoading).toBe(true);
 
     const refreshLoad = store.refresh();
-    expect(store.isInitialLoading).toBe(false);
+    expect(store.isInitialLoading).toBe(true);
 
     refresh.resolve(pageResult([user('u2', 'refresh')]));
     await refreshLoad;

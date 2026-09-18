@@ -15,6 +15,8 @@ export const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
 
 export type ConnectAPIConfig = {
   serverId?: string;
+  /** Opaque connection scope for session-owned resource queries. */
+  queryScope?: string;
   baseUrl: string;
   bearerToken: string | null;
   /** Return the latest access token, rotating it when force is true or expiry is near. */

@@ -32,6 +32,7 @@ export type RoomMembersPage = {
   members: RoomMember[];
   totalCount: number;
   hasMore: boolean;
+  consumedCount?: number;
 };
 
 type MemberSearchCacheEntry = {
@@ -51,7 +52,8 @@ function mapPage(page: MemberDirectoryPage): RoomMembersPage {
   return {
     members: page.members.map(memberFromDirectory),
     totalCount: page.totalCount,
-    hasMore: page.hasMore
+    hasMore: page.hasMore,
+    consumedCount: page.consumedCount
   };
 }
 
@@ -80,6 +82,9 @@ export class RoomMembersStore {
   private roomId = '';
   #loadId = 0;
   #searchCache = new SvelteMap<string, MemberSearchCacheEntry>();
+  #membershipChanges = new SvelteMap<string, boolean>();
+  #profileUpdates = new SvelteMap<string, RoomMember>();
+  #minimumCursor: string | undefined;
 
   constructor(source?: ServerConnection | MemberDirectoryAPI | null) {
     if (!source) {
@@ -182,8 +187,8 @@ export class RoomMembersStore {
   async refresh(): Promise<void> {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
-    this.isInitialLoading = false;
-    this.isBackgroundLoading = false;
+    this.isInitialLoading = !this.hasFirstPage;
+    this.isBackgroundLoading = this.hasFirstPage;
     this.hasLoadedAll = false;
     this.loadError = null;
     this.#searchCache.clear();
@@ -252,8 +257,9 @@ export class RoomMembersStore {
         return;
 
       members = appendPageMembers(members, page.members);
-      hasMore = page.hasMore && page.members.length > 0;
-      offset += page.members.length;
+      const consumed = page.consumedCount ?? page.members.length;
+      hasMore = page.hasMore && consumed > 0;
+      offset += consumed;
       this.#searchCache.set(query, { members, complete: !hasMore });
     }
   }
@@ -261,6 +267,66 @@ export class RoomMembersStore {
   setPresence(userId: string, status: PresenceStatus): void {
     this.livePresence.set(userId, status);
     this.presenceVersion++;
+  }
+
+  /** Apply a canonical profile read without listing room membership again. */
+  updateUsers(users: DirectoryMember[]): void {
+    const updates = new SvelteMap(users.map((user) => [user.id, memberFromDirectory(user)]));
+    for (const [id, user] of updates) this.#profileUpdates.set(id, user);
+    this.members = this.members.map((member) => updates.get(member.id) ?? member);
+    if (this.hasLoadedAll) {
+      for (const [id, user] of updates) {
+        if (this.#membershipChanges.get(id) && !this.members.some((member) => member.id === id)) {
+          this.members = [...this.members, user];
+          this.totalCount++;
+        }
+      }
+    }
+    this.#searchCache.clear();
+  }
+
+  /** Apply membership deltas even while this room is not mounted. A delta
+   * during offset pagination restarts that read to avoid skipped rows. */
+  async applyMembership(userId: string, joined: boolean, minimumCursor?: string): Promise<void> {
+    if (!userId || !this.api) return;
+    this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
+    this.#membershipChanges.set(userId, joined);
+    if (!joined) this.#profileUpdates.delete(userId);
+    this.#searchCache.clear();
+    if (this.isInitialLoading || this.isBackgroundLoading) {
+      await this.refresh();
+      return;
+    }
+    const exists = this.members.some((member) => member.id === userId);
+    if (!joined) {
+      this.members = this.members.filter((member) => member.id !== userId);
+      if (exists) this.totalCount = Math.max(0, this.totalCount - 1);
+      return;
+    }
+    if (exists || !this.hasFirstPage) return;
+    const loadId = this.#loadId;
+    let users: DirectoryMember[];
+    try {
+      users = await this.api.batchGetUsers([userId]);
+    } catch {
+      // An old request must not invalidate a newer snapshot after a reset.
+      if (loadId === this.#loadId) this.reset();
+      return;
+    }
+    if (loadId !== this.#loadId || !this.#membershipChanges.get(userId)) return;
+    const user = users[0];
+    if (user && !this.members.some((member) => member.id === userId)) {
+      this.members = [
+        ...this.members,
+        this.#profileUpdates.get(userId) ?? memberFromDirectory(user)
+      ];
+      this.totalCount++;
+    }
+  }
+
+  /** Discard snapshots after a recovery gap or an authorization boundary. */
+  resetProjectionState(): void {
+    this.reset();
   }
 
   private async loadPages(loadId: number): Promise<void> {
@@ -272,10 +338,12 @@ export class RoomMembersStore {
       const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
       if (loadId !== this.#loadId) return;
 
-      this.members = firstPage ? page.members : appendPageMembers(this.members, page.members);
+      const members = page.members.map((member) => this.#profileUpdates.get(member.id) ?? member);
+      this.members = firstPage ? members : appendPageMembers(this.members, members);
       this.totalCount = page.totalCount;
       hasMore = page.hasMore;
-      nextOffset += page.members.length;
+      const consumed = page.consumedCount ?? page.members.length;
+      nextOffset += consumed;
 
       if (firstPage) {
         firstPage = false;
@@ -285,7 +353,7 @@ export class RoomMembersStore {
         this.isBackgroundLoading = hasMore;
       }
 
-      if (page.members.length === 0) {
+      if (consumed === 0) {
         hasMore = false;
         break;
       }
@@ -300,7 +368,13 @@ export class RoomMembersStore {
   private async fetchPage(offset: number, limit: number, search: string): Promise<RoomMembersPage> {
     if (!this.api) return { members: [], totalCount: 0, hasMore: false };
     const normalizedSearch = search.trim();
-    return mapPage(await this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset));
+    return mapPage(
+      await (this.#minimumCursor
+        ? this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset, {
+            minimumCursor: this.#minimumCursor
+          })
+        : this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset))
+    );
   }
 
   private filterLoadedMembers(search: string): RoomMember[] {
@@ -323,6 +397,9 @@ export class RoomMembersStore {
     this.searchInput = '';
     this.activeSearch = '';
     this.#searchCache.clear();
+    this.#membershipChanges.clear();
+    this.#profileUpdates.clear();
+    this.#minimumCursor = undefined;
     this.livePresence.clear();
     this.presenceVersion = 0;
   }
@@ -334,10 +411,12 @@ function appendPageMembers(current: RoomMember[], incoming: RoomMember[]): RoomM
   return [...current.filter((member) => !incomingIds.has(member.id)), ...incoming];
 }
 
-const [getMembersStoreContext, setMembersStoreContext] = createContext<RoomMembersStore>();
+const [getMembersStoreContext, setMembersStoreContext] = createContext<() => RoomMembersStore>();
 
-export function setRoomMembersStore(store: RoomMembersStore): RoomMembersStore {
-  setMembersStoreContext(store);
+export function setRoomMembersStore<T extends RoomMembersStore | (() => RoomMembersStore)>(
+  store: T
+): T {
+  setMembersStoreContext(typeof store === 'function' ? store : () => store);
   return store;
 }
 
@@ -346,6 +425,11 @@ export function createRoomMembers(serverConnection?: ServerConnection): RoomMemb
 }
 
 export function getRoomMembersStore(): RoomMembersStore {
+  return getMembersStoreContext()();
+}
+
+/** Capture context during initialization, then resolve the selected room later. */
+export function useRoomMembersStore(): () => RoomMembersStore {
   return getMembersStoreContext();
 }
 

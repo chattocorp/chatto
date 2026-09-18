@@ -1,7 +1,7 @@
 # FDR-025: User Search & Member Directory
 
 **Status:** Active
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-09-18
 
 ## Overview
 
@@ -17,6 +17,16 @@ Any authenticated user can browse the server's member directory — a paginated 
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
 - Direct user lookups by stable user ID or login return the same public directory row shape as the directory and require authentication. Batch user hydration by stable user ID supports cache-miss loading without N+1 reads.
 - Directory and lookup rows expose the canonical `User.bot` metadata. Clients render an accessible bot indicator so people can distinguish automation from human accounts.
+- Room membership lists return user IDs in ascending ID order. Clients resolve
+  missing profiles through bounded batch reads. Ordinary room listing does not
+  decrypt user names; name search still reads the profiles it searches.
+- The bundled client retains loaded room members for the authenticated server
+  session. Moving between rooms reuses these lists. Realtime joins, leaves, and
+  profile changes update retained rooms, including rooms that are not open.
+- Mention completion can search for names before the room list finishes
+  loading. It does not wait for the background member scan.
+- Recovery resets and access loss clear retained membership. Changes to
+  universal-room eligibility require an authoritative membership read.
 
 ## Design Decisions
 
@@ -38,9 +48,9 @@ Any authenticated user can browse the server's member directory — a paginated 
 **Why:** An error would break clients that send larger numbers naively. Clamping serves the request with a sensible cap. Normal clients request smaller pages, so the clamp mainly affects malformed requests.
 **Tradeoff:** A client expecting all users in one response may get a truncated page and may not realise. The `totalCount` field in the response surfaces the discrepancy.
 
-### 4. Sort by createdAt, with a stable fallback
+### 4. Sort server users by createdAt, with a stable fallback
 
-**Decision:** Primary sort by `createdAt` ascending; users with null `createdAt` (predates the field) sort to the end alphabetically by login.
+**Decision:** The server user directory sorts by `createdAt` ascending. Users with null `createdAt` sort to the end alphabetically by login. Room membership pages sort by stable user ID so the server can list IDs without reading profiles.
 **Why:** "Oldest first" is a stable order that matches the admin mental model ("show me long-term members first; new signups at the end"). The alphabetical fallback for null timestamps keeps the order deterministic for legacy users without inventing a fake timestamp.
 **Tradeoff:** Sorting by recency (newest first) is occasionally what an admin wants when investigating a signup wave. Not exposed today; could be added as a sort parameter if needed.
 
@@ -56,9 +66,22 @@ Any authenticated user can browse the server's member directory — a paginated 
 **Why:** Explicit memberships would require a join-leave workflow that didn't exist (Chatto's earlier design assumed everyone-is-a-member). Removing them reduced storage and code paths without losing functionality. See ADR-027.
 **Tradeoff:** No way to mark someone as "a user on this server but not currently a member". For operators who need that, the suspension flow (FDR-001's user-level deny pattern) handles it.
 
+### 7. Separate room membership from user profiles
+
+**Decision:** Room membership reads return IDs. The client shares cached user
+profiles across rooms and resolves missing profiles in batches. The room store
+continues background loading so local mention matching has names available.
+**Why:** A room switch must not repeat profile reads for users the client already
+knows. Each membership page must not decrypt every profile in the room.
+**Tradeoff:** A cold load requires a second request for names. Name search remains
+available while that load is pending. A membership event during offset pagination
+restarts the scan at the event boundary to prevent skipped entries.
+
 ## Permissions
 
-No explicit permission — authentication only.
+Server user-directory reads require authentication only. Room membership lists
+require room membership or the applicable room-management or discovery access.
+DM member lists require participation in that DM.
 
 ## Related
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1393,12 +1394,11 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListMembers: %v", err)
 	}
-	if resp.Msg.GetPage().GetTotalCount() != 1 || resp.Msg.GetPage().GetHasMore() || len(resp.Msg.GetMembers()) != 1 {
+	if resp.Msg.GetPage().GetTotalCount() != 1 || resp.Msg.GetPage().GetHasMore() || len(resp.Msg.GetUserIds()) != 1 {
 		t.Fatalf("room member page = %+v, want one alice result", resp.Msg)
 	}
-	got := resp.Msg.GetMembers()[0]
-	if got.GetUser().GetId() != member.Id || got.GetUser().GetDisplayName() != "Room Alice" || got.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
-		t.Fatalf("room member = %+v, want hydrated Room Alice", got)
+	if got := resp.Msg.GetUserIds()[0]; got != member.Id {
+		t.Fatalf("room member ID = %q, want %q", got, member.Id)
 	}
 
 	getResp, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: member.Id}))
@@ -1446,6 +1446,7 @@ func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *te
 		{login: "preview-delta", displayName: "Delta"},
 		{login: "preview-echo", displayName: "echo"},
 	}
+	var memberIDs []string
 	for _, input := range members {
 		member, err := env.core.CreateUser(env.ctx, core.SystemActorID, input.login, input.displayName, "password")
 		if err != nil {
@@ -1454,6 +1455,7 @@ func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *te
 		if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
 			t.Fatalf("JoinRoom %s: %v", input.login, err)
 		}
+		memberIDs = append(memberIDs, member.Id)
 	}
 
 	resp, err := env.rooms.ListMembers(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListMembersRequest{
@@ -1466,12 +1468,9 @@ func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *te
 	if page := resp.Msg.GetPage(); page.GetTotalCount() != 6 || !page.GetHasMore() {
 		t.Fatalf("ListMembers page = %+v, want total 6 and has_more", page)
 	}
-	gotNames := make([]string, len(resp.Msg.GetMembers()))
-	for i, member := range resp.Msg.GetMembers() {
-		gotNames[i] = member.GetUser().GetDisplayName()
-	}
-	if got, want := strings.Join(gotNames, ","), "alice,Bob,charlie,Delta,echo"; got != want {
-		t.Fatalf("ListMembers names = %q, want %q", got, want)
+	slices.Sort(memberIDs)
+	if got, want := strings.Join(resp.Msg.GetUserIds(), ","), strings.Join(memberIDs[:5], ","); got != want {
+		t.Fatalf("ListMembers IDs = %q, want %q", got, want)
 	}
 }
 
@@ -1496,13 +1495,21 @@ func TestMemberDirectoryPaginationDefaultsAndClamps(t *testing.T) {
 		t.Fatalf("roomMemberDirectoryPagination oversized page = %d, %d; want 500, 0", limit, offset)
 	}
 
-	users := make([]*evtv1.User, 501)
-	for i := range users {
-		users[i] = &evtv1.User{Id: fmt.Sprintf("user-%03d", i)}
+	ids := make([]string, 501)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("user-%03d", i)
 	}
-	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
+	page, totalCount, hasMore := paginateDirectoryIDs(ids, limit, offset)
 	if len(page) != 500 || totalCount != 501 || !hasMore {
 		t.Fatalf("paginated users len, total, hasMore = %d, %d, %v; want 500, 501, true", len(page), totalCount, hasMore)
+	}
+	page, totalCount, hasMore = paginateDirectoryIDs(ids, limit, 500)
+	if len(page) != 1 || page[0] != ids[500] || totalCount != 501 || hasMore {
+		t.Fatalf("unexpected last page: %v, total %d, hasMore %v", page, totalCount, hasMore)
+	}
+	page, totalCount, hasMore = paginateDirectoryIDs(ids, limit, 999)
+	if len(page) != 0 || totalCount != 501 || hasMore {
+		t.Fatalf("unexpected page beyond end: %v, total %d, hasMore %v", page, totalCount, hasMore)
 	}
 }
 

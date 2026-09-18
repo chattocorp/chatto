@@ -13,7 +13,6 @@
     useRoomData,
     useRoomUnread,
     useProjectionEvent,
-    usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
   import { appState } from '$lib/state/globals.svelte';
@@ -22,7 +21,6 @@
     createComposerContext,
     createMentionRoles,
     getRoomMembers,
-    RoomMembersStore,
     setRoomMembersStore,
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
@@ -78,8 +76,8 @@
   }: { roomId: string; threadId?: string; routeMessageId?: string } = $props();
 
   const serverScope = useServerScope();
-  const connection = () => serverScope.connection;
-  const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
+  const roomMembersStore = $derived(serverScope.store.membersForRoom(roomId));
+  setRoomMembersStore(() => roomMembersStore);
   const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const stores = $derived(serverScope.store);
@@ -343,10 +341,6 @@
 
   // Canonical facts invalidate the explicit reads that own this room's data.
   useProjectionEvent((event) => {
-    if (event.resource?.case === 'users') {
-      if (!room.isDM) void roomMembersStore.refresh();
-      return;
-    }
     const semantic = event.event?.event;
     if (!semantic) return;
     if (semantic.case === 'messagePosted' && semantic.value.roomId === roomId) {
@@ -358,22 +352,6 @@
       }
       return;
     }
-    if (room.isDM) return;
-    switch (semantic.case) {
-      case 'userJoinedRoom':
-      case 'userLeftRoom':
-        if (semantic.value.roomId === roomId) void roomMembersStore.refresh();
-        return;
-      case 'userAccountDeleted':
-      case 'userProfileChanged':
-      case 'userAccountCreated':
-        void roomMembersStore.refresh();
-        return;
-    }
-  });
-
-  usePresenceChange((userId, status) => {
-    roomMembersStore.setPresence(userId, status);
   });
 
   // Header action visibility — flat derivations keep the template clean
@@ -479,6 +457,7 @@
 
   const syncRoomMembers: Attachment = () => {
     const selectedRoomId = roomId;
+    const hasFirstPage = roomMembersStore.hasFirstPage;
     const hasCompleteMembership = stores.hasCompleteProjectedRoomMembership(selectedRoomId);
     const projectedMembers = hasCompleteMembership
       ? stores.projectedMembersForRoom(selectedRoomId)
@@ -488,7 +467,7 @@
       if (hasCompleteMembership) {
         roomMembersStore.replaceProjection(selectedRoomId, projectedMembers);
       } else {
-        roomMembersStore.ensureLoaded();
+        if (!hasFirstPage) roomMembersStore.ensureLoaded();
       }
     });
   };

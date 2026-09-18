@@ -156,8 +156,12 @@ vi.mock('$lib/state/room', () => ({
   MessagesStore: class {},
   RoomFilesStore: class {},
   RoomPinsStore: class {},
+  RoomMembersStore: class {},
   getRoomMembers: () => roomStateMock.members,
-  getRoomMembersStore: () => ({
+  useRoomMembersStore: () => () => ({
+    get members() {
+      return roomStateMock.members;
+    },
     searchMembers: vi.fn(async () => roomStateMock.members)
   }),
   getComposerContext: () => ({

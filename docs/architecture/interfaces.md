@@ -118,8 +118,15 @@ and loads parent-group rules independently of the page. Scope enumeration still
 scans the directory. Bot reads filter room visibility before pagination and
 counts. See [permission scope selection](../../cli/internal/core/permission_scope_page.go).
 
+`RoomService.ListMembers` returns active membership IDs in stable ID order.
+An empty search reads lifecycle and membership metadata without profile
+decryption. Name searches hydrate profiles to match login and display name.
+`UserService.BatchGetUsers` assembles requested profiles with bounded concurrency
+and one request-scoped encryption-key cache. See
+[FDR-025](../fdr/FDR-025-user-search-and-member-directory.md).
+
 `AdminRoleService` separates role details from explicit membership pages.
-`ListMembers` gates each request with `role.assign`; it selects assignment IDs
+Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs
 before bounded user-profile hydration. It does not require `admin.view-users`.
 See [role operations](../../cli/internal/core/role_management.go) and the
 [role member assembler](../../cli/internal/connectapi/role_member_assembler.go).

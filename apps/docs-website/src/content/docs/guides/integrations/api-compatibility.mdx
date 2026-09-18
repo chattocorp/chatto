@@ -17,6 +17,21 @@ name. It does not mean that every Chatto release exposes the same API.
   your integration against a new version before upgrading that deployment.
 </Aside>
 
+## Room member lists
+
+`RoomService.ListMembers` now returns `user_ids` instead of `members`.
+Regenerate clients and resolve missing user profiles with
+`UserService.BatchGetUsers`, in batches of at most 100 IDs. Cache profiles by
+server, session, and user ID, and update them from realtime changes.
+
+Results use ascending user ID order, including when `search` is set. Sort
+resolved names in your UI when you need alphabetical display. Advance offsets
+by the number of returned IDs, even if a later profile read omits a deleted user.
+The default page size remains 250 and the maximum remains 500.
+
+This is a breaking pre-1.0 API change. Update the server and its custom clients
+together. Stored membership and user data do not require migration.
+
 ## Bot identity
 
 The public `User` resource now has a `bot` message of type `BotInfo`.

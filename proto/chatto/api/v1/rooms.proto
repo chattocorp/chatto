@@ -447,7 +447,8 @@ service RoomService {
   // Leaves the room as the current user. Direct-message and universal rooms
   // cannot be left.
   rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
-  // Lists effective room members. Existing members and room.manage holders may
+  // Lists effective room member IDs in ascending ID order. Resolve user details
+  // with UserService.BatchGetUsers. Existing members and room.manage holders may
   // list a channel room; other nonmembers need both room.list and room.join.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   // Gets one effective member, including automatic universal membership.

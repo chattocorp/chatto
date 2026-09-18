@@ -49,6 +49,7 @@ import {
   ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
+  PresenceChangedEvent,
   NotificationUnreadStateChangedEvent,
   NotificationOccurrencesChangedEvent,
   ThreadViewerStateChangedEvent
@@ -874,6 +875,58 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('keeps presence current in inactive and newly opened rooms', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const a = store.membersForRoom('a');
+    store.membersForRoom('b');
+    store.realtimePresenceHandler(
+      new RealtimeEvent({
+        actorId: 'U2',
+        event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 2 }) }
+      })
+    );
+    expect(a.livePresence.get('U2')).toBe(2);
+    expect(store.membersForRoom('c').livePresence.get('U2')).toBe(2);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    expect(a.livePresence.has('U2')).toBe(false);
+    expect(store.membersForRoom('d').livePresence.has('U2')).toBe(false);
+  });
+  it('retains member lists across A to B to A navigation and clears them on reset', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const a = store.membersForRoom('a');
+    await a.loadInitial();
+    await store.membersForRoom('b').loadInitial();
+    const requests = apiMocks.listRoomMembers.mock.calls.length;
+    expect(store.membersForRoom('a')).toBe(a);
+    store.membersForRoom('a').ensureLoaded();
+    await flushPromises();
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(requests);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    expect(a.hasFirstPage).toBe(false);
+    a.ensureLoaded();
+    await flushPromises();
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(requests + 1);
+  });
+
+  it('applies a leave to an inactive retained room without relisting', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const a = store.membersForRoom('a');
+    a.replaceProjection('a', [{ id: 'U2', login: 'two', displayName: 'Two', presenceStatus: 1 }]);
+    await store.membersForRoom('b').loadInitial();
+    const requests = apiMocks.listRoomMembers.mock.calls.length;
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          id: 'leave-a',
+          actorId: 'U2',
+          event: { case: 'userLeftRoom', value: new UserLeftRoomEvent({ roomId: 'a' }) }
+        })
+      })
+    );
+    expect(a.members).toEqual([]);
+    expect(a.totalCount).toBe(0);
+    expect(apiMocks.listRoomMembers).toHaveBeenCalledTimes(requests);
+  });
   it('retains separate transient search state for each room', () => {
     const store = makeStore(new FakeServerConnection([]));
     const firstRoomSearch = store.messageSearchForRoom('R1');

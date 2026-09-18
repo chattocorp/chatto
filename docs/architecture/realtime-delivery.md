@@ -331,6 +331,24 @@ The hub and public event mapper both check this boundary.
 
 ## Bundled frontend
 
+`ServerStateStore` owns retained `RoomMembersStore` instances for the session.
+Room navigation selects an existing store. Public join and leave events update
+its membership, and canonical user reads update its profiles. These updates also
+apply while the room is not mounted.
+The session store also retains presence updates for inactive rooms and rooms
+opened later. Catch-up refreshes profiles and presence for retained members.
+An event during offset pagination restarts
+the membership read with the event's minimum cursor. Recovery resets and room
+access loss clear retained membership. Universal-room eligibility changes require
+a new authoritative read rather than client-side permission calculations.
+
+TanStack Query stores directory users by server, connection scope, and user ID.
+Concurrent cache misses share reads in batches of at most 100 IDs. Canonical
+profile updates cancel older reads before replacing entries; deletion records
+prevent an old batch from restoring a removed user. Session disposal removes
+these queries. A room's first page and full background load remain separate so
+mention completion can use names early and search while loading continues.
+
 The per-server store checks permission events before it changes retained role
 assignments. It clears its cursor, viewer authority, query observers, message
 and thread stores, notifications, search results, and admin layout before it
