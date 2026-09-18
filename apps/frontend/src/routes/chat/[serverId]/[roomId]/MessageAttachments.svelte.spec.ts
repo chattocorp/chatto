@@ -282,6 +282,24 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('w-full');
   });
 
+  it('scales a single image with the message width and preserves its proportions', async () => {
+    const { container } = renderAttachment(
+      imageAttachment({ filename: 'wide.jpg', width: 1600, height: 800 })
+    );
+    const { button } = imageFrame(container, 'wide.jpg');
+
+    for (const width of [240, 120, 640]) {
+      container.style.width = `${width}px`;
+      await vi.waitFor(() => {
+        const bounds = button.getBoundingClientRect();
+        expect(bounds.width).toBe(Math.min(width, 400));
+        expect(bounds.height).toBeCloseTo(bounds.width / 2, 0);
+        expect(container.scrollWidth).toBe(container.clientWidth);
+      });
+    }
+    expect(container.querySelector('[data-testid="message-image-gallery"]')).toBeNull();
+  });
+
   it('uses descriptions as image alt text and sends them to the image viewer', async () => {
     const description = 'A chart with a rising blue line.';
     const { container } = renderAttachment(imageAttachment({ description }));

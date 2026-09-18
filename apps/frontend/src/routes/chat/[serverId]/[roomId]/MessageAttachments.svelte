@@ -438,7 +438,12 @@
         : variant === 'gallery'
           ? fallbackGalleryThumbDisplay()
           : null}
-    <div class={['group/attachment relative min-w-0', variant === 'gallery' && 'shrink-0']}>
+    <div
+      class={[
+        'group/attachment relative min-w-0',
+        variant === 'gallery' ? 'shrink-0' : 'max-w-full'
+      ]}
+    >
       <button
         type="button"
         onclick={() => openAttachmentModal(attachment)}
