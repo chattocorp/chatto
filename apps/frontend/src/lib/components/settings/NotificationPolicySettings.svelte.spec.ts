@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { page } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -105,10 +106,11 @@ describe('NotificationPolicySettings', () => {
     expect(container.textContent).not.toContain('Reset to defaults');
   });
 
-  it('explains every activity from its row heading instead of cell title popups', () => {
+  it.each([390, 1280])('explains every activity from its row heading at %ipx', async (width) => {
+    await page.viewport(width, 900);
     const { container } = render(NotificationPolicySettings);
     const helpButtons = container.querySelectorAll(
-      'tbody th[scope="row"] button[aria-label^="More information: "]'
+      'tbody th button[aria-label^="More information: "]'
     );
 
     expect(helpButtons).toHaveLength(9);
@@ -119,6 +121,7 @@ describe('NotificationPolicySettings', () => {
       'Messages that other members send in direct-message conversations.'
     );
     expect(container.querySelectorAll('td[data-notification-field] [title]')).toHaveLength(0);
+    await page.viewport(1280, 900);
   });
 
   it('marks direct messages as not applicable to room groups and channel rooms', () => {
