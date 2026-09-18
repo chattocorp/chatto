@@ -95,7 +95,7 @@ message list layout, and it announces changes politely to screen readers via a
       }}
     >
       {#each visibleMembers as member (member.id)}
-        <span class="shrink-0" aria-hidden="true" data-testid="typing-avatar">
+        <span class="flex shrink-0 items-center" aria-hidden="true" data-testid="typing-avatar">
           <UserAvatar user={member} size="xs" useLiveProfile={false} />
         </span>
       {/each}
@@ -108,7 +108,7 @@ message list layout, and it announces changes politely to screen readers via a
         <span class="typing-dot [animation-delay:-700ms]"></span>
         <span class="typing-dot [animation-delay:-600ms]"></span>
         <span class="typing-dot [animation-delay:-100ms]"></span>
-        <span class="typing-dot opacity-20 [animation:none]"></span>
+        <span class="typing-dot [animation:none] opacity-20"></span>
         <span class="typing-dot [animation-delay:-500ms]"></span>
         <span class="typing-dot [animation-delay:-200ms]"></span>
         <span class="typing-dot [animation-delay:-300ms]"></span>

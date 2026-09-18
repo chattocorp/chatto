@@ -3,6 +3,7 @@
   import TypingIndicator from './TypingIndicator.svelte';
   import { Button } from '$lib/ui/form';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import avatarUrl from '$lib/assets/bot.svg';
 
   const { Story } = defineMeta({
     title: 'Chat/Typing indicator',
@@ -68,6 +69,12 @@
 <Story name="Two typers" asChild>
   <div class="relative h-24 w-96 overflow-hidden rounded-lg border border-border bg-background p-2">
     <TypingIndicator typingUserIds={['alice', 'bob']} {members} />
+  </div>
+</Story>
+
+<Story name="Image and initial avatars" asChild>
+  <div class="relative h-24 w-96 overflow-hidden rounded-lg border border-border bg-background p-2">
+    <TypingIndicator typingUserIds={['alice', 'bob']} members={[{ ...alice, avatarUrl }, bob]} />
   </div>
 </Story>
 
