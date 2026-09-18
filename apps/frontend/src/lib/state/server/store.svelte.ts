@@ -321,6 +321,8 @@ export class ServerStateStore {
       this.applyViewerSnapshot(await this.#privilegedModeAPI.refresh());
     } catch (error) {
       console.warn('[privileged-mode] failed to refresh effective permissions after expiry', error);
+      // Reads must still recheck server authority when the viewer refresh fails.
+      refreshRegisteredAdminQueries(this.serverId);
     } finally {
       this.realtimeSync.invalidateAuthorization();
       this.#serverConnection.forceReconnect('privileged mode expired');
@@ -339,7 +341,9 @@ export class ServerStateStore {
     const viewer = viewerResponseToState(response);
     this.currentUser.user = viewer.user;
     this.currentUser.loading = false;
-    this.setPermissions(viewer);
+    // Mutation and expiry responses are authoritative. Refresh snapshots now,
+    // including room-only grants, without waiting for the realtime reconnect.
+    this.reconcilePermissions(viewer, true);
   }
 
   /** Reject work whose resource boundary was superseded by a newer reset. */
@@ -1449,6 +1453,11 @@ export class ServerStateStore {
 
   /** Update permissions from viewer query data. */
   setPermissions(viewer: ViewerData): void {
+    this.reconcilePermissions(viewer, false);
+  }
+
+  /** A privacy reset already refetches active reads; never also refresh them. */
+  private reconcilePermissions(viewer: ViewerData, refreshAdmin: boolean): void {
     const previous = this.permissions;
     this.permissions = { ...viewer, loaded: true };
     const lostAdminCapability =
@@ -1464,6 +1473,8 @@ export class ServerStateStore {
         (previous.canManageInvites && !viewer.canManageInvites));
     if (lostAdminCapability) {
       removeRegisteredAdminQueries(this.serverId);
+    } else if (refreshAdmin) {
+      refreshRegisteredAdminQueries(this.serverId);
     }
   }
 

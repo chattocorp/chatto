@@ -84,13 +84,17 @@ export function removeAdminQueries(serverId: string): void {
 
 /** Refresh active admin snapshots after effective privilege state changes. */
 export function refreshAdminQueries(serverId: string): void {
-  void queryClient.invalidateQueries({
-    predicate: (query) => {
+  const filters = {
+    predicate: (query: { queryKey: QueryKey }) => {
       const key = query.queryKey;
       return key[0] === 'server' && key[1] === serverId && key[4] === 'admin';
-    },
-    refetchType: 'active'
-  });
+    }
+  };
+  // Cancel first loads too: invalidation alone can reuse a pending response
+  // from before the privilege change.
+  void queryClient.cancelQueries(filters).then(() =>
+    queryClient.invalidateQueries({ ...filters, refetchType: 'active' })
+  );
 }
 
 export function removeAdminUserQueries(serverId: string, userId: string): void {

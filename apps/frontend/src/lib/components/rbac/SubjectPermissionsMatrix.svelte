@@ -17,6 +17,7 @@ its permission row and scope column. The surrounding pane owns vertical
 scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
+  import type { Attachment } from 'svelte/attachments';
   /** Client view of membership, loaded through the room APIs. */
   export type AccountRoomMembership = {
     joined: boolean;
@@ -70,6 +71,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     subjectKind = 'subject',
     forceAllow = false,
     readOnly = false,
+    loading = false,
     decisionMode = 'tri-state',
     onMembershipChange,
     hasMore = false,
@@ -90,11 +92,25 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
+    /** Keep the panel and its geometry mounted while private data is reloaded. */
+    loading?: boolean;
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
     /** Enables the account membership row, separate from permission cells. */
     onMembershipChange?: (scope: MatrixScope, joined: boolean) => void;
   } = $props();
+
+  // Retain only layout measurements across an authorization reset, never the
+  // previous scopes or permission decisions. This prevents scroll collapse.
+  let contentHeight = $state(0);
+  const measureContent: Attachment<HTMLElement> = (element) => {
+    if (loading) return;
+    const observer = new ResizeObserver(() => {
+      contentHeight = element.getBoundingClientRect().height;
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  };
 
   // ----- Column layout ----------------------------------------------------
 
@@ -224,209 +240,221 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   }
 </script>
 
-{#if orderedScopes.length === 0}
-  <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
-{:else}
-  <Panel title={m('admin.permissions.title')} noPadding>
-    {#snippet actions()}
-      <div class="w-48 sm:w-64">
-        <ShortcutTextInput
-          id="permission-filter"
-          testid="permission-filter"
-          label={m('rbac.permissions.filter_label')}
-          labelHidden
-          shortcutKey="/"
-          placeholder={m('rbac.permissions.filter_placeholder')}
-          leadingIcon="iconify icon-[uil--search]"
-          autocomplete="off"
-          bind:value={permissionFilter}
-        />
-      </div>
-    {/snippet}
-    <MatrixTable
-      {rows}
-      {hasMore}
-      {loadingMore}
-      {onLoadMore}
-      columns={matrixScopes}
-      getRowKey={(permission) => permission}
-      getColumnKey={(scope) => scope.id}
-      getGroupKey={(permission) =>
-        permission === membershipRow ? null : getPermissionCategory(permission)}
-      emptyMessage={m('rbac.permissions.no_filter_matches')}
-      compact
-      columnHeaderHeight="10rem"
-      columnClass={(scope) => scopeColumnClass(scope.kind)}
-      columnAttributes={(scope) => ({ 'data-scope': scope.id })}
-      cellAttributes={(permission, scope) => ({
-        'data-scope': scope.id,
-        'data-permission': permission
-      })}
-      isCellInteractive={(permission, scope) =>
-        permission === membershipRow
-          ? Boolean(scope.membership)
-          : Boolean(cellFor(scope.id, permission))}
-      spacerTestId="permission-matrix-spacer"
-    >
-      {#snippet leadingHeader()}
-        Permission
-      {/snippet}
-      {#snippet group(permission)}
-        <h3 data-testid="permission-section-divider" class="text-sm font-medium text-muted">
-          {getPermissionCategoryLabel(getPermissionCategory(permission))}
-        </h3>
-      {/snippet}
-      {#snippet columnHeader(scope, highlighted)}
-        <span
-          class={[
-            scope.kind === 'SERVER' ? 'font-semibold' : '',
-            scope.kind === 'DM' ? 'font-medium' : '',
-            highlighted ? 'text-action' : '',
-            !highlighted && (scope.kind === 'GROUP' || scope.kind === 'DM')
-              ? 'text-neutral-action'
-              : '',
-            !highlighted && scope.kind === 'ROOM' ? 'text-muted' : ''
-          ]}
-          title={`${scope.label} (${scope.kind.toLowerCase()})`}
-        >
-          {#if scope.kind === 'ROOM'}#{/if}{scope.label}
-        </span>
-      {/snippet}
-      {#snippet rowHeader(permission, highlighted)}
-        <span
-          data-testid="permission-name"
-          title={permission === membershipRow
-            ? m('rbac.permissions.membership.description')
-            : getPermissionDescription(permission)}
-          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
-          >{permission === membershipRow ? m('room.directory.joined') : permission}</span
-        >
-      {/snippet}
-      {#snippet cell(permission, scope)}
-        {@const permissionId = permission}
-        {@const cell = cellFor(scope.id, permission)}
-        {#if permission === membershipRow && scope.membership}
-          {@const membership = scope.membership}
-          {@const action = m(
-            membership.joined
-              ? 'rbac.permissions.membership.leave'
-              : 'rbac.permissions.membership.join',
-            { room: scope.label }
+<div
+  data-testid="subject-permissions-matrix"
+  aria-busy={loading}
+  style:min-height={loading && contentHeight ? `${contentHeight}px` : undefined}
+>
+  <div {@attach measureContent}>
+    {#if !loading && orderedScopes.length === 0}
+      <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
+    {:else}
+      <Panel title={m('admin.permissions.title')} noPadding>
+        {#snippet actions()}
+          <div class="w-48 sm:w-64">
+            <ShortcutTextInput
+              id="permission-filter"
+              testid="permission-filter"
+              label={m('rbac.permissions.filter_label')}
+              labelHidden
+              shortcutKey="/"
+              placeholder={m('rbac.permissions.filter_placeholder')}
+              leadingIcon="iconify icon-[uil--search]"
+              autocomplete="off"
+              bind:value={permissionFilter}
+            />
+          </div>
+        {/snippet}
+        <MatrixTable
+          {rows}
+          {hasMore}
+          {loadingMore}
+          {onLoadMore}
+          columns={matrixScopes}
+          getRowKey={(permission) => permission}
+          getColumnKey={(scope) => scope.id}
+          getGroupKey={(permission) =>
+            permission === membershipRow ? null : getPermissionCategory(permission)}
+          emptyMessage={m(
+            loading ? 'rbac.permissions.loading' : 'rbac.permissions.no_filter_matches'
           )}
-          <MatrixCell
-            override={membership.joined ? 'allow' : 'neutral'}
-            decisionMode="binary"
-            disabled={readOnly}
-            locked={membership.automatic ||
-              !(membership.joined ? membership.canLeave : membership.canJoin)}
-            updating={updatingKey === `${scope.id}::${membershipRow}`}
-            ariaLabel={action}
-            title={membership.automatic
-              ? m('room.directory.universal_title')
-              : !(membership.joined ? membership.canLeave : membership.canJoin)
-                ? m('rbac.permissions.membership.unavailable')
-                : action}
-            onCycle={() => onMembershipChange?.(scope, !membership.joined)}
-          />
-        {:else if cell}
-          {@const ov = decisionToState(cell.override)}
-          {@const eff = decisionToState(cell.effective)}
-          {@const parent = parentDecision(scope, permission)}
-          {@const configured = cell.override !== 'NONE' ? cell.override : parent}
-          {@const includedBy = includingPermission(scope, permission)}
-          {@const binaryEnabled = configured === 'ALLOW' || includedBy !== null}
-          {@const inheritedBinaryGrant =
-            decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
-          {@const displayOverride = forceAllow
-            ? 'allow'
-            : decisionMode === 'binary'
-              ? cell.override === 'ALLOW'
+          compact
+          columnHeaderHeight="10rem"
+          columnClass={(scope) => scopeColumnClass(scope.kind)}
+          columnAttributes={(scope) => ({ 'data-scope': scope.id })}
+          cellAttributes={(permission, scope) => ({
+            'data-scope': scope.id,
+            'data-permission': permission
+          })}
+          isCellInteractive={(permission, scope) =>
+            permission === membershipRow
+              ? Boolean(scope.membership)
+              : Boolean(cellFor(scope.id, permission))}
+          spacerTestId="permission-matrix-spacer"
+        >
+          {#snippet leadingHeader()}
+            Permission
+          {/snippet}
+          {#snippet group(permission)}
+            <h3 data-testid="permission-section-divider" class="text-sm font-medium text-muted">
+              {getPermissionCategoryLabel(getPermissionCategory(permission))}
+            </h3>
+          {/snippet}
+          {#snippet columnHeader(scope, highlighted)}
+            <span
+              class={[
+                scope.kind === 'SERVER' ? 'font-semibold' : '',
+                scope.kind === 'DM' ? 'font-medium' : '',
+                highlighted ? 'text-action' : '',
+                !highlighted && (scope.kind === 'GROUP' || scope.kind === 'DM')
+                  ? 'text-neutral-action'
+                  : '',
+                !highlighted && scope.kind === 'ROOM' ? 'text-muted' : ''
+              ]}
+              title={`${scope.label} (${scope.kind.toLowerCase()})`}
+            >
+              {#if scope.kind === 'ROOM'}#{/if}{scope.label}
+            </span>
+          {/snippet}
+          {#snippet rowHeader(permission, highlighted)}
+            <span
+              data-testid="permission-name"
+              title={permission === membershipRow
+                ? m('rbac.permissions.membership.description')
+                : getPermissionDescription(permission)}
+              class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
+              >{permission === membershipRow ? m('room.directory.joined') : permission}</span
+            >
+          {/snippet}
+          {#snippet cell(permission, scope)}
+            {@const permissionId = permission}
+            {@const cell = cellFor(scope.id, permission)}
+            {#if permission === membershipRow && scope.membership}
+              {@const membership = scope.membership}
+              {@const action = m(
+                membership.joined
+                  ? 'rbac.permissions.membership.leave'
+                  : 'rbac.permissions.membership.join',
+                { room: scope.label }
+              )}
+              <MatrixCell
+                override={membership.joined ? 'allow' : 'neutral'}
+                decisionMode="binary"
+                disabled={readOnly}
+                locked={membership.automatic ||
+                  !(membership.joined ? membership.canLeave : membership.canJoin)}
+                updating={updatingKey === `${scope.id}::${membershipRow}`}
+                ariaLabel={action}
+                title={membership.automatic
+                  ? m('room.directory.universal_title')
+                  : !(membership.joined ? membership.canLeave : membership.canJoin)
+                    ? m('rbac.permissions.membership.unavailable')
+                    : action}
+                onCycle={() => onMembershipChange?.(scope, !membership.joined)}
+              />
+            {:else if cell}
+              {@const ov = decisionToState(cell.override)}
+              {@const eff = decisionToState(cell.effective)}
+              {@const parent = parentDecision(scope, permission)}
+              {@const configured = cell.override !== 'NONE' ? cell.override : parent}
+              {@const includedBy = includingPermission(scope, permission)}
+              {@const binaryEnabled = configured === 'ALLOW' || includedBy !== null}
+              {@const inheritedBinaryGrant =
+                decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
+              {@const displayOverride = forceAllow
                 ? 'allow'
-                : 'neutral'
-              : ov}
-          {@const displayEffective = forceAllow
-            ? 'neutral'
-            : decisionMode === 'binary'
-              ? cell.override === 'NONE' && binaryEnabled
-                ? 'allow'
-                : 'neutral'
-              : eff}
-          {@const ariaLabel = forceAllow
-            ? `${subjectKind} is always granted ${permissionId} at ${scope.label}`
-            : decisionMode === 'binary'
-              ? m('rbac.permissions.binary.aria', {
-                  permission: permissionId,
-                  state: binaryEnabled
-                    ? m('rbac.permissions.binary.enabled')
-                    : m('rbac.permissions.binary.disabled'),
-                  subject: subjectKind,
-                  scope: scope.label
-                })
-              : ov !== 'neutral'
-                ? `Override ${ov} for ${permissionId} at ${scope.label}`
-                : `No override for ${permissionId} at ${scope.label}, effective ${eff}`}
-          {@const allowConstraint =
-            cell.allowPermitted === false
-              ? m('rbac.permissions.binary.owner_ceiling', {
-                  permission: permissionId,
-                  scope: scope.label
-                })
-              : null}
-          {@const titleParts = forceAllow
-            ? [
-                'Allow (owners are always granted all permissions)',
-                'Owner permissions are not editable'
-              ]
-            : decisionMode === 'binary'
-              ? [
-                  binaryEnabled
-                    ? [
-                        m('rbac.permissions.binary.enabled'),
-                        includedBy
-                          ? m('rbac.permissions.included_by', {
-                              permission: includedBy
-                            })
-                          : null,
-                        cell.override === 'NONE' ? m('rbac.permissions.binary.inherited') : null,
-                        cell.allowPermitted === false
-                          ? m('rbac.permissions.binary.unavailable')
-                          : null
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')
-                    : m('rbac.permissions.binary.disabled'),
-                  allowConstraint
-                ].filter(Boolean)
-              : [
-                  ov !== 'neutral'
-                    ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                    : null,
-                  includedBy ? `Effective Allow (included by ${includedBy})` : null,
-                  ov === 'neutral' && eff !== 'neutral'
-                    ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
-                    : null,
-                  ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
-                  allowConstraint
-                ].filter(Boolean)}
-          <MatrixCell
-            override={displayOverride}
-            inherited={displayEffective}
-            updating={updatingKey === `${scope.id}::${permission}`}
-            disabled={readOnly}
-            locked={inheritedBinaryGrant}
-            allowBlocked={cell.allowPermitted === false &&
-              (decisionMode !== 'binary' || parent !== 'ALLOW')}
-            ceilingBlocked={cell.allowPermitted === false &&
-              (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
-            {decisionMode}
-            {ariaLabel}
-            title={titleParts.join(' · ')}
-            onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
-          />
-        {:else}
-          <span class="inline-block h-10 w-10" aria-hidden="true"></span>
-        {/if}
-      {/snippet}
-    </MatrixTable>
-  </Panel>
-{/if}
+                : decisionMode === 'binary'
+                  ? cell.override === 'ALLOW'
+                    ? 'allow'
+                    : 'neutral'
+                  : ov}
+              {@const displayEffective = forceAllow
+                ? 'neutral'
+                : decisionMode === 'binary'
+                  ? cell.override === 'NONE' && binaryEnabled
+                    ? 'allow'
+                    : 'neutral'
+                  : eff}
+              {@const ariaLabel = forceAllow
+                ? `${subjectKind} is always granted ${permissionId} at ${scope.label}`
+                : decisionMode === 'binary'
+                  ? m('rbac.permissions.binary.aria', {
+                      permission: permissionId,
+                      state: binaryEnabled
+                        ? m('rbac.permissions.binary.enabled')
+                        : m('rbac.permissions.binary.disabled'),
+                      subject: subjectKind,
+                      scope: scope.label
+                    })
+                  : ov !== 'neutral'
+                    ? `Override ${ov} for ${permissionId} at ${scope.label}`
+                    : `No override for ${permissionId} at ${scope.label}, effective ${eff}`}
+              {@const allowConstraint =
+                cell.allowPermitted === false
+                  ? m('rbac.permissions.binary.owner_ceiling', {
+                      permission: permissionId,
+                      scope: scope.label
+                    })
+                  : null}
+              {@const titleParts = forceAllow
+                ? [
+                    'Allow (owners are always granted all permissions)',
+                    'Owner permissions are not editable'
+                  ]
+                : decisionMode === 'binary'
+                  ? [
+                      binaryEnabled
+                        ? [
+                            m('rbac.permissions.binary.enabled'),
+                            includedBy
+                              ? m('rbac.permissions.included_by', {
+                                  permission: includedBy
+                                })
+                              : null,
+                            cell.override === 'NONE'
+                              ? m('rbac.permissions.binary.inherited')
+                              : null,
+                            cell.allowPermitted === false
+                              ? m('rbac.permissions.binary.unavailable')
+                              : null
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : m('rbac.permissions.binary.disabled'),
+                      allowConstraint
+                    ].filter(Boolean)
+                  : [
+                      ov !== 'neutral'
+                        ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                        : null,
+                      includedBy ? `Effective Allow (included by ${includedBy})` : null,
+                      ov === 'neutral' && eff !== 'neutral'
+                        ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                        : null,
+                      ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
+                      allowConstraint
+                    ].filter(Boolean)}
+              <MatrixCell
+                override={displayOverride}
+                inherited={displayEffective}
+                updating={updatingKey === `${scope.id}::${permission}`}
+                disabled={readOnly}
+                locked={inheritedBinaryGrant}
+                allowBlocked={cell.allowPermitted === false &&
+                  (decisionMode !== 'binary' || parent !== 'ALLOW')}
+                ceilingBlocked={cell.allowPermitted === false &&
+                  (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
+                {decisionMode}
+                {ariaLabel}
+                title={titleParts.join(' · ')}
+                onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
+              />
+            {:else}
+              <span class="inline-block h-10 w-10" aria-hidden="true"></span>
+            {/if}
+          {/snippet}
+        </MatrixTable>
+      </Panel>
+    {/if}
+  </div>
+</div>
