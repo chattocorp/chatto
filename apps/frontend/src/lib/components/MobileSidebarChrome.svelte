@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ServerGutter from '$lib/ServerGutter.svelte';
-  import { SIDEBAR_PANEL_WIDTH_PX } from '$lib/hooks/useSidebarSwipe.svelte';
   import { m } from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
 
@@ -10,7 +9,7 @@
   const progress = $derived(sidebarNav.isMobile ? sidebarNav.progress : 1);
   const dragging = $derived(sidebarNav.dragOffset !== null);
   const mobileClosed = $derived(sidebarNav.isMobile && progress === 0 && !dragging);
-  const tx = $derived((progress - 1) * SIDEBAR_PANEL_WIDTH_PX);
+  const tx = $derived((progress - 1) * sidebarNav.panelWidth);
 </script>
 
 {#if sidebarNav.isMobile}

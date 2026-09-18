@@ -4,6 +4,9 @@ import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import { sidebarNav } from '$lib/state/globals.svelte';
 import MobileSidebarChrome from './MobileSidebarChrome.svelte';
+import ServerSidebar from './ServerSidebar.svelte';
+import { page } from 'vitest/browser';
+import '../../app.css';
 
 function resetSidebar() {
   sidebarNav.setMobile(false);
@@ -24,6 +27,38 @@ describe('MobileSidebarChrome', () => {
     vi.clearAllMocks();
     document.documentElement.dir = 'ltr';
     resetSidebar();
+  });
+
+  it.each(['ltr', 'rtl'])('fills the mobile viewport and follows resizing in %s', async (direction) => {
+    document.documentElement.dir = direction;
+    await page.viewport(390, 844);
+    const { container } = renderChrome();
+    const { container: navigation } = render(ServerSidebar, {
+      props: { children: testSnippet('<nav>Navigation</nav>'), showCurrentUserBar: false }
+    });
+    sidebarNav.toggle();
+    flushSync();
+    const gutter = q(container, '[data-testid="mobile-sidebar-panel"]')!;
+    const pane = q(navigation, '[data-testid="server-sidebar"]')!;
+    // Disable transitions so assertions measure the settled drawer geometry.
+    gutter.style.transition = 'none';
+    pane.style.transition = 'none';
+    try {
+      for (const width of [390, 320, 767]) {
+        await page.viewport(width, 844);
+        await expect.poll(() => sidebarNav.panelWidth).toBe(width);
+        expect(gutter.getBoundingClientRect().width + pane.getBoundingClientRect().width).toBe(width);
+        expect(Math.min(gutter.getBoundingClientRect().left, pane.getBoundingClientRect().left)).toBe(0);
+        expect(Math.max(gutter.getBoundingClientRect().right, pane.getBoundingClientRect().right)).toBe(width);
+      }
+      sidebarNav.close();
+      flushSync();
+      const rect = pane.getBoundingClientRect();
+      expect(direction === 'ltr' ? rect.right <= 0 : rect.left >= 767).toBe(true);
+    } finally {
+      document.documentElement.dir = 'ltr';
+      await page.viewport(1280, 720);
+    }
   });
 
   it('renders the gutter panel and children in the sidebar row', () => {
@@ -48,7 +83,7 @@ describe('MobileSidebarChrome', () => {
 
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
     expect(panel.classList.contains('max-md:start-0')).toBe(true);
-    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
+    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.getAttribute('aria-hidden')).toBe('true');
     expect(backdrop.style.opacity).toBe('0');
@@ -79,7 +114,7 @@ describe('MobileSidebarChrome', () => {
 
     expect(q(container, '[data-testid="mobile-sidebar-backdrop"]')).toBe(backdrop);
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
-    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
+    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.style.opacity).toBe('0');
   });
