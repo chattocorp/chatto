@@ -25,6 +25,9 @@ Any authenticated user can browse the server's member directory — a paginated 
   profile changes update retained rooms, including rooms that are not open.
 - Mention completion can search for names before the room list finishes
   loading. It does not wait for the background member scan.
+- Connected members load independently of the full list. This includes available,
+  away, and do-not-disturb users. The full list continues loading names for
+  mention completion. A failed preview does not stop that full load.
 - Recovery resets and access loss clear retained membership. Changes to
   universal-room eligibility require an authoritative membership read.
 
@@ -76,6 +79,16 @@ knows. Each membership page must not decrypt every profile in the room.
 **Tradeoff:** A cold load requires a second request for names. Name search remains
 available while that load is pending. A membership event during offset pagination
 restarts the scan at the event boundary to prevent skipped entries.
+
+### 8. Load connected members independently
+
+**Decision:** Read connected presence groups alongside the full directory. Share
+cached profiles between these reads. Realtime presence takes precedence over a
+preview that was already in flight. The full directory determines final membership.
+**Why:** A small online group must not wait behind many offline profiles. Separate
+status reads also supply current presence when a cached name is reused.
+**Tradeoff:** Opening an uncached room starts three additional small list reads.
+Presence can change between pages, so the preview is not a fixed snapshot.
 
 ## Permissions
 

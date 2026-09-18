@@ -16,6 +16,7 @@ import {
   type UserSummary
 } from './userSummary.js';
 import { createDirectoryUserLoader } from '$lib/query/directoryUsers';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
 
 export type MemberDirectoryAPIConfig = ConnectAPIConfig;
@@ -113,17 +114,26 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       search = '',
       limit = 250,
       offset = 0,
-      options: { signal?: AbortSignal; minimumCursor?: string } = {}
+      options: {
+        signal?: AbortSignal;
+        minimumCursor?: string;
+        presenceStatuses?: PresenceStatus[];
+      } = {}
     ): Promise<MemberDirectoryPage> {
       const requestHeaders = options.minimumCursor ? new Headers(headers()) : headers();
       if (options.minimumCursor && requestHeaders instanceof Headers) {
         requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, options.minimumCursor);
       }
       const response = await rooms.listMembers(
-        { roomId, search, page: { limit, offset } },
+        {
+          roomId,
+          search,
+          page: { limit, offset },
+          ...(options.presenceStatuses ? { presenceStatuses: options.presenceStatuses } : {})
+        },
         {
           headers: requestHeaders,
-          ...(options.minimumCursor ? { timeoutMs: 10_000 } : {}),
+          ...(options.minimumCursor || options.presenceStatuses ? { timeoutMs: 10_000 } : {}),
           ...(options.signal ? { signal: options.signal } : {})
         }
       );
@@ -136,6 +146,20 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };
+    },
+
+    /** Load one presence group independently of the full directory scan. */
+    async listOnlineRoomMembers(
+      roomId: string,
+      status: PresenceStatus,
+      limit = 250,
+      offset = 0,
+      options: { minimumCursor?: string } = {}
+    ): Promise<MemberDirectoryPage> {
+      return this.listRoomMembers(roomId, '', limit, offset, {
+        ...options,
+        presenceStatuses: [status]
+      });
     },
 
     async getRoomMember(roomId: string, userId: string): Promise<DirectoryMember | null> {

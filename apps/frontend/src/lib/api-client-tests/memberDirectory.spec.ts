@@ -30,6 +30,23 @@ vi.mock('@connectrpc/connect-web', () => ({
 }));
 
 describe('createMemberDirectoryAPI', () => {
+  it('requests a bounded presence-filtered page without changing ordinary list defaults', async () => {
+    mocks.listRoomMembers.mockResolvedValue({
+      userIds: [],
+      page: { totalCount: 0n, hasMore: false }
+    });
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+    await api.listOnlineRoomMembers('room', PresenceStatus.AWAY, 250, 0);
+    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
+      {
+        roomId: 'room',
+        search: '',
+        page: { limit: 250, offset: 0 },
+        presenceStatuses: [PresenceStatus.AWAY]
+      },
+      { headers: undefined, timeoutMs: 10_000 }
+    );
+  });
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();

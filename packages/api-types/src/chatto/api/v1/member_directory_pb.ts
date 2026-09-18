@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
+import { PresenceStatus } from "./presence_pb.js";
 
 /**
  * Public user/member row used by user directory, room membership, and mention
@@ -96,6 +97,15 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
    */
   page?: PageRequest;
 
+  /**
+   * Optional status filter applied before pagination. Empty means all statuses.
+   * Select ONLINE, AWAY, and DO_NOT_DISTURB for all connected members.
+   * Presence can change between pages; use realtime updates to keep it current.
+   *
+   * @generated from field: repeated chatto.api.v1.PresenceStatus presence_statuses = 6;
+   */
+  presenceStatuses: PresenceStatus[] = [];
+
   constructor(data?: PartialMessage<ListMembersRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -107,6 +117,7 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "page", kind: "message", T: PageRequest },
+    { no: 6, name: "presence_statuses", kind: "enum", T: proto3.getEnumType(PresenceStatus), repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersRequest {
@@ -142,7 +153,7 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   userIds: string[] = [];
 
   /**
-   * Page metadata.
+   * Page metadata for the members that match both filters.
    *
    * @generated from field: chatto.api.v1.PageInfo page = 4;
    */

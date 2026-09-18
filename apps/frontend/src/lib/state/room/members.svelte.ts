@@ -1,6 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createContext } from 'svelte';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import {
   createMemberDirectoryAPI,
@@ -85,6 +85,9 @@ export class RoomMembersStore {
   #membershipChanges = new SvelteMap<string, boolean>();
   #profileUpdates = new SvelteMap<string, RoomMember>();
   #minimumCursor: string | undefined;
+  #presenceChanges = new SvelteMap<string, number>();
+  #previewIds = new SvelteSet<string>();
+  #fullScanFinished = false;
 
   constructor(source?: ServerConnection | MemberDirectoryAPI | null) {
     if (!source) {
@@ -167,8 +170,11 @@ export class RoomMembersStore {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = true;
+    this.#fullScanFinished = false;
+    this.#previewIds.clear();
     this.isBackgroundLoading = false;
     this.loadError = null;
+    this.loadOnlinePreview(loadId);
     try {
       await this.loadPages(loadId);
     } catch (error) {
@@ -178,6 +184,7 @@ export class RoomMembersStore {
       }
     } finally {
       if (loadId === this.#loadId) {
+        this.#fullScanFinished = true;
         this.isInitialLoading = false;
         this.isBackgroundLoading = false;
       }
@@ -188,10 +195,13 @@ export class RoomMembersStore {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = !this.hasFirstPage;
+    this.#fullScanFinished = false;
+    this.#previewIds.clear();
     this.isBackgroundLoading = this.hasFirstPage;
     this.hasLoadedAll = false;
     this.loadError = null;
     this.#searchCache.clear();
+    this.loadOnlinePreview(loadId);
     try {
       await this.loadPages(loadId);
     } catch (error) {
@@ -201,6 +211,7 @@ export class RoomMembersStore {
       }
     } finally {
       if (loadId === this.#loadId) {
+        this.#fullScanFinished = true;
         this.isInitialLoading = false;
         this.isBackgroundLoading = false;
       }
@@ -267,6 +278,7 @@ export class RoomMembersStore {
   setPresence(userId: string, status: PresenceStatus): void {
     this.livePresence.set(userId, status);
     this.presenceVersion++;
+    this.#presenceChanges.set(userId, this.presenceVersion);
   }
 
   /** Apply a canonical profile read without listing room membership again. */
@@ -329,17 +341,75 @@ export class RoomMembersStore {
     this.reset();
   }
 
+  /** Publish connected members without waiting for unrelated profile batches.
+   * This is a best-effort preview; the full scan owns counts and completion. */
+  private loadOnlinePreview(loadId: number): void {
+    for (const status of [
+      PresenceStatus.ONLINE,
+      PresenceStatus.AWAY,
+      PresenceStatus.DO_NOT_DISTURB
+    ]) {
+      void this.loadOnlinePages(loadId, status);
+    }
+  }
+
+  private async loadOnlinePages(loadId: number, status: PresenceStatus): Promise<void> {
+    if (!this.api) return;
+    let offset = 0;
+    try {
+      while (loadId === this.#loadId && !this.hasLoadedAll && !this.#fullScanFinished) {
+        const presenceVersion = this.presenceVersion;
+        const page = await this.api.listOnlineRoomMembers(
+          this.roomId,
+          status,
+          ROOM_MEMBERS_PAGE_SIZE,
+          offset,
+          this.#minimumCursor ? { minimumCursor: this.#minimumCursor } : {}
+        );
+        if (loadId !== this.#loadId || this.hasLoadedAll || this.#fullScanFinished) return;
+        const members = page.members.map(
+          (member) => this.#profileUpdates.get(member.id) ?? memberFromDirectory(member)
+        );
+        // The filter gives fresh presence even when the profile came from cache.
+        // A realtime change received during this request takes precedence.
+        for (const member of members) {
+          this.#previewIds.add(member.id);
+          if ((this.#presenceChanges.get(member.id) ?? 0) <= presenceVersion) {
+            this.livePresence.set(member.id, status);
+          }
+        }
+        this.members = appendPageMembers(this.members, members);
+        if (members.length > 0) {
+          this.hasFirstPage = true;
+          this.isInitialLoading = false;
+          this.isBackgroundLoading = true;
+          this.totalCount = Math.max(this.totalCount, this.members.length);
+        }
+        const consumed = page.consumedCount ?? page.members.length;
+        if (!page.hasMore || consumed === 0) return;
+        offset += consumed;
+      }
+    } catch {
+      // The full scan and mention search remain available if the preview fails.
+    }
+  }
+
   private async loadPages(loadId: number): Promise<void> {
     let nextOffset = 0;
     let hasMore = true;
     let firstPage = true;
+    let fullMembers: RoomMember[] = [];
 
     while (hasMore) {
       const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
       if (loadId !== this.#loadId) return;
 
       const members = page.members.map((member) => this.#profileUpdates.get(member.id) ?? member);
-      this.members = firstPage ? members : appendPageMembers(this.members, members);
+      fullMembers = appendPageMembers(fullMembers, members);
+      this.members = appendPageMembers(
+        firstPage ? this.members.filter((member) => this.#previewIds.has(member.id)) : this.members,
+        members
+      );
       this.totalCount = page.totalCount;
       hasMore = page.hasMore;
       const consumed = page.consumedCount ?? page.members.length;
@@ -360,6 +430,7 @@ export class RoomMembersStore {
     }
 
     if (loadId === this.#loadId) {
+      this.members = fullMembers.map((member) => this.#profileUpdates.get(member.id) ?? member);
       this.hasLoadedAll = true;
       this.isBackgroundLoading = false;
     }
@@ -401,6 +472,9 @@ export class RoomMembersStore {
     this.#profileUpdates.clear();
     this.#minimumCursor = undefined;
     this.livePresence.clear();
+    this.#presenceChanges.clear();
+    this.#previewIds.clear();
+    this.#fullScanFinished = true;
     this.presenceVersion = 0;
   }
 }
