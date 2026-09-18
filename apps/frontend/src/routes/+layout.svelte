@@ -99,6 +99,13 @@
   </Frame>
 </div>
 
+<!-- Give WebKit a fixed, opaque bottom edge to extend behind Safari's toolbar.
+     This surface must not intercept input or change the app's available height. -->
+<div
+  aria-hidden="true"
+  class="pointer-events-none fixed inset-x-0 bottom-0 h-px bg-surface md:hidden"
+></div>
+
 {#if page.state.modal}
   {#await loadModalContainer() then { default: ModalContainer }}
     <ModalContainer />

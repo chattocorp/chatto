@@ -163,7 +163,8 @@ export function applyDisplayTheme(theme: DisplayTheme): void {
   const effective = resolveDisplayTheme(theme);
   const root = document.documentElement;
   root.dataset.theme = effective;
-  root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
+  // Keep the system chrome's page-background sample aligned with the app frame.
+  root.style.backgroundColor = effective === 'dark' ? '#262626' : '#e5e7eb';
   root.style.colorScheme = effective;
   document
     .querySelector<HTMLMetaElement>('meta[name="theme-color"]')

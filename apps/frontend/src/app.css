@@ -1369,7 +1369,8 @@
        swipes from the viewport edge as back/forward navigation gestures and
        fire pointercancel mid-drag, killing our sidebar swipe handler. */
     overscroll-behavior-x: none;
-    background-color: var(--color-background);
+    /* iOS can sample the outer page background for its system bars. */
+    background-color: var(--color-surface);
   }
 
   h1,
@@ -1411,7 +1412,7 @@
        pans are reserved for our own gesture handlers (sidebar swipe). */
     touch-action: pan-y;
 
-    background-color: var(--color-background);
+    background-color: var(--color-surface);
     color: var(--color-text);
 
     /* Disable text selection globally for native feel */

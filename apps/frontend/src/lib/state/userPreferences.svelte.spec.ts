@@ -133,19 +133,19 @@ describe('UserPreferencesState', () => {
     {
       displayTheme: 'light' as const,
       effectiveTheme: 'light' as const,
-      background: 'rgb(243, 244, 246)',
+      background: 'rgb(229, 231, 235)',
       themeColor: '#e5e7eb'
     },
     {
       displayTheme: 'dark' as const,
       effectiveTheme: 'dark' as const,
-      background: 'rgb(23, 23, 23)',
+      background: 'rgb(38, 38, 38)',
       themeColor: '#262626'
     },
     {
       displayTheme: 'system' as const,
       effectiveTheme: 'dark' as const,
-      background: 'rgb(23, 23, 23)',
+      background: 'rgb(38, 38, 38)',
       themeColor: '#262626'
     }
   ])(

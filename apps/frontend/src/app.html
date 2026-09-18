@@ -39,8 +39,8 @@
           const effective =
             stored === 'light' || stored === 'dark' ? stored : mq.matches ? 'dark' : 'light';
           root.dataset.theme = effective;
-          // Pre-CSS background hint, mirrors --color-background.
-          root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
+          // Match the app frame where iOS samples the outer page background.
+          root.style.backgroundColor = effective === 'dark' ? '#262626' : '#e5e7eb';
           root.style.colorScheme = effective;
           document
             .querySelector('meta[name="theme-color"]')
@@ -283,7 +283,8 @@
     />
     <meta name="description" content="Real-time chat application" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Keep standalone iOS content below the system status bar. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/favicon" sizes="32x32" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon" />
