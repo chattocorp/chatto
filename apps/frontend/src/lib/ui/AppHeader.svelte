@@ -130,7 +130,7 @@
 
   <!-- MOTD -->
   {#if motd}
-    <MotdContent {motd} />
+    <MotdContent {motd} onclick={() => pushState('', { modal: { type: 'motd', motd } })} />
   {:else}
     <span class="flex-1"></span>
   {/if}

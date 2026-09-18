@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-18
 
 ## Overview
 
@@ -13,9 +13,11 @@ Operators can customize how their Chatto server presents itself. The server's na
 - **Description** — used in OG metadata for link previews when sharing the server URL.
 - **Welcome message** — shown on the login page. Markdown is supported.
 - **MOTD (message of the day)** — appears in a banner across the top of the
-  chat surface for all members. It supports the same constrained Markdown
-  renderer as other trusted Chatto presentation text and broadcasts to live
-  clients when changed.
+  chat surface for all members. The header shows a single-line Markdown preview
+  with an ellipsis when space is limited. Click or tap the preview to open the
+  full message in a modal with Markdown rendering. Back, Escape, or the close
+  button dismisses the modal. Header links open their destinations directly.
+  Changes broadcast to live clients.
 - **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; the public server profile exposes its canonical URL without transform arguments.
 - **Banner** — shown on the login page and in OG previews. Same upload/serve pipeline as the logo.
 - **Blocked usernames** — newline-separated list checked at signup. Matches are rejected before account creation.
@@ -61,8 +63,9 @@ sanitizing Markdown renderer.
 **Why:** Operators can add a link or small amount of emphasis without giving
 configuration text an unrestricted HTML boundary. One reviewed renderer keeps
 the two presentation surfaces consistent.
-**Tradeoff:** Complex layout and unrestricted HTML are not supported. An MOTD
-with rich structure can be visually noisy in the compact banner.
+**Tradeoff:** Complex layout and unrestricted HTML are not supported. The MOTD
+header supports inline formatting and links, with line breaks replaced by spaces.
+Users open the modal to read the complete message with block formatting.
 
 ### 6. Blocked usernames as a dedicated security mutation
 
