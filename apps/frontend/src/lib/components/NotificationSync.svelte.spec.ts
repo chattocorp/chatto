@@ -6,6 +6,7 @@ import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import { NotificationOccurrencesChangedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationAttentionLevel } from '$lib/api-client/notifications';
 
 const { mocks } = vi.hoisted(() => {
   const createBus = () => ({
@@ -19,7 +20,11 @@ const { mocks } = vi.hoisted(() => {
     isAuthenticated: true,
     waitForRealtimeResourceRefresh: vi.fn(async () => true),
     notifications: {
-      occurrences: [] as Array<{ id?: string; unread: boolean }>,
+      occurrences: [] as Array<{
+        id?: string;
+        unread: boolean;
+        attentionLevel: NotificationAttentionLevel;
+      }>,
       count: 0,
       unreadNotificationCount: 0,
       hasLoaded: true,
@@ -153,7 +158,13 @@ describe('NotificationSync', () => {
     mocks.servers.splice(0, mocks.servers.length, { id: 'origin' });
     for (const store of Object.values(mocks.stores)) {
       store.isAuthenticated = true;
-      store.notifications.occurrences = [{ id: 'notification-id', unread: true }];
+      store.notifications.occurrences = [
+        {
+          id: 'notification-id',
+          unread: true,
+          attentionLevel: NotificationAttentionLevel.IMPORTANT
+        }
+      ];
       store.waitForRealtimeResourceRefresh.mockReset().mockResolvedValue(true);
       store.notifications.count = 0;
       store.notifications.unreadNotificationCount = 0;
@@ -170,6 +181,42 @@ describe('NotificationSync', () => {
     dispatch(true);
 
     await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
+  });
+
+  it('keeps a new Ambient notification silent despite existing Important notifications', async () => {
+    mocks.stores.origin.notifications.occurrences.push({
+      id: 'ambient-notification',
+      unread: true,
+      attentionLevel: NotificationAttentionLevel.AMBIENT
+    });
+    await renderAndWaitForSubscription();
+
+    dispatch(true, 'ambient-event', 'origin', 'ambient-notification');
+    await Promise.resolve();
+
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'Ambient-only', secondLevel: NotificationAttentionLevel.AMBIENT, sounds: 0 },
+    { name: 'mixed-attention', secondLevel: NotificationAttentionLevel.IMPORTANT, sounds: 1 }
+  ])('plays $sounds sounds for an unread $name creation batch', async ({ secondLevel, sounds }) => {
+    const read = Promise.withResolvers<boolean>();
+    mocks.stores.origin.waitForRealtimeResourceRefresh.mockReturnValue(read.promise);
+    await renderAndWaitForSubscription();
+
+    dispatch(true);
+    dispatch(true, 'second-event', 'origin', 'second-notification');
+    // Attention must come from the completed resource read, not the retained row.
+    mocks.stores.origin.notifications.occurrences = [
+      { id: 'notification-id', unread: true, attentionLevel: NotificationAttentionLevel.AMBIENT },
+      { id: 'second-notification', unread: true, attentionLevel: secondLevel }
+    ];
+    read.resolve(true);
+    await read.promise;
+
+    expect(mocks.playNotificationSound).toHaveBeenCalledTimes(sounds);
+    expect(mocks.stores.origin.waitForRealtimeResourceRefresh).toHaveBeenCalledOnce();
   });
 
   it('uses the sound preference for the server that produced the event', async () => {
@@ -209,7 +256,13 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
     dispatch(true);
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
-    mocks.stores.origin.notifications.occurrences = [{ id: 'notification-id', unread: true }];
+    mocks.stores.origin.notifications.occurrences = [
+      {
+        id: 'notification-id',
+        unread: true,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT
+      }
+    ];
     read.resolve(true);
     await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
   });
@@ -247,7 +300,11 @@ describe('NotificationSync', () => {
   it('plays once for several creations in the same reconciliation batch', async () => {
     const read = Promise.withResolvers<boolean>();
     mocks.stores.origin.waitForRealtimeResourceRefresh.mockReturnValue(read.promise);
-    mocks.stores.origin.notifications.occurrences.push({ id: 'second-notification', unread: true });
+    mocks.stores.origin.notifications.occurrences.push({
+      id: 'second-notification',
+      unread: true,
+      attentionLevel: NotificationAttentionLevel.IMPORTANT
+    });
     await renderAndWaitForSubscription();
     dispatch(true);
     dispatch(true, 'second-event', 'origin', 'second-notification');
@@ -392,7 +449,12 @@ describe('NotificationSync', () => {
   });
 
   it('clears the app badge when the notification list contains only read notifications', async () => {
-    mocks.stores.origin.notifications.occurrences = [{ unread: false }];
+    mocks.stores.origin.notifications.occurrences = [
+      {
+        unread: false,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT
+      }
+    ];
 
     await renderAndWaitForSubscription();
 

@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-09
+**Last reviewed:** 2026-09-18
 
 ## Overview
 
@@ -109,7 +109,7 @@ server value.
 - **Badge** — add only a neutral unread dot. Do not create a notification
   occurrence, play a sound, or send push.
 - **Notification** — create an in-app notification without push delivery. The
-  client can play the configured notification sound.
+  client can play the configured notification sound for Important attention.
 - **Push notification** — create the same in-app notification and make it
   eligible for Web Push or native delivery.
 
@@ -129,12 +129,13 @@ Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, room, and app indicators use
 notification orange when at least one contributing unread occurrence is
 Important and a neutral treatment when every contributing occurrence is
-Ambient. Attention levels are not user-configurable in this iteration.
+Ambient. Ambient notifications do not play a local sound. Attention levels are
+not user-configurable in this iteration.
 
 **Why:** Whether activity is stored, whether it leaves the app, and how
 strongly it is presented are different choices. The delivery names state where
 the notification goes. Sound remains a client preference for both notification
-modes.
+modes when the notification has Important attention.
 
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
@@ -300,8 +301,11 @@ follows the thread explicitly.
 each registered server. For a live notification, the client uses the choices
 for the server that produced the notification. The server reports creations,
 not sound instructions, including during Do Not Disturb. The client checks its
-local Do Not Disturb setting and current unread state before playback. It groups
-creations received during one refresh into one sound. Duplicate hints, failed
+local Do Not Disturb setting, current unread state, and attention level before
+playback. Only new unread Important notifications can cause a sound. Ambient
+notifications stay silent so low-attention activity does not interrupt the user.
+The client groups eligible creations received during one refresh into one sound.
+Duplicate hints, failed
 reads, missing rows, and quiet reconciliation do not cause another sound.
 During an upgrade, the client
 copies the old global sound choice when it first creates the slot for a server.
@@ -313,7 +317,8 @@ existing sound choice.
 
 **Tradeoff:** Sound choices do not sync to another browser or device. The
 client keeps a small local-storage entry for each server. Both Notification and
-Push notification can cause the configured local sound. The client can miss a
+Push notification can cause the configured local sound for Important attention.
+The client can miss a
 sound if its bounded resource page does not contain the created occurrence.
 These hints are not durable delivery. Web Push retains server-side policy and
 Do Not Disturb checks.

@@ -43,10 +43,12 @@ Members use a matrix to control each notification cause at server, room-group, a
 | Inherit | Use the next broader room-group or server setting. |
 | Off | Do not create attention for this cause. |
 | Badge | Add only a neutral unread dot. Do not create a notification, play a sound, or send push. |
-| Notification | Add an in-app notification. The configured in-app sound can play, but Chatto does not send push. |
+| Notification | Add an in-app notification. Important notifications can play the configured in-app sound, but Chatto does not send push. |
 | Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
 Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
+
+Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. Important notifications use orange indicators and can play your selected sound.
 
 The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Badge, Notification, and Push notification.
 
