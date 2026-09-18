@@ -343,11 +343,6 @@
       title: m('admin.rooms_admin.edit_room_action'),
       onclick: () => openRoomSettings(roomInfo)
     })}
-    {@render iconButton({
-      icon: 'icon-[uil--shield]',
-      title: m('admin.rooms_admin.room_permissions_title_fallback'),
-      onclick: () => openRoomSettings(roomInfo)
-    })}
     {#if roomInfo.archived}
       {@render iconButton({
         icon: 'icon-[uil--redo]',
@@ -448,11 +443,6 @@
                   {@render iconButton({
                     icon: 'icon-[uil--pen]',
                     title: m('admin.rooms_admin.rename_group_action'),
-                    onclick: () => openGroupSettings(group)
-                  })}
-                  {@render iconButton({
-                    icon: 'icon-[uil--shield]',
-                    title: m('admin.rooms_admin.group_permissions'),
                     onclick: () => openGroupSettings(group)
                   })}
                   {@render iconButton({
