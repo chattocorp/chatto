@@ -243,24 +243,27 @@
         inset: -25%;
         background:
           radial-gradient(
-            ellipse at 35% 40%,
+            ellipse at var(--loading-first-x, 35%) var(--loading-first-y, 40%),
             color-mix(
               in srgb,
               var(--color-surface-emphasized, var(--loading-highlight)) 75%,
               transparent
             ),
-            transparent 50%
+            transparent var(--loading-first-size, 50%)
           ),
           radial-gradient(
-            ellipse at 65% 60%,
+            ellipse at var(--loading-second-x, 65%) var(--loading-second-y, 60%),
             color-mix(
               in srgb,
               var(--color-surface-emphasized, var(--loading-highlight)) 55%,
               transparent
             ),
-            transparent 50%
+            transparent var(--loading-second-size, 50%)
           );
         animation: app-loading-drift 2.6s ease-in-out infinite alternate;
+      }
+      #app-loading[data-noise]::before {
+        animation: none;
       }
       @keyframes app-loading-drift {
         from {
