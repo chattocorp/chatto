@@ -333,8 +333,10 @@ type AdminUpdateUserInput struct {
 	Bio         *string
 }
 
+// AdminUpdateUser updates a human profile without advancing its login cooldown.
+// The actor needs user.manage-accounts, including when editing their own profile.
 func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*evtv1.User, error) {
-	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
+	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
 	if input.Login == nil && input.DisplayName == nil && input.Bio == nil {
@@ -346,8 +348,10 @@ func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID 
 	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName, input.Bio, true)
 }
 
+// AdminClearLoginChangeCooldown clears a human account's login cooldown.
+// The actor needs user.manage-accounts, including when targeting their own account.
 func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
-	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
+	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
 		return err
 	}
 	if err := c.requireHumanUser(ctx, targetUserID); err != nil {
@@ -356,15 +360,12 @@ func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID,
 	return c.ClearLoginChangeCooldownAs(ctx, actorID, targetUserID)
 }
 
-func (c *ChattoCore) requireCanAdminManageOtherUser(ctx context.Context, actorID, targetUserID string) error {
+func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, targetUserID string) error {
 	if actorID == "" {
 		return ErrNotAuthenticated
 	}
 	if targetUserID == "" {
 		return fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
-	}
-	if actorID == targetUserID {
-		return ErrPermissionDenied
 	}
 	canManage, err := c.CanManageUserAccounts(ctx, actorID)
 	if err != nil {

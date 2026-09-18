@@ -244,15 +244,16 @@ service AdminUserService {
   // Revokes a role from a user. Requires role.assign, and non-owner callers may
   // only revoke roles whose permission decisions are within their authority.
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
-  // Updates another user's login and/or display name as an admin action.
-  // Requires user.manage-accounts; the caller cannot target their own account.
+  // Updates a human user's login and/or display name without applying the
+  // username-change cooldown. Requires user.manage-accounts, including when
+  // the caller targets their own account. Preserves the cooldown timestamp.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // Updates another user's password as an admin action. Requires
   // user.manage-accounts and a fresh credential for the caller; the caller
   // cannot target their own account.
   rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse);
   // Clears the target user's self-service username-change cooldown. Requires
-  // user.manage-accounts.
+  // user.manage-accounts, including when the caller targets their own account.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
   // Deletes a user account as an admin action. Requires user.delete-any for
   // other users or user.delete-self for the caller.

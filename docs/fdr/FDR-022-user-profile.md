@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-17
+**Last reviewed:** 2026-09-18
 
 ## Overview
 
@@ -53,7 +53,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Desktop sidebar memory** — On desktop (at least 1024px wide), a one-to-one DM or self-DM opens its profile by default when no sidebar choice is saved. The browser remembers the last selected view, including closed, separately for each server and conversation. It restores that choice after navigation or reload. A saved profile also retains the previous room-extras panel. Channels with no saved choice start closed. Mobile profiles open only after an explicit action. Automatic and restored desktop profiles do not open a mobile overlay when the viewport becomes narrow. An explicitly opened Profile View follows the responsive Room Sidebar layout when the viewport changes. Mobile actions do not change the saved desktop choice.
 - **App Preferences** — users can select System, Light, or Dark appearance, overlay or side-by-side thread presentation, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. Overlay thread presentation is the default. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile Card** — opening a user's Profile Card as a popover or bottom sheet shows their public identity, bio snippet, live local time in their shared zone, and available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
-- **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar.
+- **Admin overrides** — users with `user.manage-accounts` can update human profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar. Profile edits and cooldown resets in member management also accept the caller's own account.
 - **Bot identity management** — an API-key-authenticated bot updates its own login, display name, and bio through `MyAccountService.UpdateProfile`. It manages its avatar through `UserService`. Human owners manage bot lifecycle, ownership, permissions, API keys, and avatars. A human with `bot.manage` or `user.manage-accounts` can also manage a bot's avatar. Bot custom-status and personal-settings management are not supported.
 
 - **UI Style** — Appearance offers Flat, Kinda 3D, and Very 3D bevel strength.
@@ -110,7 +110,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 ### 7. Cross-user edits gated by `user.manage-accounts`
 
-**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human and bot self-edits use `MyAccountService.UpdateProfile` and bypass that permission because they are privilege-neutral identity edits. Avatar upload and deletion use the target-aware `UserService` methods. A cross-user human target requires `user.manage-accounts`. A cross-user bot target permits its owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target another account. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
+**Decision:** Admin profile updates and cooldown resets require `user.manage-accounts`, including when the caller targets their own human account. This lets account managers use the same member-management controls for themselves and other users. Human and bot self-edits through `MyAccountService.UpdateProfile` do not require that permission; the login cooldown applies unless the caller has the bypass permission. Avatar upload and deletion use the target-aware `UserService` methods. A cross-user human target requires `user.manage-accounts`. A cross-user bot target permits its owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target another account. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
 **Tradeoff:** Avatar authority differs from authority for other profile fields. Clients must use the target-aware avatar methods and must not infer authority from access to other profile operations.
 
@@ -160,8 +160,8 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 - Human or bot self-edit of an avatar — no explicit permission; only authentication.
 - Human self-edit of display name, custom status, settings, and own login subject to cooldown — no explicit permission; only authentication. `user.manage-accounts` bypasses the holder's own login cooldown.
-- Cross-human-user edit — `user.manage-accounts`.
-- Clear another user's login cooldown — same gate.
+- Admin human-profile edit, including the caller's own profile — `user.manage-accounts`.
+- Clear a human user's login cooldown, including the caller's own cooldown — same gate.
 - Bot avatar edit by another human — bot ownership, `user.manage-accounts`, or `bot.manage`.
 - Bot login and display-name edit — the authenticated bot through `MyAccountService.UpdateProfile`; bot custom-status and personal-settings edits are not supported.
 
