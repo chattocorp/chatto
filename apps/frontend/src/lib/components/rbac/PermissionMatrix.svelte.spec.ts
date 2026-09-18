@@ -1,5 +1,6 @@
 import '../../../app.css';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import PermissionMatrix from './PermissionMatrix.svelte';
@@ -83,7 +84,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   nextTierRoles = HAPPY_TIER_ROLES;
   permissionMocks.getRolePermissionTierMatrix.mockReset();
   permissionMocks.getRolePermissionTierMatrix.mockImplementation(async () => nextTierRoles);

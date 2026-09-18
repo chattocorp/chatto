@@ -3,8 +3,9 @@
 
 Domain-neutral matrix layout. The component owns axis geometry, optional row
 grouping and compact spacing, horizontal overflow, sticky row headings, and
-coordinated row/column highlighting. Consumers provide all domain labels and
-cell content with snippets.
+coordinated row/column highlighting. Below 640px of container width, row labels
+wrap above their cells and remain visible while columns scroll. Consumers
+provide all domain labels and cell content with snippets.
 -->
 <script lang="ts" generics="TRow, TColumn">
   import type { Snippet } from 'svelte';
@@ -13,13 +14,33 @@ cell content with snippets.
   import DataTable from '$lib/ui/DataTable.svelte';
   import MatrixColumnHeading from './MatrixColumnHeading.svelte';
 
+  const matrixId = $props.id();
+  let availableWidth = $state(0);
+  // Use the containing pane's width, including narrow desktop panes.
+  const stacked = $derived(availableWidth > 0 && availableWidth < 640);
+  const rowId = (row: TRow) => `${matrixId}-row-${encodeURIComponent(getRowKey(row))}`;
+  const columnId = (column: TColumn) => `${matrixId}-column-${encodeURIComponent(getColumnKey(column))}`;
+
+  // Defer resize-driven layout changes to avoid feeding a new row height back
+  // into the same ResizeObserver delivery cycle.
+  const measureWidth: Attachment<HTMLDivElement> = (element) => {
+    let frame = 0;
+    availableWidth = element.clientWidth;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { availableWidth = element.clientWidth; });
+    });
+    observer.observe(element);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  };
+
   let {
     rows,
     columns,
     getRowKey,
     getColumnKey,
     getGroupKey,
-    group,
+    group: groupContent,
     leadingHeader,
     rowHeader,
     columnHeader,
@@ -128,19 +149,40 @@ cell content with snippets.
   }
 </script>
 
+<div class={['flex w-full min-h-0 min-w-0 flex-col', fillHeight && 'flex-1']} {@attach measureWidth}>
+{#if stacked}<span class="sr-only">{@render leadingHeader()}</span>{/if}
 <DataTable
   items={rows}
-  columns={columns.length + trailingColumns + 2}
+  columns={columns.length + trailingColumns + (stacked ? 1 : 2)}
   getKey={(row) => getRowKey(row)}
-  {getGroupKey}
-  {group}
+  getGroupKey={groupContent ? getGroupKey : undefined}
   {emptyMessage}
   {stickyHeader}
   {fillHeight}
   {stickyHeaderFadeOffset}
   hoverable={false}
 >
+  {#snippet group(row)}
+    <div class={stacked ? 'sticky start-4 whitespace-normal break-words' : ''}
+      style:width={stacked ? `${Math.max(0, availableWidth - 32)}px` : undefined}>
+      {@render groupContent?.(row)}
+    </div>
+  {/snippet}
+  {#snippet beforeRow(row)}
+    {#if stacked}
+      <tr>
+        <th id={rowId(row)} colspan={columns.length + trailingColumns + 1}
+          class="p-0 text-start font-normal bg-background">
+          <div class="sticky start-0 box-border px-3 pt-3 pb-1 whitespace-normal break-words [&_*]:whitespace-normal [&_*]:break-words"
+            style:width={`${availableWidth}px`}>
+            {@render rowHeader(row, rowHighlighted(row))}
+          </div>
+        </th>
+      </tr>
+    {/if}
+  {/snippet}
   {#snippet header()}
+    {#if !stacked}
     <th
       class={[
         'sticky start-0 z-30 bg-background text-start align-bottom font-medium',
@@ -150,8 +192,11 @@ cell content with snippets.
     >
       {@render leadingHeader()}
     </th>
+    {/if}
     {#each columns as column (getColumnKey(column))}
       <th
+        id={columnId(column)}
+        scope="col"
         class={[
           compact
             ? 'px-0 py-2 text-center align-bottom font-medium'
@@ -182,7 +227,9 @@ cell content with snippets.
     </th>
   {/snippet}
   {#snippet row(row)}
+    {#if !stacked}
     <th
+      id={rowId(row)}
       scope="row"
       class={[
         'sticky start-0 z-10 text-start font-normal whitespace-nowrap',
@@ -192,9 +239,11 @@ cell content with snippets.
     >
       {@render rowHeader(row, rowHighlighted(row))}
     </th>
+    {/if}
     {#each columns as column (getColumnKey(column))}
       {@const interactive = isCellInteractive(row, column)}
       <td
+        headers={`${rowId(row)} ${columnId(column)}`}
         class={[
           compact ? 'px-0 py-0.5 text-center' : 'px-0 py-2 text-center',
           cellClass(row, column)
@@ -216,3 +265,4 @@ cell content with snippets.
     <td class="w-full p-0" aria-hidden="true" data-testid={spacerTestId}></td>
   {/snippet}
 </DataTable>
+</div>
