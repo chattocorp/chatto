@@ -335,7 +335,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         tick().then(syncControls);
       },
 
-      focus: (position: 'start' | 'end' = 'end') => {
+      focus: (position) => {
         if (e.isDestroyed) return;
         e.commands.focus(position);
         tick().then(syncControls);

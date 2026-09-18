@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick, type ComponentProps } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
@@ -93,6 +94,8 @@ const roomStateMock = vi.hoisted(() => ({
 
 // Mock instance state
 let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
+// Match the connection getter's reactive counter, including changes below its threshold.
+const connectionAttempts = new SvelteMap([['failed', 0]]);
 const mockInstanceStores = {
   currentUser: { user: { id: 'test-user', login: 'testuser', settings: null }, loading: false },
   serverInfo: {
@@ -115,7 +118,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: mockInstanceStores,
     connection: {
       isConnected: true,
-      showConnectionLostBanner: false,
+      get showConnectionLostBanner() {
+        return connectionAttempts.get('failed')! >= 6;
+      },
       client: {
         query: queryMock,
         mutation: mutationMock,
@@ -306,6 +311,14 @@ async function selectEditorContents(editor: HTMLElement) {
   await tick();
 }
 
+/** Flush editor focus commands, which TipTap applies on the next animation frame. */
+async function settleEditorFocus() {
+  await tick();
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  );
+}
+
 async function pressEditorKey(
   editor: HTMLElement,
   key: string,
@@ -366,6 +379,7 @@ async function openFormattingShelf(container: HTMLElement) {
 
 describe('MessageComposer', () => {
   beforeEach(() => {
+    connectionAttempts.set('failed', 0);
     userPreferences.composerEditor = 'visual';
     userPreferences.composerSendMode = 'modifier-enter';
     userPreferences.composerFormattingToolbarVisible = false;
@@ -503,6 +517,94 @@ describe('MessageComposer', () => {
       expect(q(second.container, '[data-testid="composer-formatting-shelf"]')).toBeTruthy();
     });
 
+    it.each([
+      ['visual', false],
+      ['visual', true],
+      ['markdown', false],
+      ['markdown', true]
+    ] as const)(
+      'preserves %s selection during reconnect while editing=%s',
+      async (kind, editing) => {
+        userPreferences.composerEditor = kind;
+        const body = 'First paragraph\n\nSecond paragraph with enough text to edit';
+        if (editing) {
+          roomStateMock.editState.eventId = 'cursor-edit';
+          roomStateMock.editState.originalBody = body;
+        } else {
+          sessionStorage.setItem('chatto:draft:cursor-reconnect', body);
+        }
+        const { container } = renderMessageComposer(
+          { roomId: 'cursor-reconnect' },
+          { exactRoomId: true }
+        );
+        const editor = await findEditor(container);
+        await expect.element(editor).toHaveTextContent('Second paragraph');
+        await userEvent.click(editor);
+        await selectEditorContents(editor);
+        await userEvent.keyboard('{ArrowLeft}{ArrowRight}{ArrowRight}{ArrowRight}');
+        const selection = window.getSelection()!;
+        const anchor = selection.anchorNode;
+        const offset = selection.anchorOffset;
+        const originalText = editor.textContent;
+
+        connectionAttempts.set('failed', 1);
+        await settleEditorFocus();
+
+        expect(editor.textContent).toBe(originalText);
+        expect(selection.anchorNode).toBe(anchor);
+        expect(selection.anchorOffset).toBe(offset);
+        await userEvent.keyboard('X');
+        expect(editor.textContent).toContain('FirXst paragraph');
+      }
+    );
+
+    it.each(['visual', 'markdown'] as const)(
+      'does not steal %s focus on connection recovery or permission changes',
+      async (kind) => {
+        userPreferences.composerEditor = kind;
+        const rendered = renderMessageComposer({ roomId: 'focus-recovery' });
+        const editor = await findEditor(rendered.container);
+        await expect.element(editor).toHaveFocus();
+        await userEvent.keyboard('Keep this selection');
+        await selectEditorContents(editor);
+        const outside = document.createElement('button');
+        outside.textContent = 'Outside';
+        rendered.container.append(outside);
+        await userEvent.click(outside);
+        connectionAttempts.set('failed', 6);
+        await tick();
+        connectionAttempts.set('failed', 0);
+        await rendered.rerender({ canPost: false });
+        await rendered.rerender({ canPost: true });
+        await settleEditorFocus();
+        await expect.element(outside).toHaveFocus();
+        await expect.element(editor).toHaveTextContent('Keep this selection');
+      }
+    );
+
+    it('defers initial autofocus until editable and cancels it when autofocus is disabled', async () => {
+      const rendered = renderMessageComposer({ roomId: 'deferred-focus', canPost: false });
+      const editor = await findEditor(rendered.container);
+      await expect.element(editor).not.toHaveFocus();
+      await rendered.rerender({ canPost: true });
+      await expect.element(editor).toHaveFocus();
+      const outside = document.createElement('button');
+      outside.textContent = 'Outside';
+      rendered.container.append(outside);
+      await userEvent.click(outside);
+      await rendered.rerender({ roomId: 'next-focus', canPost: false });
+      await rendered.rerender({ autoFocus: false, canPost: true });
+      await expect.element(outside).toHaveFocus();
+      await rendered.rerender({ autoFocus: true });
+      await expect.element(editor).toHaveFocus();
+      await userEvent.click(outside);
+      await rendered.rerender({ inReplyTo: 'reply-target' });
+      await expect.element(editor).toHaveFocus();
+      await userEvent.click(outside);
+      await rendered.rerender({ roomId: 'another-room' });
+      await expect.element(editor).toHaveFocus();
+    });
+
     it.each(['visual', 'markdown'] as const)(
       'restores the %s caret when clicking composer padding after blur',
       async (kind) => {
@@ -517,11 +619,16 @@ describe('MessageComposer', () => {
         container.append(outside);
 
         await userEvent.click(editor);
+        await userEvent.keyboard('First paragraph');
+        await selectEditorContents(editor);
+        await userEvent.keyboard('{ArrowLeft}{ArrowRight}{ArrowRight}{ArrowRight}');
         await userEvent.click(outside);
         await userEvent.click(surface, { position: { x: 4, y: 4 } });
 
         await expect.element(editor).toHaveFocus();
         await expect.poll(() => editor.contains(window.getSelection()?.anchorNode ?? null)).toBe(true);
+        await userEvent.keyboard('X');
+        expect(editor.textContent).toBe('FirXst paragraph');
       }
     );
 

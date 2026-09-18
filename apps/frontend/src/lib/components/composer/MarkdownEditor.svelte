@@ -276,10 +276,12 @@ the same API as the visual editor while keeping the stored Markdown visible.
         suppressUpdate = false;
         publishFormattingState(editorView);
       },
-      focus: (position = 'end') => {
+      focus: (position) => {
         if (destroyed) return;
-        const cursor = position === 'start' ? 0 : editorView.state.doc.length;
-        editorView.dispatch({ selection: EditorSelection.cursor(cursor), scrollIntoView: true });
+        if (position) {
+          const cursor = position === 'start' ? 0 : editorView.state.doc.length;
+          editorView.dispatch({ selection: EditorSelection.cursor(cursor), scrollIntoView: true });
+        }
         editorView.focus();
       },
       performEnter: () => {

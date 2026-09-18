@@ -490,15 +490,38 @@ export class MessageComposerState {
   }
 
   #synchronizeAutoFocus(): void {
+    // A focus request belongs to an editor and destination. Availability can
+    // defer that request, but must not create another one after it is fulfilled.
+    let request = $state.raw<{ api: ComposerEditorApi; fulfilled: boolean } | null>(null);
+    let previousDestination = '';
+    let previousApi: ComposerEditorApi | null = null;
     $effect(() => {
       const autoFocus = this.#dependencies.getAutoFocus();
-      const roomId = this.#dependencies.getRoomId();
-      const inReplyTo = this.#dependencies.getReplyEventId();
-      void roomId;
-      void inReplyTo;
-      if (autoFocus && shouldAutoFocus() && this.editorApi && !this.inputDisabled) {
-        tick().then(() => this.editorApi?.focus());
-      }
+      const destination = JSON.stringify([
+        autoFocus,
+        this.#dependencies.getRoomId(),
+        this.#dependencies.getThreadRootEventId(),
+        this.#dependencies.getReplyEventId()
+      ]);
+      const api = this.editorApi;
+      // Parent prop updates can invalidate getters without changing their values.
+      if (destination === previousDestination && api === previousApi) return;
+      previousDestination = destination;
+      previousApi = api;
+      request = autoFocus && shouldAutoFocus() && api ? { api, fulfilled: false } : null;
+    });
+    $effect(() => {
+      const pending = request;
+      if (!pending || pending.fulfilled || this.inputDisabled) return;
+      let cancelled = false;
+      tick().then(() => {
+        if (cancelled || request !== pending || this.editorApi !== pending.api) return;
+        pending.fulfilled = true;
+        pending.api.focus();
+      });
+      return () => {
+        cancelled = true;
+      };
     });
   }
 
