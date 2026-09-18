@@ -3,6 +3,7 @@ import {
   Code,
   ConnectError,
   createChattoClient,
+  REALTIME_MINIMUM_CURSOR_HEADER,
   type ConnectAPIConfig
 } from './connect.js';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
@@ -14,6 +15,7 @@ import {
   type UserPresenceView,
   type UserSummary
 } from './userSummary.js';
+import { createDirectoryUserLoader } from '$lib/query/directoryUsers';
 export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
 
 export type MemberDirectoryAPIConfig = ConnectAPIConfig;
@@ -28,12 +30,28 @@ export type MemberDirectoryPage = {
   members: DirectoryMember[];
   totalCount: number;
   hasMore: boolean;
+  /** Number of membership IDs consumed, including unavailable profiles. */
+  consumedCount?: number;
 };
 
 export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
   const users = createChattoClient(UserService, config);
   const rooms = createChattoClient(RoomService, config);
   const headers = () => authHeaders(config);
+  const batchUsers = async (userIds: string[]): Promise<DirectoryMember[]> => {
+    const response = await users.batchGetUsers({ userIds }, { headers: headers() });
+    return response.users.map(mapDirectoryMember);
+  };
+  const loadUsers =
+    config.serverId && config.queryScope
+      ? createDirectoryUserLoader(config.serverId, config.queryScope, batchUsers)
+      : async (ids: string[]) => {
+          const members: DirectoryMember[] = [];
+          for (let offset = 0; offset < ids.length; offset += 100) {
+            members.push(...(await batchUsers(ids.slice(offset, offset + 100))));
+          }
+          return members;
+        };
 
   return {
     async listUsers(
@@ -87,8 +105,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     },
 
     async batchGetUsers(userIds: string[]): Promise<DirectoryMember[]> {
-      const response = await users.batchGetUsers({ userIds }, { headers: headers() });
-      return response.users.map(mapDirectoryMember);
+      return loadUsers(userIds);
     },
 
     async listRoomMembers(
@@ -96,17 +113,26 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       search = '',
       limit = 250,
       offset = 0,
-      options: { signal?: AbortSignal } = {}
+      options: { signal?: AbortSignal; minimumCursor?: string } = {}
     ): Promise<MemberDirectoryPage> {
+      const requestHeaders = options.minimumCursor ? new Headers(headers()) : headers();
+      if (options.minimumCursor && requestHeaders instanceof Headers) {
+        requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, options.minimumCursor);
+      }
       const response = await rooms.listMembers(
         { roomId, search, page: { limit, offset } },
         {
-          headers: headers(),
+          headers: requestHeaders,
+          ...(options.minimumCursor ? { timeoutMs: 10_000 } : {}),
           ...(options.signal ? { signal: options.signal } : {})
         }
       );
+      options.signal?.throwIfAborted();
+      const members = await loadUsers(response.userIds);
+      options.signal?.throwIfAborted();
       return {
-        members: response.members.map(mapDirectoryMember),
+        members,
+        consumedCount: response.userIds.length,
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };

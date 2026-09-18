@@ -77,6 +77,7 @@ const { mocks } = vi.hoisted(() => {
       ),
       markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
       messagesForRoom: vi.fn(),
+      membersForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
       nextServerRestoreProjectedRoomWindow: vi.fn(),
       projectedMembersForRoom: vi.fn(() => []),
@@ -252,6 +253,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       },
       mentionRoles: mocks.mentionRoles,
       messagesForRoom: mocks.messagesForRoom,
+      membersForRoom: mocks.membersForRoom,
       filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
       messageSearchForRoom: () => ({}),
       restoreProjectedRoomWindow:
@@ -461,6 +463,16 @@ beforeEach(() => {
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
+  const membersByRoom: Record<string, RoomMembersStore> = Object.create(null);
+  mocks.membersForRoom.mockImplementation((roomId: string) => {
+    let store = membersByRoom[roomId];
+    if (!store) {
+      store = new RoomMembersStore();
+      store.setRoom(roomId);
+      membersByRoom[roomId] = store;
+    }
+    return store;
+  });
   mocks.dmParticipantIds = ['test-user', 'user-1'];
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
@@ -495,7 +507,7 @@ describe('Room interaction bundles', () => {
     await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
   });
 
-  it('refreshes mounted channel membership after a canonical membership event', async () => {
+  it('leaves membership event handling to the session store without a component reload', async () => {
     mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
     vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});
     const refresh = vi.spyOn(RoomMembersStore.prototype, 'refresh').mockResolvedValue();
@@ -513,7 +525,7 @@ describe('Room interaction bundles', () => {
       })
     );
 
-    expect(refresh).toHaveBeenCalledOnce();
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('restores projected windows through the store that mounted them', async () => {

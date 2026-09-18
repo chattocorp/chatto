@@ -699,23 +699,16 @@ func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room
 			return nil, err
 		}
 		if room.GetUniversal() {
-			users, err := c.ListUsers(ctx)
-			if err != nil {
-				return nil, err
-			}
-			for _, user := range users {
-				if user == nil || user.GetId() == "" {
+			for _, userID := range c.userModel.users.Projection().AllActiveIDs() {
+				if _, explicit := seen[userID]; explicit {
 					continue
 				}
-				if _, explicit := seen[user.GetId()]; explicit {
-					continue
-				}
-				canJoin, err := c.CanJoinRoomAt(ctx, user.GetId(), kind, room_id)
+				canJoin, err := c.CanJoinRoomAt(ctx, userID, kind, room_id)
 				if err != nil {
 					return nil, err
 				}
 				if canJoin {
-					add(user.GetId())
+					add(userID)
 				}
 			}
 		}
@@ -745,6 +738,16 @@ func (c *ChattoCore) ListRoomMemberReferencesForList(ctx context.Context, actorI
 // user resources must remove IDs that they cannot hydrate.
 func (c *ChattoCore) ListRoomMemberIDsForList(ctx context.Context, actorID, roomID string) ([]string, error) {
 	return c.listRoomMemberIDsForRead(ctx, actorID, roomID, true)
+}
+
+// ListActiveRoomMemberIDs authorizes a membership listing and removes deleted,
+// shredded, and unknown users without reading or decrypting user profiles.
+func (c *ChattoCore) ListActiveRoomMemberIDs(ctx context.Context, actorID, roomID string) ([]string, error) {
+	ids, err := c.ListRoomMemberIDsForList(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return c.userModel.users.Projection().ActiveIDs(ids), nil
 }
 
 // ListRoomMemberReferencesForLookup authorizes member hydration for room members

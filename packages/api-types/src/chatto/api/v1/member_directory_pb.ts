@@ -127,17 +127,19 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
 }
 
 /**
- * Room member page.
+ * Room membership IDs. Resolve profiles with UserService.BatchGetUsers.
+ * Empty searches do not read user profiles. Search results require profile
+ * reads to match names. Both paths use ascending user ID order.
  *
  * @generated from message chatto.api.v1.ListMembersResponse
  */
 export class ListMembersResponse extends Message<ListMembersResponse> {
   /**
-   * Members by case-insensitive display name, then login, in ascending order.
+   * Current member IDs in ascending order. Missing or deleted users are omitted.
    *
-   * @generated from field: repeated chatto.api.v1.DirectoryMember members = 1;
+   * @generated from field: repeated string user_ids = 5;
    */
-  members: DirectoryMember[] = [];
+  userIds: string[] = [];
 
   /**
    * Page metadata.
@@ -154,7 +156,7 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListMembersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "members", kind: "message", T: DirectoryMember, repeated: true },
+    { no: 5, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 

@@ -1,4 +1,11 @@
-import { authHeaders, createChattoClient, REALTIME_MINIMUM_CURSOR_HEADER } from './connect.js';
+import {
+  authHeaders,
+  createChattoClient,
+  REALTIME_MINIMUM_CURSOR_HEADER,
+  type ConnectAPIConfig
+} from './connect.js';
+import { mapDirectoryMember } from './memberDirectory';
+import { primeRegisteredDirectoryUsers } from '$lib/query/cacheRegistry';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 
@@ -7,11 +14,7 @@ const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
 import { mapOptionalUserSummary, mapUserSummary, type UserSummary } from './userSummary.js';
 
-export type UserAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type UserAPIConfig = ConnectAPIConfig;
 
 export function createUserAPI(config: UserAPIConfig) {
   const client = createChattoClient(UserService, config);
@@ -32,6 +35,14 @@ export function createUserAPI(config: UserAPIConfig) {
           ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
         }
       );
+      if (config.serverId && config.queryScope) {
+        primeRegisteredDirectoryUsers(
+          config.serverId,
+          config.queryScope,
+          response.users.map(mapDirectoryMember),
+          false
+        );
+      }
       return response.users.flatMap((member) => {
         const summary = member.user;
         return summary ? [mapUserSummary(summary)] : [];

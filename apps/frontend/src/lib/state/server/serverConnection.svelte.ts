@@ -123,6 +123,7 @@ export class ServerConnection {
   get apiConfig(): ConnectAPIConfig {
     return {
       serverId: this.#serverId,
+      queryScope: this.queryScope,
       baseUrl: this.#connectBaseUrl,
       bearerToken: this.#token,
       dataGeneration: () => this.#dataGeneration,

@@ -146,7 +146,8 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists effective room members. Existing members and room.manage holders may
+     * Lists effective room member IDs in ascending ID order. Resolve user details
+     * with UserService.BatchGetUsers. Existing members and room.manage holders may
      * list a channel room; other nonmembers need both room.list and room.join.
      *
      * @generated from rpc chatto.api.v1.RoomService.ListMembers

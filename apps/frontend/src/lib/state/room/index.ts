@@ -22,6 +22,7 @@ export {
   setRoomMembersStore,
   getRoomMembers,
   getRoomMembersStore,
+  useRoomMembersStore,
   getMemberPresence,
   RoomMembersStore,
   ROOM_MEMBERS_PAGE_SIZE

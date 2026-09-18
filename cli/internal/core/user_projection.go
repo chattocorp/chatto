@@ -933,6 +933,33 @@ func (p *UserProjection) GetReference(userID string) (*evtv1.User, bool) {
 }
 
 // GetReferences returns public user references aligned with userIDs. Unknown users are nil.
+// ActiveIDs filters membership references using lifecycle metadata only. It
+// does not decrypt profiles or resolve encryption keys.
+func (p *UserProjection) ActiveIDs(userIDs []string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	ids := make([]string, 0, len(userIDs))
+	for _, id := range userIDs {
+		if user := p.users[id]; user != nil && !user.deleted && !user.shredded {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// AllActiveIDs returns active account IDs without reading encrypted profiles.
+func (p *UserProjection) AllActiveIDs() []string {
+	p.RLock()
+	defer p.RUnlock()
+	ids := make([]string, 0, len(p.users))
+	for id, user := range p.users {
+		if !user.deleted && !user.shredded {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
 func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
 	p.RLock()
 	snapshots := make([]*projectedUserSnapshot, len(userIDs))

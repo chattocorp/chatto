@@ -167,7 +167,11 @@ describe('createMemberDirectoryAPI', () => {
 
   it('maps room member pages without auth headers', async () => {
     mocks.listRoomMembers.mockResolvedValue({
-      members: [
+      userIds: ['U2'],
+      page: { totalCount: 1n, hasMore: false }
+    });
+    mocks.batchGetUsers.mockResolvedValue({
+      users: [
         {
           user: {
             id: 'U2',
@@ -178,8 +182,7 @@ describe('createMemberDirectoryAPI', () => {
           },
           roles: []
         }
-      ],
-      page: { totalCount: 1n, hasMore: false }
+      ]
     });
 
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
@@ -202,6 +205,7 @@ describe('createMemberDirectoryAPI', () => {
         }
       ],
       totalCount: 1,
+      consumedCount: 1,
       hasMore: false
     });
 
@@ -213,7 +217,7 @@ describe('createMemberDirectoryAPI', () => {
 
   it('defaults room member pages to 250 members', async () => {
     mocks.listRoomMembers.mockResolvedValue({
-      members: [],
+      userIds: [],
       page: { totalCount: 0n, hasMore: false }
     });
 
@@ -261,7 +265,7 @@ describe('createMemberDirectoryAPI', () => {
 
   it('passes cancellation through when listing room members', async () => {
     mocks.listRoomMembers.mockResolvedValue({
-      members: [],
+      userIds: [],
       page: { totalCount: 0n, hasMore: false }
     });
     const signal = new AbortController().signal;

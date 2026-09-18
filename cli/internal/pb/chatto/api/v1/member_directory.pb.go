@@ -155,11 +155,13 @@ func (x *ListMembersRequest) GetPage() *PageRequest {
 	return nil
 }
 
-// Room member page.
+// Room membership IDs. Resolve profiles with UserService.BatchGetUsers.
+// Empty searches do not read user profiles. Search results require profile
+// reads to match names. Both paths use ascending user ID order.
 type ListMembersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Members by case-insensitive display name, then login, in ascending order.
-	Members []*DirectoryMember `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+	// Current member IDs in ascending order. Missing or deleted users are omitted.
+	UserIds []string `protobuf:"bytes,5,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
 	// Page metadata.
 	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -196,9 +198,9 @@ func (*ListMembersResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_member_directory_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ListMembersResponse) GetMembers() []*DirectoryMember {
+func (x *ListMembersResponse) GetUserIds() []string {
 	if x != nil {
-		return x.Members
+		return x.UserIds
 	}
 	return nil
 }
@@ -427,10 +429,10 @@ const file_chatto_api_v1_member_directory_proto_rawDesc = "" +
 	"\x12ListMembersRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1f\n" +
 	"\x06search\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
-	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05limitR\x06offset\"\x9f\x01\n" +
-	"\x13ListMembersResponse\x128\n" +
-	"\amembers\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\amembers\x12+\n" +
-	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"V\n" +
+	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05limitR\x06offset\"\x8f\x01\n" +
+	"\x13ListMembersResponse\x12\x19\n" +
+	"\buser_ids\x18\x05 \x03(\tR\auserIds\x12+\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\amembersR\vtotal_countR\bhas_more\"V\n" +
 	"\x10GetMemberRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
 	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"K\n" +
@@ -474,15 +476,14 @@ var file_chatto_api_v1_member_directory_proto_depIdxs = []int32{
 	7,  // 0: chatto.api.v1.DirectoryMember.user:type_name -> chatto.api.v1.User
 	8,  // 1: chatto.api.v1.DirectoryMember.created_at:type_name -> google.protobuf.Timestamp
 	9,  // 2: chatto.api.v1.ListMembersRequest.page:type_name -> chatto.api.v1.PageRequest
-	0,  // 3: chatto.api.v1.ListMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
-	10, // 4: chatto.api.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
-	0,  // 5: chatto.api.v1.GetMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
-	0,  // 6: chatto.api.v1.BatchGetMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	10, // 3: chatto.api.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	0,  // 4: chatto.api.v1.GetMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
+	0,  // 5: chatto.api.v1.BatchGetMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_member_directory_proto_init() }

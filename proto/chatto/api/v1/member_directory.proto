@@ -34,13 +34,15 @@ message ListMembersRequest {
   PageRequest page = 5;
 }
 
-// Room member page.
+// Room membership IDs. Resolve profiles with UserService.BatchGetUsers.
+// Empty searches do not read user profiles. Search results require profile
+// reads to match names. Both paths use ascending user ID order.
 message ListMembersResponse {
-  reserved 2, 3;
-  reserved "total_count", "has_more";
+  reserved 1, 2, 3;
+  reserved "members", "total_count", "has_more";
 
-  // Members by case-insensitive display name, then login, in ascending order.
-  repeated DirectoryMember members = 1;
+  // Current member IDs in ascending order. Missing or deleted users are omitted.
+  repeated string user_ids = 5;
   // Page metadata.
   PageInfo page = 4;
 }

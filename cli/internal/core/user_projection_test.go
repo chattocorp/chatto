@@ -50,13 +50,37 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-	b.ReportAllocs()
-	for b.Loop() {
-		if got := p.GetReferences(userIDs); len(got) != memberCount {
-			b.Fatalf("GetReferences() returned %d users, want %d", len(got), memberCount)
+	for _, method := range []string{"hydrate-profiles", "active-ids"} {
+		b.Run(method, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				var count int
+				if method == "hydrate-profiles" {
+					count = len(p.GetReferences(userIDs))
+				} else {
+					count = len(p.ActiveIDs(userIDs))
+				}
+				if count != memberCount {
+					b.Fatalf("returned %d users, want %d", count, memberCount)
+				}
+			}
+		})
+	}
+}
+
+func TestUserProjectionActiveIDsDoesNotHydrateProfiles(t *testing.T) {
+	// No key resolver is installed. Hydrating these encrypted fields would fail.
+	p := NewUserProjection(nil, nil)
+	for _, id := range []string{"active", "deleted", "shredded"} {
+		p.users[id] = &projectedUser{
+			user:     &evtv1.User{Id: id},
+			login:    newProjectedUserPII("event", evtstream.EventUserAccountCreated, "login", &evtv1.EncryptedUserString{}),
+			deleted:  id == "deleted",
+			shredded: id == "shredded",
 		}
 	}
+	require.Equal(t, []string{"active"}, p.ActiveIDs([]string{"deleted", "active", "missing", "shredded"}))
+	require.Equal(t, []string{"active"}, p.AllActiveIDs())
 }
 
 func userEvent(id string, ts time.Time, event *evtv1.Event) *evtv1.Event {

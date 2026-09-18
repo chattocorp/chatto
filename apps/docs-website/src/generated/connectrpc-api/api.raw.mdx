@@ -604,7 +604,8 @@ Result of leaving a room.
 
 ### ListMembers
 
-Lists effective room members. Existing members and room.manage holders may
+Lists effective room member IDs in ascending ID order. Resolve user details
+with UserService.BatchGetUsers. Existing members and room.manage holders may
 list a channel room; other nonmembers need both room.list and room.join.
 
 ```http
@@ -628,11 +629,13 @@ Request for members of one room.
 
 #### Result: ListMembersResponse
 
-Room member page.
+Room membership IDs. Resolve profiles with UserService.BatchGetUsers.
+Empty searches do not read user profiles. Search results require profile
+reads to match names. Both paths use ascending user ID order.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members by case-insensitive display name, then login, in ascending order. |
+| `user_ids` | `repeated string` | Current member IDs in ascending order. Missing or deleted users are omitted. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 

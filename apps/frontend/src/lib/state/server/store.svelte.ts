@@ -39,7 +39,7 @@ import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
-import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
+import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -67,6 +67,9 @@ import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
+  primeRegisteredDirectoryUsers,
+  removeRegisteredDirectoryUser,
+  resetRegisteredDirectoryUsers,
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
   refreshRegisteredRoleQueries,
@@ -173,6 +176,7 @@ export class ServerStateStore {
   // These registries are intentionally non-reactive. The stores they own are
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
+  #roomMembers: Record<string, RoomMembersStore> = Object.create(null);
   #roomFiles: Record<string, RoomFilesStore> = Object.create(null);
   #roomPins: Record<string, RoomPinsStore> = Object.create(null);
   #roomMessageSearch: Record<string, MessageSearchStore> = Object.create(null);
@@ -523,6 +527,32 @@ export class ServerStateStore {
     void messages.restoreLatestWindow();
   }
 
+  /** Membership survives route changes and receives server-level realtime updates. */
+  membersForRoom(roomId: string): RoomMembersStore {
+    let store = this.#roomMembers[roomId];
+    if (!store) {
+      store = new RoomMembersStore(this.#serverConnection);
+      store.setRoom(roomId);
+      this.#roomMembers[roomId] = store;
+    }
+    return store;
+  }
+
+  private updateRoomMembership(roomId: string, userId: string, joined: boolean): void {
+    const store = this.#roomMembers[roomId];
+    if (!store) return;
+    void store
+      .applyMembership(userId, joined, this.#currentEventMinimumCursor)
+      .catch(() => store.resetProjectionState());
+  }
+
+  /** Universal membership depends on server authorization, not only join facts. */
+  private invalidateUniversalMembership(): void {
+    for (const [id, room] of this.projection.rooms) {
+      if (room.room?.universal) this.#roomMembers[id]?.resetProjectionState();
+    }
+  }
+
   private evictRetainedRoom(roomId: string): void {
     this.#roomMessages[roomId]?.dispose();
     delete this.#roomMessages[roomId];
@@ -538,6 +568,7 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
+    this.#roomMembers[roomId]?.resetProjectionState();
     clearRoomPinsSeenMarker(
       this.serverId,
       this.currentUser.user?.id ?? this.#getSession().userId ?? '',
@@ -691,6 +722,8 @@ export class ServerStateStore {
         }
         case 'users': {
           const members = resource.value.users.map(mapDirectoryMember);
+          primeRegisteredDirectoryUsers(this.serverId, this.#serverConnection.queryScope, members);
+          for (const store of Object.values(this.#roomMembers)) store.updateUsers(members);
           notifyUserSummaries(this.serverId, members);
           for (const userId of previousUserIds) {
             if (!this.projection.users.has(userId)) this.scrubRemovedUser(userId);
@@ -751,6 +784,9 @@ export class ServerStateStore {
     if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
   }
   private scrubRemovedUser(userId: string): void {
+    removeRegisteredDirectoryUser(this.serverId, this.#serverConnection.queryScope, userId);
+    for (const roomId of Object.keys(this.#roomMembers))
+      this.updateRoomMembership(roomId, userId, false);
     scrubRegisteredFollowedThreadUser(this.serverId);
     scrubRegisteredRoomMemberUser(this.serverId, userId);
     removeRegisteredAdminUserQueries(this.serverId, userId);
@@ -901,6 +937,7 @@ export class ServerStateStore {
     switch (payload.case) {
       case 'roleAssigned':
       case 'roleRevoked': {
+        this.invalidateUniversalMembership();
         const member = this.projection.users.get(payload.value.userId);
         if (member) {
           const updated = member.clone();
@@ -913,6 +950,7 @@ export class ServerStateStore {
         return;
       }
       case 'roleDeleted':
+        this.invalidateUniversalMembership();
         for (const [userId, member] of this.projection.users) {
           if (!member.roles.includes(payload.value.roleName)) continue;
           const updated = member.clone();
@@ -931,6 +969,7 @@ export class ServerStateStore {
         refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'rolePermissionsChanged':
+        this.invalidateUniversalMembership();
         refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'userAccountDeleted': {
@@ -948,6 +987,7 @@ export class ServerStateStore {
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'userLeftRoom':
+        if (roomId && event.actorId) this.updateRoomMembership(roomId, event.actorId, false);
         if (event.actorId === this.currentUser.user?.id) {
           if (roomId) this.clearRoomAccess(roomId);
         }
@@ -1067,7 +1107,10 @@ export class ServerStateStore {
       case 'roomSlowModeChanged':
       case 'roomThreadingModeChanged':
       case 'userJoinedRoom':
+        if (payload.case === 'roomUniversalChanged' && roomId)
+          this.#roomMembers[roomId]?.resetProjectionState();
         if (payload.case === 'userJoinedRoom') {
+          if (roomId && event.actorId) this.updateRoomMembership(roomId, event.actorId, true);
           this.refreshLoadedMessageWindows(roomId, event.id || null);
         }
         if (payload.case === 'roomThreadingModeChanged') {
@@ -1087,6 +1130,9 @@ export class ServerStateStore {
         return;
       case 'userProfileChanged':
       case 'userAccountCreated':
+        if (payload.case === 'userAccountCreated' && rawValue?.userId) {
+          this.invalidateUniversalMembership();
+        }
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
         return;
       case 'viewerPreferencesChanged':
@@ -1392,6 +1438,8 @@ export class ServerStateStore {
     const complete = runResetHandlers([
       () => refreshRegisteredAdminQueries(this.serverId),
       () => clearUserSummaryCache(this.serverId),
+      () => resetRegisteredDirectoryUsers(this.serverId),
+      ...Object.values(this.#roomMembers).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#roomMessages).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#threadMessages).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#roomFiles).map(
@@ -1552,6 +1600,8 @@ export class ServerStateStore {
   dispose(): void {
     this.#serverConnection.invalidatePrivateData();
     removeRegisteredServerQueries(this.serverId);
+    for (const store of Object.values(this.#roomMembers)) store.resetProjectionState();
+    this.#roomMembers = Object.create(null);
     this.#disposeEffects();
     this.adminRoomLayout.deactivateProjectionRefresh();
     this.#adminRoomLayoutSubscriptions = 0;

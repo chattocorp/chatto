@@ -25,7 +25,7 @@ export function roomMembersQueryPage(
   page: MemberDirectoryPage,
   pageParam: number
 ): RoomMembersQueryPage {
-  return { ...page, nextOffset: pageParam + page.members.length };
+  return { ...page, nextOffset: pageParam + (page.consumedCount ?? page.members.length) };
 }
 
 export function nextRoomMembersPageParam(

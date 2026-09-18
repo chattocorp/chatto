@@ -135,7 +135,8 @@ type RoomServiceClient interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
-	// Lists effective room members. Existing members and room.manage holders may
+	// Lists effective room member IDs in ascending ID order. Resolve user details
+	// with UserService.BatchGetUsers. Existing members and room.manage holders may
 	// list a channel room; other nonmembers need both room.list and room.join.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one effective member, including automatic universal membership.
@@ -575,7 +576,8 @@ type RoomServiceHandler interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
-	// Lists effective room members. Existing members and room.manage holders may
+	// Lists effective room member IDs in ascending ID order. Resolve user details
+	// with UserService.BatchGetUsers. Existing members and room.manage holders may
 	// list a channel room; other nonmembers need both room.list and room.join.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one effective member, including automatic universal membership.

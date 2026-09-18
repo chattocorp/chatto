@@ -10,7 +10,7 @@
   import { ConfirmDialog, Dialog, FormDialog } from '$lib/ui';
   import { Button, TextArea } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
+  import { useRoomMembersStore, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
@@ -137,6 +137,7 @@
 
   const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
   const composerContext = getComposerContext();
+  const membersStore = useRoomMembersStore();
   const composer = new MessageComposerState({
     getRoomId: () => roomId,
     getThreadRootEventId: () => inThread,
@@ -171,8 +172,10 @@
       return true;
     },
     context: composerContext,
-    getMembers: getRoomMembers,
-    membersStore: getRoomMembersStore(),
+    getMembers: () => membersStore().members,
+    get membersStore() {
+      return membersStore();
+    },
     mentionRolesStore,
     serverInfo,
     roomUnreadStore,

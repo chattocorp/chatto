@@ -4,13 +4,56 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
+
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
 // Room Membership Tests
 // ============================================================================
+
+func TestListActiveRoomMemberIDsDoesNotReadProfiles(t *testing.T) {
+	for _, universal := range []bool{false, true} {
+		t.Run(fmt.Sprintf("universal=%v", universal), func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			user, err := c.CreateUser(ctx, SystemActorID, "id-list-user", "ID List User", "password")
+			if err != nil {
+				t.Fatal(err)
+			}
+			room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "id-list", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if universal {
+				_, err = c.SetRoomUniversal(ctx, SystemActorID, KindChannel, room.Id, true)
+			} else {
+				_, err = c.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			projection := c.userModel.users.Projection()
+			projection.Lock()
+			projection.users[user.Id].login.encrypted = &evtv1.EncryptedUserString{}
+			projection.Unlock()
+			if _, err := c.GetUser(ctx, user.Id); err == nil {
+				t.Fatal("corrupt profile unexpectedly hydrated")
+			}
+			ids, err := c.ListActiveRoomMemberIDs(ctx, user.Id, room.Id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Contains(ids, user.Id) {
+				t.Fatalf("membership IDs %v omit active user", ids)
+			}
+		})
+	}
+}
 
 func TestRoomMemberships_CreateOrUpdate(t *testing.T) {
 	core, _ := setupTestCore(t)

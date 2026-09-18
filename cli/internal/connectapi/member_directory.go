@@ -97,21 +97,17 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 	}
 
 	seen := make(map[string]struct{}, len(req.Msg.GetUserIds()))
-	members := make([]*apiv1.DirectoryMember, 0, len(req.Msg.GetUserIds()))
+	ids := make([]string, 0, len(req.Msg.GetUserIds()))
 	for _, userID := range req.Msg.GetUserIds() {
 		if _, ok := seen[userID]; ok {
 			continue
 		}
 		seen[userID] = struct{}{}
-
-		member, err := serverMember(ctx, s.api, userID)
-		if err != nil {
-			if connect.CodeOf(err) == connect.CodeNotFound {
-				continue
-			}
-			return nil, err
-		}
-		members = append(members, member)
+		ids = append(ids, userID)
+	}
+	members, err := (&directoryUserAssembler{api: s.api}).assemble(ctx, ids)
+	if err != nil {
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.BatchGetUsersResponse{Users: members}), nil
 }
@@ -164,53 +160,30 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 		return nil, err
 	}
 
-	users, err := s.api.core.ListRoomMemberReferencesForList(ctx, caller.UserID, req.Msg.GetRoomId())
+	ids, err := s.api.core.ListActiveRoomMemberIDs(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		return nil, connectError(err)
 	}
 
 	query := strings.ToLower(strings.TrimSpace(req.Msg.GetSearch()))
 	if query != "" {
-		filtered := users[:0]
+		users, err := s.api.core.ListRoomMemberReferencesForList(ctx, caller.UserID, req.Msg.GetRoomId())
+		if err != nil {
+			return nil, connectError(err)
+		}
+		ids = ids[:0]
 		for _, user := range users {
 			if strings.Contains(strings.ToLower(user.GetLogin()), query) ||
 				strings.Contains(strings.ToLower(user.GetDisplayName()), query) {
-				filtered = append(filtered, user)
+				ids = append(ids, user.GetId())
 			}
 		}
-		users = filtered
 	}
-
-	sort.Slice(users, func(i, j int) bool {
-		left := strings.ToLower(users[i].GetDisplayName())
-		right := strings.ToLower(users[j].GetDisplayName())
-		if left == right {
-			return strings.ToLower(users[i].GetLogin()) < strings.ToLower(users[j].GetLogin())
-		}
-		return left < right
-	})
-
+	sort.Strings(ids)
 	limit, offset := roomMemberDirectoryPagination(req.Msg.GetPage())
-	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
-	userIDs := make([]string, len(page))
-	for i, user := range page {
-		userIDs[i] = user.GetId()
-	}
-	presences, err := s.api.core.GetUserPresences(ctx, userIDs)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	out := make([]*apiv1.DirectoryMember, 0, len(page))
-	for _, user := range page {
-		apiMember, err := directoryMemberWithPresence(ctx, s.api, user, nil, presences[user.GetId()])
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, apiMember)
-	}
-
+	page, totalCount, hasMore := paginateDirectoryIDs(ids, limit, offset)
 	return connect.NewResponse(&apiv1.ListMembersResponse{
-		Members: out,
+		UserIds: page,
 		Page:    apiPageInfo(totalCount, hasMore),
 	}), nil
 }
@@ -272,14 +245,6 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&apiv1.BatchGetMembersResponse{Members: members}), nil
 }
 
-func serverMember(ctx context.Context, api *API, userID string) (*apiv1.DirectoryMember, error) {
-	user, err := api.core.GetUser(ctx, userID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return serverMemberForUser(ctx, api, user)
-}
-
 func serverMemberForUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.DirectoryMember, error) {
 	assigned, err := api.core.GetUserRoles(ctx, user.GetId())
 	if err != nil {
@@ -329,14 +294,9 @@ func findCoreUserByID(users []*evtv1.User, userID string) *evtv1.User {
 	return nil
 }
 
-func paginateDirectoryUsers(users []*evtv1.User, limit, offset int) ([]*evtv1.User, int, bool) {
-	total := len(users)
-	if offset >= total {
-		return []*evtv1.User{}, total, false
-	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
-	return users[offset:end], total, end < total
+func paginateDirectoryIDs(ids []string, limit, offset int) ([]string, int, bool) {
+	total := len(ids)
+	start := min(offset, total)
+	end := start + min(limit, total-start)
+	return ids[start:end], total, end < total
 }
