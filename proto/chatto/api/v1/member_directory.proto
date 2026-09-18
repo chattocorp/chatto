@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -32,6 +33,14 @@ message ListMembersRequest {
   string search = 2 [(buf.validate.field).string.max_len = 100];
   // Defaults to 250 results when absent or limit is zero. Maximum: 500.
   PageRequest page = 5;
+  // Optional status filter applied before pagination. Empty means all statuses.
+  // Select ONLINE, AWAY, and DO_NOT_DISTURB for all connected members.
+  // Presence can change between pages; use realtime updates to keep it current.
+  repeated PresenceStatus presence_statuses = 6 [(buf.validate.field).repeated = {
+    max_items: 4
+    unique: true
+    items: {enum: {defined_only: true, not_in: [0]}}
+  }];
 }
 
 // Room membership IDs. Resolve profiles with UserService.BatchGetUsers.
@@ -43,7 +52,7 @@ message ListMembersResponse {
 
   // Current member IDs in ascending order. Missing or deleted users are omitted.
   repeated string user_ids = 5;
-  // Page metadata.
+  // Page metadata for the members that match both filters.
   PageInfo page = 4;
 }
 

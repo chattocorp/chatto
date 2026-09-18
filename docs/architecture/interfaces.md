@@ -121,6 +121,8 @@ counts. See [permission scope selection](../../cli/internal/core/permission_scop
 `RoomService.ListMembers` returns active membership IDs in stable ID order.
 An empty search reads lifecycle and membership metadata without profile
 decryption. Name searches hydrate profiles to match login and display name.
+An optional presence-status filter uses the shared watcher snapshot before
+pagination. Counts describe the filtered set. It does not read per-user KV keys.
 `UserService.BatchGetUsers` assembles requested profiles with bounded concurrency
 and one request-scoped encryption-key cache. See
 [FDR-025](../fdr/FDR-025-user-search-and-member-directory.md).

@@ -99,9 +99,13 @@ type ListMembersRequest struct {
 	// Optional case-insensitive search against login and display name.
 	Search string `protobuf:"bytes,2,opt,name=search,proto3" json:"search,omitempty"`
 	// Defaults to 250 results when absent or limit is zero. Maximum: 500.
-	Page          *PageRequest `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Page *PageRequest `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
+	// Optional status filter applied before pagination. Empty means all statuses.
+	// Select ONLINE, AWAY, and DO_NOT_DISTURB for all connected members.
+	// Presence can change between pages; use realtime updates to keep it current.
+	PresenceStatuses []PresenceStatus `protobuf:"varint,6,rep,packed,name=presence_statuses,json=presenceStatuses,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_statuses,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ListMembersRequest) Reset() {
@@ -155,6 +159,13 @@ func (x *ListMembersRequest) GetPage() *PageRequest {
 	return nil
 }
 
+func (x *ListMembersRequest) GetPresenceStatuses() []PresenceStatus {
+	if x != nil {
+		return x.PresenceStatuses
+	}
+	return nil
+}
+
 // Room membership IDs. Resolve profiles with UserService.BatchGetUsers.
 // Empty searches do not read user profiles. Search results require profile
 // reads to match names. Both paths use ascending user ID order.
@@ -162,7 +173,7 @@ type ListMembersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current member IDs in ascending order. Missing or deleted users are omitted.
 	UserIds []string `protobuf:"bytes,5,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
-	// Page metadata.
+	// Page metadata for the members that match both filters.
 	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -420,16 +431,17 @@ var File_chatto_api_v1_member_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_member_directory_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8b\x01\n" +
+	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8b\x01\n" +
 	"\x0fDirectoryMember\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\x14\n" +
 	"\x05roles\x18\x02 \x03(\tR\x05roles\x129\n" +
 	"\n" +
-	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xa2\x01\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x83\x02\n" +
 	"\x12ListMembersRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1f\n" +
 	"\x06search\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
-	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05limitR\x06offset\"\x8f\x01\n" +
+	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x12_\n" +
+	"\x11presence_statuses\x18\x06 \x03(\x0e2\x1d.chatto.api.v1.PresenceStatusB\x13\xbaH\x10\x92\x01\r\x10\x04\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\x10presenceStatusesJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05limitR\x06offset\"\x8f\x01\n" +
 	"\x13ListMembersResponse\x12\x19\n" +
 	"\buser_ids\x18\x05 \x03(\tR\auserIds\x12+\n" +
 	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\amembersR\vtotal_countR\bhas_more\"V\n" +
@@ -470,20 +482,22 @@ var file_chatto_api_v1_member_directory_proto_goTypes = []any{
 	(*User)(nil),                    // 7: chatto.api.v1.User
 	(*timestamppb.Timestamp)(nil),   // 8: google.protobuf.Timestamp
 	(*PageRequest)(nil),             // 9: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                // 10: chatto.api.v1.PageInfo
+	(PresenceStatus)(0),             // 10: chatto.api.v1.PresenceStatus
+	(*PageInfo)(nil),                // 11: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_member_directory_proto_depIdxs = []int32{
 	7,  // 0: chatto.api.v1.DirectoryMember.user:type_name -> chatto.api.v1.User
 	8,  // 1: chatto.api.v1.DirectoryMember.created_at:type_name -> google.protobuf.Timestamp
 	9,  // 2: chatto.api.v1.ListMembersRequest.page:type_name -> chatto.api.v1.PageRequest
-	10, // 3: chatto.api.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
-	0,  // 4: chatto.api.v1.GetMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
-	0,  // 5: chatto.api.v1.BatchGetMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
-	6,  // [6:6] is the sub-list for method output_type
-	6,  // [6:6] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	10, // 3: chatto.api.v1.ListMembersRequest.presence_statuses:type_name -> chatto.api.v1.PresenceStatus
+	11, // 4: chatto.api.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	0,  // 5: chatto.api.v1.GetMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
+	0,  // 6: chatto.api.v1.BatchGetMembersResponse.members:type_name -> chatto.api.v1.DirectoryMember
+	7,  // [7:7] is the sub-list for method output_type
+	7,  // [7:7] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_member_directory_proto_init() }
@@ -492,6 +506,7 @@ func file_chatto_api_v1_member_directory_proto_init() {
 		return
 	}
 	file_chatto_api_v1_pagination_proto_init()
+	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

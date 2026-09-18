@@ -179,6 +179,23 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 			}
 		}
 	}
+	if len(req.Msg.GetPresenceStatuses()) > 0 {
+		presences, err := s.api.core.GetUserPresences(ctx, ids)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		wanted := make(map[apiv1.PresenceStatus]bool, len(req.Msg.GetPresenceStatuses()))
+		for _, status := range req.Msg.GetPresenceStatuses() {
+			wanted[status] = true
+		}
+		filtered := ids[:0]
+		for _, id := range ids {
+			if wanted[corePresenceStatusToAPI(presences[id])] {
+				filtered = append(filtered, id)
+			}
+		}
+		ids = filtered
+	}
 	sort.Strings(ids)
 	limit, offset := roomMemberDirectoryPagination(req.Msg.GetPage())
 	page, totalCount, hasMore := paginateDirectoryIDs(ids, limit, offset)

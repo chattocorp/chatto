@@ -348,6 +348,11 @@ profile updates cancel older reads before replacing entries; deletion records
 prevent an old batch from restoring a removed user. Session disposal removes
 these queries. A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
+Three independent presence-filtered scans publish connected members while the
+full directory loads. Each status filter also supplies presence for cached
+profiles. Per-user change versions prevent these previews from replacing newer
+realtime presence. The full scan owns completion and final membership; failed
+or late previews cannot block it or restore state after a reset.
 
 The per-server store checks permission events before it changes retained role
 assignments. It clears its cursor, viewer authority, query observers, message

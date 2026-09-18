@@ -1311,6 +1311,68 @@ func TestUserServiceListUsers(t *testing.T) {
 	}
 }
 
+func TestRoomServiceListMembersPresenceFilter(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("presence-filter")
+	var activeIDs []string
+	for i, status := range []string{core.PresenceStatusOnline, core.PresenceStatusAway, core.PresenceStatusDoNotDisturb} {
+		user, err := env.core.CreateUser(env.ctx, core.SystemActorID, fmt.Sprintf("presence-%d", i), "Connected Member", "password")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+			t.Fatal(err)
+		}
+		if err := env.core.SetPresence(env.ctx, user.Id, status); err != nil {
+			t.Fatal(err)
+		}
+		activeIDs = append(activeIDs, user.Id)
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			statuses, err := env.core.GetUserPresences(env.ctx, []string{user.Id})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if statuses[user.Id] == status {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("presence watcher did not catch up")
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+	slices.Sort(activeIDs)
+	connected := []apiv1.PresenceStatus{apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, apiv1.PresenceStatus_PRESENCE_STATUS_AWAY, apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB}
+	for _, tc := range []struct {
+		name     string
+		statuses []apiv1.PresenceStatus
+		search   string
+		offset   int32
+		want     []string
+		total    int64
+		hasMore  bool
+	}{
+		{"connected-first", connected, "", 0, activeIDs[:2], 3, true},
+		{"connected-last", connected, "", 2, activeIDs[2:], 3, false},
+		{"search-and-presence", connected, "Connected", 0, activeIDs[:2], 3, true},
+		{"search-miss", connected, "not-found", 0, nil, 0, false},
+		{"offline", []apiv1.PresenceStatus{apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE}, "", 0, []string{env.viewer.Id}, 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := env.rooms.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListMembersRequest{
+				RoomId: room.Id, Search: tc.search, PresenceStatuses: tc.statuses, Page: &apiv1.PageRequest{Limit: 2, Offset: tc.offset},
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(resp.Msg.UserIds, tc.want) || resp.Msg.Page.TotalCount != tc.total || resp.Msg.Page.HasMore != tc.hasMore {
+				t.Fatalf("unexpected filtered page: %v", resp.Msg)
+			}
+		})
+	}
+}
+
 func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("room-members-room")

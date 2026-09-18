@@ -623,6 +623,7 @@ Request for members of one room.
 | `room_id` | `string` | Required. Room whose effective members should be listed. Existing members and room.manage holders may list a channel room; other nonmembers need both room.list and room.join. |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 250 results when absent or limit is zero. Maximum: 500. |
+| `presence_statuses` | repeated [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Optional status filter applied before pagination. Empty means all statuses. Select ONLINE, AWAY, and DO_NOT_DISTURB for all connected members. Presence can change between pages; use realtime updates to keep it current. |
 
 
 <a id="chatto-api-v1-ListMembersResponse"></a>
@@ -636,7 +637,7 @@ reads to match names. Both paths use ascending user ID order.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_ids` | `repeated string` | Current member IDs in ascending order. Missing or deleted users are omitted. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata for the members that match both filters. |
 
 
 <a id="chatto-api-v1-RoomService-GetMember"></a>

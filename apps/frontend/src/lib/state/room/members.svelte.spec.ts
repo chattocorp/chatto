@@ -6,6 +6,7 @@ import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 
 class FakeMemberDirectoryAPI {
   listRoomMembers: MemberDirectoryAPI['listRoomMembers'];
+  listOnlineRoomMembers: MemberDirectoryAPI['listOnlineRoomMembers'];
   listUsers: MemberDirectoryAPI['listUsers'];
   getUser: MemberDirectoryAPI['getUser'];
   getUserByLogin: MemberDirectoryAPI['getUserByLogin'];
@@ -15,6 +16,7 @@ class FakeMemberDirectoryAPI {
 
   constructor(results: Array<MemberDirectoryPage | Promise<MemberDirectoryPage>>) {
     const queue = [...results];
+    this.listOnlineRoomMembers = vi.fn(async () => pageResult([]));
     this.listRoomMembers = vi.fn(async () => {
       const result = queue.shift();
       if (!result) throw new Error('Unexpected room members query');
@@ -69,6 +71,92 @@ function createStore(results: Array<MemberDirectoryPage | Promise<MemberDirector
 }
 
 describe('RoomMembersStore', () => {
+  it('publishes connected names while the full page is pending and preserves them between full pages', async () => {
+    const first = deferred<MemberDirectoryPage>();
+    const last = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([first.promise, last.promise]);
+    api.listOnlineRoomMembers = vi.fn(async (_room, status) =>
+      status === PresenceStatus.AWAY
+        ? pageResult([{ ...user('online'), presenceStatus: PresenceStatus.OFFLINE }])
+        : pageResult([])
+    );
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(store.members.map((member) => member.id)).toEqual(['online']));
+    expect(store.livePresence.get('online')).toBe(PresenceStatus.AWAY);
+    expect(store.hasFirstPage).toBe(true);
+    expect(store.hasLoadedAll).toBe(false);
+    first.resolve(pageResult([user('offline')], true, 2000));
+    await vi.waitFor(() => expect(store.totalCount).toBe(2000));
+    expect(store.members.map((member) => member.id)).toContain('online');
+    last.resolve(pageResult([user('online')], false, 2000));
+    await loading;
+    expect(store.members).toHaveLength(2);
+    expect(store.hasLoadedAll).toBe(true);
+  });
+
+  it('keeps a newer offline event when the online preview arrives', async () => {
+    const full = deferred<MemberDirectoryPage>();
+    const preview = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([full.promise]);
+    api.listOnlineRoomMembers = vi.fn(async (_room, status) =>
+      status === PresenceStatus.ONLINE ? preview.promise : pageResult([])
+    );
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    const loading = store.loadInitial();
+    store.setPresence('u', PresenceStatus.OFFLINE);
+    preview.resolve(pageResult([user('u')]));
+    await vi.waitFor(() => expect(store.members).toHaveLength(1));
+    expect(store.livePresence.get('u')).toBe(PresenceStatus.OFFLINE);
+    full.resolve(pageResult([user('u')]));
+    await loading;
+  });
+
+  it('pages each presence group by consumed IDs and keeps mentions independent', async () => {
+    const full = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([full.promise, pageResult([user('mention')])]);
+    api.listOnlineRoomMembers = vi.fn(async (_room, status, _limit, offset) => {
+      if (status !== PresenceStatus.ONLINE) return pageResult([]);
+      return offset === 0
+        ? { members: [], consumedCount: 250, hasMore: true, totalCount: 251 }
+        : pageResult([user('last-online')]);
+    });
+    const store = new RoomMembersStore(api);
+    store.setRoom('room');
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(store.members).toHaveLength(1));
+    expect(api.listOnlineRoomMembers).toHaveBeenCalledWith(
+      'room',
+      PresenceStatus.ONLINE,
+      250,
+      250,
+      {}
+    );
+    expect((await store.searchMembers('mention')).map((member) => member.id)).toEqual(['mention']);
+    full.resolve(pageResult([user('last-online'), user('mention')]));
+    await loading;
+  });
+
+  it('ignores preview results after full completion or reset and tolerates preview failure', async () => {
+    for (const reset of [false, true]) {
+      const preview = deferred<MemberDirectoryPage>();
+      const api = new FakeMemberDirectoryAPI([pageResult([user('canonical')])]);
+      api.listOnlineRoomMembers = vi.fn(async (_room, status) => {
+        if (status === PresenceStatus.ONLINE) return preview.promise;
+        throw new Error('preview unavailable');
+      });
+      const store = new RoomMembersStore(api);
+      store.setRoom('room');
+      await store.loadInitial();
+      if (reset) store.resetProjectionState();
+      preview.resolve(pageResult([user('stale')]));
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(store.members.map((member) => member.id)).toEqual(reset ? [] : ['canonical']);
+    }
+  });
   it('restarts an in-flight offset scan at the membership event boundary', async () => {
     const oldPage = deferred<MemberDirectoryPage>();
     const api = new FakeMemberDirectoryAPI([
