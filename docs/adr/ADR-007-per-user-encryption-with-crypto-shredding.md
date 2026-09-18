@@ -1,6 +1,6 @@
 # ADR-007: Per-User Encryption Keys with Crypto-Shredding for GDPR
 
-**Date:** 2026-03-01 (updated 2026-09-14)
+**Date:** 2026-03-01 (updated 2026-09-18)
 
 ## Context
 
@@ -23,6 +23,8 @@ Use per-user encryption with crypto-shredding:
 - **KMS boundary**: KEK creation, content-key wrapping/unwrapping, and KEK shredding (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) go through the dedicated `internal/kms` interface keyed by opaque KMS refs rather than user IDs. DEK record create/load/shred is application-owned `RUNTIME_STATE` storage, keeping wrapped DEKs available locally and in normal data backups while still making individual DEK refs crypto-shreddable. The default KMS implementation is in-process and backed by `ENCRYPTION_KEYS`; it can be extracted to a standalone service for high-security deployments. Legacy direct-key body decrypt is the only remaining raw-KEK compatibility path.
 
 ## Consequences
+
+- **KMS read consistency**: Built-in KMS key reads and existence checks retain DirectGet and accept eventual consistency. A missing-key result causes up to three retries, after 10, 25, and 50 ms. These waits honor caller cancellation and deadlines. Other read errors and malformed records are not retried. A key that remains absent retains the existing missing-key result; reads never recreate keys. This reduces failures from brief follower lag after key creation without leader reads or a process-wide plaintext-key cache. It does not guarantee read-your-writes or detect stale successful reads after deletion. The retry waits total at most 85 ms, in addition to KV request time. See [issue #2438](https://github.com/chattocorp/chatto/issues/2438).
 
 - **Fast, recoverable erasure**: The durable request tombstones projected content before irreversible deletion. Its user aggregate provides a narrow immutable index of DEK coordinates, while KEK-first deletion preserves surviving runtime DEK records until their current wrapping refs have been shredded. This lets at-least-once workers safely resume after any partial attempt without copying storage coordinates into the request event. Shredding the user's DEK refs or wrapping-key refs renders their encrypted message bodies and durable PII unreadable. Individual message deletion can also securely delete the body payload event, removing ciphertext while preserving public post/edit/retract facts.
 - **Rollout requires a homogeneous writer fleet**: Binaries predating `UserKeyShreddingRequestedEvent` do not recognise its immediate fail-closed boundary and still use the older delete-before-event command. Operators must finish upgrading all request-serving replicas before allowing account deletion on the new version, and must not roll back to an older binary after new request facts have been written.

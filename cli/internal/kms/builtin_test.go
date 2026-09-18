@@ -2,8 +2,11 @@ package kms
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -13,6 +16,112 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/testutil"
 )
+
+// getOverrideKV injects read results while retaining real KV writes in lifecycle tests.
+type getOverrideKV struct {
+	jetstream.KeyValue
+	get func(context.Context, string) (jetstream.KeyValueEntry, error)
+}
+
+func (kv getOverrideKV) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+	return kv.get(ctx, key)
+}
+
+func TestBuiltinMissingKeyRetries(t *testing.T) {
+	permanent := errors.New("read unavailable")
+	for _, tc := range []struct {
+		name     string
+		results  []error
+		wantErr  error
+		wantWait time.Duration
+	}{
+		{"immediate success", []error{nil}, nil, 0},
+		{"follower catches up", []error{jetstream.ErrKeyNotFound, fmt.Errorf("missing: %w", jetstream.ErrKeyNotFound), jetstream.ErrKeyNotFound, nil}, nil, 85 * time.Millisecond},
+		{"exhausted", []error{jetstream.ErrKeyNotFound, jetstream.ErrKeyNotFound, jetstream.ErrKeyNotFound, jetstream.ErrKeyNotFound}, jetstream.ErrKeyNotFound, 85 * time.Millisecond},
+		{"permanent error", []error{permanent}, permanent, 0},
+		{"error after miss", []error{jetstream.ErrKeyNotFound, permanent}, permanent, 10 * time.Millisecond},
+		{"deleted", []error{jetstream.ErrKeyDeleted}, jetstream.ErrKeyDeleted, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				calls := 0
+				k := NewBuiltin(getOverrideKV{get: func(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+					require.Equal(t, "kek.test", key)
+					require.Less(t, calls, len(tc.results))
+					err := tc.results[calls]
+					calls++
+					return nil, err
+				}}, nil)
+				start := time.Now()
+				_, err := k.getEntry(context.Background(), "kek.test")
+				require.ErrorIs(t, err, tc.wantErr)
+				require.Equal(t, len(tc.results), calls)
+				require.Equal(t, tc.wantWait, time.Since(start))
+			})
+		})
+	}
+}
+
+func TestBuiltinMissingKeyRetryCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		cancelAfter time.Duration
+		deadline    bool
+		wantCalls   int
+	}{
+		{"already canceled", 0, false, 0},
+		{"canceled during wait", 5 * time.Millisecond, false, 1},
+		{"deadline during wait", 20 * time.Millisecond, true, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				wantErr := context.Canceled
+				if tc.deadline {
+					cancel()
+					ctx, cancel = context.WithTimeout(context.Background(), tc.cancelAfter)
+					wantErr = context.DeadlineExceeded
+				} else if tc.cancelAfter == 0 {
+					cancel()
+				} else {
+					time.AfterFunc(tc.cancelAfter, cancel)
+				}
+				defer cancel()
+				calls := 0
+				k := NewBuiltin(getOverrideKV{get: func(context.Context, string) (jetstream.KeyValueEntry, error) {
+					calls++
+					return nil, jetstream.ErrKeyNotFound
+				}}, nil)
+				_, err := k.getEntry(ctx, "kek.test")
+				require.ErrorIs(t, err, wantErr)
+				require.Equal(t, tc.wantCalls, calls)
+			})
+		})
+	}
+}
+
+func TestBuiltinWrapAfterDelayedKeyVisibility(t *testing.T) {
+	k, ctx := setupBuiltinKMS(t)
+	keyRef, err := k.CreateKey(ctx, "U1")
+	require.NoError(t, err)
+	kv := k.kv
+	calls := 0
+	k.kv = getOverrideKV{KeyValue: kv, get: func(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+		calls++
+		if calls <= 3 {
+			return nil, jetstream.ErrKeyNotFound
+		}
+		return kv.Get(ctx, key)
+	}}
+	contentKey, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	wrapped, err := k.WrapContentKey(ctx, keyRef, contentKey, []byte("aad"))
+	require.NoError(t, err)
+	require.Equal(t, 4, calls)
+	unwrapped, err := k.UnwrapContentKey(ctx, keyRef, *wrapped, []byte("aad"))
+	require.NoError(t, err)
+	require.Equal(t, contentKey, unwrapped)
+}
 
 func setupBuiltinKMS(t *testing.T) (*Builtin, context.Context) {
 	t.Helper()

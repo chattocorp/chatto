@@ -41,6 +41,11 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 
 Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content, legacy raw user keys, or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process [`internal/kms`](../../cli/internal/kms/) boundary for KEK creation, DEK wrap/unwrap, legacy-key lookup, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{id}`; that complete key is the content-key ref.
 
+Built-in KMS reads retain DirectGet. Missing keys get up to three retries after
+10, 25, and 50 ms, with caller cancellation and deadlines. Successful reads can
+still return stale values, including after deletion. See the read-consistency
+decision in [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md).
+
 The `user.{userId}` namespace remains a live compatibility constraint: message
 bodies written before envelope encryption still need that key to remain
 readable. It must therefore survive ordinary upgrades and any key-bearing
