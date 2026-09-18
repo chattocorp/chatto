@@ -62,6 +62,14 @@
   </div>
 </Story>
 
+<Story name="Software keyboard open" asChild>
+  <div data-keyboard-open class="max-w-full rounded-md border border-border">
+    <PaneHeader title="#general" hideOnKeyboard />
+    <p class="p-4">Below the mobile breakpoint, chat content takes the room header's space.</p>
+    <PaneHeader title="Thread" onBack={() => {}} backLabel="Back to room" />
+  </div>
+</Story>
+
 <Story name="Responsive actions" asChild>
   <div class="w-[390px] max-w-full resize-x overflow-auto rounded-md border border-border">
     <PaneHeader title="#general-discussion" collapseActions>

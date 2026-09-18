@@ -27,6 +27,9 @@ choice).
 Set `collapseActions` to put actions behind a three-dot button below 32 rem
 of pane width. `collapsedActions` can keep important actions visible in that
 state. Expansion stays inside the header and lets the title truncate.
+
+Set `hideOnKeyboard` to remove the header from the mobile layout while the
+shared viewport detector reports an open software keyboard.
 -->
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- backHref is a prop; callers pass already-resolved paths or non-route hrefs */
@@ -42,6 +45,7 @@ state. Expansion stays inside the header and lets the title truncate.
     afterTitle,
     actions,
     collapseActions = false,
+    hideOnKeyboard = false,
     collapsedActions,
     actionsLabel = m('ui.pane_header.actions'),
     backHref,
@@ -58,6 +62,8 @@ state. Expansion stays inside the header and lets the title truncate.
     actions?: Snippet;
     /** Collapse actions below 32 rem of pane width. Expand them beside the title. */
     collapseActions?: boolean;
+    /** Hide below the md breakpoint while the software keyboard is detected. */
+    hideOnKeyboard?: boolean;
     /** Important actions to show instead of the full list while collapsed. */
     collapsedActions?: Snippet;
     /** Accessible label for the action disclosure button. */
@@ -103,7 +109,13 @@ state. Expansion stays inside the header and lets the title truncate.
 
 <svelte:window onkeydown={handleEscape} />
 
-<div class={['shrink-0', collapseActions && '@container/pane-header']}>
+<div
+  class={[
+    'shrink-0',
+    collapseActions && '@container/pane-header',
+    hideOnKeyboard && 'keyboard-hide-mobile'
+  ]}
+>
   <div
     data-page-reveal
     class={[

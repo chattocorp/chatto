@@ -72,6 +72,15 @@
 /* Hover affordances should follow input capability, not viewport width. */
 @custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
 
+/* Opt in to reclaiming header space while the software keyboard is open. */
+@utility keyboard-hide-mobile {
+  @variant max-md {
+    [data-keyboard-open] & {
+      display: none;
+    }
+  }
+}
+
 /*
  * Theme tokens.
  *
