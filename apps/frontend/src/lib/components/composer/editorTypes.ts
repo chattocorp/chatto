@@ -29,7 +29,7 @@ export type ComposerEditorApi = {
   getText: () => string;
   /** Set editor content from Markdown. */
   setContent: (markdown: string) => void;
-  /** Focus the editor. */
+  /** Focus without changing selection, or explicitly move to the start or end. */
   focus: (position?: 'start' | 'end') => void;
   /** Perform the editor's normal, context-sensitive Enter action. */
   performEnter: () => void;

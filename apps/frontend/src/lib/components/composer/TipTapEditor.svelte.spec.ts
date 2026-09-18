@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
 import '../../../app.css';
 import TipTapEditor from './TipTapEditor.svelte';
+import MarkdownEditor from './MarkdownEditor.svelte';
 import type { ComposerEditorApi } from './editorTypes';
 
 function selectEditorContents(editor: Element) {
@@ -15,6 +16,42 @@ function selectEditorContents(editor: Element) {
     })
   );
 }
+
+describe('Composer editor focus', () => {
+  it.each([TipTapEditor, MarkdownEditor])(
+    'preserves selection on API focus and supports explicit positions (%#)',
+    async (Component) => {
+      const readyApis: ComposerEditorApi[] = [];
+      const { container } = render(Component, {
+        props: {
+          placeholder: 'Focus test',
+          onReady: (api: ComposerEditorApi) => readyApis.push(api)
+        }
+      });
+      await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+      const api = readyApis[0]!;
+      const editor = page.getByRole('textbox', { name: 'Focus test' }).element();
+      api.setContent('First paragraph');
+      api.focus('start');
+      await expect.poll(() => api.getTextBeforeCursor()).toBe('');
+      await userEvent.keyboard(
+        '{ArrowRight}{ArrowRight}{ArrowRight}{Shift>}{ArrowRight}{ArrowRight}{/Shift}'
+      );
+      expect(window.getSelection()?.toString()).toBe('st');
+      const outside = document.createElement('button');
+      outside.textContent = 'Outside';
+      container.append(outside);
+      await userEvent.click(outside);
+      api.focus();
+      await expect.element(editor).toHaveFocus();
+      await expect.poll(() => window.getSelection()?.toString()).toBe('st');
+      await userEvent.keyboard('X');
+      expect(api.getText()).toBe('FirX paragraph');
+      api.focus('end');
+      await expect.poll(() => api.getTextBeforeCursor()).toBe('FirX paragraph');
+    }
+  );
+});
 
 describe('TipTapEditor accessibility', () => {
   it('keeps its accessible name synchronized with the placeholder', async () => {
@@ -75,7 +112,7 @@ describe('TipTapEditor wrapping', () => {
     const editor = page.getByRole('textbox', { name: 'Write a message' }).element();
 
     api.setContent('moo');
-    api.focus();
+    api.focus('end');
     selectEditorContents(editor);
     editor.dispatchEvent(
       new KeyboardEvent('keydown', { key: '`', bubbles: true, cancelable: true })
@@ -84,7 +121,7 @@ describe('TipTapEditor wrapping', () => {
     await vi.waitFor(() => expect(container.querySelector('code')?.textContent).toBe('moo'));
 
     api.setContent('moo');
-    api.focus();
+    api.focus('end');
     await userEvent.keyboard('`');
     await vi.waitFor(() => expect(editor.textContent).toBe('moo`'));
     expect(container.querySelector('code')).toBeNull();

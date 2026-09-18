@@ -490,15 +490,28 @@ export class MessageComposerState {
   }
 
   #synchronizeAutoFocus(): void {
+    // Scalar derived values filter parent updates that do not change the target.
+    const destination = $derived(this.draftKey);
+    const reply = $derived(this.#dependencies.getReplyEventId());
+    const autoFocus = $derived(this.#dependencies.getAutoFocus());
+    const target = $derived({ destination, reply, autoFocus, api: this.editorApi });
+    let focusedTarget: typeof target | null = null;
+
+    // Availability can defer initial focus, but cannot focus the same target twice.
     $effect(() => {
-      const autoFocus = this.#dependencies.getAutoFocus();
-      const roomId = this.#dependencies.getRoomId();
-      const inReplyTo = this.#dependencies.getReplyEventId();
-      void roomId;
-      void inReplyTo;
-      if (autoFocus && shouldAutoFocus() && this.editorApi && !this.inputDisabled) {
-        tick().then(() => this.editorApi?.focus());
+      const current = target;
+      const api = current.api;
+      if (
+        current === focusedTarget ||
+        !current.autoFocus ||
+        !api ||
+        !shouldAutoFocus() ||
+        this.inputDisabled
+      ) {
+        return;
       }
+      focusedTarget = current;
+      untrack(() => api.focus());
     });
   }
 
