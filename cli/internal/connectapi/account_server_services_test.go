@@ -661,6 +661,75 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 	requireEmptyResponse(t, deleteResp.Msg)
 }
 
+func TestAdminUserServiceManagesOwnUsernameCooldown(t *testing.T) {
+	for _, grant := range []string{"admin role", "account management permission"} {
+		t.Run(grant, func(t *testing.T) {
+			env := newConnectAPITestEnv(t)
+			user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "self-manager", "Self Manager", "password")
+			if err != nil {
+				t.Fatalf("CreateUser: %v", err)
+			}
+			if _, err := env.core.UpdateUserLogin(env.ctx, user.Id, "self-manager-first"); err != nil {
+				t.Fatalf("start cooldown: %v", err)
+			}
+			before, err := env.core.GetLastLoginChange(env.ctx, user.Id)
+			if err != nil || before.IsZero() {
+				t.Fatalf("expected active cooldown: %v", err)
+			}
+			if grant == "admin role" {
+				err = env.core.AssignAdminRole(env.ctx, user.Id)
+			} else {
+				err = env.core.GrantUserPermission(env.ctx, core.SystemActorID, user.Id, core.PermUserManageAccounts)
+			}
+			if err != nil {
+				t.Fatalf("grant account management: %v", err)
+			}
+			token, err := env.core.CreateAuthTokenWithSource(env.ctx, user.Id, "password_login")
+			if err != nil {
+				t.Fatalf("CreateAuthTokenWithSource: %v", err)
+			}
+			ctx := withArmedBearerCredential(env.ctx, user, token)
+			resp, err := env.adminUsers.UpdateUser(ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+				UserId: user.Id,
+				Login:  stringPtr("self-manager-second"),
+			}))
+			if err != nil {
+				t.Fatalf("admin self rename during cooldown: %v", err)
+			}
+			if resp.Msg.GetUser().GetLogin() != "self-manager-second" {
+				t.Fatal("admin self rename did not update the login")
+			}
+			after, err := env.core.GetLastLoginChange(env.ctx, user.Id)
+			if err != nil || !after.Equal(before) {
+				t.Fatalf("admin self rename must preserve the cooldown: %v", err)
+			}
+			if _, err := env.adminUsers.ClearUsernameCooldown(ctx, connect.NewRequest(&adminv1.ClearUsernameCooldownRequest{
+				UserId: user.Id,
+			})); err != nil {
+				t.Fatalf("clear own cooldown: %v", err)
+			}
+			after, err = env.core.GetLastLoginChange(env.ctx, user.Id)
+			if err != nil || !after.IsZero() {
+				t.Fatalf("own cooldown must be cleared: %v", err)
+			}
+			if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, user.Id, core.PermUserManageAccounts); err != nil {
+				t.Fatalf("deny account management: %v", err)
+			}
+			if _, err := env.adminUsers.UpdateUser(ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+				UserId: user.Id,
+				Login:  stringPtr("self-manager-denied"),
+			})); connect.CodeOf(err) != connect.CodePermissionDenied {
+				t.Fatalf("self rename after permission denial = %v, want permission_denied", err)
+			}
+			if _, err := env.adminUsers.ClearUsernameCooldown(ctx, connect.NewRequest(&adminv1.ClearUsernameCooldownRequest{
+				UserId: user.Id,
+			})); connect.CodeOf(err) != connect.CodePermissionDenied {
+				t.Fatalf("self clear after permission denial = %v, want permission_denied", err)
+			}
+		})
+	}
+}
+
 func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-target", "Admin User Target", "password")

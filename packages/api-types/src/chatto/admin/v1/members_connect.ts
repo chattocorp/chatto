@@ -74,8 +74,9 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates another user's login and/or display name as an admin action.
-     * Requires user.manage-accounts; the caller cannot target their own account.
+     * Updates a human user's login and/or display name without applying the
+     * username-change cooldown. Requires user.manage-accounts, including when
+     * the caller targets their own account. Preserves the cooldown timestamp.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.UpdateUser
      */
@@ -100,7 +101,7 @@ export const AdminUserService = {
     },
     /**
      * Clears the target user's self-service username-change cooldown. Requires
-     * user.manage-accounts.
+     * user.manage-accounts, including when the caller targets their own account.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.ClearUsernameCooldown
      */

@@ -78,15 +78,16 @@ type AdminUserServiceClient interface {
 	// Revokes a role from a user. Requires role.assign, and non-owner callers may
 	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates another user's login and/or display name as an admin action.
-	// Requires user.manage-accounts; the caller cannot target their own account.
+	// Updates a human user's login and/or display name without applying the
+	// username-change cooldown. Requires user.manage-accounts, including when
+	// the caller targets their own account. Preserves the cooldown timestamp.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
 	// cannot target their own account.
 	ChangeUserPassword(context.Context, *connect.Request[v1.ChangeUserPasswordRequest]) (*connect.Response[v1.ChangeUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
-	// user.manage-accounts.
+	// user.manage-accounts, including when the caller targets their own account.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 	// Deletes a user account as an admin action. Requires user.delete-any for
 	// other users or user.delete-self for the caller.
@@ -235,15 +236,16 @@ type AdminUserServiceHandler interface {
 	// Revokes a role from a user. Requires role.assign, and non-owner callers may
 	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates another user's login and/or display name as an admin action.
-	// Requires user.manage-accounts; the caller cannot target their own account.
+	// Updates a human user's login and/or display name without applying the
+	// username-change cooldown. Requires user.manage-accounts, including when
+	// the caller targets their own account. Preserves the cooldown timestamp.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
 	// cannot target their own account.
 	ChangeUserPassword(context.Context, *connect.Request[v1.ChangeUserPasswordRequest]) (*connect.Response[v1.ChangeUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
-	// user.manage-accounts.
+	// user.manage-accounts, including when the caller targets their own account.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 	// Deletes a user account as an admin action. Requires user.delete-any for
 	// other users or user.delete-self for the caller.

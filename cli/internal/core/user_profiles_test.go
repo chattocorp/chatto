@@ -775,7 +775,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		}
 	})
 
-	t.Run("self update uses account path not admin mutation path", func(t *testing.T) {
+	t.Run("self update without account management permission uses account path", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)
 		user, err := c.CreateUser(ctx, SystemActorID, "adminauth-self", "Self", "password123")
