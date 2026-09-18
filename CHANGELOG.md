@@ -3,6 +3,29 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.2](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.1...v0.5.0-beta.2) (2026-09-18)
+
+
+### Features
+
+* **frontend:** fill the viewport with the mobile sidebar ([#2434](https://github.com/chattocorp/chatto/issues/2434)) ([68bee8d](https://github.com/chattocorp/chatto/commit/68bee8d34f9a549ed05bfbe5281a66bdf1852bcf))
+* **frontend:** stack matrix labels in narrow panes ([#2435](https://github.com/chattocorp/chatto/issues/2435)) ([2328332](https://github.com/chattocorp/chatto/commit/2328332e9b5d75f18a2d2d102d6c74988f6b5a85))
+
+
+### Bug Fixes
+
+* **accounts:** allow admin self-renames and cooldown resets ([#2427](https://github.com/chattocorp/chatto/issues/2427)) ([f8ad7cf](https://github.com/chattocorp/chatto/commit/f8ad7cf194bf6922f8ae683d87457cae2addb95f))
+* **events:** retry JetStream provisioning request timeouts ([#2436](https://github.com/chattocorp/chatto/issues/2436)) ([91e6330](https://github.com/chattocorp/chatto/commit/91e6330f873d9be0c6680b58b89413b4cb3b4b48))
+* **frontend:** align iOS browser chrome with the app frame ([#2432](https://github.com/chattocorp/chatto/issues/2432)) ([c66ea65](https://github.com/chattocorp/chatto/commit/c66ea65e984f80c9c75efd587ea907bae7c62b1a))
+* **frontend:** fit single image attachments within messages ([#2428](https://github.com/chattocorp/chatto/issues/2428)) ([fe423ec](https://github.com/chattocorp/chatto/commit/fe423ec8db018e01371127941e72d9402c841f88))
+* **frontend:** fit video attachments within narrow messages ([#2437](https://github.com/chattocorp/chatto/issues/2437)) ([6f2e3b4](https://github.com/chattocorp/chatto/commit/6f2e3b4f6f0b14c3d792729dc93d3db1166b153f))
+* **frontend:** hide mobile chat headers while keyboard is open ([#2430](https://github.com/chattocorp/chatto/issues/2430)) ([c2f59a5](https://github.com/chattocorp/chatto/commit/c2f59a5dcaa2bacaacf5fca65d41c2ec59ac5654))
+* **frontend:** preserve drag highlights and stabilize async tests ([#2424](https://github.com/chattocorp/chatto/issues/2424)) ([5cbd584](https://github.com/chattocorp/chatto/commit/5cbd58423d6b6e1ed0e123f6eb246ae9c5623378))
+* **frontend:** refresh bot controls when privileged mode changes ([#2431](https://github.com/chattocorp/chatto/issues/2431)) ([366393f](https://github.com/chattocorp/chatto/commit/366393f9a7c595da2d28b0153959cff13f0369e7))
+* **frontend:** remove duplicate room settings actions ([#2429](https://github.com/chattocorp/chatto/issues/2429)) ([93406e0](https://github.com/chattocorp/chatto/commit/93406e09dea92fde8adca1fe3d0e8ebab9fa52a5))
+* **frontend:** soften Kinda 3D depth ([#2433](https://github.com/chattocorp/chatto/issues/2433)) ([d42d316](https://github.com/chattocorp/chatto/commit/d42d316eb6cf14bdb8ae91f93145e9d24c45f1ff))
+* **release:** remove fixed Chatto release version ([#2426](https://github.com/chattocorp/chatto/issues/2426)) ([c9d952e](https://github.com/chattocorp/chatto/commit/c9d952ed6f07a3723d5d31e4f32d0374ba354ade))
+
 ## [0.5.0-beta.1](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.9...v0.5.0-beta.1) (2026-09-17)
 
 
