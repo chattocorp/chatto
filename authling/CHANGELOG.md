@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.1...authling/v0.1.0-alpha.2) (2026-09-19)
+
+
+### Features
+
+* **authling:** add conformance tooling and explicit client policies ([#2403](https://github.com/chattocorp/chatto/issues/2403)) ([90654ea](https://github.com/chattocorp/chatto/commit/90654ea27c8a2fdcc57b5647a0eba3ffabc5ee3e))
+* **authling:** add site branding and refresh account UI ([#2401](https://github.com/chattocorp/chatto/issues/2401)) ([4f1008b](https://github.com/chattocorp/chatto/commit/4f1008b8ffcc4e9db866180c141901753aca078a))
+
+
+### Bug Fixes
+
+* **authling:** prevent font flash on repeat navigation ([#2398](https://github.com/chattocorp/chatto/issues/2398)) ([9d36c80](https://github.com/chattocorp/chatto/commit/9d36c80d682943f8680aef77954f9ac7c06b9cac))
+* **authling:** resolve Basic OP conformance failures ([#2406](https://github.com/chattocorp/chatto/issues/2406)) ([fb63ee1](https://github.com/chattocorp/chatto/commit/fb63ee1f01c1f39dda60d137809274925f1440ab))
+
 ## 0.1.0-alpha.1 (2026-09-16)
 
 
