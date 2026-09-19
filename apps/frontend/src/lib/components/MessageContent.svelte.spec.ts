@@ -789,6 +789,88 @@ describe('MessageContent component', () => {
     );
   });
 
+  describe('spoilers', () => {
+    it('renders a concealed spoiler with a reveal control', async () => {
+      const { container } = renderMessage('The answer is ||42||.');
+
+      await expect.poll(() => q(container, 'span.spoiler[data-spoiler]')).toBeTruthy();
+      const spoiler = q(container, 'span.spoiler[data-spoiler]')!;
+      expect(spoiler.classList.contains('spoiler-revealed')).toBe(false);
+      expect(spoiler.getAttribute('role')).toBe('button');
+      expect(spoiler.getAttribute('tabindex')).toBe('0');
+      expect(spoiler.getAttribute('aria-label')).toContain('spoiler');
+      const body = spoiler.querySelector('.spoiler-body');
+      expect(body?.textContent).toBe('42');
+      expect(body?.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('reveals a concealed spoiler on click', async () => {
+      const { container } = renderMessage('The answer is ||42||.');
+
+      await expect.poll(() => q(container, 'span.spoiler[data-spoiler]')).toBeTruthy();
+      q(container, 'span.spoiler[data-spoiler]')!.click();
+
+      const spoiler = q(container, 'span.spoiler')!;
+      expect(spoiler.classList.contains('spoiler-revealed')).toBe(true);
+      expect(spoiler.getAttribute('role')).toBeNull();
+      expect(spoiler.getAttribute('tabindex')).toBeNull();
+      expect(spoiler.querySelector('.spoiler-body')?.getAttribute('aria-hidden')).toBeNull();
+      // Revealed content stays visible and selectable: no concealment left.
+      expect(window.getComputedStyle(spoiler.querySelector('.spoiler-body')!).color).not.toBe(
+        'rgba(0, 0, 0, 0)'
+      );
+    });
+
+    it('reveals a concealed spoiler via Enter key', async () => {
+      const { container } = renderMessage('The answer is ||42||.');
+
+      await expect.poll(() => q(container, 'span.spoiler[data-spoiler]')).toBeTruthy();
+      const spoiler = q(container, 'span.spoiler[data-spoiler]')!;
+      spoiler.focus();
+      await userEvent.keyboard('{Enter}');
+
+      expect(spoiler.classList.contains('spoiler-revealed')).toBe(true);
+    });
+
+    it('reveals a concealed spoiler via Space key', async () => {
+      const { container } = renderMessage('The answer is ||42||.');
+
+      await expect.poll(() => q(container, 'span.spoiler[data-spoiler]')).toBeTruthy();
+      const spoiler = q(container, 'span.spoiler[data-spoiler]')!;
+      spoiler.focus();
+      await userEvent.keyboard(' ');
+
+      expect(spoiler.classList.contains('spoiler-revealed')).toBe(true);
+    });
+
+    it('keeps multiple spoilers independent', async () => {
+      const { container } = renderMessage('||one|| and ||two||');
+
+      await expect.poll(() => q(container, 'span.spoiler[data-spoiler]')).toBeTruthy();
+      const spoilers = Array.from(container.querySelectorAll('span.spoiler'));
+      expect(spoilers).toHaveLength(2);
+      spoilers[0]!.click();
+      expect(spoilers[0]!.classList.contains('spoiler-revealed')).toBe(true);
+      expect(spoilers[1]!.classList.contains('spoiler-revealed')).toBe(false);
+    });
+
+    it('does not activate links inside concealed spoilers when clicking them', async () => {
+      const { container } = renderMessage('before ||see [docs](https://example.com/docs)|| after');
+
+      await expect.poll(() => q(container, 'a')).toBeTruthy();
+      // The concealed body has pointer-events:none, so Playwright sees clicks
+      // over the link being intercepted by the spoiler control itself.
+      const link = container.querySelector('a')!;
+      const clickTarget = link.closest('span.spoiler') as HTMLElement;
+      await userEvent.click(clickTarget);
+
+      expect(mocks.goto).not.toHaveBeenCalled();
+      expect(window.open).not.toHaveBeenCalled();
+      const spoiler = container.querySelector('span.spoiler')!;
+      expect(spoiler.classList.contains('spoiler-revealed')).toBe(true);
+    });
+  });
+
   describe('mention wiring', () => {
     // wrapValidMentions itself is exhaustively tested in $lib/mentions.svelte.test.ts.
     // These tests assert that MessageContent actually invokes it — i.e., that the
