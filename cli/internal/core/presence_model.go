@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/pkg/events"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -9,6 +11,8 @@ import (
 
 // PresenceModel owns live presence state and the per-process presence hub.
 type PresenceModel struct {
+	preferences   events.ProjectionHandle[*PresenceHub]
+	publisher     *evtstream.Publisher
 	js            jetstream.JetStream
 	memoryCacheKV jetstream.KeyValue
 	logger        *log.Logger
@@ -42,6 +46,11 @@ func (s *PresenceModel) Subscribe(ctx context.Context) (*PresenceSubscription, e
 
 // GetUserPresences returns watcher-backed presence for bulk read hydration.
 func (s *PresenceModel) GetUserPresences(ctx context.Context, userIDs []string) (map[string]string, error) {
+	if s.preferences.Projector() != nil {
+		if err := s.preferences.Projector().WaitForCurrent(ctx); err != nil {
+			return nil, err
+		}
+	}
 	return s.hub.GetUserPresences(ctx, userIDs)
 }
 
@@ -52,5 +61,10 @@ func (s *PresenceModel) Unsubscribe(sub *PresenceSubscription) {
 // LivePresenceCount returns the number of users with any current live presence
 // record, including Online, Away, and Do Not Disturb.
 func (s *PresenceModel) LivePresenceCount(ctx context.Context) (int, error) {
+	if s.preferences.Projector() != nil {
+		if err := s.preferences.Projector().WaitForCurrent(ctx); err != nil {
+			return 0, err
+		}
+	}
 	return s.hub.LivePresenceCount(ctx)
 }

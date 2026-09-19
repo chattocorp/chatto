@@ -155,7 +155,7 @@
       const userId = store?.currentUser.user?.id;
       if (!store?.isAuthenticated || !userId) return [];
       const api = serverConnectionManager.getClient(server.id).getAPI(createPresenceAPI);
-      return [{ serverId: server.id, userId, setPresence: api.setPresence }];
+      return [{ serverId: server.id, userId, ...api }];
     });
   }
 

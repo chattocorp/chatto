@@ -4,11 +4,51 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 
+// Private availability choice shared by the account's devices on this server.
+// Other users only receive PresenceStatus, never this choice.
+enum PresenceMode {
+  PRESENCE_MODE_UNSPECIFIED = 0;
+  PRESENCE_MODE_ONLINE = 1;
+  PRESENCE_MODE_AWAY = 2;
+  PRESENCE_MODE_DO_NOT_DISTURB = 3;
+  // Public presence is indistinguishable from an offline account.
+  PRESENCE_MODE_INVISIBLE = 4;
+}
+
+// Saved choice visible only to the authenticated account itself.
+message PresencePreference {
+  PresenceMode mode = 1;
+  // Opaque revision required when replacing this choice.
+  string revision = 2;
+}
+
+message GetPresencePreferenceRequest {}
+message GetPresencePreferenceResponse {
+  // Absent until the account first saves a choice.
+  PresencePreference preference = 1;
+}
+
+// An explicit selection. Heartbeats must not call this operation.
+message SetPresencePreferenceRequest {
+  PresenceMode mode = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  // Revision from the last read; empty only when initializing an absent choice.
+  string expected_revision = 2;
+}
+message SetPresencePreferenceResponse {
+  PresencePreference preference = 1;
+}
+
+message RefreshPresenceRequest {}
+message RefreshPresenceResponse {
+  // Private saved choice; clients use this to recover missed device updates.
+  PresencePreference preference = 1;
+}
+
 // Live presence status returned by public read APIs.
 //
-// Offline is a read-side state only. Clients cannot update their presence to
-// Offline through the account presence RPC; they should stop refreshing and let
-// the server's live presence record expire.
+// Offline is a public read-side state. It reveals neither connection liveness
+// nor whether the account selected Invisible. Use the private preference API
+// for explicit choices and RefreshPresence for connection heartbeats.
 enum PresenceStatus {
   // No presence status was specified.
   PRESENCE_STATUS_UNSPECIFIED = 0;
@@ -18,20 +58,19 @@ enum PresenceStatus {
   PRESENCE_STATUS_AWAY = 2;
   // The user does not want notifications while this live status is active.
   PRESENCE_STATUS_DO_NOT_DISTURB = 3;
-  // The user has no active live presence record.
+  // The user has no public live presence.
   PRESENCE_STATUS_OFFLINE = 4;
 }
 
-// Request to update the current user's live presence status.
+// Legacy live report. A saved private choice takes precedence over this report.
 message SetPresenceRequest {
   // Live status to store for the authenticated user. Offline is rejected.
   PresenceStatus status = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0, 4]
   }];
-  // True when this update comes from a deliberate user selection rather than
-  // automatic idle/refresh updates. Automatic updates do not overwrite an
-  // active manually selected Away or Do Not Disturb status from another client.
+  // Legacy manual-selection flag. It cannot replace a saved private choice.
+  // New clients use SetPresencePreference for explicit selections.
   bool user_selected = 2;
 }
 

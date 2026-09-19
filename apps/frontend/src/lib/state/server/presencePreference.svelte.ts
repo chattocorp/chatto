@@ -1,5 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { type StorageSlot, serverSlot } from '$lib/storage/slot';
+import { Codecs, type StorageSlot, serverSlot } from '$lib/storage/slot';
 import type { PresenceCacheScope } from '../presenceCache.svelte';
 
 /** Explicit availability choices. Activity never changes the selected mode. */
@@ -46,15 +46,19 @@ function readMode(key: string, legacy = false): PresenceMode | null {
   }
 }
 
-/** Device-local choice for one account on one server, loaded before reporting. */
+/** Private server choice with a device-local fallback used only for migration. */
 class PresencePreference {
+  revision = $state('');
+  ready = $state(false);
   /** Saved user choice; a report response does not replace this selection. */
   mode = $state<PresenceMode>('online');
   /** Local display and DND state, reconciled with this account's accepted report. */
   effectiveStatus = $state<PresenceStatus>(PresenceStatus.ONLINE);
   readonly slot: StorageSlot<PresenceMode | null>;
+  readonly migrated: StorageSlot<boolean>;
 
   constructor(scope: PresenceCacheScope) {
+    this.migrated = serverSlot(scope.serverId, `presence-synced:${encodeURIComponent(scope.userId)}`, false, Codecs.boolean);
     this.slot = serverSlot(
       scope.serverId,
       `presence:${encodeURIComponent(scope.userId)}`,
@@ -92,6 +96,15 @@ class PresencePreference {
   apply(mode: PresenceMode) {
     this.mode = mode;
     this.effectiveStatus = presenceModeStatus(mode);
+  }
+
+  /** Server state is authoritative; local storage is only a migration fallback. */
+  accept(mode: PresenceMode, revision: string) {
+    this.revision = revision;
+    this.ready = true;
+    this.apply(mode);
+    this.slot.set(mode);
+    this.migrated.set(true);
   }
 }
 

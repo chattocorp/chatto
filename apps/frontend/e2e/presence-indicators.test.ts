@@ -17,6 +17,56 @@ async function choosePresenceMode(page: Page, modeLabel: string): Promise<void> 
 }
 
 test.describe('Presence indicators', () => {
+  test('syncs all status choices across independent devices on the same server', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await expect(currentUserPresenceDot(page)).toHaveClass(/bg-presence-online/);
+    const device = await browser.newContext({
+      baseURL: serverURL,
+      storageState: await page.context().storageState()
+    });
+    const other = await device.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    other.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await other.goto(routes.chat);
+      await expect(currentUserPresenceDot(other)).toHaveClass(/bg-presence-online/);
+      for (const [label, css] of [
+        ['Away', 'away'],
+        ['Do not disturb', 'do-not-disturb'],
+        ['Look offline', 'offline'],
+        ['Online', 'online']
+      ]) {
+        await choosePresenceMode(page, label);
+        await expect(currentUserPresenceDot(other)).toHaveClass(new RegExp(`bg-presence-${css}`), {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await other.getByTestId('current-user-presence-menu').click();
+        await expect(other.getByRole('menuitemradio', { name: label })).toHaveAttribute(
+          'aria-checked',
+          'true'
+        );
+        await other.keyboard.press('Escape');
+      }
+      await choosePresenceMode(other, 'Look offline');
+      await expect(currentUserPresenceDot(page)).toHaveClass(/bg-presence-offline/, {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await page.reload();
+      await expect(currentUserPresenceDot(page)).toHaveClass(/bg-presence-offline/, {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      expect(errors).toEqual([]);
+    } finally {
+      await device.close();
+    }
+  });
   test('shows online indicator when another user opens the server', async ({
     page,
     chatPage,

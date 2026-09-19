@@ -6,7 +6,7 @@
 import { ChangePasswordRequest, ChangePasswordResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
-import { SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
+import { GetPresencePreferenceRequest, GetPresencePreferenceResponse, RefreshPresenceRequest, RefreshPresenceResponse, SetPresencePreferenceRequest, SetPresencePreferenceResponse, SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, SetCustomStatusRequest, SetCustomStatusResponse } from "./user_status_pb.js";
 
 /**
@@ -161,10 +161,10 @@ export const MyAccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates the current user's live presence status. This state is transient:
-     * refresh every 30 seconds while visible. The server expires presence after
-     * 60 seconds without a refresh. Stop calling this RPC to appear offline;
-     * another client for the same account can keep presence active.
+     * Legacy live presence report, expiring after 60 seconds without refresh.
+     * A saved private choice overrides this report, including user_selected.
+     * New clients use SetPresencePreference for choices and RefreshPresence
+     * every 30 seconds for liveness.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.SetPresence
      */
@@ -172,6 +172,42 @@ export const MyAccountService = {
       name: "SetPresence",
       I: SetPresenceRequest,
       O: SetPresenceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads the authenticated account's private saved availability choice.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.GetPresencePreference
+     */
+    getPresencePreference: {
+      name: "GetPresencePreference",
+      I: GetPresencePreferenceRequest,
+      O: GetPresencePreferenceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Saves a choice for all devices on this server. A stale revision returns ABORTED.
+     * Invisible suppresses public presence and typing; the choice survives disconnects.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.SetPresencePreference
+     */
+    setPresencePreference: {
+      name: "SetPresencePreference",
+      I: SetPresencePreferenceRequest,
+      O: SetPresencePreferenceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Refreshes connection liveness without changing the saved choice. Clients call
+     * every 30 seconds; liveness expires after 60 seconds without a refresh.
+     * Invisible accounts may refresh without producing public presence signals.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.RefreshPresence
+     */
+    refreshPresence: {
+      name: "RefreshPresence",
+      I: RefreshPresenceRequest,
+      O: RefreshPresenceResponse,
       kind: MethodKind.Unary,
     },
     /**

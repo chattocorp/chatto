@@ -168,9 +168,9 @@ sidebar. Shows the avatar with presence and the live display name.
     }
   }
 
-  function choosePresenceMode(mode: PresenceMode) {
+  async function choosePresenceMode(mode: PresenceMode) {
     try {
-      if (presenceScope) setPresenceMode(presenceScope, mode);
+      if (presenceScope) await setPresenceMode(presenceScope, mode);
       statusMenuAnchor = null;
     } catch {
       toast.error(m('settings.profile.status.save_failed'));
@@ -397,6 +397,7 @@ sidebar. Shows the avatar with presence and the live display name.
         <MenuItem
           role="menuitemradio"
           checked={presencePreference?.mode === mode}
+          disabled={!presencePreference?.ready}
           selected={presencePreference?.mode === mode}
           onclick={() => choosePresenceMode(mode)}
         >

@@ -15,9 +15,9 @@ separate components behind that barrier.
 
 `initializeCoreProjections` registers each top-level projector once with a
 stable machine-readable key and a human display name. `NewChattoCore` installs
-that registry into the core runtime. The registry contains seven projectors:
+that registry into the core runtime. The registry contains eight projectors:
 `server_content_view`, `notification_decisions`, `notifications`, `user_auth`,
-`invitations`, `oauth_clients`, and `bot_webhooks`. Each registration also declares whether
+`invitations`, `oauth_clients`, `presence_preferences`, and `bot_webhooks`. Each registration also declares whether
 that key is eligible for shared snapshots.
 
 Core couples each projection pointer to its exact projector as one typed
@@ -29,10 +29,16 @@ diagnostics, and snapshot policy remain in the core registration layer. This
 boundary follows [ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
 
 `ChattoCore.Run` starts one process-local ordered consumer for each registered
-projector. `ServerContentView` and the five independent EVT projectors read
+projector. `ServerContentView` and the six independent EVT projectors read
 `EVT`. Notifications reads `NOTIFICATIONS`. Each projector owns its physical
 filters, replay progress, failure state, and readiness. Chatto waits for all
-seven registered projectors before it completes boot.
+eight registered projectors before it completes boot.
+
+`presence_preferences` cold-replays private availability choices and account
+deletion. Its `PresenceHub` combines these with one KV liveness watcher and
+derives deduplicated public transitions locally. Projection application makes
+no external writes. Event IDs serve as replacement revisions. Privacy reads
+synchronize with committed history.
 
 Writers wait for the relevant projector sequence before returning
 read-your-writes. Projection-aware domain models keep the projector references

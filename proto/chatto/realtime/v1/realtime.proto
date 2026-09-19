@@ -166,6 +166,7 @@ message RealtimeEvent {
     RoleRevokedEvent role_revoked = 65;
     RolePermissionsChangedEvent role_permissions_changed = 66;
     ViewerPermissionsChangedEvent viewer_permissions_changed = 67;
+    ViewerPresencePreferenceChangedEvent viewer_presence_preference_changed = 68;
   }
 }
 

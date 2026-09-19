@@ -193,6 +193,13 @@ func initializeCoreServices(
 	// Presence owns one KV watcher per process and starts from core.Run with the
 	// registered projectors and other long-running models.
 	core.presenceModel = NewPresenceModel(infra.js, infra.storage.memoryCacheKV, logger)
+	core.presenceModel.hub = projections.presence.Projection()
+	core.presenceModel.preferences = projections.presence
+	core.presenceModel.publisher = infra.eventPublisher
+	core.presenceModel.hub.beforeLiveRead = func(ctx context.Context, userID string) error {
+		_, err := core.presenceModel.syncPreference(ctx, userID)
+		return err
+	}
 	core.PresenceHub = core.presenceModel.hub
 	core.myEventsModel = NewMyEventsModel(core)
 	return nil

@@ -17,7 +17,25 @@ name. It does not mean that every Chatto release exposes the same API.
   your integration against a new version before upgrading that deployment.
 </Aside>
 
+## Shared availability choices
+
+Read `MyAccountService.GetPresencePreference` before reporting presence. If no
+choice exists, initialize it with `SetPresencePreference`. Send its revision
+with each deliberate replacement; on `ABORTED`, reread instead of retrying a
+stale selection. Preserve an existing local invisible choice during migration.
+
+Call `RefreshPresence` every 30 seconds for connection liveness. Heartbeats
+must not call `SetPresencePreference`. Legacy `SetPresence` reports cannot
+override a saved choice. The private choice survives disconnects and restarts.
+`ViewerPresencePreferenceChanged` tells the account's devices to reread it.
+
+Other users receive only effective presence. Invisible is ordinary Offline
+in public reads and events, and suppresses typing indicators. DND suppresses
+alerts even while disconnected. Older servers without the private preference
+RPCs cannot provide this contract; do not silently fall back to Online reports.
+
 ## Room member lists
+
 
 `RoomService.ListMembers` now returns `user_ids` instead of `members`.
 Regenerate clients and resolve missing user profiles with

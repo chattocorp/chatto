@@ -245,6 +245,14 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 					s.slowDisconnects.Add(1)
 					return
 				}
+				// Discard an obsolete queued transition after a newer private choice.
+				current, err := c.presenceModel.hub.GetUserPresences(ctx, []string{update.UserID})
+				if err != nil {
+					return
+				}
+				if current[update.UserID] != update.Status {
+					continue
+				}
 				pubsub := newPubSubEvent(update.UserID, &pubsubv1.PubSubEvent{
 					Event: &pubsubv1.PubSubEvent_PresenceChanged{
 						PresenceChanged: &realtimev1.PresenceChangedEvent{Status: publicPresenceStatus(update.Status)},
@@ -336,6 +344,10 @@ func (s *MyEventsModel) filterPubSubEvent(ctx context.Context, userID string, me
 			return nil, false
 		}
 		if event.GetUserTyping() != nil {
+			allowed, privacyErr := s.core.MayPublishTyping(ctx, event.ActorId)
+			if privacyErr != nil || !allowed {
+				return nil, false
+			}
 			typing := event.GetUserTyping()
 			var canRead bool
 			var err error

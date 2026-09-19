@@ -13,6 +13,13 @@ import (
 //
 // Authorization: Caller must verify room membership before calling.
 func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID string, kind RoomKind, roomID string, threadRootEventID *string) error {
+	allowed, err := c.MayPublishTyping(ctx, actorID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return nil
+	}
 	typingEvent := &realtimev1.UserTypingEvent{
 		RoomId: roomID,
 	}

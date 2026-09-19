@@ -97,6 +97,9 @@ func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (str
 	if !validPresenceUserID(userID) {
 		return PresenceStatusOffline, nil
 	}
+	if _, err := s.syncPreference(ctx, userID); err != nil {
+		return PresenceStatusOffline, err
+	}
 	entry, err := s.memoryCacheKV.Get(ctx, presenceKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrInvalidKey) {
@@ -115,7 +118,9 @@ func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (str
 		return PresenceStatusOffline, nil
 	}
 
-	return presenceStatusToString(presence.Status), nil
+	s.hub.mu.Lock()
+	defer s.hub.mu.Unlock()
+	return s.hub.effectiveStatusLocked(userID, presenceStatusToString(presence.Status)), nil
 }
 
 // SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
@@ -128,6 +133,9 @@ func (s *PresenceModel) SetPresence(ctx context.Context, userID string, status s
 // manuallySet marks explicit user-selected Away/DND so automatic reports from
 // other clients do not overwrite the user's chosen availability.
 func (s *PresenceModel) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
+	if _, err := s.syncPreference(ctx, userID); err != nil {
+		return err
+	}
 	presence := &cachestatev1.UserPresence{
 		Status:      presenceStatusFromString(status),
 		ManuallySet: manuallySet && status != PresenceStatusOnline,

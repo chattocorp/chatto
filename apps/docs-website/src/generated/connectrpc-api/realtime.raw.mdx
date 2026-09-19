@@ -643,6 +643,15 @@ the minimum boundary.
 
 
 
+<a id="chatto-realtime-v1-ViewerPresencePreferenceChangedEvent"></a>
+
+### ViewerPresencePreferenceChangedEvent
+
+Delivered only to the account whose private availability choice changed.
+Refetch MyAccountService.GetPresencePreference to obtain the current choice.
+
+
+
 <a id="chatto-realtime-v1-VoiceCallEndedEvent"></a>
 
 ### VoiceCallEndedEvent
@@ -791,6 +800,7 @@ a snapshot or a ConnectRPC resource.
 | `event.role_revoked` | [`RoleRevokedEvent`](#chatto-realtime-v1-RoleRevokedEvent) | No field description provided. |
 | `event.role_permissions_changed` | [`RolePermissionsChangedEvent`](#chatto-realtime-v1-RolePermissionsChangedEvent) | No field description provided. |
 | `event.viewer_permissions_changed` | [`ViewerPermissionsChangedEvent`](#chatto-realtime-v1-ViewerPermissionsChangedEvent) | No field description provided. |
+| `event.viewer_presence_preference_changed` | [`ViewerPresencePreferenceChangedEvent`](#chatto-realtime-v1-ViewerPresencePreferenceChangedEvent) | No field description provided. |
 
 
 

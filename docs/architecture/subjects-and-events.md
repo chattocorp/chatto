@@ -462,6 +462,11 @@ related facts into `UserProfileChangedEvent`, `ViewerPreferencesChangedEvent`,
 `ServerProfileChangedEvent`, or `ThreadViewerStateChangedEvent`. Presence comes
 from the process-local `PresenceHub`; it does not use a `live.sync.>` subject.
 
+`evt.config.{userId}.user_presence_preference_changed` records the private saved
+availability choice. Its event ID is the replacement revision. Only the account
+receives `ViewerPresencePreferenceChanged`; public presence is derived separately
+from the choice and live heartbeat state. Account deletion clears the projection.
+
 Room-group and sidebar-layout changes use durable group or layout facts only.
 The command path waits until the local `ServerContentView` applies the final
 fact. JetStream republishes each fact on `live.evt.>` for realtime delivery.

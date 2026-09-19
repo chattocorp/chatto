@@ -221,11 +221,21 @@ service MyAccountService {
   rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
   // Disconnects a provider identity from the authenticated account.
   rpc DisconnectExternalIdentity(DisconnectExternalIdentityRequest) returns (DisconnectExternalIdentityResponse);
-  // Updates the current user's live presence status. This state is transient:
-  // refresh every 30 seconds while visible. The server expires presence after
-  // 60 seconds without a refresh. Stop calling this RPC to appear offline;
-  // another client for the same account can keep presence active.
+  // Legacy live presence report, expiring after 60 seconds without refresh.
+  // A saved private choice overrides this report, including user_selected.
+  // New clients use SetPresencePreference for choices and RefreshPresence
+  // every 30 seconds for liveness.
   rpc SetPresence(SetPresenceRequest) returns (SetPresenceResponse);
+
+  // Reads the authenticated account's private saved availability choice.
+  rpc GetPresencePreference(GetPresencePreferenceRequest) returns (GetPresencePreferenceResponse);
+  // Saves a choice for all devices on this server. A stale revision returns ABORTED.
+  // Invisible suppresses public presence and typing; the choice survives disconnects.
+  rpc SetPresencePreference(SetPresencePreferenceRequest) returns (SetPresencePreferenceResponse);
+  // Refreshes connection liveness without changing the saved choice. Clients call
+  // every 30 seconds; liveness expires after 60 seconds without a refresh.
+  // Invisible accounts may refresh without producing public presence signals.
+  rpc RefreshPresence(RefreshPresenceRequest) returns (RefreshPresenceResponse);
   // Sets the current user's complete custom status. Emoji and text are required.
   // Omit expires_at for no expiry, or supply a future time.
   rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);

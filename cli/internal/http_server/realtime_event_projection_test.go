@@ -240,6 +240,15 @@ func TestPublicRealtimeEventProjectsViewerSpecificSemantics(t *testing.T) {
 	privateFormat := &evtv1.Event{Id: "E1", Event: &evtv1.Event_UserTimeFormatChanged{
 		UserTimeFormatChanged: &evtv1.UserTimeFormatChangedEvent{UserId: owner.GetId(), TimeFormat: evtv1.TimeFormat_TIME_FORMAT_24H},
 	}}
+	privatePresence := &evtv1.Event{Id: "presence-choice", Event: &evtv1.Event_UserPresencePreferenceChanged{
+		UserPresencePreferenceChanged: &evtv1.UserPresencePreferenceChangedEvent{UserId: owner.GetId(), Mode: evtv1.SavedPresenceMode_SAVED_PRESENCE_MODE_INVISIBLE},
+	}}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, owner.GetId(), privatePresence); err != nil || projected.GetViewerPresencePreferenceChanged() == nil {
+		t.Fatalf("own presence preference = %+v, %v; want private hint", projected, err)
+	}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, other.GetId(), privatePresence); err != nil || projected != nil {
+		t.Fatalf("other presence preference = %+v, %v; want complete omission", projected, err)
+	}
 	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, owner.GetId(), privateFormat); err != nil || projected.GetViewerPreferencesChanged() == nil {
 		t.Fatalf("owner preference projection = %+v, %v; want viewer hint", projected, err)
 	}
@@ -392,18 +401,19 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 		"room_read_state_changed":           "room_read_state_changed",
 	}
 	evtSourceNames := map[string]string{
-		"role_created":               "rbac_role_created",
-		"role_updated":               "rbac_role_display_name_changed",
-		"role_deleted":               "rbac_role_deleted",
-		"roles_reordered":            "rbac_roles_reordered",
-		"role_assigned":              "rbac_role_assigned",
-		"role_revoked":               "rbac_role_revoked",
-		"role_permissions_changed":   "rbac_permission_granted",
-		"viewer_permissions_changed": "rbac_permission_denied",
-		"user_profile_changed":       "user_login_changed",
-		"viewer_preferences_changed": "user_time_format_changed",
-		"server_profile_changed":     "server_name_changed",
-		"room_layout_changed":        "room_group_created",
+		"viewer_presence_preference_changed": "user_presence_preference_changed",
+		"role_created":                       "rbac_role_created",
+		"role_updated":                       "rbac_role_display_name_changed",
+		"role_deleted":                       "rbac_role_deleted",
+		"roles_reordered":                    "rbac_roles_reordered",
+		"role_assigned":                      "rbac_role_assigned",
+		"role_revoked":                       "rbac_role_revoked",
+		"role_permissions_changed":           "rbac_permission_granted",
+		"viewer_permissions_changed":         "rbac_permission_denied",
+		"user_profile_changed":               "user_login_changed",
+		"viewer_preferences_changed":         "user_time_format_changed",
+		"server_profile_changed":             "server_name_changed",
+		"room_layout_changed":                "room_group_created",
 	}
 	mappedPubSubFields := map[protoreflect.Name]bool{}
 	for index := 0; index < publicOneof.Fields().Len(); index++ {
@@ -437,6 +447,9 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 				projected = projectRealtimeEvent("viewer", &event)
 			} else if publicField.Name() == "viewer_preferences_changed" {
 				projected = &realtimev1.RealtimeEvent{Event: &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{}}}
+			} else if publicField.Name() == "viewer_presence_preference_changed" {
+				event.GetUserPresencePreferenceChanged().UserId = "viewer"
+				projected = projectRealtimeEvent("viewer", &event)
 			} else {
 				projected = projectRealtimeEvent("viewer", &event)
 			}
