@@ -290,7 +290,9 @@ function resultButtons(container: HTMLElement): HTMLButtonElement[] {
 async function waitForDebouncedUserSearch(search = 'river-login') {
   await new Promise((resolve) => setTimeout(resolve, 250));
   await vi.waitFor(() => {
-    expect(mocks.listUsers).toHaveBeenCalledWith(search, 20, 0);
+    expect(mocks.listUsers).toHaveBeenCalledWith(search, 20, 0, {
+      signal: expect.any(AbortSignal)
+    });
   });
 }
 
@@ -434,6 +436,79 @@ describe('QuickSwitcher', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-new');
     });
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-new');
+  });
+
+  it('shows user results before a stalled server finishes and aborts it at the deadline', async () => {
+    mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
+    let resolveSlow!: (page: unknown) => void;
+    mocks.listUsers
+      .mockReturnValueOnce(new Promise((resolve) => { resolveSlow = resolve; }))
+      .mockResolvedValueOnce({ members: [user('fast', 'river-fast', 'River Fast')] });
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'river');
+    await vi.waitFor(() => expect(container.textContent).toContain('River Fast'));
+    const signal = mocks.listUsers.mock.calls[0][3].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    await vi.waitFor(() => {
+      expect(signal.aborted).toBe(true);
+      expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
+    }, { timeout: 4_000 });
+    resolveSlow({ members: [user('late', 'river-late', 'River Late')] });
+    await Promise.resolve();
+    flushSync();
+    expect(container.textContent).toContain('River Fast');
+    expect(container.textContent).not.toContain('River Late');
+  });
+
+  it.each(['query', 'channel', 'message', 'close', 'unmount'])('cancels obsolete user searches on %s', async (change) => {
+    let resolveOld!: (page: unknown) => void;
+    mocks.listUsers.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }));
+    const rendered = await renderOpenSwitcher();
+    const { container } = rendered;
+    setSearch(container, 'river');
+    await vi.waitFor(() => expect(mocks.listUsers).toHaveBeenCalledOnce());
+    const signal = mocks.listUsers.mock.calls[0][3].signal as AbortSignal;
+    if (change === 'close') {
+      quickSwitcher.close();
+      flushSync();
+    } else if (change === 'unmount') {
+      await rendered.unmount();
+      currentRender = undefined;
+    } else {
+      setSearch(container, change === 'query' ? 'river-new' : change === 'channel' ? '#river' : '?river');
+    }
+    expect(signal.aborted).toBe(true);
+    resolveOld({ members: [user('old', 'river-new-old', 'River Old')] });
+    await Promise.resolve();
+    flushSync();
+    expect(container.textContent).not.toContain('River Old');
+  });
+
+  it('preserves user selection when a slower server adds a higher ranked result', async () => {
+    mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
+    let resolveSlow!: (page: unknown) => void;
+    mocks.listUsers
+      .mockResolvedValueOnce({ members: [user('fast', 'river-friend', 'River Friend')] })
+      .mockReturnValueOnce(new Promise((resolve) => { resolveSlow = resolve; }));
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'river');
+    await vi.waitFor(() => expect(container.textContent).toContain('River Friend'));
+    resolveSlow({ members: [user('slow', 'river', 'River')] });
+    await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(2));
+    expect(resultButtons(container)[0].textContent).not.toContain('River Friend');
+    input(container).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await vi.waitFor(() => expect(mocks.startDM).toHaveBeenCalledWith(['fast']));
+  });
+
+  it('finishes user search when all servers fail', async () => {
+    mocks.listUsers.mockRejectedValue(new Error('Unavailable'));
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'missing');
+    await vi.waitFor(() => expect(mocks.listUsers).toHaveBeenCalledOnce());
+    await vi.waitFor(() => {
+      expect(resultButtons(container)).toHaveLength(0);
+      expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
+    });
   });
 
   it('shows bot user results without a badge on tiny avatars', async () => {

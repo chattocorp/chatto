@@ -150,9 +150,9 @@ Use the square check indicator for an independent boolean setting. Use the
 circular radio indicator for one choice in a group. Rows use a faint raised
 edge. Empty indicators look inset; selected indicators use a reduced lighting
 strength with no outer shadow. Disabled controls have no raised finish. Row and indicator colour transitions
-use the shared `feedback-quick` utility: 50 ms with ease-out timing in both
+use the shared `feedback-quick` utility: instant feedback in both
 directions. Sidebar links and menu rows use the same timing. Keep transition
-properties on the control; change this shared utility to tune feedback speed.
+properties on the control; use the motion tokens below to tune feedback speed.
 
 The quick finder uses `command-palette`, which composes the shared menu frame.
 It keeps a compact search field and aligned result rows through
@@ -572,6 +572,28 @@ matches the action.
 
 ## Shape, Type, And Motion
 
+Hover, focus, and action-reveal feedback use these tokens from `src/app.css`:
+
+| Token | Default | Purpose |
+| --- | --- | --- |
+| `--motion-duration-feedback` | `0ms` | Instant item highlights and action reveals in both directions |
+| `--motion-easing-feedback` | `ease-out` | Timing curve in both directions |
+| `--motion-duration-overlay-enter` | `100ms` | Modal and floating context-menu entrance |
+| `--motion-easing-overlay-enter` | `ease-out` | Surface entrance curve |
+
+Use `feedback-quick` with explicit transition properties, for example
+`transition-opacity feedback-quick`. The utility reads both tokens and disables
+transitions under reduced motion. Menu highlights, member-card menu reveals,
+row actions, and icon feedback share this timing. Do not add local numeric
+durations for these interactions. Keep disabled/pending opacity at 150 ms;
+pane movement and toolbar entrance animations have separate timing.
+
+Modals and floating context menus fade in and zoom from 95% to full size.
+Context menus close immediately; modals keep their existing 100 ms exit.
+Reduced motion skips surface animations. Floating placement uses the full
+layout size so the entrance zoom cannot move a menu beyond the viewport.
+Touch context menus keep their bottom-sheet presentation.
+
 - Labelled buttons use `rounded-xl` at every size, matching chat input surfaces.
   Filled icon-only buttons keep `rounded-md` corners.
 - `rounded` and `rounded-md` are the default for other compact controls, fields,
@@ -596,7 +618,7 @@ matches the action.
 - Press feedback uses `active:scale-[0.96]` where it does not interfere with
   drag, resize, or text-selection behavior.
 - Shared buttons fade disabled/pending opacity over 150 ms in both directions.
-  Pill buttons retain 50 ms hover colour feedback. Reduced motion skips both.
+  Pill buttons use instant hover colour feedback. Reduced motion skips opacity fades.
 - Respect `prefers-reduced-motion` for non-essential animation.
 - Wrap conditional compact toolbars in `FadeScale` for a shared 180 ms
   fade and 96–100% zoom with exponential ease-out entry and cubic ease-in-out

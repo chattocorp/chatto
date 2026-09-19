@@ -124,7 +124,7 @@ can slide out before its rows are removed.
 >
   <div class="px-2 py-1.5">
     <div
-      class="group/section-header relative flex min-h-8 w-full min-w-0 items-center rounded-md text-muted transition-colors hover:text-text"
+      class="group/section-header relative flex min-h-8 w-full min-w-0 items-center rounded-md text-muted transition-colors feedback-quick hover:text-text"
       {@attach contextMenuTrigger}
     >
       <button
@@ -137,7 +137,7 @@ can slide out before its rows are removed.
         <span class="relative sidebar-icon">
           <span
             class={[
-              'iconify icon-[uil--angle-right-b] transition-[transform,opacity]',
+              'iconify icon-[uil--angle-right-b] transition-transform',
               leadingOverlay
                 ? 'group-focus-within/section-header:opacity-0 group-hover/section-header:opacity-0 [@media(hover:none)]:opacity-0'
                 : '',
