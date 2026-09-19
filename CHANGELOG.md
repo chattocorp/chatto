@@ -3,6 +3,20 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.5](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.4...v0.5.0-beta.5) (2026-09-19)
+
+
+### Features
+
+* **auth:** register official mobile OAuth client ([#2456](https://github.com/chattocorp/chatto/issues/2456)) ([4f1736e](https://github.com/chattocorp/chatto/commit/4f1736ecde39694db90a2be42b1133f5a5c227ab))
+* **mobile:** add experimental iOS client and native sign-in ([#2465](https://github.com/chattocorp/chatto/issues/2465)) ([48e4bca](https://github.com/chattocorp/chatto/commit/48e4bca2700b17033d09255d4dac802d9e958916))
+
+
+### Bug Fixes
+
+* **frontend:** match mobile app and pane header heights ([#2464](https://github.com/chattocorp/chatto/issues/2464)) ([354dcbf](https://github.com/chattocorp/chatto/commit/354dcbfc778eb12db2fa39a68ba8c7542941e233))
+* **frontend:** scope presence choices to each server account ([#2463](https://github.com/chattocorp/chatto/issues/2463)) ([9f912f7](https://github.com/chattocorp/chatto/commit/9f912f70342acf8b37cc0d8acbcc43b4cc5b63ff))
+
 ## [0.5.0-beta.4](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.3...v0.5.0-beta.4) (2026-09-19)
 
 
