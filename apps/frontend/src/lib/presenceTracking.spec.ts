@@ -136,6 +136,17 @@ describe('per-account presence tracking', () => {
     expect(remoteReport).not.toHaveBeenCalled();
   });
 
+  it('does not report an unsaved choice when browser storage rejects it', () => {
+    setPresenceMode(origin, 'invisible');
+    start();
+    vi.mocked(localStorage.setItem).mockImplementation(() => {
+      throw new Error('Storage full');
+    });
+    expect(() => setPresenceMode(origin, 'online')).toThrow('Could not save presence preference');
+    expect(presencePreferences.get(origin).mode).toBe('invisible');
+    expect(originReport).not.toHaveBeenCalled();
+  });
+
   it('does not turn a corrupt account preference into an online report', () => {
     const key = presencePreferences.get(remote).slot.key;
     localStorage.setItem(key, 'invalid');

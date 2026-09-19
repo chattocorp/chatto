@@ -69,12 +69,20 @@ class PresencePreference {
     if (stored === null) this.slot.set(this.mode);
   }
 
+  /** Save and verify before applying a choice; callers must show save failures. */
   select(mode: PresenceMode) {
     this.slot.set(mode);
+    let saved = false;
+    try {
+      saved = typeof localStorage !== 'undefined' && localStorage.getItem(this.slot.key) === mode;
+    } catch {
+      // Do not claim a privacy choice was saved when storage cannot confirm it.
+    }
+    if (!saved) throw new Error('Could not save presence preference');
     this.apply(mode);
   }
 
-  /** Reload choices changed by another tab while this account was signed out. */
+  /** Read the latest saved choice on activation or a cross-tab notification. */
   reload() {
     const stored = readMode(this.slot.key);
     if (stored !== null) this.apply(stored);

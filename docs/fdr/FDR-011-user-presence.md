@@ -13,6 +13,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 - The client starts in Online mode unless the user previously chose another mode. Users can choose Online, Away, Do Not Disturb, or "Look offline".
 - The presence menu changes only the account on the current server. Each server and account has a separate saved choice on this device. Changing one server does not change another server's choice, including "Look offline" and Do Not Disturb.
 - Tabs on the same browser origin share each account's choice. On upgrade, each account keeps the previous global choice until the user changes it for that account.
+- If the browser cannot save a new choice, the menu keeps the previous choice and shows an error.
 - The client does not use input activity or tab visibility to change the selected mode. It does not set Away automatically.
 - Users can set Do Not Disturb for their current live server presence. While DND is active, new notifications are still recorded for that user, but notification sounds and web push are suppressed (see FDR-012). Presence state is not persisted as server-side user/account state.
 - Explicit Away and Do Not Disturb are marked as manually selected in the live presence record. Updates that are not manually selected do not overwrite that manual state; an explicit Online selection clears it.
@@ -63,7 +64,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 ### 7. Independent choices for each server and account
 
 **Decision:** Each connected Chatto server tracks its own presence. The frontend saves and reports a separate choice for each server and account. The menu identifies its server scope. The client loads the saved choice before its first report, including after reconnect or account changes. Do Not Disturb suppresses local notification sounds only for that account on that server.
-**Why:** A choice made in one server must not expose availability or clear a deliberate privacy choice on another server. Account identity prevents a different account on the same server from inheriting a previous account's choice. Servers do not exchange this information or learn which other servers the client uses. See ADR-025.
+**Why:** A choice made in one server must not expose availability or clear a deliberate privacy choice on another server. Account identity prevents a different account on the same server from inheriting a previous account's choice. Presence reports contain no list of the client's other servers. See ADR-025.
 **Tradeoff:** Users must change each server separately. Choices remain local to this browser or app; another device can still report a different presence. The previous global choice is retained as the migration fallback, so an existing "Look offline" choice does not become Online on upgrade.
 
 ### 8. Delivery gaps force latest-value recovery

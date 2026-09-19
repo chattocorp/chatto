@@ -6,6 +6,7 @@ import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
+import { toast } from '$lib/ui/toast';
 
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import { setPresenceMode } from '$lib/presenceTracking';
@@ -435,6 +436,26 @@ describe('CurrentUserBar', () => {
     });
     expect(presencePreference.mode).toBe('away');
     expect(presencePreferences.get(remote).mode).toBe('invisible');
+  });
+
+  it('keeps the previous selection and reports a failed presence save', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(container.textContent).toContain('Away'));
+    const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage full');
+    });
+    const notify = vi.spyOn(toast, 'error');
+    try {
+      (q(container, '[role="menuitemradio"][aria-checked="false"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to save status'));
+      expect(presencePreference.mode).toBe('online');
+      expect(container.textContent).toContain('Presence on this server');
+    } finally {
+      save.mockRestore();
+      notify.mockRestore();
+      toast.clear();
+    }
   });
 
   it('loads the custom status editor only after opening the touch bottom sheet', async () => {

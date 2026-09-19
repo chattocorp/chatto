@@ -169,8 +169,12 @@ sidebar. Shows the avatar with presence and the live display name.
   }
 
   function choosePresenceMode(mode: PresenceMode) {
-    if (presenceScope) setPresenceMode(presenceScope, mode);
-    statusMenuAnchor = null;
+    try {
+      if (presenceScope) setPresenceMode(presenceScope, mode);
+      statusMenuAnchor = null;
+    } catch {
+      toast.error(m('settings.profile.status.save_failed'));
+    }
   }
 
   function openCustomStatusDialog() {
