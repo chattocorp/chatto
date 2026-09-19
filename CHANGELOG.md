@@ -3,6 +3,31 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.4](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.3...v0.5.0-beta.4) (2026-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **admin:** batch-load member rows from paginated IDs ([#2460](https://github.com/chattocorp/chatto/issues/2460))
+
+### Bug Fixes
+
+* **frontend:** align empty Markdown caret in Firefox ([#2451](https://github.com/chattocorp/chatto/issues/2451)) ([2e4c168](https://github.com/chattocorp/chatto/commit/2e4c168c5d01fc8c8662e2c76efe9b5acd20c4a0))
+* **frontend:** keep ambient notifications silent ([#2449](https://github.com/chattocorp/chatto/issues/2449)) ([9dff686](https://github.com/chattocorp/chatto/commit/9dff6865b12a8b71fa156a2714368dd329479105))
+* **frontend:** make hover feedback instant and animate overlays ([#2453](https://github.com/chattocorp/chatto/issues/2453)) ([c8aca19](https://github.com/chattocorp/chatto/commit/c8aca19e959d2ccd405aad667a0ec29cba15415c))
+* **frontend:** open profiles in the current room sidebar ([#2461](https://github.com/chattocorp/chatto/issues/2461)) ([10684fe](https://github.com/chattocorp/chatto/commit/10684fea6a8ead81141f891a26b9c9a7431b0eb8))
+* **frontend:** refresh permissions without rebuilding the page ([#2462](https://github.com/chattocorp/chatto/issues/2462)) ([f90a5c7](https://github.com/chattocorp/chatto/commit/f90a5c7e01531004f6247785ab4edcace118092d))
+* **frontend:** replace wheelchair attachment description icon ([#2457](https://github.com/chattocorp/chatto/issues/2457)) ([675f1b4](https://github.com/chattocorp/chatto/commit/675f1b48256253658321ba6289e9f0e1b4b423cf))
+* **frontend:** restore composer focus after sending ([#2454](https://github.com/chattocorp/chatto/issues/2454)) ([98dfcab](https://github.com/chattocorp/chatto/commit/98dfcab7a7c1d95c8d0e7a4916e608ccd6bf47af))
+* **frontend:** show five lines in profile bio editors ([#2459](https://github.com/chattocorp/chatto/issues/2459)) ([fdf10f9](https://github.com/chattocorp/chatto/commit/fdf10f91e6a36b9a569ca388ebe6dae19ff1550b))
+* **frontend:** show quick finder users without waiting for slow servers ([#2452](https://github.com/chattocorp/chatto/issues/2452)) ([f509e85](https://github.com/chattocorp/chatto/commit/f509e85b218816685b20edd66f7461c64c22e56c))
+* **frontend:** unify attachment actions and media viewer controls ([#2458](https://github.com/chattocorp/chatto/issues/2458)) ([2bba2b0](https://github.com/chattocorp/chatto/commit/2bba2b09a339145f425ce1e900783fe8fd71aab6))
+
+
+### Performance Improvements
+
+* **admin:** batch-load member rows from paginated IDs ([#2460](https://github.com/chattocorp/chatto/issues/2460)) ([91e59ba](https://github.com/chattocorp/chatto/commit/91e59ba2681a6eeeeaec3cb4d25ba2471808b554))
+
 ## [0.5.0-beta.3](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.2...v0.5.0-beta.3) (2026-09-18)
 
 
