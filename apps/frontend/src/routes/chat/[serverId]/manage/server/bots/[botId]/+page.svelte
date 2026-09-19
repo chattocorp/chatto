@@ -493,14 +493,19 @@
             />
           {/if}
         {/key}
-
-        <UserPermissionsMatrix
-          userId={bot.id}
-          subjectKind={m('settings.bots.singular')}
-          ownerCapped
-          decisionMode="binary"
-        />
       {/if}
+    </div>
+  {/if}
+  <!-- The bot read can finish before the viewer read. Keep the matrix owner
+       during that gap; the server layout blocks input until both are current. -->
+  {#if supportsBots && !botQuery.error && (botQuery.isPending || !viewerState || canOperateBot)}
+    <div class="mt-6">
+      <UserPermissionsMatrix
+        userId={botId}
+        subjectKind={m('settings.bots.singular')}
+        ownerCapped
+        decisionMode="binary"
+      />
     </div>
   {/if}
 </PaneContent>

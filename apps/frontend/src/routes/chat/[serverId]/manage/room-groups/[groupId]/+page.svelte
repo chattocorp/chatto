@@ -189,9 +189,7 @@
 
 <PageTitle title={m('admin.common.server_admin_page_title', { title: pageTitle })} />
 
-{#if loading}
-  <!-- The management shell remains visible while the room group loads. -->
-{:else if loadFailure}
+{#if !loading && loadFailure}
   <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.generic')}>
     <div class="flex flex-col items-center gap-4">
       <p>{loadFailure}</p>
@@ -200,7 +198,7 @@
       </Button>
     </div>
   </EmptyState>
-{:else if accessDenied || !group || !canManagePermissions}
+{:else if !loading && (accessDenied || !group || !canManagePermissions)}
   <AccessDenied
     message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
@@ -209,7 +207,7 @@
 {:else}
   <div class="pane-page">
     <PaneHeader
-      title={group.name}
+      title={group?.name ?? m('admin.rooms_admin.rename_group')}
       subtitle={m('admin.rooms_admin.rename_group')}
       {backHref}
       backLabel={m('admin.rooms_admin.back_to_rooms')}
@@ -217,7 +215,7 @@
     />
 
     <div class="flex flex-col gap-6 overflow-y-auto p-6">
-      {#if canManageGroup}
+      {#if group && canManageGroup}
         {#key `${activeServerId}:${serverScope.connection.queryScope}:${group.id}:${formRevision}`}
           <RoomGroupGeneralSettingsPanel {group} {saving} onSave={saveGeneralSettings} />
         {/key}

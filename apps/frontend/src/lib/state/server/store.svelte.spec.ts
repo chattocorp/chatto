@@ -64,6 +64,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     reconcileRegisteredAdminRoomGroupQueries: vi.fn(),
     reconcileRegisteredAdminRoomQueries: vi.fn(),
     refreshRegisteredAdminQueries: vi.fn(),
+    refreshRegisteredServerQueries: vi.fn(async () => {}),
     removeRegisteredAdminQueries: vi.fn(),
     removeRegisteredAdminUserQueries: vi.fn(),
     removeRegisteredServerQueries: vi.fn(),
@@ -473,6 +474,7 @@ beforeEach(() => {
   __resetUserSummaryCachesForTests();
   registerServerQueryCache({
     server: cacheMocks.removeRegisteredServerQueries,
+    refreshServer: cacheMocks.refreshRegisteredServerQueries,
     admin: cacheMocks.removeRegisteredAdminQueries,
     refreshAdmin: cacheMocks.refreshRegisteredAdminQueries,
     adminUser: cacheMocks.removeRegisteredAdminUserQueries,
@@ -507,6 +509,7 @@ beforeEach(() => {
   cacheMocks.reconcileRegisteredAdminRoomGroupQueries.mockClear();
   cacheMocks.removeRegisteredServerQueries.mockClear();
   cacheMocks.refreshRegisteredAdminQueries.mockClear();
+  cacheMocks.refreshRegisteredServerQueries.mockClear();
   cacheMocks.removeRegisteredAdminQueries.mockClear();
   cacheMocks.removeRegisteredAdminUserQueries.mockClear();
   apiMocks.listRooms.mockResolvedValue([]);
@@ -730,9 +733,8 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
     expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
-    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
-    // The privacy reset already starts fresh reads with the reduced permissions.
-    expect(cacheMocks.refreshRegisteredAdminQueries).not.toHaveBeenCalled();
+    expect(cacheMocks.removeRegisteredAdminQueries).not.toHaveBeenCalled();
+    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
   });
 
   it('refreshes navigation group permissions on activation and deactivation without a layout event', async () => {
@@ -814,8 +816,8 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.permissions.canAdminViewSystem).toBe(false);
     expect(apiMocks.refreshPrivilegedMode).toHaveBeenCalledOnce();
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode expired');
-    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
-    expect(cacheMocks.refreshRegisteredAdminQueries).not.toHaveBeenCalled();
+    expect(cacheMocks.removeRegisteredAdminQueries).not.toHaveBeenCalled();
+    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
   });
 
   it('refreshes expired room-scoped grants without a server capability change', async () => {
@@ -985,26 +987,80 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(store.voiceCall.permissionsFor('R1').join).toBe(join);
   });
 
-  it('clears viewer authority and sensitive mirrors immediately for its own permission event', () => {
-    const fake = new FakeServerConnection([]);
-    const store = makeStore(fake);
-    store.realtimeSync.markCaughtUp('old');
-    store.permissions = { ...store.permissions, loaded: true, canAdminManageRoles: true };
-    const resetMessages = vi.spyOn(store.messagesForRoom('room'), 'resetProjectionState');
-    store.realtimeProjectionHandler(
-      new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
-          event: { case: 'viewerPermissionsChanged', value: {} }
-        })
-      })
-    );
-    expect(fake.invalidatePrivateData).toHaveBeenCalledOnce();
-    expect(store.permissions.loaded).toBe(false);
-    expect(store.projection.viewer).toBeNull();
-    expect(store.realtimeSync.resumeCursor).toBeNull();
-    expect(resetMessages).toHaveBeenCalledOnce();
-    expect(store.adminRoomLayout.groups).toEqual([]);
-  });
+  it.each(['unchanged owner', 'unchanged member', 'revoked', 'room revoked', 'read narrowed', 'failed', 'privilege expired', 'reset while pending'])(
+    'reconciles permission changes without resetting the view: %s', async (change) => {
+      const fake = new FakeServerConnection([]);
+      const store = makeStore(fake);
+      const viewer = new GetViewerResponse({
+        user: { profile: { id: 'U1' } },
+        privilegedMode: { active: true },
+        capabilities: { grants: [{ capability: 'admin.view-system', granted: change === 'unchanged owner' }] },
+        viewerPermissions: { permissions: [{ permission: 'role.manage', granted: true }] }
+      });
+      store.projection.viewer = viewer;
+      store.projection.rooms.set('R1', new RoomWithViewerState({
+        room: { id: 'R1' }, viewerState: { isMember: true, permissions: [{ permission: 'message.read', granted: true }] }
+      }));
+      store.realtimeSync.markCaughtUp('retained');
+      const resetMessages = vi.spyOn(store.messagesForRoom('R1'), 'resetProjectionState');
+      const revokeMessages = vi.spyOn(store.messagesForRoom('R1'), 'clearForAccessRevocation');
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+        await gate;
+        if (change === 'failed') throw new Error('offline');
+        if (family === 'viewer') return [new RealtimeResourceUpdate({ resource: {
+          case: 'viewer', value: change === 'revoked' ? new GetViewerResponse({ user: viewer.user }) :
+            change === 'privilege expired' ? new GetViewerResponse({ ...viewer, privilegedMode: { active: false } }) : viewer
+        } })];
+        if (family === 'rooms') return [roomResource(change === 'room revoked' ? [] : [
+          new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true,
+            permissions: [{ permission: 'message.read', granted: change !== 'read narrowed' }]
+          } })
+        ])];
+        if (family === 'roomGroups') return [new RealtimeResourceUpdate({ resource: {
+          case: 'roomGroups', value: new ListRoomGroupsResponse()
+        } })];
+        return [];
+      });
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+        cursor: 'permission-event',
+        event: new RealtimeEvent({ event: {
+          case: 'rolePermissionsChanged', value: { roleName: 'everyone' }
+        } })
+      }));
+      expect(store.checkingPermissions).toBe(true);
+      expect(store.projection.viewer).toBe(viewer);
+      expect(resetMessages).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('viewer', 'permission-event'));
+      if (change === 'reset while pending') {
+        store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
+      }
+      release();
+      if (change === 'reset while pending') await store.waitForRealtimeReconciliation();
+      await vi.waitFor(() => expect(store.checkingPermissions).toBe(false));
+      expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('viewer', 'permission-event');
+      expect(fake.forceReconnect).not.toHaveBeenCalled();
+      expect(store.realtimeSync.resumeCursor).toBe('retained');
+      expect(store.realtimeSync.hasUsableProjection).toBe(true);
+      expect(cacheMocks.refreshRegisteredServerQueries).toHaveBeenCalled();
+      if (change !== 'reset while pending') {
+        expect(fake.invalidatePrivateData).not.toHaveBeenCalled();
+        expect(resetMessages).not.toHaveBeenCalled();
+      } else {
+        expect(fake.invalidatePrivateData).toHaveBeenCalledOnce();
+        expect(resetMessages).toHaveBeenCalledOnce();
+        expect(store.projection.viewer).toBeNull();
+      }
+      if (['room revoked', 'read narrowed', 'failed'].includes(change)) {
+        expect(revokeMessages).toHaveBeenCalled();
+      } else expect(revokeMessages).not.toHaveBeenCalled();
+      if (change === 'failed') {
+        expect(store.projection.viewer).toBeNull();
+        await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('offline');
+      }
+    }
+  );
 
   it('keeps its cursor and messages when another user receives a role', () => {
     const fake = new FakeServerConnection([]);

@@ -1,5 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
+import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
 import type { RoomBanList } from '$lib/api-client/rooms';
 import { registerServerQueryCache } from './cacheRegistry';
 
@@ -24,6 +24,16 @@ function retryServerQuery(failureCount: number, error: Error): boolean {
 
 /** Shared in-memory cache for snapshot-style server reads. */
 export const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.queryKey[0] === 'server' && error instanceof ConnectError &&
+        [Code.PermissionDenied, Code.NotFound, Code.Unauthenticated].includes(error.code)) {
+        // TanStack normally keeps the last successful response on a refetch
+        // error. A denied read must not retain that private response.
+        query.setState({ data: undefined, dataUpdatedAt: 0 });
+      }
+    }
+  }),
   defaultOptions: {
     queries: {
       staleTime: SERVER_QUERY_STALE_TIME_MS,
@@ -43,9 +53,36 @@ export function serverQueryRoot(serverId: string): QueryKey {
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {
+  permissionRefreshes.set(serverId, (permissionRefreshes.get(serverId) ?? 0) + 1);
   for (const query of queryClient.getQueryCache().findAll({ queryKey: serverQueryRoot(serverId) }))
     query.reset();
   queryClient.removeQueries({ queryKey: serverQueryRoot(serverId) });
+}
+
+const permissionRefreshes = new Map<string, number>();
+
+/** Keep authorized active data visible while replacing it with a fresh response.
+ * Cancel old reads, discard inactive snapshots, and clear only the reads that fail.
+ */
+export async function refreshServerQueries(serverId: string): Promise<void> {
+  const generation = (permissionRefreshes.get(serverId) ?? 0) + 1;
+  permissionRefreshes.set(serverId, generation);
+  const filters = { queryKey: serverQueryRoot(serverId) };
+  await queryClient.cancelQueries(filters);
+  if (permissionRefreshes.get(serverId) !== generation) return;
+  await Promise.all(queryClient.getQueryCache().findAll(filters).map(async (query) => {
+    if (!query.isActive()) {
+      query.reset();
+      return;
+    }
+    try {
+      await query.fetch();
+    } catch {
+      if (permissionRefreshes.get(serverId) !== generation || query.state.fetchStatus !== 'idle') return;
+      // A failed authority check is unknown, not permission to show old data.
+      query.setState({ data: undefined, dataUpdatedAt: 0 });
+    }
+  }));
 }
 
 /** Refresh role and member snapshots after a public role event; retain other data. */
@@ -92,9 +129,9 @@ export function refreshAdminQueries(serverId: string): void {
   };
   // Cancel first loads too: invalidation alone can reuse a pending response
   // from before the privilege change.
-  void queryClient.cancelQueries(filters).then(() =>
-    queryClient.invalidateQueries({ ...filters, refetchType: 'active' })
-  );
+  void queryClient
+    .cancelQueries(filters)
+    .then(() => queryClient.invalidateQueries({ ...filters, refetchType: 'active' }));
 }
 
 export function removeAdminUserQueries(serverId: string, userId: string): void {
@@ -252,6 +289,7 @@ export function reconcileAdminRoomGroupQueries(
 
 registerServerQueryCache({
   server: removeServerQueries,
+  refreshServer: refreshServerQueries,
   admin: removeAdminQueries,
   refreshAdmin: refreshAdminQueries,
   roles: refreshRoleQueries,

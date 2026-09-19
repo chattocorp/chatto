@@ -122,6 +122,7 @@ export class RealtimeProjectionSyncState {
     return this.#authorizationRefreshGeneration;
   }
 
+  /** Discard data readiness and the resume cursor at a projection/session reset. */
   reset(): void {
     this.resetGeneration++;
     this.phase = 'empty';

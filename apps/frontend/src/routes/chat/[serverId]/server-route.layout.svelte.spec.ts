@@ -5,13 +5,16 @@ import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
 import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
 
-type RegisteredState = { reauthRequiredAt: number | null };
+type RegisteredState = { reauthRequiredAt: number | null; checkingPermissions?: boolean };
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
+      get checkingPermissions(): boolean {
+        return mocks.servers?.get('origin')?.checkingPermissions ?? false;
+      },
       realtimeSync: null as RealtimeProjectionSyncState | null,
       currentUser: {
         loading: false,
@@ -81,6 +84,25 @@ beforeEach(() => {
 });
 
 describe('server route authentication privacy', () => {
+  it('keeps the page visible and restores focus during an authority check', async () => {
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<input data-testid="filter" />') }
+    });
+    const filter = container.querySelector<HTMLInputElement>('[data-testid="filter"]')!;
+    filter.value = 'message';
+    filter.focus();
+    mocks.servers!.set('origin', { reauthRequiredAt: null, checkingPermissions: true });
+    await tick();
+    expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
+    expect(filter.closest('[inert]')).not.toBeNull();
+    expect(getComputedStyle(filter).visibility).toBe('visible');
+    mocks.servers!.set('origin', { reauthRequiredAt: null, checkingPermissions: false });
+    await tick();
+    expect(filter.closest('[inert]')).toBeNull();
+    expect(filter.value).toBe('message');
+    expect(document.activeElement).toBe(filter);
+  });
+
   it('hides private content throughout a reset and failed reconnect', async () => {
     const { container } = render(Layout, {
       props: { children: testSnippet('<main data-testid="private-route">Private data</main>') }

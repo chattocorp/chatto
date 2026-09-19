@@ -239,9 +239,7 @@
 
 <PageTitle title={m('admin.common.server_admin_page_title', { title: pageTitle })} />
 
-{#if loading}
-  <!-- The management shell remains visible while the room capability loads. -->
-{:else if loadFailure}
+{#if !loading && loadFailure}
   <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.generic')}>
     <div class="flex flex-col items-center gap-4">
       <p>{loadFailure}</p>
@@ -250,7 +248,7 @@
       </Button>
     </div>
   </EmptyState>
-{:else if accessDenied || !room || !canManagePermissions}
+{:else if !loading && (accessDenied || !room || !canManagePermissions)}
   <AccessDenied
     message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
@@ -259,7 +257,7 @@
 {:else}
   <div class="pane-page">
     <PaneHeader
-      title={`#${room.name}`}
+      title={room ? `#${room.name}` : m('room_list.room_settings')}
       subtitle={m('room_list.room_settings')}
       {backHref}
       showMobileNav
@@ -267,13 +265,13 @@
 
     <PaneContent bind:scrollContainer>
       <div class="flex flex-col gap-6">
-        {#if canManageRoom}
+        {#if room && canManageRoom}
           {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:${formRevision}`}
             <RoomGeneralSettingsPanel {room} {saving} onSave={saveGeneralSettings} />
           {/key}
         {/if}
 
-        {#if supportsMemberManagement}
+        {#if room && supportsMemberManagement}
           {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}`}
             <RoomMembersPanel
               serverId={activeServerId}

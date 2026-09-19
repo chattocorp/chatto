@@ -45,6 +45,7 @@ focusing a cell highlights its permission row and role column.
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   type State = 'allow' | 'deny' | 'neutral';
@@ -174,6 +175,13 @@ focusing a cell highlights its permission row and role column.
   let mutationError = $state<{ context: string; message: string } | null>(null);
   let updating = $state<string[]>([]);
   let disposed = false;
+  let privacyGeneration = 0;
+  const unregisterPrivacyFence = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId !== serverScope.serverId) return;
+    privacyGeneration += 1;
+    updating = [];
+    mutationError = null;
+  });
   const activeMutationContext = $derived(
     mutationContext(
       serverScope.serverId,
@@ -187,6 +195,7 @@ focusing a cell highlights its permission row and role column.
     mutationError?.context === activeMutationContext ? mutationError.message : null
   );
   onDestroy(() => {
+    unregisterPrivacyFence();
     disposed = true;
   });
 
@@ -285,6 +294,7 @@ focusing a cell highlights its permission row and role column.
   }
 
   async function cycle(role: TierRole, permission: string, next: State) {
+    const generation = privacyGeneration;
     if (!data) return;
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
@@ -314,7 +324,7 @@ focusing a cell highlights its permission row and role column.
       permission,
       next
     );
-    if (disposed || !serverScope.isCurrent()) return;
+    if (disposed || !serverScope.isCurrent() || generation !== privacyGeneration) return;
     if (result.error) {
       if (context === activeMutationContext) {
         mutationError = { context, message: result.error };
@@ -352,12 +362,10 @@ focusing a cell highlights its permission row and role column.
   <Hint tone="danger">{visibleMutationError ?? loadError}</Hint>
 {/if}
 
-{#if loading}
-  <div class="text-muted">{m('rbac.permissions.loading')}</div>
-{:else if !data || data.roles.length === 0}
+{#if !loading && (!data || data.roles.length === 0)}
   <Hint tone="info">{m('rbac.permissions.no_roles')}</Hint>
 {:else}
-  {@const roles = [...data.roles].sort((a, b) => b.position - a.position)}
+  {@const roles = [...(data?.roles ?? [])].sort((a, b) => b.position - a.position)}
   <Panel title={panelTitle} {subtitle} {fillHeight} noPadding>
     {#snippet actions()}
       <div class="w-48 sm:w-64">
@@ -380,7 +388,7 @@ focusing a cell highlights its permission row and role column.
       getRowKey={(permission) => permission}
       getColumnKey={(role) => role.roleName}
       getGroupKey={(permission) => getPermissionCategory(permission)}
-      emptyMessage={m('rbac.permissions.no_filter_matches')}
+      emptyMessage={m(loading ? 'rbac.permissions.loading' : 'rbac.permissions.no_filter_matches')}
       compact
       columnHeaderHeight="10rem"
       stickyHeader={scrollContents}
@@ -442,8 +450,7 @@ focusing a cell highlights its permission row and role column.
         <span
           data-testid="permission-name"
           title={getPermissionDescription(permission)}
-          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
-          >{permission}</span
+          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}>{permission}</span
         >
       {/snippet}
       {#snippet cell(permission, role)}

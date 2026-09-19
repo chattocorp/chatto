@@ -151,6 +151,12 @@ export class MessageSearchStore {
     this.hasSearched = false;
   }
 
+  /** Re-run the active search after an authority change, preserving its query. */
+  refreshPermissions(): void {
+    this.refreshAfterInvalidation(() => true, true);
+    this.invalidatePrivacyConsumers(() => true, true);
+  }
+
   /** Purge one room's retained plaintext and fence older responses. */
   invalidateRoom(roomId: string): void {
     const matches = (result: MessageSearchResult) => result.roomId === roomId;

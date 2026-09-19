@@ -385,7 +385,8 @@ describe('eventBusManager realtime transport', () => {
     eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
     sockets[0].open();
     eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add((update) => {
-      if (update.event?.event.case === 'viewerPermissionsChanged') sync.reset();
+      if (update.event?.event.case === 'viewerPermissionsChanged')
+        sync.reset();
     });
     await sockets[0].receive(
       serverFrame({

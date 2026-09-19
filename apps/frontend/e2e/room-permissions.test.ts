@@ -214,6 +214,8 @@ test.describe('Room-Level Permission Overrides', () => {
       const browserErrors: string[] = [];
 
       await withLoggedInServerWindow(browser, serverURL, member, async ({ page: memberPage }) => {
+        let connections = 0;
+        memberPage.on('websocket', () => connections++);
         memberPage.on('console', (message) => {
           // The denied request and the nonfatal realtime availability signal
           // are expected when read authority is removed. Keep all other
@@ -231,6 +233,9 @@ test.describe('Room-Level Permission Overrides', () => {
         await joinRoomViaAPI(memberPage, roomId);
         await memberPage.goto(routes.room(roomId));
         await expect(memberPage.getByText(visibleBody)).toBeVisible();
+        const originalComposer = await memberPage.getByTestId('message-input').elementHandle();
+        const originalShell = await memberPage.getByRole('button', { name: 'Toggle sidebar', exact: true }).elementHandle();
+        const initialConnections = connections;
 
         await denyRoomPermission(page, roomId, 'everyone', 'message.read');
         await denyRoomPermission(page, roomId, 'everyone', 'message.read-interactions');
@@ -241,6 +246,9 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(denial).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
         await expect(memberPage.getByText(visibleBody)).toHaveCount(0);
         await expect(memberPage.locator('[role="article"]')).toHaveCount(0);
+        expect(await originalComposer!.evaluate((node) => node.isConnected)).toBe(true);
+        expect(await originalShell!.evaluate((node) => node.isConnected)).toBe(true);
+        expect(connections).toBe(initialConnections);
         await expect(memberPage.getByTestId('message-input')).toHaveAttribute(
           'contenteditable',
           'true'
@@ -277,6 +285,8 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(memberPage.getByText(writeOnlyBody)).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
+        expect(await originalComposer!.evaluate((node) => node.isConnected)).toBe(true);
+        expect(connections).toBe(initialConnections);
       });
 
       expect(browserErrors, 'browser console and page errors').toEqual([]);

@@ -29,6 +29,10 @@ rendering to `SubjectPermissionsMatrix`.
   import { createInfiniteQuery, type InfiniteData } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import {
+    registerQueryCacheRemovalListener,
+    registerServerQueryCacheRemovalListener
+  } from '$lib/query/cacheRegistry';
 
   import { mergePermissionPages } from './permissionPages';
   import type { PermissionScopePage } from '$lib/api-client/permissions';
@@ -116,6 +120,15 @@ rendering to `SubjectPermissionsMatrix`.
   }
   const membershipConfirmation = $derived(new MembershipConfirmation(activeMutationContext));
   const visibleMembershipConfirmation = $derived(membershipConfirmation.pending);
+  const unregisterPrivacyFence = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId !== serverScope.serverId) return;
+    mutationGeneration += 1;
+    updatingKey = null;
+    mutationError = null;
+  });
+  const unregisterConfirmationFence = registerServerQueryCacheRemovalListener((serverId) => {
+    if (serverId === serverScope.serverId) membershipConfirmation.pending = null;
+  });
 
   function requestMembershipChange(scope: MatrixScope, joined: boolean) {
     if (visibleUpdatingKey || !scope.membership) return;
@@ -137,6 +150,8 @@ rendering to `SubjectPermissionsMatrix`.
   }
 
   onDestroy(() => {
+    unregisterPrivacyFence();
+    unregisterConfirmationFence();
     mutationGeneration += 1;
   });
 

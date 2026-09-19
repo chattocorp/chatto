@@ -272,10 +272,16 @@ permission events go only to that viewer and contain no private decisions or
 scope IDs. Bots also receive a viewer permission event for changes to their
 owner's direct decisions or assignments. Role permission changes and deletion
 conservatively notify bots because deleted roles no longer retain their former
-owner assignments. Cosmetic changes do not reset bots. The client discards
-private state when its own assignments, a
+owner assignments. Cosmetic changes do not reset bots. The client checks
+effective authority when its own assignments, a
 retained role's permissions, the `everyone` role, or its direct permissions
-change. A replay can
+change. Cursor-bounded resource reads refresh authority in place for every
+viewer. Active snapshot queries reauthorize their own scopes; inactive private
+snapshots are discarded. The page remains visible, with input blocked during
+the check. Denied or failed reads clear the affected resource, not the server
+projection. Permission events do not clear the resume cursor or request a new
+WebSocket snapshot.
+A replay can
 send a viewer's own leave, removal, or ban fact even when current membership
 is false. This closing fact removes state that the client could have retained.
 Effective membership and message-read permission changes are authorization
@@ -355,12 +361,20 @@ realtime presence. The full scan owns completion and final membership; failed
 or late previews cannot block it or restore state after a reset.
 
 The per-server store checks permission events before it changes retained role
-assignments. It clears its cursor, viewer authority, query observers, message
-and thread stores, notifications, search results, and admin layout before it
-requests a new snapshot. Unknown viewer role membership requires a conservative
-reload. Unrelated users' assignments and cosmetic role changes keep the current
-projection. `RESYNC_REQUIRED` remains a fallback and uses the same immediate
-privacy cleanup.
+assignments. Relevant changes refresh viewer, room, room-group, server-state,
+notification, and active-call resources. Unknown viewer role membership also
+uses this refresh. The existing projection and cursor remain usable. Unrelated
+users' assignments and cosmetic role changes keep the current projection.
+
+Snapshot queries retain their observers and current data while they cancel
+older reads and fetch authorized replacements. Failed reads remove cached data;
+inactive snapshots are discarded. Query invalidation also fences late matrix
+mutations independently of component disposal. Room membership or message-read
+changes clear only the affected plaintext stores and fence their older reads.
+Searches keep their input and refresh their results. Fresh route authorization
+removes pages whose access was revoked. The shell and other pages remain mounted
+and visible. No placeholder table dimensions are needed for this refresh.
+Authentication loss and `RESYNC_REQUIRED` still use full privacy cleanup.
 
 An active local call stays connected while private data reloads. Fresh room
 permissions then stop only revoked media, or disconnect the call if membership

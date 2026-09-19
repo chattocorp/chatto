@@ -9,7 +9,8 @@ import { adminQueryKeys } from '$lib/query/admin';
 import {
   refreshRegisteredAdminQueries,
   removeRegisteredAdminQueries,
-  removeRegisteredAdminUserQueries
+  removeRegisteredAdminUserQueries,
+  refreshRegisteredServerQueries
 } from '$lib/query/cacheRegistry';
 
 const viewerPermissions = vi.hoisted(() => ({ canAdminManageAccounts: true }));
@@ -117,6 +118,58 @@ beforeEach(() => {
 afterEach(() => queryClient.clear());
 
 describe('subject permission loaders', () => {
+  it('rejects a late user mutation after a permission reset without disposing the matrix', async () => {
+    let finishMutation!: (value: { decision: string }) => void;
+    permissionMocks.setUserPermission.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishMutation = resolve;
+        })
+    );
+    const { container } = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    await expect.poll(() => cellButton(container, 'message.post')).toBeTruthy();
+    cellButton(container, 'message.post').click();
+    await settle();
+    const key = adminQueryKeys.userPermissions(
+      'origin',
+      { queryScope: 'permission-loader-test' },
+      'user-a'
+    );
+    await refreshRegisteredServerQueries('origin');
+    await expect.poll(() => queryClient.getQueryData(key)).toBeTruthy();
+    const fresh = queryClient.getQueryData(key);
+    finishMutation({ decision: 'ALLOW' });
+    await settle();
+    expect(queryClient.getQueryData(key)).toBe(fresh);
+    expect(cellButton(container, 'message.post').getAttribute('aria-pressed')).not.toBe('true');
+  });
+
+  it('keeps the role filter and cells mounted while permissions refresh', async () => {
+    const { container } = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
+    await expect.poll(() => cellButton(container, 'message.post')).toBeTruthy();
+    const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
+    filter.value = 'message';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    let resolveRefresh!: (value: ReturnType<typeof matrix>) => void;
+    permissionMocks.getRolePermissionMatrix.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+    const refreshing = refreshRegisteredServerQueries('origin');
+    await expect.poll(() => resolveRefresh).toBeTruthy();
+    expect(container.querySelector('td[data-permission]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="permission-filter"]')).toBe(filter);
+    expect(filter.value).toBe('message');
+    resolveRefresh(matrix({ roleName: 'role-a' }));
+    await refreshing;
+    await expect.poll(() => cellButton(container, 'message.post')).toBeTruthy();
+    expect(container.querySelector('[data-testid="permission-filter"]')).toBe(filter);
+    expect(container.querySelector('td[data-permission="room.manage"]')).toBeNull();
+  });
+
   it('preserves the panel, filter and height while an authorization reset clears private cells', async () => {
     const initial = matrix({ userId: 'user-a' });
     initial.scopes[0].label = 'Private scope';

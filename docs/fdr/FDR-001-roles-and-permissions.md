@@ -1,16 +1,21 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-09-17
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
 Chatto controls who can do what through role-based access control. Every authenticated human user holds one or more roles; each role grants or denies specific permissions. Permissions can also be overridden per room-group and per room, giving operators fine-grained control without inventing parallel role systems. Bot accounts are the deliberate exception: they use an explicit direct-permission allowlist bounded by their human owner's current authority (FDR-038).
 
 Role metadata and member role lists update through realtime events. Display
-changes do not reload the full client. A change that can affect the viewer's
-permissions clears private cached data immediately and loads current authorized
-state. Other users keep their data. A successful role creation or deletion can
+changes do not reload the full client. Permission changes refresh affected data
+in place for every user, including non-owners. The server shell and permitted
+pages stay visible and mounted, so filters, drafts, and scroll positions remain
+intact. Input is blocked during the authority check. Revoked access removes
+the affected data or page; failed checks clear only the data they could not
+reauthorize. Older reads and mutation results cannot restore that data.
+Unrelated users keep their data.
+A successful role creation or deletion can
 still navigate after this cleanup, provided the user has not left the page or
 changed session. This separates privacy cleanup from request completion
 (ADR-062).
