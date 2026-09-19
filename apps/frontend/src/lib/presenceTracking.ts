@@ -83,7 +83,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
   }
 
   async function reconcile(account: Account, retryConflict = true) {
-    if (account.busy) return;
+    if (account.busy || !current(account, account.sequence)) return;
     const sequence = ++account.sequence;
     const preference = presencePreferences.get(account.reporter);
     try {
@@ -92,6 +92,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
       if (!value) {
         value = await account.reporter.setPreference(apiMode(preference.mode), '');
       } else if (
+        !preference.revision &&
         !preference.migrated.get() &&
         preference.mode === 'invisible' &&
         value.mode !== APIMode.INVISIBLE

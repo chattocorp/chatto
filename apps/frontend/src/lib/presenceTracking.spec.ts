@@ -116,6 +116,17 @@ describe('shared account presence', () => {
     await expect(setPresenceMode(origin, 'online')).rejects.toThrow('not ready');
   });
 
+  it('follows another device after migration even when browser storage cannot save', async () => {
+    presencePreferences.get(origin).select('invisible');
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('storage unavailable'); });
+    const api = reporter(); reporters = [api]; await start();
+    api.getPreference.mockResolvedValue(choice(PresenceMode.ONLINE, 'other-device'));
+    api.refreshPresence.mockResolvedValue(choice(PresenceMode.ONLINE, 'other-device'));
+    refreshPresencePreference(origin); await settle();
+    expect(presencePreferences.get(origin).mode).toBe('online');
+    expect(api.setPreference).toHaveBeenCalledTimes(1);
+  });
+
   it('rereads promptly when permission recovery discards an initial response', async () => {
     const api = reporter();
     api.getPreference.mockRejectedValueOnce(new ConnectError('permission reset', Code.Canceled));

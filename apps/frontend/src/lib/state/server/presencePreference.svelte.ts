@@ -50,9 +50,9 @@ function readMode(key: string, legacy = false): PresenceMode | null {
 class PresencePreference {
   revision = $state('');
   ready = $state(false);
-  /** Saved user choice; a report response does not replace this selection. */
+  /** Shared choice, updated only from acknowledged server state. */
   mode = $state<PresenceMode>('online');
-  /** Local display and DND state, reconciled with this account's accepted report. */
+  /** Local display and DND state derived from the shared choice. */
   effectiveStatus = $state<PresenceStatus>(PresenceStatus.ONLINE);
   readonly slot: StorageSlot<PresenceMode | null>;
   readonly migrated: StorageSlot<boolean>;
