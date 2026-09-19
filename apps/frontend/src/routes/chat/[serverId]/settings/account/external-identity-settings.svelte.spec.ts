@@ -272,7 +272,7 @@ describe('external identity settings query lifecycle', () => {
     expect(mocks.list).toHaveBeenCalledOnce();
   });
 
-  it('finishes remote sign-out when authentication cleanup precedes an unauthenticated error', async () => {
+  it('leaves expired-session cleanup to the API authentication handler', async () => {
     mocks.serverId = 'remote';
     connection.serverId = 'remote';
     connection.queryScope = 'remote-external-identities-test';
@@ -299,8 +299,10 @@ describe('external identity settings query lifecycle', () => {
     removeRegisteredServerQueries('remote');
     rejectDisconnect(new ConnectError('expired', Code.Unauthenticated));
 
-    await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote'));
-    expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
+    await settle();
+    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
+    expect(mocks.list).toHaveBeenCalledOnce();
     expect(mocks.clearCachedUser).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });

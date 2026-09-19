@@ -9,9 +9,6 @@
     type AuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
   import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
-  import { hardRedirectAfterSignOut } from '$lib/auth/signOut';
-  import { clearCachedUser } from '$lib/auth/loadAuth';
-  import { notifyLogout } from '$lib/auth/sessionChannel';
   import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
   import {
     createExternalIdentityAPI,
@@ -94,7 +91,7 @@
   const loading = $derived(identitiesQuery.isPending && !identitiesQuery.data);
   let actionError = $state('');
   // Keep refreshes bound to the account and session that opened this window.
-  let remoteLinkWindow = $state.raw<{
+  let providerLinkWindow = $state.raw<{
     window: AuthorizationWindow;
     scope: IdentityMutationScope;
     userId: string;
@@ -102,37 +99,35 @@
   } | null>(null);
   let checkingWindow = false;
   let checkingLink = false;
-  // Keep the completion return path through optional password confirmation.
-  let linkingInPopup = false;
 
-  function remoteLinkIsCurrent() {
+  function providerLinkIsCurrent() {
     return (
-      remoteLinkWindow !== null &&
-      isCurrentSession(remoteLinkWindow.scope) &&
-      remoteLinkWindow.userId === currentUser.user?.id
+      providerLinkWindow !== null &&
+      isCurrentSession(providerLinkWindow.scope) &&
+      providerLinkWindow.userId === currentUser.user?.id
     );
   }
 
-  function refreshAfterRemoteLink() {
-    if (remoteLinkIsCurrent()) void identitiesQuery.refetch();
+  function refreshAfterProviderLink() {
+    if (providerLinkIsCurrent()) void identitiesQuery.refetch();
   }
 
   // The provider window has no opener and can be on another origin. Confirm
   // completion through the account API, without waiting for a focus event.
-  async function checkRemoteLinkResult() {
-    const pending = remoteLinkWindow;
-    if (!pending || checkingLink || !remoteLinkIsCurrent()) return;
+  async function checkProviderLinkResult() {
+    const pending = providerLinkWindow;
+    if (!pending || checkingLink || !providerLinkIsCurrent()) return;
     checkingLink = true;
     try {
       const result = await identitiesQuery.refetch({ cancelRefetch: false });
-      if (remoteLinkWindow !== pending || !remoteLinkIsCurrent()) return;
+      if (providerLinkWindow !== pending || !providerLinkIsCurrent()) return;
       if (
         result.isSuccess &&
         result.data.providers.some(
           (provider) => provider.id === pending.providerId && provider.linked
         )
       ) {
-        remoteLinkWindow = null;
+        providerLinkWindow = null;
         // The remote window closes itself. A detached cross-origin window
         // cannot be closed by its former opener in Chromium.
       }
@@ -141,25 +136,25 @@
     }
   }
 
-  async function checkRemoteLinkWindow() {
-    const pending = remoteLinkWindow;
+  async function checkProviderLinkWindow() {
+    const pending = providerLinkWindow;
     if (!pending || checkingWindow) return;
-    if (!remoteLinkIsCurrent()) {
-      remoteLinkWindow = null;
+    if (!providerLinkIsCurrent()) {
+      providerLinkWindow = null;
       return;
     }
     checkingWindow = true;
     try {
-      if ((await pending.window.isClosed()) && remoteLinkWindow === pending) {
-        refreshAfterRemoteLink();
-        remoteLinkWindow = null;
+      if ((await pending.window.isClosed()) && providerLinkWindow === pending) {
+        refreshAfterProviderLink();
+        providerLinkWindow = null;
       }
     } finally {
       checkingWindow = false;
     }
   }
 
-  function openRemoteLink(provider: ExternalIdentityProviderInfo) {
+  function openProviderLink(provider: ExternalIdentityProviderInfo) {
     actionError = '';
     const userId = currentUser.user?.id;
     if (!userId) return;
@@ -179,11 +174,11 @@
       userId,
       providerId: provider.id
     };
-    remoteLinkWindow = pending;
+    providerLinkWindow = pending;
     void authorizationWindow.navigate(url.href).catch(() => {
-      if (remoteLinkWindow !== pending) return;
-      if (remoteLinkIsCurrent()) actionError = m('settings.account.sso.link_failed');
-      remoteLinkWindow = null;
+      if (providerLinkWindow !== pending) return;
+      if (providerLinkIsCurrent()) actionError = m('settings.account.sso.link_failed');
+      providerLinkWindow = null;
       void authorizationWindow.close();
     });
   }
@@ -198,7 +193,6 @@
       actionError = m('settings.account.sso.provider_unavailable');
       return;
     }
-    linkingInPopup = true;
     if (provider.linked) window.close();
     else void startProviderLink(provider);
   }
@@ -234,7 +228,7 @@
     };
   }
 
-  function isCurrentConnection(
+  function isCurrentSession(
     variables: IdentityMutationScope | undefined
   ): variables is IdentityMutationScope {
     return (
@@ -242,14 +236,9 @@
       componentActive &&
       serverScope.isCurrent() &&
       variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope
+      variables.connection.queryScope === serverScope.connection.queryScope &&
+      variables.privacyGeneration === privacyGeneration
     );
-  }
-
-  function isCurrentSession(
-    variables: IdentityMutationScope | undefined
-  ): variables is IdentityMutationScope {
-    return isCurrentConnection(variables) && variables.privacyGeneration === privacyGeneration;
   }
 
   const linkMutation = createMutation(
@@ -330,16 +319,10 @@
     provider: ExternalIdentityProviderInfo,
     currentPassword?: string
   ) {
-    if (!linkingInPopup) {
-      openRemoteLink(provider);
-      return;
-    }
     const returnURL = new URL(accountSettingsPath, window.location.origin);
-    if (linkingInPopup) {
-      returnURL.searchParams.set('link_provider', provider.id);
-      returnURL.searchParams.set('link_user', currentUser.user?.id ?? '');
-      returnURL.searchParams.set('link_complete', '1');
-    }
+    returnURL.searchParams.set('link_provider', provider.id);
+    returnURL.searchParams.set('link_user', currentUser.user?.id ?? '');
+    returnURL.searchParams.set('link_complete', '1');
     const variables: LinkVariables = {
       ...mutationScope(),
       provider,
@@ -436,17 +419,6 @@
     await disconnectIdentity(disconnectTarget, currentPassword);
   }
 
-  function finishDisconnectedSession(signedOutServerId: string) {
-    if (serverRegistry.isOriginServer(signedOutServerId)) {
-      clearCachedUser();
-    }
-    serverRegistry.clearServerAuthentication(signedOutServerId);
-    hardRedirectAfterSignOut('/');
-    if (serverRegistry.isOriginServer(signedOutServerId)) {
-      notifyLogout();
-    }
-  }
-
   async function disconnectIdentity(
     target: { subjectHash: string; providerLabel: string },
     currentPassword?: string
@@ -470,14 +442,6 @@
       disconnectFreshAuthError = '';
       await identitiesQuery.refetch();
     } catch (err) {
-      if (
-        err instanceof ConnectError &&
-        err.code === Code.Unauthenticated &&
-        isCurrentConnection(variables)
-      ) {
-        finishDisconnectedSession(variables.connection.serverId ?? variables.serverId);
-        return;
-      }
       if (!isCurrentSession(variables)) {
         return;
       }
@@ -522,11 +486,11 @@
   }
 </script>
 
-<svelte:window onfocus={refreshAfterRemoteLink} />
+<svelte:window onfocus={refreshAfterProviderLink} />
 
-{#if remoteLinkWindow}
-  <Interval milliseconds={500} ontick={checkRemoteLinkWindow} />
-  <Interval milliseconds={2000} ontick={checkRemoteLinkResult} />
+{#if providerLinkWindow}
+  <Interval milliseconds={500} ontick={checkProviderLinkWindow} />
+  <Interval milliseconds={2000} ontick={checkProviderLinkResult} />
 {/if}
 
 {#if serverRegistry.isOriginServer(serverScope.serverId) && currentUser.user?.id && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
@@ -582,8 +546,8 @@
                   loading={linkingProviderId === provider.id}
                   disabled={linkingProviderId !== '' ||
                     disconnectingSubjectHash !== '' ||
-                    remoteLinkWindow !== null}
-                  onclick={() => startProviderLink(provider)}
+                    providerLinkWindow !== null}
+                  onclick={() => openProviderLink(provider)}
                 >
                   <span class="iconify icon-[uil--link]"></span>
                   {m('settings.account.sso.link_button')}

@@ -291,4 +291,17 @@ describe('createExternalIdentityAPI', () => {
       { headers: { Authorization: 'Bearer token' } }
     );
   });
+
+  it('reports expired authentication during disconnect through the shared handler', async () => {
+    const error = new ConnectError('expired', Code.Unauthenticated);
+    mocks.disconnectExternalIdentity.mockRejectedValue(error);
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'expired-token'
+    });
+
+    await expect(api.disconnect('identity')).rejects.toBe(error);
+    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
+  });
 });
