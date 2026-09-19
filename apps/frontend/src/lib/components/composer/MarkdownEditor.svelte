@@ -121,6 +121,9 @@ the same API as the visual editor while keeping the stored Markdown visible.
     },
     '.cm-line': { padding: '0' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
+    // Firefox positions the native caret against the buffer before the placeholder.
+    // Keep that buffer on the text baseline when the editor is empty.
+    '.cm-line:has(> .cm-placeholder) > .cm-widgetBuffer': { verticalAlign: 'baseline' },
     '.cm-code-fence': {
       boxSizing: 'border-box',
       backgroundColor: 'color-mix(in srgb, var(--color-surface-emphasized) 68%, transparent)',
