@@ -644,7 +644,7 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		return "", false
 	}
 	source := evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD
-	if params.ClientID == config.ChattoDesktopOrigin {
+	if params.ClientID == config.ChattoDesktopOrigin || params.ClientID == config.ChattoMobileClientID {
 		source = evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
 	}
 	redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)

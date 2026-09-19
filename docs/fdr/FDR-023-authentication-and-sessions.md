@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-09-16
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
@@ -17,6 +17,14 @@ flows include classic password login, configured external
 providers, and a bootstrap path for first-boot operator setup.
 
 ## Behavior
+
+- **Official mobile client** — the fixed OAuth identity is
+  `eu.chattocorp.chatto.mobile`, with the exact callback
+  `eu.chattocorp.chatto.mobile:/oauth/callback`. Servers recognize it without
+  operator configuration or a client-metadata fetch. Existing client policy,
+  consent, and PKCE checks still apply. The server records its authorization
+  as a built-in client. Older servers without this registration cannot
+  authorize the official mobile client.
 
 - The standalone welcome page shows an introduction and a Connect to a server
   action. The action opens the Server Directory. The welcome page does not list
