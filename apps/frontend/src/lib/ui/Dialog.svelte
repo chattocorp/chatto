@@ -297,11 +297,11 @@ labels truncate only after the dialog reaches its viewport limit.
   }
 
   dialog[open] {
-    animation: fade-in 100ms ease-out;
+    animation: fade-in var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
   }
 
   dialog[open]::backdrop {
-    animation: backdrop-fade-in 100ms ease-out;
+    animation: backdrop-fade-in var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
   }
 
   dialog[open].closing {
@@ -349,6 +349,15 @@ labels truncate only after the dialog reaches its viewport limit.
     }
     to {
       opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog[open],
+    dialog[open]::backdrop,
+    dialog[open].closing,
+    dialog[open].closing::backdrop {
+      animation: none;
     }
   }
 </style>

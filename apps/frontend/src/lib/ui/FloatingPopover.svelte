@@ -78,7 +78,9 @@ handling because its dismissal contract varies between tooltips and menus.
 
   function applyPosition(popover = node) {
     if (!popover) return;
-    const { height, width } = popover.getBoundingClientRect();
+    // Placement uses layout size, independent of the surface's entrance scale.
+    const height = popover.offsetHeight;
+    const width = popover.offsetWidth;
     let top: number;
     let left: number;
 

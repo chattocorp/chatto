@@ -326,7 +326,7 @@ sidebar. Shows the avatar with presence and the live display name.
           <button
             type="button"
             class={[
-              'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors',
+              'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors feedback-quick',
               privilegedMode.active
                 ? 'bg-warning/15 control-raised text-warning hover:bg-warning/25'
                 : 'hover:bg-elevated text-muted hover:text-text'
@@ -435,7 +435,7 @@ sidebar. Shows the avatar with presence and the live display name.
           <button
             type="button"
             onclick={() => (customStatusDialogVisible = false)}
-            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] feedback-quick hover:bg-surface hover:text-text active:scale-[0.96]"
             aria-label={m('ui.close')}
           >
             <span class="iconify icon-[uil--times] text-xl"></span>

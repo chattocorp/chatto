@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, userEvent } from 'storybook/test';
   import ContextMenu from './ContextMenu.svelte';
   import MenuItem from './MenuItem.svelte';
   import MenuSection from './MenuSection.svelte';
@@ -32,7 +33,20 @@
   }
 </script>
 
-<Story name="Floating menu" asChild>
+<Story
+  name="Floating menu"
+  asChild
+  play={async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Open menu' }));
+    const menu = canvas.getByRole('menu', { name: 'Example actions' });
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    await expect(getComputedStyle(menu).animationName).toBe(reducedMotion ? 'none' : 'overlay-enter');
+    if (!reducedMotion) await expect(getComputedStyle(menu).animationDuration).toBe('0.1s');
+    await expect(getComputedStyle(canvas.getByRole('menuitem', { name: 'Edit' })).transitionDuration).toBe('0s');
+    await userEvent.click(canvas.getByRole('menuitem', { name: 'Copy' }));
+    await expect(canvas.queryByRole('menu', { name: 'Example actions' })).not.toBeInTheDocument();
+  }}
+>
   <button bind:this={trigger} type="button" class="btn-action" onclick={openMenu}>Open menu</button>
 
   {#if open}

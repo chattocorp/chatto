@@ -25,8 +25,11 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-duration-pane: 240ms;
   /* Symmetric hover, focus, and action-reveal feedback. */
-  --motion-duration-feedback: 50ms;
+  --motion-duration-feedback: 0ms;
   --motion-easing-feedback: ease-out;
+  /* Floating surfaces enter separately from their instant item feedback. */
+  --motion-duration-overlay-enter: 100ms;
+  --motion-easing-overlay-enter: ease-out;
 }
 
 :root[dir='rtl'] {
@@ -744,7 +747,7 @@
   }
 }
 
-/* Fast, symmetric feedback for menu, navigation, and selection controls.
+/* Instant, symmetric feedback for menu, navigation, and selection controls.
  * Each control keeps its own transition properties; timing is shared here.
  */
 @utility feedback-quick {
@@ -756,6 +759,29 @@
   @media (prefers-reduced-motion: reduce) {
     /* Zero timing also wins when a property utility follows this utility. */
     --motion-duration-feedback: 0ms;
+  }
+}
+
+/* Animate the floating surface only when it opens, never its individual rows. */
+@utility overlay-enter {
+  &:popover-open {
+    animation: overlay-enter var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:popover-open {
+      animation: none;
+    }
+  }
+}
+
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -1209,7 +1235,7 @@
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
-  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] duration-150;
+  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] feedback-quick;
   @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text active:bg-surface-strong;
   @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
 }

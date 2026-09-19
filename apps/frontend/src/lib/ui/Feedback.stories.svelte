@@ -22,7 +22,7 @@
 {/snippet}
 
 <Story
-	name="Shared hover timing"
+	name="Instant hover feedback"
 	asChild
 	play={async ({ canvasElement }) => {
 		// Check compiled CSS: Tailwind property utilities must not replace token timing.
@@ -31,7 +31,7 @@
 		);
 		const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		for (const control of controls) {
-			await expect(getComputedStyle(control).transitionDuration).toBe(reducedMotion ? '0s' : '0.05s');
+			await expect(getComputedStyle(control).transitionDuration).toBe('0s');
 			await expect(getComputedStyle(control).transitionTimingFunction).toBe('ease-out');
 		}
 		if (reducedMotion) return;

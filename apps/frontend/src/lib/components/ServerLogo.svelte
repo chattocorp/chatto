@@ -38,7 +38,7 @@
 	Used by ServerIcon for the server gutter icon.
 -->
 <div
-  class="shimmer-hover flex shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-[background-color,color] duration-100 {fill
+  class="shimmer-hover flex shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-[background-color,color] feedback-quick {fill
     ? 'h-full w-full'
     : 'h-12 w-12'}"
   style:background={gradientStyle}
