@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
@@ -11,6 +11,8 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 - Current clients refresh their own presence through `MyAccountService.SetPresence` on the ConnectRPC API.
 - The client starts in Online mode unless the user previously chose another mode. Users can choose Online, Away, Do Not Disturb, or "Look offline".
+- The presence menu changes only the account on the current server. Each server and account has a separate saved choice on this device. Changing one server does not change another server's choice, including "Look offline" and Do Not Disturb.
+- Tabs on the same browser origin share each account's choice. On upgrade, each account keeps the previous global choice until the user changes it for that account.
 - The client does not use input activity or tab visibility to change the selected mode. It does not set Away automatically.
 - Users can set Do Not Disturb for their current live server presence. While DND is active, new notifications are still recorded for that user, but notification sounds and web push are suppressed (see FDR-012). Presence state is not persisted as server-side user/account state.
 - Explicit Away and Do Not Disturb are marked as manually selected in the live presence record. Updates that are not manually selected do not overwrite that manual state; an explicit Online selection clears it.
@@ -58,11 +60,11 @@ Every user has a presence status visible to others as a colored dot on their ava
 **Why:** Reporting an explicit invisible/offline status would make the server aware of the user's privacy choice and could leak it as presence state. Keeping realtime delivery independent from presence lets the app remain fully functional without reporting the user's availability choice.
 **Tradeoff:** The server can still observe ordinary authenticated activity, including API requests and an active realtime connection. "Look offline" controls the presence shown to other users; it is not an anonymity mode. Another active browser or device can also keep the user visibly present.
 
-### 7. Per-server tracking, with frontend coordination across servers
+### 7. Independent choices for each server and account
 
-**Decision:** Each connected Chatto server tracks its own presence. The frontend reports the chosen explicit status to all connected servers in parallel.
-**Why:** Servers are independent and shouldn't have to coordinate among themselves — that would require cross-server discovery and trust. The client is already connected to all of them and can coordinate cheaply. See ADR-025.
-**Tradeoff:** A user signed in from two different devices to the same server may have competing presence writers; the latest write wins until TTL expiry.
+**Decision:** Each connected Chatto server tracks its own presence. The frontend saves and reports a separate choice for each server and account. The menu identifies its server scope. The client loads the saved choice before its first report, including after reconnect or account changes. Do Not Disturb suppresses local notification sounds only for that account on that server.
+**Why:** A choice made in one server must not expose availability or clear a deliberate privacy choice on another server. Account identity prevents a different account on the same server from inheriting a previous account's choice. Servers do not exchange this information or learn which other servers the client uses. See ADR-025.
+**Tradeoff:** Users must change each server separately. Choices remain local to this browser or app; another device can still report a different presence. The previous global choice is retained as the migration fallback, so an existing "Look offline" choice does not become Online on upgrade.
 
 ### 8. Delivery gaps force latest-value recovery
 

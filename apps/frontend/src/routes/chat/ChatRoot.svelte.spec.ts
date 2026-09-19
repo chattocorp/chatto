@@ -45,7 +45,7 @@ const mocks = vi.hoisted(() => {
     stopPresenceTracking: vi.fn(),
     initSessionChannel: vi.fn(),
     stopSessionChannel: vi.fn(),
-    setPresenceEntries: vi.fn(),
+    presenceStatuses: { origin: 1, remote: 4 },
     useProjectionEvent: vi.fn(),
     useSessionTerminated: vi.fn(),
     firstAuthenticatedServerId: vi.fn(() => 'remote'),
@@ -128,16 +128,16 @@ vi.mock('$lib/hooks/useEvent.svelte', () => ({
 vi.mock('$lib/presenceTracking', () => ({
   initPresenceTracking: (...args: unknown[]) => {
     mocks.initPresenceTracking(...args);
-    return mocks.stopPresenceTracking;
+    return { sync: () => (args[0] as () => unknown[])(), stop: mocks.stopPresenceTracking };
   }
 }));
 
-vi.mock('$lib/state/presenceCache.svelte', () => ({
-  updateAuthenticatedCurrentUserPresenceEntries: mocks.setPresenceEntries
-}));
-
-vi.mock('$lib/state/presencePreference.svelte', () => ({
-  presencePreference: { effectiveStatus: PresenceStatus.ONLINE }
+vi.mock('$lib/state/server/presencePreference.svelte', () => ({
+  presencePreferences: {
+    get: ({ serverId }: { serverId: 'origin' | 'remote' }) => ({
+      effectiveStatus: mocks.presenceStatuses[serverId]
+    })
+  }
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -227,6 +227,8 @@ const children = createRawSnippet(() => ({
 
 describe('ChatRoot', () => {
   beforeEach(() => {
+    mocks.presenceStatuses.origin = PresenceStatus.ONLINE;
+    mocks.presenceStatuses.remote = PresenceStatus.OFFLINE;
     mocks.originCurrentUser.user = undefined;
     mocks.originCurrentUser.loading = true;
     mocks.remoteCurrentUser.user = {
@@ -273,21 +275,14 @@ describe('ChatRoot', () => {
       { serverId: 'origin', userId: 'origin-user' },
       PresenceStatus.ONLINE
     );
-    const [[getPresenceAPIs, applyPresenceStatus]] = mocks.initPresenceTracking.mock.calls as [
-      [() => unknown[], (status: PresenceStatus) => void]
-    ];
+    const [[getPresenceAPIs]] = mocks.initPresenceTracking.mock.calls as [[() => unknown[]]];
     expect(
       getPresenceAPIs().map((api) => ({ serverId: (api as { serverId: string }).serverId }))
     ).toEqual([{ serverId: 'origin' }, { serverId: 'remote' }]);
 
-    applyPresenceStatus(PresenceStatus.AWAY);
-    expect(mocks.setPresenceEntries).toHaveBeenLastCalledWith(
-      presenceCache,
-      [
-        expect.objectContaining({ serverId: 'origin', isAuthenticated: true }),
-        expect.objectContaining({ serverId: 'remote', isAuthenticated: true })
-      ],
-      PresenceStatus.AWAY
+    expect(mocks.presenceCacheUpdate).toHaveBeenCalledWith(
+      { serverId: 'remote', userId: 'remote-user' },
+      PresenceStatus.OFFLINE
     );
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
     expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3);
@@ -332,25 +327,17 @@ describe('ChatRoot', () => {
     expect(mocks.lifecycle).not.toContain('session');
     expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
     expect(mocks.resumeReturnNavigation).not.toHaveBeenCalled();
-    expect(mocks.presenceCacheUpdate).not.toHaveBeenCalled();
+    expect(mocks.presenceCacheUpdate).toHaveBeenCalledWith(
+      { serverId: 'remote', userId: 'remote-user' },
+      PresenceStatus.OFFLINE
+    );
     expect(mocks.initSessionChannel).not.toHaveBeenCalled();
 
-    const [[getPresenceAPIs, applyPresenceStatus]] = mocks.initPresenceTracking.mock.calls as [
-      [() => unknown[], (status: PresenceStatus) => void]
-    ];
+    const [[getPresenceAPIs]] = mocks.initPresenceTracking.mock.calls as [[() => unknown[]]];
     expect(
       getPresenceAPIs().map((api) => ({ serverId: (api as { serverId: string }).serverId }))
     ).toEqual([{ serverId: 'remote' }]);
 
-    applyPresenceStatus(PresenceStatus.AWAY);
-    expect(mocks.setPresenceEntries).toHaveBeenLastCalledWith(
-      presenceCache,
-      [
-        expect.objectContaining({ serverId: 'origin', isAuthenticated: false }),
-        expect.objectContaining({ serverId: 'remote', isAuthenticated: true })
-      ],
-      PresenceStatus.AWAY
-    );
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
     expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2);
 

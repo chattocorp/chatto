@@ -7,10 +7,13 @@ import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
 
-import { presencePreference } from '$lib/state/presencePreference.svelte';
+import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
+import { setPresenceMode } from '$lib/presenceTracking';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
+
+let presencePreference: ReturnType<typeof presencePreferences.get>;
 
 function computedBackgroundColor(color: string): string {
   const element = document.createElement('span');
@@ -188,6 +191,8 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
+    presencePreferences.clear();
+    presencePreference = presencePreferences.get({ serverId: 'origin', userId: 'user-1' });
     presencePreference.mode = 'online';
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
@@ -414,6 +419,8 @@ describe('CurrentUserBar', () => {
   });
 
   it('closes the presence menu after choosing a presence mode', async () => {
+    const remote = { serverId: 'remote', userId: 'user-1' };
+    setPresenceMode(remote, 'invisible');
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
@@ -427,6 +434,7 @@ describe('CurrentUserBar', () => {
       expect(container.textContent).not.toContain('Do Not Disturb');
     });
     expect(presencePreference.mode).toBe('away');
+    expect(presencePreferences.get(remote).mode).toBe('invisible');
   });
 
   it('loads the custom status editor only after opening the touch bottom sheet', async () => {
