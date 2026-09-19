@@ -1,0 +1,20 @@
+{
+  "name": "@chatto/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync:ios": "node scripts/prepare.mjs && cap sync ios",
+    "open:ios": "cap open ios",
+    "build:ios": "xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ../../.context/mobile-ios-build CODE_SIGNING_ALLOWED=NO build"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2",
+    "@capacitor/keyboard": "8.0.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "sharp": "^0.34.5"
+  }
+}

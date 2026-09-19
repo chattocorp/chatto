@@ -974,6 +974,39 @@ class ServerRegistry {
 		return this.#stores.get(serverId);
 	}
 
+	/** Whether discovery or a retained bearer session still needs recovery. */
+	needsRecovery(id: string): boolean {
+		const store = this.#stores.get(id);
+		const session = this.sessions.get(id);
+		if (!store || !session) return false;
+		return store.serverInfo.error !== null || Boolean(
+			session.token && session.reauthRequiredAt === null &&
+			!store.currentUser.user && !store.currentUser.loading
+		);
+	}
+
+	/** Retry failed discovery and restore the viewer without starting an OAuth flow. */
+	async recoverServer(id: string): Promise<void> {
+		const store = this.#stores.get(id);
+		if (!store) return;
+		if (store.serverInfo.error !== null) await store.serverInfo.init();
+		if (this.#stores.get(id) !== store || store.serverInfo.error !== null) return;
+		const session = this.sessions.get(id);
+		if (!session?.token || session.reauthRequiredAt !== null || store.currentUser.user) return;
+		await store.currentUser.load();
+		// A removed server or changed credential must not receive stale viewer data.
+		if (this.#stores.get(id) !== store || this.sessions.get(id)?.token !== session.token ||
+			this.sessions.get(id)?.reauthRequiredAt !== null) return;
+		const user = this.#stores.get(id)?.currentUser.user;
+		if (user) {
+			this.sessions.update(id, {
+				userId: user.id, userLogin: user.login,
+				userDisplayName: user.displayName, userAvatarUrl: user.avatarUrl
+			});
+			this.#persist();
+		}
+	}
+
 	/** Create a state store for a server and wire up remote user sync. */
 	#createStore(serverId: string): ServerStateStore {
 		const registration = this.catalog.get(serverId);

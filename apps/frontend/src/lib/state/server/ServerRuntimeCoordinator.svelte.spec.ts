@@ -31,6 +31,8 @@ vi.mock('$app/state', () => ({
 
 vi.mock('./registry.svelte', () => ({
   serverRegistry: {
+    needsRecovery: () => false,
+    recoverServer: async () => {},
     get originServer() {
       return mocks.originServerId ? { id: mocks.originServerId } : undefined;
     },

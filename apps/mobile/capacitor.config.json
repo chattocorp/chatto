@@ -1,0 +1,18 @@
+{
+  "appId": "eu.chattocorp.chatto.mobile",
+  "appName": "Chatto",
+  "webDir": "www",
+  "loggingBehavior": "none",
+  "server": {
+    "hostname": "localhost",
+    "iosScheme": "capacitor"
+  },
+  "ios": {
+    "contentInset": "never"
+  },
+  "plugins": {
+    "Keyboard": {
+      "resize": "none"
+    }
+  }
+}

@@ -28,6 +28,12 @@ import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pu
 import { clearCachedUser } from './loadAuth';
 import { saveReturnUrl } from './returnNavigation';
 import { oauthBearerSession, persistedBearerSession } from './bearerSession';
+import {
+  authorizeNatively,
+  hasNativeAuthorization,
+  MOBILE_CALLBACK,
+  MOBILE_CLIENT_ID
+} from '$lib/desktop/nativeAuthorization';
 
 const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
@@ -59,6 +65,45 @@ async function runServerOAuthFlow(
 ): Promise<void> {
   const verifier = generateCodeVerifier();
   const state = generateState();
+  if (hasNativeAuthorization()) {
+    const { serverInfo, providerId } = await details;
+    if (!serverInfo.authorizeUrl) throw new Error('This server does not support OAuth sign-in.');
+    const challenge = await generateCodeChallenge(verifier);
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: MOBILE_CLIENT_ID,
+      redirect_uri: MOBILE_CALLBACK,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      state
+    });
+    if (providerId) params.set('provider_id', providerId);
+    const response = await authorizeNatively(
+      `${serverUrl}${serverInfo.authorizeUrl}?${params}`,
+      state
+    );
+    if (response.error || !response.code) {
+      throw new OAuthPopupError(
+        response.errorDescription || response.error || 'Missing authorization code.'
+      );
+    }
+    // The native session returns directly to this live operation. Its verifier
+    // stays in memory; an app termination cancels the attempt instead of replaying it.
+    const serverId = await completeServerOAuthFlow(
+      {
+        verifier,
+        clientId: MOBILE_CLIENT_ID,
+        remoteUrl: serverUrl,
+        serverName: serverInfo.name,
+        serverIconUrl: serverInfo.iconUrl ?? null
+      },
+      response.code,
+      MOBILE_CALLBACK
+    );
+    beforeNavigate?.();
+    await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
+    return;
+  }
   const redirectUri = `${window.location.origin}/servers/callback?mode=popup`;
   const clientId = oauthClientIdForLocation(window.location);
 

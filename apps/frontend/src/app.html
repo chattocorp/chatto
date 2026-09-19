@@ -173,10 +173,12 @@
 
         // Restore accent and depth before CSS loads so the first paint uses saved appearance.
         // Keep this allowlist aligned with lib/state/userPreferences.svelte.ts.
+        // The iOS shell serves its bundled page through this native-only scheme.
+        const defaultDepth = location.protocol === 'capacitor:' ? 'flat' : '3d';
         try {
           const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
           const depth = stored?.surfaceDepth;
-          root.dataset.depth = ['flat', '3d', 'very-3d'].includes(depth) ? depth : '3d';
+          root.dataset.depth = ['flat', '3d', 'very-3d'].includes(depth) ? depth : defaultDepth;
           const accent = stored?.accentColor;
           root.dataset.accent = [
             'blue',
@@ -193,7 +195,7 @@
             : 'cyan';
         } catch {
           root.dataset.accent = 'cyan';
-          root.dataset.depth = '3d';
+          root.dataset.depth = defaultDepth;
         }
 
         applyTheme();

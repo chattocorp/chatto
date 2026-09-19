@@ -89,6 +89,7 @@
   });
   const compatibilityWarning = $derived(compatibility.status !== 'supported');
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
+  const recoveryNeeded = $derived(serverUnavailable || serverRegistry.needsRecovery(serverId));
   const serverActionsAvailable = $derived(
     stores.isAuthenticated &&
       privateDataLoaded &&
@@ -145,6 +146,14 @@
   }
 
   async function handleServerClick(event: MouseEvent): Promise<void> {
+    if (recoveryNeeded) {
+      event.preventDefault();
+      await serverRegistry.recoverServer(serverId);
+      if (stores.isAuthenticated && stores.serverInfo.compatibility.status === 'supported') {
+        await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+      }
+      return;
+    }
     if (!needsSignIn) return;
     event.preventDefault();
     if (signingIn || !registeredServer) return;
@@ -285,6 +294,12 @@
         </div>
       {/if}
     </div>
+
+    {#if recoveryNeeded}
+      <MenuItem onclick={() => { closeContextMenu(); void serverRegistry.recoverServer(serverId); }}>
+        {m('common.retry')}
+      </MenuItem>
+    {/if}
     <NavigationContextMenu
       kind="server"
       showMarkRead={serverActionsAvailable}

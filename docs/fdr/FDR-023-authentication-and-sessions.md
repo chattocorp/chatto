@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-09-16
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
@@ -17,6 +17,11 @@ flows include classic password login, configured external
 providers, and a bootstrap path for first-boot operator setup.
 
 ## Behavior
+
+- **Consent identity display** — the consent page shows the host for a URL-based
+  client ID and the exact ID for an opaque native client identity. The server
+  validates client registration; the page also checks that the callback and
+  its reported origin agree before it offers approval or denial.
 
 - The standalone welcome page shows an introduction and a Connect to a server
   action. The action opens the Server Directory. The welcome page does not list
@@ -40,6 +45,7 @@ providers, and a bootstrap path for first-boot operator setup.
 - **API auth failures** — protected ConnectRPC methods return unauthenticated errors for missing or invalid credentials. The bundled multi-server client prefers structured error codes and keeps stable message fallbacks for compatibility with older servers.
 - **Logout** — from the global header, users choose whether to sign out of the currently selected server or all connected servers. For registered bearer sessions, the client sends the refresh credential to `/auth/logout` so the server can revoke the stable renewable session and every access generation, then removes the pair locally. This programmatic route never reads or clears ambient cookies. Origin cookie logout uses the same-origin `POST /auth/browser/logout` route. It deletes the cookie-presentation runtime credential, clears the cookies, and the SPA does a hard reload. A successful logout means that the presented authority is gone. Audit and live-session notifications are best-effort after revocation. If authoritative revocation fails, the route returns `503` and a current-server sign-out keeps its local authentication state. Network failures and all-server cleanup remain best-effort so users can remove unreachable server registrations locally.
 - **Known signed-out servers** — the device-local frontend server catalogue is independent from device-local sessions. A known server can remain signed out; selecting it starts the server's normal OAuth flow.
+- **Unreachable registered servers** — the visible, online client retries failed discovery and retained bearer-session viewer loading with per-server delays of 1, 2, 4, 8, 16, then 30 seconds. Network return, foreground return, and native app resume trigger immediate attempts. Selecting an affected server or choosing Try Again retries without opening OAuth. Discovery and viewer requests have a 10-second limit. Successful recovery stops retries; authentication rejection requires sign-in. Removing a server or unmounting the runtime coordinator stops its scheduled recovery work.
 - **Global sign-out** — signing out of all servers clears every device-local Chatto session, removes remote catalogue entries on this device, and retains only a configured origin entry in a signed-out state. Remote revocation is best-effort, so unavailable services cannot trap the user in stale local state.
 - **Session refresh** — cookie runtime credentials keep one stable opaque server-side handle. Ordinary validation is read-only. Before the final-quarter boundary, the bundled frontend calls `POST /auth/browser/session/renew`. The server returns the next renewal time so an HTTP timer works when WebSockets are blocked; the realtime server also asks for renewal before it closes a cookie-authenticated socket. The core uses the record revision to advance `ExpiresAt` and the physical TTL on the same key. SCS writes the same opaque handle in a fresh browser cookie slot with the new browser lifetime. Logout deletes the key and fences a concurrent renewal. The frontend coalesces browser renewal in one tab and coordinates tabs with a Web Lock. Human bearer access records use a fixed `auth.access_token_ttl` (15 minutes by default) and never slide. Their refresh credentials rotate atomically against one stable renewable-session record. A refresh in the final quarter advances its `auth.token_ttl` window (90 days by default) without user action. Standard OAuth clients can omit `refresh_request_id`; Chatto then creates a fresh request value and does not provide lost-response recovery for that rotation. Clients that use Chatto's extension persist a cryptographically random UUID version 4 for each rotation. The server stores a purpose-separated HMAC verifier of the recovery value. An exact extension retry can recover the same credentials after a lost response; stale reuse under another request ID revokes the whole renewable session. The bundled frontend coalesces bearer rotation within a tab, coordinates same-browser tabs with a Web Lock, persists authentication in an independently keyed per-server record, renews before expiry or once after an API authentication failure, and continues renewal at the end of the current session window. Permanent refresh failure keeps the current route and exposes explicit reconnect UI; transient failures retain the pair for retry.
 - **Privileged mode** — a cookie session stores its fixed activation deadline in its mutable credential record. A bearer login stores the deadline in the stable renewable session so access rotation keeps it. Logout, revocation, session expiry, and deletion remove the activation. See FDR-045.

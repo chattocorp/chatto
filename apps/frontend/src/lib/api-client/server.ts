@@ -36,7 +36,8 @@ export async function getPublicServerInfo(
   options: { signal?: AbortSignal } = {}
 ): Promise<PublicServerInfo> {
   const client = createPublicChattoClient(ServerDiscoveryService, baseUrl);
-  const response = await client.getServer({}, { signal: options.signal });
+  // Discovery must settle so startup recovery can retry a stalled endpoint.
+  const response = await client.getServer({}, { signal: options.signal, timeoutMs: 10_000 });
   if (!response.profile?.name) {
     throw new InvalidPublicServerError('The response has no public Chatto server profile.');
   }

@@ -171,6 +171,24 @@ depends = ["build-frontend"]
 dir = "apps/desktop"
 run = "pnpm build"
 
+[tasks.mobile-ios-sync]
+description = "Bundle the shared frontend into the experimental iOS app"
+depends = ["build-frontend"]
+dir = "apps/mobile"
+run = "pnpm sync:ios"
+
+[tasks.mobile-ios-open]
+description = "Open the current iOS app in Xcode"
+depends = ["mobile-ios-sync"]
+dir = "apps/mobile"
+run = "pnpm open:ios"
+
+[tasks.mobile-ios-build]
+description = "Build the experimental iOS app for Simulator without signing"
+depends = ["mobile-ios-sync"]
+dir = "apps/mobile"
+run = "pnpm build:ios"
+
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
 depends = ["setup-frontend"]

@@ -1,14 +1,17 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { page } from '$app/state';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { eventBusManager } from './eventBus.svelte';
   import { serverRegistry } from './registry.svelte';
   import { serverConnectionManager } from './serverConnection.svelte';
+  import { startServerRecovery } from './serverRecovery';
 
   let { user }: { user?: CurrentUser | null } = $props();
+
+  onMount(() => startServerRecovery(serverRegistry));
 
   // The root layout keys this coordinator by origin viewer identity, so the
   // optional origin viewer is stable for this component lifetime.

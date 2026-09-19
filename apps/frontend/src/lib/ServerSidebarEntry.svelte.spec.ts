@@ -17,6 +17,7 @@ const { mocks } = vi.hoisted(() => {
       pushState: vi.fn(),
       markNavigationServerAsRead: vi.fn().mockResolvedValue(true),
       startRemoteReauthentication: vi.fn(),
+      recoverServer: vi.fn().mockResolvedValue(undefined),
       beginOriginReauthentication: vi.fn(),
       isOriginServer: vi.fn(() => false),
       writeClipboardText: vi.fn(),
@@ -31,7 +32,7 @@ const { mocks } = vi.hoisted(() => {
         url: 'https://remote.example.com',
         name: 'Remote Chatto',
         iconUrl: null,
-        token: 'token',
+        token: 'token' as string | null,
         userId: 'user-1',
         userLogin: 'alice',
         userDisplayName: 'Alice',
@@ -125,6 +126,8 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
+    needsRecovery: () => Boolean(mocks.server.token && mocks.server.reauthRequiredAt === null && !mocks.store.isAuthenticated),
+    recoverServer: mocks.recoverServer,
     isOriginServer: mocks.isOriginServer,
     getServer: vi.fn(() => mocks.server),
     getStore: vi.fn(() => mocks.store)
@@ -223,6 +226,9 @@ describe('ServerSidebarEntry', () => {
     mocks.isOriginServer.mockReturnValue(false);
     mocks.server.url = 'https://remote.example.com';
     mocks.server.reauthRequiredAt = null;
+    mocks.server.token = 'token';
+    mocks.recoverServer.mockReset();
+    mocks.recoverServer.mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: mocks.writeClipboardText },
       configurable: true
@@ -518,6 +524,7 @@ describe('ServerSidebarEntry', () => {
   });
 
   it('marks an unauthenticated synchronized server and starts sign-in when clicked', async () => {
+    mocks.server.token = null;
     mocks.store.isAuthenticated = false;
 
     const { container } = render(ServerSidebarEntry, {
@@ -564,6 +571,7 @@ describe('ServerSidebarEntry', () => {
   });
 
   it('links the pending origin to setup without a sign-in marker', async () => {
+    mocks.server.token = null;
     mocks.isOriginServer.mockReturnValue(true);
     mocks.store.isAuthenticated = false;
     page.data.serverInfo = { setupRequired: true } as never;
@@ -578,7 +586,17 @@ describe('ServerSidebarEntry', () => {
     }
   });
 
+  it('retries a saved session on selection instead of opening sign-in', async () => {
+    mocks.store.isAuthenticated = false;
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    q(container, '[data-testid="server-icon"]')?.click();
+    await vi.waitFor(() => expect(mocks.recoverServer).toHaveBeenCalledWith('remote'));
+    expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
+    expect(mocks.beginOriginReauthentication).not.toHaveBeenCalled();
+  });
+
   it('uses the origin sign-in flow for an unauthenticated origin server', async () => {
+    mocks.server.token = null;
     mocks.store.isAuthenticated = false;
     mocks.isOriginServer.mockReturnValue(true);
 
@@ -594,6 +612,7 @@ describe('ServerSidebarEntry', () => {
   });
 
   it('does not start a second sign-in while the first attempt is pending', async () => {
+    mocks.server.token = null;
     mocks.store.isAuthenticated = false;
     mocks.startRemoteReauthentication.mockReturnValueOnce(new Promise(() => {}));
 
@@ -610,6 +629,7 @@ describe('ServerSidebarEntry', () => {
   });
 
   it('shows an error and permits retry after sign-in fails', async () => {
+    mocks.server.token = null;
     mocks.store.isAuthenticated = false;
     mocks.startRemoteReauthentication
       .mockRejectedValueOnce(new Error('discovery failed'))

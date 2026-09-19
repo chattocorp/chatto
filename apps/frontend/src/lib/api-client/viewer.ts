@@ -131,13 +131,14 @@ const capabilityKeys = {
 
 export async function getViewerStateViaConnect(
   config: ViewerAPIConfig,
-  options: { signal?: AbortSignal } = {}
+  options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<ViewerState> {
   const client = createChattoClient(ViewerService, config);
   const response = await client.getViewer(
     {},
     {
       headers: authHeaders(config),
+      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       ...(options.signal ? { signal: options.signal } : {})
     }
   );
@@ -217,5 +218,6 @@ function mapCapabilityGrants(
 }
 
 export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise<CurrentUser> {
-  return (await getViewerStateViaConnect(config)).user;
+  // Bound session restoration independently of the connection's retry timer.
+  return (await getViewerStateViaConnect(config, { timeoutMs: 10_000 })).user;
 }

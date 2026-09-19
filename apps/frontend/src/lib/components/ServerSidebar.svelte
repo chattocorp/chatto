@@ -55,7 +55,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
     // Mobile: fixed overlay positioned after the Server Gutter (~68px); touch-pan-y so
     // vertical scroll inside the panel still works while horizontal pans go to
     // the sidebar swipe action.
-    'max-md:fixed max-md:start-17 max-md:end-0 max-md:top-11 max-md:bottom-0 max-md:touch-pan-y',
+    'max-md:fixed max-md:start-17 max-md:end-0 max-md:mobile-sidebar-insets max-md:touch-pan-y',
     // Mobile: always rendered so the slide animation is visible.
     // Desktop: hide entirely when closed.
     sidebarNav.isMobile ? '' : sidebarNav.isOpen ? '' : 'hidden',
