@@ -38,6 +38,14 @@ login cooldown fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries
 
+The server recognizes the official mobile OAuth client
+`eu.chattocorp.chatto.mobile` with the exact callback
+`eu.chattocorp.chatto.mobile:/oauth/callback`. This built-in registration needs
+no operator configuration. It uses the existing authorization and token
+endpoints, client policy, consent, and PKCE checks. No public or persisted
+protobuf schema changes are required. See
+[FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
+
 | Surface | Mount | Contract | Access boundary |
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services; every authenticated unary procedure honors `Chatto-Realtime-Minimum-Cursor` | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |

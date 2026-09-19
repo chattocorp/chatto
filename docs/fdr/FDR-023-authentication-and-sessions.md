@@ -23,6 +23,14 @@ providers, and a bootstrap path for first-boot operator setup.
   validates client registration; the page also checks that the callback and
   its reported origin agree before it offers approval or denial.
 
+- **Official mobile client** — the fixed OAuth identity is
+  `eu.chattocorp.chatto.mobile`, with the exact callback
+  `eu.chattocorp.chatto.mobile:/oauth/callback`. Servers recognize it without
+  operator configuration or a client-metadata fetch. Existing client policy,
+  consent, and PKCE checks still apply. The server records its authorization
+  as a built-in client. Older servers without this registration cannot
+  authorize the official mobile client.
+
 - The standalone welcome page shows an introduction and a Connect to a server
   action. The action opens the Server Directory. The welcome page does not list
   or check saved servers; saved entries remain available in the directory.

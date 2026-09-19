@@ -439,6 +439,12 @@ func (s *HTTPServer) resolveOAuthClient(ctx context.Context, clientID string) (O
 			return client, err
 		}
 	}
+	if clientID == config.ChattoMobileClientID {
+		return OAuthClient{
+			ClientID: clientID, ClientName: "Chatto Mobile", ClientURI: "https://chatto.run",
+			RedirectURIs: []string{config.ChattoMobileOAuthCallback}, BuiltIn: true,
+		}, nil
+	}
 	if clientID == config.ChattoDesktopOrigin {
 		return OAuthClient{
 			ClientID: clientID, ClientName: "Chatto Desktop", ClientURI: config.ChattoDesktopOrigin,

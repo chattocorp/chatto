@@ -599,16 +599,27 @@ func TestOAuthAuthorize_RejectsRedirectNotRegisteredByCIMD(t *testing.T) {
 	}
 }
 
-func TestOAuthAuthorize_NativeCIMDRedirectReachesConsent(t *testing.T) {
+func TestOAuthAuthorize_NativeRedirectReachesConsent(t *testing.T) {
+	t.Run("CIMD", func(t *testing.T) { testNativeOAuthConsent(t, false) })
+	t.Run("built-in mobile", func(t *testing.T) { testNativeOAuthConsent(t, true) })
+}
+
+func testNativeOAuthConsent(t *testing.T, mobile bool) {
+	t.Helper()
 	s := setupOAuthServer(t)
 	cookies, _ := loginOAuthTestUser(t, s, "native-oauth-consent")
-	const redirectURI = "com.example.chatto:/oauth/callback"
-	clientID, metadataServer := newOAuthCIMDTestServerForApplication(t, redirectURI, "native")
-	resolver, err := newOAuthClientResolver("http://localhost:4000", metadataServer.Client())
-	if err != nil {
-		t.Fatal(err)
+	redirectURI := config.ChattoMobileOAuthCallback
+	clientID := config.ChattoMobileClientID
+	if !mobile {
+		redirectURI = "com.example.chatto:/oauth/callback"
+		var metadataServer *httptest.Server
+		clientID, metadataServer = newOAuthCIMDTestServerForApplication(t, redirectURI, "native")
+		resolver, err := newOAuthClientResolver("http://localhost:4000", metadataServer.Client())
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.oauthClientResolver = resolver
 	}
-	s.oauthClientResolver = resolver
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
@@ -636,7 +647,11 @@ func TestOAuthAuthorize_NativeCIMDRedirectReachesConsent(t *testing.T) {
 	if err := json.Unmarshal(consentW.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response["redirectOrigin"] != "com.example.chatto:" {
+	wantCallback, err := url.Parse(redirectURI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response["redirectOrigin"] != wantCallback.Scheme+":" {
 		t.Fatalf("redirectOrigin = %q", response["redirectOrigin"])
 	}
 
@@ -655,7 +670,7 @@ func TestOAuthAuthorize_NativeCIMDRedirectReachesConsent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if redirect.Scheme != "com.example.chatto" || redirect.Path != "/oauth/callback" || redirect.Query().Get("code") == "" {
+	if redirect.Scheme != wantCallback.Scheme || redirect.Path != wantCallback.Path || redirect.Query().Get("code") == "" {
 		t.Fatalf("native approval redirect = %q", approval["redirectUrl"])
 	}
 }
