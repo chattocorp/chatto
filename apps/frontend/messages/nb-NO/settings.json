@@ -106,6 +106,7 @@
         "clear_button": "Slett status"
       },
       "presence": {
+        "title_server": "Tilstedeværelse på denne serveren",
         "button": "Tilstedeværelse: {status}",
         "title": "Tilstedeværelse",
         "online": "På nett",

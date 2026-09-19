@@ -106,6 +106,7 @@
         "clear_button": "נקה סטטוס"
       },
       "presence": {
+        "title_server": "נוכחות בשרת הזה",
         "button": "נוכחות: {status}",
         "title": "נוכחות",
         "online": "באינטרנט",

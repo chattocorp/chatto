@@ -26,7 +26,7 @@ Include this component once in the application root so signed-out pages also cle
   import Interval from '$lib/lifecycle/Interval.svelte';
   import PushNotificationSync from './PushNotificationSync.svelte';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
-  import { presencePreference } from '$lib/state/presencePreference.svelte';
+  import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   const reconciliationIntervalMs = 60_000;
@@ -46,6 +46,13 @@ Include this component once in the application root so signed-out pages also cle
       const handledNotificationIds: string[] = [];
       const notificationPreferences = getServerNotificationPreferences(instance.id);
       const viewer = stores.currentUser?.user;
+      function isDoNotDisturb() {
+        return (
+          viewer &&
+          presencePreferences.get({ serverId: instance.id, userId: viewer.id }).effectiveStatus ===
+            PresenceStatus.DO_NOT_DISTURB
+        );
+      }
       let active = true;
       let checkingSound = false;
       const pendingCreations: string[] = [];
@@ -74,7 +81,7 @@ Include this component once in the application root so signed-out pages also cle
           !active ||
           !stores.isAuthenticated ||
           stores.currentUser?.user?.id !== viewer?.id ||
-          presencePreference.effectiveStatus === PresenceStatus.DO_NOT_DISTURB ||
+          isDoNotDisturb() ||
           !hasAudibleCreation
         )
           return;
@@ -93,7 +100,7 @@ Include this component once in the application root so signed-out pages also cle
         handledNotificationIds.push(notificationId);
         if (handledNotificationIds.length > rememberedNotificationIds)
           handledNotificationIds.shift();
-        if (presencePreference.effectiveStatus === PresenceStatus.DO_NOT_DISTURB) return;
+        if (isDoNotDisturb()) return;
         pendingCreations.push(notificationId);
         if (pendingCreations.length > rememberedNotificationIds) pendingCreations.shift();
         // Several causes can describe one activity. Play once per completed batch.

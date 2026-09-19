@@ -48,6 +48,50 @@ test.describe('Multi-Instance Identity', () => {
     }
   });
 
+  test('keeps remote invisible when origin presence changes and after reload', async ({
+    page,
+    chatPage
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const baseURL = remoteBaseURL(remoteServer);
+    const remoteUser = await createUserOnRemote(baseURL, 'presence-remote', 'password123');
+    await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
+
+    await page.getByTestId('current-user-presence-menu').click();
+    await expect(page.getByText('Presence on this server', { exact: true })).toBeVisible();
+    await page.getByRole('menuitemradio', { name: 'Look offline', exact: true }).click();
+
+    const remotePresenceReports: string[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (url.origin === baseURL && url.pathname.endsWith('/SetPresence')) {
+        remotePresenceReports.push(url.pathname);
+      }
+    });
+    await page.goto(routes.chat);
+    await page.getByTestId('current-user-presence-menu').click();
+    await page.getByRole('menuitemradio', { name: 'Do Not Disturb', exact: true }).click();
+    await expect(
+      page.getByTestId('current-user-presence-menu').getByTestId('presence-dot')
+    ).toHaveClass(/bg-presence-do-not-disturb/);
+
+    await page.locator('a[data-testid="server-icon"][href*="/chat/127.0.0.1"]').first().click();
+    await page.getByTestId('current-user-presence-menu').click();
+    await expect(
+      page.getByRole('menuitemradio', { name: 'Look offline', exact: true })
+    ).toHaveAttribute('aria-checked', 'true');
+    await page.reload();
+    await page.getByTestId('current-user-presence-menu').click();
+    await expect(
+      page.getByRole('menuitemradio', { name: 'Look offline', exact: true })
+    ).toHaveAttribute('aria-checked', 'true');
+    expect(remotePresenceReports).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
   test('user can edit own message on remote instance', async ({ page, chatPage }) => {
     // Home instance: log in so the SPA works
     await createAndLoginTestUser(page);

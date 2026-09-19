@@ -106,6 +106,7 @@
         "clear_button": "Status wissen"
       },
       "presence": {
+        "title_server": "Aanwezigheid op deze server",
         "button": "Aanwezigheid: {status}",
         "title": "Aanwezigheid",
         "online": "Online",

@@ -106,6 +106,7 @@
         "clear_button": "Vymazat stav"
       },
       "presence": {
+        "title_server": "Přítomnost na tomto serveru",
         "button": "Přítomnost: {status}",
         "title": "Přítomnost",
         "online": "Online",

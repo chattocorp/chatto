@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { onDestroy, untrack, type Snippet } from 'svelte';
   import { resolve } from '$app/paths';
   import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
@@ -18,11 +17,8 @@
   import { initPresenceTracking } from '$lib/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
-  import {
-    updateAuthenticatedCurrentUserPresenceEntries,
-    type PresenceCache
-  } from '$lib/state/presenceCache.svelte';
-  import { presencePreference } from '$lib/state/presencePreference.svelte';
+  import type { PresenceCache } from '$lib/state/presenceCache.svelte';
+  import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { idleState } from '$lib/state/idle.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -60,10 +56,6 @@
       : null;
 
   if (originSession) {
-    rootPresenceCache.update(
-      { serverId: originSession.serverId, userId: originSession.user.id },
-      PresenceStatus.ONLINE
-    );
     void resumeReturnNavigation();
   }
 
@@ -157,43 +149,28 @@
     );
   }
 
-  function currentUserPresenceStores() {
-    return serverRegistry.servers.map((server) => {
+  function presenceReporters() {
+    return serverRegistry.servers.flatMap((server) => {
       const store = serverRegistry.tryGetStore(server.id);
-      return store
-        ? {
-            serverId: server.id,
-            isAuthenticated: store.isAuthenticated,
-            currentUser: store.currentUser
-          }
-        : null;
+      const userId = store?.currentUser.user?.id;
+      if (!store?.isAuthenticated || !userId) return [];
+      const api = serverConnectionManager.getClient(server.id).getAPI(createPresenceAPI);
+      return [{ serverId: server.id, userId, setPresence: api.setPresence }];
     });
   }
 
-  // Initialize presence tracking (reports the user's explicit status choice
-  // and refreshes it so server-side presence TTLs do not expire).
-  // This works across all instances, not just origin.
-  const stopPresenceTracking = initPresenceTracking(
-    () =>
-      serverRegistry.servers
-        .filter((server) => serverRegistry.tryGetStore(server.id)?.isAuthenticated)
-        .map((server) => serverConnectionManager.getClient(server.id).getAPI(createPresenceAPI)),
-    (status) => {
-      updateAuthenticatedCurrentUserPresenceEntries(
-        rootPresenceCache,
-        currentUserPresenceStores(),
-        status
-      );
-    }
-  );
-  onDestroy(stopPresenceTracking);
+  const presenceTracking = initPresenceTracking(presenceReporters);
+  onDestroy(() => presenceTracking.stop());
+
+  $effect(() => presenceTracking.sync());
 
   $effect(() => {
-    updateAuthenticatedCurrentUserPresenceEntries(
-      rootPresenceCache,
-      currentUserPresenceStores(),
-      presencePreference.effectiveStatus
-    );
+    for (const scope of presenceReporters()) {
+      rootPresenceCache.update(
+        { serverId: scope.serverId, userId: scope.userId },
+        presencePreferences.get(scope).effectiveStatus
+      );
+    }
   });
 
   // Report this device's time zone once per (server, user) when the viewer has

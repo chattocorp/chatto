@@ -60,36 +60,6 @@ export class PresenceCache {
   }
 }
 
-export type PresenceCacheCurrentUserStore = {
-  serverId: string;
-  isAuthenticated: boolean;
-  currentUser: {
-    user?: { id: string } | null;
-  };
-};
-
-export function authenticatedCurrentUserPresenceEntries(
-  stores: Iterable<PresenceCacheCurrentUserStore | undefined | null>,
-  status: PresenceStatus
-): Array<readonly [PresenceCacheScope, PresenceStatus]> {
-  const entries: Array<readonly [PresenceCacheScope, PresenceStatus]> = [];
-  for (const store of stores) {
-    if (!store?.isAuthenticated || !store.currentUser.user) continue;
-    entries.push([{ serverId: store.serverId, userId: store.currentUser.user.id }, status]);
-  }
-  return entries;
-}
-
-export function updateAuthenticatedCurrentUserPresenceEntries(
-  presenceCache: PresenceCache,
-  stores: Iterable<PresenceCacheCurrentUserStore | undefined | null>,
-  status: PresenceStatus
-) {
-  for (const [scope, retainedStatus] of authenticatedCurrentUserPresenceEntries(stores, status)) {
-    presenceCache.update(scope, retainedStatus);
-  }
-}
-
 function presenceCacheKey({ serverId, userId }: PresenceCacheScope): string {
   return `${serverId}\u0000${userId}`;
 }

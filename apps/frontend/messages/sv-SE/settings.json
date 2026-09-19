@@ -106,6 +106,7 @@
         "clear_button": "Rensa status"
       },
       "presence": {
+        "title_server": "Närvaro på den här servern",
         "button": "Närvaro: {status}",
         "title": "Närvaro",
         "online": "Online",

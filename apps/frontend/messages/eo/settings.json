@@ -106,6 +106,7 @@
         "clear_button": "Klara Statuso"
       },
       "presence": {
+        "title_server": "Ĉeesto en ĉi tiu servilo",
         "button": "Ĉeesto: {status}",
         "title": "Ĉeesto",
         "online": "Rete",

@@ -146,6 +146,14 @@ Singular mutation responses still read KV directly when they require
 read-your-writes. Clients refresh through `MyAccountService.SetPresence`;
 disconnect and "look offline" stop refreshing instead of writing `OFFLINE`.
 
+The frontend keeps a device-local presence preference for each server and
+account. It loads this preference before reporting and refreshes each visible
+account independently. Local notification sounds use the same account's DND
+state. The old global preference is a migration fallback only; a new selection
+does not modify it. See
+[`presencePreference.svelte.ts`](../../apps/frontend/src/lib/state/server/presencePreference.svelte.ts)
+and [`presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts).
+
 Ephemeral `lease.{name}` records coordinate singleton background work and
 periodic cooldowns across replicas without adding durable state. Active voice
 call participants come from the call-state projection over durable room EVT

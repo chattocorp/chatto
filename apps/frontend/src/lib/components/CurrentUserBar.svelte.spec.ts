@@ -6,11 +6,15 @@ import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
+import { toast } from '$lib/ui/toast';
 
-import { presencePreference } from '$lib/state/presencePreference.svelte';
+import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
+import { setPresenceMode } from '$lib/presenceTracking';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
+
+let presencePreference: ReturnType<typeof presencePreferences.get>;
 
 function computedBackgroundColor(color: string): string {
   const element = document.createElement('span');
@@ -188,6 +192,8 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
+    presencePreferences.clear();
+    presencePreference = presencePreferences.get({ serverId: 'origin', userId: 'user-1' });
     presencePreference.mode = 'online';
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
@@ -414,6 +420,8 @@ describe('CurrentUserBar', () => {
   });
 
   it('closes the presence menu after choosing a presence mode', async () => {
+    const remote = { serverId: 'remote', userId: 'user-1' };
+    setPresenceMode(remote, 'invisible');
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
@@ -427,6 +435,27 @@ describe('CurrentUserBar', () => {
       expect(container.textContent).not.toContain('Do Not Disturb');
     });
     expect(presencePreference.mode).toBe('away');
+    expect(presencePreferences.get(remote).mode).toBe('invisible');
+  });
+
+  it('keeps the previous selection and reports a failed presence save', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(container.textContent).toContain('Away'));
+    const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage full');
+    });
+    const notify = vi.spyOn(toast, 'error');
+    try {
+      (q(container, '[role="menuitemradio"][aria-checked="false"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to save status'));
+      expect(presencePreference.mode).toBe('online');
+      expect(container.textContent).toContain('Presence on this server');
+    } finally {
+      save.mockRestore();
+      notify.mockRestore();
+      toast.clear();
+    }
   });
 
   it('loads the custom status editor only after opening the touch bottom sheet', async () => {

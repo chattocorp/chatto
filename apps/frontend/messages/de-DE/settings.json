@@ -106,6 +106,7 @@
         "clear_button": "Status löschen"
       },
       "presence": {
+        "title_server": "Status auf diesem Server",
         "button": "Präsenz: {status}",
         "title": "Präsenz",
         "online": "Online",

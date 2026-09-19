@@ -18,6 +18,7 @@ const { mocks } = vi.hoisted(() => {
   };
   const createStore = () => ({
     isAuthenticated: true,
+    currentUser: { user: { id: 'viewer' } },
     waitForRealtimeResourceRefresh: vi.fn(async () => true),
     notifications: {
       occurrences: [] as Array<{
@@ -46,6 +47,7 @@ const { mocks } = vi.hoisted(() => {
       badgeRefreshHandlers: new Set<() => void>(),
       playNotificationSound: vi.fn(),
       presencePreference: { effectiveStatus: 0 },
+      remotePresencePreference: { effectiveStatus: 0 },
       updateAppBadge: vi.fn(async () => {}),
       soundPreferences: {
         origin: {
@@ -99,8 +101,14 @@ vi.mock('$lib/audio/notificationSounds', () => ({
   playNotificationSound: mocks.playNotificationSound
 }));
 
-vi.mock('$lib/state/presencePreference.svelte', () => ({
-  presencePreference: mocks.presencePreference
+// Push cleanup has separate coverage; these tests exercise in-app sound and badges.
+vi.mock('./PushNotificationSync.svelte', () => ({ default: () => {} }));
+
+vi.mock('$lib/state/server/presencePreference.svelte', () => ({
+  presencePreferences: {
+    get: ({ serverId }: { serverId: string }) =>
+      serverId === 'remote' ? mocks.remotePresencePreference : mocks.presencePreference
+  }
 }));
 
 vi.mock('$lib/notifications/appBadge', () => ({
@@ -154,6 +162,7 @@ describe('NotificationSync', () => {
     mocks.badgeRefreshHandlers.clear();
     vi.clearAllMocks();
     mocks.presencePreference.effectiveStatus = PresenceStatus.ONLINE;
+    mocks.remotePresencePreference.effectiveStatus = PresenceStatus.ONLINE;
 
     mocks.servers.splice(0, mocks.servers.length, { id: 'origin' });
     for (const store of Object.values(mocks.stores)) {
@@ -295,6 +304,17 @@ describe('NotificationSync', () => {
     await Promise.resolve();
     expect(mocks.stores.origin.waitForRealtimeResourceRefresh).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+  });
+
+  it('suppresses DND sounds only on that server', async () => {
+    mocks.servers.push({ id: 'remote' });
+    mocks.presencePreference.effectiveStatus = PresenceStatus.DO_NOT_DISTURB;
+    await renderAndWaitForSubscription();
+    dispatch(true, 'origin-event', 'origin');
+    dispatch(true, 'remote-event', 'remote');
+    await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
+    expect(mocks.stores.origin.waitForRealtimeResourceRefresh).not.toHaveBeenCalled();
+    expect(mocks.stores.remote.waitForRealtimeResourceRefresh).toHaveBeenCalledOnce();
   });
 
   it('plays once for several creations in the same reconciliation batch', async () => {

@@ -19,7 +19,7 @@ sidebar. Shows the avatar with presence and the live display name.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
-  import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
+  import { presencePreferences, type PresenceMode } from '$lib/state/server/presencePreference.svelte';
   import { buildDirectMessagePresentation } from '$lib/render/users';
 
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
@@ -58,6 +58,12 @@ sidebar. Shows the avatar with presence and the live display name.
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeStore = $derived(serverScope.store);
   const activeServerUser = $derived(activeStore.currentUser.user);
+  const presenceScope = $derived(
+    activeServerUser ? { serverId: activeServerId, userId: activeServerUser.id } : null
+  );
+  const presencePreference = $derived(
+    presenceScope ? presencePreferences.get(presenceScope) : null
+  );
   const voiceCallState = $derived(activeStore.voiceCall);
   const navigation = $derived(activeStore.navigation);
 
@@ -163,8 +169,12 @@ sidebar. Shows the avatar with presence and the live display name.
   }
 
   function choosePresenceMode(mode: PresenceMode) {
-    setPresenceMode(mode);
-    statusMenuAnchor = null;
+    try {
+      if (presenceScope) setPresenceMode(presenceScope, mode);
+      statusMenuAnchor = null;
+    } catch {
+      toast.error(m('settings.profile.status.save_failed'));
+    }
   }
 
   function openCustomStatusDialog() {
@@ -379,15 +389,15 @@ sidebar. Shows the avatar with presence and the live display name.
     class="w-80 max-w-[calc(100vw-2rem)]"
     onclose={() => (statusMenuAnchor = null)}
   >
-    <MenuSection ariaLabel={m('settings.profile.presence.title')}>
+    <MenuSection ariaLabel={m('settings.profile.presence.title_server')}>
       <div class="px-2 py-1 text-xs font-semibold text-muted">
-        {m('settings.profile.presence.title')}
+        {m('settings.profile.presence.title_server')}
       </div>
       {#each presenceModes as mode (mode)}
         <MenuItem
           role="menuitemradio"
-          checked={presencePreference.mode === mode}
-          selected={presencePreference.mode === mode}
+          checked={presencePreference?.mode === mode}
+          selected={presencePreference?.mode === mode}
           onclick={() => choosePresenceMode(mode)}
         >
           {#snippet leading()}
@@ -396,7 +406,7 @@ sidebar. Shows the avatar with presence and the live display name.
             </span>
           {/snippet}
           {#snippet trailing()}
-            {#if presencePreference.mode === mode}
+            {#if presencePreference?.mode === mode}
               <span class="iconify icon-[uil--check]"></span>
             {/if}
           {/snippet}
