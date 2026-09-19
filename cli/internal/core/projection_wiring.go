@@ -27,7 +27,6 @@ type coreProjections struct {
 	notificationDecisions events.ProjectionHandle[*NotificationDecisionProjection]
 	notifications         events.ProjectionHandle[*NotificationProjection]
 	serverConfig          events.ProjectionHandle[*ConfigProjection]
-	presence              events.ProjectionHandle[*PresenceHub]
 	roomGroupLayout       events.ProjectionHandle[*RoomGroupLayoutProjection]
 	roomTimeline          events.ProjectionHandle[*RoomTimelineProjection]
 	callState             events.ProjectionHandle[*CallStateProjection]
@@ -171,16 +170,6 @@ func initializeCoreProjections(
 ) (*coreProjections, error) {
 	registrar := &projectionRegistrar{ctx: ctx, infra: infra, logger: logger}
 	projections := &coreProjections{}
-	presence := NewPresenceHub(infra.storage.memoryCacheKV, logger)
-	var presenceErr error
-	projections.presence, presenceErr = registerProjection(registrar, presence, "presence_preferences", "Presence Preferences", func() (int64, int64, []ProjectionAdminMetric) {
-		presence.mu.Lock()
-		defer presence.mu.Unlock()
-		return int64(len(presence.preferences)), int64(len(presence.preferences) * 128), nil
-	}, coldReplayOnly)
-	if presenceErr != nil {
-		return nil, presenceErr
-	}
 
 	roomDirectory := NewRoomDirectoryProjection()
 	serverConfig := NewConfigProjection()

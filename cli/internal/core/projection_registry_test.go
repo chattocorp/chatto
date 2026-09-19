@@ -25,8 +25,8 @@ func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Pro
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 8 {
-		t.Fatalf("registered projections = %d, want 8", len(core.projections))
+	if len(core.projections) != 7 {
+		t.Fatalf("registered projections = %d, want 7", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))

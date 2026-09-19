@@ -58,8 +58,9 @@ presence changes use the same public union but have no resume cursor. Session
 termination uses a `close` frame instead of an event.
 
 `ViewerPresencePreferenceChanged` is delivered only to the account itself and
-requests a private preference read. Other viewers receive no frame for this
-fact. Public presence transitions come from the effective-status hub. Invisible
+requests a private preference read. This transient signal has no cursor and is
+not stored in EVT. Other viewers receive no frame for it. Public presence
+transitions come from the effective-status hub. Invisible
 heartbeats and expiry do not produce repeated Offline transitions. Typing is
 checked against the private choice at publication and delivery.
 

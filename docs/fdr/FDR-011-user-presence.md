@@ -39,9 +39,13 @@ or Offline on presence indicators.
 
 ### 1. Separate choices from liveness
 
-**Decision:** Save the private account choice; expire live heartbeats separately.
+**Decision:** Keep only the current private account choice in the existing
+`RUNTIME_STATE` bucket under `presence.{userId}`. Replace it with KV revision
+checks. Never append presence changes to EVT. Expire live heartbeats separately.
 **Why:** Refreshing a device must not overwrite another device's selection.
-**Tradeoff:** The server retains the choice, including the hidden choice.
+**Tradeoff:** The server retains the current choice, including the hidden choice,
+across restarts. Runtime-state backups also contain that current value. There
+is no presence-change history in the live store. Account deletion purges the key.
 
 ### 2. Enforce privacy on the server
 

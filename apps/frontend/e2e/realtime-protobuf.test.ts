@@ -92,6 +92,12 @@ class RealtimeProtobufClient {
     this.#rejectAll(new Error('realtime socket closed'));
   }
 
+  pendingEvents(): RealtimeEvent[] {
+    return this.#frames.flatMap((frame) =>
+      frame.frame.case === 'event' ? [frame.frame.value] : []
+    );
+  }
+
   send(message: RealtimeSubscribe): void {
     this.#socket.send(message.toBinary());
   }
@@ -177,6 +183,108 @@ async function loginForBearerToken(page: Page, user: TestUser): Promise<string> 
 }
 
 test.describe('protobuf realtime stream', () => {
+  test('invisible exposes only ordinary Offline in another users API and realtime payloads', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    const owner = await createAndLoginTestUser(page);
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const ownStream = await RealtimeProtobufClient.connect(
+      serverURL,
+      await loginForBearerToken(page, owner),
+      {
+        initialState: RealtimeInitialState.LIVE_ONLY
+      }
+    );
+    try {
+      await ownStream.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+      await withServerUser(browser!, serverURL, async ({ user: observer, page: observerPage }) => {
+        const observed = await RealtimeProtobufClient.connect(
+          serverURL,
+          await loginForBearerToken(observerPage, observer),
+          {
+            initialState: RealtimeInitialState.LIVE_ONLY
+          }
+        );
+        try {
+          await observed.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+          const initial = await connectPost<{ preference?: { revision: string } }>(
+            page,
+            'chatto.api.v1.MyAccountService/GetPresencePreference'
+          );
+          const online = await connectPost<{ preference: { revision: string } }>(
+            page,
+            'chatto.api.v1.MyAccountService/SetPresencePreference',
+            {
+              mode: 'PRESENCE_MODE_ONLINE',
+              expectedRevision: initial.preference?.revision ?? ''
+            }
+          );
+          await connectPost(page, 'chatto.api.v1.MyAccountService/RefreshPresence');
+          await observed.waitForEvent(
+            (event) =>
+              event.actorId === owner.id &&
+              event.event.case === 'presenceChanged' &&
+              event.event.value.status === 1
+          );
+          // Consume the owner's initialization hint before the private change.
+          if (!initial.preference)
+            await ownStream.waitForEvent(
+              (event) => event.event.case === 'viewerPresencePreferenceChanged'
+            );
+          await connectPost(page, 'chatto.api.v1.MyAccountService/SetPresencePreference', {
+            mode: 'PRESENCE_MODE_INVISIBLE',
+            expectedRevision: online.preference.revision
+          });
+          const privateHint = await ownStream.waitForEvent(
+            (event) => event.event.case === 'viewerPresencePreferenceChanged'
+          );
+          expect(privateHint.cursor).toBeUndefined();
+          const offline = await observed.waitForEvent(
+            (event) => event.actorId === owner.id && event.event.case === 'presenceChanged'
+          );
+          expect(offline.event.value?.toJson()).toEqual({ status: 'PRESENCE_STATUS_OFFLINE' });
+
+          for (let refresh = 0; refresh < 3; refresh++) {
+            await connectPost(page, 'chatto.api.v1.MyAccountService/RefreshPresence');
+            await connectPost(page, 'chatto.api.v1.RoomService/RefreshTypingIndicator', { roomId });
+          }
+          const response = await connectPost<{ user: { user: { presenceStatus: string } } }>(
+            observerPage,
+            'chatto.api.v1.UserService/GetUser',
+            { userId: owner.id }
+          );
+          expect(response.user.user.presenceStatus).toBe('PRESENCE_STATUS_OFFLINE');
+          expect(JSON.stringify(response)).not.toMatch(/invisible|presencePreference/i);
+
+          // A deliberate message remains visible and proves the observer stream is live.
+          const messageId = await postMessageViaConnect(
+            page,
+            roomId,
+            'A deliberate message while offline'
+          );
+          await observed.waitForEvent((event) => event.id === messageId);
+          expect(
+            observed
+              .pendingEvents()
+              .filter(
+                (event) =>
+                  event.actorId === owner.id &&
+                  ['viewerPresencePreferenceChanged', 'userTyping', 'presenceChanged'].includes(
+                    event.event.case ?? ''
+                  )
+              )
+          ).toEqual([]);
+        } finally {
+          observed.close();
+        }
+      });
+    } finally {
+      ownStream.close();
+    }
+  });
+
   test('hands an exact bounded snapshot to subsequent realtime events', async ({
     page,
     browser,

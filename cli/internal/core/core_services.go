@@ -190,16 +190,9 @@ func initializeCoreServices(
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(&assetsConfig, NewAssetID, core.storeLinkPreviewImage)
 
-	// Presence owns one KV watcher per process and starts from core.Run with the
+	// Presence owns two KV watchers per process and starts from core.Run with the
 	// registered projectors and other long-running models.
-	core.presenceModel = NewPresenceModel(infra.js, infra.storage.memoryCacheKV, logger)
-	core.presenceModel.hub = projections.presence.Projection()
-	core.presenceModel.preferences = projections.presence
-	core.presenceModel.publisher = infra.eventPublisher
-	core.presenceModel.hub.beforeLiveRead = func(ctx context.Context, userID string) error {
-		_, err := core.presenceModel.syncPreference(ctx, userID)
-		return err
-	}
+	core.presenceModel = NewPresenceModel(infra.js, infra.storage.memoryCacheKV, infra.storage.runtimeStateKV, logger)
 	core.PresenceHub = core.presenceModel.hub
 	core.myEventsModel = NewMyEventsModel(core)
 	return nil

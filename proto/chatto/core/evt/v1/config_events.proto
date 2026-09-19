@@ -8,20 +8,6 @@ import "chatto/core/evt/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
-enum SavedPresenceMode {
-  SAVED_PRESENCE_MODE_UNSPECIFIED = 0;
-  SAVED_PRESENCE_MODE_ONLINE = 1;
-  SAVED_PRESENCE_MODE_AWAY = 2;
-  SAVED_PRESENCE_MODE_DO_NOT_DISTURB = 3;
-  SAVED_PRESENCE_MODE_INVISIBLE = 4;
-}
-
-// Durable private availability choice. The envelope ID is its revision.
-message UserPresencePreferenceChangedEvent {
-  string user_id = 1;
-  SavedPresenceMode mode = 2;
-}
-
 // ============================================================================
 // CONFIG EVENTS
 //

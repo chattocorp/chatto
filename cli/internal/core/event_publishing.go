@@ -109,6 +109,8 @@ func (publication pubsubEventPublication) subject() (string, error) {
 		}
 		var eventType string
 		switch publication.event.GetEvent().(type) {
+		case *pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged:
+			eventType = "presence_preference"
 		case *pubsubv1.PubSubEvent_NotificationOccurrencesChanged:
 			eventType = "notification_v2"
 		case *pubsubv1.PubSubEvent_NotificationUnreadStateChanged:

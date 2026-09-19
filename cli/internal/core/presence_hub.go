@@ -8,9 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -38,61 +37,64 @@ type PresenceSubscription struct {
 	lagged atomic.Bool
 }
 
-// PresenceHub runs a single MEMORY_CACHE watcher on presence.> and fans out
-// per-user presence updates. Each Chatto process has one PresenceHub instance,
-// reducing KV watcher count from O(users × spaces) to 1 per process.
+// PresenceHub combines one liveness watcher in MEMORY_CACHE and one private
+// choice watcher in RUNTIME_STATE. Each process has one hub, independent of
+// the number of connected users and rooms.
 type PresenceHub struct {
 	// beforeLiveRead catches up private choices before processing shared liveness.
-	// It runs outside mu so the preference projector can advance while it waits.
+	// It runs outside mu and reads the current runtime choice.
 	beforeLiveRead func(context.Context, string) error
 	memoryCacheKV  jetstream.KeyValue
+	runtimeStateKV jetstream.KeyValue
 	logger         *log.Logger
 
-	mu             sync.Mutex
-	subscribers    map[uint64]*PresenceSubscription
-	nextID         uint64
-	snapshot       map[string]string // current presence state (built during init sync)
-	live           map[string]string // heartbeat state, never exposed without the saved choice
-	preferences    map[string]*apiv1.PresencePreference
-	ready          chan struct{} // closed when initial sync is complete
-	readyOnce      sync.Once     // ensures ready is closed exactly once
-	resyncRequests chan chan error
+	mu                      sync.Mutex
+	subscribers             map[uint64]*PresenceSubscription
+	nextID                  uint64
+	snapshot                map[string]string // current presence state (built during init sync)
+	live                    map[string]string // heartbeat state, never exposed without the saved choice
+	preferences             map[string]*apiv1.PresencePreference
+	preferenceRevisions     map[string]uint64 // prevents delayed reads from replacing newer KV values
+	preferenceWatchRevision uint64            // advanced only by the ordered preference watcher
+	preferenceChanged       chan struct{}     // wakes current-state barriers
+	ready                   chan struct{}     // closed when initial sync is complete
+	readyOnce               sync.Once         // ensures ready is closed exactly once
+	resyncRequests          chan chan error
 }
 
 // NewPresenceHub creates a PresenceHub. Call Run() to start it.
-func NewPresenceHub(memoryCacheKV jetstream.KeyValue, logger *log.Logger) *PresenceHub {
+func NewPresenceHub(memoryCacheKV, runtimeStateKV jetstream.KeyValue, logger *log.Logger) *PresenceHub {
 	return &PresenceHub{
-		memoryCacheKV:  memoryCacheKV,
-		logger:         logger,
-		subscribers:    make(map[uint64]*PresenceSubscription),
-		snapshot:       make(map[string]string),
-		live:           make(map[string]string),
-		preferences:    make(map[string]*apiv1.PresencePreference),
-		ready:          make(chan struct{}),
-		resyncRequests: make(chan chan error),
+		memoryCacheKV:       memoryCacheKV,
+		runtimeStateKV:      runtimeStateKV,
+		logger:              logger,
+		subscribers:         make(map[uint64]*PresenceSubscription),
+		snapshot:            make(map[string]string),
+		live:                make(map[string]string),
+		preferences:         make(map[string]*apiv1.PresencePreference),
+		preferenceRevisions: make(map[string]uint64),
+		preferenceChanged:   make(chan struct{}),
+		ready:               make(chan struct{}),
+		resyncRequests:      make(chan chan error),
 	}
 }
 
-// Subjects binds the private choice projection to its durable account facts.
-func (h *PresenceHub) Subjects() []string {
-	return []string{evtstream.ConfigSubjectFilter(), evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted)}
-}
-
-// Apply derives private choices and public transitions locally. It never writes
-// to NATS. Every replica independently combines choices with its KV watcher.
-func (h *PresenceHub) Apply(event *evtv1.Event, _ uint64) error {
+// applyPreference installs only newer current-state reads. No presence history
+// is retained; public transitions contain only the effective status.
+func (h *PresenceHub) applyPreference(userID string, preference *apiv1.PresencePreference, revision uint64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if choice := event.GetUserPresencePreferenceChanged(); choice != nil {
-		h.preferences[choice.UserId] = &apiv1.PresencePreference{Mode: apiv1.PresenceMode(choice.Mode), Revision: event.Id}
-		h.updatePublicLocked(choice.UserId, true)
+	if revision <= h.preferenceRevisions[userID] {
+		return
 	}
-	if deleted := event.GetUserAccountDeleted(); deleted != nil {
-		delete(h.preferences, deleted.UserId)
-		delete(h.live, deleted.UserId)
-		h.updatePublicLocked(deleted.UserId, true)
+	h.preferenceRevisions[userID] = revision
+	if preference == nil {
+		delete(h.preferences, userID)
+		delete(h.live, userID)
+	} else {
+		h.preferences[userID] = proto.Clone(preference).(*apiv1.PresencePreference)
 	}
-	return nil
+	h.updatePublicLocked(userID, true)
 }
 
 func (h *PresenceHub) preference(userID string) *apiv1.PresencePreference {
@@ -178,7 +180,26 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 			return fmt.Errorf("presence hub: failed to create watcher: %w", err)
 		}
 
+		preferences, err := h.runtimeStateKV.Watch(ctx, "presence.>")
+		if err != nil {
+			watcher.Stop()
+			if pendingResync != nil {
+				pendingResync <- err
+			}
+			return fmt.Errorf("presence hub: private choice watcher: %w", err)
+		}
 		syncComplete := false
+		preferencesComplete := false
+		complete := func() {
+			if !syncComplete || !preferencesComplete {
+				return
+			}
+			h.readyOnce.Do(func() { close(h.ready) })
+			if pendingResync != nil {
+				pendingResync <- nil
+				pendingResync = nil
+			}
+		}
 		restart := false
 		for !restart {
 			var resyncRequests <-chan chan error
@@ -188,6 +209,7 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				watcher.Stop()
+				preferences.Stop()
 				if pendingResync != nil {
 					pendingResync <- ctx.Err()
 				}
@@ -196,11 +218,48 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 				h.mu.Lock()
 				h.snapshot = make(map[string]string)
 				h.live = make(map[string]string)
+				h.preferences = make(map[string]*apiv1.PresencePreference)
+				h.preferenceRevisions = make(map[string]uint64)
+				h.preferenceWatchRevision = 0
+				close(h.preferenceChanged)
+				h.preferenceChanged = make(chan struct{})
 				h.mu.Unlock()
 				restart = true
+			case entry, ok := <-preferences.Updates():
+				if !ok {
+					watcher.Stop()
+					preferences.Stop()
+					return fmt.Errorf("presence hub: private choice watcher stopped")
+				}
+				if entry == nil {
+					preferencesComplete = true
+					complete()
+					continue
+				}
+				userID, valid := parsePresenceKey(entry.Key())
+				if !valid {
+					continue
+				}
+				var choice *apiv1.PresencePreference
+				if entry.Operation() == jetstream.KeyValuePut {
+					var value runtimestatev1.PresencePreference
+					if err := proto.Unmarshal(entry.Value(), &value); err != nil {
+						watcher.Stop()
+						preferences.Stop()
+						return fmt.Errorf("decode private presence choice: %w", err)
+					}
+					choice = &apiv1.PresencePreference{Mode: apiv1.PresenceMode(value.Mode), Revision: value.Revision}
+				}
+				h.applyPreference(userID, choice, entry.Revision())
+				h.mu.Lock()
+				h.preferenceWatchRevision = entry.Revision()
+				close(h.preferenceChanged)
+				h.preferenceChanged = make(chan struct{})
+				h.mu.Unlock()
 			case entry, ok := <-watcher.Updates():
 				if !ok {
 					watcher.Stop()
+					preferences.Stop()
 					if err := ctx.Err(); err != nil {
 						return err
 					}
@@ -208,11 +267,7 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 				}
 				if entry == nil {
 					syncComplete = true
-					h.readyOnce.Do(func() { close(h.ready) })
-					if pendingResync != nil {
-						pendingResync <- nil
-						pendingResync = nil
-					}
+					complete()
 					h.mu.Lock()
 					entries := len(h.snapshot)
 					h.mu.Unlock()
@@ -220,9 +275,11 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 					continue
 				}
 				if h.beforeLiveRead != nil {
-					if userID, valid := parsePresenceKey(entry.Key()); valid {
+					userID, valid := parsePresenceKey(entry.Key())
+					if valid {
 						if err := h.beforeLiveRead(ctx, userID); err != nil {
 							watcher.Stop()
+							preferences.Stop()
 							return fmt.Errorf("presence privacy readiness: %w", err)
 						}
 					}
@@ -231,6 +288,7 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 			}
 		}
 		watcher.Stop()
+		preferences.Stop()
 	}
 }
 

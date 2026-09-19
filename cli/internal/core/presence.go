@@ -64,7 +64,8 @@ func presenceStatusToString(status cachestatev1.UserPresenceStatus) string {
 
 const maxPresenceWriteRetries = 5
 
-// presenceKey returns the MEMORY_CACHE key for a user's live presence state.
+// presenceKey identifies a user's liveness in MEMORY_CACHE and the separate
+// private availability choice in RUNTIME_STATE.
 func presenceKey(userID string) string {
 	return fmt.Sprintf("presence.%s", userID)
 }

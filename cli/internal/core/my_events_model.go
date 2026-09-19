@@ -542,6 +542,8 @@ func pubSubSubjectPayloadScope(subject string, event *pubsubv1.PubSubEvent) (Roo
 		}
 		var eventType string
 		switch event.GetEvent().(type) {
+		case *pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged:
+			eventType = "presence_preference"
 		case *pubsubv1.PubSubEvent_NotificationOccurrencesChanged:
 			eventType = "notification_v2"
 		case *pubsubv1.PubSubEvent_NotificationUnreadStateChanged:

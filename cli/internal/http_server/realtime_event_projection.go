@@ -24,11 +24,6 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.ActorId = proto.String(source.GetActorId())
 	}
 	switch e := source.GetEvent().(type) {
-	case *evtv1.Event_UserPresencePreferenceChanged:
-		if e.UserPresencePreferenceChanged.GetUserId() != viewerID {
-			return nil
-		}
-		target.Event = &realtimev1.RealtimeEvent_ViewerPresencePreferenceChanged{ViewerPresencePreferenceChanged: &realtimev1.ViewerPresencePreferenceChangedEvent{}}
 	case *evtv1.Event_RbacRoleCreated:
 		target.Event = &realtimev1.RealtimeEvent_RoleCreated{RoleCreated: &realtimev1.RoleCreatedEvent{RoleName: e.RbacRoleCreated.GetRoleName()}}
 	case *evtv1.Event_RbacRoleDisplayNameChanged:
@@ -236,6 +231,8 @@ func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.Realti
 	switch e := source.GetEvent().(type) {
 	case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: e.ThreadViewerStateChanged}
+	case *pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged:
+		target.Event = &realtimev1.RealtimeEvent_ViewerPresencePreferenceChanged{ViewerPresencePreferenceChanged: e.ViewerPresencePreferenceChanged}
 	case *pubsubv1.PubSubEvent_UserTyping:
 		target.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: e.UserTyping}
 	case *pubsubv1.PubSubEvent_PresenceChanged:

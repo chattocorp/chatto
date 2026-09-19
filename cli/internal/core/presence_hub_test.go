@@ -9,7 +9,7 @@ import (
 )
 
 func TestPresenceHubGetUserPresencesReturnsDetachedSnapshot(t *testing.T) {
-	hub := NewPresenceHub(nil, nil)
+	hub := NewPresenceHub(nil, nil, nil)
 	hub.snapshot["online-user"] = PresenceStatusOnline
 	hub.snapshot["away-user"] = PresenceStatusAway
 	close(hub.ready)
@@ -46,7 +46,7 @@ func TestPresenceHubGetUserPresencesReturnsDetachedSnapshot(t *testing.T) {
 }
 
 func TestPresenceHubGetUserPresencesHonorsContextWhileWaitingForInitialSync(t *testing.T) {
-	hub := NewPresenceHub(nil, nil)
+	hub := NewPresenceHub(nil, nil, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -275,7 +275,7 @@ func waitForPresenceHubStatus(t *testing.T, hub *PresenceHub, userID, status str
 func BenchmarkPresenceHubSubscribe(b *testing.B) {
 	for _, onlineUsers := range []int{0, 100, 1000} {
 		b.Run("online_users_"+strconv.Itoa(onlineUsers), func(b *testing.B) {
-			hub := NewPresenceHub(nil, nil)
+			hub := NewPresenceHub(nil, nil, nil)
 			for i := range onlineUsers {
 				hub.snapshot["user-"+strconv.Itoa(i)] = PresenceStatusOnline
 			}

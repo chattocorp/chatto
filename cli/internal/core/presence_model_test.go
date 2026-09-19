@@ -28,7 +28,11 @@ func newTestPresenceModel(t *testing.T) (*PresenceModel, jetstream.KeyValue, *lo
 		t.Fatalf("CreateOrUpdateKeyValue: %v", err)
 	}
 	logger := testCoreLogger()
-	return NewPresenceModel(js, memoryCacheKV, logger), memoryCacheKV, logger
+	runtimeStateKV, err := js.CreateOrUpdateKeyValue(testContext(t), jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", Storage: jetstream.FileStorage, History: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewPresenceModel(js, memoryCacheKV, runtimeStateKV, logger), memoryCacheKV, logger
 }
 
 func TestNewPresenceModelWiresDependencies(t *testing.T) {
