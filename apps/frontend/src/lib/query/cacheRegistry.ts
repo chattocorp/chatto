@@ -63,6 +63,7 @@ type RoomMemberQueryCache = {
 };
 
 let removeServerCache: ServerCacheRemover | undefined;
+let refreshServerCache: ((serverId: string) => Promise<void>) | undefined;
 let removeAdminCache: ServerCacheRemover | undefined;
 let refreshAdminCache: ServerCacheRemover | undefined;
 let refreshRoleCache: ServerCacheRemover | undefined;
@@ -78,6 +79,8 @@ const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 /** Register the snapshot-query cache without loading it into every route bundle. */
 export function registerServerQueryCache(removers: {
   server: ServerCacheRemover;
+  /** Reauthorize active snapshots in place and discard inactive private data. */
+  refreshServer?: (serverId: string) => Promise<void>;
   admin: ServerCacheRemover;
   refreshAdmin: ServerCacheRemover;
   roles?: ServerCacheRemover;
@@ -86,6 +89,7 @@ export function registerServerQueryCache(removers: {
   adminRoomGroups: AdminRoomGroupQueryReconciler;
 }): void {
   removeServerCache = removers.server;
+  refreshServerCache = removers.refreshServer;
   removeAdminCache = removers.admin;
   refreshAdminCache = removers.refreshAdmin;
   refreshRoleCache = removers.roles;
@@ -160,14 +164,28 @@ export function updateRegisteredFollowedThreadSummary(
   followedThreadCache?.updateSummary(serverId, summary);
 }
 
-/** Purge cached private reads when a server session is disposed. */
+/** Purge private reads and fence mutations at session or protocol recovery boundaries. */
 export function removeRegisteredServerQueries(serverId: string): boolean {
-  runResetHandlers([
+  const listenersCleared = runResetHandlers([
     ...[...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners].map(
       (listener) => () => listener(serverId)
     )
   ]);
-  return runResetHandlers([() => removeServerCache?.(serverId)]);
+  const cacheCleared = runResetHandlers([
+    () => removeServerCache?.(serverId)
+  ]);
+  return listenersCleared && cacheCleared;
+}
+
+/** Fence optimistic results, then reauthorize each snapshot without replacing its observer. */
+export async function refreshRegisteredServerQueries(serverId: string): Promise<void> {
+  const fenced = runResetHandlers(
+    [...queryCacheRemovalListeners, ...serverQueryCacheRemovalListeners].map(
+      (listener) => () => listener(serverId)
+    )
+  );
+  await refreshServerCache?.(serverId);
+  if (!fenced) throw new Error('Permission refresh could not fence every mutation');
 }
 
 /** Purge cached admin reads as soon as their authorization may have changed. */

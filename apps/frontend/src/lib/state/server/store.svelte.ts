@@ -42,6 +42,7 @@ import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
+import type { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
@@ -77,6 +78,7 @@ import {
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
+  refreshRegisteredServerQueries,
   resetRegisteredFollowedThreadQueries,
   scrubRegisteredFollowedThreadRoom,
   scrubRegisteredFollowedThreadUser,
@@ -206,6 +208,9 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
+  #permissionCheckGeneration = 0;
+  /** Block edits while authoritative permission reads are pending; retain the visible view. */
+  checkingPermissions = $state(false);
   /** Deletions stay authoritative until the next exact snapshot resets this projection. */
   readonly #deletedRealtimeUserIds = new SvelteSet<string>();
   readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<boolean>>();
@@ -349,6 +354,8 @@ export class ServerStateStore {
   }
 
   private applyPrivilegedModeState(state: PrivilegedModeState): void {
+    this.#permissionCheckGeneration++;
+    this.checkingPermissions = false;
     const viewer = this.projection.viewer?.clone();
     if (!viewer) return;
     viewer.privilegedMode = state;
@@ -356,6 +363,9 @@ export class ServerStateStore {
   }
 
   private applyViewerSnapshot(response: GetViewerResponse): void {
+    // An explicit privilege response supersedes pending event-driven checks.
+    this.#permissionCheckGeneration++;
+    this.checkingPermissions = false;
     this.projection.viewer = response;
     const viewer = viewerResponseToState(response);
     this.currentUser.user = viewer.user;
@@ -589,15 +599,21 @@ export class ServerStateStore {
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
     this.#roomMembers[roomId]?.resetProjectionState();
+    this.voiceCall.handleRoomAccessRevoked(roomId);
+    this.activeCallRooms.clearRoom(roomId);
+    this.notifications.clearRoom(roomId);
+    this.clearRoomMessageAccess(roomId, forgetStores);
+  }
+
+  /** Message-read loss does not imply loss of voice or room membership. */
+  private clearRoomMessageAccess(roomId: string, forgetStores = false): void {
     clearRoomPinsSeenMarker(
       this.serverId,
       this.currentUser.user?.id ?? this.#getSession().userId ?? '',
       roomId
     );
     scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
-    this.voiceCall.handleRoomAccessRevoked(roomId);
-    this.activeCallRooms.clearRoom(roomId);
-    this.notifications.clearRoom(roomId);
+    this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
     const roomStore = this.#roomMessages[roomId];
     roomStore?.clearForAccessRevocation();
     const filesStore = this.#roomFiles[roomId];
@@ -675,8 +691,7 @@ export class ServerStateStore {
         this.projection.users.get(this.currentUserId() ?? '')?.roles
       )
     ) {
-      this.realtimeSync.reset();
-      this.ingestProjectionEvent(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
+      this.refreshViewerPermissions(update);
       return;
     }
     const previousViewer = this.projection.viewer;
@@ -686,6 +701,8 @@ export class ServerStateStore {
     let adminRoomLayoutChanged = update.reset;
 
     if (update.reset) {
+      this.#permissionCheckGeneration++;
+      this.checkingPermissions = false;
       if (update.privacyReset) {
         this.#serverConnection.invalidatePrivateData();
         this.permissions = EMPTY_PERMISSIONS;
@@ -702,7 +719,10 @@ export class ServerStateStore {
       this.#pendingUserRefreshGeneration = generation;
       this.#privacyCleanupFailed = !runResetHandlers([
         () => {
-          if (update.privacyReset && !removeRegisteredServerQueries(this.serverId))
+          if (
+            update.privacyReset &&
+            !removeRegisteredServerQueries(this.serverId)
+          )
             throw new Error('Query cleanup incomplete');
         },
         () => resetRegisteredFollowedThreadQueries(this.serverId),
@@ -715,6 +735,9 @@ export class ServerStateStore {
       ]);
     }
 
+    if (update.resource?.case === 'rooms' && !this.#realtimeSnapshotPending) {
+      this.reconcileRoomPermissions(update.resource.value.rooms, update.cursor ?? undefined);
+    }
     this.projection.apply(update);
     const resource = update.resource;
     if (resource) {
@@ -730,7 +753,7 @@ export class ServerStateStore {
           break;
         case 'viewer': {
           const response = resource.value;
-          if (viewerAuthorizationLost(previousViewer, response)) {
+          if (!this.checkingPermissions && viewerAuthorizationLost(previousViewer, response)) {
             removeRegisteredAdminQueries(this.serverId);
           }
           const viewer = viewerResponseToState(response);
@@ -803,6 +826,131 @@ export class ServerStateStore {
       }
     }
     if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
+  }
+
+  /** Reauthorize retained resources in place. Permission events do not discard
+   * the projection or its cursor. Individual resource owners remove denied data;
+   * query observers and permitted route components retain their lifetime.
+   */
+  private refreshViewerPermissions(update: RealtimeProjectionUpdate): void {
+    const check = ++this.#permissionCheckGeneration;
+    const generation = this.#realtimeProjectionGeneration;
+    this.checkingPermissions = true;
+    const current = () =>
+      check === this.#permissionCheckGeneration && generation === this.#realtimeProjectionGeneration;
+    const queries = refreshRegisteredServerQueries(this.serverId).catch((error) => {
+      if (current()) this.#reconciliationError ??= error;
+    });
+    const layout = this.#adminRoomLayoutActive
+      ? this.adminRoomLayout.refreshPermissions()
+      : Promise.resolve(this.adminRoomLayout.resetProjectionState());
+    // Search owns plaintext outside the room projection. Fence it immediately,
+    // including when an unrelated authority read fails.
+    this.forEachMessageSearch((store) => store.refreshPermissions());
+    // Apply every semantic change before a later check can supersede this one.
+    // The server-wide query refresh above already covers role queries.
+    this.#currentEventMinimumCursor = update.cursor ?? undefined;
+    try {
+      if (update.event) this.invalidateRealtimeEvent(update.event, false);
+    } finally {
+      this.#currentEventMinimumCursor = undefined;
+    }
+    const refresh = (async () => {
+      // Drain queued follow-up reads too. Waiting only for the current promises
+      // lets a queued, older read overwrite the new authority later.
+      await Promise.all([...this.#resourceRefreshes.keys()].map(
+        (family) => this.waitForRealtimeResourceRefresh(family)
+      ));
+      if (!current()) return;
+      const families = ['viewer', 'rooms', 'roomGroups', 'serverState', 'notifications', 'activeCalls'] as const;
+      const reads = await Promise.allSettled(families.map(async (family) => {
+        try {
+          const resources = await this.#realtimeResources.read(family, update.cursor ?? undefined);
+          if (!current()) return;
+          for (const resource of resources) {
+            this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource, cursor: update.cursor }));
+          }
+        } catch (error) {
+          if (!current()) return;
+          this.clearFailedPermissionResource(family);
+          throw error;
+        }
+      }));
+      if (!current()) return;
+      await Promise.all([queries, layout]);
+      if (!current()) return;
+      this.invalidateUniversalMembership();
+      await Promise.all(Object.values(this.#roomMembers).map((store) => store.refresh({ reauthorize: true })));
+      // Each cache must complete its own check before a partial failure is
+      // reported to the cursor owner for retry.
+      const failure = reads.find((result) => result.status === 'rejected');
+      if (failure?.status === 'rejected') throw failure.reason;
+    })().catch((error) => {
+      // A failed read retries through normal cursor reconciliation. Retain the
+      // shell and unaffected data; never request a new permission snapshot.
+      if (current()) this.#reconciliationError ??= error;
+    }).finally(() => {
+      if (current()) this.checkingPermissions = false;
+      this.#projectionReconciliations.delete(refresh);
+    });
+    this.#projectionReconciliations.add(refresh);
+  }
+
+  /** Message-read changes affect plaintext even if room membership is unchanged. */
+  private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
+    const nextRooms = new SvelteMap(rooms.map((room) => [room.room?.id, room]));
+    const ids = new SvelteSet([...Object.keys(this.#roomMessages), ...Object.keys(this.#roomFiles),
+      ...Object.keys(this.#roomPins), ...Object.keys(this.#roomMembers), ...this.projection.rooms.keys()]);
+    for (const key of Object.keys(this.#threadMessages)) ids.add(key.split('\u0000')[0]);
+    for (const roomId of ids) {
+      const next = nextRooms.get(roomId);
+      if (!next?.viewerState?.isMember) {
+        this.clearRoomAccess(roomId);
+        continue;
+      }
+      const previous = this.projection.rooms.get(roomId);
+      const readAccess = (room: RoomWithViewerState | undefined) =>
+        ['message.read', 'message.read-interactions'].map((permission) =>
+          room?.viewerState?.permissions.some((grant) => grant.permission === permission && grant.granted) ?? false
+        ).join(',');
+      if (previous && readAccess(previous) === readAccess(next)) continue;
+      // Rebuild only affected plaintext stores. Their owners and surrounding
+      // page stay mounted, and their request generations fence old responses.
+      this.clearRoomMessageAccess(roomId);
+      this.restoreRoomAccess(roomId);
+      const generation = this.#realtimeProjectionGeneration;
+      for (const store of [this.#roomMessages[roomId], ...Object.entries(this.#threadMessages)
+        .filter(([key]) => key.startsWith(`${roomId}\u0000`)).map(([, store]) => store)]) {
+        if (store) this.trackProjectionReconciliation(
+          store.hydrateRealtimeProjection(cursor ?? '', () => generation === this.#realtimeProjectionGeneration),
+          cursor, generation
+        );
+      }
+    }
+  }
+
+  /** Fail closed at the failed resource, without discarding unrelated state. */
+  private clearFailedPermissionResource(family: RealtimeResourceFamily): void {
+    switch (family) {
+      case 'viewer':
+        this.projection.viewer = null;
+        this.permissions = EMPTY_PERMISSIONS;
+        break;
+      case 'rooms':
+        this.reconcileRoomPermissions([]);
+        this.projection.rooms.clear();
+        break;
+      case 'roomGroups': this.projection.roomGroups = []; break;
+      case 'serverState':
+        this.projection.serverState = null;
+        this.serverInfo.resetProjectionState();
+        break;
+      case 'notifications': this.notifications.resetProjectionState(); break;
+      case 'activeCalls':
+        this.projection.activeCalls = [];
+        this.activeCallRooms.clear();
+        break;
+    }
   }
   private scrubRemovedUser(userId: string): void {
     removeRegisteredDirectoryUser(this.serverId, this.#serverConnection.queryScope, userId);
@@ -949,7 +1097,7 @@ export class ServerStateStore {
     }
   }
 
-  private invalidateRealtimeEvent(event: RealtimeEvent): void {
+  private invalidateRealtimeEvent(event: RealtimeEvent, refreshQueries = true): void {
     const payload = event.event;
     const rawValue = payload.value as
       { eventId?: string; messageEventId?: string; roomId?: string; userId?: string } | undefined;
@@ -967,7 +1115,7 @@ export class ServerStateStore {
           this.projection.users.set(payload.value.userId, updated);
         }
         this.refreshRealtimeUsers([payload.value.userId]);
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       }
       case 'roleDeleted':
@@ -980,18 +1128,18 @@ export class ServerStateStore {
         }
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'roleCreated':
       case 'roleUpdated':
       case 'rolesReordered':
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'rolePermissionsChanged':
         this.invalidateUniversalMembership();
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
@@ -1529,7 +1677,7 @@ export class ServerStateStore {
     this.reconcilePermissions(viewer, false);
   }
 
-  /** A privacy reset already refetches active reads; never also refresh them. */
+  /** The permission refresh owns query reauthorization; avoid starting it twice. */
   private reconcilePermissions(viewer: ViewerData, refreshAdmin: boolean): void {
     const previous = this.permissions;
     this.permissions = { ...viewer, loaded: true };
@@ -1544,6 +1692,7 @@ export class ServerStateStore {
         (previous.canAdminViewSystem && !viewer.canAdminViewSystem) ||
         (previous.canAdminViewAudit && !viewer.canAdminViewAudit) ||
         (previous.canManageInvites && !viewer.canManageInvites));
+    if (this.checkingPermissions) return;
     if (lostAdminCapability) {
       removeRegisteredAdminQueries(this.serverId);
     } else if (refreshAdmin) {
@@ -1623,6 +1772,8 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.#permissionCheckGeneration++;
+    this.checkingPermissions = false;
     this.#serverConnection.invalidatePrivateData();
     removeRegisteredServerQueries(this.serverId);
     for (const store of Object.values(this.#roomMembers)) store.resetProjectionState();

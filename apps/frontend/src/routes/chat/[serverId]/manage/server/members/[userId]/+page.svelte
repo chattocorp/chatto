@@ -386,12 +386,11 @@
               {toggleMemberRole}
             />
           {/key}
-
-          {#if details.viewerCanManageUserPermissions}
-            <Hint>{m('admin.permissions.resolution_hint')}</Hint>
-            <UserPermissionsMatrix {userId} />
-          {/if}
         {/if}
+      {/if}
+      {#if loading || (details?.viewerCanManageUserPermissions && !isBot)}
+        <Hint>{m('admin.permissions.resolution_hint')}</Hint>
+        <UserPermissionsMatrix {userId} />
       {/if}
     </div>
   </PaneContent>

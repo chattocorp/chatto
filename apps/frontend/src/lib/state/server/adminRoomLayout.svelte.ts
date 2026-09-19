@@ -8,6 +8,7 @@ import type {
 } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { Code, isConnectCode } from '$lib/api-client/connect';
 
 export type {
   AdminRoomGroup,
@@ -267,7 +268,21 @@ export class AdminRoomLayoutStore {
     this.#activeGroupDragGeneration = null;
   }
 
-  async refresh(): Promise<void> {
+  /** Cancel old drag snapshots before reauthorizing the retained layout. */
+  async refreshPermissions(): Promise<void> {
+    this.#interactionGeneration++;
+    this.#activeRoomDragGeneration = null;
+    this.#activeGroupDragGeneration = null;
+    this.#preDragSnapshot = null;
+    this.#preReorderIds = null;
+    this.#roomPersistenceGenerations.clear();
+    this.#groupPersistenceGenerations.clear();
+    this.isDragging = false;
+    this.draggingGroupId = null;
+    await this.refresh({ reauthorize: true });
+  }
+
+  async refresh({ reauthorize = false }: { reauthorize?: boolean } = {}): Promise<void> {
     const thisLoad = ++this.#loadId;
     const interactionGeneration = this.#interactionGeneration;
     this.isRefreshing = true;
@@ -292,6 +307,9 @@ export class AdminRoomLayoutStore {
       this.initialized = true;
     } catch (err) {
       if (this.#loadId === thisLoad) {
+        if (reauthorize || isConnectCode(err, Code.PermissionDenied) || isConnectCode(err, Code.NotFound)) {
+          this.groups = [];
+        }
         this.error = errorMessage(err);
       }
     } finally {

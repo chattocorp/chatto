@@ -300,19 +300,21 @@
             onDelete={() => (deleteConfirmRoleName = role.name)}
           />
         {/key}
+      {/if}
 
-        <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
-        {#if canManageRoles && role}
-          <Hint>
-            {#if role.name === 'owner'}
-              {m('admin.permissions.owner_permissions_hint')}
-            {:else}
-              {m('admin.permissions.role_permissions_hint')}
-            {/if}
-          </Hint>
-          <RolePermissionsMatrix roleName={role.name} />
-        {/if}
+      <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
+      {#if loading || (canManageRoles && role)}
+        <Hint>
+          {#if roleName === 'owner'}
+            {m('admin.permissions.owner_permissions_hint')}
+          {:else}
+            {m('admin.permissions.role_permissions_hint')}
+          {/if}
+        </Hint>
+        <RolePermissionsMatrix {roleName} />
+      {/if}
 
+      {#if role && canManageRoles}
         <!-- Users with this role -->
         {#if canAssignRoles || role.name === 'everyone'}
           <Panel

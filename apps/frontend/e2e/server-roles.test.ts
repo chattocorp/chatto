@@ -140,6 +140,178 @@ async function denyPermission(
 }
 
 test.describe('Server Roles Management', () => {
+  test('non-owner permission edits and access revocation update in place', async ({ page, browser, serverURL }) => {
+    await usePrimaryServerViaAPI(page);
+    await grantServerPermission(page, 'everyone', 'role.manage');
+    const context = await browser.newContext({ baseURL: serverURL });
+    try {
+      const member = await context.newPage();
+      await createAndLoginTestUser(member);
+      await activatePrivilegedMode(member);
+      let connections = 0;
+      let reads = 0;
+      const errors: string[] = [];
+      member.on('pageerror', (error) => errors.push(error.message));
+      member.on('websocket', () => connections++);
+      member.on('response', (response) => {
+        if (response.url().includes('/GetRolePermissionTierMatrix') && response.ok()) reads++;
+      });
+      await member.goto(routes.serverAdminPermissions);
+      const filter = member.getByTestId('permission-filter');
+      await filter.fill('message.post');
+      const originalFilter = await filter.elementHandle();
+      const shell = await member.getByRole('button', { name: 'Toggle sidebar', exact: true }).elementHandle();
+      const cell = member.locator('td[data-role="everyone"][data-permission="message.post"] button');
+      await expect(cell).toBeEnabled();
+      const before = { connections, reads, label: await cell.getAttribute('aria-label') };
+      await cell.click();
+      await expect.poll(() => reads).toBeGreaterThan(before.reads);
+      await expect(cell).not.toHaveAttribute('aria-label', before.label!);
+      await expect(filter).toHaveValue('message.post');
+      expect(await originalFilter!.evaluate((node) => node.isConnected)).toBe(true);
+      expect(connections).toBe(before.connections);
+
+      await denyServerPermission(page, 'everyone', 'role.manage');
+      await expect(member.getByText('Access Denied', { exact: true })).toBeVisible();
+      expect(await shell!.evaluate((node) => node.isConnected)).toBe(true);
+      expect(connections).toBe(before.connections);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('permission refresh keeps matrix rows visible and preserves scroll', async ({
+    serverRolesPage
+  }) => {
+    const { page } = serverRolesPage;
+    await usePrimaryServerViaAPI(page);
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.goto(routes.serverAdminPermissions);
+    const scroller = page.locator('.data-table-viewport [role="region"]');
+    await scroller.hover();
+    await page.mouse.wheel(0, 2000);
+    await expect
+      .poll(() => scroller.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(500);
+    const cell = page.locator('td[data-role="everyone"][data-permission="user.invite"] button');
+    await cell.scrollIntoViewIfNeeded();
+    await cell.hover();
+    // Account for the browser scrolling a newly focused cell into view before
+    // measuring the offset that the subsequent data refresh must retain.
+    await cell.focus();
+    await page.evaluate(() => new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    ));
+    const before = await scroller.evaluate((element) => ({
+      top: element.scrollTop,
+      height: element.scrollHeight
+    }));
+    let releaseRefresh!: () => void;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    let heldReads = 0;
+    await page.route('**/chatto.api.v1.ViewerService/GetViewer', async (route) => {
+      heldReads++;
+      await refreshGate;
+      await route.continue();
+    });
+    await page.route(
+      '**/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix',
+      async (route) => {
+        heldReads++;
+        await refreshGate;
+        await route.continue();
+      }
+    );
+    try {
+      await cell.click();
+      await expect.poll(() => heldReads).toBeGreaterThan(0);
+      await expect(page.locator('[inert][aria-busy="true"]')).toHaveCount(1);
+      await expect(cell).toBeVisible();
+      // Wait for real layout: a same-tick assertion misses native scroll clamping.
+      await page.evaluate(
+        () => new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        )
+      );
+      expect(await scroller.evaluate((element) => element.scrollTop)).toBeCloseTo(before.top, 0);
+      expect(await scroller.evaluate((element) => element.scrollHeight)).toBeGreaterThanOrEqual(before.height);
+      await expect(cell.locator('..')).toHaveClass(/bg-action\/15/);
+    } finally {
+      releaseRefresh();
+    }
+    await expect(cell).toBeVisible();
+    await expect(cell.locator('..')).toHaveClass(/bg-action\/15/);
+    await expect
+      .poll(() => scroller.evaluate((element) => element.scrollTop))
+      .toBeCloseTo(before.top, 0);
+  });
+
+  for (const perRole of [false, true]) {
+    test(`permission edits retain the ${perRole ? 'role' : 'server'} matrix in the editor and receiver`, async ({
+      serverRolesPage
+    }) => {
+      const { page } = serverRolesPage;
+      await usePrimaryServerViaAPI(page);
+      const receiver = await page.context().newPage();
+      const clients = [page, receiver];
+      const snapshots = [0, 0];
+      const connections = [0, 0];
+      const refreshes = [0, 0];
+      const errors: string[] = [];
+      const url = perRole
+        ? routes.serverAdminPermission('everyone')
+        : routes.serverAdminPermissions;
+      for (const [index, client] of clients.entries()) {
+        client.on('response', (response) => {
+          if (response.url().includes('/GetRolePermission') && response.ok()) refreshes[index]++;
+        });
+        client.on('pageerror', (error) => errors.push(error.message));
+        client.on('websocket', (socket) => {
+          connections[index]++;
+          socket.on('framereceived', ({ payload }) => {
+            if (
+              typeof payload !== 'string' &&
+              RealtimeServerFrame.fromBinary(payload).frame.case === 'snapshot'
+            ) {
+              snapshots[index]++;
+            }
+          });
+        });
+        await client.goto(url);
+        await client.getByTestId('permission-filter').fill('message.post');
+      }
+      const originalFilters = await Promise.all(
+        clients.map((client) => client.getByTestId('permission-filter').elementHandle())
+      );
+      const before = [...snapshots];
+      const connectionsBefore = [...connections];
+      const readsBefore = [...refreshes];
+      const selector = perRole
+        ? 'td[data-scope="server"][data-permission="message.post"] button'
+        : 'td[data-role="everyone"][data-permission="message.post"] button';
+      await page.locator(selector).click();
+      for (const [index, client] of clients.entries()) {
+        await client.bringToFront();
+        await expect.poll(() => refreshes[index]).toBeGreaterThan(readsBefore[index]);
+        await expect(client.locator(selector)).toBeVisible();
+        await expect(client.getByTestId('permission-filter')).toHaveValue('message.post');
+        expect(await originalFilters[index]!.evaluate((node) => node.isConnected)).toBe(true);
+        expect(
+          await originalFilters[index]!.evaluate(
+            (node) => node === document.querySelector('[data-testid="permission-filter"]')
+          )
+        ).toBe(true);
+        expect(snapshots[index]).toBe(before[index]);
+        expect(connections[index]).toBe(connectionsBefore[index]);
+      }
+      expect(errors).toEqual([]);
+      await receiver.close();
+    });
+  }
+
   test('permission matrix loads scope pages at the horizontal edge', async ({
     serverRolesPage
   }) => {
@@ -514,7 +686,7 @@ test.describe('Server Roles Management', () => {
   });
 
   test.describe('Delete role', () => {
-    test('role deletion still navigates when its permission reset arrives before the response', async ({
+    test('role deletion still navigates when its permission refresh arrives before the response', async ({
       serverRolesPage
     }) => {
       const { page } = serverRolesPage;
@@ -534,7 +706,11 @@ test.describe('Server Roles Management', () => {
         roleName
       });
       let snapshots = 0;
+      let viewerReads = 0;
       const errors: string[] = [];
+      page.on('response', (response) => {
+        if (response.url().includes('ViewerService/GetViewer') && response.ok()) viewerReads++;
+      });
       page.on('pageerror', (error) => errors.push(error.message));
       page.on('websocket', (socket) =>
         socket.on('framereceived', ({ payload }) => {
@@ -547,6 +723,8 @@ test.describe('Server Roles Management', () => {
       );
       await serverRolesPage.gotoEditRole(server.id, roleName);
       const before = snapshots;
+      const readsBefore = viewerReads;
+      const shell = await page.getByRole('button', { name: 'Toggle sidebar', exact: true }).elementHandle();
       let release!: () => void;
       const held = new Promise<void>((resolve) => {
         release = resolve;
@@ -558,7 +736,9 @@ test.describe('Server Roles Management', () => {
       });
       const deletion = serverRolesPage.deleteCurrentRole();
       try {
-        await expect.poll(() => snapshots).toBeGreaterThan(before);
+        await expect.poll(() => viewerReads).toBeGreaterThan(readsBefore);
+        expect(snapshots).toBe(before);
+        expect(await shell!.evaluate((node) => node.isConnected)).toBe(true);
       } finally {
         release();
       }

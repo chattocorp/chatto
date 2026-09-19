@@ -108,6 +108,39 @@ describe('MatrixTable', () => {
     expect(intersection.className).toContain('bg-surface-emphasized/20');
   });
 
+  it('retains hover during an inert check but clears it when the pointer moves away', () => {
+    const { container } = render(MatrixTableTestHarness);
+    const cell = container.querySelector<HTMLElement>('[data-test-cell="mentions:general"]')!;
+    cell.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+    const bounds = cell.getBoundingClientRect();
+    container.inert = true;
+    cell.dispatchEvent(new MouseEvent('mouseleave', {
+      clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2
+    }));
+    flushSync();
+    expect(cell.className).toContain('bg-action/15');
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: bounds.right + 10, clientY: bounds.bottom + 10 }));
+    flushSync();
+    expect(cell.className).not.toContain('bg-action/');
+    container.inert = false;
+  });
+
+  it('retains keyboard highlighting through inert blur until focus moves elsewhere', () => {
+    const { container } = render(MatrixTableTestHarness);
+    const cell = container.querySelector<HTMLElement>('[data-test-cell="replies:server"]')!;
+    cell.querySelector('button')!.focus();
+    flushSync();
+    container.inert = true;
+    cell.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    flushSync();
+    expect(cell.className).toContain('bg-action/15');
+    container.inert = false;
+    container.querySelector<HTMLButtonElement>('[data-test-cell="mentions:general"] button')!.focus();
+    flushSync();
+    expect(cell.className).not.toContain('bg-action/15');
+  });
+
   it('retains coordinated highlighting while a cell control has keyboard focus', () => {
     const { container } = render(MatrixTableTestHarness);
     const cell = container.querySelector(
