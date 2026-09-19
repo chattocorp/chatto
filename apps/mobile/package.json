@@ -6,7 +6,7 @@
   "scripts": {
     "sync:ios": "node scripts/prepare.mjs && cap sync ios",
     "open:ios": "cap open ios",
-    "build:ios": "xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ../../.context/mobile-ios-build CODE_SIGNING_ALLOWED=NO build"
+    "build:ios": "xcodebuild -quiet -project ios/App/App.xcodeproj -scheme Chatto -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ../../.context/mobile-ios-build CODE_SIGNING_ALLOWED=NO build"
   },
   "dependencies": {
     "@capacitor/core": "8.5.2",

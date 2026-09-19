@@ -14,7 +14,7 @@ mise mobile-ios-open
 
 `mobile-ios-build` builds the frontend, copies its SPA shell and assets into the
 iOS project, and builds an unsigned Simulator app under
-`.context/mobile-ios-build/Build/Products/Debug-iphonesimulator/App.app`.
+`.context/mobile-ios-build/Build/Products/Debug-iphonesimulator/Chatto.app`.
 `mobile-ios-open` refreshes the bundle and opens Xcode. Choose an iPhone Simulator
 and select Run. For a physical device, select your development team in Xcode's
 Signing & Capabilities pane. The project selects the ChattoCorp team by default;
@@ -64,7 +64,7 @@ service in this prototype. Native bridge logging is disabled.
    the frontend and copies it into the native project. Xcode alone does not
    rebuild the frontend. Sync also generates a 1024-pixel app icon without an
    alpha channel, as required for upload.
-2. In Xcode, select the App target and open General. Set Version to the intended
+2. In Xcode, select the Chatto target and open General. Set Version to the intended
    release, such as `0.5.0`, and increase Build above the latest uploaded build.
 3. Run the app on a physical device to check the changes.
 4. Select Any iOS Device (arm64), then Product > Archive.
