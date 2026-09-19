@@ -115,7 +115,8 @@ the same API as the visual editor while keeping the stored Markdown visible.
       lineHeight: '1.5'
     },
     '.cm-content': {
-      minHeight: '2rem',
+      // Hosts can increase the editable area without changing the chat default.
+      minHeight: 'var(--composer-min-height, 2rem)',
       padding: '0.25rem 0',
       caretColor: 'var(--color-text)'
     },
