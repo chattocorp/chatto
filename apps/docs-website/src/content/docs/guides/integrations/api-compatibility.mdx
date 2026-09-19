@@ -37,15 +37,7 @@ together. Stored membership and user data do not require migration.
 `AdminUserService.ListMembers` now returns `user_ids` and `page` instead of
 member rows and role summaries. Regenerate clients and load missing rows with
 `AdminUserService.BatchGetMembers`, in batches of at most 100 IDs. That response
-also supplies role summaries. Both calls require `admin.view-users`.
-
-Keep admin rows in a private cache scoped to the server and session. Clear this
-cache when access is lost, the session ends, or an account is deleted. Do not
-put email addresses or account permissions in a shared public profile cache.
-
-The default page size remains 20 and the maximum remains 100. Creation time
-orders results oldest first; accounts without a creation time appear last,
-ordered by login. IDs break ties. Advance offsets by the number of returned IDs,
+also supplies role summaries. Advance offsets by the number of returned IDs,
 even when a later batch read omits a user.
 
 This is a breaking 0.5 API change. Update custom clients with the server.
