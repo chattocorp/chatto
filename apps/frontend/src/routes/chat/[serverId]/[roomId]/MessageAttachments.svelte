@@ -424,14 +424,13 @@
   {#snippet attachmentControls(
     attachment: Attachment,
     showViewer = false,
-    layout: 'overlay' | 'column' | 'row' = 'overlay'
+    layout: 'overlay' | 'row' = 'overlay'
   )}
     {#if canDeleteAttachment || showViewer || canEditAttachmentDescription}
       <div
         class={[
-          'z-10 flex shrink-0 gap-1',
-          layout === 'row' ? 'me-2 items-center' : 'flex-col',
-          layout === 'column' && 'self-start',
+          'z-10 flex gap-1',
+          layout === 'row' ? 'me-2 max-w-full flex-wrap items-center' : 'shrink-0 flex-col',
           layout === 'overlay' && 'absolute top-3 right-2',
           layout !== 'row' &&
             'transition-opacity feedback-quick md:opacity-0 md:group-hover/attachment:opacity-100 md:focus-within:opacity-100'
@@ -592,21 +591,21 @@
         </div>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div
-          class="group/attachment embed-frame flex max-w-full min-w-0 items-center gap-1 py-1 pr-1 pl-3"
+          class="group/attachment embed-frame flex min-h-16 w-[30rem] max-w-full min-w-0 flex-wrap items-center gap-3 p-3"
           data-attachment-media
         >
           <audio
             controls
             preload="metadata"
             src={attachment.url}
-            class="h-8 w-80 min-w-0"
+            class="h-8 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
             data-testid="audio-player"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
             {attachment.filename}
           </audio>
-          {@render attachmentControls(attachment, true, 'column')}
+          {@render attachmentControls(attachment, true, 'row')}
         </div>
       {:else}
         <div

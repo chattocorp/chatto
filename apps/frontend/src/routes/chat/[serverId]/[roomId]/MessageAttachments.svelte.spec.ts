@@ -238,7 +238,7 @@ describe('MessageAttachments', () => {
     [false, true],
     [true, true]
   ])(
-    'stacks media actions without gaps (delete: %s, edit: %s)',
+    'keeps audio actions compact and visible (delete: %s, edit: %s)',
     async (canDeleteAttachment, canEditAttachmentDescription) => {
       const { container } = renderAttachment(
         fileAttachment({ filename: 'voice.mp3', contentType: 'audio/mpeg' }),
@@ -259,11 +259,16 @@ describe('MessageAttachments', () => {
         const audioBounds = audio.getBoundingClientRect();
         for (const [index, button] of buttons.entries()) {
           const bounds = button.getBoundingClientRect();
-          expect(bounds.left).toBeGreaterThanOrEqual(audioBounds.right);
+          expect(bounds.left >= audioBounds.right || bounds.top >= audioBounds.bottom).toBe(true);
+          expect(bounds.left).toBeGreaterThanOrEqual(frameBounds.left);
           expect(bounds.right).toBeLessThanOrEqual(frameBounds.right);
           expect(bounds.bottom).toBeLessThanOrEqual(frameBounds.bottom);
-          if (index > 0) {
-            expect(bounds.top - buttons[index - 1].getBoundingClientRect().bottom).toBe(4);
+          expect(getComputedStyle(button.parentElement!).opacity).toBe('1');
+          if (width === 640) {
+            expect(frameBounds.height).toBeLessThanOrEqual(70);
+            if (index > 0) {
+              expect(bounds.left - buttons[index - 1].getBoundingClientRect().right).toBe(4);
+            }
           }
         }
       }

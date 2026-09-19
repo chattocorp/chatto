@@ -17,8 +17,8 @@
     <button
       type="button"
       class="btn-secondary attachment-action-button"
-      aria-label="View sample video"
-      title="View sample video"
+      aria-label="View sample media"
+      title="View sample media"
     >
       <span class="iconify icon-[uil--expand-alt]" aria-hidden="true"></span>
     </button>
@@ -55,6 +55,18 @@
           </button>
           <div class="me-2 flex shrink-0 gap-1">
             {@render actions()}
+          </div>
+        </div>
+        <div
+          class="embed-frame mt-4 flex min-h-16 w-64 max-w-full flex-wrap items-center gap-3 p-3"
+        >
+          <audio
+            controls
+            preload="none"
+            class="h-8 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
+          ></audio>
+          <div class="me-2 flex max-w-full flex-wrap items-center gap-1">
+            {@render actions(true)}
           </div>
         </div>
       </div>
