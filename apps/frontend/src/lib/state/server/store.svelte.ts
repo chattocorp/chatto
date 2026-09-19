@@ -1154,6 +1154,9 @@ export class ServerStateStore {
           this.invalidateUniversalMembership();
         }
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
+        // Admin rows have a separate private cache; public profile hydration
+        // cannot update its email, permission, or search snapshots.
+        refreshRegisteredAdminQueries(this.serverId);
         return;
       case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');

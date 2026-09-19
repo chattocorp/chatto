@@ -171,7 +171,11 @@ func serverMemberUserPage(allUsers []*evtv1.User, search string, limit, offset i
 	sort.Slice(matches, func(i, j int) bool {
 		// Both null: sort alphabetically by login
 		if matches[i].GetCreatedAt() == nil && matches[j].GetCreatedAt() == nil {
-			return strings.ToLower(matches[i].GetLogin()) < strings.ToLower(matches[j].GetLogin())
+			left, right := strings.ToLower(matches[i].GetLogin()), strings.ToLower(matches[j].GetLogin())
+			if left == right {
+				return matches[i].GetId() < matches[j].GetId()
+			}
+			return left < right
 		}
 		// Null timestamps sort to the end
 		if matches[i].GetCreatedAt() == nil {
@@ -181,6 +185,9 @@ func serverMemberUserPage(allUsers []*evtv1.User, search string, limit, offset i
 			return true
 		}
 		// Both have timestamps: sort by time (oldest first)
+		if matches[i].GetCreatedAt().AsTime().Equal(matches[j].GetCreatedAt().AsTime()) {
+			return matches[i].GetId() < matches[j].GetId()
+		}
 		return matches[i].GetCreatedAt().AsTime().Before(matches[j].GetCreatedAt().AsTime())
 	})
 

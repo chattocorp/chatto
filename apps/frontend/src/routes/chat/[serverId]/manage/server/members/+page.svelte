@@ -49,8 +49,8 @@
             ),
         initialPageParam: 0,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.users.length > 0
-            ? lastPageParam + lastPage.users.length
+          lastPage.hasMore && lastPage.consumedCount > 0
+            ? lastPageParam + lastPage.consumedCount
             : undefined
       };
     },
