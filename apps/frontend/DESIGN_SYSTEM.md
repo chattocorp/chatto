@@ -370,7 +370,9 @@ or `btn-danger-secondary` for deletion. The attachment utility sets the square
 40 px geometry. One shared renderer arranges these controls in media overlays,
 beside audio players, or beside ordinary filenames. Audio and file-card actions stay
 visible in a horizontal row. Audio cards wrap actions below the player when space
-is limited. Image and video action groups appear on desktop hover or keyboard focus. The standard button
+is limited. Both use `attachment-card` for equal 12 px padding and a 12 px content
+gap, with 40 px player and action controls. Action rows add no outer margin.
+Image and video action groups appear on desktop hover or keyboard focus. The standard button
 tone supplies the fill, border, focus, pressed state, and shared depth finish.
 These controls follow the Flat, Kinda 3D, and Very 3D preference.
 See `UI/Attachment actions` in Storybook.

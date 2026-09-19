@@ -43,29 +43,27 @@
             {@render actions(true)}
           </div>
         </div>
-        <div class="embed-frame mt-4 flex w-64 items-center">
+        <div class="embed-frame mt-4 attachment-card w-64">
           <button
             type="button"
-            class="flex min-h-16 min-w-0 flex-1 cursor-pointer items-center gap-3 px-3 py-3 text-start"
+            class="flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-3 text-start"
             aria-label="View test.html"
           >
             <span class="iconify icon-[uil--file] shrink-0 text-2xl text-muted" aria-hidden="true"
             ></span>
             <span class="min-w-0 text-sm wrap-anywhere">test.html</span>
           </button>
-          <div class="me-2 flex shrink-0 gap-1">
+          <div class="flex shrink-0 gap-1">
             {@render actions()}
           </div>
         </div>
-        <div
-          class="embed-frame mt-4 flex min-h-16 w-64 max-w-full flex-wrap items-center gap-3 p-3"
-        >
+        <div class="embed-frame mt-4 attachment-card w-64 flex-wrap">
           <audio
             controls
             preload="none"
-            class="h-8 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
+            class="h-10 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
           ></audio>
-          <div class="me-2 flex max-w-full flex-wrap items-center gap-1">
+          <div class="flex max-w-full flex-wrap items-center gap-1">
             {@render actions(true)}
           </div>
         </div>

@@ -275,6 +275,32 @@ describe('MessageAttachments', () => {
     }
   );
 
+  it('uses equal padding around audio and file card contents', () => {
+    const { container } = renderAttachments(
+      [
+        fileAttachment({ id: 'audio', filename: 'voice.mp3', contentType: 'audio/mpeg' }),
+        fileAttachment({ id: 'file', filename: 'report.pdf' })
+      ],
+      { canDeleteAttachment: true, canEditAttachmentDescription: true }
+    );
+    container.style.width = '640px';
+    const cards = [...container.querySelectorAll<HTMLElement>('.attachment-card')];
+    expect(cards).toHaveLength(2);
+    for (const card of cards) {
+      const frame = card.getBoundingClientRect();
+      const first = card.firstElementChild!.getBoundingClientRect();
+      const last = card.lastElementChild!.getBoundingClientRect();
+      const border = parseFloat(getComputedStyle(card).borderTopWidth);
+      expect(first.left - frame.left - border).toBe(12);
+      expect(frame.right - last.right - border).toBe(12);
+      for (const child of [first, last]) {
+        expect(child.top - frame.top - border).toBe(12);
+        expect(frame.bottom - child.bottom - border).toBe(12);
+      }
+    }
+    expect(cards[0].getBoundingClientRect().height).toBe(cards[1].getBoundingClientRect().height);
+  });
+
   it.each(['text/plain', 'application/pdf', 'application/xml'])(
     'opens %s in the shared viewer',
     async (contentType) => {

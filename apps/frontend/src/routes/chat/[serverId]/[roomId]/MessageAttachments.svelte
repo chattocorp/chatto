@@ -430,7 +430,7 @@
       <div
         class={[
           'z-10 flex gap-1',
-          layout === 'row' ? 'me-2 max-w-full flex-wrap items-center' : 'shrink-0 flex-col',
+          layout === 'row' ? 'max-w-full flex-wrap items-center' : 'shrink-0 flex-col',
           layout === 'overlay' && 'absolute top-3 right-2',
           layout !== 'row' &&
             'transition-opacity feedback-quick md:opacity-0 md:group-hover/attachment:opacity-100 md:focus-within:opacity-100'
@@ -591,14 +591,14 @@
         </div>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div
-          class="group/attachment embed-frame flex min-h-16 w-[30rem] max-w-full min-w-0 flex-wrap items-center gap-3 p-3"
+          class="group/attachment embed-frame attachment-card w-[30rem] min-w-0 flex-wrap"
           data-attachment-media
         >
           <audio
             controls
             preload="metadata"
             src={attachment.url}
-            class="h-8 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
+            class="h-10 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
             data-testid="audio-player"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
@@ -609,7 +609,7 @@
         </div>
       {:else}
         <div
-          class="group/attachment embed-frame flex max-w-full min-w-[min(14rem,100%)] items-center"
+          class="group/attachment embed-frame attachment-card min-w-[min(14rem,100%)]"
         >
           <button
             type="button"
@@ -618,7 +618,7 @@
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
             class="block min-w-0 flex-1 cursor-pointer text-start"
           >
-            <div class="flex min-h-16 items-center gap-3 px-3 py-3">
+            <div class="flex min-h-10 items-center gap-3">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="h-6 w-6 shrink-0 text-muted"
