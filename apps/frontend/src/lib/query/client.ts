@@ -70,11 +70,11 @@ export async function refreshServerQueries(serverId: string): Promise<void> {
   const filters = { queryKey: serverQueryRoot(serverId) };
   await queryClient.cancelQueries(filters);
   if (permissionRefreshes.get(serverId) !== generation) return;
-  await Promise.all(queryClient.getQueryCache().findAll(filters).map(async (query) => {
-    if (!query.isActive()) {
-      query.reset();
-      return;
-    }
+  const queries = queryClient.getQueryCache().findAll(filters);
+  // Active queries can load inactive row snapshots through fetchQuery. Clear
+  // those dependencies first, so fresh loads cannot reuse or lose stale rows.
+  for (const query of queries) if (!query.isActive()) query.reset();
+  await Promise.all(queries.filter((query) => query.isActive()).map(async (query) => {
     try {
       await query.fetch();
     } catch {

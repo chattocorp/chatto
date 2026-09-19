@@ -16,6 +16,27 @@ import { queryClient } from './client';
 import { QueryObserver } from '@tanstack/svelte-query';
 
 describe('server query cache', () => {
+  it.each([0, Infinity])('discards inactive dependencies before nested reads with staleTime=%s', async (staleTime) => {
+    const parentKey = ['server', 'one', 'parent'];
+    const childKey = ['server', 'one', 'child'];
+    // Keep the parent first in cache iteration order, as on its initial load.
+    queryClient.setQueryData(parentKey, 'old-parent');
+    queryClient.setQueryData(childKey, 'old-child');
+    const observer = new QueryObserver(queryClient, {
+      queryKey: parentKey,
+      staleTime: Infinity,
+      retry: false,
+      queryFn: () => queryClient.fetchQuery({
+        queryKey: childKey, queryFn: async () => 'fresh-child', staleTime, retry: false
+      })
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    await refreshRegisteredServerQueries('one');
+    expect(observer.getCurrentResult().data).toBe('fresh-child');
+    expect(queryClient.getQueryData(childKey)).toBe('fresh-child');
+    unsubscribe();
+  });
+
   it('keeps the latest authorization result when refreshes overlap', async () => {
     const queryKey = ['server', 'one', 'resource'];
     let resolveOld!: (value: string) => void;
