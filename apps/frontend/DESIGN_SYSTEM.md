@@ -365,6 +365,15 @@ Compact standalone composer actions and participant-card actions use
 `CompactActionButton`. Their backgrounds are transparent at rest and show
 the shared bevel on hover or keyboard focus. Disabled controls remain flat.
 
+All message attachment actions pair `attachment-action-button` with `btn-secondary`
+or `btn-danger-secondary` for deletion. The attachment utility sets the square
+40 px geometry. One shared renderer arranges these controls in media overlays,
+beside audio players, or beside ordinary filenames. File-card actions stay visible;
+media action groups appear on desktop hover or keyboard focus. The standard button
+tone supplies the fill, border, focus, pressed state, and shared depth finish.
+These controls follow the Flat, Kinda 3D, and Very 3D preference.
+See `UI/Attachment actions` in Storybook.
+
 ### Shared Depth Utilities
 
 `surface-raised` owns the gradient and lit-edge recipe. `surface-lowered` owns

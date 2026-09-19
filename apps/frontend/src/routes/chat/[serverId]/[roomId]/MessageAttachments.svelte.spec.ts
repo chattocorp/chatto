@@ -185,21 +185,90 @@ describe('MessageAttachments', () => {
     expect(view.container.querySelector('iframe')).toBeNull();
   });
 
-  it('pauses inline audio before opening its attachment viewer', async () => {
-    const attachment = fileAttachment({ filename: 'voice.mp3', contentType: 'audio/mpeg' });
-    const view = renderAttachment(attachment);
-    const audio = view.container.querySelector('audio')!;
-    const pause = vi.spyOn(audio, 'pause');
-    await view.getByRole('button', { name: 'View voice.mp3', exact: true }).click();
-    expect(pause).toHaveBeenCalledOnce();
-    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
-      modal: expect.objectContaining({
-        type: 'attachmentViewer',
-        index: 0,
-        items: [expect.objectContaining({ id: attachment.id })]
-      })
-    });
-  });
+  it.each(['audio/mpeg', 'video/mp4'])(
+    'pauses only the selected %s before opening its viewer',
+    async (contentType) => {
+      const attachment = fileAttachment({ filename: 'selected-media', contentType });
+      const view = renderAttachments([
+        attachment,
+        fileAttachment({ id: 'other', filename: 'other.mp3', contentType: 'audio/mpeg' })
+      ]);
+      const [selected, other] = view.container.querySelectorAll<HTMLMediaElement>('audio, video');
+      const pause = vi.spyOn(selected, 'pause');
+      const otherPause = vi.spyOn(other, 'pause');
+      await view.getByRole('button', { name: 'View selected-media', exact: true }).click();
+      expect(pause).toHaveBeenCalledOnce();
+      expect(otherPause).not.toHaveBeenCalled();
+      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+        modal: expect.objectContaining({
+          type: 'attachmentViewer',
+          index: 0,
+          items: [expect.objectContaining({ id: attachment.id })]
+        })
+      });
+    }
+  );
+
+  it.each([
+    hlsVideoAttachment(),
+    hlsVideoAttachment({ filename: 'loop.gif', contentType: 'image/gif' }),
+    fileAttachment({ filename: 'raw.mp4', contentType: 'video/mp4' }),
+    fileAttachment({ filename: 'voice.mp3', contentType: 'audio/mpeg' })
+  ])(
+    'opens $filename through an icon with an accessible filename and tooltip',
+    async (attachment) => {
+      const view = renderAttachment(attachment);
+      const button = view.getByRole('button', { name: `View ${attachment.filename}`, exact: true });
+      await expect.element(button).toHaveAttribute('title', `View ${attachment.filename}`);
+      await expect.element(button).toHaveTextContent('');
+      expect(view.container.querySelector('bdi')).toBeNull();
+      await button.click();
+      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+        modal: expect.objectContaining({
+          type: 'attachmentViewer',
+          items: [expect.objectContaining({ id: attachment.id })]
+        })
+      });
+    }
+  );
+
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true]
+  ])(
+    'stacks media actions without gaps (delete: %s, edit: %s)',
+    async (canDeleteAttachment, canEditAttachmentDescription) => {
+      const { container } = renderAttachment(
+        fileAttachment({ filename: 'voice.mp3', contentType: 'audio/mpeg' }),
+        { canDeleteAttachment, canEditAttachmentDescription }
+      );
+      const buttons = [...container.querySelectorAll<HTMLButtonElement>('button')];
+      expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
+        ...(canDeleteAttachment ? ['Delete attachment'] : []),
+        'View voice.mp3',
+        ...(canEditAttachmentDescription ? ['Add description'] : [])
+      ]);
+      const audio = container.querySelector('audio')!;
+      const frame = audio.closest<HTMLElement>('[data-attachment-media]')!;
+      for (const width of [240, 120, 640]) {
+        container.style.width = `${width}px`;
+        await expect.poll(() => container.scrollWidth).toBeLessThanOrEqual(width);
+        const frameBounds = frame.getBoundingClientRect();
+        const audioBounds = audio.getBoundingClientRect();
+        for (const [index, button] of buttons.entries()) {
+          const bounds = button.getBoundingClientRect();
+          expect(bounds.left).toBeGreaterThanOrEqual(audioBounds.right);
+          expect(bounds.right).toBeLessThanOrEqual(frameBounds.right);
+          expect(bounds.bottom).toBeLessThanOrEqual(frameBounds.bottom);
+          if (index > 0) {
+            expect(bounds.top - buttons[index - 1].getBoundingClientRect().bottom).toBe(4);
+          }
+        }
+      }
+    }
+  );
 
   it.each(['text/plain', 'application/pdf', 'application/xml'])(
     'opens %s in the shared viewer',
@@ -300,26 +369,39 @@ describe('MessageAttachments', () => {
     expect(container.querySelector('[data-testid="message-image-gallery"]')).toBeNull();
   });
 
-  it.each([true, false])('keeps video attachments and long filenames inside the message (processed: %s)', async (processed) => {
-    const attachment = hlsVideoAttachment();
-    attachment.filename = 'A very long video attachment filename that must not widen the message.mp4';
-    if (!processed) {
-      attachment.videoProcessing = null;
-      attachment.assetUrl = { url: 'https://chat.example.test/clip.mp4', expiresAt: '2099-01-01T00:00:00Z' };
+  it.each([true, false])(
+    'keeps video attachments and long filenames inside the message (processed: %s)',
+    async (processed) => {
+      const attachment = hlsVideoAttachment();
+      attachment.filename =
+        'A very long video attachment filename that must not widen the message.mp4';
+      if (!processed) {
+        attachment.videoProcessing = null;
+        attachment.assetUrl = {
+          url: 'https://chat.example.test/clip.mp4',
+          expiresAt: '2099-01-01T00:00:00Z'
+        };
+      }
+      const { container } = renderAttachment(attachment);
+      await expect
+        .poll(() =>
+          container.querySelector(
+            processed ? '[data-testid="message-attachments-video-player"]' : 'video'
+          )
+        )
+        .toBeTruthy();
+      const player = container.querySelector<HTMLElement>(
+        processed ? '[data-testid="message-attachments-video-player"]' : 'video'
+      )!;
+      const wrapper = player.parentElement!;
+      for (const width of [240, 120, 640]) {
+        container.style.width = `${width}px`;
+        await expect.poll(() => wrapper.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+        expect(player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+        expect(container.scrollWidth).toBeLessThanOrEqual(width);
+      }
     }
-    const { container } = renderAttachment(attachment);
-    await expect.poll(() => container.querySelector(processed
-      ? '[data-testid="message-attachments-video-player"]' : 'video')).toBeTruthy();
-    const player = container.querySelector<HTMLElement>(processed
-      ? '[data-testid="message-attachments-video-player"]' : 'video')!;
-    const wrapper = player.parentElement!;
-    for (const width of [240, 120, 640]) {
-      container.style.width = `${width}px`;
-      await expect.poll(() => wrapper.getBoundingClientRect().width).toBeLessThanOrEqual(width);
-      expect(player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
-      expect(container.scrollWidth).toBeLessThanOrEqual(width);
-    }
-  });
+  );
 
   it('uses descriptions as image alt text and sends them to the image viewer', async () => {
     const description = 'A chart with a rising blue line.';
@@ -398,7 +480,7 @@ describe('MessageAttachments', () => {
     });
   });
 
-  it('uses a subtle attachment remove control when deletion is allowed', () => {
+  it('uses the same management controls for images and ordinary files', () => {
     const { container } = renderAttachments(
       [
         imageAttachment({
@@ -406,7 +488,7 @@ describe('MessageAttachments', () => {
         }),
         fileAttachment({ filename: 'delete-me.pdf' })
       ],
-      { canDeleteAttachment: true }
+      { canDeleteAttachment: true, canEditAttachmentDescription: true }
     );
 
     const deleteControls = container.querySelectorAll<HTMLElement>(
@@ -417,9 +499,18 @@ describe('MessageAttachments', () => {
     expect(deleteControls[0].tagName).toBe('BUTTON');
     expect(deleteControls[1].tagName).toBe('BUTTON');
     expect(deleteControls[1].getAttribute('title')).toBe('Delete attachment');
-    expect(deleteControls[1].className).toContain('mini-icon-action');
-    expect(deleteControls[1].className).not.toContain('attachment-remove-button');
-    expect(deleteControls[1].className).not.toContain('embed-control-button');
+    expect(deleteControls[1].className).toBe(deleteControls[0].className);
+    expect(getComputedStyle(deleteControls[1].parentElement!).opacity).toBe('1');
+    const editControls = container.querySelectorAll<HTMLElement>('[aria-label="Add description"]');
+    expect(editControls).toHaveLength(2);
+    expect(editControls[1].className).toBe(editControls[0].className);
+    expect(editControls[1].parentElement).toBe(deleteControls[1].parentElement);
+    expect(deleteControls[1].getBoundingClientRect().right).toBeLessThanOrEqual(
+      editControls[1].getBoundingClientRect().left
+    );
+    for (const control of deleteControls) {
+      expect(control.querySelector('span')?.classList.contains('icon-[uil--trash-alt]')).toBe(true);
+    }
 
     deleteControls[1].click();
     expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
