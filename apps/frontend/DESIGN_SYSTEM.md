@@ -159,6 +159,14 @@ It keeps a compact search field and aligned result rows through
 `command-palette-result`. The active result uses a flat neutral fill and a quiet
 Enter cue. `keycap` supplies the shared keyboard-hint shape.
 
+## Attachment Description Icons
+
+Never use a wheelchair icon for alt text or attachment descriptions. These
+controls describe content; a wheelchair symbol does not communicate that action.
+Use `icon-[uil--file-edit-alt]` for add and edit description actions in both the
+composer and sent messages. Keep the translated action label in `aria-label`
+and the tooltip, and hide the decorative icon from assistive technology.
+
 ## Joined Action Pills
 
 Use `PillButtonGroup` for related independent actions in one shell. Each native
