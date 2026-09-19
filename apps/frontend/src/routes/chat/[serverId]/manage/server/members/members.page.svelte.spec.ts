@@ -228,6 +228,20 @@ describe('server admin members pagination', () => {
     expect(container.textContent).toContain('@member20');
   });
 
+  it('keeps role labels when the final ID page is empty', async () => {
+    queueResults(
+      result([{ ...member(0), roles: ['admin'] }], 21, true),
+      { ...result([], 1), roles: [] }
+    );
+    const { container } = render(MembersPage);
+    await settle();
+    expect(container.textContent).toContain('Admin');
+    observers[0].trigger(true);
+    await settle();
+    expect(mocks.listMembers).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain('Admin');
+  });
+
   it('searches from offset zero and hides load-more when the filtered page is complete', async () => {
     mocks.listMembers.mockImplementation((input: { search: string | null }) =>
       Promise.resolve(
