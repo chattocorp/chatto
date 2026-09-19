@@ -387,9 +387,12 @@ also prevents old navigation. See ADR-062.
 Notification creation hints carry `created_notification_id`, including during
 Do Not Disturb and for initially read occurrences. Updates and removals omit it.
 The frontend waits for the coalesced notification resource reads, then checks
-the retained unread row, local Do Not Disturb status, and per-server sound
-preferences. This wait adds no RPC and does not consume cursor-owner failures.
-It groups concurrent creations into one sound and remembers 256 IDs per server
+the retained unread row and its attention level, local Do Not Disturb status,
+and per-server sound preferences. This wait adds no RPC and does not consume
+cursor-owner failures.
+Only newly created unread Important occurrences can trigger sound; Ambient
+occurrences remain silent. It groups eligible concurrent creations into one
+sound and remembers 256 IDs per server
 subscription. Failed reads, missing rows, reset state, and disposed subscriptions
 do not play a sound. Periodic reconciliation is silent. Web Push keeps its
 server-side policy checks.

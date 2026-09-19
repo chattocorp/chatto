@@ -16,6 +16,7 @@ Include this component once in the application root so signed-out pages also cle
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
+  import { NotificationAttentionLevel } from '$lib/api-client/notifications';
   import {
     listenForAppBadgeRefresh,
     updateAppBadge,
@@ -59,8 +60,12 @@ Include this component once in the application root so signed-out pages also cle
         } catch {
           // A snapshot reset can cancel this read.
         }
-        const hasUnreadCreation = stores.notifications.occurrences.some(
-          (row) => pendingCreations.includes(row.id) && row.unread
+        // Ambient notifications keep their badges but never trigger local audio.
+        const hasAudibleCreation = stores.notifications.occurrences.some(
+          (row) =>
+            pendingCreations.includes(row.id) &&
+            row.unread &&
+            row.attentionLevel === NotificationAttentionLevel.IMPORTANT
         );
         pendingCreations.length = 0;
         checkingSound = false;
@@ -70,7 +75,7 @@ Include this component once in the application root so signed-out pages also cle
           !stores.isAuthenticated ||
           stores.currentUser?.user?.id !== viewer?.id ||
           presencePreference.effectiveStatus === PresenceStatus.DO_NOT_DISTURB ||
-          !hasUnreadCreation
+          !hasAudibleCreation
         )
           return;
         playNotificationSound(
