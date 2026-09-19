@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import AppHeader from './AppHeader.svelte';
+  import PaneHeader from './PaneHeader.svelte';
 
   const { Story } = defineMeta({
     title: 'UI/App header',
@@ -12,5 +13,12 @@
 <Story name="Unauthenticated shell" asChild>
   <div class="max-w-4xl rounded-lg bg-background p-2 ring-1 ring-border">
     <AppHeader />
+  </div>
+</Story>
+
+<Story name="With pane header" asChild>
+  <div class="max-w-4xl bg-background">
+    <AppHeader />
+    <PaneHeader title="Preferences" />
   </div>
 </Story>

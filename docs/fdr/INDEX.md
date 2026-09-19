@@ -10,14 +10,14 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 
 | # | Feature | Status | Last reviewed |
 |---|---------|--------|---------------|
-| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-09-17 |
+| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-09-19 |
 | [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-09-10 |
 | [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-09-18 |
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-09-18 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-09-15 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-09-15 |
 | [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-09-04 |
-| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-09-15 |
+| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-09-19 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-08-27 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-09-14 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-09-01 |
@@ -31,7 +31,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-09-17 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-09-18 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-27 |
-| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-18 |
+| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-19 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-09-19 |
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-08-27 |
 | [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-09-18 |

@@ -32,6 +32,17 @@ The default page size remains 250 and the maximum remains 500.
 This is a breaking pre-1.0 API change. Update the server and its custom clients
 together. Stored membership and user data do not require migration.
 
+## Admin member lists
+
+`AdminUserService.ListMembers` now returns `user_ids` and `page` instead of
+member rows and role summaries. Regenerate clients and load missing rows with
+`AdminUserService.BatchGetMembers`, in batches of at most 100 IDs. That response
+also supplies role summaries. Advance offsets by the number of returned IDs,
+even when a later batch read omits a user.
+
+This is a breaking 0.5 API change. Update custom clients with the server.
+Stored accounts and events do not require migration.
+
 ## Bot identity
 
 The public `User` resource now has a `bot` message of type `BotInfo`.

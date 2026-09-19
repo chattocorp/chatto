@@ -40,6 +40,33 @@ function api(overrides: Partial<MessageSearchAPI> = {}): MessageSearchAPI {
 }
 
 describe('MessageSearchStore', () => {
+  it('reauthorizes the active search and fences a late page without losing its input', async () => {
+    let resolveOld!: (value: MessageSearchPage) => void;
+    const oldPage = new Promise<MessageSearchPage>((resolve) => { resolveOld = resolve; });
+    const client = api({ searchMessages: vi.fn()
+      .mockResolvedValueOnce(page([result('private')], 'next'))
+      .mockReturnValueOnce(oldPage)
+      .mockResolvedValueOnce(page([result('permitted')], null))
+    });
+    const store = new MessageSearchStore(client);
+    const input = { query: 'hello', roomId: 'room-1', order: MessageSearchOrder.NEWEST };
+    await store.search(input);
+    store.query = ' hello ';
+    const invalidate = vi.fn();
+    store.subscribePrivacyInvalidation(invalidate);
+    const pending = store.loadMore();
+    store.refreshPermissions();
+    expect(store.results).toEqual([]);
+    expect(invalidate).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['permitted']));
+    resolveOld(page([result('revoked')], 'stale-cursor'));
+    await pending;
+    expect(store.results.map((item) => item.id)).toEqual(['permitted']);
+    expect(store.query).toBe(' hello ');
+    expect(store.nextCursor).toBeNull();
+    expect(client.searchMessages).toHaveBeenLastCalledWith(input);
+  });
+
   it('loads availability only once', async () => {
     const client = api();
     const store = new MessageSearchStore(client);

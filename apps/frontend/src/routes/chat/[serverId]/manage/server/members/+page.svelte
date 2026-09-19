@@ -49,8 +49,8 @@
             ),
         initialPageParam: 0,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.users.length > 0
-            ? lastPageParam + lastPage.users.length
+          lastPage.hasMore && lastPage.consumedCount > 0
+            ? lastPageParam + lastPage.consumedCount
             : undefined
       };
     },
@@ -67,7 +67,10 @@
       })
     );
   });
-  const roles = $derived<AdminRoleSummary[]>(membersQuery.data?.pages.at(-1)?.roles ?? []);
+  // An empty ID page needs no batch read, so retain the last hydrated labels.
+  const roles = $derived<AdminRoleSummary[]>(
+    membersQuery.data?.pages.findLast((page) => page.roles.length > 0)?.roles ?? []
+  );
   const totalCount = $derived(membersQuery.data?.pages.at(-1)?.totalCount ?? 0);
   const hasMore = $derived(membersQuery.hasNextPage);
   const loading = $derived(membersQuery.isPending);

@@ -7,6 +7,60 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('User context menu', () => {
+  for (const width of [1440, 390]) {
+    test(`View profile stays in the current room and returns to Members at ${width}px`, async ({
+      page,
+      chatPage,
+      roomPage,
+      browser,
+      serverURL
+    }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+      await page.setViewportSize({ width, height: 900 });
+
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ user, chatPage: peerChat, roomPage: peerRoom }) => {
+          await peerChat.enterRoom('general');
+          const message = `Profile without a DM at ${width}px`;
+          await peerRoom.sendMessage(message);
+          await roomPage.expectMessageVisible(message, { timeout: TIMEOUTS.REALTIME_EVENT });
+          const originalURL = page.url();
+          const dmRequests: string[] = [];
+          const pageErrors: string[] = [];
+          page.on('request', (request) => {
+            if (request.url().includes('/StartDM')) dmRequests.push(request.url());
+          });
+          page.on('pageerror', (error) => pageErrors.push(error.message));
+
+          const article = page.locator('[role="article"]', { hasText: message });
+          await article.locator('button').first().click({ button: 'right' });
+          await page
+            .getByRole('dialog', { name: 'User profile' })
+            .getByRole('button', { name: 'View profile', exact: true })
+            .click();
+          const profile = page.getByTestId('room-sidebar-profile');
+          await expect(profile).toBeVisible();
+          await expect(profile.getByText(`@${user.login}`, { exact: true })).toBeVisible();
+          await expect(page).toHaveURL(originalURL);
+          const sidebar = page.getByTestId(
+            width >= 1024 ? 'room-sidebar-desktop-pane' : 'room-sidebar-mobile-pane'
+          );
+          await sidebar.getByRole('button', { name: 'Members', exact: true }).click();
+          await expect(profile).not.toBeVisible();
+          await expect(sidebar.getByTestId('room-member-list')).toBeVisible();
+          await expect(page).toHaveURL(originalURL);
+          expect(dmRequests).toEqual([]);
+          expect(pageErrors).toEqual([]);
+        }
+      );
+    });
+  }
+
   test.describe('from message avatar', () => {
     test('right-clicking a message avatar shows user profile dialog', async ({
       page,

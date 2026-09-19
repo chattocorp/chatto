@@ -102,9 +102,10 @@
 				settingsQueryKeys.verifiedEmails(scope.serverId, scope.connection, scope.userId),
 				emails
 			);
-			void queryClient.invalidateQueries({
+			const memberLists = {
 				queryKey: adminQueryKeys.membersRoot(scope.serverId, scope.connection)
-			});
+			};
+			void queryClient.cancelQueries(memberLists).then(() => queryClient.invalidateQueries(memberLists));
 			void queryClient.invalidateQueries({
 				queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
 				exact: true

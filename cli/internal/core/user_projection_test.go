@@ -39,7 +39,7 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 			b.Fatal(err)
 		}
 		p.users[userID] = &projectedUser{
-			user:        &evtv1.User{Id: userID},
+			user:        &evtv1.User{Id: userID, CreatedAt: timestamppb.New(time.Unix(int64(i), 0))},
 			login:       newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", encryptedLogin),
 			displayName: newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", encryptedDisplayName),
 		}
@@ -50,13 +50,15 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 		}
 	}
 
-	for _, method := range []string{"hydrate-profiles", "active-ids"} {
+	for _, method := range []string{"hydrate-profiles", "active-ids", "admin-metadata"} {
 		b.Run(method, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				var count int
 				if method == "hydrate-profiles" {
 					count = len(p.GetReferences(userIDs))
+				} else if method == "admin-metadata" {
+					count = len(p.ActiveDirectoryMetadata())
 				} else {
 					count = len(p.ActiveIDs(userIDs))
 				}
@@ -81,6 +83,14 @@ func TestUserProjectionActiveIDsDoesNotHydrateProfiles(t *testing.T) {
 	}
 	require.Equal(t, []string{"active"}, p.ActiveIDs([]string{"deleted", "active", "missing", "shredded"}))
 	require.Equal(t, []string{"active"}, p.AllActiveIDs())
+	created := timestamppb.Now()
+	p.users["active"].user.CreatedAt = created
+	metadata := p.ActiveDirectoryMetadata()
+	require.Len(t, metadata, 1)
+	require.Equal(t, "active", metadata[0].ID)
+	require.Equal(t, created, metadata[0].CreatedAt)
+	metadata[0].CreatedAt.Seconds++
+	require.NotEqual(t, created.Seconds, metadata[0].CreatedAt.Seconds)
 }
 
 func userEvent(id string, ts time.Time, event *evtv1.Event) *evtv1.Event {

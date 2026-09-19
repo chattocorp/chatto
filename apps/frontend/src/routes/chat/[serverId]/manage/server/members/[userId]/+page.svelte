@@ -156,9 +156,10 @@
   }
 
   function invalidateMemberLists(target: MemberMutationScope): void {
-    void queryClient.invalidateQueries({
+    const filters = {
       queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
-    });
+    };
+    void queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
   }
 
   function invalidateRole(target: MemberMutationScope, roleName: string): void {
@@ -385,12 +386,11 @@
               {toggleMemberRole}
             />
           {/key}
-
-          {#if details.viewerCanManageUserPermissions}
-            <Hint>{m('admin.permissions.resolution_hint')}</Hint>
-            <UserPermissionsMatrix {userId} />
-          {/if}
         {/if}
+      {/if}
+      {#if loading || (details?.viewerCanManageUserPermissions && !isBot)}
+        <Hint>{m('admin.permissions.resolution_hint')}</Hint>
+        <UserPermissionsMatrix {userId} />
       {/if}
     </div>
   </PaneContent>

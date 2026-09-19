@@ -74,39 +74,36 @@ type AdminMemberDetails struct {
 	RevocableRoleNames             []string
 }
 
-func (c *ChattoCore) ListAdminMembers(ctx context.Context, actorID string, input AdminMemberListInput) (*AdminMemberList, error) {
+// AdminMemberIDPage selects members without hydrating administrative fields.
+type AdminMemberIDPage struct {
+	UserIDs    []string
+	TotalCount int
+	HasMore    bool
+}
+
+// ListAdminMembers returns ordered IDs for an authorized admin directory read.
+// Hydration is owned by BatchGetAdminMembers and checks authorization again.
+func (c *ChattoCore) ListAdminMembers(ctx context.Context, actorID string, input AdminMemberListInput) (*AdminMemberIDPage, error) {
 	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
 		return nil, err
 	}
 	limit, offset := adminMemberPagination(input.Limit, input.Offset)
 
-	members, totalCount, err := c.GetServerMembers(ctx, input.Search, limit, offset)
+	allUsers, err := c.userModel.adminDirectoryCandidates(ctx, input.Search)
 	if err != nil {
 		return nil, err
 	}
 
-	users := make([]AdminMember, 0, len(members))
+	members, totalCount := serverMemberUserPage(allUsers, input.Search, limit, offset)
+	ids := make([]string, 0, len(members))
 	for _, member := range members {
-		if member.User == nil {
-			continue
-		}
-		adminMember, err := c.adminMemberForViewer(ctx, actorID, member.User, explicitServerRoles(member.Roles))
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, *adminMember)
+		ids = append(ids, member.GetId())
 	}
 
-	roles, err := c.ListServerRoles(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &AdminMemberList{
-		Users:      users,
-		Roles:      adminMemberRoleSummaries(roles),
+	return &AdminMemberIDPage{
+		UserIDs:    ids,
 		TotalCount: totalCount,
-		HasMore:    offset+len(users) < totalCount,
+		HasMore:    offset+len(ids) < totalCount,
 	}, nil
 }
 
@@ -191,6 +188,7 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 }
 
 func (c *ChattoCore) BatchGetAdminMembers(ctx context.Context, actorID string, userIDs []string) (*AdminMemberList, error) {
+	ctx = WithDEKRequestCache(ctx)
 	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -372,16 +370,6 @@ func adminMemberPagination(limit, offset int) (int, int) {
 		offset = 0
 	}
 	return limit, offset
-}
-
-func explicitServerRoles(roles []string) []string {
-	out := make([]string, 0, len(roles))
-	for _, role := range roles {
-		if role != RoleEveryone {
-			out = append(out, role)
-		}
-	}
-	return out
 }
 
 func adminMemberRoleSummaries(roles []RoleWithPermissions) []AdminMemberRoleSummary {

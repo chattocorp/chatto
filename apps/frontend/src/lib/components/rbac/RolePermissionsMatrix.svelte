@@ -28,6 +28,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   import { mergePermissionPages } from './permissionPages';
@@ -72,6 +73,12 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   let updatingKey = $state<string | null>(null);
   let mutationContext = $state<string | null>(null);
   let mutationGeneration = 0;
+  const unregisterPrivacyFence = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId !== serverScope.serverId) return;
+    mutationGeneration += 1;
+    updatingKey = null;
+    mutationError = null;
+  });
   const isOwnerRole = $derived(roleName === 'owner');
   const activeMutationContext = $derived(
     JSON.stringify([serverScope.serverId, serverScope.connection.queryScope, roleName])
@@ -83,6 +90,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     mutationContext === activeMutationContext ? updatingKey : null
   );
   onDestroy(() => {
+    unregisterPrivacyFence();
     mutationGeneration += 1;
   });
 
@@ -146,13 +154,12 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   >
 {/if}
 
-{#if loading}
-  <div class="text-muted">{m('rbac.permissions.loading')}</div>
-{:else if !data}
+{#if !loading && !data}
   <Hint tone="info">{m('admin.permissions.role_not_found')}</Hint>
 {:else}
   <SubjectPermissionsMatrix
-    {data}
+    data={data ?? { applicablePermissions: [], scopes: [], cells: [] }}
+    {loading}
     hasMore={matrixQuery.hasNextPage && !matrixQuery.isFetchNextPageError}
     loadingMore={matrixQuery.isFetching}
     onLoadMore={() => matrixQuery.fetchNextPage()}

@@ -52,7 +52,7 @@
 
 <!-- WebKit extends the solid background of a sticky header into its top system bar. -->
 <header
-  class="app-header keyboard-hide-mobile sticky top-0 flex items-center justify-between gap-2 bg-surface p-2 text-muted md:text-sm"
+  class="app-header keyboard-hide-mobile sticky top-0 flex h-14 shrink-0 items-center justify-between gap-2 bg-surface p-2 text-muted md:h-auto md:text-sm"
 >
   <!-- Leading: global navigation, notifications, and client-wide actions -->
   <div class="flex items-center gap-3">

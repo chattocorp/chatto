@@ -4,6 +4,8 @@ import {
   reconcileRegisteredAdminRoomGroupQueries,
   reconcileRegisteredAdminRoomQueries,
   refreshRegisteredAdminQueries,
+  refreshRegisteredServerQueries,
+  refreshRegisteredAdminProfileQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -11,8 +13,109 @@ import {
   registerServerQueryCacheRemovalListener
 } from './cacheRegistry';
 import { queryClient } from './client';
+import { QueryObserver } from '@tanstack/svelte-query';
 
 describe('server query cache', () => {
+  it.each([0, Infinity])('discards inactive dependencies before nested reads with staleTime=%s', async (staleTime) => {
+    const parentKey = ['server', 'one', 'parent'];
+    const childKey = ['server', 'one', 'child'];
+    // Keep the parent first in cache iteration order, as on its initial load.
+    queryClient.setQueryData(parentKey, 'old-parent');
+    queryClient.setQueryData(childKey, 'old-child');
+    const observer = new QueryObserver(queryClient, {
+      queryKey: parentKey,
+      staleTime: Infinity,
+      retry: false,
+      queryFn: () => queryClient.fetchQuery({
+        queryKey: childKey, queryFn: async () => 'fresh-child', staleTime, retry: false
+      })
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    await refreshRegisteredServerQueries('one');
+    expect(observer.getCurrentResult().data).toBe('fresh-child');
+    expect(queryClient.getQueryData(childKey)).toBe('fresh-child');
+    unsubscribe();
+  });
+
+  it('keeps the latest authorization result when refreshes overlap', async () => {
+    const queryKey = ['server', 'one', 'resource'];
+    let resolveOld!: (value: string) => void;
+    const read = vi.fn()
+      .mockImplementationOnce(() => new Promise<string>((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce('latest');
+    queryClient.setQueryData(queryKey, 'before');
+    const observer = new QueryObserver(queryClient, { queryKey, queryFn: read, staleTime: Infinity });
+    const unsubscribe = observer.subscribe(() => {});
+    const first = refreshRegisteredServerQueries('one');
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    const second = refreshRegisteredServerQueries('one');
+    await second;
+    resolveOld('stale-private');
+    await first;
+    expect(observer.getCurrentResult().data).toBe('latest');
+    unsubscribe();
+  });
+
+  it.each(['allowed', 'denied', 'offline'])('reauthorizes in place and fences older data: %s', async (outcome) => {
+    const queryKey = ['server', 'one', 'session', 'scope', 'admin', 'permission-tier'];
+    let resolveOld!: (value: string) => void;
+    let resolveFresh!: (value: string) => void;
+    let rejectFresh!: (error: Error) => void;
+    const read = vi.fn()
+      .mockImplementationOnce(() => new Promise<string>((resolve) => { resolveOld = resolve; }))
+      .mockImplementationOnce(() => new Promise<string>((resolve, reject) => {
+        resolveFresh = resolve;
+        rejectFresh = reject;
+      }));
+    queryClient.setQueryData(queryKey, 'authorized-before');
+    queryClient.setQueryData(['server', 'one', 'inactive'], 'inactive-private');
+    queryClient.setQueryData(['server', 'two', 'resource'], 'unrelated');
+    const observer = new QueryObserver(queryClient, { queryKey, queryFn: read, staleTime: 0, retry: false });
+    const unsubscribe = observer.subscribe(() => {});
+    const query = observer.getCurrentQuery();
+    const refreshing = refreshRegisteredServerQueries('one');
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    expect(observer.getCurrentResult().data).toBe('authorized-before');
+    expect(queryClient.getQueryData(['server', 'one', 'inactive'])).toBeUndefined();
+    resolveOld('stale-response');
+    await Promise.resolve();
+    expect(observer.getCurrentResult().data).toBe('authorized-before');
+    if (outcome === 'allowed') resolveFresh('authorized-after');
+    else rejectFresh(new ConnectError(outcome, outcome === 'denied' ? Code.PermissionDenied : Code.Unavailable));
+    await refreshing;
+    expect(observer.getCurrentQuery()).toBe(query);
+    expect(observer.getCurrentResult().data).toBe(outcome === 'allowed' ? 'authorized-after' : undefined);
+    expect(queryClient.getQueryData(['server', 'two', 'resource'])).toBe('unrelated');
+    unsubscribe();
+  });
+
+  it('clears private data and fences late reads when the session is removed', async () => {
+    const queryKey = ['server', 'one', 'resource'];
+    let resolveOld!: (value: string) => void;
+    const read = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveOld = resolve;
+          })
+      );
+    queryClient.setQueryData(queryKey, 'private-before');
+    const observer = new QueryObserver(queryClient, { queryKey, queryFn: read, staleTime: 0 });
+    const unsubscribe = observer.subscribe(() => {});
+    const query = observer.getCurrentQuery();
+    expect(read).toHaveBeenCalledTimes(1);
+    removeRegisteredServerQueries('one');
+    expect(observer.getCurrentResult().data).toBeUndefined();
+    expect(read).toHaveBeenCalledTimes(1);
+    resolveOld('revoked-data');
+    await Promise.resolve();
+    expect(observer.getCurrentResult().data).toBeUndefined();
+    expect(queryClient.getQueryData(queryKey)).toBeUndefined();
+    expect(observer.getCurrentQuery()).toBe(query);
+    unsubscribe();
+  });
+
   afterEach(() => queryClient.clear());
 
   it('removes only the selected server cache', () => {
@@ -23,6 +126,22 @@ describe('server query cache', () => {
 
     expect(queryClient.getQueryData(['server', 'one', 'resource'])).toBeUndefined();
     expect(queryClient.getQueryData(['server', 'two', 'resource'])).toBe('private-two');
+  });
+
+  it('reports a failed privacy fence but still clears private cached data', () => {
+    const key = ['server', 'one', 'resource'];
+    queryClient.setQueryData(key, 'private');
+    const unregister = registerQueryCacheRemovalListener(() => {
+      throw new Error('fence failed');
+    });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(removeRegisteredServerQueries('one')).toBe(false);
+      expect(queryClient.getQueryData(key)).toBeUndefined();
+    } finally {
+      unregister();
+      log.mockRestore();
+    }
   });
 
   it('notifies late-mutation fences before server and admin cache removal', () => {
@@ -64,6 +183,22 @@ describe('server query cache', () => {
     refreshRegisteredAdminQueries('one');
 
     expect(queryClient.getQueryData(key)).toBe('stable-matrix');
+  });
+
+  it('refreshes profile data without treating an edit as an authorization reset', async () => {
+    const key = ['server', 'one', 'session', 'scope', 'admin', 'members', 'row', 'user'];
+    queryClient.setQueryData(key, 'profile');
+    const removed = vi.fn();
+    const unregister = registerQueryCacheRemovalListener(removed);
+    try {
+      refreshRegisteredAdminProfileQueries('one');
+      await vi.waitFor(() => expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true));
+      expect(removed).not.toHaveBeenCalled();
+      removeRegisteredAdminQueries('one');
+      expect(removed).toHaveBeenCalledWith('one');
+    } finally {
+      unregister();
+    }
   });
 
   it('scrubs member lists and the removed member detail only', () => {

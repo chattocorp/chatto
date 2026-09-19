@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -79,6 +80,24 @@ func TestServerMemberUserPage(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestServerMemberUserPageTieOrder(t *testing.T) {
+	created := timestamppb.New(time.Unix(1, 0))
+	users := []*evtv1.User{
+		{Id: "b", CreatedAt: created},
+		{Id: "d", Login: "legacy"},
+		{Id: "a", CreatedAt: created},
+		{Id: "c", Login: "LEGACY"},
+	}
+	page, total := serverMemberUserPage(users, "", 0, 0)
+	ids := make([]string, 0, len(page))
+	for _, user := range page {
+		ids = append(ids, user.GetId())
+	}
+	if total != 4 || !slices.Equal(ids, []string{"a", "b", "c", "d"}) {
+		t.Fatalf("tie order = %v, total = %d", ids, total)
 	}
 }
 

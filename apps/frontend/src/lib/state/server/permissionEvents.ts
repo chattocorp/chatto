@@ -1,7 +1,7 @@
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 /** Decide cache invalidation from public subjects, without resolving permissions locally.
- * Unknown viewer roles require a conservative reload. Role removal is checked
+ * Unknown viewer roles require an authority refresh. Role removal is checked
  * against retained roles before the membership event is applied.
  */
 export function affectsViewerPermissions(

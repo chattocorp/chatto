@@ -506,7 +506,7 @@ describe('RoomMembersStore', () => {
     expect(store.hasLoadedAll).toBe(true);
   });
 
-  it('publishes a refreshed first page when later refresh hydration fails', async () => {
+  it.each([false, true])('handles a failed later page during reauthorization: %s', async (reauthorize) => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'initial')], false, 1),
@@ -518,10 +518,10 @@ describe('RoomMembersStore', () => {
     try {
       store.setRoom('room-1');
       await store.loadInitial();
-      await store.refresh();
+      await store.refresh({ reauthorize });
 
-      expect(store.members.map((member) => member.login)).toEqual(['refresh-a']);
-      expect(store.totalCount).toBe(3);
+      expect(store.members.map((member) => member.login)).toEqual(reauthorize ? [] : ['refresh-a']);
+      expect(store.totalCount).toBe(reauthorize ? 0 : 3);
       expect(store.hasLoadedAll).toBe(false);
       expect(store.loadError).toBe('network failed');
     } finally {

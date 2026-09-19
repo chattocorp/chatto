@@ -468,6 +468,9 @@ scope, bot access, and the timing of in-call permission changes.
   `AdminRoleService.ListMembers` calls. The default page contains 20 users;
   the maximum is 100. The existing `role.assign` permission still controls
   roster access. See [API Compatibility](/guides/integrations/api-compatibility/).
+- **API migration:** `AdminUserService.ListMembers` now returns IDs and page
+  metadata. Load admin rows and role summaries with `BatchGetMembers`. See
+  [Admin member lists](/guides/integrations/api-compatibility/#admin-member-lists).
 - **API migration:** `RoomDirectoryService.ListRooms` now returns pages of 50
   rooms by default, capped at 100, ordered by room ID. Follow `page.hasMore`
   and advance the request offset to read the full directory. The bundled client

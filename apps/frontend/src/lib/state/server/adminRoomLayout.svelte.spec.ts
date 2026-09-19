@@ -215,7 +215,7 @@ describe('AdminRoomLayoutStore — loading', () => {
     ]);
   });
 
-  it('keeps known good layout when refresh fails', async () => {
+  it.each([false, true])('only discards a failed refresh when reauthorizing: %s', async (reauthorize) => {
     const { client } = makeClient({
       queries: [
         { data: queryData([group('g1', [room('r1')], 'Lobby')]) },
@@ -227,9 +227,10 @@ describe('AdminRoomLayoutStore — loading', () => {
     await store.refresh();
     expect(store.groups.map((g) => g.name)).toEqual(['Lobby']);
 
-    await store.refresh();
+    if (reauthorize) await store.refreshPermissions();
+    else await store.refresh();
     expect(store.error).toBe('offline');
-    expect(store.groups.map((g) => g.name)).toEqual(['Lobby']);
+    expect(store.groups.map((g) => g.name)).toEqual(reauthorize ? [] : ['Lobby']);
   });
 
   it('discards stale out-of-order refresh responses', async () => {

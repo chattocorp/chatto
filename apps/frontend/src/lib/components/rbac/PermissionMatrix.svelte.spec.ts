@@ -6,6 +6,7 @@ import { flushSync } from 'svelte';
 import PermissionMatrix from './PermissionMatrix.svelte';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { refreshRegisteredServerQueries } from '$lib/query/cacheRegistry';
 
 type TierRoles = {
   applicablePermissions: string[];
@@ -103,6 +104,44 @@ async function settle() {
 }
 
 describe('PermissionMatrix', () => {
+  it('keeps its filter and rejects late cell updates after reauthorization', async () => {
+    let finishMutation!: () => void;
+    permissionMocks.setRolePermission.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishMutation = resolve;
+        })
+    );
+    const { container } = render(PermissionMatrix);
+    await expect
+      .poll(() => container.querySelector('td[data-role="moderator"] button'))
+      .toBeTruthy();
+    const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
+    filter.value = 'message';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    container
+      .querySelector<HTMLButtonElement>(
+        'td[data-role="moderator"][data-permission="message.post"] button'
+      )!
+      .click();
+    await settle();
+    const key = adminQueryKeys.permissionTier(
+      'server-test',
+      { queryScope: 'permission-matrix-test' },
+      null,
+      null
+    );
+    await refreshRegisteredServerQueries('server-test');
+    await expect.poll(() => queryClient.getQueryData(key)).toBeTruthy();
+    const fresh = queryClient.getQueryData(key);
+    finishMutation();
+    await settle();
+    expect(queryClient.getQueryData(key)).toBe(fresh);
+    expect(container.querySelector('[data-testid="permission-filter"]')).toBe(filter);
+    expect(filter.value).toBe('message');
+  });
+
   it('renders one compact permission matrix with category dividers', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
@@ -136,9 +175,9 @@ describe('PermissionMatrix', () => {
         (permission) => permission.textContent
       )
     ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
-    expect(
-      container.querySelector('[data-testid="permission-name"]')?.getAttribute('title')
-    ).toBe("Edit a room's settings and permissions, and delete rooms");
+    expect(container.querySelector('[data-testid="permission-name"]')?.getAttribute('title')).toBe(
+      "Edit a room's settings and permissions, and delete rooms"
+    );
     expect(container.querySelector('button[aria-label^="About "]')).toBeNull();
   });
 

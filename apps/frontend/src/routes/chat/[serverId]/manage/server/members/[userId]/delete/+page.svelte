@@ -12,7 +12,7 @@
     registerAdminUserRemovalListener,
     registerQueryCacheRemovalListener
   } from '$lib/query/cacheRegistry';
-  import { queryClient } from '$lib/query/client';
+  import { queryClient, removeAdminUserQueries } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PaneContent, PageTitle } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -124,9 +124,8 @@
     if (!isCurrentTarget(target)) return;
 
     toast.success(m('admin.member_delete.success'));
-    // The realtime user-account-deleted event purge
-    // (removeRegisteredAdminUserQueries) fences other admin caches that embed
-    // this user; here we only refresh the list and drop this page's entry.
+    // Scrub private row caches immediately, even if realtime delivery is delayed.
+    removeAdminUserQueries(target.serverId, target.userId);
     void queryClient.invalidateQueries({
       queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
     });

@@ -959,6 +959,32 @@ func (p *UserProjection) AllActiveIDs() []string {
 	return ids
 }
 
+// UserDirectoryMetadata contains only the lifecycle fields needed to order an
+// admin member page. It does not retain decrypted profile data.
+type UserDirectoryMetadata struct {
+	ID        string
+	CreatedAt *timestamppb.Timestamp
+}
+
+// ActiveDirectoryMetadata returns detached creation metadata without resolving
+// encryption keys. Deleted and shredded accounts are excluded.
+func (p *UserProjection) ActiveDirectoryMetadata() []UserDirectoryMetadata {
+	p.RLock()
+	defer p.RUnlock()
+	entries := make([]UserDirectoryMetadata, 0, len(p.users))
+	for id, user := range p.users {
+		if user == nil || user.deleted || user.shredded || user.user == nil {
+			continue
+		}
+		entry := UserDirectoryMetadata{ID: id}
+		if created := user.user.GetCreatedAt(); created != nil {
+			entry.CreatedAt = proto.Clone(created).(*timestamppb.Timestamp)
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
 // GetReferencesContext returns public user references aligned with userIDs. Unknown users are nil.
 func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
 	p.RLock()

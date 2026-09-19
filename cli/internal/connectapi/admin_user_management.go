@@ -37,15 +37,8 @@ func (s *adminUserManagementService) ListMembers(ctx context.Context, req *conne
 		return nil, connectError(err)
 	}
 	response := &adminv1.ListMembersResponse{
-		Members: make([]*adminv1.AdminMember, 0, len(members.Users)),
-		Roles:   make([]*apiv1.Role, 0, len(members.Roles)),
+		UserIds: members.UserIDs,
 		Page:    apiPageInfo(members.TotalCount, members.HasMore),
-	}
-	for _, user := range members.Users {
-		response.Members = append(response.Members, s.adminMember(ctx, user))
-	}
-	for _, role := range members.Roles {
-		response.Roles = append(response.Roles, publicAPIRoleFromAdminMemberSummary(role))
 	}
 	return connect.NewResponse(response), nil
 }
@@ -103,15 +96,9 @@ func (s *adminUserManagementService) BatchGetMembers(ctx context.Context, req *c
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response := &adminv1.BatchGetMembersResponse{
-		Members: make([]*adminv1.AdminMember, 0, len(members.Users)),
-		Roles:   make([]*apiv1.Role, 0, len(members.Roles)),
-	}
-	for _, user := range members.Users {
-		response.Members = append(response.Members, s.adminMember(ctx, user))
-	}
-	for _, role := range members.Roles {
-		response.Roles = append(response.Roles, publicAPIRoleFromAdminMemberSummary(role))
+	response, err := s.assembleAdminMembers(ctx, members)
+	if err != nil {
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(response), nil
 }
@@ -260,13 +247,21 @@ func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connec
 }
 
 func (s *adminUserManagementService) adminMember(ctx context.Context, member core.AdminMember) *adminv1.AdminMember {
+	presence, err := s.api.core.GetUserPresence(ctx, member.ID)
+	if err != nil {
+		presence = core.PresenceStatusOffline
+	}
+	return s.adminMemberWithPresence(ctx, member, presence)
+}
+
+func (s *adminUserManagementService) adminMemberWithPresence(ctx context.Context, member core.AdminMember, presence string) *adminv1.AdminMember {
 	response := &adminv1.AdminMember{
 		Roles:                  append([]string{}, member.Roles...),
 		CreatedAt:              member.CreatedAt,
 		HasVerifiedEmail:       member.HasVerifiedEmail,
 		VerifiedEmails:         append([]string{}, member.VerifiedEmails...),
 		ViewerCanDeleteAccount: member.ViewerCanDeleteAccount,
-		User:                   s.adminMemberUser(ctx, member),
+		User:                   adminMemberUserWithPresence(member, presence),
 	}
 	if member.AvatarURL != "" {
 		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, member.AvatarURL))
@@ -280,11 +275,7 @@ func (s *adminUserManagementService) adminMember(ctx context.Context, member cor
 	return response
 }
 
-func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member core.AdminMember) *apiv1.User {
-	presence, err := s.api.core.GetUserPresence(ctx, member.ID)
-	if err != nil {
-		presence = core.PresenceStatusOffline
-	}
+func adminMemberUserWithPresence(member core.AdminMember, presence string) *apiv1.User {
 	summary := &apiv1.User{
 		Id:             member.ID,
 		Login:          member.Login,

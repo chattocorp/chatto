@@ -78,6 +78,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onOpenPin,
     onToggleMaximized,
     onOpenProfile,
+    onBackToMembers,
     onClose
   }: {
     loading?: boolean;
@@ -100,6 +101,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
     onOpenProfile?: (userId: string) => void;
+    /** Return from a context-menu profile to this room's member list. */
+    onBackToMembers?: () => void;
     onClose?: () => void;
   } = $props();
 
@@ -129,9 +132,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
     return m('room.sidebar.call');
   });
   const showMaximizeButton = $derived(
-    presentation === 'desktop' && activePanel === 'call' && hasActiveCall && !!onToggleMaximized
+    !activeProfileUserId &&
+      presentation === 'desktop' &&
+      activePanel === 'call' &&
+      hasActiveCall &&
+      !!onToggleMaximized
   );
-  const showCallFullscreenButton = $derived(activePanel === 'call' && hasActiveCall);
+  const showCallFullscreenButton = $derived(
+    !activeProfileUserId && activePanel === 'call' && hasActiveCall
+  );
 
   const canStartDMs = $derived(serverScope.store.permissions.canStartDMs);
   let sidebarElement = $state<HTMLElement | null>(null);
@@ -391,7 +400,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
       label={m('room.sidebar.resize')}
     />
   {/if}
-  <PaneHeader {title}>
+  <PaneHeader
+    {title}
+    onBack={activeProfileUserId ? onBackToMembers : undefined}
+    backLabel={m('room.sidebar.members')}
+  >
     {#snippet actions()}
       {#if showMaximizeButton}
         <HeaderIconButton

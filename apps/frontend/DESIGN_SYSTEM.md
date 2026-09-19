@@ -159,6 +159,14 @@ It keeps a compact search field and aligned result rows through
 `command-palette-result`. The active result uses a flat neutral fill and a quiet
 Enter cue. `keycap` supplies the shared keyboard-hint shape.
 
+## Attachment Description Icons
+
+Never use a wheelchair icon for alt text or attachment descriptions. These
+controls describe content; a wheelchair symbol does not communicate that action.
+Use `icon-[uil--file-edit-alt]` for add and edit description actions in both the
+composer and sent messages. Keep the translated action label in `aria-label`
+and the tooltip, and hide the decorative icon from assistive technology.
+
 ## Joined Action Pills
 
 Use `PillButtonGroup` for related independent actions in one shell. Each native
@@ -364,6 +372,20 @@ local gloss, blur, transparency, or extra shadows.
 Compact standalone composer actions and participant-card actions use
 `CompactActionButton`. Their backgrounds are transparent at rest and show
 the shared bevel on hover or keyboard focus. Disabled controls remain flat.
+
+All message attachment actions pair `attachment-action-button` with `btn-secondary`
+or `btn-danger-secondary` for deletion. The attachment utility sets the square
+40 px geometry. One shared renderer arranges these controls in media overlays,
+beside audio players, or beside ordinary filenames. Audio and file-card actions stay
+visible in a horizontal row. Audio cards wrap actions below the player when space
+is limited. Both use `attachment-card` for equal 12 px padding and a 12 px content
+gap, with 40 px player and action controls. Action rows add no outer margin.
+Image and video action groups appear on desktop hover or keyboard focus. The standard button
+tone supplies the fill, border, focus, pressed state, and shared depth finish.
+These controls follow the Flat, Kinda 3D, and Very 3D preference.
+See `UI/Attachment actions` in Storybook.
+`attachment-video-frame` keeps the video canvas at least 12 rem high so the
+vertical action stack leaves space for playback controls on narrow screens.
 
 ### Shared Depth Utilities
 

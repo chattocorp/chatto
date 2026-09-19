@@ -29,7 +29,7 @@ func TestPublicBotOwnerProfile(t *testing.T) {
 	snapshot, err := env.api.realtimeSnapshotUser(env.ctx, &core.HydratedUserContent{User: bot.User})
 	require.NoError(t, err)
 	require.Equal(t, env.viewer.Id, snapshot.GetBot().GetOwnerUserId())
-	adminSummary := (&adminUserManagementService{api: env.api}).adminMemberUser(env.ctx, core.AdminMember{ID: bot.User.Id, IsBot: true, BotOwnerUserID: env.viewer.Id})
+	adminSummary := (&adminUserManagementService{api: env.api}).adminMember(env.ctx, core.AdminMember{ID: bot.User.Id, IsBot: true, BotOwnerUserID: env.viewer.Id}).GetUser()
 	require.Equal(t, env.viewer.Id, adminSummary.GetBot().GetOwnerUserId())
 	humanSnapshot, err := env.api.realtimeSnapshotUser(env.ctx, &core.HydratedUserContent{User: reader})
 	require.NoError(t, err)

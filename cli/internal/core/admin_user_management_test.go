@@ -84,20 +84,8 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAdminMembers: %v", err)
 	}
-	if list.TotalCount != 1 || len(list.Users) != 1 {
-		t.Fatalf("ListAdminMembers returned %d/%d users, want 1/1", len(list.Users), list.TotalCount)
-	}
-	if got := list.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
-		t.Fatalf("list user roles = %v, want explicit moderator only", got)
-	}
-	if !list.Users[0].HasVerifiedEmail || len(list.Users[0].VerifiedEmails) != 2 || !slices.Contains(list.Users[0].VerifiedEmails, "adminmember-target@example.test") || !slices.Contains(list.Users[0].VerifiedEmails, "adminmember-primary@example.test") {
-		t.Fatalf("list user emails = has:%v emails:%v, want both target emails", list.Users[0].HasVerifiedEmail, list.Users[0].VerifiedEmails)
-	}
-	if list.Users[0].PrimaryVerifiedEmail != "adminmember-primary@example.test" {
-		t.Fatalf("list primary email = %q, want adminmember-primary@example.test", list.Users[0].PrimaryVerifiedEmail)
-	}
-	if list.Users[0].LastLoginChange == nil {
-		t.Fatal("list user LastLoginChange is nil, want visible cooldown timestamp")
+	if list.TotalCount != 1 || !slices.Equal(list.UserIDs, []string{target.Id}) {
+		t.Fatalf("ListAdminMembers = %+v, want target ID only", list)
 	}
 
 	batch, err := c.BatchGetAdminMembers(ctx, admin.Id, []string{target.Id, "missing-user", regular.Id, target.Id})
@@ -173,14 +161,8 @@ func TestChattoCore_ListAdminMembersPaginationRolesAndDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAdminMembers: %v", err)
 	}
-	if page.TotalCount != 3 || !page.HasMore || len(page.Users) != 1 {
-		t.Fatalf("page = users:%d total:%d hasMore:%v, want 1/3/true", len(page.Users), page.TotalCount, page.HasMore)
-	}
-	if page.Users[0].ID != users[1] {
-		t.Fatalf("page user = %q, want %q", page.Users[0].ID, users[1])
-	}
-	if got := page.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
-		t.Fatalf("page roles = %v, want explicit moderator only", got)
+	if page.TotalCount != 3 || !page.HasMore || !slices.Equal(page.UserIDs, users[1:2]) {
+		t.Fatalf("page = %+v, want second ID and 3/true", page)
 	}
 
 	serverMembers, total, err := c.GetServerMembers(ctx, "member-page-two", 1, 0)
@@ -201,13 +183,11 @@ func TestChattoCore_ListAdminMembersPaginationRolesAndDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAdminMembers after deletion: %v", err)
 	}
-	if afterDelete.TotalCount != 2 || len(afterDelete.Users) != 2 || afterDelete.HasMore {
-		t.Fatalf("after deletion = users:%d total:%d hasMore:%v, want 2/2/false", len(afterDelete.Users), afterDelete.TotalCount, afterDelete.HasMore)
+	if afterDelete.TotalCount != 2 || len(afterDelete.UserIDs) != 2 || afterDelete.HasMore {
+		t.Fatalf("after deletion = %+v, want 2/2/false", afterDelete)
 	}
-	for _, member := range afterDelete.Users {
-		if member.ID == users[1] || member.Deleted {
-			t.Fatalf("deleted user remained in list: %+v", member)
-		}
+	if slices.Contains(afterDelete.UserIDs, users[1]) {
+		t.Fatal("deleted user remained in list")
 	}
 }
 

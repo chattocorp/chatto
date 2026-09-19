@@ -1,5 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createContext } from 'svelte';
+import { Code, isConnectCode } from '$lib/api-client/connect';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import {
@@ -191,7 +192,7 @@ export class RoomMembersStore {
     }
   }
 
-  async refresh(): Promise<void> {
+  async refresh({ reauthorize = false }: { reauthorize?: boolean } = {}): Promise<void> {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = !this.hasFirstPage;
@@ -207,6 +208,11 @@ export class RoomMembersStore {
     } catch (error) {
       if (loadId === this.#loadId) {
         this.loadError = error instanceof Error ? error.message : 'Failed to refresh room members';
+        if (reauthorize || isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
+          this.members = [];
+          this.totalCount = 0;
+          this.#searchCache.clear();
+        }
         console.error('Failed to refresh room members:', error);
       }
     } finally {

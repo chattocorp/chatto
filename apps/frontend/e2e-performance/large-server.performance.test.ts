@@ -28,8 +28,14 @@ interface PerformanceFixtureManifest {
 }
 
 interface ListMembersResponse {
-  members?: Array<{ user?: { login?: string } }>;
+  userIds?: string[];
+  // CI also runs this test against the base revision's pre-0.5 response.
+  members?: Array<{ user?: { id?: string; login?: string } }>;
   page?: { totalCount?: number | string; hasMore?: boolean };
+}
+
+interface BatchGetMembersResponse {
+  members?: Array<{ user?: { id?: string; login?: string } }>;
 }
 
 interface PerformanceMeasurements {
@@ -231,7 +237,7 @@ async function measureLargeServer(
     const memberListApiMs = performance.now() - memberListStarted;
     const totalMembers = Number(members.page?.totalCount ?? 0);
     expect(totalMembers).toBeGreaterThanOrEqual(fixture.syntheticUsers + 1);
-    expect(members.members?.length).toBe(Math.min(100, totalMembers));
+    expect((members.userIds ?? members.members)?.length).toBe(Math.min(100, totalMembers));
 
     const memberSearchStarted = performance.now();
     const memberSearch = await connectPost<ListMembersResponse>(
@@ -241,7 +247,15 @@ async function measureLargeServer(
     );
     const memberSearchApiMs = performance.now() - memberSearchStarted;
     expect(Number(memberSearch.page?.totalCount)).toBe(1);
-    expect(memberSearch.members?.[0]?.user?.login).toBe(fixture.lastUserLogin);
+    const searchIds = memberSearch.userIds ?? memberSearch.members?.map((member) => member.user?.id);
+    expect(searchIds).toHaveLength(1);
+    // Keep the list timing separate from hydration, as in the admin client.
+    const hydratedSearch = await connectPost<BatchGetMembersResponse>(
+      page,
+      'chatto.admin.v1.AdminUserService/BatchGetMembers',
+      { userIds: searchIds }
+    );
+    expect(hydratedSearch.members?.[0]?.user?.login).toBe(fixture.lastUserLogin);
 
     const membersPageStarted = performance.now();
     await page.goto(routes.serverAdminMembers);

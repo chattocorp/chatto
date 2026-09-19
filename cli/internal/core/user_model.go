@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -281,6 +282,32 @@ func (m *UserModel) loginChangedAt(userID string) time.Time {
 
 func (m *UserModel) allUsers(ctx context.Context) ([]*evtv1.User, error) {
 	return m.users.Projection().UsersContext(ctx)
+}
+
+// adminDirectoryCandidates avoids profile reads for timestamp-ordered users.
+// Legacy users without timestamps still need their login for the fallback sort.
+func (m *UserModel) adminDirectoryCandidates(ctx context.Context, search string) ([]*evtv1.User, error) {
+	if strings.TrimSpace(search) != "" {
+		return m.allUsers(ctx)
+	}
+	ctx = WithDEKRequestCache(ctx)
+	entries := m.users.Projection().ActiveDirectoryMetadata()
+	users := make([]*evtv1.User, 0, len(entries))
+	for _, entry := range entries {
+		user := &evtv1.User{Id: entry.ID, CreatedAt: entry.CreatedAt}
+		if entry.CreatedAt == nil {
+			legacy, ok, err := m.users.Projection().GetContext(ctx, entry.ID)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
+			user.Login = legacy.GetLogin()
+		}
+		users = append(users, user)
+	}
+	return users, nil
 }
 
 func (m *UserModel) verifiedUserIDs() []string {
