@@ -104,6 +104,62 @@ describe('AppUiState', () => {
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
   });
 
+  it('opens a temporary Members profile without persisting its user', () => {
+    const appUi = new AppUiState();
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.openDesktopRoomSidebarPanel('files');
+    appUi.openMemberProfile('user-1', 'desktop');
+    expect(appUi.activeRoomScope).toEqual({ serverId: 'server-a', roomId: 'room-1' });
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
+    expect(appUi.isMemberProfileOpen).toBe(true);
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('members');
+
+    appUi.openMemberProfile('user-2', 'desktop');
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-2');
+    appUi.backToRoomMembers('desktop');
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('members');
+
+    const restored = new AppUiState();
+    restored.setActiveRoomScope('server-a', 'room-1');
+    expect(restored.activeRoomSidebarProfileUserId).toBeNull();
+    expect(restored.activeDesktopRoomSidebarPanel).toBe('members');
+  });
+
+  it('returns to Members after a breakpoint change without changing desktop preferences on mobile', () => {
+    const appUi = new AppUiState();
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.openDesktopRoomSidebarPanel('files');
+    appUi.openMemberProfile('user-1', 'mobile');
+    appUi.backToRoomMembers('mobile');
+    expect(appUi.mobileRoomSidebarPanel).toBe('members');
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('files');
+
+    appUi.openMemberProfile('user-1', 'desktop');
+    appUi.backToRoomMembers('mobile');
+    expect(appUi.mobileRoomSidebarPanel).toBe('members');
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+
+    appUi.openMemberProfile('user-1', 'mobile');
+    appUi.backToRoomMembers('desktop');
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('members');
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+  });
+
+  it('discards a Members profile when the room or server changes', () => {
+    const appUi = new AppUiState();
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.openMemberProfile('user-1', 'desktop');
+    appUi.setActiveRoomScope('server-a', 'room-2');
+    expect(appUi.isMemberProfileOpen).toBe(false);
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+    appUi.openMemberProfile('user-2', 'desktop');
+    appUi.setActiveServer('server-b');
+    expect(appUi.isMemberProfileOpen).toBe(false);
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+  });
+
   it('clears transient room-sidebar profiles when the viewer changes rooms', () => {
     const appUi = new AppUiState();
 

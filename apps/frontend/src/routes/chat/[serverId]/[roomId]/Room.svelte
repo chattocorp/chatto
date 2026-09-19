@@ -27,7 +27,6 @@
   } from '$lib/state/room';
   import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
-  import { startDMWith } from '$lib/dm/startDM';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
@@ -452,7 +451,8 @@
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
     currentUserId: currentUser.user?.id ?? null,
     membersStore: roomMembersStore,
-    onOpenProfile: openUserDirectMessageProfile
+    onOpenProfile: (userId: string) => appUi.openMemberProfile(userId),
+    onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
   });
 
   const syncRoomMembers: Attachment = () => {
@@ -507,14 +507,6 @@
     appUi.openRoomSidebarProfile(userId);
   }
 
-  /** Open a user's one-to-one DM, then show their information in its sidebar. */
-  function openUserDirectMessageProfile(userId: string): void {
-    void startDMWith(activeServerId, userId, {
-      onRoomReady: (directMessageRoomId) =>
-        appUi.requestRoomSidebarProfile(activeServerId, directMessageRoomId, userId)
-    });
-  }
-
   function openRoomCall(): void {
     appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
   }
@@ -524,17 +516,19 @@
   }
 
   function closeDesktopRoomSidebar(): void {
+    const wasMemberProfile = appUi.isMemberProfileOpen;
     if (activeRoomSidebarProfileUserId) {
       appUi.closeRoomSidebarProfile('desktop');
-      return;
+      if (!wasMemberProfile) return;
     }
     closeDesktopRoomSidebarPanel();
   }
 
   function closeMobileRoomSidebar(): void {
+    const wasMemberProfile = appUi.isMemberProfileOpen;
     if (activeRoomSidebarProfileUserId) {
       appUi.closeRoomSidebarProfile('mobile');
-      return;
+      if (!wasMemberProfile) return;
     }
     appUi.closeMobileRoomSidebarPanel();
   }
@@ -779,7 +773,7 @@
             onOpenThread={openThread}
             onOpenCall={openRoomCall}
             pendingHighlightId={navigation.pendingMainHighlightId}
-            onOpenProfile={openUserDirectMessageProfile}
+            onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
             onHighlightComplete={() => navigation.clearMainHighlight()}
             typingUserIds={typingIndicator.userIds}
             typingMembers={getRoomMembers()}
@@ -863,7 +857,7 @@
             pendingReply={navigation.pendingThreadReply}
             presentation={threadPanePresentation}
             {threadingMode}
-            onOpenProfile={openUserDirectMessageProfile}
+            onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
             onHighlightComplete={() => navigation.clearThreadHighlight()}
             onQuoteConsumed={() => navigation.clearThreadQuote()}
             onReplyConsumed={() => navigation.clearThreadReply()}

@@ -31,6 +31,8 @@ export type AppFullscreenSurface = {
 
 type RoomSidebarProfileState = AppRoomScope & {
   userId: string;
+  /** Context-menu profiles return to Members instead of a saved DM panel. */
+  returnToMembers?: boolean;
 };
 
 type RoomSidebarProfileRequest = RoomSidebarProfileState & {
@@ -121,6 +123,31 @@ export class AppUiState {
     return profile?.serverId === this.#activeServerId && profile?.roomId === this.#activeRoomId
       ? profile.userId
       : null;
+  }
+
+  /** Whether the active profile is a temporary Members subview. */
+  get isMemberProfileOpen(): boolean {
+    return !!this.activeRoomSidebarProfileUserId && !!this.#roomSidebarProfile?.returnToMembers;
+  }
+
+  /** Show a profile in this room without creating or navigating to a DM. */
+  openMemberProfile(
+    userId: string,
+    presentation: RoomSidebarPresentation = getRoomSidebarPresentation()
+  ): void {
+    const scope = this.activeRoomScope;
+    if (!scope) return;
+    if (presentation === 'desktop') this.openDesktopRoomSidebarPanel('members');
+    else this.openMobileRoomSidebarPanel('members');
+    this.#roomSidebarProfile = { ...scope, userId, returnToMembers: true };
+    this.disableRoomCallWideForActiveRoom();
+  }
+
+  /** Return to Members in the current responsive layout, including after a resize. */
+  backToRoomMembers(presentation: RoomSidebarPresentation = getRoomSidebarPresentation()): void {
+    if (!this.isMemberProfileOpen) return;
+    if (presentation === 'desktop') this.openDesktopRoomSidebarPanel('members');
+    else this.openMobileRoomSidebarPanel('members');
   }
 
   toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
