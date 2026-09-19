@@ -8,6 +8,24 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
+// requireFreshCredentialOrPassword accepts password proof for this operation
+// without granting fresh-auth privileges to a delegated session.
+func (a *API) requireFreshCredentialOrPassword(ctx context.Context, caller Caller, currentPassword string) error {
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok || credential.UserID != caller.UserID {
+		return core.ErrFreshAuthRequired
+	}
+	if err := a.requireCredentialFresh(ctx, credential); err == nil {
+		return nil
+	} else if !errors.Is(err, core.ErrFreshAuthRequired) {
+		return err
+	}
+	if currentPassword == "" {
+		return core.ErrFreshAuthRequired
+	}
+	return a.core.VerifyUserPassword(ctx, caller.UserID, currentPassword)
+}
+
 func (a *API) requireFreshCredential(ctx context.Context, caller Caller, currentPassword string) error {
 	credential, ok := authctx.CredentialForContext(ctx)
 	if !ok || credential.UserID != caller.UserID {

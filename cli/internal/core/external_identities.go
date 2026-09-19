@@ -335,6 +335,7 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 // DisconnectExternalIdentity removes a linked provider identity from a user.
 // It refuses to remove the last available sign-in method for passwordless
 // accounts so users created through SSO cannot lock themselves out.
+// Existing sessions remain valid; unlinking removes a future sign-in method.
 func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, subjectHash string) error {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return err
@@ -346,8 +347,9 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 	}
 	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
 		UserExternalIdentityUnlinked: &evtv1.UserExternalIdentityUnlinkedEvent{
-			UserId:      userID,
-			SubjectHash: subjectHash,
+			UserId:                      userID,
+			SubjectHash:                 subjectHash,
+			PreserveExistingCredentials: true,
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
@@ -376,12 +378,6 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 	})
 	if err != nil {
 		return err
-	}
-	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "external_identity_disconnected"); err != nil {
-		c.logger.Warn("Failed to clean up runtime credentials after external identity disconnect", "user_id", userID, "error", err)
-	}
-	if err := c.PublishSessionTerminated(ctx, userID, "external_identity_disconnected"); err != nil {
-		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "reason", "external_identity_disconnected", "error", err)
 	}
 	return nil
 }

@@ -9,11 +9,7 @@
     type AuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
   import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
-  import {
-    beginExplicitSignOutRedirect,
-    cancelExplicitSignOutRedirect,
-    hardRedirectAfterSignOut
-  } from '$lib/auth/signOut';
+  import { hardRedirectAfterSignOut } from '$lib/auth/signOut';
   import { clearCachedUser } from '$lib/auth/loadAuth';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
@@ -62,6 +58,7 @@
   type LinkVariables = IdentityMutationScope & {
     provider: ExternalIdentityProviderInfo;
     currentPassword?: string;
+    redirectPath: string;
   };
   type DisconnectVariables = IdentityMutationScope & {
     subjectHash: string;
@@ -101,8 +98,12 @@
     window: AuthorizationWindow;
     scope: IdentityMutationScope;
     userId: string;
+    providerId: string;
   } | null>(null);
   let checkingWindow = false;
+  let checkingLink = false;
+  // Keep the completion return path through optional password confirmation.
+  let linkingInPopup = false;
 
   function remoteLinkIsCurrent() {
     return (
@@ -114,6 +115,30 @@
 
   function refreshAfterRemoteLink() {
     if (remoteLinkIsCurrent()) void identitiesQuery.refetch();
+  }
+
+  // The provider window has no opener and can be on another origin. Confirm
+  // completion through the account API, without waiting for a focus event.
+  async function checkRemoteLinkResult() {
+    const pending = remoteLinkWindow;
+    if (!pending || checkingLink || !remoteLinkIsCurrent()) return;
+    checkingLink = true;
+    try {
+      const result = await identitiesQuery.refetch({ cancelRefetch: false });
+      if (remoteLinkWindow !== pending || !remoteLinkIsCurrent()) return;
+      if (
+        result.isSuccess &&
+        result.data.providers.some(
+          (provider) => provider.id === pending.providerId && provider.linked
+        )
+      ) {
+        remoteLinkWindow = null;
+        // The remote window closes itself. A detached cross-origin window
+        // cannot be closed by its former opener in Chromium.
+      }
+    } finally {
+      checkingLink = false;
+    }
   }
 
   async function checkRemoteLinkWindow() {
@@ -148,7 +173,12 @@
     }
     const authorizationWindow = browserAuthorizationWindow(popup);
     authorizationWindow.detachOpener();
-    const pending = { window: authorizationWindow, scope: mutationScope(), userId };
+    const pending = {
+      window: authorizationWindow,
+      scope: mutationScope(),
+      userId,
+      providerId: provider.id
+    };
     remoteLinkWindow = pending;
     void authorizationWindow.navigate(url.href).catch(() => {
       if (remoteLinkWindow !== pending) return;
@@ -168,7 +198,19 @@
       actionError = m('settings.account.sso.provider_unavailable');
       return;
     }
-    if (!provider.linked) void startProviderLink(provider);
+    linkingInPopup = true;
+    if (provider.linked) window.close();
+    else void startProviderLink(provider);
+  }
+
+  function completeProviderLink(providerId: string, userId: string) {
+    if (!userId || userId !== currentUser.user?.id) {
+      actionError = m('settings.account.sso.account_mismatch');
+      return;
+    }
+    if (providers.some((provider) => provider.id === providerId && provider.linked)) {
+      window.close();
+    }
   }
 
   let linkFreshAuthProvider = $state<ExternalIdentityProviderInfo | null>(null);
@@ -212,10 +254,15 @@
 
   const linkMutation = createMutation(
     () => ({
-      mutationFn: ({ connection: activeConnection, provider, currentPassword }: LinkVariables) =>
+      mutationFn: ({
+        connection: activeConnection,
+        provider,
+        currentPassword,
+        redirectPath
+      }: LinkVariables) =>
         activeConnection.getAPI(createExternalIdentityAPI).startLink({
           providerId: provider.id,
-          redirectPath: accountSettingsPath,
+          redirectPath,
           currentPassword
         })
     }),
@@ -283,11 +330,22 @@
     provider: ExternalIdentityProviderInfo,
     currentPassword?: string
   ) {
-    if (!serverRegistry.isOriginServer(serverScope.serverId)) {
+    if (!linkingInPopup) {
       openRemoteLink(provider);
       return;
     }
-    const variables: LinkVariables = { ...mutationScope(), provider, currentPassword };
+    const returnURL = new URL(accountSettingsPath, window.location.origin);
+    if (linkingInPopup) {
+      returnURL.searchParams.set('link_provider', provider.id);
+      returnURL.searchParams.set('link_user', currentUser.user?.id ?? '');
+      returnURL.searchParams.set('link_complete', '1');
+    }
+    const variables: LinkVariables = {
+      ...mutationScope(),
+      provider,
+      currentPassword,
+      redirectPath: returnURL.pathname + returnURL.search + returnURL.hash
+    };
     actionError = '';
     try {
       const startUrl = await linkMutation.mutateAsync(variables);
@@ -402,18 +460,15 @@
     };
     actionError = '';
     try {
-      beginExplicitSignOutRedirect();
       await disconnectMutation.mutateAsync(variables);
-      const signedOutServerId = variables.connection.serverId ?? variables.serverId;
       if (!isCurrentSession(variables)) {
-        cancelExplicitSignOutRedirect();
         return;
       }
       disconnectTarget = null;
       disconnectFreshAuthTarget = null;
       disconnectCurrentPassword = '';
       disconnectFreshAuthError = '';
-      finishDisconnectedSession(signedOutServerId);
+      await identitiesQuery.refetch();
     } catch (err) {
       if (
         err instanceof ConnectError &&
@@ -424,11 +479,13 @@
         return;
       }
       if (!isCurrentSession(variables)) {
-        cancelExplicitSignOutRedirect();
         return;
       }
-      if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
-        cancelExplicitSignOutRedirect();
+      if (
+        err instanceof ConnectError &&
+        err.code === Code.FailedPrecondition &&
+        currentPassword === undefined
+      ) {
         disconnectTarget = null;
         if (hasPassword) {
           disconnectFreshAuthTarget = { subjectHash, providerLabel };
@@ -438,11 +495,9 @@
           actionError = m('settings.account.sso.disconnect_fresh_auth_required');
         }
       } else if (currentPassword !== undefined) {
-        cancelExplicitSignOutRedirect();
         disconnectFreshAuthError =
           err instanceof Error ? err.message : m('settings.account.sso.disconnect_failed');
       } else {
-        cancelExplicitSignOutRedirect();
         actionError =
           err instanceof Error ? err.message : m('settings.account.sso.disconnect_failed');
         disconnectTarget = null;
@@ -471,10 +526,11 @@
 
 {#if remoteLinkWindow}
   <Interval milliseconds={500} ontick={checkRemoteLinkWindow} />
+  <Interval milliseconds={2000} ontick={checkRemoteLinkResult} />
 {/if}
 
 {#if serverRegistry.isOriginServer(serverScope.serverId) && currentUser.user?.id && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
-  <IdentityLinkContinuation oncontinue={continueProviderLink} />
+  <IdentityLinkContinuation oncontinue={continueProviderLink} oncomplete={completeProviderLink} />
 {/if}
 
 <Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">

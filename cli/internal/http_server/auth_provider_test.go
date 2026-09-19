@@ -321,19 +321,30 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityLinkStart: %v", err)
 	}
-	linkToken := completeNoEmailOIDCHandshakeWithQuery(t, client, ts.URL, "oidc-no-email", url.Values{
+	linkLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-no-email", url.Values{
 		"intent":     {"link"},
 		"link_start": {linkStart},
 	})
-	linkFlow, err := chattoCore.GetPendingExternalIdentityLinkFlow(t.Context(), linkToken, linkUser.Id)
-	if err != nil {
-		t.Fatalf("GetPendingExternalIdentityLinkFlow: %v", err)
+	linkState := authStateFromLocation(t, linkLocation)
+	loginCookies := make(map[string]string)
+	for _, cookie := range client.Jar.Cookies(serverURL) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			loginCookies[cookie.Name] = cookie.Value
+		}
 	}
-	if linkFlow.VerifiedEmail != "" {
-		t.Fatalf("link flow VerifiedEmail = %q, want empty", linkFlow.VerifiedEmail)
+	if len(loginCookies) == 0 {
+		t.Fatal("expected an existing browser login before linking")
 	}
-	if _, err := chattoCore.ConfirmPendingExternalIdentityLink(t.Context(), linkFlow); err != nil {
-		t.Fatalf("ConfirmPendingExternalIdentityLink: %v", err)
+	if location := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-no-email", linkState); location != "/chat/-/settings/account" {
+		t.Fatalf("link callback Location = %q, want account settings without confirmation", location)
+	}
+	for _, cookie := range client.Jar.Cookies(serverURL) {
+		if isBrowserSessionCookieName(cookie.Name) && cookie.Value != loginCookies[cookie.Name] {
+			t.Fatal("link callback replaced the existing browser login")
+		}
+	}
+	if location := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-no-email", linkState); location != "/login?error=provider_failed" {
+		t.Fatalf("replayed link callback Location = %q, want provider failure", location)
 	}
 	linked, err := chattoCore.GetUserByExternalIdentity(t.Context(), issuer.URL(), "subject-link")
 	if err != nil {
@@ -384,6 +395,26 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 
 	if issuer.UserInfoRequests() == 0 {
 		t.Fatal("expected userinfo fallback when ID token has no email claim")
+	}
+
+	// A valid provider response cannot restore an account deleted during the flow.
+	issuer.SetSubject("subject-deleted-target")
+	deletedStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", "/chat/-/settings/account", linkUser.Id)
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkStart deleted target: %v", err)
+	}
+	deletedLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-no-email", url.Values{
+		"intent":     {"link"},
+		"link_start": {deletedStart},
+	})
+	if err := chattoCore.DeleteUser(t.Context(), linkUser.Id, linkUser.Id); err != nil {
+		t.Fatalf("DeleteUser link target: %v", err)
+	}
+	if location := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-no-email", authStateFromLocation(t, deletedLocation)); location != "/chat/-/settings/account?error=provider_failed" {
+		t.Fatalf("deleted target callback Location = %q, want provider failure", location)
+	}
+	if linked, err := chattoCore.GetUserByExternalIdentity(t.Context(), issuer.URL(), "subject-deleted-target"); err != nil || linked != nil {
+		t.Fatalf("deleted target identity = %v, %v; want no link", linked, err)
 	}
 }
 

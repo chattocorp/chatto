@@ -1338,9 +1338,12 @@ type UserExternalIdentityUnlinkedEvent struct {
 	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Stable one-way identity hash previously written by
 	// UserExternalIdentityLinkedEvent or legacy UserOIDCSubjectLinkedEvent.
-	SubjectHash   string `protobuf:"bytes,2,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SubjectHash string `protobuf:"bytes,2,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
+	// Keep established sessions valid. Absent on historical events, which
+	// revoked credentials and must retain that behavior during replay.
+	PreserveExistingCredentials bool `protobuf:"varint,3,opt,name=preserve_existing_credentials,json=preserveExistingCredentials,proto3" json:"preserve_existing_credentials,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *UserExternalIdentityUnlinkedEvent) Reset() {
@@ -1385,6 +1388,13 @@ func (x *UserExternalIdentityUnlinkedEvent) GetSubjectHash() string {
 		return x.SubjectHash
 	}
 	return ""
+}
+
+func (x *UserExternalIdentityUnlinkedEvent) GetPreserveExistingCredentials() bool {
+	if x != nil {
+		return x.PreserveExistingCredentials
+	}
+	return false
 }
 
 type UserServerPreferencesChangedEvent struct {
@@ -1953,10 +1963,11 @@ const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\x12\x1f\n" +
 	"\vprovider_id\x18\x05 \x01(\tR\n" +
 	"providerId\x12#\n" +
-	"\rprovider_type\x18\x06 \x01(\tR\fproviderType\"_\n" +
+	"\rprovider_type\x18\x06 \x01(\tR\fproviderType\"\xa3\x01\n" +
 	"!UserExternalIdentityUnlinkedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
-	"\fsubject_hash\x18\x02 \x01(\tR\vsubjectHash\"\x89\x01\n" +
+	"\fsubject_hash\x18\x02 \x01(\tR\vsubjectHash\x12B\n" +
+	"\x1dpreserve_existing_credentials\x18\x03 \x01(\bR\x1bpreserveExistingCredentials\"\x89\x01\n" +
 	"!UserServerPreferencesChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12K\n" +
 	"\vpreferences\x18\x02 \x01(\v2).chatto.core.evt.v1.ServerUserPreferencesR\vpreferences\"8\n" +

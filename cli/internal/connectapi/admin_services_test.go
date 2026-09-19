@@ -353,10 +353,22 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	}
 	oauthCredentialCtx := withBearerCredential(env.ctx, env.viewer, oauthViewerToken)
 	_, err = env.account.DisconnectExternalIdentity(oauthCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+		SubjectHash: linked.Msg.LinkedIdentity.GetSubjectHash(),
+	}))
+	requireConnectCode(t, err, connect.CodeFailedPrecondition)
+	_, err = env.account.DisconnectExternalIdentity(oauthCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
 		SubjectHash:     linked.Msg.LinkedIdentity.GetSubjectHash(),
 		CurrentPassword: "password",
 	}))
-	requireConnectCode(t, err, connect.CodeFailedPrecondition)
+	if err != nil {
+		t.Fatalf("DisconnectExternalIdentity delegated password proof: %v", err)
+	}
+	if err := env.core.RequireFreshAuthForBearerToken(env.ctx, oauthViewerToken); !errors.Is(err, core.ErrFreshAuthRequired) {
+		t.Fatalf("delegated credential freshness = %v, want unchanged privileges", err)
+	}
+	if err := env.core.LinkExternalIdentity(env.ctx, "discord-main", config.AuthProviderTypeDiscord, "discord-main", "abc123", env.viewer.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity again: %v", err)
+	}
 
 	staleViewerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "unknown")
 	if err != nil {
