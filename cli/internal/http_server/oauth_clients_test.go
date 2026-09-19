@@ -331,6 +331,25 @@ func TestOAuthClientResolverDeadlineIncludesDestinationValidation(t *testing.T) 
 	}
 }
 
+func TestResolveOAuthClientProvidesExactMobileRegistration(t *testing.T) {
+	server := &HTTPServer{}
+	client, err := server.resolveOAuthClient(context.Background(), "eu.chattocorp.chatto.mobile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !client.BuiltIn || !client.allowsRedirectURI("eu.chattocorp.chatto.mobile:/oauth/callback") {
+		t.Fatal("mobile client must accept its exact callback")
+	}
+	for _, redirect := range []string{
+		"eu.chattocorp.chatto.mobile:/other", "eu.chattocorp.chatto.mobile://attacker/oauth/callback",
+		"eu.chattocorp.chatto.mobile:/oauth/callback?extra=true", "https://attacker.example/oauth/callback",
+	} {
+		if client.allowsRedirectURI(redirect) {
+			t.Errorf("accepted unrelated redirect %q", redirect)
+		}
+	}
+}
+
 func TestResolveOAuthClientProvidesExactDesktopRegistration(t *testing.T) {
 	server := &HTTPServer{}
 	client, err := server.resolveOAuthClient(context.Background(), "chatto://desktop")
