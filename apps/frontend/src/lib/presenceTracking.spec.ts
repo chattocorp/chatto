@@ -174,6 +174,35 @@ describe('per-account presence tracking', () => {
     expect(originReport).not.toHaveBeenCalled();
   });
 
+  it('does not let a delayed cross-tab event expose a newer invisible choice', () => {
+    start();
+    const key = presencePreferences.get(remote).slot.key;
+    // Another tab wrote Online, but its event has not reached this tab yet.
+    localStorage.setItem(key, 'online');
+    setPresenceMode(remote, 'invisible');
+    remoteReport.mockClear();
+    const event = new Event('storage');
+    Object.defineProperties(event, { key: { value: key }, newValue: { value: 'online' } });
+    windowTarget.dispatchEvent(event);
+    vi.advanceTimersByTime(60_000);
+    expect(presencePreferences.get(remote).mode).toBe('invisible');
+    expect(remoteReport).not.toHaveBeenCalled();
+  });
+
+  it('retains the selected mode after a failed report and refreshes only visible accounts', async () => {
+    setPresenceMode(remote, 'invisible');
+    originReport.mockRejectedValueOnce(new Error('Unavailable'));
+    setPresenceMode(origin, 'doNotDisturb');
+    start();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(presencePreferences.get(origin).mode).toBe('doNotDisturb');
+    vi.advanceTimersByTime(30_000);
+    expect(originReport).toHaveBeenLastCalledWith(APIPresenceStatus.DO_NOT_DISTURB, true);
+    expect(originReport).toHaveBeenCalledTimes(2);
+    expect(remoteReport).not.toHaveBeenCalled();
+  });
+
   it('hydrates accounts added later before their first report and stops signed-out reporters', () => {
     setPresenceMode(remote, 'invisible');
     reporters = [{ ...origin, setPresence: originReport }];

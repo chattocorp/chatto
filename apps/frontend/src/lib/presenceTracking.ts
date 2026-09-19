@@ -112,7 +112,9 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     for (const account of accounts.values()) {
       const preference = presencePreferences.get(account.reporter);
       if (event.key !== preference.slot.key) continue;
-      preference.apply(event.newValue);
+      // Storage events can arrive after a newer choice in this tab. Read the
+      // current value so a delayed Online event cannot expose an invisible user.
+      preference.reload();
       report(account);
     }
   }
