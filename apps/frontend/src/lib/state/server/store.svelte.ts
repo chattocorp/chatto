@@ -72,6 +72,7 @@ import {
   resetRegisteredDirectoryUsers,
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
+  refreshRegisteredAdminProfileQueries,
   refreshRegisteredRoleQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
@@ -1154,6 +1155,9 @@ export class ServerStateStore {
           this.invalidateUniversalMembership();
         }
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
+        // Admin rows have a separate private cache; public profile hydration
+        // cannot update its email, permission, or search snapshots.
+        refreshRegisteredAdminProfileQueries(this.serverId);
         return;
       case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');

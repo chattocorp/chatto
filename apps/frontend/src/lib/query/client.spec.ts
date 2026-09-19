@@ -4,6 +4,7 @@ import {
   reconcileRegisteredAdminRoomGroupQueries,
   reconcileRegisteredAdminRoomQueries,
   refreshRegisteredAdminQueries,
+  refreshRegisteredAdminProfileQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -64,6 +65,22 @@ describe('server query cache', () => {
     refreshRegisteredAdminQueries('one');
 
     expect(queryClient.getQueryData(key)).toBe('stable-matrix');
+  });
+
+  it('refreshes profile data without treating an edit as an authorization reset', async () => {
+    const key = ['server', 'one', 'session', 'scope', 'admin', 'members', 'row', 'user'];
+    queryClient.setQueryData(key, 'profile');
+    const removed = vi.fn();
+    const unregister = registerQueryCacheRemovalListener(removed);
+    try {
+      refreshRegisteredAdminProfileQueries('one');
+      await vi.waitFor(() => expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true));
+      expect(removed).not.toHaveBeenCalled();
+      removeRegisteredAdminQueries('one');
+      expect(removed).toHaveBeenCalledWith('one');
+    } finally {
+      unregister();
+    }
   });
 
   it('scrubs member lists and the removed member detail only', () => {

@@ -1094,6 +1094,7 @@ describe('ServerStateStore unified realtime resources', () => {
     }
 
     expect(apiMocks.readRealtimeUsers).toHaveBeenCalledTimes(1);
+    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(store.serverId);
     first.resolve([]);
     await flushPromises();
 

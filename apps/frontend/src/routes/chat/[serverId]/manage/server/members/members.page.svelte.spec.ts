@@ -132,6 +132,7 @@ function result(users: Member[], totalCount = users.length, hasMore = false) {
   return {
     roles: [{ name: 'admin', displayName: 'Admin' }],
     users,
+    consumedCount: users.length,
     totalCount,
     hasMore
   };
@@ -212,6 +213,33 @@ describe('server admin members pagination', () => {
     );
     expect(container.textContent).toContain('@member20');
     expect(container.textContent).toContain('Showing 21 of 21 member(s)');
+  });
+
+  it('advances past a page whose IDs all disappeared before hydration', async () => {
+    queueResults({ ...result([], 21, true), consumedCount: 20 }, result([member(20)], 21));
+    const { container } = render(MembersPage);
+    await settle();
+    expect(observers).toHaveLength(1);
+    observers[0].trigger(true);
+    await settle();
+    expect(mocks.listMembers).toHaveBeenLastCalledWith(
+      { search: null, limit: 20, offset: 20 }, expect.anything()
+    );
+    expect(container.textContent).toContain('@member20');
+  });
+
+  it('keeps role labels when the final ID page is empty', async () => {
+    queueResults(
+      result([{ ...member(0), roles: ['admin'] }], 21, true),
+      { ...result([], 1), roles: [] }
+    );
+    const { container } = render(MembersPage);
+    await settle();
+    expect(container.textContent).toContain('Admin');
+    observers[0].trigger(true);
+    await settle();
+    expect(mocks.listMembers).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain('Admin');
   });
 
   it('searches from offset zero and hides load-more when the filtered page is complete', async () => {

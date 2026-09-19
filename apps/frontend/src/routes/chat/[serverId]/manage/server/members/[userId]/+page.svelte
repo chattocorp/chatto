@@ -156,9 +156,10 @@
   }
 
   function invalidateMemberLists(target: MemberMutationScope): void {
-    void queryClient.invalidateQueries({
+    const filters = {
       queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
-    });
+    };
+    void queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
   }
 
   function invalidateRole(target: MemberMutationScope, roleName: string): void {

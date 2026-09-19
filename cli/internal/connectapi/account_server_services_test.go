@@ -1083,24 +1083,8 @@ func TestAdminUserServiceListsAndGetsMembers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListMembers admin: %v", err)
 	}
-	if listResp.Msg.GetPage().GetTotalCount() != 1 || len(listResp.Msg.GetMembers()) != 1 {
-		t.Fatalf("ListMembers returned %d/%d members, want 1/1", len(listResp.Msg.GetMembers()), listResp.Msg.GetPage().GetTotalCount())
-	}
-	listUser := listResp.Msg.GetMembers()[0]
-	if listUser.GetUser().GetId() != target.Id {
-		t.Fatalf("ListMembers user ID = %q, want %q", listUser.GetUser().GetId(), target.Id)
-	}
-	if got := listUser.GetRoles(); len(got) != 1 || got[0] != core.RoleModerator {
-		t.Fatalf("ListMembers roles = %v, want explicit moderator only", got)
-	}
-	if !listUser.GetHasVerifiedEmail() || len(listUser.GetVerifiedEmails()) != 2 || listUser.GetPrimaryVerifiedEmail() != "admin-member-primary@example.test" {
-		t.Fatalf("ListMembers emails = has:%v emails:%v primary:%q, want both addresses and selected primary", listUser.GetHasVerifiedEmail(), listUser.GetVerifiedEmails(), listUser.GetPrimaryVerifiedEmail())
-	}
-	if listUser.GetLastLoginChange() == nil {
-		t.Fatal("ListMembers LastLoginChange is nil, want visible cooldown timestamp")
-	}
-	if len(listResp.Msg.GetRoles()) == 0 {
-		t.Fatal("ListMembers roles are empty")
+	if listResp.Msg.GetPage().GetTotalCount() != 1 || len(listResp.Msg.GetUserIds()) != 1 || listResp.Msg.GetUserIds()[0] != target.Id {
+		t.Fatalf("ListMembers = %+v, want target ID and total 1", listResp.Msg)
 	}
 
 	getResp, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{
