@@ -24,6 +24,12 @@
      settles quickly without an abrupt stop. */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-duration-pane: 240ms;
+  /* Symmetric hover, focus, and action-reveal feedback. */
+  --motion-duration-feedback: 0ms;
+  --motion-easing-feedback: ease-out;
+  /* Floating surfaces enter separately from their instant item feedback. */
+  --motion-duration-overlay-enter: 100ms;
+  --motion-easing-overlay-enter: ease-out;
 }
 
 :root[dir='rtl'] {
@@ -388,7 +394,7 @@
 }
 
 @utility selectable-list-item {
-  @apply rounded-md transition-colors duration-100 hover:bg-surface focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+  @apply rounded-md transition-colors feedback-quick hover:bg-surface focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
 }
 
 /* Compact framed surface for inline rows inside forms, dialogs, and settings. */
@@ -591,7 +597,7 @@
   @apply relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 px-2 py-1 text-muted;
   @apply feedback-quick transition-[background-color,color,opacity] hover:bg-surface-selected hover:text-text motion-reduce:transition-none;
   /* Keep hover colours immediate; ease pending/disabled opacity in both directions. */
-  transition-duration: 50ms, 50ms, 150ms;
+  transition-duration: var(--motion-duration-feedback), var(--motion-duration-feedback), 150ms;
   @apply focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -741,11 +747,42 @@
   }
 }
 
-/* Fast, symmetric feedback for menu, navigation, and selection controls.
+/* Instant, symmetric feedback for menu, navigation, and selection controls.
  * Each control keeps its own transition properties; timing is shared here.
  */
 @utility feedback-quick {
-  @apply duration-50 ease-out;
+  /* Tailwind transition utilities read these variables when they set timing. */
+  --tw-duration: var(--motion-duration-feedback);
+  --tw-ease: var(--motion-easing-feedback);
+  transition-duration: var(--motion-duration-feedback);
+  transition-timing-function: var(--motion-easing-feedback);
+  @media (prefers-reduced-motion: reduce) {
+    /* Zero timing also wins when a property utility follows this utility. */
+    --motion-duration-feedback: 0ms;
+  }
+}
+
+/* Animate the floating surface only when it opens, never its individual rows. */
+@utility overlay-enter {
+  &:popover-open {
+    animation: overlay-enter var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:popover-open {
+      animation: none;
+    }
+  }
+}
+
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Option rows sit just above the panel work plane; their empty indicators sit below it. */
@@ -939,7 +976,7 @@
 
 /* Quiet icon feedback follows the surface beneath it instead of adding a solid tile. */
 @utility icon-action-feedback {
-  @apply rounded-lg text-muted transition-[background-color,color] duration-150;
+  @apply rounded-lg text-muted transition-[background-color,color] feedback-quick;
   @apply not-disabled:hover:bg-text/5 not-disabled:hover:text-text-top not-disabled:active:bg-text/10;
   @apply focus-visible:bg-text/5 focus-visible:outline-2 focus-visible:outline-action;
 }
@@ -953,11 +990,11 @@
 }
 
 @utility pane-header-icon-glyph {
-  @apply shrink-0 text-base transition-colors;
+  @apply shrink-0 text-base transition-colors feedback-quick;
 }
 
 @utility pane-header-icon-button-active {
-  @apply control-raised transition-[background-color,color,box-shadow];
+  @apply control-raised transition-[background-color,color,box-shadow] feedback-quick;
   @apply bg-surface-emphasized text-text-top not-disabled:hover:bg-surface-emphasized not-disabled:active:bg-surface-selected focus-visible:bg-surface-emphasized;
   /* Selected toolbar actions need less gloss than primary action buttons. */
   --lighting-top: rgb(255 255 255 / calc(0.025 * var(--depth-strength)));
@@ -1069,7 +1106,7 @@
  * the text or value it affects. Use icon-action for a standard hit area.
  */
 @utility mini-icon-action {
-  @apply inline-flex shrink-0 cursor-pointer rounded text-muted transition-colors duration-150 hover:text-text focus-visible:text-text;
+  @apply inline-flex shrink-0 cursor-pointer rounded text-muted transition-colors feedback-quick hover:text-text focus-visible:text-text;
   @apply focus-visible:outline-2 focus-visible:outline-action;
 }
 
@@ -1077,7 +1114,7 @@
  * focus only when the primary input can hover precisely.
  */
 @utility hover-reveal-action {
-  @apply transition-opacity duration-150;
+  @apply transition-opacity feedback-quick;
 
   @media (hover: hover) and (pointer: fine) {
     @apply pointer-events-none opacity-0;
@@ -1198,7 +1235,7 @@
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
-  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] duration-150;
+  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] feedback-quick;
   @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text active:bg-surface-strong;
   @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
 }
