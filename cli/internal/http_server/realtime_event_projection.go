@@ -231,6 +231,8 @@ func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.Realti
 	switch e := source.GetEvent().(type) {
 	case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: e.ThreadViewerStateChanged}
+	case *pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged:
+		target.Event = &realtimev1.RealtimeEvent_ViewerPresencePreferenceChanged{ViewerPresencePreferenceChanged: e.ViewerPresencePreferenceChanged}
 	case *pubsubv1.PubSubEvent_UserTyping:
 		target.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: e.UserTyping}
 	case *pubsubv1.PubSubEvent_PresenceChanged:

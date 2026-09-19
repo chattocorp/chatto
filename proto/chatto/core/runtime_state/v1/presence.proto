@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// Private current availability; never a durable EVT fact.
+enum PresenceMode {
+  PRESENCE_MODE_UNSPECIFIED = 0;
+  PRESENCE_MODE_ONLINE = 1;
+  PRESENCE_MODE_AWAY = 2;
+  PRESENCE_MODE_DO_NOT_DISTURB = 3;
+  PRESENCE_MODE_INVISIBLE = 4;
+}
+
+// Latest choice at presence.{userId} in the existing RUNTIME_STATE bucket.
+// History is one value; updates replace the previous choice. No expiry.
+message PresencePreference {
+  PresenceMode mode = 1;
+  // Random replacement token; it reveals no broker coordinates.
+  string revision = 2;
+}

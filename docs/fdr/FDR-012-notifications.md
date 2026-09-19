@@ -301,7 +301,7 @@ follows the thread explicitly.
 each registered server. For a live notification, the client uses the choices
 for the server that produced the notification. The server reports creations,
 not sound instructions, including during Do Not Disturb. The client checks its
-local Do Not Disturb setting, current unread state, and attention level before
+shared account Do Not Disturb choice, current unread state, and attention level before
 playback. Only new unread Important notifications can cause a sound. Ambient
 notifications stay silent so low-attention activity does not interrupt the user.
 The client groups eligible creations received during one refresh into one sound.

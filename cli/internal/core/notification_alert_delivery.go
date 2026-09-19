@@ -190,7 +190,7 @@ func (c *ChattoCore) NotificationSoundEligible(ctx context.Context, occurrence *
 	if !c.notificationAlertDelivery.currentPolicyAllowsSound(current) {
 		return false, nil
 	}
-	presence, err := c.GetUserPresence(ctx, current.GetRecipientId())
+	presence, err := c.notificationPresence(ctx, current.GetRecipientId())
 	if err != nil {
 		return false, fmt.Errorf("read notification recipient presence: %w", err)
 	}
@@ -231,7 +231,7 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 	if !c.notificationAlertDelivery.currentPolicyAllowsAlert(occurrence) {
 		return false, nil
 	}
-	presence, err := c.GetUserPresence(ctx, occurrence.GetRecipientId())
+	presence, err := c.notificationPresence(ctx, occurrence.GetRecipientId())
 	if err != nil {
 		return false, fmt.Errorf("read notification recipient presence: %w", err)
 	}

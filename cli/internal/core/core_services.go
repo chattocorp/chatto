@@ -190,9 +190,9 @@ func initializeCoreServices(
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(&assetsConfig, NewAssetID, core.storeLinkPreviewImage)
 
-	// Presence owns one KV watcher per process and starts from core.Run with the
+	// Presence owns two KV watchers per process and starts from core.Run with the
 	// registered projectors and other long-running models.
-	core.presenceModel = NewPresenceModel(infra.js, infra.storage.memoryCacheKV, logger)
+	core.presenceModel = NewPresenceModel(infra.js, infra.storage.memoryCacheKV, infra.storage.runtimeStateKV, logger)
 	core.PresenceHub = core.presenceModel.hub
 	core.myEventsModel = NewMyEventsModel(core)
 	return nil

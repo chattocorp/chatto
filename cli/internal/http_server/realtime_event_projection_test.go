@@ -384,12 +384,13 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 		t.Fatal("event catalogue descriptor is missing")
 	}
 	pubsubSourceNames := map[string]string{
-		"thread_viewer_state_changed":       "thread_viewer_state_changed",
-		"user_typing":                       "user_typing",
-		"presence_changed":                  "presence_changed",
-		"notification_occurrences_changed":  "notification_occurrences_changed",
-		"notification_unread_state_changed": "notification_unread_state_changed",
-		"room_read_state_changed":           "room_read_state_changed",
+		"viewer_presence_preference_changed": "viewer_presence_preference_changed",
+		"thread_viewer_state_changed":        "thread_viewer_state_changed",
+		"user_typing":                        "user_typing",
+		"presence_changed":                   "presence_changed",
+		"notification_occurrences_changed":   "notification_occurrences_changed",
+		"notification_unread_state_changed":  "notification_unread_state_changed",
+		"room_read_state_changed":            "room_read_state_changed",
 	}
 	evtSourceNames := map[string]string{
 		"role_created":               "rbac_role_created",

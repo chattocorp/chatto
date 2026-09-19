@@ -640,6 +640,7 @@ type RealtimeEvent struct {
 	//	*RealtimeEvent_RoleRevoked
 	//	*RealtimeEvent_RolePermissionsChanged
 	//	*RealtimeEvent_ViewerPermissionsChanged
+	//	*RealtimeEvent_ViewerPresencePreferenceChanged
 	Event         isRealtimeEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1133,6 +1134,15 @@ func (x *RealtimeEvent) GetViewerPermissionsChanged() *ViewerPermissionsChangedE
 	return nil
 }
 
+func (x *RealtimeEvent) GetViewerPresencePreferenceChanged() *ViewerPresencePreferenceChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_ViewerPresencePreferenceChanged); ok {
+			return x.ViewerPresencePreferenceChanged
+		}
+	}
+	return nil
+}
+
 type isRealtimeEvent_Event interface {
 	isRealtimeEvent_Event()
 }
@@ -1325,6 +1335,10 @@ type RealtimeEvent_ViewerPermissionsChanged struct {
 	ViewerPermissionsChanged *ViewerPermissionsChangedEvent `protobuf:"bytes,67,opt,name=viewer_permissions_changed,json=viewerPermissionsChanged,proto3,oneof"`
 }
 
+type RealtimeEvent_ViewerPresencePreferenceChanged struct {
+	ViewerPresencePreferenceChanged *ViewerPresencePreferenceChangedEvent `protobuf:"bytes,68,opt,name=viewer_presence_preference_changed,json=viewerPresencePreferenceChanged,proto3,oneof"`
+}
+
 func (*RealtimeEvent_RoomCreated) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomUpdated) isRealtimeEvent_Event() {}
@@ -1418,6 +1432,8 @@ func (*RealtimeEvent_RoleRevoked) isRealtimeEvent_Event() {}
 func (*RealtimeEvent_RolePermissionsChanged) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_ViewerPermissionsChanged) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_ViewerPresencePreferenceChanged) isRealtimeEvent_Event() {}
 
 // Application-level heartbeat.
 type RealtimeHeartbeat struct {
@@ -1568,7 +1584,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"l\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12@\n" +
-	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xf7%\n" +
+	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\x81'\n" +
 	"\rRealtimeEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1623,7 +1639,8 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\rrole_assigned\x18@ \x01(\v2%.chatto.realtime.v1.RoleAssignedEventH\x00R\froleAssigned\x12I\n" +
 	"\frole_revoked\x18A \x01(\v2$.chatto.realtime.v1.RoleRevokedEventH\x00R\vroleRevoked\x12k\n" +
 	"\x18role_permissions_changed\x18B \x01(\v2/.chatto.realtime.v1.RolePermissionsChangedEventH\x00R\x16rolePermissionsChanged\x12q\n" +
-	"\x1aviewer_permissions_changed\x18C \x01(\v21.chatto.realtime.v1.ViewerPermissionsChangedEventH\x00R\x18viewerPermissionsChangedB\a\n" +
+	"\x1aviewer_permissions_changed\x18C \x01(\v21.chatto.realtime.v1.ViewerPermissionsChangedEventH\x00R\x18viewerPermissionsChanged\x12\x87\x01\n" +
+	"\"viewer_presence_preference_changed\x18D \x01(\v28.chatto.realtime.v1.ViewerPresencePreferenceChangedEventH\x00R\x1fviewerPresencePreferenceChangedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idB\t\n" +
 	"\a_cursorJ\x04\b#\x10.R\x12room_group_createdR\x12room_group_updatedR\x12room_group_deletedR\x13room_added_to_groupR\x17room_removed_from_groupR\x18rooms_in_group_reorderedR\x1bsidebar_link_added_to_groupR\x14sidebar_link_updatedR\x1fsidebar_link_removed_from_groupR\x1fsidebar_group_entries_reorderedR\x15room_groups_reordered\";\n" +
@@ -1672,70 +1689,71 @@ func file_chatto_realtime_v1_realtime_proto_rawDescGZIP() []byte {
 var file_chatto_realtime_v1_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_chatto_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
-	(RealtimeInitialState)(0),                   // 0: chatto.realtime.v1.RealtimeInitialState
-	(RealtimeRecovery)(0),                       // 1: chatto.realtime.v1.RealtimeRecovery
-	(RealtimeCloseCode)(0),                      // 2: chatto.realtime.v1.RealtimeCloseCode
-	(*RealtimeSubscribe)(nil),                   // 3: chatto.realtime.v1.RealtimeSubscribe
-	(*RealtimeServerFrame)(nil),                 // 4: chatto.realtime.v1.RealtimeServerFrame
-	(*RealtimeSnapshot)(nil),                    // 5: chatto.realtime.v1.RealtimeSnapshot
-	(*RealtimeCaughtUp)(nil),                    // 6: chatto.realtime.v1.RealtimeCaughtUp
-	(*RealtimeEvent)(nil),                       // 7: chatto.realtime.v1.RealtimeEvent
-	(*RealtimeHeartbeat)(nil),                   // 8: chatto.realtime.v1.RealtimeHeartbeat
-	(*RealtimeClose)(nil),                       // 9: chatto.realtime.v1.RealtimeClose
-	(*v1.ServerPublicProfile)(nil),              // 10: chatto.api.v1.ServerPublicProfile
-	(*v1.RoomWithViewerState)(nil),              // 11: chatto.api.v1.RoomWithViewerState
-	(*v1.RoomGroup)(nil),                        // 12: chatto.api.v1.RoomGroup
-	(*v1.DirectoryMember)(nil),                  // 13: chatto.api.v1.DirectoryMember
-	(*v1.ActiveCall)(nil),                       // 14: chatto.api.v1.ActiveCall
-	(*timestamppb.Timestamp)(nil),               // 15: google.protobuf.Timestamp
-	(*RoomCreatedEvent)(nil),                    // 16: chatto.realtime.v1.RoomCreatedEvent
-	(*RoomUpdatedEvent)(nil),                    // 17: chatto.realtime.v1.RoomUpdatedEvent
-	(*RoomDeletedEvent)(nil),                    // 18: chatto.realtime.v1.RoomDeletedEvent
-	(*RoomArchivedEvent)(nil),                   // 19: chatto.realtime.v1.RoomArchivedEvent
-	(*RoomUnarchivedEvent)(nil),                 // 20: chatto.realtime.v1.RoomUnarchivedEvent
-	(*RoomUniversalChangedEvent)(nil),           // 21: chatto.realtime.v1.RoomUniversalChangedEvent
-	(*RoomSlowModeChangedEvent)(nil),            // 22: chatto.realtime.v1.RoomSlowModeChangedEvent
-	(*RoomThreadingModeChangedEvent)(nil),       // 23: chatto.realtime.v1.RoomThreadingModeChangedEvent
-	(*UserJoinedRoomEvent)(nil),                 // 24: chatto.realtime.v1.UserJoinedRoomEvent
-	(*UserLeftRoomEvent)(nil),                   // 25: chatto.realtime.v1.UserLeftRoomEvent
-	(*VoiceCallParticipantJoinedEvent)(nil),     // 26: chatto.realtime.v1.VoiceCallParticipantJoinedEvent
-	(*VoiceCallParticipantLeftEvent)(nil),       // 27: chatto.realtime.v1.VoiceCallParticipantLeftEvent
-	(*VoiceCallStartedEvent)(nil),               // 28: chatto.realtime.v1.VoiceCallStartedEvent
-	(*VoiceCallEndedEvent)(nil),                 // 29: chatto.realtime.v1.VoiceCallEndedEvent
-	(*MessagePostedEvent)(nil),                  // 30: chatto.realtime.v1.MessagePostedEvent
-	(*MessageEditedEvent)(nil),                  // 31: chatto.realtime.v1.MessageEditedEvent
-	(*MessageRetractedEvent)(nil),               // 32: chatto.realtime.v1.MessageRetractedEvent
-	(*MessagePinnedEvent)(nil),                  // 33: chatto.realtime.v1.MessagePinnedEvent
-	(*MessageUnpinnedEvent)(nil),                // 34: chatto.realtime.v1.MessageUnpinnedEvent
-	(*ThreadCreatedEvent)(nil),                  // 35: chatto.realtime.v1.ThreadCreatedEvent
-	(*AssetProcessingStartedEvent)(nil),         // 36: chatto.realtime.v1.AssetProcessingStartedEvent
-	(*AssetProcessingSucceededEvent)(nil),       // 37: chatto.realtime.v1.AssetProcessingSucceededEvent
-	(*AssetProcessingFailedEvent)(nil),          // 38: chatto.realtime.v1.AssetProcessingFailedEvent
-	(*AssetDeletedEvent)(nil),                   // 39: chatto.realtime.v1.AssetDeletedEvent
-	(*ServerMotdChangedEvent)(nil),              // 40: chatto.realtime.v1.ServerMotdChangedEvent
-	(*UserAccountCreatedEvent)(nil),             // 41: chatto.realtime.v1.UserAccountCreatedEvent
-	(*UserProfileChangedEvent)(nil),             // 42: chatto.realtime.v1.UserProfileChangedEvent
-	(*UserAccountDeletedEvent)(nil),             // 43: chatto.realtime.v1.UserAccountDeletedEvent
-	(*ReactionAddedEvent)(nil),                  // 44: chatto.realtime.v1.ReactionAddedEvent
-	(*ReactionRemovedEvent)(nil),                // 45: chatto.realtime.v1.ReactionRemovedEvent
-	(*ViewerPreferencesChangedEvent)(nil),       // 46: chatto.realtime.v1.ViewerPreferencesChangedEvent
-	(*ThreadViewerStateChangedEvent)(nil),       // 47: chatto.realtime.v1.ThreadViewerStateChangedEvent
-	(*ServerProfileChangedEvent)(nil),           // 48: chatto.realtime.v1.ServerProfileChangedEvent
-	(*UserTypingEvent)(nil),                     // 49: chatto.realtime.v1.UserTypingEvent
-	(*PresenceChangedEvent)(nil),                // 50: chatto.realtime.v1.PresenceChangedEvent
-	(*NotificationOccurrencesChangedEvent)(nil), // 51: chatto.realtime.v1.NotificationOccurrencesChangedEvent
-	(*NotificationUnreadStateChangedEvent)(nil), // 52: chatto.realtime.v1.NotificationUnreadStateChangedEvent
-	(*RoomReadStateChangedEvent)(nil),           // 53: chatto.realtime.v1.RoomReadStateChangedEvent
-	(*RoomLayoutChangedEvent)(nil),              // 54: chatto.realtime.v1.RoomLayoutChangedEvent
-	(*RoleCreatedEvent)(nil),                    // 55: chatto.realtime.v1.RoleCreatedEvent
-	(*RoleUpdatedEvent)(nil),                    // 56: chatto.realtime.v1.RoleUpdatedEvent
-	(*RoleDeletedEvent)(nil),                    // 57: chatto.realtime.v1.RoleDeletedEvent
-	(*RolesReorderedEvent)(nil),                 // 58: chatto.realtime.v1.RolesReorderedEvent
-	(*RoleAssignedEvent)(nil),                   // 59: chatto.realtime.v1.RoleAssignedEvent
-	(*RoleRevokedEvent)(nil),                    // 60: chatto.realtime.v1.RoleRevokedEvent
-	(*RolePermissionsChangedEvent)(nil),         // 61: chatto.realtime.v1.RolePermissionsChangedEvent
-	(*ViewerPermissionsChangedEvent)(nil),       // 62: chatto.realtime.v1.ViewerPermissionsChangedEvent
-	(*durationpb.Duration)(nil),                 // 63: google.protobuf.Duration
+	(RealtimeInitialState)(0),                    // 0: chatto.realtime.v1.RealtimeInitialState
+	(RealtimeRecovery)(0),                        // 1: chatto.realtime.v1.RealtimeRecovery
+	(RealtimeCloseCode)(0),                       // 2: chatto.realtime.v1.RealtimeCloseCode
+	(*RealtimeSubscribe)(nil),                    // 3: chatto.realtime.v1.RealtimeSubscribe
+	(*RealtimeServerFrame)(nil),                  // 4: chatto.realtime.v1.RealtimeServerFrame
+	(*RealtimeSnapshot)(nil),                     // 5: chatto.realtime.v1.RealtimeSnapshot
+	(*RealtimeCaughtUp)(nil),                     // 6: chatto.realtime.v1.RealtimeCaughtUp
+	(*RealtimeEvent)(nil),                        // 7: chatto.realtime.v1.RealtimeEvent
+	(*RealtimeHeartbeat)(nil),                    // 8: chatto.realtime.v1.RealtimeHeartbeat
+	(*RealtimeClose)(nil),                        // 9: chatto.realtime.v1.RealtimeClose
+	(*v1.ServerPublicProfile)(nil),               // 10: chatto.api.v1.ServerPublicProfile
+	(*v1.RoomWithViewerState)(nil),               // 11: chatto.api.v1.RoomWithViewerState
+	(*v1.RoomGroup)(nil),                         // 12: chatto.api.v1.RoomGroup
+	(*v1.DirectoryMember)(nil),                   // 13: chatto.api.v1.DirectoryMember
+	(*v1.ActiveCall)(nil),                        // 14: chatto.api.v1.ActiveCall
+	(*timestamppb.Timestamp)(nil),                // 15: google.protobuf.Timestamp
+	(*RoomCreatedEvent)(nil),                     // 16: chatto.realtime.v1.RoomCreatedEvent
+	(*RoomUpdatedEvent)(nil),                     // 17: chatto.realtime.v1.RoomUpdatedEvent
+	(*RoomDeletedEvent)(nil),                     // 18: chatto.realtime.v1.RoomDeletedEvent
+	(*RoomArchivedEvent)(nil),                    // 19: chatto.realtime.v1.RoomArchivedEvent
+	(*RoomUnarchivedEvent)(nil),                  // 20: chatto.realtime.v1.RoomUnarchivedEvent
+	(*RoomUniversalChangedEvent)(nil),            // 21: chatto.realtime.v1.RoomUniversalChangedEvent
+	(*RoomSlowModeChangedEvent)(nil),             // 22: chatto.realtime.v1.RoomSlowModeChangedEvent
+	(*RoomThreadingModeChangedEvent)(nil),        // 23: chatto.realtime.v1.RoomThreadingModeChangedEvent
+	(*UserJoinedRoomEvent)(nil),                  // 24: chatto.realtime.v1.UserJoinedRoomEvent
+	(*UserLeftRoomEvent)(nil),                    // 25: chatto.realtime.v1.UserLeftRoomEvent
+	(*VoiceCallParticipantJoinedEvent)(nil),      // 26: chatto.realtime.v1.VoiceCallParticipantJoinedEvent
+	(*VoiceCallParticipantLeftEvent)(nil),        // 27: chatto.realtime.v1.VoiceCallParticipantLeftEvent
+	(*VoiceCallStartedEvent)(nil),                // 28: chatto.realtime.v1.VoiceCallStartedEvent
+	(*VoiceCallEndedEvent)(nil),                  // 29: chatto.realtime.v1.VoiceCallEndedEvent
+	(*MessagePostedEvent)(nil),                   // 30: chatto.realtime.v1.MessagePostedEvent
+	(*MessageEditedEvent)(nil),                   // 31: chatto.realtime.v1.MessageEditedEvent
+	(*MessageRetractedEvent)(nil),                // 32: chatto.realtime.v1.MessageRetractedEvent
+	(*MessagePinnedEvent)(nil),                   // 33: chatto.realtime.v1.MessagePinnedEvent
+	(*MessageUnpinnedEvent)(nil),                 // 34: chatto.realtime.v1.MessageUnpinnedEvent
+	(*ThreadCreatedEvent)(nil),                   // 35: chatto.realtime.v1.ThreadCreatedEvent
+	(*AssetProcessingStartedEvent)(nil),          // 36: chatto.realtime.v1.AssetProcessingStartedEvent
+	(*AssetProcessingSucceededEvent)(nil),        // 37: chatto.realtime.v1.AssetProcessingSucceededEvent
+	(*AssetProcessingFailedEvent)(nil),           // 38: chatto.realtime.v1.AssetProcessingFailedEvent
+	(*AssetDeletedEvent)(nil),                    // 39: chatto.realtime.v1.AssetDeletedEvent
+	(*ServerMotdChangedEvent)(nil),               // 40: chatto.realtime.v1.ServerMotdChangedEvent
+	(*UserAccountCreatedEvent)(nil),              // 41: chatto.realtime.v1.UserAccountCreatedEvent
+	(*UserProfileChangedEvent)(nil),              // 42: chatto.realtime.v1.UserProfileChangedEvent
+	(*UserAccountDeletedEvent)(nil),              // 43: chatto.realtime.v1.UserAccountDeletedEvent
+	(*ReactionAddedEvent)(nil),                   // 44: chatto.realtime.v1.ReactionAddedEvent
+	(*ReactionRemovedEvent)(nil),                 // 45: chatto.realtime.v1.ReactionRemovedEvent
+	(*ViewerPreferencesChangedEvent)(nil),        // 46: chatto.realtime.v1.ViewerPreferencesChangedEvent
+	(*ThreadViewerStateChangedEvent)(nil),        // 47: chatto.realtime.v1.ThreadViewerStateChangedEvent
+	(*ServerProfileChangedEvent)(nil),            // 48: chatto.realtime.v1.ServerProfileChangedEvent
+	(*UserTypingEvent)(nil),                      // 49: chatto.realtime.v1.UserTypingEvent
+	(*PresenceChangedEvent)(nil),                 // 50: chatto.realtime.v1.PresenceChangedEvent
+	(*NotificationOccurrencesChangedEvent)(nil),  // 51: chatto.realtime.v1.NotificationOccurrencesChangedEvent
+	(*NotificationUnreadStateChangedEvent)(nil),  // 52: chatto.realtime.v1.NotificationUnreadStateChangedEvent
+	(*RoomReadStateChangedEvent)(nil),            // 53: chatto.realtime.v1.RoomReadStateChangedEvent
+	(*RoomLayoutChangedEvent)(nil),               // 54: chatto.realtime.v1.RoomLayoutChangedEvent
+	(*RoleCreatedEvent)(nil),                     // 55: chatto.realtime.v1.RoleCreatedEvent
+	(*RoleUpdatedEvent)(nil),                     // 56: chatto.realtime.v1.RoleUpdatedEvent
+	(*RoleDeletedEvent)(nil),                     // 57: chatto.realtime.v1.RoleDeletedEvent
+	(*RolesReorderedEvent)(nil),                  // 58: chatto.realtime.v1.RolesReorderedEvent
+	(*RoleAssignedEvent)(nil),                    // 59: chatto.realtime.v1.RoleAssignedEvent
+	(*RoleRevokedEvent)(nil),                     // 60: chatto.realtime.v1.RoleRevokedEvent
+	(*RolePermissionsChangedEvent)(nil),          // 61: chatto.realtime.v1.RolePermissionsChangedEvent
+	(*ViewerPermissionsChangedEvent)(nil),        // 62: chatto.realtime.v1.ViewerPermissionsChangedEvent
+	(*ViewerPresencePreferenceChangedEvent)(nil), // 63: chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
+	(*durationpb.Duration)(nil),                  // 64: google.protobuf.Duration
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	0,  // 0: chatto.realtime.v1.RealtimeSubscribe.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
@@ -1798,13 +1816,14 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	60, // 57: chatto.realtime.v1.RealtimeEvent.role_revoked:type_name -> chatto.realtime.v1.RoleRevokedEvent
 	61, // 58: chatto.realtime.v1.RealtimeEvent.role_permissions_changed:type_name -> chatto.realtime.v1.RolePermissionsChangedEvent
 	62, // 59: chatto.realtime.v1.RealtimeEvent.viewer_permissions_changed:type_name -> chatto.realtime.v1.ViewerPermissionsChangedEvent
-	2,  // 60: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
-	63, // 61: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
-	62, // [62:62] is the sub-list for method output_type
-	62, // [62:62] is the sub-list for method input_type
-	62, // [62:62] is the sub-list for extension type_name
-	62, // [62:62] is the sub-list for extension extendee
-	0,  // [0:62] is the sub-list for field type_name
+	63, // 60: chatto.realtime.v1.RealtimeEvent.viewer_presence_preference_changed:type_name -> chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
+	2,  // 61: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
+	64, // 62: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
+	63, // [63:63] is the sub-list for method output_type
+	63, // [63:63] is the sub-list for method input_type
+	63, // [63:63] is the sub-list for extension type_name
+	63, // [63:63] is the sub-list for extension extendee
+	0,  // [0:63] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -1869,6 +1888,7 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeEvent_RoleRevoked)(nil),
 		(*RealtimeEvent_RolePermissionsChanged)(nil),
 		(*RealtimeEvent_ViewerPermissionsChanged)(nil),
+		(*RealtimeEvent_ViewerPresencePreferenceChanged)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

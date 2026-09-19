@@ -16,6 +16,13 @@ import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
 let presencePreference: ReturnType<typeof presencePreferences.get>;
 
+vi.mock('$lib/presenceTracking', () => ({
+  refreshPresencePreference: vi.fn(),
+  setPresenceMode: vi.fn(async (scope, mode) => {
+    presencePreferences.get(scope).accept(mode, 'saved');
+  })
+}));
+
 function computedBackgroundColor(color: string): string {
   const element = document.createElement('span');
   element.style.backgroundColor = color;
@@ -195,6 +202,7 @@ describe('CurrentUserBar', () => {
     presencePreferences.clear();
     presencePreference = presencePreferences.get({ serverId: 'origin', userId: 'user-1' });
     presencePreference.mode = 'online';
+    presencePreference.ready = true;
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
     voiceCallState.participants = [];
@@ -421,7 +429,7 @@ describe('CurrentUserBar', () => {
 
   it('closes the presence menu after choosing a presence mode', async () => {
     const remote = { serverId: 'remote', userId: 'user-1' };
-    setPresenceMode(remote, 'invisible');
+    presencePreferences.get(remote).apply('invisible');
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
@@ -442,9 +450,7 @@ describe('CurrentUserBar', () => {
     const { container } = render(CurrentUserBarTestHarness);
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
     await vi.waitFor(() => expect(container.textContent).toContain('Away'));
-    const save = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('Storage full');
-    });
+    vi.mocked(setPresenceMode).mockRejectedValueOnce(new Error('Server unavailable'));
     const notify = vi.spyOn(toast, 'error');
     try {
       (q(container, '[role="menuitemradio"][aria-checked="false"]') as HTMLButtonElement).click();
@@ -452,7 +458,6 @@ describe('CurrentUserBar', () => {
       expect(presencePreference.mode).toBe('online');
       expect(container.textContent).toContain('Presence on this server');
     } finally {
-      save.mockRestore();
       notify.mockRestore();
       toast.clear();
     }
