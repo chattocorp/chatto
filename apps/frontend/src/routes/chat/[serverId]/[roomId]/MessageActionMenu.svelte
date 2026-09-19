@@ -83,7 +83,7 @@ surface-specific sizing and menu semantics.
         'flex h-10 w-10 cursor-pointer items-center justify-center',
         isSheet
           ? 'rounded-full text-xl active:bg-surface'
-          : 'rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]'
+          : 'rounded text-base transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96]'
       ]}
       onclick={() => handleReaction(emoji)}
       aria-label={m('room.message.actions.react_with', { emoji })}
@@ -98,7 +98,7 @@ surface-specific sizing and menu semantics.
         'flex h-10 w-10 cursor-pointer items-center justify-center text-muted',
         isSheet
           ? 'rounded-full text-xl active:bg-surface'
-          : 'rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]'
+          : 'rounded text-base transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96]'
       ]}
       onclick={() => {
         onOpenEmojiPicker();

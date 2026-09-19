@@ -152,7 +152,7 @@ edge. Empty indicators look inset; selected indicators use a reduced lighting
 strength with no outer shadow. Disabled controls have no raised finish. Row and indicator colour transitions
 use the shared `feedback-quick` utility: 50 ms with ease-out timing in both
 directions. Sidebar links and menu rows use the same timing. Keep transition
-properties on the control; change this shared utility to tune feedback speed.
+properties on the control; use the motion tokens below to tune feedback speed.
 
 The quick finder uses `command-palette`, which composes the shared menu frame.
 It keeps a compact search field and aligned result rows through
@@ -562,6 +562,20 @@ The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 matches the action.
 
 ## Shape, Type, And Motion
+
+Hover, focus, and action-reveal feedback use these tokens from `src/app.css`:
+
+| Token | Default | Purpose |
+| --- | --- | --- |
+| `--motion-duration-feedback` | `50ms` | Duration in both directions, with no delay |
+| `--motion-easing-feedback` | `ease-out` | Timing curve in both directions |
+
+Use `feedback-quick` with explicit transition properties, for example
+`transition-opacity feedback-quick`. The utility reads both tokens and disables
+transitions under reduced motion. Menu highlights, member-card menu reveals,
+row actions, and icon feedback share this timing. Do not add local numeric
+durations for these interactions. Keep disabled/pending opacity at 150 ms;
+pane movement and toolbar entrance animations have separate timing.
 
 - Labelled buttons use `rounded-xl` at every size, matching chat input surfaces.
   Filled icon-only buttons keep `rounded-md` corners.

@@ -122,9 +122,12 @@ Actions are siblings of that button, so controls never nest inside a button.
     {@render actions?.()}
     {#if menu}
       <CompactActionButton
-        wrapperClass={menu.revealOnHover && !menu.expanded
-          ? '[@media(hover:hover)]:opacity-0 group-hover/user-card:opacity-100 group-focus-within/user-card:opacity-100'
-          : undefined}
+        wrapperClass={[
+          'transition-opacity feedback-quick',
+          menu.revealOnHover && !menu.expanded
+            ? '[@media(hover:hover)]:opacity-0 group-hover/user-card:opacity-100 group-focus-within/user-card:opacity-100'
+            : undefined
+        ]}
         label={menu.label}
         data-testid={menu.testId}
         onclick={menu.onclick}

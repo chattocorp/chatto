@@ -1,6 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import { expect, userEvent } from 'storybook/test';
+  import { expect, userEvent, waitFor } from 'storybook/test';
   import UserCard from './UserCard.svelte';
   import CompactActionButton from './CompactActionButton.svelte';
 
@@ -34,7 +34,7 @@
   play={async ({ canvas }) => {
     const menu = canvas.getByRole('button', { name: 'User options' });
     menu.focus();
-    await expect(getComputedStyle(menu.parentElement!).opacity).toBe('1');
+    await waitFor(() => expect(getComputedStyle(menu.parentElement!).opacity).toBe('1'));
     await userEvent.click(canvas.getByText('Alice', { exact: true }));
     await expect(canvas.getByText('No action yet')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'User options' }));
