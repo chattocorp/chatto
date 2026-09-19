@@ -1,7 +1,7 @@
 # FDR-015: Quick Switcher (Cmd-K)
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
@@ -18,6 +18,10 @@ fuzzy matching and remembers recent destinations on the device.
   joined channel room, visible DM, and Notifications.
 - A non-`#` and non-`?` query also searches the member directory on each
   registered server where the viewer can start DMs.
+- Member results appear as each server responds. Each server has three seconds
+  to respond; a slow server does not delay results from other servers. A query
+  change or closing the palette cancels pending member searches. Late responses
+  cannot restore old results. New results preserve the selected destination.
 - Typing filters results with a fuzzy matcher. Items match on both label and
   detail, such as the server name. Label matches score higher.
 - Typing `#` as the first character restricts results to rooms only. The `#` is stripped before matching the rest.
@@ -45,11 +49,14 @@ fuzzy matching and remembers recent destinations on the device.
 from every registered server. It does not fetch a second room catalogue.
 Member and message searches run in parallel against eligible registered
 servers. One server's search failure does not block results from another.
+Member searches publish results independently and cancel pending requests when
+the query changes, the palette closes, or the three-second server deadline expires.
 **Why:** The per-server projections already own room and DM convergence. Reusing
 them makes opening immediate and avoids a duplicate cache lifecycle. Parallel
 search still gives users one cross-server result set. See ADR-025.
 **Tradeoff:** A server that has not finished its projection catch-up can have an
 incomplete catalogue until its normal navigation state converges.
+Member results from a server that exceeds the deadline are omitted from that search.
 
 ### 2. Fuzzy match with prefix-bias and recent-boost
 

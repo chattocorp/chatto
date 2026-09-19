@@ -1,7 +1,7 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { untrack } from 'svelte';
+import { onDestroy, untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
 import {
@@ -50,6 +50,7 @@ export type QuickSwitcherItem = {
 };
 
 const SEARCH_DEBOUNCE_MS = 200;
+const USER_SEARCH_SERVER_TIMEOUT_MS = 3_000;
 const MESSAGE_SEARCH_SERVER_TIMEOUT_MS = 3_000;
 
 class SearchChannel<T> {
@@ -104,8 +105,13 @@ export class QuickSwitcherModel {
 
   #allItems = $state.raw<QuickSwitcherItem[]>([]);
   #userSearch = new SearchChannel<QuickSwitcherItem>();
+  #userSearchController: AbortController | undefined;
   #messageSearch = new SearchChannel<QuickSwitcherItem>();
   #messageSearchServerKey = '';
+
+  constructor() {
+    onDestroy(() => this.deactivate());
+  }
 
   kindLabels = $derived<Record<QuickSwitcherItem['kind'], string>>({
     destination: m('quick_switcher.kind.destination'),
@@ -184,11 +190,15 @@ export class QuickSwitcherModel {
   }
 
   deactivate(): void {
+    this.#userSearchController?.abort();
+    this.#userSearchController = undefined;
     this.#userSearch.fence();
     this.#messageSearch.fence();
   }
 
   setQuery(raw: string): void {
+    this.#userSearchController?.abort();
+    this.#userSearchController = undefined;
     this.query = raw;
     this.selectedIndex = 0;
 
@@ -387,9 +397,11 @@ export class QuickSwitcherModel {
   }
 
   async #loadUserResults(search: string, requestId: number): Promise<void> {
-    const instances = serverRegistry.servers;
+    const instances = [...serverRegistry.servers];
     const multiInstance = instances.length > 1;
-    const items: QuickSwitcherItem[] = [];
+    const controller = new AbortController();
+    this.#userSearchController = controller;
+    const resultsByServer: Record<string, QuickSwitcherItem[]> = {};
 
     await Promise.allSettled(
       instances.map(async (instance) => {
@@ -397,10 +409,21 @@ export class QuickSwitcherModel {
         if (!store?.permissions.canStartDMs) return;
 
         const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
-        const result = await serverConnectionManager
-          .getClient(instance.id)
-          .getAPI(createMemberDirectoryAPI)
-          .listUsers(search, 20, 0);
+        const signal = AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(USER_SEARCH_SERVER_TIMEOUT_MS)
+        ]);
+        const result = await resolveOnAbort(
+          serverConnectionManager
+            .getClient(instance.id)
+            .getAPI(createMemberDirectoryAPI)
+            .listUsers(search, 20, 0, { signal }),
+          signal
+        );
+        if (!result || signal.aborted || !this.#userSearch.isCurrent(requestId)) return;
+        if (!serverRegistry.servers.some((server) => server.id === instance.id)) return;
+
+        const items: QuickSwitcherItem[] = [];
         for (const member of result.members) {
           const user = avatarUser(member);
           items.push({
@@ -418,10 +441,26 @@ export class QuickSwitcherModel {
             score: 0
           });
         }
+        const selected = this.filtered[this.selectedIndex];
+        resultsByServer[instance.id] = items;
+        this.#userSearch.replace(requestId, Object.values(resultsByServer).flat());
+        // Keep keyboard selection on the same result when another server changes the ranking.
+        const selectedIndex = selected
+          ? this.filtered.findIndex(
+              (item) =>
+                item.serverId === selected.serverId &&
+                item.kind === selected.kind &&
+                item.id === selected.id
+            )
+          : -1;
+        this.selectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
       })
     );
 
-    if (this.#userSearch.replace(requestId, items)) this.selectedIndex = 0;
+    if (this.#userSearch.isCurrent(requestId) && Object.keys(resultsByServer).length === 0) {
+      this.#userSearch.replace(requestId, []);
+    }
+    if (this.#userSearchController === controller) this.#userSearchController = undefined;
     this.#userSearch.finish(requestId);
   }
 
@@ -552,6 +591,16 @@ function getHostname(url: string): string {
   } catch {
     return url;
   }
+}
+
+/** Finish even if a transport ignores cancellation; late responses cannot publish results. */
+function resolveOnAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | undefined> {
+  return new Promise((resolve, reject) => {
+    const abort = () => resolve(undefined);
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+    void promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
 }
 
 function resolveWithin<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
