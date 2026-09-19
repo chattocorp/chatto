@@ -21,7 +21,7 @@
   };
 
   let request = $state<ConsentRequest | null>(null);
-  let clientHost = $state('');
+  let clientIdentity = $state('');
   let error = $state('');
   let loading = $state(true);
   let submitting = $state<'approve' | 'deny' | null>(null);
@@ -55,13 +55,13 @@
         resource: result.resource || '',
         scopes: Array.isArray(result.scopes) ? result.scopes : []
       };
-      const verifiedHost = verifiedClientHost(pendingRequest);
-      if (!verifiedHost) {
+      const verifiedIdentity = verifiedClientIdentity(pendingRequest);
+      if (!verifiedIdentity) {
         error = m('auth.oauth.unverifiable');
         return;
       }
 
-      clientHost = verifiedHost;
+      clientIdentity = verifiedIdentity;
       request = pendingRequest;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -74,7 +74,8 @@
     }
   });
 
-  function verifiedClientHost(pendingRequest: ConsentRequest) {
+  /** Check callback consistency and display the identity already validated by the server. */
+  function verifiedClientIdentity(pendingRequest: ConsentRequest) {
     try {
       const redirectUri = new URL(pendingRequest.redirectUri);
       if (redirectUri.host) {
@@ -93,7 +94,15 @@
       if (!pendingRequest.clientId) {
         return redirectUri.host;
       }
-      return new URL(pendingRequest.clientId).host;
+      if (typeof pendingRequest.clientId !== 'string') return '';
+      // CIMD IDs are URLs; built-in native IDs can be opaque strings. Keep
+      // the exact server-validated ID visible instead of using its website
+      // or display name as an identity fallback.
+      try {
+        return new URL(pendingRequest.clientId).host || pendingRequest.clientId;
+      } catch {
+        return pendingRequest.clientId;
+      }
     } catch {
       return '';
     }
@@ -163,9 +172,9 @@
     {:else if request}
       <div class="flex flex-col gap-4">
         <div class="text-center">
-          <p class="font-semibold break-all">{request.clientName || clientHost}</p>
+          <p class="font-semibold break-all">{request.clientName || clientIdentity}</p>
           {#if request.clientName}
-            <p class="mt-1 text-sm break-all text-muted">{clientHost}</p>
+            <p class="mt-1 text-sm break-all text-muted">{clientIdentity}</p>
           {/if}
         </div>
 

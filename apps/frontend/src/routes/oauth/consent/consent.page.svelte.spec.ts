@@ -94,6 +94,65 @@ describe('OAuth consent client identity', () => {
 		await expect.element(getByText('callback.example')).not.toBeInTheDocument();
 	});
 
+	it('allows the official mobile client with an opaque ID to request approval', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify(
+							consentResponse({
+								redirectUri: 'eu.chattocorp.chatto.mobile:/oauth/callback',
+								redirectOrigin: 'eu.chattocorp.chatto.mobile:',
+								clientId: 'eu.chattocorp.chatto.mobile',
+								clientName: 'Chatto Mobile',
+								clientUri: 'https://chatto.run'
+							})
+						),
+						{ status: 200 }
+					)
+			)
+		);
+		mocks.csrfFetch.mockResolvedValue(
+			new Response(JSON.stringify({ error: 'expected test response' }), { status: 400 })
+		);
+		const { getByText, getByRole } = render(ConsentPage);
+		await expect.element(getByText('Chatto Mobile')).toBeVisible();
+		await expect.element(getByText('eu.chattocorp.chatto.mobile', { exact: true })).toBeVisible();
+		await getByRole('button', { name: 'Allow Access', exact: true }).click();
+		expect(mocks.csrfFetch).toHaveBeenCalledWith(
+			'/oauth/consent/approve',
+			expect.objectContaining({ method: 'POST' })
+		);
+	});
+
+	it('rejects a mismatched callback origin even for the official mobile client', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify(
+							consentResponse({
+								redirectUri: 'eu.chattocorp.chatto.mobile:/oauth/callback',
+								redirectOrigin: 'different.app:',
+								clientId: 'eu.chattocorp.chatto.mobile',
+								clientName: 'Chatto Mobile'
+							})
+						),
+						{ status: 200 }
+					)
+			)
+		);
+		const { getByText, getByRole } = render(ConsentPage);
+		await expect
+			.element(getByText('This authorization request could not be verified.'))
+			.toBeVisible();
+		await expect
+			.element(getByRole('button', { name: 'Allow Access', exact: true }))
+			.not.toBeInTheDocument();
+	});
+
 	it('allows a native private-scheme authorization request to be denied', async () => {
 		vi.stubGlobal(
 			'fetch',

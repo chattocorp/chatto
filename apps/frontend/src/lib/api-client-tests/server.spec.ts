@@ -86,7 +86,7 @@ describe('public server discovery', () => {
       fetch: expect.any(Function),
       useBinaryFormat: false
     });
-    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined });
+    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined, timeoutMs: 10_000 });
     expect(info).toEqual({
       name: 'Remote Chatto',
       version: '9.8.7',

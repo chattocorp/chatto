@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+
 /**
  * Handles virtual keyboard and scroll-to-focus fixes for iOS Safari.
  *
@@ -24,6 +26,9 @@
  */
 export function useVisualViewport() {
   $effect(() => {
+    // The iOS host resizes the webview itself. Applying the Safari workaround
+    // as well changes header visibility and competes with native layout.
+    if (Capacitor.getPlatform() === 'ios') return;
     const vv = window.visualViewport;
     if (!vv) return;
 

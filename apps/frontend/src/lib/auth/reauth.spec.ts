@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const native = vi.hoisted(() => ({ available: false, authorize: vi.fn() }));
+vi.mock('$lib/desktop/nativeAuthorization', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/desktop/nativeAuthorization')>()),
+  hasNativeAuthorization: () => native.available,
+  authorizeNatively: native.authorize
+}));
+
 const {
   addServerMock,
   clearOriginAuthenticationMock,
@@ -109,10 +116,72 @@ describe('remote server OAuth popup', () => {
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
     vi.stubGlobal('sessionStorage', memoryStorage());
     getPublicServerInfoMock.mockReset();
+    native.available = false;
+    native.authorize.mockReset();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('completes native PKCE without opening a popup and persists the mobile session', async () => {
+    native.available = true;
+    native.authorize.mockImplementation(async (raw: string, state: string) => {
+      const url = new URL(raw);
+      expect(url.searchParams.get('client_id')).toBe('eu.chattocorp.chatto.mobile');
+      expect(url.searchParams.get('redirect_uri')).toBe('eu.chattocorp.chatto.mobile:/oauth/callback');
+      expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+      expect(url.searchParams.get('code_challenge')).toBeTruthy();
+      expect(url.searchParams.get('state')).toBe(state);
+      return { state, code: 'native-code' };
+    });
+    const open = vi.fn();
+    vi.stubGlobal('window', { open });
+    const exchange = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            access_token: 'cht_ATtoken',
+            refresh_token: 'cht_RT_token',
+            expires_in: 900,
+            refresh_token_expires_in: 7_776_000
+          }),
+          { headers: { 'Content-Type': 'application/json' } }
+        )
+    );
+    vi.stubGlobal('fetch', exchange);
+    const { startServerOAuthFlow } = await import('./reauth');
+    await startServerOAuthFlow('https://remote.example', {
+      name: 'Remote',
+      authorizeUrl: '/oauth/authorize',
+      iconUrl: null
+    });
+    expect(open).not.toHaveBeenCalled();
+    expect(FakeBroadcastChannel.instances).toHaveLength(0);
+    expect(JSON.parse(exchange.mock.calls[0]?.[1]?.body as string)).toMatchObject({
+      code: 'native-code',
+      client_id: 'eu.chattocorp.chatto.mobile',
+      redirect_uri: 'eu.chattocorp.chatto.mobile:/oauth/callback'
+    });
+    expect(addServerMock).toHaveBeenCalledOnce();
+    expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example');
+  });
+
+  it('does not exchange credentials or register a server after native cancellation', async () => {
+    native.available = true;
+    native.authorize.mockRejectedValue(new Error('Sign-in cancelled'));
+    const exchange = vi.fn();
+    vi.stubGlobal('fetch', exchange);
+    const { startServerOAuthFlow } = await import('./reauth');
+    await expect(
+      startServerOAuthFlow('https://remote.example', {
+        name: 'Remote',
+        authorizeUrl: '/oauth/authorize',
+        iconUrl: null
+      })
+    ).rejects.toThrow('Sign-in cancelled');
+    expect(exchange).not.toHaveBeenCalled();
+    expect(addServerMock).not.toHaveBeenCalled();
   });
 
   it('uses the built-in OAuth client identity for Chatto Desktop', async () => {

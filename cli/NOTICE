@@ -111,6 +111,15 @@ Frontend, Examples, and Documentation Components:
 - Vite and Vitest (https://vite.dev/, https://vitest.dev/) - MIT License
 - zod (https://zod.dev/) - MIT License
 
+Mobile Components:
+- Capacitor (https://capacitorjs.com/) - MIT License; Copyright (c)
+  2017-present Drifty Co. The mobile web bundle includes capacitor-license.txt.
+- Capacitor Keyboard (https://github.com/ionic-team/capacitor-plugins) - MIT
+  License; Copyright 2020-present Ionic. The mobile web bundle includes
+  capacitor-keyboard-license.txt.
+- Capacitor's bundled Cordova compatibility code - Apache License 2.0;
+  Copyright The Apache Software Foundation.
+
 Desktop Components:
 
 - Electron (https://www.electronjs.org/) - MIT License; Copyright OpenJS

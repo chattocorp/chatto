@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="17132" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+    <device id="retina4_7" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17105"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="EHf-IW-A2E">
+            <objects>
+                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <view key="view" userInteractionEnabled="NO" contentMode="scaleToFill" id="snD-IY-ifK">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" alpha="0.28" contentMode="left" textAlignment="center" usesAttributedText="YES" translatesAutoresizingMaskIntoConstraints="NO" id="chatto-wordmark">
+                                <rect key="frame" x="115" y="321" width="145" height="24"/>
+                                <attributedString key="attributedText">
+                                    <fragment content="CHATTO">
+                                        <attributes>
+                                            <color key="NSColor" name="LaunchText"/>
+                                            <font key="NSFont" metaFont="systemSemibold" size="20"/>
+                                            <real key="NSKern" value="9"/>
+                                        </attributes>
+                                    </fragment>
+                                </attributedString>
+                            </label>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="launch-safe-area"/>
+                        <color key="backgroundColor" name="LaunchBackground"/>
+                        <constraints>
+                            <!-- Match the full-viewport centre of #app-loading in app.html. -->
+                            <constraint firstItem="chatto-wordmark" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="wordmark-center-x"/>
+                            <constraint firstItem="chatto-wordmark" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="wordmark-center-y"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+    <resources>
+        <namedColor name="LaunchBackground">
+            <color red="0.953" green="0.957" blue="0.965" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="LaunchText">
+            <color red="0.294" green="0.333" blue="0.388" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
+</document>

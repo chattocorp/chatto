@@ -84,7 +84,7 @@ describe('getCurrentUserViaConnect', () => {
     });
     expect(mocks.getViewer).toHaveBeenCalledWith(
       {},
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, timeoutMs: 10_000 }
     );
     expect(user).toEqual({
       id: 'U1',
@@ -130,7 +130,7 @@ describe('getCurrentUserViaConnect', () => {
       bearerToken: null
     });
 
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
+    expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined, timeoutMs: 10_000 });
     expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
     expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.publicTimezone).toBeNull();

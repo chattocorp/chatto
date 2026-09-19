@@ -1,5 +1,12 @@
 # Interface Inventory
 
+The official mobile client uses the built-in OAuth identity `eu.chattocorp.chatto.mobile`
+and exact callback `eu.chattocorp.chatto.mobile:/oauth/callback`. System authentication
+returns the callback to the client; token exchange and bearer-authenticated
+API requests use the existing HTTP interfaces. Older servers without this
+registration cannot complete mobile sign-in. See
+[ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
+
 Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.go),
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
 [`cli/internal/http_server/auth.go`](../../cli/internal/http_server/auth.go),

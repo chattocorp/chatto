@@ -60,7 +60,8 @@ function runThemeScript({
   systemDark,
   storedLocale,
   legacyStoredLocale,
-  browserLanguages
+  browserLanguages,
+  protocol = 'https:'
 }: {
   preferences?: unknown;
   legacyTheme?: string;
@@ -68,6 +69,7 @@ function runThemeScript({
   storedLocale?: string;
   legacyStoredLocale?: string;
   browserLanguages?: string[];
+  protocol?: string;
 }) {
   if (!themeScript) throw new Error('theme script not found');
 
@@ -101,6 +103,7 @@ function runThemeScript({
   };
 
   runInNewContext(themeScript, {
+    location: { protocol },
     document: {
       documentElement: root,
       querySelector: (selector: string) =>
@@ -147,6 +150,23 @@ function firstPaintDirection(locale: string): string {
   );
   return context.result ?? '';
 }
+
+describe('app.html native surface depth', () => {
+  it.each([undefined, {}, { surfaceDepth: 'invalid' }])(
+    'defaults to Flat in the iOS shell with preferences %j',
+    (preferences) => {
+      const { root } = runThemeScript({ preferences, systemDark: false, protocol: 'capacitor:' });
+      expect(root.dataset.depth).toBe('flat');
+    }
+  );
+
+  it.each(['flat', '3d', 'very-3d'])('preserves the saved %s depth in the iOS shell', (surfaceDepth) => {
+    const { root } = runThemeScript({
+      preferences: { surfaceDepth }, systemDark: false, protocol: 'capacitor:'
+    });
+    expect(root.dataset.depth).toBe(surfaceDepth);
+  });
+});
 
 describe('app.html metadata', () => {
   it('defines one document-controlled theme color without a manifest override', () => {

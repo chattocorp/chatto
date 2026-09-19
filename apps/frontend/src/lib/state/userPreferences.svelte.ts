@@ -13,6 +13,7 @@ import {
   notificationSounds
 } from '$lib/audio/notificationSounds';
 import { Codecs, globalSlot } from '$lib/storage/slot';
+import { Capacitor } from '@capacitor/core';
 /** Curated app-wide accents. Keep the first-paint allowlist in app.html in sync. */
 export const accentColors = [
   'blue',
@@ -45,7 +46,8 @@ export function applyAccentColor(value: AccentColor): void {
 /** App-wide bevel modes. Keep the first-paint allowlist in app.html in sync. */
 export const surfaceDepths = ['flat', '3d', 'very-3d'] as const;
 export type SurfaceDepth = (typeof surfaceDepths)[number];
-export const defaultSurfaceDepth: SurfaceDepth = '3d';
+/** Native iOS starts flat; browser/PWA and other hosts retain the 3D default. */
+export const defaultSurfaceDepth: SurfaceDepth = Capacitor.getPlatform() === 'ios' ? 'flat' : '3d';
 
 /** Reject unknown modes from stored preferences or external callers. */
 export function isSurfaceDepth(value: unknown): value is SurfaceDepth {

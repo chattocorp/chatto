@@ -30,6 +30,28 @@ custom startup blocks.
 
 ## Client runtimes
 
+`ServerRuntimeCoordinator` owns the frontend startup recovery loop. It checks
+registered servers for discovery failures and unresolved retained bearer
+sessions, with independent backoff and no overlapping scheduled attempts for
+one server. Browser visibility, network return, and Capacitor resume events
+trigger recovery. Hidden, paused, or offline clients do not start attempts.
+The registry fences viewer-summary writes against server removal and credential
+changes. Realtime connection ownership remains with the existing event buses.
+
+The experimental iOS shell under `apps/mobile/` bundles the shared frontend
+with Capacitor at `capacitor://localhost`. Its persistent webview store owns
+client state. The native launch-screen view covers WebKit startup until a
+main-frame message from the bundled HTML signals a rendering opportunity.
+The shell also uses the page's resolved sRGB background to paint the native
+window exposed around the keyboard. A full-window native host constrains the
+webview to UIKit's keyboard layout guide instead of the plugin's delayed resize;
+the browser viewport workaround is disabled in this host.
+The narrow `ChattoAuthorization` plugin presents one bounded
+system authentication session; the shared frontend validates its callback and
+completes PKCE and per-server registration. The shell adds no backend or NATS
+resources. Native push and locked-phone calls are deferred. See
+[ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
+
 The bundled client routes message attachments through
 [`AttachmentViewerModal.svelte`](../../apps/frontend/src/routes/chat/modals/AttachmentViewerModal.svelte).
 One shallow-history entry owns the attachment list. Gallery selection, preview

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
+import { Capacitor } from '@capacitor/core';
 import { useVisualViewport } from './useVisualViewport.svelte';
 
 let dispose: (() => void) | undefined;
@@ -27,6 +28,15 @@ function resize(height: number, width = viewport.width) {
 }
 
 describe('useVisualViewport keyboard state', () => {
+  it('leaves native iOS sizing and header visibility to the host', () => {
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('ios');
+    start();
+    resize(400);
+    expect(document.body.hasAttribute('data-keyboard-open')).toBe(false);
+    expect(document.body.style.height).toBe('');
+    resize(800);
+    expect(document.body.style.height).toBe('');
+  });
   it('exposes keyboard opening and closing with the body height', () => {
     start();
     expect(document.body.hasAttribute('data-keyboard-open')).toBe(false);

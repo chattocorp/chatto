@@ -69,6 +69,32 @@ describe('MobileSidebarChrome', () => {
     expect(q(container, '[data-testid="mobile-sidebar-edge"]')).toBeNull();
   });
 
+  it('keeps both columns and the backdrop inside the device safe areas', async () => {
+    await page.viewport(390, 844);
+    document.documentElement.style.setProperty('--mobile-sidebar-safe-top', '62px');
+    document.documentElement.style.setProperty('--mobile-sidebar-safe-bottom', '34px');
+    try {
+      const { container } = renderChrome();
+      const { container: navigation } = render(ServerSidebar, {
+        props: { children: testSnippet('<nav>Navigation</nav>'), showCurrentUserBar: false }
+      });
+      sidebarNav.toggle();
+      flushSync();
+      for (const panel of [
+        q(container, '[data-testid="mobile-sidebar-panel"]')!,
+        q(container, '[data-testid="mobile-sidebar-backdrop"]')!,
+        q(navigation, '[data-testid="server-sidebar"]')!
+      ]) {
+        expect(panel.getBoundingClientRect().top).toBe(118);
+        expect(panel.getBoundingClientRect().bottom).toBe(810);
+      }
+    } finally {
+      document.documentElement.style.removeProperty('--mobile-sidebar-safe-top');
+      document.documentElement.style.removeProperty('--mobile-sidebar-safe-bottom');
+      await page.viewport(1280, 720);
+    }
+  });
+
   it('marks mobile sidebar chrome as closed when the sidebar is closed', () => {
     const { container } = renderChrome();
 
