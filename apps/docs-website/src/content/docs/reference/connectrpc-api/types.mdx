@@ -80,7 +80,7 @@ Saved choice visible only to the authenticated account itself.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `mode` | [`PresenceMode`](#chatto-api-v1-PresenceMode) | No field description provided. |
+| `mode` | [`PresenceMode`](#chatto-api-v1-PresenceMode) | The account's saved choice, independent of current connection liveness. |
 | `revision` | `string` | Opaque revision required when replacing this choice. |
 
 <a id="chatto-api-v1-CustomUserStatus"></a>
@@ -1864,10 +1864,10 @@ Other users only receive PresenceStatus, never this choice.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `PRESENCE_MODE_UNSPECIFIED` | `0` | No value description provided. |
-| `PRESENCE_MODE_ONLINE` | `1` | No value description provided. |
-| `PRESENCE_MODE_AWAY` | `2` | No value description provided. |
-| `PRESENCE_MODE_DO_NOT_DISTURB` | `3` | No value description provided. |
+| `PRESENCE_MODE_UNSPECIFIED` | `0` | No choice supplied; rejected on selection. |
+| `PRESENCE_MODE_ONLINE` | `1` | Show Online while at least one device refreshes liveness. |
+| `PRESENCE_MODE_AWAY` | `2` | Show Away while at least one device refreshes liveness. |
+| `PRESENCE_MODE_DO_NOT_DISTURB` | `3` | Suppress notification alerts on all devices until the choice changes. |
 | `PRESENCE_MODE_INVISIBLE` | `4` | Public presence is indistinguishable from an offline account. |
 
 <a id="chatto-api-v1-PresenceStatus"></a>

@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
+import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/notification_policy.proto";
+import "chatto/core/evt/v1/user_preferences.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+
 enum SavedPresenceMode {
   SAVED_PRESENCE_MODE_UNSPECIFIED = 0;
   SAVED_PRESENCE_MODE_ONLINE = 1;
@@ -15,12 +21,6 @@ message UserPresencePreferenceChangedEvent {
   string user_id = 1;
   SavedPresenceMode mode = 2;
 }
-
-import "chatto/core/evt/v1/models.proto";
-import "chatto/core/evt/v1/notification_policy.proto";
-import "chatto/core/evt/v1/user_preferences.proto";
-
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
 // ============================================================================
 // CONFIG EVENTS

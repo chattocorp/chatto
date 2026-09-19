@@ -36,7 +36,6 @@ RPCs cannot provide this contract; do not silently fall back to Online reports.
 
 ## Room member lists
 
-
 `RoomService.ListMembers` now returns `user_ids` instead of `members`.
 Regenerate clients and resolve missing user profiles with
 `UserService.BatchGetUsers`, in batches of at most 100 IDs. Cache profiles by

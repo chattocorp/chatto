@@ -32,6 +32,8 @@ or Offline on presence indicators.
   local hidden choices are preserved on each device's first migration.
 - Presence dots update immediately. Member-list grouping waits for a short quiet
   period for other users; the current user's group updates immediately.
+- A connection that falls behind presence changes reconnects and reloads current
+  presence instead of silently keeping stale indicators.
 
 ## Design Decisions
 
@@ -61,6 +63,14 @@ devices contact only their configured Chatto server to synchronize the choice.
 **Decision:** Reread after change events, reconnects, conflicts, and lost replies.
 **Why:** Delayed requests must not undo newer privacy choices.
 **Tradeoff:** The client cannot confirm a selection until the server responds.
+
+### 5. Keep presence fresh without moving member rows on every update
+
+**Decision:** Update indicators immediately, but let other users' member-list
+groups settle briefly. A delivery gap forces a reconnect and current-state read.
+**Why:** Users need current indicators and a stable list they can scan.
+**Tradeoff:** A row can briefly remain in its previous group. A slow connection
+can reconnect during a large burst of changes. See ADR-049 and ADR-093.
 
 ## Permissions
 

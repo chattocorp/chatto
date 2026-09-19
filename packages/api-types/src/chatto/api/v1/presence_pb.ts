@@ -14,21 +14,29 @@ import { Message, proto3 } from "@bufbuild/protobuf";
  */
 export enum PresenceMode {
   /**
+   * No choice supplied; rejected on selection.
+   *
    * @generated from enum value: PRESENCE_MODE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Show Online while at least one device refreshes liveness.
+   *
    * @generated from enum value: PRESENCE_MODE_ONLINE = 1;
    */
   ONLINE = 1,
 
   /**
+   * Show Away while at least one device refreshes liveness.
+   *
    * @generated from enum value: PRESENCE_MODE_AWAY = 2;
    */
   AWAY = 2,
 
   /**
+   * Suppress notification alerts on all devices until the choice changes.
+   *
    * @generated from enum value: PRESENCE_MODE_DO_NOT_DISTURB = 3;
    */
   DO_NOT_DISTURB = 3,
@@ -110,6 +118,8 @@ proto3.util.setEnumType(PresenceStatus, "chatto.api.v1.PresenceStatus", [
  */
 export class PresencePreference extends Message<PresencePreference> {
   /**
+   * The account's saved choice, independent of current connection liveness.
+   *
    * @generated from field: chatto.api.v1.PresenceMode mode = 1;
    */
   mode = PresenceMode.UNSPECIFIED;
@@ -151,6 +161,8 @@ export class PresencePreference extends Message<PresencePreference> {
 }
 
 /**
+ * Read the authenticated account's own choice; accepts no other user ID.
+ *
  * @generated from message chatto.api.v1.GetPresencePreferenceRequest
  */
 export class GetPresencePreferenceRequest extends Message<GetPresencePreferenceRequest> {
@@ -182,6 +194,8 @@ export class GetPresencePreferenceRequest extends Message<GetPresencePreferenceR
 }
 
 /**
+ * Current private choice, or absence before first initialization.
+ *
  * @generated from message chatto.api.v1.GetPresencePreferenceResponse
  */
 export class GetPresencePreferenceResponse extends Message<GetPresencePreferenceResponse> {
@@ -227,6 +241,8 @@ export class GetPresencePreferenceResponse extends Message<GetPresencePreference
  */
 export class SetPresencePreferenceRequest extends Message<SetPresencePreferenceRequest> {
   /**
+   * Explicit new choice for every device on this server.
+   *
    * @generated from field: chatto.api.v1.PresenceMode mode = 1;
    */
   mode = PresenceMode.UNSPECIFIED;
@@ -268,6 +284,8 @@ export class SetPresencePreferenceRequest extends Message<SetPresencePreferenceR
 }
 
 /**
+ * Acknowledged current choice after the selection commits.
+ *
  * @generated from message chatto.api.v1.SetPresencePreferenceResponse
  */
 export class SetPresencePreferenceResponse extends Message<SetPresencePreferenceResponse> {
@@ -305,6 +323,8 @@ export class SetPresencePreferenceResponse extends Message<SetPresencePreference
 }
 
 /**
+ * Refresh the authenticated account's liveness without supplying a choice.
+ *
  * @generated from message chatto.api.v1.RefreshPresenceRequest
  */
 export class RefreshPresenceRequest extends Message<RefreshPresenceRequest> {
@@ -336,6 +356,8 @@ export class RefreshPresenceRequest extends Message<RefreshPresenceRequest> {
 }
 
 /**
+ * Current private choice after refreshing liveness.
+ *
  * @generated from message chatto.api.v1.RefreshPresenceResponse
  */
 export class RefreshPresenceResponse extends Message<RefreshPresenceResponse> {

@@ -1938,14 +1938,14 @@ POST /api/connect/chatto.api.v1.MyAccountService/GetPresencePreference
 
 #### Input: GetPresencePreferenceRequest
 
-No message description provided.
+Read the authenticated account's own choice; accepts no other user ID.
 
 
 <a id="chatto-api-v1-GetPresencePreferenceResponse"></a>
 
 #### Result: GetPresencePreferenceResponse
 
-No message description provided.
+Current private choice, or absence before first initialization.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1971,7 +1971,7 @@ An explicit selection. Heartbeats must not call this operation.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `mode` | [`PresenceMode`](#chatto-api-v1-PresenceMode) | No field description provided. |
+| `mode` | [`PresenceMode`](#chatto-api-v1-PresenceMode) | Explicit new choice for every device on this server. |
 | `expected_revision` | `string` | Revision from the last read; empty only when initializing an absent choice. |
 
 
@@ -1979,7 +1979,7 @@ An explicit selection. Heartbeats must not call this operation.
 
 #### Result: SetPresencePreferenceResponse
 
-No message description provided.
+Acknowledged current choice after the selection commits.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2002,14 +2002,14 @@ POST /api/connect/chatto.api.v1.MyAccountService/RefreshPresence
 
 #### Input: RefreshPresenceRequest
 
-No message description provided.
+Refresh the authenticated account's liveness without supplying a choice.
 
 
 <a id="chatto-api-v1-RefreshPresenceResponse"></a>
 
 #### Result: RefreshPresenceResponse
 
-No message description provided.
+Current private choice after refreshing liveness.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4861,7 +4861,7 @@ Saved choice visible only to the authenticated account itself.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `mode` | [`PresenceMode`](#chatto-api-v1-PresenceMode) | No field description provided. |
+| `mode` | [`PresenceMode`](#chatto-api-v1-PresenceMode) | The account's saved choice, independent of current connection liveness. |
 | `revision` | `string` | Opaque revision required when replacing this choice. |
 
 
@@ -6306,10 +6306,10 @@ Other users only receive PresenceStatus, never this choice.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `PRESENCE_MODE_UNSPECIFIED` | `0` | No value description provided. |
-| `PRESENCE_MODE_ONLINE` | `1` | No value description provided. |
-| `PRESENCE_MODE_AWAY` | `2` | No value description provided. |
-| `PRESENCE_MODE_DO_NOT_DISTURB` | `3` | No value description provided. |
+| `PRESENCE_MODE_UNSPECIFIED` | `0` | No choice supplied; rejected on selection. |
+| `PRESENCE_MODE_ONLINE` | `1` | Show Online while at least one device refreshes liveness. |
+| `PRESENCE_MODE_AWAY` | `2` | Show Away while at least one device refreshes liveness. |
+| `PRESENCE_MODE_DO_NOT_DISTURB` | `3` | Suppress notification alerts on all devices until the choice changes. |
 | `PRESENCE_MODE_INVISIBLE` | `4` | Public presence is indistinguishable from an offline account. |
 
 

@@ -448,14 +448,14 @@ POST /api/connect/chatto.api.v1.MyAccountService/GetPresencePreference
 
 #### Input: GetPresencePreferenceRequest
 
-No message description provided.
+Read the authenticated account's own choice; accepts no other user ID.
 
 
 <a id="chatto-api-v1-GetPresencePreferenceResponse"></a>
 
 #### Result: GetPresencePreferenceResponse
 
-No message description provided.
+Current private choice, or absence before first initialization.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -481,7 +481,7 @@ An explicit selection. Heartbeats must not call this operation.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `mode` | [`PresenceMode`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceMode) | No field description provided. |
+| `mode` | [`PresenceMode`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceMode) | Explicit new choice for every device on this server. |
 | `expected_revision` | `string` | Revision from the last read; empty only when initializing an absent choice. |
 
 
@@ -489,7 +489,7 @@ An explicit selection. Heartbeats must not call this operation.
 
 #### Result: SetPresencePreferenceResponse
 
-No message description provided.
+Acknowledged current choice after the selection commits.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -512,14 +512,14 @@ POST /api/connect/chatto.api.v1.MyAccountService/RefreshPresence
 
 #### Input: RefreshPresenceRequest
 
-No message description provided.
+Refresh the authenticated account's liveness without supplying a choice.
 
 
 <a id="chatto-api-v1-RefreshPresenceResponse"></a>
 
 #### Result: RefreshPresenceResponse
 
-No message description provided.
+Current private choice after refreshing liveness.
 
 | Field | Type | Description |
 | --- | --- | --- |

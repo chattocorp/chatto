@@ -27,9 +27,13 @@ const (
 type PresenceMode int32
 
 const (
-	PresenceMode_PRESENCE_MODE_UNSPECIFIED    PresenceMode = 0
-	PresenceMode_PRESENCE_MODE_ONLINE         PresenceMode = 1
-	PresenceMode_PRESENCE_MODE_AWAY           PresenceMode = 2
+	// No choice supplied; rejected on selection.
+	PresenceMode_PRESENCE_MODE_UNSPECIFIED PresenceMode = 0
+	// Show Online while at least one device refreshes liveness.
+	PresenceMode_PRESENCE_MODE_ONLINE PresenceMode = 1
+	// Show Away while at least one device refreshes liveness.
+	PresenceMode_PRESENCE_MODE_AWAY PresenceMode = 2
+	// Suppress notification alerts on all devices until the choice changes.
 	PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB PresenceMode = 3
 	// Public presence is indistinguishable from an offline account.
 	PresenceMode_PRESENCE_MODE_INVISIBLE PresenceMode = 4
@@ -148,7 +152,8 @@ func (PresenceStatus) EnumDescriptor() ([]byte, []int) {
 // Saved choice visible only to the authenticated account itself.
 type PresencePreference struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Mode  PresenceMode           `protobuf:"varint,1,opt,name=mode,proto3,enum=chatto.api.v1.PresenceMode" json:"mode,omitempty"`
+	// The account's saved choice, independent of current connection liveness.
+	Mode PresenceMode `protobuf:"varint,1,opt,name=mode,proto3,enum=chatto.api.v1.PresenceMode" json:"mode,omitempty"`
 	// Opaque revision required when replacing this choice.
 	Revision      string `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -199,6 +204,7 @@ func (x *PresencePreference) GetRevision() string {
 	return ""
 }
 
+// Read the authenticated account's own choice; accepts no other user ID.
 type GetPresencePreferenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -235,6 +241,7 @@ func (*GetPresencePreferenceRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{1}
 }
 
+// Current private choice, or absence before first initialization.
 type GetPresencePreferenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Absent until the account first saves a choice.
@@ -283,7 +290,8 @@ func (x *GetPresencePreferenceResponse) GetPreference() *PresencePreference {
 // An explicit selection. Heartbeats must not call this operation.
 type SetPresencePreferenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Mode  PresenceMode           `protobuf:"varint,1,opt,name=mode,proto3,enum=chatto.api.v1.PresenceMode" json:"mode,omitempty"`
+	// Explicit new choice for every device on this server.
+	Mode PresenceMode `protobuf:"varint,1,opt,name=mode,proto3,enum=chatto.api.v1.PresenceMode" json:"mode,omitempty"`
 	// Revision from the last read; empty only when initializing an absent choice.
 	ExpectedRevision string `protobuf:"bytes,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -334,6 +342,7 @@ func (x *SetPresencePreferenceRequest) GetExpectedRevision() string {
 	return ""
 }
 
+// Acknowledged current choice after the selection commits.
 type SetPresencePreferenceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Preference    *PresencePreference    `protobuf:"bytes,1,opt,name=preference,proto3" json:"preference,omitempty"`
@@ -378,6 +387,7 @@ func (x *SetPresencePreferenceResponse) GetPreference() *PresencePreference {
 	return nil
 }
 
+// Refresh the authenticated account's liveness without supplying a choice.
 type RefreshPresenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -414,6 +424,7 @@ func (*RefreshPresenceRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{5}
 }
 
+// Current private choice after refreshing liveness.
 type RefreshPresenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Private saved choice; clients use this to recover missed device updates.

@@ -7,9 +7,13 @@ import "buf/validate/validate.proto";
 // Private availability choice shared by the account's devices on this server.
 // Other users only receive PresenceStatus, never this choice.
 enum PresenceMode {
+  // No choice supplied; rejected on selection.
   PRESENCE_MODE_UNSPECIFIED = 0;
+  // Show Online while at least one device refreshes liveness.
   PRESENCE_MODE_ONLINE = 1;
+  // Show Away while at least one device refreshes liveness.
   PRESENCE_MODE_AWAY = 2;
+  // Suppress notification alerts on all devices until the choice changes.
   PRESENCE_MODE_DO_NOT_DISTURB = 3;
   // Public presence is indistinguishable from an offline account.
   PRESENCE_MODE_INVISIBLE = 4;
@@ -17,12 +21,15 @@ enum PresenceMode {
 
 // Saved choice visible only to the authenticated account itself.
 message PresencePreference {
+  // The account's saved choice, independent of current connection liveness.
   PresenceMode mode = 1;
   // Opaque revision required when replacing this choice.
   string revision = 2;
 }
 
+// Read the authenticated account's own choice; accepts no other user ID.
 message GetPresencePreferenceRequest {}
+// Current private choice, or absence before first initialization.
 message GetPresencePreferenceResponse {
   // Absent until the account first saves a choice.
   PresencePreference preference = 1;
@@ -30,15 +37,19 @@ message GetPresencePreferenceResponse {
 
 // An explicit selection. Heartbeats must not call this operation.
 message SetPresencePreferenceRequest {
+  // Explicit new choice for every device on this server.
   PresenceMode mode = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
   // Revision from the last read; empty only when initializing an absent choice.
   string expected_revision = 2;
 }
+// Acknowledged current choice after the selection commits.
 message SetPresencePreferenceResponse {
   PresencePreference preference = 1;
 }
 
+// Refresh the authenticated account's liveness without supplying a choice.
 message RefreshPresenceRequest {}
+// Current private choice after refreshing liveness.
 message RefreshPresenceResponse {
   // Private saved choice; clients use this to recover missed device updates.
   PresencePreference preference = 1;
