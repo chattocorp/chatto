@@ -9,6 +9,8 @@ const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 export type OAuthPopupResponse = {
   type: typeof OAUTH_POPUP_RESPONSE_TYPE;
   state: string;
+  /** Provider sign-in established an origin cookie session; verify it with the server. */
+  completed?: boolean;
   code?: string;
   error?: string;
   errorDescription?: string;
@@ -30,6 +32,10 @@ export function isOAuthPopupResponse(value: unknown): value is OAuthPopupRespons
 export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
   const state = url.searchParams.get('state');
   if (!state) return null;
+
+  if (url.searchParams.get('mode') === 'provider' && !url.searchParams.has('error')) {
+    return { type: OAUTH_POPUP_RESPONSE_TYPE, state, completed: true };
+  }
 
   const code = url.searchParams.get('code') ?? undefined;
   const error = url.searchParams.get('error') ?? undefined;

@@ -1,5 +1,8 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { onDestroy } from 'svelte';
+  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
+  import type { OAuthPopup } from '$lib/oauth/popup';
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -18,6 +21,12 @@
   let isLoading = $state(false);
   let selectedProviderId = $state<string | null>(null);
   let pageErrorDismissed = $state(false);
+  let providerPopup: OAuthPopup | null = null;
+  let active = true;
+  onDestroy(() => {
+    active = false;
+    providerPopup?.close();
+  });
 
   const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
 
@@ -78,14 +87,30 @@
     }
   }
 
-  function handleProviderClick(e: MouseEvent, provider: PublicAuthProvider) {
+  async function handleProviderClick(e: MouseEvent, provider: PublicAuthProvider) {
     e.preventDefault();
     error = '';
     pageErrorDismissed = true;
     selectedProviderId = provider.id;
-    window.setTimeout(() => {
+    // Remote authorization already owns a popup and must keep its server-side
+    // OAuth continuation in that window.
+    if (compact) {
       window.location.href = providerLoginHref(provider);
-    }, 250);
+      return;
+    }
+    try {
+      providerPopup = openProviderSignIn(provider.loginUrl);
+      await verifyProviderSignIn(providerPopup);
+      if (!active) return;
+      const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
+      const resumed = await completeOriginAuthentication();
+      if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
+    } catch (err) {
+      if (active) error = err instanceof Error ? err.message : m('auth.login.failed');
+    } finally {
+      providerPopup = null;
+      selectedProviderId = null;
+    }
   }
 
   async function handleSubmit(e: Event) {

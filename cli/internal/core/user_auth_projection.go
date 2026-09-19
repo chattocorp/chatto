@@ -254,7 +254,9 @@ func (p *UserAuthProjection) applyExternalIdentityUnlinked(e *evtv1.UserExternal
 		return
 	}
 	delete(u.externalIdentities, e.GetSubjectHash())
-	u.authGeneration = seq
+	if !e.GetPreserveExistingCredentials() {
+		u.authGeneration = seq
+	}
 }
 
 func (p *UserAuthProjection) applyOAuthConsentGranted(e *evtv1.OAuthConsentGrantedEvent) {

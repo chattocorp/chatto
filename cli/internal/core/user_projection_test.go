@@ -17,6 +17,28 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
+func TestUserAuthProjectionUnlinkCredentialReplay(t *testing.T) {
+	for _, preserve := range []bool{false, true} {
+		t.Run(fmt.Sprintf("preserve=%t", preserve), func(t *testing.T) {
+			p := newUserAuthProjection()
+			p.ensureUserLocked("U1").authGeneration = 10
+			require.NoError(t, p.Apply(&evtv1.Event{
+				Id: "unlink",
+				Event: &evtv1.Event_UserExternalIdentityUnlinked{UserExternalIdentityUnlinked: &evtv1.UserExternalIdentityUnlinkedEvent{
+					UserId: "U1", SubjectHash: "identity", PreserveExistingCredentials: preserve,
+				}},
+			}, 20))
+			generation, active := p.AuthGeneration("U1")
+			require.True(t, active)
+			if preserve {
+				require.Equal(t, uint64(10), generation)
+			} else {
+				require.Equal(t, uint64(20), generation, "historical unlink events must still revoke credentials")
+			}
+		})
+	}
+}
+
 func BenchmarkUserProjectionGetReferences(b *testing.B) {
 	const memberCount = 10_000
 	key, err := encryption.GenerateKey()

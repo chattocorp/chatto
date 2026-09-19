@@ -202,6 +202,9 @@ message UserExternalIdentityUnlinkedEvent {
   // Stable one-way identity hash previously written by
   // UserExternalIdentityLinkedEvent or legacy UserOIDCSubjectLinkedEvent.
   string subject_hash = 2;
+  // Keep established sessions valid. Absent on historical events, which
+  // revoked credentials and must retain that behavior during replay.
+  bool preserve_existing_credentials = 3;
 }
 
 message UserServerPreferencesChangedEvent {

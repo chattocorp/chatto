@@ -57,6 +57,16 @@
     actionError = '';
     try {
       await flowAPI.createAccount({ token: data.token, login, displayName });
+      const returnURL = new URL(redirectPath, window.location.origin);
+      if (
+        returnURL.pathname === resolve('/servers/callback') &&
+        returnURL.searchParams.get('mode') === 'provider'
+      ) {
+        // The opening tab owns its saved return navigation. Complete this
+        // popup before any copied sessionStorage return path can take over.
+        await goto(resolve(redirectPath as '/'), { replaceState: true });
+        return;
+      }
       const resumedReturnNavigation = await completeOriginAuthentication();
       if (!resumedReturnNavigation) {
         goto(resolve(redirectPath as '/'), { replaceState: true });

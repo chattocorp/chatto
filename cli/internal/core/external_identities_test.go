@@ -461,24 +461,24 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 	if len(identities) != 0 {
 		t.Fatalf("identities after disconnect = %+v, want empty", identities)
 	}
-	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
-		t.Fatalf("ValidateAuthToken after disconnect err = %v, want ErrAuthTokenNotFound", err)
+	if _, err := core.ValidateAuthToken(ctx, token); err != nil {
+		t.Fatalf("ValidateAuthToken after disconnect: %v", err)
 	}
-	if _, err := core.ValidateCookieCredential(ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("ValidateCookieCredential after disconnect err = %v, want ErrCookieSessionNotFound", err)
+	if _, err := core.ValidateCookieCredential(ctx, sessionID); err != nil {
+		t.Fatalf("ValidateCookieCredential after disconnect: %v", err)
 	}
-	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
-		t.Fatalf("CreateAuthTokenWithSourceGeneration old generation err = %v, want ErrAuthTokenNotFound", err)
+	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration); err != nil {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration after disconnect: %v", err)
 	}
-	if _, err := core.NewCookieSessionDataForGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("NewCookieSessionDataForGeneration old generation err = %v, want ErrCookieSessionNotFound", err)
+	if _, err := core.NewCookieSessionDataForGeneration(ctx, user.Id, "external_identity_login", authGeneration); err != nil {
+		t.Fatalf("NewCookieSessionDataForGeneration after disconnect: %v", err)
 	}
 	afterGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration after disconnect: %v", err)
 	}
-	if afterGeneration == authGeneration {
-		t.Fatal("auth generation should advance after external identity disconnect")
+	if afterGeneration != authGeneration {
+		t.Fatal("auth generation must remain unchanged after external identity disconnect")
 	}
 
 	err = core.DisconnectExternalIdentity(ctx, user.Id, "missing-subject-hash")
