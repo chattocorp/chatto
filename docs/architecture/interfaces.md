@@ -127,6 +127,16 @@ pagination. Counts describe the filtered set. It does not read per-user KV keys.
 and one request-scoped encryption-key cache. See
 [FDR-025](../fdr/FDR-025-user-search-and-member-directory.md).
 
+`AdminUserService.ListMembers` returns ordered IDs and page metadata. Empty
+searches read lifecycle and creation metadata; only legacy accounts without a
+creation time need login hydration for sorting. Name searches read profiles.
+`BatchGetMembers` checks admin access again, returns private rows and role
+summaries, and reads presence once from the shared watcher. Singular reads and
+mutation responses retain their KV-backed presence reads. The frontend caches
+rows and their role summaries together under server/session-scoped admin query
+keys. Permission loss, logout, and account deletion cancel older reads and clear
+private snapshots. Pagination advances by returned IDs, not hydrated rows.
+
 `AdminRoleService` separates role details from explicit membership pages.
 Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs
 before bounded user-profile hydration. It does not require `admin.view-users`.

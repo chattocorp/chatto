@@ -28,7 +28,7 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public documentation!) Find the canonical vocabulary in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is more specific.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior. Future maintainers must not have to infer this information from call sites.
-- Keep tests and documentation up to date when changing behavior.
+- Keep relevant tests and internal documentation current. Change public documentation only when readers must learn or do something differently. For API changes, document the required client migration; keep implementation details and unchanged behavior out. Apply the release-note scope below.
 - Run verification that can find regressions in the changed area.
 - Never claim full verification when only a partial signal was run.
 - Never silence lint, type, vet, or Svelte warnings as a routine fix. Fix the cause; discuss rare scoped exceptions before adding them.
@@ -117,6 +117,10 @@ Never leave a dev stack running in a detached or yielded terminal session.
   justified updates limited to that difference; do not expand documentation
   merely because related code changed.
 - Generated API reference updates must remain consistent with their source.
+- Final release notes describe changes from the previous stable release to
+  the final version. Do not document migrations between beta versions in the
+  final release document. During a beta cycle, keep the API reference current
+  without adding release-note entries for each intermediate API change.
 - Keep `NOTICE` current when adding, removing, or materially changing bundled
   dependencies or shipped assets.
 

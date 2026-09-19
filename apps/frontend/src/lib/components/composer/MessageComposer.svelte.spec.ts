@@ -1282,6 +1282,91 @@ describe('MessageComposer', () => {
   });
 
   describe('send button', () => {
+    describe.each(['visual', 'markdown'] as const)('%s post-send focus', (kind) => {
+      it.each([
+        ['keyboard', 'thread'],
+        ['button', 'thread'],
+        ['keyboard', 'room'],
+        ['button', 'room']
+      ] as const)(
+        'restores composer focus after sending with the %s in a %s',
+        async (method, destination) => {
+          userPreferences.composerEditor = kind;
+          userPreferences.composerSendMode = 'enter';
+          const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> }>();
+          createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+          const { container } = renderMessageComposer({
+            roomId: 'focus-room',
+            inThread: destination === 'thread' ? 'focus-thread' : undefined
+          });
+          const editor = await findEditor(
+            container,
+            destination === 'thread' ? 'thread-reply-input' : 'message-input'
+          );
+          await userEvent.click(editor);
+          await userEvent.keyboard('First reply');
+          if (method === 'keyboard') {
+            await userEvent.keyboard('{Enter}');
+          } else {
+            await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+          }
+          await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+          pendingSend.resolve({
+            event: postedMessageEvent(
+              'reply',
+              'focus-room',
+              destination === 'thread' ? 'focus-thread' : null
+            )
+          });
+
+          await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+          await expect.element(editor).toHaveFocus();
+          await userEvent.keyboard('Next reply');
+          await expect.element(editor).toHaveTextContent('Next reply');
+          expect(editor.textContent).not.toContain('First reply');
+        }
+      );
+
+      it.each(['switch thread', 'unmount', 'disable'] as const)(
+        'does not restore focus after %s during submission',
+        async (change) => {
+          userPreferences.composerEditor = kind;
+          const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> }>();
+          createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+          const rendered = renderMessageComposer({
+            roomId: 'focus-room',
+            inThread: 'focus-thread',
+            // Isolate post-send focus from initial focus for a new destination.
+            autoFocus: false
+          });
+          const editor = await findEditor(rendered.container, 'thread-reply-input');
+          await userEvent.click(editor);
+          await userEvent.keyboard('Delayed reply');
+          await userEvent.click(q(rendered.container, 'button[aria-label="Send message"]')!);
+          await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+          const outside = document.createElement('button');
+          outside.textContent = 'Outside composer';
+          document.body.append(outside);
+          try {
+            if (change === 'switch thread') {
+              await rendered.rerender({ inThread: 'another-thread' });
+            } else if (change === 'unmount') {
+              await rendered.unmount();
+            } else {
+              await rendered.rerender({ canPost: false });
+            }
+            await settleEditorFocus();
+            await userEvent.click(outside);
+            pendingSend.resolve({ event: postedMessageEvent('reply', 'focus-room', 'focus-thread') });
+            await settleEditorFocus();
+            await expect.element(outside).toHaveFocus();
+          } finally {
+            outside.remove();
+          }
+        }
+      );
+    });
+
     it('renders the send button', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 

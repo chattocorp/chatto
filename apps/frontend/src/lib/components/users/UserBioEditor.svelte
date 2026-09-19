@@ -87,7 +87,7 @@ external value changes, such as a successful save, update the mounted editor.
     {editorApi}
     inputDisabled={disabled}
   />
-  <div class="input min-w-0 [&_.cm-content]:min-h-28 [&_.tiptap]:min-h-28">
+  <div class="input min-w-0 [--composer-min-height:8rem] [&_.ProseMirror]:min-h-32">
     {#key editorKind}
       {#await editorModule}
         <p aria-busy="true">{m('common.loading')}</p>

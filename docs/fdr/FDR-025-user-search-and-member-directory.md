@@ -1,7 +1,7 @@
 # FDR-025: User Search & Member Directory
 
 **Status:** Active
-**Last reviewed:** 2026-09-18
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
@@ -69,7 +69,21 @@ Any authenticated user can browse the server's member directory — a paginated 
 **Why:** Explicit memberships would require a join-leave workflow that didn't exist (Chatto's earlier design assumed everyone-is-a-member). Removing them reduced storage and code paths without losing functionality. See ADR-027.
 **Tradeoff:** No way to mark someone as "a user on this server but not currently a member". For operators who need that, the suspension flow (FDR-001's user-level deny pattern) handles it.
 
-### 7. Separate room membership from user profiles
+### 7. Separate admin list selection from private rows
+
+**Decision:** Admin member lists return IDs first. The client loads missing
+admin rows in batches and reuses them across searches and pages within the
+same session. Private rows and role labels share a cache lifetime. Logout,
+permission loss, and account deletion clear private data and fence older reads.
+
+**Why:** Listing accounts must not wait for every row's email, avatar, roles,
+account permissions, and presence. Keeping this cache separate from ordinary
+profiles prevents private admin data from entering member-facing caches.
+
+**Tradeoff:** A cold page needs a second request. Both reads check access, and
+pagination counts IDs even when an account disappears before its row is loaded.
+
+### 8. Separate room membership from user profiles
 
 **Decision:** Room membership reads return IDs. The client shares cached user
 profiles across rooms and resolves missing profiles in batches. The room store
@@ -80,7 +94,7 @@ knows. Each membership page must not decrypt every profile in the room.
 available while that load is pending. A membership event during offset pagination
 restarts the scan at the event boundary to prevent skipped entries.
 
-### 8. Load connected members independently
+### 9. Load connected members independently
 
 **Decision:** Read connected presence groups alongside the full directory. Share
 cached profiles between these reads. Realtime presence takes precedence over a

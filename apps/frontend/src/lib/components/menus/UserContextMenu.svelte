@@ -26,7 +26,6 @@ keep the compact menu without a navigation action.
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
 
-  import { RoomKind } from '$lib/api-client/roomDirectory';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ParticipantAudioControls from '$lib/components/voice/ParticipantAudioControls.svelte';
   import type { ParticipantVolumeControl } from '$lib/state/server/callPreferences.svelte';
@@ -131,25 +130,6 @@ keep the compact menu without a navigation action.
         })
       : null
   );
-  const canOpenProfile = $derived.by(() => {
-    if (!onOpenProfile) return false;
-    if (serverScope.store.permissions.canStartDMs) return true;
-
-    const currentUserId = serverScope.store.currentUser.user?.id;
-    if (!currentUserId) return false;
-    return [...serverScope.store.projection.rooms.values()].some((entry) => {
-      const memberIds = entry.memberUserIds;
-      const isSelfDM =
-        memberIds.length === 1 && memberIds[0] === currentUserId && user.id === currentUserId;
-      const isOneToOneDM =
-        memberIds.length === 2 && memberIds.includes(currentUserId) && memberIds.includes(user.id);
-      return (
-        entry.room?.kind === RoomKind.DM &&
-        entry.viewerState?.isMember &&
-        (isSelfDM || isOneToOneDM)
-      );
-    });
-  });
   function handleSendMessage() {
     onSendMessage?.();
     onClose?.();
@@ -228,12 +208,7 @@ keep the compact menu without a navigation action.
         </MenuItem>
       {/if}
       {#if onOpenProfile}
-        <MenuItem
-          icon="icon-[uil--user]"
-          onclick={handleOpenProfile}
-          disabled={!canOpenProfile}
-          title={canOpenProfile ? undefined : m('chat.user_menu.profile_requires_direct_message')}
-        >
+        <MenuItem icon="icon-[uil--user]" onclick={handleOpenProfile}>
           {m('chat.user_menu.view_profile')}
         </MenuItem>
       {/if}

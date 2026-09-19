@@ -144,9 +144,13 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
       (key[5] === 'member' && key[6] === userId) ||
       (key[5] === 'user-permissions' && key[6] === userId));
   const isMemberListQuery = (key: QueryKey): boolean =>
-    isAdminUserQuery(key) && (key[5] === 'members' || key[5] === 'role-members');
+    isAdminUserQuery(key) &&
+    ((key[5] === 'members' && key[6] !== 'row') || key[5] === 'role-members');
   const isDeletedUserSnapshot = (key: QueryKey): boolean =>
-    isAdminUserQuery(key) && (key[5] === 'member' || key[5] === 'user-permissions');
+    isAdminUserQuery(key) &&
+    (key[5] === 'member' ||
+      key[5] === 'user-permissions' ||
+      (key[5] === 'members' && key[6] === 'row' && key[7] === userId));
 
   queryClient.setQueriesData<InfiniteData<RoomBanList, number>>(
     {

@@ -150,14 +150,22 @@ Use the square check indicator for an independent boolean setting. Use the
 circular radio indicator for one choice in a group. Rows use a faint raised
 edge. Empty indicators look inset; selected indicators use a reduced lighting
 strength with no outer shadow. Disabled controls have no raised finish. Row and indicator colour transitions
-use the shared `feedback-quick` utility: 50 ms with ease-out timing in both
+use the shared `feedback-quick` utility: instant feedback in both
 directions. Sidebar links and menu rows use the same timing. Keep transition
-properties on the control; change this shared utility to tune feedback speed.
+properties on the control; use the motion tokens below to tune feedback speed.
 
 The quick finder uses `command-palette`, which composes the shared menu frame.
 It keeps a compact search field and aligned result rows through
 `command-palette-result`. The active result uses a flat neutral fill and a quiet
 Enter cue. `keycap` supplies the shared keyboard-hint shape.
+
+## Attachment Description Icons
+
+Never use a wheelchair icon for alt text or attachment descriptions. These
+controls describe content; a wheelchair symbol does not communicate that action.
+Use `icon-[uil--file-edit-alt]` for add and edit description actions in both the
+composer and sent messages. Keep the translated action label in `aria-label`
+and the tooltip, and hide the decorative icon from assistive technology.
 
 ## Joined Action Pills
 
@@ -365,6 +373,20 @@ Compact standalone composer actions and participant-card actions use
 `CompactActionButton`. Their backgrounds are transparent at rest and show
 the shared bevel on hover or keyboard focus. Disabled controls remain flat.
 
+All message attachment actions pair `attachment-action-button` with `btn-secondary`
+or `btn-danger-secondary` for deletion. The attachment utility sets the square
+40 px geometry. One shared renderer arranges these controls in media overlays,
+beside audio players, or beside ordinary filenames. Audio and file-card actions stay
+visible in a horizontal row. Audio cards wrap actions below the player when space
+is limited. Both use `attachment-card` for equal 12 px padding and a 12 px content
+gap, with 40 px player and action controls. Action rows add no outer margin.
+Image and video action groups appear on desktop hover or keyboard focus. The standard button
+tone supplies the fill, border, focus, pressed state, and shared depth finish.
+These controls follow the Flat, Kinda 3D, and Very 3D preference.
+See `UI/Attachment actions` in Storybook.
+`attachment-video-frame` keeps the video canvas at least 12 rem high so the
+vertical action stack leaves space for playback controls on narrow screens.
+
 ### Shared Depth Utilities
 
 `surface-raised` owns the gradient and lit-edge recipe. `surface-lowered` owns
@@ -563,6 +585,28 @@ matches the action.
 
 ## Shape, Type, And Motion
 
+Hover, focus, and action-reveal feedback use these tokens from `src/app.css`:
+
+| Token | Default | Purpose |
+| --- | --- | --- |
+| `--motion-duration-feedback` | `0ms` | Instant item highlights and action reveals in both directions |
+| `--motion-easing-feedback` | `ease-out` | Timing curve in both directions |
+| `--motion-duration-overlay-enter` | `100ms` | Modal and floating context-menu entrance |
+| `--motion-easing-overlay-enter` | `ease-out` | Surface entrance curve |
+
+Use `feedback-quick` with explicit transition properties, for example
+`transition-opacity feedback-quick`. The utility reads both tokens and disables
+transitions under reduced motion. Menu highlights, member-card menu reveals,
+row actions, and icon feedback share this timing. Do not add local numeric
+durations for these interactions. Keep disabled/pending opacity at 150 ms;
+pane movement and toolbar entrance animations have separate timing.
+
+Modals and floating context menus fade in and zoom from 95% to full size.
+Context menus close immediately; modals keep their existing 100 ms exit.
+Reduced motion skips surface animations. Floating placement uses the full
+layout size so the entrance zoom cannot move a menu beyond the viewport.
+Touch context menus keep their bottom-sheet presentation.
+
 - Labelled buttons use `rounded-xl` at every size, matching chat input surfaces.
   Filled icon-only buttons keep `rounded-md` corners.
 - `rounded` and `rounded-md` are the default for other compact controls, fields,
@@ -587,7 +631,7 @@ matches the action.
 - Press feedback uses `active:scale-[0.96]` where it does not interfere with
   drag, resize, or text-selection behavior.
 - Shared buttons fade disabled/pending opacity over 150 ms in both directions.
-  Pill buttons retain 50 ms hover colour feedback. Reduced motion skips both.
+  Pill buttons use instant hover colour feedback. Reduced motion skips opacity fades.
 - Respect `prefers-reduced-motion` for non-essential animation.
 - Wrap conditional compact toolbars in `FadeScale` for a shared 180 ms
   fade and 96–100% zoom with exponential ease-out entry and cubic ease-in-out

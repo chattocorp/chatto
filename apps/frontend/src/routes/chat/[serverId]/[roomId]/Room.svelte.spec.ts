@@ -627,6 +627,38 @@ describe('Room interaction bundles', () => {
     expect(restored.desktopRoomSidebarProfileUserId('user-1')).toBeNull();
   });
 
+  it('hides the desktop sidebar when closing a Members profile', async () => {
+    appUi.openMemberProfile('user-1', 'desktop');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const close = await waitForElement<HTMLButtonElement>(
+      container,
+      '[data-testid="close-room-sidebar"]'
+    );
+    close.click();
+    await tick();
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+    expect(appUi.activeDesktopRoomSidebarPanel).toBeNull();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+  });
+
+  it('hides the mobile sidebar when dismissing a Members profile', async () => {
+    stubMatchMedia(false);
+    appUi.openMemberProfile('user-1', 'mobile');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await tick();
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+    expect(appUi.mobileRoomSidebarPanel).toBeNull();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .not.toBeInTheDocument();
+  });
+
   it('does not move a default DM profile into the mobile overlay', async () => {
     mocks.roomKind = RoomKind.DM;
     const resize = stubMatchMedia(false);

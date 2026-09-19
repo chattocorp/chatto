@@ -560,9 +560,9 @@ POST /api/connect/chatto.admin.v1.AdminUserService/ListMembers
 
 #### Input: ListMembersRequest
 
-Request server-admin member rows.
+Request server-admin member IDs.
 Results use creation time, oldest first. Users without a creation time
-appear last, ordered by case-insensitive login.
+appear last, ordered by case-insensitive login. User IDs break ties.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -574,13 +574,14 @@ appear last, ordered by case-insensitive login.
 
 #### Result: ListMembersResponse
 
-Server-admin member rows plus role summaries.
+Ordered server-admin member IDs. Load rows and role summaries with
+BatchGetMembers. Advance the offset by the number of IDs, including IDs
+omitted by a later batch read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `members` | repeated [`AdminMember`](#chatto-admin-v1-AdminMember) | Matching members. |
-| `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 | `page` | `chatto.api.v1.PageInfo` | Page metadata. |
+| `user_ids` | `repeated string` | Matching member IDs in list order. |
 
 
 <a id="chatto-admin-v1-AdminUserService-GetMember"></a>

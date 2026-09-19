@@ -200,6 +200,11 @@ export function refreshRegisteredAdminQueries(serverId: string): void {
   refreshAdminCache?.(serverId);
 }
 
+/** Refresh profile snapshots without fencing mutations as an authorization reset would. */
+export function refreshRegisteredAdminProfileQueries(serverId: string): void {
+  refreshAdminCache?.(serverId);
+}
+
 /** Purge admin snapshots that can retain a removed user's private data. */
 export function removeRegisteredAdminUserQueries(serverId: string, userId: string): void {
   for (const listener of adminUserRemovalListeners) listener(serverId, userId);

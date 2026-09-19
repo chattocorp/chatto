@@ -36,7 +36,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
 {#snippet replyInRoomButton()}
   {#if action.replyInRoom}
     <button
-      class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+      class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] feedback-quick hover:bg-surface hover:text-text active:scale-[0.96]"
       onclick={action.replyInRoom}
       aria-label={action.replyInRoomLabel}
     >
@@ -48,7 +48,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
 {#snippet replyThreadButton()}
   {#if action.replyThread}
     <button
-      class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+      class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] feedback-quick hover:bg-surface hover:text-text active:scale-[0.96]"
       onclick={action.replyThread}
       aria-label={action.replyThreadLabel}
     >
@@ -75,7 +75,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
     <div class="flex items-center menu-section-sm">
       {#each quickReactions as emoji (emoji)}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96]"
           onclick={() => action.toggleReaction(emoji)}
           aria-label={action.hasReacted(emoji)
             ? m('room.message.actions.remove_reaction', { emoji })
@@ -86,7 +86,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
       {/each}
       {#if onOpenEmojiPicker}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] feedback-quick hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenEmojiPicker}
           aria-label={m('room.message.actions.more_reactions')}
         >
@@ -103,7 +103,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
 
       {#if action.canEdit}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] feedback-quick hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={action.edit}
           aria-label={m('room.message.actions.edit')}
         >
@@ -113,7 +113,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
 
       {#if onOpenMenu}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] feedback-quick hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenMenu}
           aria-label={m('room.message.actions.more')}
         >

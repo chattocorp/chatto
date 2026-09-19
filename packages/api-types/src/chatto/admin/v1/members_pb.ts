@@ -7,8 +7,8 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { FieldMask, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "../../api/v1/users_pb.js";
 import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
-import { Role } from "../../api/v1/roles_pb.js";
 import { AdminRole } from "./roles_pb.js";
+import { Role } from "../../api/v1/roles_pb.js";
 
 /**
  * User row returned by server-admin member management reads.
@@ -112,9 +112,9 @@ export class AdminMember extends Message<AdminMember> {
 }
 
 /**
- * Request server-admin member rows.
+ * Request server-admin member IDs.
  * Results use creation time, oldest first. Users without a creation time
- * appear last, ordered by case-insensitive login.
+ * appear last, ordered by case-insensitive login. User IDs break ties.
  *
  * @generated from message chatto.admin.v1.ListMembersRequest
  */
@@ -163,31 +163,26 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
 }
 
 /**
- * Server-admin member rows plus role summaries.
+ * Ordered server-admin member IDs. Load rows and role summaries with
+ * BatchGetMembers. Advance the offset by the number of IDs, including IDs
+ * omitted by a later batch read.
  *
  * @generated from message chatto.admin.v1.ListMembersResponse
  */
 export class ListMembersResponse extends Message<ListMembersResponse> {
-  /**
-   * Matching members.
-   *
-   * @generated from field: repeated chatto.admin.v1.AdminMember members = 1;
-   */
-  members: AdminMember[] = [];
-
-  /**
-   * Public roles for display-name lookup.
-   *
-   * @generated from field: repeated chatto.api.v1.Role roles = 2;
-   */
-  roles: Role[] = [];
-
   /**
    * Page metadata.
    *
    * @generated from field: chatto.api.v1.PageInfo page = 5;
    */
   page?: PageInfo;
+
+  /**
+   * Matching member IDs in list order.
+   *
+   * @generated from field: repeated string user_ids = 6;
+   */
+  userIds: string[] = [];
 
   constructor(data?: PartialMessage<ListMembersResponse>) {
     super();
@@ -197,9 +192,8 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.ListMembersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "members", kind: "message", T: AdminMember, repeated: true },
-    { no: 2, name: "roles", kind: "message", T: Role, repeated: true },
     { no: 5, name: "page", kind: "message", T: PageInfo },
+    { no: 6, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersResponse {

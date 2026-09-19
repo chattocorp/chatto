@@ -351,6 +351,10 @@ components prepare successfully. Neither plaintext nor the digests are
 persisted in `EVT`. Read hydration decrypts profile PII with
 request-scoped DEK reuse. KMS and decryption failures remain operational errors
 rather than appearing as missing or deleted users.
+Admin list reads use detached lifecycle and creation metadata before row
+hydration. Timestamp-ordered accounts do not require profile decryption for an
+empty search. Legacy accounts without timestamps still read their login to
+preserve sort order. This read view adds no persisted projection state.
 The projection also retains the event ID of the primary verified email. The
 first verified-email event supplies the default. A later primary-email event
 changes the selection by referencing an existing verified-email event, without

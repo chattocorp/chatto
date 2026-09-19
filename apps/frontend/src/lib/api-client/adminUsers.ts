@@ -1,16 +1,13 @@
 import { updateMask } from './updateMask';
-import { authHeaders, createChattoClient } from './connect.js';
+import { authHeaders, createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createAdminMemberLoader, type AdminMemberBatch } from '$lib/query/adminMembers';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
 import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 
-export type AdminUserManagementAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type AdminUserManagementAPIConfig = ConnectAPIConfig;
 
 export type AdminManagedUser = {
   id: string;
@@ -47,6 +44,8 @@ export type AdminMemberList = {
   roles: AdminRoleSummary[];
   totalCount: number;
   hasMore: boolean;
+  /** Server IDs consumed, including members omitted during hydration. */
+  consumedCount: number;
 };
 
 export type AdminMemberDetails = {
@@ -92,6 +91,32 @@ export type AdminRoleMutationResult = {
 export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfig) {
   const client = createChattoClient(AdminUserService, config);
   const headers = () => authHeaders(config);
+  const batchMembers = async (
+    userIds: string[],
+    signal?: AbortSignal
+  ): Promise<AdminMemberBatch> => {
+    const response = await client.batchGetMembers(
+      { userIds },
+      { headers: headers(), ...(signal ? { signal } : {}) }
+    );
+    return {
+      users: response.members.map(adminMember),
+      roles: response.roles.map(adminRoleSummary)
+    };
+  };
+  const loadMembers =
+    config.serverId && config.queryScope
+      ? createAdminMemberLoader(config.serverId, config.queryScope, batchMembers)
+      : async (ids: string[], signal?: AbortSignal): Promise<AdminMemberBatch> => {
+          const result: AdminMemberBatch = { users: [], roles: [] };
+          for (let offset = 0; offset < ids.length; offset += 100) {
+            signal?.throwIfAborted();
+            const batch = await batchMembers(ids.slice(offset, offset + 100), signal);
+            result.users.push(...batch.users);
+            result.roles = batch.roles;
+          }
+          return result;
+        };
 
   return {
     async listMembers(
@@ -108,9 +133,12 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
         },
         { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
       );
+      options.signal?.throwIfAborted();
+      const members = await loadMembers(response.userIds, options.signal);
+      options.signal?.throwIfAborted();
       return {
-        users: response.members.map(adminMember),
-        roles: response.roles.map(adminRoleSummary),
+        ...members,
+        consumedCount: response.userIds.length,
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };

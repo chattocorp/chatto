@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   listMembers: vi.fn(),
+  batchGetMembers: vi.fn(),
   getMember: vi.fn(),
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
@@ -31,6 +32,7 @@ describe('createAdminUserManagementAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.listMembers.mockReset();
+    mocks.batchGetMembers.mockReset();
     mocks.getMember.mockReset();
     mocks.assignRole.mockReset();
     mocks.revokeRole.mockReset();
@@ -41,6 +43,7 @@ describe('createAdminUserManagementAPI', () => {
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       listMembers: mocks.listMembers,
+      batchGetMembers: mocks.batchGetMembers,
       getMember: mocks.getMember,
       assignRole: mocks.assignRole,
       revokeRole: mocks.revokeRole,
@@ -54,6 +57,10 @@ describe('createAdminUserManagementAPI', () => {
   it('lists admin members and maps timestamps and roles', async () => {
     const createdAt = new Date('2026-01-02T03:04:05.000Z');
     mocks.listMembers.mockResolvedValue({
+      userIds: ['user-1'],
+      page: { totalCount: 1n, hasMore: false }
+    });
+    mocks.batchGetMembers.mockResolvedValue({
       members: [
         {
           user: {
@@ -83,6 +90,10 @@ describe('createAdminUserManagementAPI', () => {
 
     const result = await api.listMembers({ search: 'alice', limit: 20, offset: 0 });
 
+    expect(mocks.batchGetMembers).toHaveBeenCalledWith(
+      { userIds: ['user-1'] }, { headers: { Authorization: 'Bearer token' } }
+    );
+
     expect(mocks.listMembers).toHaveBeenCalledWith(
       {
         search: 'alice',
@@ -91,6 +102,7 @@ describe('createAdminUserManagementAPI', () => {
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(result).toEqual({
+      consumedCount: 1,
       users: [
         {
           id: 'user-1',
@@ -112,6 +124,20 @@ describe('createAdminUserManagementAPI', () => {
       totalCount: 1,
       hasMore: false
     });
+  });
+
+  it('counts IDs omitted during hydration and skips the batch for an empty page', async () => {
+    mocks.listMembers.mockResolvedValueOnce({ userIds: ['missing'], page: { totalCount: 2n, hasMore: true } })
+      .mockResolvedValueOnce({ userIds: [], page: { totalCount: 0n, hasMore: false } });
+    mocks.batchGetMembers.mockResolvedValue({ members: [], roles: [] });
+    const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    expect(await api.listMembers({ limit: 20, offset: 0 })).toEqual({
+      users: [], roles: [], consumedCount: 1, totalCount: 2, hasMore: true
+    });
+    expect(await api.listMembers({ limit: 20, offset: 1 })).toEqual({
+      users: [], roles: [], consumedCount: 0, totalCount: 0, hasMore: false
+    });
+    expect(mocks.batchGetMembers).toHaveBeenCalledOnce();
   });
 
   it('gets admin member details and maps permission metadata', async () => {

@@ -115,12 +115,16 @@ the same API as the visual editor while keeping the stored Markdown visible.
       lineHeight: '1.5'
     },
     '.cm-content': {
-      minHeight: '2rem',
+      // Hosts can increase the editable area without changing the chat default.
+      minHeight: 'var(--composer-min-height, 2rem)',
       padding: '0.25rem 0',
       caretColor: 'var(--color-text)'
     },
     '.cm-line': { padding: '0' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
+    // Firefox positions the native caret against the buffer before the placeholder.
+    // Keep that buffer on the text baseline when the editor is empty.
+    '.cm-line:has(> .cm-placeholder) > .cm-widgetBuffer': { verticalAlign: 'baseline' },
     '.cm-code-fence': {
       boxSizing: 'border-box',
       backgroundColor: 'color-mix(in srgb, var(--color-surface-emphasized) 68%, transparent)',
