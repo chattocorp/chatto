@@ -196,9 +196,13 @@ test.describe('Server Roles Management', () => {
       .toBeGreaterThan(500);
     const cell = page.locator('td[data-role="everyone"][data-permission="user.invite"] button');
     await cell.scrollIntoViewIfNeeded();
+    await cell.hover();
     // Account for the browser scrolling a newly focused cell into view before
     // measuring the offset that the subsequent data refresh must retain.
     await cell.focus();
+    await page.evaluate(() => new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    ));
     const before = await scroller.evaluate((element) => ({
       top: element.scrollTop,
       height: element.scrollHeight
@@ -224,6 +228,7 @@ test.describe('Server Roles Management', () => {
     try {
       await cell.click();
       await expect.poll(() => heldReads).toBeGreaterThan(0);
+      await expect(page.locator('[inert][aria-busy="true"]')).toHaveCount(1);
       await expect(cell).toBeVisible();
       // Wait for real layout: a same-tick assertion misses native scroll clamping.
       await page.evaluate(
@@ -233,10 +238,12 @@ test.describe('Server Roles Management', () => {
       );
       expect(await scroller.evaluate((element) => element.scrollTop)).toBeCloseTo(before.top, 0);
       expect(await scroller.evaluate((element) => element.scrollHeight)).toBeGreaterThanOrEqual(before.height);
+      await expect(cell.locator('..')).toHaveClass(/bg-action\/15/);
     } finally {
       releaseRefresh();
     }
     await expect(cell).toBeVisible();
+    await expect(cell.locator('..')).toHaveClass(/bg-action\/15/);
     await expect
       .poll(() => scroller.evaluate((element) => element.scrollTop))
       .toBeCloseTo(before.top, 0);

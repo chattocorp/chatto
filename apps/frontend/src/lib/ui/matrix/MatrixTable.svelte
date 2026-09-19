@@ -117,6 +117,8 @@ provide all domain labels and cell content with snippets.
   type Coordinate = { row: string; column: string };
   let hoveredCell = $state<Coordinate | null>(null);
   let focusedCell = $state<Coordinate | null>(null);
+  let hoveredElement: HTMLElement | null = null;
+  let focusedElement: HTMLElement | null = null;
   const highlightedCell = $derived(hoveredCell ?? focusedCell);
 
   function rowHighlighted(row: TRow): boolean {
@@ -135,19 +137,58 @@ provide all domain labels and cell content with snippets.
     return columnClass?.(column) ?? '';
   }
 
-  function setHovered(row: TRow, column: TColumn) {
+  function setHovered(row: TRow, column: TColumn, event: MouseEvent) {
+    hoveredElement = event.currentTarget as HTMLElement;
     hoveredCell = { row: getRowKey(row), column: getColumnKey(column) };
+  }
+
+  function pointerInsideHover(event: MouseEvent): boolean {
+    if (!hoveredElement?.isConnected) return false;
+    const bounds = hoveredElement.getBoundingClientRect();
+    return event.clientX >= bounds.left && event.clientX < bounds.right &&
+      event.clientY >= bounds.top && event.clientY < bounds.bottom;
+  }
+
+  function clearHover() {
+    hoveredCell = null;
+    hoveredElement = null;
+  }
+
+  function leaveCell(event: MouseEvent) {
+    // Inert temporarily retargets pointer events to an ancestor. The pointer
+    // has not left the cell, so keep its row and column highlight stable.
+    if (hoveredElement?.closest('[inert]') && pointerInsideHover(event)) return;
+    clearHover();
+  }
+
+  function movePointer(event: PointerEvent) {
+    // Pointer movement still reaches window while the matrix is inert.
+    if (hoveredElement?.closest('[inert]') && !pointerInsideHover(event)) clearHover();
+  }
+
+  function clearFocus() {
+    focusedCell = null;
+    focusedElement = null;
+  }
+
+  function moveFocus(event: FocusEvent) {
+    if (focusedElement && event.target instanceof Node && !focusedElement.contains(event.target)) {
+      clearFocus();
+    }
   }
 
   function setFocused(row: TRow, column: TColumn, event: FocusEvent) {
     const target = event.target;
     if (!(target instanceof HTMLElement) || !target.matches(':focus-visible')) {
-      focusedCell = null;
+      clearFocus();
       return;
     }
+    focusedElement = event.currentTarget as HTMLElement;
     focusedCell = { row: getRowKey(row), column: getColumnKey(column) };
   }
 </script>
+
+<svelte:window onpointermove={movePointer} onfocusin={moveFocus} onblur={() => { clearHover(); clearFocus(); }} />
 
 <div class={['flex w-full min-h-0 min-w-0 flex-col', fillHeight && 'flex-1']} {@attach measureWidth}>
 {#if stacked}<span class="sr-only">{@render leadingHeader()}</span>{/if}
@@ -252,11 +293,13 @@ provide all domain labels and cell content with snippets.
         data-matrix-column={getColumnKey(column)}
         data-matrix-row={getRowKey(row)}
         {...cellAttributes?.(row, column) ?? {}}
-        onmouseenter={interactive ? () => setHovered(row, column) : undefined}
-        onmouseleave={interactive ? () => (hoveredCell = null) : undefined}
-        onpointerdown={interactive ? () => (focusedCell = null) : undefined}
+        onmouseenter={interactive ? (event) => setHovered(row, column, event) : undefined}
+        onmouseleave={interactive ? leaveCell : undefined}
+        onpointerdown={interactive ? clearFocus : undefined}
         onfocusin={interactive ? (event) => setFocused(row, column, event) : undefined}
-        onfocusout={interactive ? () => (focusedCell = null) : undefined}
+        onfocusout={interactive ? () => {
+          if (!focusedElement?.closest('[inert]')) clearFocus();
+        } : undefined}
       >
         {@render cell(row, column)}
       </td>
