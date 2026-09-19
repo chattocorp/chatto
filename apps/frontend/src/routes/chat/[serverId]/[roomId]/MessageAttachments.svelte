@@ -434,7 +434,7 @@
           layout === 'column' && 'self-start',
           layout === 'overlay' && 'absolute top-3 right-2',
           layout !== 'row' &&
-            'transition-opacity md:opacity-0 md:group-hover/attachment:opacity-100 md:focus-within:opacity-100'
+            'transition-opacity feedback-quick md:opacity-0 md:group-hover/attachment:opacity-100 md:focus-within:opacity-100'
         ]}
       >
         {@render deleteAttachmentButton(attachment)}
@@ -521,7 +521,7 @@
     <div class="flex max-w-full min-w-0 flex-col items-start">
       {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
         {@const autoLoop = attachment.contentType === 'image/gif'}
-        <div class="group/attachment relative max-w-full min-w-0" data-attachment-media>
+        <div class="group/attachment attachment-video-frame" data-attachment-media>
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
             <div
               class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
@@ -577,12 +577,12 @@
           or processing has never been requested for this asset. Render the raw
           original so the user can at least play it.
         -->
-        <div class="group/attachment relative embed-frame max-w-full min-w-0" data-attachment-media>
+        <div class="group/attachment attachment-video-frame embed-frame" data-attachment-media>
           <video
             controls
             preload="metadata"
             src={attachment.url}
-            class="max-h-64 max-w-full"
+            class="max-h-64 max-w-full object-contain"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >

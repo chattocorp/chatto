@@ -373,6 +373,8 @@ media action groups appear on desktop hover or keyboard focus. The standard butt
 tone supplies the fill, border, focus, pressed state, and shared depth finish.
 These controls follow the Flat, Kinda 3D, and Very 3D preference.
 See `UI/Attachment actions` in Storybook.
+`attachment-video-frame` keeps the video canvas at least 12 rem high so the
+vertical action stack leaves space for playback controls on narrow screens.
 
 ### Shared Depth Utilities
 

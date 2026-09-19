@@ -403,6 +403,32 @@ describe('MessageAttachments', () => {
     }
   );
 
+  it.each([true, false])(
+    'keeps actions clear of playback controls on narrow videos (processed: %s)',
+    async (processed) => {
+      const attachment = processed
+        ? hlsVideoAttachment()
+        : fileAttachment({ filename: 'raw.mp4', contentType: 'video/mp4' });
+      const { container } = renderAttachment(attachment, {
+        canDeleteAttachment: true,
+        canEditAttachmentDescription: true
+      });
+      const playerSelector = processed
+        ? '[data-testid="message-attachments-video-player"]'
+        : 'video';
+      await expect.poll(() => container.querySelector(playerSelector)).toBeTruthy();
+      const player = container.querySelector<HTMLElement>(playerSelector)!;
+      const edit = container.querySelector<HTMLElement>('[aria-label="Add description"]')!;
+      for (const width of [120, 240, 320]) {
+        container.style.width = `${width}px`;
+        await expect.poll(() => player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+        expect(
+          player.getBoundingClientRect().bottom - edit.getBoundingClientRect().bottom
+        ).toBeGreaterThanOrEqual(48);
+      }
+    }
+  );
+
   it('uses descriptions as image alt text and sends them to the image viewer', async () => {
     const description = 'A chart with a rising blue line.';
     const { container } = renderAttachment(imageAttachment({ description }));
