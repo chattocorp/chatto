@@ -106,6 +106,7 @@
         "clear_button": "Tühjenda olek"
       },
       "presence": {
+        "title_server": "Kohalolek selles serveris",
         "button": "Kohalolek: {status}",
         "title": "Kohalolek",
         "online": "Internetis",

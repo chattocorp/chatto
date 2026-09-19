@@ -106,6 +106,7 @@
         "clear_button": "Stato chiaro"
       },
       "presence": {
+        "title_server": "Presenza su questo server",
         "button": "Presenza: {status}",
         "title": "Presenza",
         "online": "In linea",

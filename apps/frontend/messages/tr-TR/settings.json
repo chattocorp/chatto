@@ -106,6 +106,7 @@
         "clear_button": "Durumu Temizle"
       },
       "presence": {
+        "title_server": "Bu sunucudaki durum",
         "button": "Mevcudiyet: {status}",
         "title": "Mevcudiyet",
         "online": "Çevrimiçi",

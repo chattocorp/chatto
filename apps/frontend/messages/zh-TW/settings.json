@@ -106,6 +106,7 @@
         "clear_button": "清除狀態"
       },
       "presence": {
+        "title_server": "此伺服器上的上線狀態",
         "button": "上線狀態：{status}",
         "title": "上線狀態",
         "online": "上線",

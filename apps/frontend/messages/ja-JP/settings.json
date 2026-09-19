@@ -106,6 +106,7 @@
         "clear_button": "ステータスをクリア"
       },
       "presence": {
+        "title_server": "このサーバーでのプレゼンス",
         "button": "プレゼンス: {status}",
         "title": "プレゼンス",
         "online": "オンライン",

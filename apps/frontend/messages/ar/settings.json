@@ -106,6 +106,7 @@
         "clear_button": "مسح الحالة"
       },
       "presence": {
+        "title_server": "التواجد على هذا الخادم",
         "button": "الحضور: {status}",
         "title": "التواجد",
         "online": "على الانترنت",

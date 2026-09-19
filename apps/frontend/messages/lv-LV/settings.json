@@ -106,6 +106,7 @@
         "clear_button": "Notīrīt statusu"
       },
       "presence": {
+        "title_server": "Klātbūtne šajā serverī",
         "button": "Klātbūtne: {status}",
         "title": "Klātbūtne",
         "online": "Tiešsaistē",

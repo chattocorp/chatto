@@ -106,6 +106,7 @@
         "clear_button": "清除状态"
       },
       "presence": {
+        "title_server": "此服务器上的在线状态",
         "button": "在线状态：{status}",
         "title": "在线状态",
         "online": "在线",
