@@ -554,6 +554,7 @@ export class MessageComposerState {
     const stashedFiles = this.draft.discardFiles(post.draftKey);
     this.draft.clearText(post.draftKey);
     if (activeDraftWasSent) {
+      const api = this.editorApi;
       this.#resetEditor();
       this.attachments.clear();
       this.linkPreviews.clear();
@@ -568,6 +569,13 @@ export class MessageComposerState {
       }
       this.#dependencies.context.scrollState?.requestScrollToBottom();
       callbacks.onCancelReply?.();
+      // Submission clears loading after this callback. Wait for the editor to
+      // become editable again before restoring the caret for the next message.
+      void tick().then(() => {
+        if (api && this.editorApi === api && this.draftKey === post.draftKey && !this.inputDisabled) {
+          api.focus();
+        }
+      });
     } else {
       for (const { url } of stashedFiles) URL.revokeObjectURL(url);
     }
