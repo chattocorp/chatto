@@ -74,6 +74,7 @@ import {
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
   refreshRegisteredRoleQueries,
+  removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
   refreshRegisteredServerQueries,
@@ -352,6 +353,8 @@ export class ServerStateStore {
   }
 
   private applyPrivilegedModeState(state: PrivilegedModeState): void {
+    this.#permissionCheckGeneration++;
+    this.checkingPermissions = false;
     const viewer = this.projection.viewer?.clone();
     if (!viewer) return;
     viewer.privilegedMode = state;
@@ -359,6 +362,9 @@ export class ServerStateStore {
   }
 
   private applyViewerSnapshot(response: GetViewerResponse): void {
+    // An explicit privilege response supersedes pending event-driven checks.
+    this.#permissionCheckGeneration++;
+    this.checkingPermissions = false;
     this.projection.viewer = response;
     const viewer = viewerResponseToState(response);
     this.currentUser.user = viewer.user;
@@ -747,7 +753,7 @@ export class ServerStateStore {
         case 'viewer': {
           const response = resource.value;
           if (!this.checkingPermissions && viewerAuthorizationLost(previousViewer, response)) {
-            refreshRegisteredAdminQueries(this.serverId);
+            removeRegisteredAdminQueries(this.serverId);
           }
           const viewer = viewerResponseToState(response);
           this.currentUser.user = viewer.user;
@@ -837,9 +843,23 @@ export class ServerStateStore {
     const layout = this.#adminRoomLayoutActive
       ? this.adminRoomLayout.refreshPermissions()
       : Promise.resolve(this.adminRoomLayout.resetProjectionState());
+    // Search owns plaintext outside the room projection. Fence it immediately,
+    // including when an unrelated authority read fails.
+    this.forEachMessageSearch((store) => store.refreshPermissions());
+    // Apply every semantic change before a later check can supersede this one.
+    // The server-wide query refresh above already covers role queries.
+    this.#currentEventMinimumCursor = update.cursor ?? undefined;
+    try {
+      if (update.event) this.invalidateRealtimeEvent(update.event, false);
+    } finally {
+      this.#currentEventMinimumCursor = undefined;
+    }
     const refresh = (async () => {
-      // Let reads started before this event settle before replacing their authority.
-      await Promise.all([...this.#resourceRefreshes.values()]);
+      // Drain queued follow-up reads too. Waiting only for the current promises
+      // lets a queued, older read overwrite the new authority later.
+      await Promise.all([...this.#resourceRefreshes.keys()].map(
+        (family) => this.waitForRealtimeResourceRefresh(family)
+      ));
       if (!current()) return;
       const families = ['viewer', 'rooms', 'roomGroups', 'serverState', 'notifications', 'activeCalls'] as const;
       const reads = await Promise.allSettled(families.map(async (family) => {
@@ -858,17 +878,12 @@ export class ServerStateStore {
       if (!current()) return;
       await Promise.all([queries, layout]);
       if (!current()) return;
+      this.invalidateUniversalMembership();
+      await Promise.all(Object.values(this.#roomMembers).map((store) => store.refresh({ reauthorize: true })));
+      // Each cache must complete its own check before a partial failure is
+      // reported to the cursor owner for retry.
       const failure = reads.find((result) => result.status === 'rejected');
       if (failure?.status === 'rejected') throw failure.reason;
-      this.invalidateUniversalMembership();
-      this.#currentEventMinimumCursor = update.cursor ?? undefined;
-      try {
-        if (update.event) this.invalidateRealtimeEvent(update.event);
-      } finally {
-        this.#currentEventMinimumCursor = undefined;
-      }
-      this.forEachMessageSearch((store) => store.refreshPermissions());
-      await Promise.all(Object.values(this.#roomMembers).map((store) => store.refresh({ reauthorize: true })));
     })().catch((error) => {
       // A failed read retries through normal cursor reconciliation. Retain the
       // shell and unaffected data; never request a new permission snapshot.
@@ -882,11 +897,12 @@ export class ServerStateStore {
 
   /** Message-read changes affect plaintext even if room membership is unchanged. */
   private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
+    const nextRooms = new SvelteMap(rooms.map((room) => [room.room?.id, room]));
     const ids = new SvelteSet([...Object.keys(this.#roomMessages), ...Object.keys(this.#roomFiles),
       ...Object.keys(this.#roomPins), ...Object.keys(this.#roomMembers), ...this.projection.rooms.keys()]);
     for (const key of Object.keys(this.#threadMessages)) ids.add(key.split('\u0000')[0]);
     for (const roomId of ids) {
-      const next = rooms.find((entry) => entry.room?.id === roomId);
+      const next = nextRooms.get(roomId);
       if (!next?.viewerState?.isMember) {
         this.clearRoomAccess(roomId);
         continue;
@@ -1080,7 +1096,7 @@ export class ServerStateStore {
     }
   }
 
-  private invalidateRealtimeEvent(event: RealtimeEvent): void {
+  private invalidateRealtimeEvent(event: RealtimeEvent, refreshQueries = true): void {
     const payload = event.event;
     const rawValue = payload.value as
       { eventId?: string; messageEventId?: string; roomId?: string; userId?: string } | undefined;
@@ -1098,7 +1114,7 @@ export class ServerStateStore {
           this.projection.users.set(payload.value.userId, updated);
         }
         this.refreshRealtimeUsers([payload.value.userId]);
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       }
       case 'roleDeleted':
@@ -1111,18 +1127,18 @@ export class ServerStateStore {
         }
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'roleCreated':
       case 'roleUpdated':
       case 'rolesReordered':
         this.mentionRoles.invalidate();
         void this.mentionRoles.load();
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'rolePermissionsChanged':
         this.invalidateUniversalMembership();
-        refreshRegisteredRoleQueries(this.serverId);
+        if (refreshQueries) refreshRegisteredRoleQueries(this.serverId);
         return;
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
@@ -1672,7 +1688,10 @@ export class ServerStateStore {
         (previous.canAdminViewSystem && !viewer.canAdminViewSystem) ||
         (previous.canAdminViewAudit && !viewer.canAdminViewAudit) ||
         (previous.canManageInvites && !viewer.canManageInvites));
-    if (!this.checkingPermissions && (lostAdminCapability || refreshAdmin)) {
+    if (this.checkingPermissions) return;
+    if (lostAdminCapability) {
+      removeRegisteredAdminQueries(this.serverId);
+    } else if (refreshAdmin) {
       refreshRegisteredAdminQueries(this.serverId);
     }
   }
@@ -1749,6 +1768,8 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.#permissionCheckGeneration++;
+    this.checkingPermissions = false;
     this.#serverConnection.invalidatePrivateData();
     removeRegisteredServerQueries(this.serverId);
     for (const store of Object.values(this.#roomMembers)) store.resetProjectionState();

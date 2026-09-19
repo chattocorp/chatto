@@ -108,10 +108,10 @@
   const permissionsLoaded = $derived(chromePermissions !== null && serverPermissions.loaded);
 </script>
 
-{#if permissionsLoaded && hasPermission}
-  {@render children?.()}
-{:else if !permissionsLoaded}
+{#if !permissionsLoaded}
   <!-- blank shell while permissions load; avoids an Access Denied flash -->
+{:else if hasPermission}
+  {@render children?.()}
 {:else}
   <AccessDenied
     message={m('ui.access_denied.message')}

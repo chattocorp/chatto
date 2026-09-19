@@ -733,8 +733,7 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
     expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
-    expect(cacheMocks.removeRegisteredAdminQueries).not.toHaveBeenCalled();
-    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
   });
 
   it('refreshes navigation group permissions on activation and deactivation without a layout event', async () => {
@@ -816,8 +815,7 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.permissions.canAdminViewSystem).toBe(false);
     expect(apiMocks.refreshPrivilegedMode).toHaveBeenCalledOnce();
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode expired');
-    expect(cacheMocks.removeRegisteredAdminQueries).not.toHaveBeenCalled();
-    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
   });
 
   it('refreshes expired room-scoped grants without a server capability change', async () => {
@@ -1004,6 +1002,7 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeSync.markCaughtUp('retained');
       const resetMessages = vi.spyOn(store.messagesForRoom('R1'), 'resetProjectionState');
       const revokeMessages = vi.spyOn(store.messagesForRoom('R1'), 'clearForAccessRevocation');
+      const revokeCall = vi.spyOn(store.voiceCall, 'handleRoomAccessRevoked');
       let release!: () => void;
       const gate = new Promise<void>((resolve) => { release = resolve; });
       apiMocks.readRealtimeResource.mockImplementation(async (family) => {
@@ -1059,8 +1058,158 @@ describe('ServerStateStore unified realtime resources', () => {
         expect(store.projection.viewer).toBeNull();
         await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('offline');
       }
+      if (change === 'read narrowed') expect(revokeCall).not.toHaveBeenCalled();
     }
   );
+
+  it('drains queued resource reads before replacing their authority', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const releases: Array<() => void> = [];
+    apiMocks.readRealtimeResource.mockImplementation(async (family, cursor) => {
+      if (family === 'rooms' && cursor !== 'permission') {
+        await new Promise<void>((resolve) => { releases.push(resolve); });
+      }
+      return [];
+    });
+    for (const cursor of ['first', 'queued']) {
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ cursor, event: new RealtimeEvent({
+        event: { case: 'roomReadStateChanged', value: { roomId: 'R1' } }
+      }) }));
+    }
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ cursor: 'permission', event: new RealtimeEvent({
+      event: { case: 'viewerPermissionsChanged', value: {} }
+    }) }));
+    releases[0]();
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalledWith('viewer', 'permission');
+    releases[1]();
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('viewer', 'permission');
+  });
+
+  it('restores the same room store after a failed authority read is retried', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const room = new RoomWithViewerState({ room: { id: 'R1' }, viewerState: {
+      isMember: true, permissions: [{ permission: 'message.read', granted: true }]
+    } });
+    store.projection.rooms.set('R1', room);
+    store.realtimeSync.markCaughtUp('retained');
+    const messages = store.messagesForRoom('R1');
+    const hydrate = vi.spyOn(messages, 'hydrateRealtimeProjection').mockResolvedValue(true);
+    let fail = true;
+    apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+      if (family !== 'rooms') return [];
+      if (fail) throw new Error('room offline');
+      return [roomResource([room])];
+    });
+    const event = new RealtimeProjectionUpdate({ cursor: 'retry', event: new RealtimeEvent({
+      event: { case: 'viewerPermissionsChanged', value: {} }
+    }) });
+    store.realtimeProjectionHandler(event);
+    await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('room offline');
+    expect(store.projection.rooms.has('R1')).toBe(false);
+    fail = false;
+    store.realtimeProjectionHandler(event);
+    await store.waitForRealtimeReconciliation();
+    expect(store.messagesForRoom('R1')).toBe(messages);
+    expect(store.projection.rooms.get('R1')).toBe(room);
+    expect(hydrate).toHaveBeenCalledWith('retry', expect.any(Function));
+    expect(fake.forceReconnect).not.toHaveBeenCalled();
+    expect(store.realtimeSync.hasUsableProjection).toBe(true);
+  });
+
+  it.each(['deactivate', 'dispose'])('fences a pending permission check on %s', async (action) => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({ user: { profile: { id: 'U1' } },
+      privilegedMode: { active: true } });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+      await gate;
+      return family === 'viewer' ? [new RealtimeResourceUpdate({ resource: { case: 'viewer',
+        value: new GetViewerResponse({ user: { profile: { id: 'U1' } }, privilegedMode: { active: true } })
+      } })] : [];
+    });
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ event: new RealtimeEvent({
+      event: { case: 'viewerPermissionsChanged', value: {} }
+    }) }));
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalled());
+    if (action === 'deactivate') {
+      fake.forceReconnect.mockImplementationOnce(() => store.realtimeSync.markCaughtUp(
+        'fresh', store.realtimeSync.pendingAuthorizationRefreshGeneration
+      ));
+      await store.setPrivilegedMode(false);
+    } else store.dispose();
+    const viewer = store.projection.viewer;
+    release();
+    await store.waitForRealtimeReconciliation();
+    expect(store.projection.viewer).toBe(viewer);
+    expect(store.checkingPermissions).toBe(false);
+  });
+
+  it('ignores stale authority responses after a newer check finishes', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    apiMocks.readRealtimeResource.mockImplementation(async (family, cursor) => {
+      if (cursor === 'older') await gate;
+      if (family !== 'viewer') return [];
+      return [new RealtimeResourceUpdate({ resource: { case: 'viewer', value: new GetViewerResponse({
+        user: { profile: { id: 'U1' } },
+        viewerPermissions: { permissions: [{ permission: 'role.manage', granted: cursor === 'older' }] }
+      }) } })];
+    });
+    const change = (cursor: string) => store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor, event: new RealtimeEvent({ event: { case: 'viewerPermissionsChanged', value: {} } })
+    }));
+    change('older');
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('viewer', 'older'));
+    change('newer');
+    await vi.waitFor(() => expect(store.checkingPermissions).toBe(false));
+    release();
+    await store.waitForRealtimeReconciliation();
+    expect(store.projection.viewer?.viewerPermissions?.permissions[0].granted).toBe(false);
+  });
+
+  it('retains every role change when a newer permission check supersedes an older check', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.users.set('U1', new DirectoryMember({ user: { id: 'U1' }, roles: ['first', 'second'] }));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    apiMocks.readRealtimeResource.mockImplementation(async () => { await gate; return []; });
+    for (const roleName of ['first', 'second']) {
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+        cursor: roleName,
+        event: new RealtimeEvent({ event: { case: 'roleDeleted', value: { roleName } } })
+      }));
+    }
+    release();
+    await store.waitForRealtimeReconciliation();
+    expect(store.projection.users.get('U1')?.roles).toEqual([]);
+    expect(store.checkingPermissions).toBe(false);
+  });
+
+  it('reauthorizes independent caches even when one authority read fails', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const search = vi.spyOn(store.messageSearch, 'refreshPermissions');
+    const members = vi.spyOn(store.membersForRoom('R1'), 'refresh').mockResolvedValue();
+    apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+      if (family === 'viewer') throw new Error('viewer offline');
+      return [];
+    });
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'permission-event',
+      event: new RealtimeEvent({ event: {
+        case: 'rolePermissionsChanged', value: { roleName: 'everyone' }
+      } })
+    }));
+    await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('viewer offline');
+    expect(search).toHaveBeenCalledOnce();
+    expect(members).toHaveBeenCalledWith({ reauthorize: true });
+    expect(store.checkingPermissions).toBe(false);
+  });
 
   it('keeps its cursor and messages when another user receives a role', () => {
     const fake = new FakeServerConnection([]);

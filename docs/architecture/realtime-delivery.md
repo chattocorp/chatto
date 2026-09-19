@@ -373,7 +373,9 @@ mutations independently of component disposal. Room membership or message-read
 changes clear only the affected plaintext stores and fence their older reads.
 Searches keep their input and refresh their results. Fresh route authorization
 removes pages whose access was revoked. The shell and other pages remain mounted
-and visible. No placeholder table dimensions are needed for this refresh.
+and visible. Search and member checks run even when another resource read fails.
+Role changes apply before asynchronous checks, so overlapping checks cannot
+discard an earlier role change.
 Authentication loss and `RESYNC_REQUIRED` still use full privacy cleanup.
 
 An active local call stays connected while private data reloads. Fresh room

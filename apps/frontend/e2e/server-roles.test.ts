@@ -679,7 +679,7 @@ test.describe('Server Roles Management', () => {
   });
 
   test.describe('Delete role', () => {
-    test('role deletion still navigates when its permission reset arrives before the response', async ({
+    test('role deletion still navigates when its permission refresh arrives before the response', async ({
       serverRolesPage
     }) => {
       const { page } = serverRolesPage;
@@ -699,7 +699,11 @@ test.describe('Server Roles Management', () => {
         roleName
       });
       let snapshots = 0;
+      let viewerReads = 0;
       const errors: string[] = [];
+      page.on('response', (response) => {
+        if (response.url().includes('ViewerService/GetViewer') && response.ok()) viewerReads++;
+      });
       page.on('pageerror', (error) => errors.push(error.message));
       page.on('websocket', (socket) =>
         socket.on('framereceived', ({ payload }) => {
@@ -712,6 +716,8 @@ test.describe('Server Roles Management', () => {
       );
       await serverRolesPage.gotoEditRole(server.id, roleName);
       const before = snapshots;
+      const readsBefore = viewerReads;
+      const shell = await page.getByRole('button', { name: 'Toggle sidebar', exact: true }).elementHandle();
       let release!: () => void;
       const held = new Promise<void>((resolve) => {
         release = resolve;
@@ -723,7 +729,9 @@ test.describe('Server Roles Management', () => {
       });
       const deletion = serverRolesPage.deleteCurrentRole();
       try {
-        await expect.poll(() => snapshots).toBeGreaterThan(before);
+        await expect.poll(() => viewerReads).toBeGreaterThan(readsBefore);
+        expect(snapshots).toBe(before);
+        expect(await shell!.evaluate((node) => node.isConnected)).toBe(true);
       } finally {
         release();
       }

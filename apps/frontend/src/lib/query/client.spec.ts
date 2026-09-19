@@ -15,7 +15,26 @@ import { queryClient } from './client';
 import { QueryObserver } from '@tanstack/svelte-query';
 
 describe('server query cache', () => {
-  it.each([true, false])('reauthorizes in place and fences older data: allowed=%s', async (allowed) => {
+  it('keeps the latest authorization result when refreshes overlap', async () => {
+    const queryKey = ['server', 'one', 'resource'];
+    let resolveOld!: (value: string) => void;
+    const read = vi.fn()
+      .mockImplementationOnce(() => new Promise<string>((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce('latest');
+    queryClient.setQueryData(queryKey, 'before');
+    const observer = new QueryObserver(queryClient, { queryKey, queryFn: read, staleTime: Infinity });
+    const unsubscribe = observer.subscribe(() => {});
+    const first = refreshRegisteredServerQueries('one');
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    const second = refreshRegisteredServerQueries('one');
+    await second;
+    resolveOld('stale-private');
+    await first;
+    expect(observer.getCurrentResult().data).toBe('latest');
+    unsubscribe();
+  });
+
+  it.each(['allowed', 'denied', 'offline'])('reauthorizes in place and fences older data: %s', async (outcome) => {
     const queryKey = ['server', 'one', 'session', 'scope', 'admin', 'permission-tier'];
     let resolveOld!: (value: string) => void;
     let resolveFresh!: (value: string) => void;
@@ -29,7 +48,7 @@ describe('server query cache', () => {
     queryClient.setQueryData(queryKey, 'authorized-before');
     queryClient.setQueryData(['server', 'one', 'inactive'], 'inactive-private');
     queryClient.setQueryData(['server', 'two', 'resource'], 'unrelated');
-    const observer = new QueryObserver(queryClient, { queryKey, queryFn: read, staleTime: 0 });
+    const observer = new QueryObserver(queryClient, { queryKey, queryFn: read, staleTime: 0, retry: false });
     const unsubscribe = observer.subscribe(() => {});
     const query = observer.getCurrentQuery();
     const refreshing = refreshRegisteredServerQueries('one');
@@ -39,11 +58,11 @@ describe('server query cache', () => {
     resolveOld('stale-response');
     await Promise.resolve();
     expect(observer.getCurrentResult().data).toBe('authorized-before');
-    if (allowed) resolveFresh('authorized-after');
-    else rejectFresh(new ConnectError('denied', Code.PermissionDenied));
+    if (outcome === 'allowed') resolveFresh('authorized-after');
+    else rejectFresh(new ConnectError(outcome, outcome === 'denied' ? Code.PermissionDenied : Code.Unavailable));
     await refreshing;
     expect(observer.getCurrentQuery()).toBe(query);
-    expect(observer.getCurrentResult().data).toBe(allowed ? 'authorized-after' : undefined);
+    expect(observer.getCurrentResult().data).toBe(outcome === 'allowed' ? 'authorized-after' : undefined);
     expect(queryClient.getQueryData(['server', 'two', 'resource'])).toBe('unrelated');
     unsubscribe();
   });
