@@ -36,8 +36,9 @@ describe('room sidebar behavior', () => {
     expect(roomSidebarPanelForRoom(false, null)).toBeNull();
   });
 
-  it('treats the members default as closed for DM rooms', () => {
-    expect(roomSidebarPanelForRoom(true, 'members')).toBeNull();
+  it('allows a profile to return to Members in a DM without adding a toolbar entry', () => {
+    expect(roomSidebarPanelForRoom(true, 'members')).toBe('members');
+    expect(DM_ROOM_SIDEBAR_PANELS).not.toContain('members');
     expect(roomSidebarPanelForRoom(true, null)).toBeNull();
   });
 

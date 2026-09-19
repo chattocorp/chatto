@@ -184,19 +184,18 @@ describe('UserContextMenu', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('disables profile navigation when no direct message exists and the viewer cannot create one', () => {
+  it('opens a profile without a direct message or permission to create one', () => {
     serverScopeMock.permissions.canStartDMs = false;
     const onClose = vi.fn();
     const onOpenProfile = vi.fn();
     const { container } = renderMenu({ onClose, onOpenProfile });
     const viewProfile = buttonWithText(container, 'View profile');
 
-    expect(viewProfile?.disabled).toBe(true);
-    expect(viewProfile?.title).toBe('A direct message is required to view this profile.');
+    expect(viewProfile?.disabled).toBe(false);
     viewProfile?.click();
 
-    expect(onOpenProfile).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onOpenProfile).toHaveBeenCalledExactlyOnceWith('user-1');
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('keeps profile navigation available for an existing direct message without DM-create permission', () => {

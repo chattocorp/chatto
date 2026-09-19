@@ -24,6 +24,9 @@ export function roomSidebarPanelForRoom(
   pinnedMessagesEnabled = true
 ): RoomSidebarPanelState {
   if (panel === null) return null;
+  // Profiles can return to Members in any room, including a DM. The DM
+  // toolbar still uses its smaller set of entry points.
+  if (panel === 'members') return panel;
   const panels = isDM ? DM_ROOM_SIDEBAR_PANELS : CHANNEL_ROOM_SIDEBAR_PANELS;
   if (!panels.includes(panel)) return null;
   if (panel === 'call' && !livekitEnabled) return null;
