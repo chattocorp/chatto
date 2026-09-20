@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppUiState } from './appUi.svelte';
 
 import { getRoomSidebarPanelState, setRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
@@ -6,6 +6,7 @@ import { getRoomSidebarPanelState, setRoomSidebarPanelState } from '$lib/storage
 describe('AppUiState', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('tracks the active chat route scope', () => {
@@ -29,15 +30,66 @@ describe('AppUiState', () => {
     expect(appUi.isRoomCallWide).toBe(false);
   });
 
-  it('defaults each desktop room sidebar to closed for a fresh session', () => {
+  it('resolves room defaults without saving a choice or opening mobile panes', () => {
     const appUi = new AppUiState();
-
+    expect(appUi.desktopRoomSidebarPanel('members')).toBeNull();
     appUi.setActiveRoomScope('server-a', 'room-1');
-
-    expect(appUi.activeDesktopRoomSidebarPanel).toBe(null);
-
+    expect(appUi.desktopRoomSidebarPanel('members')).toBe('members');
+    expect(appUi.mobileRoomSidebarPanel).toBeNull();
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
     appUi.setActiveRoomScope('server-a', 'room-2');
-    expect(appUi.activeDesktopRoomSidebarPanel).toBe(null);
+    expect(appUi.desktopRoomSidebarPanel(null)).toBeNull();
+    expect(appUi.desktopRoomSidebarProfileUserId('peer')).toBe('peer');
+  });
+
+  it('closes default Members on the first toggle and restores that choice after reload', () => {
+    const appUi = new AppUiState();
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.toggleDesktopRoomSidebarPanel('members', 'members');
+    expect(appUi.desktopRoomSidebarPanel('members')).toBeNull();
+    const restored = new AppUiState();
+    restored.setActiveRoomScope('server-a', 'room-1');
+    expect(restored.desktopRoomSidebarPanel('members')).toBeNull();
+    restored.setActiveRoomScope('server-b', 'room-1');
+    expect(restored.desktopRoomSidebarPanel('members')).toBe('members');
+    restored.setActiveRoomScope('server-a', 'room-1');
+    restored.toggleDesktopRoomSidebarPanel('members', 'members');
+    expect(restored.desktopRoomSidebarPanel('members')).toBe('members');
+  });
+
+  it('resets channel and DM choices in a fresh page session', () => {
+    const appUi = new AppUiState();
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.closeDesktopRoomSidebarPanel();
+    appUi.setActiveRoomScope('server-a', 'dm-1');
+    appUi.openDesktopRoomSidebarPanel('files');
+    sessionStorage.clear();
+    const fresh = new AppUiState();
+    fresh.setActiveRoomScope('server-a', 'room-1');
+    expect(fresh.desktopRoomSidebarPanel('members')).toBe('members');
+    fresh.setActiveRoomScope('server-a', 'dm-1');
+    expect(fresh.desktopRoomSidebarPanel(null)).toBeNull();
+    expect(fresh.desktopRoomSidebarProfileUserId('peer')).toBe('peer');
+  });
+
+  it('retains choices during navigation when session storage is unavailable', () => {
+    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Denied');
+    });
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Denied');
+    });
+    try {
+      const appUi = new AppUiState();
+      appUi.setActiveRoomScope('server-a', 'room-1');
+      appUi.openDesktopRoomSidebarPanel('files');
+      appUi.setActiveRoomScope('server-a', 'room-2');
+      appUi.setActiveRoomScope('server-a', 'room-1');
+      expect(appUi.desktopRoomSidebarPanel('members')).toBe('files');
+    } finally {
+      read.mockRestore();
+      write.mockRestore();
+    }
   });
 
   it('remembers explicit desktop sidebar state per room for the session', () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { serverStorageKey } from './serverStorage';
 import {
   getRoomSidebarPanelState,
@@ -7,7 +7,7 @@ import {
 } from './roomSidebarPanel';
 
 const storage = new Map<string, string>();
-const localStorageMock: Storage = {
+const sessionStorageMock: Storage = {
   getItem: (key) => storage.get(key) ?? null,
   setItem: (key, value) => storage.set(key, value),
   removeItem: (key) => storage.delete(key),
@@ -17,11 +17,12 @@ const localStorageMock: Storage = {
   },
   key: (index) => [...storage.keys()][index] ?? null
 };
-vi.stubGlobal('localStorage', localStorageMock);
-
 beforeEach(() => {
   storage.clear();
+  vi.stubGlobal('sessionStorage', sessionStorageMock);
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('room sidebar panel storage', () => {
   it('distinguishes no choice from closed', () => {
@@ -38,27 +39,55 @@ describe('room sidebar panel storage', () => {
     expect(getRoomSidebarPanelState('server-b', 'room-1')).toBe('call');
   });
 
-  it('persists closed state across sessions', () => {
+  it('retains closed state in the page session', () => {
     setRoomSidebarPanelState('server-a', 'room-1', 'files');
     setRoomSidebarPanelState('server-a', 'room-1', null);
 
     const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
-    expect(localStorage.getItem(key)).toBe('closed');
+    expect(sessionStorage.getItem(key)).toBe('closed');
     expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeNull();
   });
 
-  it('accepts legacy closed values', () => {
+  it('ignores legacy local storage choices', () => {
     const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
-    localStorage.setItem(key, 'closed');
-    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeNull();
+    const getItem = vi.fn(() => 'closed');
+    vi.stubGlobal('localStorage', { getItem });
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
+    expect(getItem).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(key)).toBeNull();
+  });
+
+  it('returns to no choice in a fresh page session', () => {
+    setRoomSidebarPanelState('server-a', 'room-1', null);
+    sessionStorage.clear();
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
+  });
+
+  it('handles missing session storage', () => {
+    vi.stubGlobal('sessionStorage', undefined);
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
+    expect(() => setRoomSidebarPanelState('server-a', 'room-1', 'files')).not.toThrow();
+  });
+
+  it('handles storage access and quota failures', () => {
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => {
+        throw new Error('Storage access denied');
+      },
+      setItem: () => {
+        throw new Error('Storage full');
+      }
+    });
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
+    expect(() => setRoomSidebarPanelState('server-a', 'room-1', 'files')).not.toThrow();
   });
 
   it('treats unknown stored values as no choice', () => {
     const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
-    localStorage.setItem(key, 'calendar');
+    sessionStorage.setItem(key, 'calendar');
     expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
   });
 });
@@ -75,7 +104,7 @@ describe('profile preferences', () => {
   it.each(['{', '{}', 'null', 'profile:', 'profile:unknown', 'profile:files:extra'])(
     'ignores malformed profile state: %s',
     (raw) => {
-      localStorage.setItem(
+      sessionStorage.setItem(
         serverStorageKey('server-a', roomSidebarPanelStorageSuffix('dm-1')),
         raw
       );
