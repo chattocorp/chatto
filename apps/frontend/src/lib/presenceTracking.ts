@@ -2,42 +2,26 @@ import { untrack } from 'svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { PresenceAPI } from '$lib/api-client/presence';
 import { PresenceStatus, type PresencePreference } from '@chatto/api-types/api/v1/presence_pb';
-import {
-  presencePreferences,
-  presenceModeStatus,
-  type PresenceMode
-} from '$lib/state/server/presencePreference.svelte';
+import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import type { PresenceCacheScope } from '$lib/state/presenceCache.svelte';
 
 const PRESENCE_REFRESH_MS = 30_000;
 export type PresenceReporter = PresenceCacheScope &
   Pick<PresenceAPI, 'getPreference' | 'setPreference' | 'refreshPresence'>;
 
-let selectMode: ((scope: PresenceCacheScope, mode: PresenceMode) => Promise<void>) | null = null;
+let selectStatus: ((scope: PresenceCacheScope, status: PresenceStatus) => Promise<void>) | null =
+  null;
 let refreshChoice: ((scope: PresenceCacheScope) => void) | null = null;
 
 /** Save a deliberate selection on this server. Never report success before acknowledgement. */
-export async function setPresenceMode(scope: PresenceCacheScope, mode: PresenceMode) {
-  if (!selectMode) throw new Error('Presence is not connected');
-  await selectMode(scope, mode);
+export async function setPresenceStatus(scope: PresenceCacheScope, status: PresenceStatus) {
+  if (!selectStatus) throw new Error('Presence is not connected');
+  await selectStatus(scope, status);
 }
 
 /** Reconcile a private device update; event payloads are invalidations, not stale choices. */
 export function refreshPresencePreference(scope: PresenceCacheScope) {
   refreshChoice?.(scope);
-}
-
-function localMode(status: PresenceStatus): PresenceMode {
-  switch (status) {
-    case PresenceStatus.ONLINE:
-      return 'online';
-    case PresenceStatus.AWAY:
-      return 'away';
-    case PresenceStatus.DO_NOT_DISTURB:
-      return 'doNotDisturb';
-    default:
-      return 'invisible';
-  }
 }
 
 function identity(scope: PresenceCacheScope) {
@@ -64,7 +48,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
 
   function accept(account: Account, sequence: number, value: PresencePreference | undefined) {
     if (!current(account, sequence) || !value?.revision) return;
-    presencePreferences.get(account.reporter).accept(localMode(value.status), value.revision);
+    presencePreferences.get(account.reporter).accept(value.status, value.revision);
   }
 
   async function reconcile(account: Account, retryConflict = true) {
@@ -72,14 +56,23 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     const sequence = ++account.sequence;
     const preference = presencePreferences.get(account.reporter);
     try {
+      // Once initialized, the heartbeat also recovers missed device updates.
+      // Every new authenticated reporter still reads before its first heartbeat.
+      if (preference.ready) {
+        const value = await account.reporter.refreshPresence();
+        if (!current(account, sequence)) return;
+        if (value?.revision) accept(account, sequence, value);
+        else preference.ready = false;
+        return;
+      }
       let value = await account.reporter.getPreference();
       if (!current(account, sequence)) return;
       if (!value) {
-        value = await account.reporter.setPreference(presenceModeStatus(preference.mode), '');
+        value = await account.reporter.setPreference(preference.status, '');
       } else if (
         !preference.revision &&
         !preference.migrated.get() &&
-        preference.mode === 'invisible' &&
+        preference.status === PresenceStatus.OFFLINE &&
         value.status !== PresenceStatus.OFFLINE
       ) {
         // An older device's explicit invisible choice must not become public
@@ -103,7 +96,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     }
   }
 
-  async function choose(scope: PresenceCacheScope, mode: PresenceMode) {
+  async function choose(scope: PresenceCacheScope, status: PresenceStatus) {
     const account = accounts.get(identity(scope));
     if (!account || account.busy) throw new Error('Presence is not ready');
     const preference = presencePreferences.get(scope);
@@ -111,10 +104,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     const sequence = ++account.sequence;
     account.busy = true;
     try {
-      const value = await account.reporter.setPreference(
-        presenceModeStatus(mode),
-        preference.revision
-      );
+      const value = await account.reporter.setPreference(status, preference.revision);
       if (!current(account, sequence) || !value?.revision)
         throw new Error('Presence selection interrupted');
       accept(account, sequence, value);
@@ -148,7 +138,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     const account = accounts.get(identity(scope));
     if (account) void reconcile(account);
   }
-  selectMode = choose;
+  selectStatus = choose;
   refreshChoice = refresh;
   const timer = setInterval(() => {
     const existing = new Set(accounts.values());
@@ -161,7 +151,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     stop() {
       stopped = true;
       clearInterval(timer);
-      if (selectMode === choose) selectMode = null;
+      if (selectStatus === choose) selectStatus = null;
       if (refreshChoice === refresh) refreshChoice = null;
       accounts.clear();
       presencePreferences.clear();

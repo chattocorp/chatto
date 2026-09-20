@@ -168,7 +168,7 @@
     for (const scope of presenceReporters()) {
       rootPresenceCache.update(
         { serverId: scope.serverId, userId: scope.userId },
-        presencePreferences.get(scope).effectiveStatus
+        presencePreferences.get(scope).status
       );
     }
   });

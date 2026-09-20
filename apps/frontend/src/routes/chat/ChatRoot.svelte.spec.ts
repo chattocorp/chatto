@@ -135,7 +135,7 @@ vi.mock('$lib/presenceTracking', () => ({
 vi.mock('$lib/state/server/presencePreference.svelte', () => ({
   presencePreferences: {
     get: ({ serverId }: { serverId: 'origin' | 'remote' }) => ({
-      effectiveStatus: mocks.presenceStatuses[serverId]
+      status: mocks.presenceStatuses[serverId]
     })
   }
 }));

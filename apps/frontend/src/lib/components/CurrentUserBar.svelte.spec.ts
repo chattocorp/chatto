@@ -9,7 +9,7 @@ import { q } from '$lib/test-utils';
 import { toast } from '$lib/ui/toast';
 
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
-import { setPresenceMode } from '$lib/presenceTracking';
+import { setPresenceStatus } from '$lib/presenceTracking';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
@@ -18,7 +18,7 @@ let presencePreference: ReturnType<typeof presencePreferences.get>;
 
 vi.mock('$lib/presenceTracking', () => ({
   refreshPresencePreference: vi.fn(),
-  setPresenceMode: vi.fn(async (scope, mode) => {
+  setPresenceStatus: vi.fn(async (scope, mode) => {
     presencePreferences.get(scope).accept(mode, 'saved');
   })
 }));
@@ -201,9 +201,8 @@ describe('CurrentUserBar', () => {
     };
     presencePreferences.clear();
     presencePreference = presencePreferences.get({ serverId: 'origin', userId: 'user-1' });
-    presencePreference.mode = 'online';
+    presencePreference.status = PresenceStatus.ONLINE;
     presencePreference.ready = true;
-    presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
     voiceCallState.participants = [];
     voiceCallState.roomId = null;
@@ -338,7 +337,7 @@ describe('CurrentUserBar', () => {
   });
 
   it('uses the presence cache instead of local presence preference for the current user dot', () => {
-    presencePreference.effectiveStatus = PresenceStatus.AWAY;
+    presencePreference.status = PresenceStatus.AWAY;
 
     const { container } = render(CurrentUserBarTestHarness);
 
@@ -352,7 +351,7 @@ describe('CurrentUserBar', () => {
   });
 
   it('renders the current user dot from the seeded away presence cache value', () => {
-    presencePreference.effectiveStatus = PresenceStatus.ONLINE;
+    presencePreference.status = PresenceStatus.ONLINE;
 
     const { container } = render(CurrentUserBarTestHarness, {
       cachedPresence: PresenceStatus.AWAY
@@ -429,7 +428,7 @@ describe('CurrentUserBar', () => {
 
   it('closes the presence menu after choosing a presence mode', async () => {
     const remote = { serverId: 'remote', userId: 'user-1' };
-    presencePreferences.get(remote).apply('invisible');
+    presencePreferences.get(remote).accept(PresenceStatus.OFFLINE, 'remote');
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
@@ -442,20 +441,20 @@ describe('CurrentUserBar', () => {
     await vi.waitFor(() => {
       expect(container.textContent).not.toContain('Do Not Disturb');
     });
-    expect(presencePreference.mode).toBe('away');
-    expect(presencePreferences.get(remote).mode).toBe('invisible');
+    expect(presencePreference.status).toBe(PresenceStatus.AWAY);
+    expect(presencePreferences.get(remote).status).toBe(PresenceStatus.OFFLINE);
   });
 
   it('keeps the previous selection and reports a failed presence save', async () => {
     const { container } = render(CurrentUserBarTestHarness);
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
     await vi.waitFor(() => expect(container.textContent).toContain('Away'));
-    vi.mocked(setPresenceMode).mockRejectedValueOnce(new Error('Server unavailable'));
+    vi.mocked(setPresenceStatus).mockRejectedValueOnce(new Error('Server unavailable'));
     const notify = vi.spyOn(toast, 'error');
     try {
       (q(container, '[role="menuitemradio"][aria-checked="false"]') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to save status'));
-      expect(presencePreference.mode).toBe('online');
+      expect(presencePreference.status).toBe(PresenceStatus.ONLINE);
       expect(container.textContent).toContain('Presence on this server');
     } finally {
       notify.mockRestore();

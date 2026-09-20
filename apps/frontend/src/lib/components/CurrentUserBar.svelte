@@ -18,8 +18,8 @@ sidebar. Shows the avatar with presence and the live display name.
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
-  import { setPresenceMode } from '$lib/presenceTracking';
-  import { presencePreferences, type PresenceMode } from '$lib/state/server/presencePreference.svelte';
+  import { setPresenceStatus } from '$lib/presenceTracking';
+  import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { buildDirectMessagePresentation } from '$lib/render/users';
 
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
@@ -102,7 +102,12 @@ sidebar. Shows the avatar with presence and the live display name.
   const compactCallActiveButtonClass = 'pill-button-success';
   const compactCallDangerButtonClass = 'pill-button-danger';
   const useSheetDialog = prefersTouchActions() && !supportsHoverActions();
-  const presenceModes: PresenceMode[] = ['online', 'away', 'doNotDisturb', 'invisible'];
+  const presenceModes: PresenceStatus[] = [
+    PresenceStatus.ONLINE,
+    PresenceStatus.AWAY,
+    PresenceStatus.DO_NOT_DISTURB,
+    PresenceStatus.OFFLINE
+  ];
   const currentPresence = $derived.by(() => {
     if (!activeServerUser) return PresenceStatus.OFFLINE;
     return presenceCache.get(
@@ -129,13 +134,13 @@ sidebar. Shows the avatar with presence and the live display name.
     statusMenuAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
   }
 
-  function presenceModeLabel(mode: PresenceMode): string {
+  function presenceModeLabel(mode: PresenceStatus): string {
     switch (mode) {
-      case 'away':
+      case PresenceStatus.AWAY:
         return m('settings.profile.presence.away');
-      case 'doNotDisturb':
+      case PresenceStatus.DO_NOT_DISTURB:
         return m('settings.profile.presence.do_not_disturb');
-      case 'invisible':
+      case PresenceStatus.OFFLINE:
         return m('settings.profile.presence.invisible');
       default:
         return m('settings.profile.presence.online');
@@ -155,22 +160,22 @@ sidebar. Shows the avatar with presence and the live display name.
     }
   }
 
-  function presenceModeDotClass(mode: PresenceMode): string {
+  function presenceModeDotClass(mode: PresenceStatus): string {
     switch (mode) {
-      case 'away':
+      case PresenceStatus.AWAY:
         return 'bg-presence-away';
-      case 'doNotDisturb':
+      case PresenceStatus.DO_NOT_DISTURB:
         return 'bg-presence-do-not-disturb';
-      case 'invisible':
+      case PresenceStatus.OFFLINE:
         return 'bg-presence-invisible';
       default:
         return 'bg-presence-online';
     }
   }
 
-  async function choosePresenceMode(mode: PresenceMode) {
+  async function choosePresenceMode(mode: PresenceStatus) {
     try {
-      if (presenceScope) await setPresenceMode(presenceScope, mode);
+      if (presenceScope) await setPresenceStatus(presenceScope, mode);
       statusMenuAnchor = null;
     } catch {
       toast.error(m('settings.profile.status.save_failed'));
@@ -396,9 +401,9 @@ sidebar. Shows the avatar with presence and the live display name.
       {#each presenceModes as mode (mode)}
         <MenuItem
           role="menuitemradio"
-          checked={presencePreference?.mode === mode}
+          checked={presencePreference?.status === mode}
           disabled={!presencePreference?.ready}
-          selected={presencePreference?.mode === mode}
+          selected={presencePreference?.status === mode}
           onclick={() => choosePresenceMode(mode)}
         >
           {#snippet leading()}
@@ -407,7 +412,7 @@ sidebar. Shows the avatar with presence and the live display name.
             </span>
           {/snippet}
           {#snippet trailing()}
-            {#if presencePreference?.mode === mode}
+            {#if presencePreference?.status === mode}
               <span class="iconify icon-[uil--check]"></span>
             {/if}
           {/snippet}

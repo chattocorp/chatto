@@ -5,7 +5,7 @@ import { presencePreferences } from '$lib/state/server/presencePreference.svelte
 import {
   initPresenceTracking,
   refreshPresencePreference,
-  setPresenceMode,
+  setPresenceStatus,
   type PresenceReporter
 } from './presenceTracking';
 
@@ -61,11 +61,74 @@ describe('shared account presence', () => {
     const api = reporter(origin, choice(PresenceStatus.DO_NOT_DISTURB));
     reporters = [api];
     await start();
-    expect(presencePreferences.get(origin).mode).toBe('doNotDisturb');
-    expect(presencePreferences.get(origin).effectiveStatus).toBe(PresenceStatus.DO_NOT_DISTURB);
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.DO_NOT_DISTURB);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(api.setPreference).not.toHaveBeenCalled();
     expect(api.refreshPresence).toHaveBeenCalledTimes(3);
+    expect(api.getPreference).toHaveBeenCalledOnce();
+  });
+
+  it('recovers a missed device update from a heartbeat without another read', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    api.refreshPresence.mockResolvedValue(choice(PresenceStatus.OFFLINE, 'other-device'));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.OFFLINE);
+    expect(api.getPreference).toHaveBeenCalledOnce();
+    expect(api.setPreference).not.toHaveBeenCalled();
+  });
+
+  it('reads before heartbeats when an authenticated account reconnects', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    reporters = [];
+    tracking.sync();
+    api.getPreference.mockRejectedValue(new Error('unavailable'));
+    api.refreshPresence.mockClear();
+    reporters = [api];
+    tracking.sync();
+    await settle();
+    expect(api.getPreference).toHaveBeenCalledTimes(2);
+    expect(api.refreshPresence).not.toHaveBeenCalled();
+    expect(presencePreferences.get(origin).ready).toBe(false);
+  });
+
+  it('reinitializes through a fresh read if a heartbeat finds no saved choice', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    api.refreshPresence.mockResolvedValueOnce(undefined);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(presencePreferences.get(origin).ready).toBe(false);
+    await expect(setPresenceStatus(origin, PresenceStatus.ONLINE)).rejects.toThrow('not ready');
+    api.getPreference.mockResolvedValueOnce(undefined);
+    api.setPreference.mockResolvedValueOnce(choice(PresenceStatus.ONLINE, 'restored'));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(api.getPreference).toHaveBeenCalledTimes(2);
+    expect(api.setPreference).toHaveBeenCalledWith(PresenceStatus.ONLINE, '');
+    expect(presencePreferences.get(origin).ready).toBe(true);
+  });
+
+  it.each([
+    ['online', PresenceStatus.ONLINE],
+    ['away', PresenceStatus.AWAY],
+    ['doNotDisturb', PresenceStatus.DO_NOT_DISTURB],
+    ['invisible', PresenceStatus.OFFLINE],
+    ['auto', PresenceStatus.ONLINE],
+    ['invalid', PresenceStatus.OFFLINE]
+  ] as const)('migrates the legacy %s value before the first heartbeat', async (raw, status) => {
+    localStorage.setItem('chatto.presence.mode', raw);
+    const api = reporter(origin, null);
+    reporters = [api];
+    await start();
+    expect(presencePreferences.get(origin).status).toBe(status);
+    expect(api.setPreference).toHaveBeenCalledWith(status, '');
+    expect(api.refreshPresence).toHaveBeenCalledOnce();
+    expect(api.setPreference.mock.invocationCallOrder[0]).toBeLessThan(
+      api.refreshPresence.mock.invocationCallOrder[0]
+    );
   });
 
   it('changes only the selected server account', async () => {
@@ -73,24 +136,26 @@ describe('shared account presence', () => {
     const b = reporter(remote, choice(PresenceStatus.OFFLINE));
     reporters = [a, b];
     await start();
-    await setPresenceMode(origin, 'doNotDisturb');
+    await setPresenceStatus(origin, PresenceStatus.DO_NOT_DISTURB);
     await settle();
     expect(a.setPreference).toHaveBeenCalledWith(PresenceStatus.DO_NOT_DISTURB, 'one');
     expect(b.setPreference).not.toHaveBeenCalled();
-    expect(presencePreferences.get(remote).mode).toBe('invisible');
+    expect(presencePreferences.get(remote).status).toBe(PresenceStatus.OFFLINE);
   });
 
   it('initializes an absent choice from the local invisible preference', async () => {
-    presencePreferences.get(origin).select('invisible');
+    const key = presencePreferences.get(origin).slot.key;
+    localStorage.setItem(key, 'invisible');
+    presencePreferences.clear();
     const api = reporter(origin, null);
     reporters = [api];
     await start();
     expect(api.setPreference).toHaveBeenCalledWith(PresenceStatus.OFFLINE, '');
-    expect(presencePreferences.get(origin).mode).toBe('invisible');
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.OFFLINE);
   });
 
   it('preserves legacy local invisible on first migration, then follows other devices', async () => {
-    presencePreferences.get(origin).select('invisible');
+    localStorage.setItem('chatto.presence.mode', 'invisible');
     const api = reporter();
     reporters = [api];
     await start();
@@ -99,7 +164,7 @@ describe('shared account presence', () => {
     api.refreshPresence.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
     refreshPresencePreference(origin);
     await settle();
-    expect(presencePreferences.get(origin).mode).toBe('online');
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.ONLINE);
     expect(api.setPreference).toHaveBeenCalledTimes(1);
   });
 
@@ -110,11 +175,11 @@ describe('shared account presence', () => {
     await start();
     expect(api.setPreference).not.toHaveBeenCalled();
     expect(api.refreshPresence).not.toHaveBeenCalled();
-    await expect(setPresenceMode(origin, 'online')).rejects.toThrow('not ready');
+    await expect(setPresenceStatus(origin, PresenceStatus.ONLINE)).rejects.toThrow('not ready');
   });
 
   it('follows another device after migration even when browser storage cannot save', async () => {
-    presencePreferences.get(origin).select('invisible');
+    localStorage.setItem('chatto.presence.mode', 'invisible');
     vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new Error('storage unavailable');
     });
@@ -125,7 +190,7 @@ describe('shared account presence', () => {
     api.refreshPresence.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
     refreshPresencePreference(origin);
     await settle();
-    expect(presencePreferences.get(origin).mode).toBe('online');
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.ONLINE);
     expect(api.setPreference).toHaveBeenCalledTimes(1);
   });
 
@@ -153,9 +218,9 @@ describe('shared account presence', () => {
     reporters = [api];
     await start();
     api.setPreference.mockRejectedValue(new Error('conflict'));
-    await expect(setPresenceMode(origin, 'invisible')).rejects.toThrow('conflict');
+    await expect(setPresenceStatus(origin, PresenceStatus.OFFLINE)).rejects.toThrow('conflict');
     await settle();
-    expect(presencePreferences.get(origin).mode).toBe('online');
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.ONLINE);
   });
 
   it('discards a late reply after authentication is removed', async () => {
@@ -190,10 +255,10 @@ describe('shared account presence', () => {
     );
     refreshPresencePreference(origin);
     await settle();
-    await setPresenceMode(origin, 'invisible');
+    await setPresenceStatus(origin, PresenceStatus.OFFLINE);
     await settle();
     finish(choice(PresenceStatus.ONLINE));
     await settle();
-    expect(presencePreferences.get(origin).mode).toBe('invisible');
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.OFFLINE);
   });
 });

@@ -2,48 +2,54 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Codecs, type StorageSlot, serverSlot } from '$lib/storage/slot';
 import type { PresenceCacheScope } from '../presenceCache.svelte';
 
-/** Explicit availability choices. Activity never changes the selected mode. */
-export type PresenceMode = 'online' | 'away' | 'doNotDisturb' | 'invisible';
-
-/** Validate selections read from browser storage events. */
-export function isPresenceMode(value: unknown): value is PresenceMode {
-  return (
-    value === 'online' || value === 'away' || value === 'doNotDisturb' || value === 'invisible'
-  );
-}
-
-/** Convert the legacy device-local choice to the shared presence status. */
-export function presenceModeStatus(mode: PresenceMode): PresenceStatus {
-  switch (mode) {
-    case 'away':
-      return PresenceStatus.AWAY;
-    case 'doNotDisturb':
-      return PresenceStatus.DO_NOT_DISTURB;
-    case 'invisible':
-      return PresenceStatus.OFFLINE;
-    default:
-      return PresenceStatus.ONLINE;
+// Keep the old storage strings at this boundary so existing local choices
+// remain readable. Runtime state and API calls use PresenceStatus directly.
+const statusCodec = {
+  serialize(status: PresenceStatus | null): string {
+    switch (status) {
+      case PresenceStatus.ONLINE:
+        return 'online';
+      case PresenceStatus.AWAY:
+        return 'away';
+      case PresenceStatus.DO_NOT_DISTURB:
+        return 'doNotDisturb';
+      case PresenceStatus.OFFLINE:
+        return 'invisible';
+      default:
+        return '';
+    }
+  },
+  parse(raw: string): PresenceStatus | undefined {
+    switch (raw) {
+      case 'online':
+        return PresenceStatus.ONLINE;
+      case 'away':
+        return PresenceStatus.AWAY;
+      case 'doNotDisturb':
+        return PresenceStatus.DO_NOT_DISTURB;
+      case 'invisible':
+        return PresenceStatus.OFFLINE;
+      default:
+        return undefined;
+    }
   }
-}
-
-const modeCodec = {
-  serialize: (mode: PresenceMode | null) => mode ?? '',
-  parse: (raw: string) => (isPresenceMode(raw) ? raw : undefined)
 };
 
 /** Retained only to migrate choices from clients with one global preference. */
 export const LEGACY_PRESENCE_MODE_STORAGE_KEY = 'chatto.presence.mode';
 
 /** An unreadable preference must not make a possibly invisible account visible. */
-function readMode(key: string, legacy = false): PresenceMode | null {
+function readStatus(key: string, legacy = false): PresenceStatus | null {
   try {
-    if (typeof localStorage === 'undefined') return 'invisible';
+    if (typeof localStorage === 'undefined') return PresenceStatus.OFFLINE;
     const raw = localStorage.getItem(key);
     if (raw === null) return null;
-    if (isPresenceMode(raw)) return raw;
-    return legacy && raw === 'auto' ? 'online' : 'invisible';
+    return (
+      statusCodec.parse(raw) ??
+      (legacy && raw === 'auto' ? PresenceStatus.ONLINE : PresenceStatus.OFFLINE)
+    );
   } catch {
-    return 'invisible';
+    return PresenceStatus.OFFLINE;
   }
 }
 
@@ -52,59 +58,41 @@ class PresencePreference {
   revision = $state('');
   ready = $state(false);
   /** Shared choice, updated only from acknowledged server state. */
-  mode = $state<PresenceMode>('online');
-  /** Local display and DND state derived from the shared choice. */
-  effectiveStatus = $state<PresenceStatus>(PresenceStatus.ONLINE);
-  readonly slot: StorageSlot<PresenceMode | null>;
+  status = $state<PresenceStatus>(PresenceStatus.ONLINE);
+  readonly slot: StorageSlot<PresenceStatus | null>;
   readonly migrated: StorageSlot<boolean>;
 
   constructor(scope: PresenceCacheScope) {
-    this.migrated = serverSlot(scope.serverId, `presence-synced:${encodeURIComponent(scope.userId)}`, false, Codecs.boolean);
+    this.migrated = serverSlot(
+      scope.serverId,
+      `presence-synced:${encodeURIComponent(scope.userId)}`,
+      false,
+      Codecs.boolean
+    );
     this.slot = serverSlot(
       scope.serverId,
       `presence:${encodeURIComponent(scope.userId)}`,
       null,
-      modeCodec
+      statusCodec
     );
-    const stored = readMode(this.slot.key);
-    this.mode = stored ?? readMode(LEGACY_PRESENCE_MODE_STORAGE_KEY, true) ?? 'online';
-    this.effectiveStatus = presenceModeStatus(this.mode);
+    const stored = readStatus(this.slot.key);
+    this.status =
+      stored ?? readStatus(LEGACY_PRESENCE_MODE_STORAGE_KEY, true) ?? PresenceStatus.ONLINE;
     // Freeze the legacy choice per account, including invisible. Future choices
     // never write the old key or change any other account's migration fallback.
-    if (stored === null) this.slot.set(this.mode);
-  }
-
-  /** Save and verify before applying a choice; callers must show save failures. */
-  select(mode: PresenceMode) {
-    this.slot.set(mode);
-    let saved = false;
-    try {
-      saved = typeof localStorage !== 'undefined' && localStorage.getItem(this.slot.key) === mode;
-    } catch {
-      // Do not claim a privacy choice was saved when storage cannot confirm it.
-    }
-    if (!saved) throw new Error('Could not save presence preference');
-    this.apply(mode);
-  }
-
-  /** Read the latest saved choice on activation or a cross-tab notification. */
-  reload() {
-    const stored = readMode(this.slot.key);
-    if (stored !== null) this.apply(stored);
-  }
-
-  /** Apply a selection from this tab or another tab without an echo write. */
-  apply(mode: PresenceMode) {
-    this.mode = mode;
-    this.effectiveStatus = presenceModeStatus(mode);
+    if (stored === null) this.slot.set(this.status);
   }
 
   /** Server state is authoritative; local storage is only a migration fallback. */
-  accept(mode: PresenceMode, revision: string) {
+  accept(status: PresenceStatus, revision: string) {
     this.revision = revision;
     this.ready = true;
-    this.apply(mode);
-    this.slot.set(mode);
+    // Unknown server values must not display as Online or seed an Online choice.
+    this.status =
+      status >= PresenceStatus.ONLINE && status <= PresenceStatus.OFFLINE
+        ? status
+        : PresenceStatus.OFFLINE;
+    this.slot.set(this.status);
     this.migrated.set(true);
   }
 }

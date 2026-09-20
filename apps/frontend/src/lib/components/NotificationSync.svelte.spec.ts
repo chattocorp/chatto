@@ -46,8 +46,8 @@ const { mocks } = vi.hoisted(() => {
       stores,
       badgeRefreshHandlers: new Set<() => void>(),
       playNotificationSound: vi.fn(),
-      presencePreference: { effectiveStatus: 0 },
-      remotePresencePreference: { effectiveStatus: 0 },
+      presencePreference: { status: 0 },
+      remotePresencePreference: { status: 0 },
       updateAppBadge: vi.fn(async () => {}),
       soundPreferences: {
         origin: {
@@ -161,8 +161,8 @@ describe('NotificationSync', () => {
     for (const bus of Object.values(mocks.buses)) bus.projectionHandlers.clear();
     mocks.badgeRefreshHandlers.clear();
     vi.clearAllMocks();
-    mocks.presencePreference.effectiveStatus = PresenceStatus.ONLINE;
-    mocks.remotePresencePreference.effectiveStatus = PresenceStatus.ONLINE;
+    mocks.presencePreference.status = PresenceStatus.ONLINE;
+    mocks.remotePresencePreference.status = PresenceStatus.ONLINE;
 
     mocks.servers.splice(0, mocks.servers.length, { id: 'origin' });
     for (const store of Object.values(mocks.stores)) {
@@ -285,7 +285,7 @@ describe('NotificationSync', () => {
       dispatch(true);
       if (state === 'read') mocks.stores.origin.notifications.occurrences[0].unread = false;
       if (state === 'missing') mocks.stores.origin.notifications.occurrences = [];
-      if (state === 'dnd') mocks.presencePreference.effectiveStatus = PresenceStatus.DO_NOT_DISTURB;
+      if (state === 'dnd') mocks.presencePreference.status = PresenceStatus.DO_NOT_DISTURB;
       if (state === 'signed-out') mocks.stores.origin.isAuthenticated = false;
       if (state === 'failed') read.reject(new Error('Read failed'));
       else read.resolve(true);
@@ -297,9 +297,9 @@ describe('NotificationSync', () => {
 
   it('does not play suppressed creations when DND ends', async () => {
     await renderAndWaitForSubscription();
-    mocks.presencePreference.effectiveStatus = PresenceStatus.DO_NOT_DISTURB;
+    mocks.presencePreference.status = PresenceStatus.DO_NOT_DISTURB;
     dispatch(true);
-    mocks.presencePreference.effectiveStatus = PresenceStatus.ONLINE;
+    mocks.presencePreference.status = PresenceStatus.ONLINE;
     dispatch(true, 'duplicate-after-dnd');
     await Promise.resolve();
     expect(mocks.stores.origin.waitForRealtimeResourceRefresh).not.toHaveBeenCalled();
@@ -308,7 +308,7 @@ describe('NotificationSync', () => {
 
   it('suppresses DND sounds only on that server', async () => {
     mocks.servers.push({ id: 'remote' });
-    mocks.presencePreference.effectiveStatus = PresenceStatus.DO_NOT_DISTURB;
+    mocks.presencePreference.status = PresenceStatus.DO_NOT_DISTURB;
     await renderAndWaitForSubscription();
     dispatch(true, 'origin-event', 'origin');
     dispatch(true, 'remote-event', 'remote');

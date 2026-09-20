@@ -49,7 +49,7 @@ Include this component once in the application root so signed-out pages also cle
       function isDoNotDisturb() {
         return (
           viewer &&
-          presencePreferences.get({ serverId: instance.id, userId: viewer.id }).effectiveStatus ===
+          presencePreferences.get({ serverId: instance.id, userId: viewer.id }).status ===
             PresenceStatus.DO_NOT_DISTURB
         );
       }
