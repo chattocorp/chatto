@@ -216,7 +216,8 @@ discovery metadata or a new behavioral protocol version.
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
   (process-wide realtime event hub), ADR-091 (semantic realtime events),
   ADR-093 (public realtime event union), ADR-094 (separate durable and pubsub
-  event envelopes)
+  event envelopes), [ADR-100](../adr/ADR-100-current-state-in-realtime-updates.md)
+  (current state in frequent updates)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

@@ -366,6 +366,7 @@ MessagePostedEvent reports a new room message.
 | `mentions` | repeated [`MessageMention`](#chatto-realtime-v1-MessageMention) | Distinct mention targets, without expanded role or broadcast recipients. |
 | `body_plaintext` | `optional string` | Plaintext message text. The field is absent after key shredding. |
 | `room_kind` | `chatto.api.v1.RoomKind` | Immutable room kind. Direct messages do not require a mention to address a bot. |
+| `room` | `chatto.api.v1.RoomWithViewerState` | Current affected room for this viewer, when available. Merge by room ID. This is current state at delivery, not historical state at the event cursor. |
 
 <a id="chatto-realtime-v1-MessageRetractedEvent"></a>
 
@@ -394,23 +395,26 @@ MessageUnpinnedEvent reports a message that is no longer pinned.
 ### NotificationOccurrencesChangedEvent
 
 NotificationOccurrencesChangedEvent reports that the caller's current
-notification occurrences changed and requests an authoritative resource read.
+notification occurrences changed. Use the supplied page when present;
+otherwise read NotificationService.ListNotificationOccurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `created_notification_id` | `optional string` | ID of a newly created notification, including read notifications and creations during Do Not Disturb. Absent for updates and removals. This is a best-effort live hint, not a sound instruction or durable delivery. Clients decide whether to alert after they read current notification state. |
+| `notifications` | `chatto.api.v1.ListNotificationOccurrencesResponse` | Current first page (up to 50 occurrences), with complete unread counts. Replace the retained page; fetch subsequent pages through NotificationService. Reconnect recovery must read current state because these updates are transient. |
 
 <a id="chatto-realtime-v1-NotificationUnreadStateChangedEvent"></a>
 
 ### NotificationUnreadStateChangedEvent
 
 NotificationUnreadStateChangedEvent reports that the caller's notification
-unread state changed and requests authoritative notification and room reads.
+Badge state changed. Notification occurrence changes are reported separately.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
 | `thread_root_event_id` | `string` | Event ID of the affected thread root, or empty for room state. |
+| `room` | `chatto.api.v1.RoomWithViewerState` | Current affected room for this viewer. Merge by room ID. If absent, read RoomDirectoryService.GetRoom. This event does not require a notification read. |
 
 <a id="chatto-realtime-v1-PresenceChangedEvent"></a>
 
@@ -589,6 +593,7 @@ RoomReadStateChangedEvent reports the caller's current room read state.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
+| `room` | `chatto.api.v1.RoomWithViewerState` | Current affected room for this viewer. Merge by room ID. If absent, read RoomDirectoryService.GetRoom. Reconnect recovery must read current state. |
 
 <a id="chatto-realtime-v1-RoomSlowModeChangedEvent"></a>
 

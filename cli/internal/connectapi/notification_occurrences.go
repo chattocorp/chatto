@@ -103,21 +103,30 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 	if err != nil {
 		return nil, err
 	}
+	response, err := s.listOccurrences(ctx, caller.UserID, req.Msg.GetPage())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(response), nil
+}
+
+// listOccurrences shares the authorized page contract with realtime delivery.
+func (s *notificationService) listOccurrences(ctx context.Context, userID string, requestPage *apiv1.PageRequest) (*apiv1.ListNotificationOccurrencesResponse, error) {
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	occurrences, err := s.api.core.NotificationOccurrences().List(ctx, caller.UserID)
+	occurrences, err := s.api.core.NotificationOccurrences().List(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
 		return nil, err
 	}
-	occurrences, err = s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
+	occurrences, err = s.visibleNotificationOccurrences(ctx, userID, occurrences)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	limit, offset := apiPagination(req.Msg.GetPage(), defaultNotificationLimit, maxNotificationLimit)
+	limit, offset := apiPagination(requestPage, defaultNotificationLimit, maxNotificationLimit)
 	total := len(occurrences)
 	if offset > total {
 		offset = total
@@ -130,14 +139,14 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 		return nil, connectError(err)
 	}
 	summary := notificationSummary(occurrences)
-	return connect.NewResponse(&apiv1.ListNotificationOccurrencesResponse{
+	return &apiv1.ListNotificationOccurrencesResponse{
 		Occurrences:          hydrated,
 		Page:                 apiPageInfo(total, end < total),
 		UnreadCount:          summary.unreadCount,
 		NextExpiryAt:         summary.nextExpiryAt,
 		RoomUnreadCounts:     summary.roomCounts,
 		ImportantUnreadCount: summary.importantUnreadCount,
-	}), nil
+	}, nil
 }
 
 type notificationOccurrenceSummary struct {

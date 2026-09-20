@@ -49,7 +49,8 @@ pubsub events. Client-facing variants reference the public payload messages
 directly. Private controls, such as session termination, keep private payloads.
 `chatto.realtime.v1.RealtimeEvent` is the authorized public event shape for
 both sources. It contains common metadata, one public payload variant, and an
-optional opaque resume cursor. It does not contain resource state.
+optional opaque resume cursor. Selected payloads also contain current viewer
+state as defined in [ADR-100](../adr/ADR-100-current-state-in-realtime-updates.md).
 
 A public event has a stable event ID, source time, visible actor ID, and one
 event variant. Variants cover messages, reactions, pins, assets, rooms,
@@ -140,6 +141,27 @@ account deletion, projection reset, and store disposal fence pending cache
 loads. A missing result from a shared read at a different cursor is retried at
 the caller's cursor. Each user request contains at most 100 IDs.
 
+
+## Current state in frequent events
+
+Message posts, room-read changes, and notification Badge changes carry the
+current affected `RoomWithViewerState` when hydration succeeds. The delivery
+assembler waits for the current content view and for the affected runtime
+boundary revisions on its replica, then checks directory visibility. It uses
+the canonical room assembler, including DM participants and history state.
+The frontend merges the row by ID without replacing unrelated rooms.
+
+Notification occurrence changes carry the first 50 visible occurrences and
+complete attention counts. The list API and realtime use the same page
+assembler. Badge-only hints update room state without reading notifications.
+Hydration failures omit the optional field and retain the explicit read path.
+
+The values describe current state at delivery, not history at the source event
+cursor. Frontend delivery-local versions preserve pushed room rows and
+notification pages when an older HTTP read finishes later, including catch-up
+and permission reads. Projection resets still fence all older work. Initial
+load, reconnect, pagination, expiry, and thread-read acknowledgement recovery
+keep their explicit reads.
 
 ## Exact snapshot and targeted resource reads
 

@@ -24,7 +24,7 @@ test('warm room posts share all reconciliation reads', async ({ page }) => {
     await page.waitForLoadState('networkidle');
     page.off('request', record);
     expect(methods.sort()).toEqual([
-      'BatchGetMessages', 'CreateMessage', 'ListNotificationOccurrences', 'ListRooms'
+      'BatchGetMessages', 'CreateMessage'
     ]);
   }
   expect(errors).toEqual([]);
@@ -37,15 +37,43 @@ test('a known remote author does not cause a user read on each received post', a
     await sender.sendMessage('Warm remote author');
     await expect(roomPage.getMessage('Warm remote author').locator).toBeVisible();
     await page.waitForLoadState('networkidle');
-    const users: string[] = [];
+    const redundantReads: string[] = [];
     page.on('request', (request) => {
-      if (request.url().endsWith('/BatchGetUsers')) users.push(request.url());
+      if (['BatchGetUsers', 'ListRooms', 'ListNotificationOccurrences'].some((method) => request.url().endsWith(`/${method}`))) {
+        redundantReads.push(request.url().split('/').at(-1)!);
+      }
     });
     await sender.sendMessage('Reuse remote author');
     await expect(roomPage.getMessage('Reuse remote author').locator).toBeVisible();
     await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
     await page.waitForLoadState('networkidle');
-    expect(users).toEqual([]);
+    expect(redundantReads).toEqual([]);
+  });
+});
+
+test('notification creation and read state arrive without collection reads', async ({ page, browser, serverURL }) => {
+  const receiver = await loginAndEnterRoom(page, 'announcements');
+  const badge = receiver.chatPage.roomList.locator('a', { hasText: '# general' }).getByTestId('room-notification-badge');
+  await withServerUser(browser, serverURL, async ({ chatPage, roomPage: sender }) => {
+    await chatPage.enterRoom('general');
+    await sender.sendMessage('Warm notification sender');
+    await page.waitForLoadState('networkidle');
+    const reads: string[] = [];
+    const record = (request: import('@playwright/test').Request) => {
+      if (['ListRooms', 'ListNotificationOccurrences'].some((method) => request.url().endsWith(`/${method}`))) {
+        reads.push(request.url().split('/').at(-1)!);
+      }
+    };
+    page.on('request', record);
+    await sender.sendMessage(`@${receiver.user.login} Pushed notification`);
+    await expect(badge).toHaveText('1');
+    await receiver.chatPage.enterRoom('general');
+    await expect(badge).not.toBeVisible();
+    // Include delayed post-commit hints in this traffic measurement.
+    await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
+    await page.waitForLoadState('networkidle');
+    page.off('request', record);
+    expect(reads).toEqual([]);
   });
 });
 

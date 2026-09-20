@@ -282,6 +282,19 @@ func (s *RoomDirectoryReadModel) GetRoom(ctx context.Context, actorID, roomID st
 	return s.getRoom(ctx, actorID, roomID)
 }
 
+// GetCurrentRoom waits for the current content-view boundary before checking
+// visibility. Transient realtime hints have no EVT cursor of their own and
+// can arrive on a replica before a committed access change is projected.
+func (s *RoomDirectoryReadModel) GetCurrentRoom(ctx context.Context, actorID, roomID string) (*DirectoryRoom, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	if err := s.core.contentView.projector.WaitForCurrent(ctx); err != nil {
+		return nil, err
+	}
+	return s.getRoom(ctx, actorID, roomID)
+}
+
 func (s *RoomDirectoryReadModel) getRoom(ctx context.Context, actorID, roomID string) (*DirectoryRoom, error) {
 	room, err := s.core.FindRoomByID(ctx, roomID)
 	if err != nil {

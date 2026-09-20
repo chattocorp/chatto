@@ -46,7 +46,7 @@ import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
-import type { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { ListRoomsResponse, type RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
@@ -212,6 +212,10 @@ export class ServerStateStore {
   readonly #privilegedModeAPI: PrivilegedModeAPI;
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
+  /** Delivery-local versions fence older HTTP snapshots, not public event cursors. */
+  #pushedStateVersion = 0;
+  #pushedNotificationVersion = 0;
+  readonly #pushedRoomVersions = new SvelteMap<string, number>();
   #realtimeSnapshotPending = false;
   #permissionCheckGeneration = 0;
   /** Block edits while authoritative permission reads are pending; retain the visible view. */
@@ -416,6 +420,7 @@ export class ServerStateStore {
   async completeRealtimeCatchUp(cursor: string): Promise<void> {
     if (this.#privacyCleanupFailed) throw new Error('Private data cleanup did not complete');
     const generation = this.#realtimeProjectionGeneration;
+    const readVersion = this.#pushedStateVersion;
     const batches = await Promise.all(
       (
         [
@@ -429,7 +434,7 @@ export class ServerStateStore {
     );
     this.requireCurrentRealtimeProjection(generation);
     for (const resource of batches.flat()) {
-      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+      this.applyReadResource(resource, readVersion);
     }
 
     // Presence and other user current values are not durable replay events.
@@ -767,6 +772,7 @@ export class ServerStateStore {
         this.projection.reset();
       }
       const generation = ++this.#realtimeProjectionGeneration;
+      this.#pushedRoomVersions.clear();
       this.#realtimeSnapshotPending = true;
       this.#deletedRealtimeUserIds.clear();
       this.#reconciliationError = null;
@@ -793,7 +799,7 @@ export class ServerStateStore {
     }
 
     if (update.resource?.case === 'rooms' && !this.#realtimeSnapshotPending) {
-      this.reconcileRoomPermissions(update.resource.value.rooms, update.cursor ?? undefined);
+      this.reconcileRoomPermissions(update.resource.value.rooms, update.cursor ?? undefined, update.replaceResource);
     }
     this.projection.apply(update);
     const resource = update.resource;
@@ -922,10 +928,11 @@ export class ServerStateStore {
       const families = ['viewer', 'rooms', 'roomGroups', 'serverState', 'notifications', 'activeCalls'] as const;
       const reads = await Promise.allSettled(families.map(async (family) => {
         try {
+          const readVersion = this.#pushedStateVersion;
           const resources = await this.#realtimeResources.read(family, update.cursor ?? undefined);
           if (!current()) return;
           for (const resource of resources) {
-            this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource, cursor: update.cursor }));
+            this.applyReadResource(resource, readVersion, update.cursor);
           }
         } catch (error) {
           if (!current()) return;
@@ -954,12 +961,13 @@ export class ServerStateStore {
   }
 
   /** Message-read changes affect plaintext even if room membership is unchanged. */
-  private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
+  private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string, replace = true): void {
     const nextRooms = new SvelteMap(rooms.map((room) => [room.room?.id, room]));
     const ids = new SvelteSet([...Object.keys(this.#roomMessages), ...Object.keys(this.#roomFiles),
       ...Object.keys(this.#roomPins), ...Object.keys(this.#roomMembers), ...this.projection.rooms.keys()]);
     for (const key of Object.keys(this.#threadMessages)) ids.add(key.split('\u0000')[0]);
     for (const roomId of ids) {
+      if (!replace && !nextRooms.has(roomId)) continue;
       const next = nextRooms.get(roomId);
       if (!next?.viewerState?.isMember) {
         this.clearRoomAccess(roomId);
@@ -1042,6 +1050,7 @@ export class ServerStateStore {
       generation
     });
     if (this.#resourceRefreshes.has(family)) return;
+    let readVersion = this.#pushedStateVersion;
     // Collect adjacent event frames before reading. Once a read starts, later
     // hints stay pending for a follow-up read at their own minimum boundary.
     const refresh = new Promise<void>((resolve) => setTimeout(resolve, 10))
@@ -1049,12 +1058,13 @@ export class ServerStateStore {
         this.requireCurrentRealtimeProjection(generation);
         minimumCursor = this.#pendingResourceRefreshes.get(family)?.minimumCursor;
         this.#pendingResourceRefreshes.delete(family);
+        readVersion = this.#pushedStateVersion;
         return this.#realtimeResources.read(family, minimumCursor);
       })
       .then(async (resources) => {
         this.requireCurrentRealtimeProjection(generation);
         for (const resource of resources) {
-          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+          this.applyReadResource(resource, readVersion);
         }
         if (family === 'rooms') {
           await this.hydrateProjectedDMUsers(minimumCursor, generation);
@@ -1076,6 +1086,40 @@ export class ServerStateStore {
         this.refreshRealtimeResource(family, pending.minimumCursor);
       });
     this.#resourceRefreshes.set(family, refresh);
+  }
+
+  /** Reconcile HTTP snapshots without overwriting newer event payloads. */
+  private applyReadResource(resource: RealtimeResourceUpdate, readVersion: number, cursor?: string | null): void {
+    if (resource.resource.case === 'notifications' && this.#pushedNotificationVersion > readVersion) return;
+    if (resource.resource.case === 'rooms') {
+      const rows = new SvelteMap(resource.resource.value.rooms.map((room) => [room.room?.id, room]));
+      for (const [roomId, version] of this.#pushedRoomVersions) {
+        if (version <= readVersion) continue;
+        const current = this.projection.rooms.get(roomId);
+        if (current) rows.set(roomId, current);
+        else rows.delete(roomId);
+      }
+      resource = new RealtimeResourceUpdate({
+        resource: { case: 'rooms', value: new ListRoomsResponse({ rooms: [...rows.values()] }) },
+        replace: resource.replace
+      });
+    }
+    this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource, cursor }));
+  }
+
+  /** Apply one current room from an authorized event without replacing the directory. */
+  private applyRealtimeRoom(roomId: string, room?: RoomWithViewerState): void {
+    if (!room?.viewerState || room.room?.id !== roomId) {
+      this.refreshRealtimeResource('rooms');
+      return;
+    }
+    this.#pushedRoomVersions.set(roomId, ++this.#pushedStateVersion);
+    this.publishProjectionUpdate(new RealtimeProjectionUpdate({
+      resource: new RealtimeResourceUpdate({
+        resource: { case: 'rooms', value: new ListRoomsResponse({ rooms: [room] }) },
+        replace: false
+      })
+    }));
   }
 
   private async hydrateProjectedDMUsers(
@@ -1253,7 +1297,7 @@ export class ServerStateStore {
         if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
         else this.forEachMessageSearch((store) => store.clearResults());
         if (payload.case === 'messagePosted') {
-          this.refreshRealtimeResource('rooms');
+          this.applyRealtimeRoom(roomId, payload.value.room);
           if (payload.value.threadRootEventId)
             refreshRegisteredFollowedThreadQueries(this.serverId);
         }
@@ -1313,11 +1357,17 @@ export class ServerStateStore {
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'notificationOccurrencesChanged':
-        this.refreshRealtimeResource('notifications');
+        if (payload.value.notifications) {
+          this.#pushedNotificationVersion = ++this.#pushedStateVersion;
+          this.publishProjectionUpdate(new RealtimeProjectionUpdate({
+            resource: new RealtimeResourceUpdate({
+              resource: { case: 'notifications', value: payload.value.notifications }
+            })
+          }));
+        } else this.refreshRealtimeResource('notifications');
         return;
       case 'notificationUnreadStateChanged':
-        this.refreshRealtimeResource('notifications');
-        this.refreshRealtimeResource('rooms');
+        this.applyRealtimeRoom(payload.value.roomId, payload.value.room);
         return;
       case 'roomCreated':
       case 'roomUpdated':
@@ -1370,7 +1420,7 @@ export class ServerStateStore {
         if (this.currentUser.user?.id) this.refreshRealtimeUsers([this.currentUser.user.id]);
         return;
       case 'roomReadStateChanged':
-        this.refreshRealtimeResource('rooms');
+        this.applyRealtimeRoom(payload.value.roomId, payload.value.room);
         return;
       case 'threadCreated':
         this.scheduleMessageReconciliation(roomId, payload.value.threadRootEventId);

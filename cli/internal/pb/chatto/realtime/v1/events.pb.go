@@ -1220,7 +1220,10 @@ type MessagePostedEvent struct {
 	// Plaintext message text. The field is absent after key shredding.
 	BodyPlaintext *string `protobuf:"bytes,8,opt,name=body_plaintext,json=bodyPlaintext,proto3,oneof" json:"body_plaintext,omitempty"`
 	// Immutable room kind. Direct messages do not require a mention to address a bot.
-	RoomKind      v1.RoomKind `protobuf:"varint,9,opt,name=room_kind,json=roomKind,proto3,enum=chatto.api.v1.RoomKind" json:"room_kind,omitempty"`
+	RoomKind v1.RoomKind `protobuf:"varint,9,opt,name=room_kind,json=roomKind,proto3,enum=chatto.api.v1.RoomKind" json:"room_kind,omitempty"`
+	// Current affected room for this viewer, when available. Merge by room ID.
+	// This is current state at delivery, not historical state at the event cursor.
+	Room          *v1.RoomWithViewerState `protobuf:"bytes,10,opt,name=room,proto3" json:"room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1309,6 +1312,13 @@ func (x *MessagePostedEvent) GetRoomKind() v1.RoomKind {
 		return x.RoomKind
 	}
 	return v1.RoomKind(0)
+}
+
+func (x *MessagePostedEvent) GetRoom() *v1.RoomWithViewerState {
+	if x != nil {
+		return x.Room
+	}
+	return nil
 }
 
 // DirectUserMention identifies a direct user mention.
@@ -2754,7 +2764,8 @@ func (*ViewerPresencePreferenceChangedEvent) Descriptor() ([]byte, []int) {
 }
 
 // NotificationOccurrencesChangedEvent reports that the caller's current
-// notification occurrences changed and requests an authoritative resource read.
+// notification occurrences changed. Use the supplied page when present;
+// otherwise read NotificationService.ListNotificationOccurrences.
 type NotificationOccurrencesChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of a newly created notification, including read notifications and
@@ -2762,8 +2773,12 @@ type NotificationOccurrencesChangedEvent struct {
 	// This is a best-effort live hint, not a sound instruction or durable delivery.
 	// Clients decide whether to alert after they read current notification state.
 	CreatedNotificationId *string `protobuf:"bytes,1,opt,name=created_notification_id,json=createdNotificationId,proto3,oneof" json:"created_notification_id,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Current first page (up to 50 occurrences), with complete unread counts.
+	// Replace the retained page; fetch subsequent pages through NotificationService.
+	// Reconnect recovery must read current state because these updates are transient.
+	Notifications *v1.ListNotificationOccurrencesResponse `protobuf:"bytes,2,opt,name=notifications,proto3" json:"notifications,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationOccurrencesChangedEvent) Reset() {
@@ -2803,15 +2818,25 @@ func (x *NotificationOccurrencesChangedEvent) GetCreatedNotificationId() string 
 	return ""
 }
 
+func (x *NotificationOccurrencesChangedEvent) GetNotifications() *v1.ListNotificationOccurrencesResponse {
+	if x != nil {
+		return x.Notifications
+	}
+	return nil
+}
+
 // NotificationUnreadStateChangedEvent reports that the caller's notification
-// unread state changed and requests authoritative notification and room reads.
+// Badge state changed. Notification occurrence changes are reported separately.
 type NotificationUnreadStateChangedEvent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	RoomId string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the affected thread root, or empty for room state.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Current affected room for this viewer. Merge by room ID. If absent, read
+	// RoomDirectoryService.GetRoom. This event does not require a notification read.
+	Room          *v1.RoomWithViewerState `protobuf:"bytes,3,opt,name=room,proto3" json:"room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationUnreadStateChangedEvent) Reset() {
@@ -2858,10 +2883,20 @@ func (x *NotificationUnreadStateChangedEvent) GetThreadRootEventId() string {
 	return ""
 }
 
+func (x *NotificationUnreadStateChangedEvent) GetRoom() *v1.RoomWithViewerState {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
 // RoomReadStateChangedEvent reports the caller's current room read state.
 type RoomReadStateChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	RoomId string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Current affected room for this viewer. Merge by room ID. If absent, read
+	// RoomDirectoryService.GetRoom. Reconnect recovery must read current state.
+	Room          *v1.RoomWithViewerState `protobuf:"bytes,2,opt,name=room,proto3" json:"room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2903,11 +2938,18 @@ func (x *RoomReadStateChangedEvent) GetRoomId() string {
 	return ""
 }
 
+func (x *RoomReadStateChangedEvent) GetRoom() *v1.RoomWithViewerState {
+	if x != nil {
+		return x.Room
+	}
+	return nil
+}
+
 var File_chatto_realtime_v1_events_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/realtime/v1/events.proto\x12\x12chatto.realtime.v1\x1a\x1achatto/api/v1/common.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x19chatto/api/v1/rooms.proto\"/\n" +
+	"\x1fchatto/realtime/v1/events.proto\x12\x12chatto.realtime.v1\x1a\x1achatto/api/v1/common.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\"chatto/api/v1/room_directory.proto\x1a!chatto/api/v1/notifications.proto\"/\n" +
 	"\x10RoleCreatedEvent\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"/\n" +
 	"\x10RoleUpdatedEvent\x12\x1b\n" +
@@ -2967,7 +3009,7 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\acall_id\x18\x02 \x01(\tR\x06callId\"G\n" +
 	"\x13VoiceCallEndedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\acall_id\x18\x02 \x01(\tR\x06callId\"\xb9\x03\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\"\xf1\x03\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x02 \x01(\tR\tinReplyTo\x12/\n" +
@@ -2976,7 +3018,9 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\x1eecho_from_thread_root_event_id\x18\x06 \x01(\tR\x19echoFromThreadRootEventId\x12>\n" +
 	"\bmentions\x18\a \x03(\v2\".chatto.realtime.v1.MessageMentionR\bmentions\x12*\n" +
 	"\x0ebody_plaintext\x18\b \x01(\tH\x00R\rbodyPlaintext\x88\x01\x01\x124\n" +
-	"\troom_kind\x18\t \x01(\x0e2\x17.chatto.api.v1.RoomKindR\broomKindB\x11\n" +
+	"\troom_kind\x18\t \x01(\x0e2\x17.chatto.api.v1.RoomKindR\broomKind\x126\n" +
+	"\x04room\x18\n" +
+	" \x01(\v2\".chatto.api.v1.RoomWithViewerStateR\x04roomB\x11\n" +
 	"\x0f_body_plaintextJ\x04\b\x04\x10\x05R\x12mentioned_user_ids\",\n" +
 	"\x11DirectUserMention\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"1\n" +
@@ -3053,15 +3097,18 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\x15_thread_root_event_id\"M\n" +
 	"\x14PresenceChangedEvent\x125\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\"&\n" +
-	"$ViewerPresencePreferenceChangedEvent\"~\n" +
+	"$ViewerPresencePreferenceChangedEvent\"\xd8\x01\n" +
 	"#NotificationOccurrencesChangedEvent\x12;\n" +
-	"\x17created_notification_id\x18\x01 \x01(\tH\x00R\x15createdNotificationId\x88\x01\x01B\x1a\n" +
-	"\x18_created_notification_id\"o\n" +
+	"\x17created_notification_id\x18\x01 \x01(\tH\x00R\x15createdNotificationId\x88\x01\x01\x12X\n" +
+	"\rnotifications\x18\x02 \x01(\v22.chatto.api.v1.ListNotificationOccurrencesResponseR\rnotificationsB\x1a\n" +
+	"\x18_created_notification_id\"\xa7\x01\n" +
 	"#NotificationUnreadStateChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"4\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x126\n" +
+	"\x04room\x18\x03 \x01(\v2\".chatto.api.v1.RoomWithViewerStateR\x04room\"l\n" +
 	"\x19RoomReadStateChangedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId*\xb2\x01\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x126\n" +
+	"\x04room\x18\x02 \x01(\v2\".chatto.api.v1.RoomWithViewerStateR\x04room*\xb2\x01\n" +
 	"\x1aAssetProcessingFailureCode\x12-\n" +
 	")ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED\x10\x00\x123\n" +
 	"/ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED\x10\x01\x120\n" +
@@ -3083,63 +3130,65 @@ func file_chatto_realtime_v1_events_proto_rawDescGZIP() []byte {
 var file_chatto_realtime_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_realtime_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
 var file_chatto_realtime_v1_events_proto_goTypes = []any{
-	(AssetProcessingFailureCode)(0),              // 0: chatto.realtime.v1.AssetProcessingFailureCode
-	(*RoleCreatedEvent)(nil),                     // 1: chatto.realtime.v1.RoleCreatedEvent
-	(*RoleUpdatedEvent)(nil),                     // 2: chatto.realtime.v1.RoleUpdatedEvent
-	(*RoleDeletedEvent)(nil),                     // 3: chatto.realtime.v1.RoleDeletedEvent
-	(*RolesReorderedEvent)(nil),                  // 4: chatto.realtime.v1.RolesReorderedEvent
-	(*RoleAssignedEvent)(nil),                    // 5: chatto.realtime.v1.RoleAssignedEvent
-	(*RoleRevokedEvent)(nil),                     // 6: chatto.realtime.v1.RoleRevokedEvent
-	(*RolePermissionsChangedEvent)(nil),          // 7: chatto.realtime.v1.RolePermissionsChangedEvent
-	(*ViewerPermissionsChangedEvent)(nil),        // 8: chatto.realtime.v1.ViewerPermissionsChangedEvent
-	(*RoomCreatedEvent)(nil),                     // 9: chatto.realtime.v1.RoomCreatedEvent
-	(*RoomUpdatedEvent)(nil),                     // 10: chatto.realtime.v1.RoomUpdatedEvent
-	(*RoomDeletedEvent)(nil),                     // 11: chatto.realtime.v1.RoomDeletedEvent
-	(*RoomArchivedEvent)(nil),                    // 12: chatto.realtime.v1.RoomArchivedEvent
-	(*RoomUnarchivedEvent)(nil),                  // 13: chatto.realtime.v1.RoomUnarchivedEvent
-	(*RoomUniversalChangedEvent)(nil),            // 14: chatto.realtime.v1.RoomUniversalChangedEvent
-	(*RoomSlowModeChangedEvent)(nil),             // 15: chatto.realtime.v1.RoomSlowModeChangedEvent
-	(*RoomThreadingModeChangedEvent)(nil),        // 16: chatto.realtime.v1.RoomThreadingModeChangedEvent
-	(*UserJoinedRoomEvent)(nil),                  // 17: chatto.realtime.v1.UserJoinedRoomEvent
-	(*UserLeftRoomEvent)(nil),                    // 18: chatto.realtime.v1.UserLeftRoomEvent
-	(*VoiceCallParticipantJoinedEvent)(nil),      // 19: chatto.realtime.v1.VoiceCallParticipantJoinedEvent
-	(*VoiceCallParticipantLeftEvent)(nil),        // 20: chatto.realtime.v1.VoiceCallParticipantLeftEvent
-	(*VoiceCallStartedEvent)(nil),                // 21: chatto.realtime.v1.VoiceCallStartedEvent
-	(*VoiceCallEndedEvent)(nil),                  // 22: chatto.realtime.v1.VoiceCallEndedEvent
-	(*MessagePostedEvent)(nil),                   // 23: chatto.realtime.v1.MessagePostedEvent
-	(*DirectUserMention)(nil),                    // 24: chatto.realtime.v1.DirectUserMention
-	(*RoleMessageMention)(nil),                   // 25: chatto.realtime.v1.RoleMessageMention
-	(*HereMessageMention)(nil),                   // 26: chatto.realtime.v1.HereMessageMention
-	(*AllMessageMention)(nil),                    // 27: chatto.realtime.v1.AllMessageMention
-	(*MessageMention)(nil),                       // 28: chatto.realtime.v1.MessageMention
-	(*MessageEditedEvent)(nil),                   // 29: chatto.realtime.v1.MessageEditedEvent
-	(*MessageRetractedEvent)(nil),                // 30: chatto.realtime.v1.MessageRetractedEvent
-	(*MessagePinnedEvent)(nil),                   // 31: chatto.realtime.v1.MessagePinnedEvent
-	(*MessageUnpinnedEvent)(nil),                 // 32: chatto.realtime.v1.MessageUnpinnedEvent
-	(*ThreadCreatedEvent)(nil),                   // 33: chatto.realtime.v1.ThreadCreatedEvent
-	(*AssetProcessingStartedEvent)(nil),          // 34: chatto.realtime.v1.AssetProcessingStartedEvent
-	(*AssetProcessingSucceededEvent)(nil),        // 35: chatto.realtime.v1.AssetProcessingSucceededEvent
-	(*AssetProcessingFailedEvent)(nil),           // 36: chatto.realtime.v1.AssetProcessingFailedEvent
-	(*AssetDeletedEvent)(nil),                    // 37: chatto.realtime.v1.AssetDeletedEvent
-	(*ServerMotdChangedEvent)(nil),               // 38: chatto.realtime.v1.ServerMotdChangedEvent
-	(*UserAccountCreatedEvent)(nil),              // 39: chatto.realtime.v1.UserAccountCreatedEvent
-	(*UserAccountDeletedEvent)(nil),              // 40: chatto.realtime.v1.UserAccountDeletedEvent
-	(*ReactionAddedEvent)(nil),                   // 41: chatto.realtime.v1.ReactionAddedEvent
-	(*ReactionRemovedEvent)(nil),                 // 42: chatto.realtime.v1.ReactionRemovedEvent
-	(*RoomLayoutChangedEvent)(nil),               // 43: chatto.realtime.v1.RoomLayoutChangedEvent
-	(*UserProfileChangedEvent)(nil),              // 44: chatto.realtime.v1.UserProfileChangedEvent
-	(*ViewerPreferencesChangedEvent)(nil),        // 45: chatto.realtime.v1.ViewerPreferencesChangedEvent
-	(*ThreadViewerStateChangedEvent)(nil),        // 46: chatto.realtime.v1.ThreadViewerStateChangedEvent
-	(*ServerProfileChangedEvent)(nil),            // 47: chatto.realtime.v1.ServerProfileChangedEvent
-	(*UserTypingEvent)(nil),                      // 48: chatto.realtime.v1.UserTypingEvent
-	(*PresenceChangedEvent)(nil),                 // 49: chatto.realtime.v1.PresenceChangedEvent
-	(*ViewerPresencePreferenceChangedEvent)(nil), // 50: chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
-	(*NotificationOccurrencesChangedEvent)(nil),  // 51: chatto.realtime.v1.NotificationOccurrencesChangedEvent
-	(*NotificationUnreadStateChangedEvent)(nil),  // 52: chatto.realtime.v1.NotificationUnreadStateChangedEvent
-	(*RoomReadStateChangedEvent)(nil),            // 53: chatto.realtime.v1.RoomReadStateChangedEvent
-	(v1.RoomKind)(0),                             // 54: chatto.api.v1.RoomKind
-	(v1.RoomThreadingMode)(0),                    // 55: chatto.api.v1.RoomThreadingMode
-	(v1.PresenceStatus)(0),                       // 56: chatto.api.v1.PresenceStatus
+	(AssetProcessingFailureCode)(0),                // 0: chatto.realtime.v1.AssetProcessingFailureCode
+	(*RoleCreatedEvent)(nil),                       // 1: chatto.realtime.v1.RoleCreatedEvent
+	(*RoleUpdatedEvent)(nil),                       // 2: chatto.realtime.v1.RoleUpdatedEvent
+	(*RoleDeletedEvent)(nil),                       // 3: chatto.realtime.v1.RoleDeletedEvent
+	(*RolesReorderedEvent)(nil),                    // 4: chatto.realtime.v1.RolesReorderedEvent
+	(*RoleAssignedEvent)(nil),                      // 5: chatto.realtime.v1.RoleAssignedEvent
+	(*RoleRevokedEvent)(nil),                       // 6: chatto.realtime.v1.RoleRevokedEvent
+	(*RolePermissionsChangedEvent)(nil),            // 7: chatto.realtime.v1.RolePermissionsChangedEvent
+	(*ViewerPermissionsChangedEvent)(nil),          // 8: chatto.realtime.v1.ViewerPermissionsChangedEvent
+	(*RoomCreatedEvent)(nil),                       // 9: chatto.realtime.v1.RoomCreatedEvent
+	(*RoomUpdatedEvent)(nil),                       // 10: chatto.realtime.v1.RoomUpdatedEvent
+	(*RoomDeletedEvent)(nil),                       // 11: chatto.realtime.v1.RoomDeletedEvent
+	(*RoomArchivedEvent)(nil),                      // 12: chatto.realtime.v1.RoomArchivedEvent
+	(*RoomUnarchivedEvent)(nil),                    // 13: chatto.realtime.v1.RoomUnarchivedEvent
+	(*RoomUniversalChangedEvent)(nil),              // 14: chatto.realtime.v1.RoomUniversalChangedEvent
+	(*RoomSlowModeChangedEvent)(nil),               // 15: chatto.realtime.v1.RoomSlowModeChangedEvent
+	(*RoomThreadingModeChangedEvent)(nil),          // 16: chatto.realtime.v1.RoomThreadingModeChangedEvent
+	(*UserJoinedRoomEvent)(nil),                    // 17: chatto.realtime.v1.UserJoinedRoomEvent
+	(*UserLeftRoomEvent)(nil),                      // 18: chatto.realtime.v1.UserLeftRoomEvent
+	(*VoiceCallParticipantJoinedEvent)(nil),        // 19: chatto.realtime.v1.VoiceCallParticipantJoinedEvent
+	(*VoiceCallParticipantLeftEvent)(nil),          // 20: chatto.realtime.v1.VoiceCallParticipantLeftEvent
+	(*VoiceCallStartedEvent)(nil),                  // 21: chatto.realtime.v1.VoiceCallStartedEvent
+	(*VoiceCallEndedEvent)(nil),                    // 22: chatto.realtime.v1.VoiceCallEndedEvent
+	(*MessagePostedEvent)(nil),                     // 23: chatto.realtime.v1.MessagePostedEvent
+	(*DirectUserMention)(nil),                      // 24: chatto.realtime.v1.DirectUserMention
+	(*RoleMessageMention)(nil),                     // 25: chatto.realtime.v1.RoleMessageMention
+	(*HereMessageMention)(nil),                     // 26: chatto.realtime.v1.HereMessageMention
+	(*AllMessageMention)(nil),                      // 27: chatto.realtime.v1.AllMessageMention
+	(*MessageMention)(nil),                         // 28: chatto.realtime.v1.MessageMention
+	(*MessageEditedEvent)(nil),                     // 29: chatto.realtime.v1.MessageEditedEvent
+	(*MessageRetractedEvent)(nil),                  // 30: chatto.realtime.v1.MessageRetractedEvent
+	(*MessagePinnedEvent)(nil),                     // 31: chatto.realtime.v1.MessagePinnedEvent
+	(*MessageUnpinnedEvent)(nil),                   // 32: chatto.realtime.v1.MessageUnpinnedEvent
+	(*ThreadCreatedEvent)(nil),                     // 33: chatto.realtime.v1.ThreadCreatedEvent
+	(*AssetProcessingStartedEvent)(nil),            // 34: chatto.realtime.v1.AssetProcessingStartedEvent
+	(*AssetProcessingSucceededEvent)(nil),          // 35: chatto.realtime.v1.AssetProcessingSucceededEvent
+	(*AssetProcessingFailedEvent)(nil),             // 36: chatto.realtime.v1.AssetProcessingFailedEvent
+	(*AssetDeletedEvent)(nil),                      // 37: chatto.realtime.v1.AssetDeletedEvent
+	(*ServerMotdChangedEvent)(nil),                 // 38: chatto.realtime.v1.ServerMotdChangedEvent
+	(*UserAccountCreatedEvent)(nil),                // 39: chatto.realtime.v1.UserAccountCreatedEvent
+	(*UserAccountDeletedEvent)(nil),                // 40: chatto.realtime.v1.UserAccountDeletedEvent
+	(*ReactionAddedEvent)(nil),                     // 41: chatto.realtime.v1.ReactionAddedEvent
+	(*ReactionRemovedEvent)(nil),                   // 42: chatto.realtime.v1.ReactionRemovedEvent
+	(*RoomLayoutChangedEvent)(nil),                 // 43: chatto.realtime.v1.RoomLayoutChangedEvent
+	(*UserProfileChangedEvent)(nil),                // 44: chatto.realtime.v1.UserProfileChangedEvent
+	(*ViewerPreferencesChangedEvent)(nil),          // 45: chatto.realtime.v1.ViewerPreferencesChangedEvent
+	(*ThreadViewerStateChangedEvent)(nil),          // 46: chatto.realtime.v1.ThreadViewerStateChangedEvent
+	(*ServerProfileChangedEvent)(nil),              // 47: chatto.realtime.v1.ServerProfileChangedEvent
+	(*UserTypingEvent)(nil),                        // 48: chatto.realtime.v1.UserTypingEvent
+	(*PresenceChangedEvent)(nil),                   // 49: chatto.realtime.v1.PresenceChangedEvent
+	(*ViewerPresencePreferenceChangedEvent)(nil),   // 50: chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
+	(*NotificationOccurrencesChangedEvent)(nil),    // 51: chatto.realtime.v1.NotificationOccurrencesChangedEvent
+	(*NotificationUnreadStateChangedEvent)(nil),    // 52: chatto.realtime.v1.NotificationUnreadStateChangedEvent
+	(*RoomReadStateChangedEvent)(nil),              // 53: chatto.realtime.v1.RoomReadStateChangedEvent
+	(v1.RoomKind)(0),                               // 54: chatto.api.v1.RoomKind
+	(v1.RoomThreadingMode)(0),                      // 55: chatto.api.v1.RoomThreadingMode
+	(*v1.RoomWithViewerState)(nil),                 // 56: chatto.api.v1.RoomWithViewerState
+	(v1.PresenceStatus)(0),                         // 57: chatto.api.v1.PresenceStatus
+	(*v1.ListNotificationOccurrencesResponse)(nil), // 58: chatto.api.v1.ListNotificationOccurrencesResponse
 }
 var file_chatto_realtime_v1_events_proto_depIdxs = []int32{
 	54, // 0: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
@@ -3147,17 +3196,21 @@ var file_chatto_realtime_v1_events_proto_depIdxs = []int32{
 	55, // 2: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
 	28, // 3: chatto.realtime.v1.MessagePostedEvent.mentions:type_name -> chatto.realtime.v1.MessageMention
 	54, // 4: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
-	24, // 5: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
-	25, // 6: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
-	26, // 7: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
-	27, // 8: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
-	0,  // 9: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
-	56, // 10: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	56, // 5: chatto.realtime.v1.MessagePostedEvent.room:type_name -> chatto.api.v1.RoomWithViewerState
+	24, // 6: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
+	25, // 7: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
+	26, // 8: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
+	27, // 9: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
+	0,  // 10: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
+	57, // 11: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	58, // 12: chatto.realtime.v1.NotificationOccurrencesChangedEvent.notifications:type_name -> chatto.api.v1.ListNotificationOccurrencesResponse
+	56, // 13: chatto.realtime.v1.NotificationUnreadStateChangedEvent.room:type_name -> chatto.api.v1.RoomWithViewerState
+	56, // 14: chatto.realtime.v1.RoomReadStateChangedEvent.room:type_name -> chatto.api.v1.RoomWithViewerState
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_events_proto_init() }

@@ -15,6 +15,7 @@ import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineE
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { GetMotdResponse } from '@chatto/api-types/api/v1/server_state_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { Room, PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import {
@@ -1318,10 +1319,100 @@ describe('ServerStateStore unified realtime resources', () => {
     }));
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
-      ['rooms', 'a-read'], ['notifications', 'n-notification']
+      ['rooms', 'a-read']
     ]);
     expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['POST'], 'z-post');
     expect(apiMocks.readRealtimeUsers.mock.calls.every(([ids]) => [...ids].length === 0)).toBe(true);
+  });
+
+  it('applies pushed room state without reading or removing other rooms', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const clearOther = vi.spyOn(store.filesForRoom('R2'), 'reset');
+    const other = new RoomWithViewerState({ room: { id: 'R2' }, viewerState: { isMember: true } });
+    store.projection.rooms.set('R2', other);
+    const room = new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true, hasUnread: true } });
+    for (const name of ['messagePosted', 'notificationUnreadStateChanged', 'roomReadStateChanged'] as const) {
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ event: { case: name, value: { roomId: 'R1', room } } })
+      }));
+    }
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
+    expect(store.projection.rooms.get('R1')?.viewerState?.hasUnread).toBe(true);
+    expect(store.projection.rooms.get('R2')).toBe(other);
+    expect(clearOther).not.toHaveBeenCalled();
+  });
+
+  it('clears loaded private data when pushed room state revokes membership', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const clearFiles = vi.spyOn(store.filesForRoom('R1'), 'reset');
+    store.projection.rooms.set('R1', new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true } }));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ event: { case: 'roomReadStateChanged', value: {
+        roomId: 'R1', room: { room: { id: 'R1' }, viewerState: { isMember: false } }
+      } } })
+    }));
+    await store.waitForRealtimeReconciliation();
+    expect(clearFiles).toHaveBeenCalled();
+    expect(store.projection.rooms.get('R1')?.viewerState?.isMember).toBe(false);
+  });
+
+  it('keeps pushed rooms when an older room list finishes later', async () => {
+    const response = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeResource.mockReturnValue(response.promise);
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ event: { case: 'roomReadStateChanged', value: { roomId: 'R1' } } })
+    }));
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalled());
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ event: { case: 'roomReadStateChanged', value: {
+        roomId: 'R1', room: { room: { id: 'R1' }, viewerState: { isMember: true, hasUnread: true } }
+      } } })
+    }));
+    response.resolve([roomResource([
+      new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true, hasUnread: false } }),
+      new RoomWithViewerState({ room: { id: 'R2' }, viewerState: { isMember: true } })
+    ])]);
+    await store.waitForRealtimeReconciliation();
+    expect(store.projection.rooms.get('R1')?.viewerState?.hasUnread).toBe(true);
+    expect(store.projection.rooms.has('R2')).toBe(true);
+  });
+
+  it('keeps pushed notification counts when an older notification read finishes later', async () => {
+    const response = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeResource.mockReturnValue(response.promise);
+    const store = makeStore(new FakeServerConnection([]));
+    const changed = (notifications?: ListNotificationOccurrencesResponse) => new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ event: { case: 'notificationOccurrencesChanged', value: { notifications } } })
+    });
+    store.realtimeProjectionHandler(changed());
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalled());
+    store.realtimeProjectionHandler(changed(new ListNotificationOccurrencesResponse({ unreadCount: 3 })));
+    response.resolve([new RealtimeResourceUpdate({ resource: {
+      case: 'notifications', value: new ListNotificationOccurrencesResponse({ unreadCount: 1 })
+    } })]);
+    await store.waitForRealtimeReconciliation();
+    expect(store.notifications.unreadNotificationCount).toBe(3);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves a pushed notification page during reconnect reconciliation', async () => {
+    const response = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeResource.mockImplementation((family) => family === 'notifications' ? response.promise : Promise.resolve([]));
+    const store = makeStore(new FakeServerConnection([]));
+    const catchUp = store.completeRealtimeCatchUp('cursor-catch-up');
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications', 'cursor-catch-up'));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ event: { case: 'notificationOccurrencesChanged', value: {
+        notifications: { unreadCount: 3 }
+      } } })
+    }));
+    response.resolve([new RealtimeResourceUpdate({ resource: {
+      case: 'notifications', value: new ListNotificationOccurrencesResponse({ unreadCount: 1 })
+    } })]);
+    await catchUp;
+    expect(store.notifications.unreadNotificationCount).toBe(3);
   });
 
   it('invalidates a cached author as soon as a profile change arrives', async () => {
@@ -2396,7 +2487,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
 
     await store.waitForRealtimeReconciliation();
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications', undefined);
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalledWith('notifications', undefined);
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
   });
 });

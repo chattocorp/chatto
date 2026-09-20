@@ -187,13 +187,28 @@ A bright dot moves clockwise around a 3×3 grid with a fading trail beside the l
 It announces text changes to assistive technology
 and disables its animations when reduced motion is enabled.
 
+## Apply current room state
+
+`message_posted`, `room_read_state_changed`, and
+`notification_unread_state_changed` can include a `room` resource. Merge it by
+room ID; do not replace the complete room directory. If it is absent, read the
+affected room through `RoomDirectoryService.GetRoom`.
+
+This resource describes current state at delivery, not historical state at the
+event cursor. Do not let an older in-flight HTTP response replace a newer
+pushed resource. Notification Badge changes do not require a notification-list
+read. Actual occurrence changes use the event below.
+
 ## Notification creation hints
 
 `notification_occurrences_changed.created_notification_id` identifies a newly
 created notification. It is present even during Do Not Disturb or when the
-notification starts as read. Updates and removals omit it. Read current state
-through `NotificationService.ListNotificationOccurrences`; the hint is not a
-sound instruction. Clients choose whether to alert from current state and
+notification starts as read. Updates and removals omit it. When `notifications`
+is present, replace your retained page and counts with that value. It contains
+up to 50 occurrences and complete unread counts. Read additional pages through
+`NotificationService.ListNotificationOccurrences`. If the field is absent,
+read the current first page through that API. The hint is not a sound
+instruction. Clients choose whether to alert from current state and
 their preferences. The bundled frontend groups creations during one refresh
 into one sound and stays silent for missing or read rows and failed reads.
 

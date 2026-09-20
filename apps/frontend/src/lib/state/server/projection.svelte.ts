@@ -66,7 +66,9 @@ export class ServerProjectionStore {
             nextIds.add(roomId);
             this.rooms.set(roomId, room);
           }
-          for (const roomId of this.rooms.keys()) if (!nextIds.has(roomId)) this.removeRoom(roomId);
+          if (update.replaceResource) {
+            for (const roomId of this.rooms.keys()) if (!nextIds.has(roomId)) this.removeRoom(roomId);
+          }
           break;
         }
         case 'roomGroups':
