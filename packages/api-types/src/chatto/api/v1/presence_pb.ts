@@ -7,62 +7,11 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * Private availability choice shared by the account's devices on this server.
- * Other users only receive PresenceStatus, never this choice.
+ * Availability used for private choices and effective public presence.
  *
- * @generated from enum chatto.api.v1.PresenceMode
- */
-export enum PresenceMode {
-  /**
-   * No choice supplied; rejected on selection.
-   *
-   * @generated from enum value: PRESENCE_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Show Online while at least one device refreshes liveness.
-   *
-   * @generated from enum value: PRESENCE_MODE_ONLINE = 1;
-   */
-  ONLINE = 1,
-
-  /**
-   * Show Away while at least one device refreshes liveness.
-   *
-   * @generated from enum value: PRESENCE_MODE_AWAY = 2;
-   */
-  AWAY = 2,
-
-  /**
-   * Suppress notification alerts on all devices until the choice changes.
-   *
-   * @generated from enum value: PRESENCE_MODE_DO_NOT_DISTURB = 3;
-   */
-  DO_NOT_DISTURB = 3,
-
-  /**
-   * Public presence is indistinguishable from an offline account.
-   *
-   * @generated from enum value: PRESENCE_MODE_INVISIBLE = 4;
-   */
-  INVISIBLE = 4,
-}
-// Retrieve enum metadata with: proto3.getEnumType(PresenceMode)
-proto3.util.setEnumType(PresenceMode, "chatto.api.v1.PresenceMode", [
-  { no: 0, name: "PRESENCE_MODE_UNSPECIFIED" },
-  { no: 1, name: "PRESENCE_MODE_ONLINE" },
-  { no: 2, name: "PRESENCE_MODE_AWAY" },
-  { no: 3, name: "PRESENCE_MODE_DO_NOT_DISTURB" },
-  { no: 4, name: "PRESENCE_MODE_INVISIBLE" },
-]);
-
-/**
- * Live presence status returned by public read APIs.
- *
- * Offline is a public read-side state. It reveals neither connection liveness
- * nor whether the account selected Invisible. Use the private preference API
- * for explicit choices and RefreshPresence for connection heartbeats.
+ * Public Offline reveals neither connection liveness nor whether the account
+ * selected "Appear Offline". A saved Online, Away, or Do Not Disturb choice
+ * becomes public Offline when no device refreshes liveness.
  *
  * @generated from enum chatto.api.v1.PresenceStatus
  */
@@ -75,28 +24,28 @@ export enum PresenceStatus {
   UNSPECIFIED = 0,
 
   /**
-   * The user is actively available.
+   * Online while at least one device refreshes liveness.
    *
    * @generated from enum value: PRESENCE_STATUS_ONLINE = 1;
    */
   ONLINE = 1,
 
   /**
-   * The user is connected but away or idle.
+   * Away while at least one device refreshes liveness.
    *
    * @generated from enum value: PRESENCE_STATUS_AWAY = 2;
    */
   AWAY = 2,
 
   /**
-   * The user does not want notifications while this live status is active.
+   * Do Not Disturb. A saved choice suppresses alerts even while disconnected.
    *
    * @generated from enum value: PRESENCE_STATUS_DO_NOT_DISTURB = 3;
    */
   DO_NOT_DISTURB = 3,
 
   /**
-   * The user has no public live presence.
+   * No public live presence. As a saved choice, suppresses presence and typing.
    *
    * @generated from enum value: PRESENCE_STATUS_OFFLINE = 4;
    */
@@ -118,11 +67,12 @@ proto3.util.setEnumType(PresenceStatus, "chatto.api.v1.PresenceStatus", [
  */
 export class PresencePreference extends Message<PresencePreference> {
   /**
-   * The account's saved choice, independent of current connection liveness.
+   * Saved choice, independent of liveness. OFFLINE means "Appear Offline";
+   * DO_NOT_DISTURB suppresses alerts even while disconnected.
    *
-   * @generated from field: chatto.api.v1.PresenceMode mode = 1;
+   * @generated from field: chatto.api.v1.PresenceStatus status = 1;
    */
-  mode = PresenceMode.UNSPECIFIED;
+  status = PresenceStatus.UNSPECIFIED;
 
   /**
    * Opaque revision required when replacing this choice.
@@ -139,7 +89,7 @@ export class PresencePreference extends Message<PresencePreference> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.PresencePreference";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "mode", kind: "enum", T: proto3.getEnumType(PresenceMode) },
+    { no: 1, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 2, name: "revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -243,9 +193,9 @@ export class SetPresencePreferenceRequest extends Message<SetPresencePreferenceR
   /**
    * Explicit new choice for every device on this server.
    *
-   * @generated from field: chatto.api.v1.PresenceMode mode = 1;
+   * @generated from field: chatto.api.v1.PresenceStatus status = 1;
    */
-  mode = PresenceMode.UNSPECIFIED;
+  status = PresenceStatus.UNSPECIFIED;
 
   /**
    * Revision from the last read; empty only when initializing an absent choice.
@@ -262,7 +212,7 @@ export class SetPresencePreferenceRequest extends Message<SetPresencePreferenceR
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.SetPresencePreferenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "mode", kind: "enum", T: proto3.getEnumType(PresenceMode) },
+    { no: 1, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 2, name: "expected_revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

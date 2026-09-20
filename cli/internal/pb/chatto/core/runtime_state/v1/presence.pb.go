@@ -9,6 +9,7 @@ package runtimestatev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -21,67 +22,11 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Private current availability; never a durable EVT fact.
-type PresenceMode int32
-
-const (
-	PresenceMode_PRESENCE_MODE_UNSPECIFIED    PresenceMode = 0
-	PresenceMode_PRESENCE_MODE_ONLINE         PresenceMode = 1
-	PresenceMode_PRESENCE_MODE_AWAY           PresenceMode = 2
-	PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB PresenceMode = 3
-	PresenceMode_PRESENCE_MODE_INVISIBLE      PresenceMode = 4
-)
-
-// Enum value maps for PresenceMode.
-var (
-	PresenceMode_name = map[int32]string{
-		0: "PRESENCE_MODE_UNSPECIFIED",
-		1: "PRESENCE_MODE_ONLINE",
-		2: "PRESENCE_MODE_AWAY",
-		3: "PRESENCE_MODE_DO_NOT_DISTURB",
-		4: "PRESENCE_MODE_INVISIBLE",
-	}
-	PresenceMode_value = map[string]int32{
-		"PRESENCE_MODE_UNSPECIFIED":    0,
-		"PRESENCE_MODE_ONLINE":         1,
-		"PRESENCE_MODE_AWAY":           2,
-		"PRESENCE_MODE_DO_NOT_DISTURB": 3,
-		"PRESENCE_MODE_INVISIBLE":      4,
-	}
-)
-
-func (x PresenceMode) Enum() *PresenceMode {
-	p := new(PresenceMode)
-	*p = x
-	return p
-}
-
-func (x PresenceMode) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (PresenceMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_core_runtime_state_v1_presence_proto_enumTypes[0].Descriptor()
-}
-
-func (PresenceMode) Type() protoreflect.EnumType {
-	return &file_chatto_core_runtime_state_v1_presence_proto_enumTypes[0]
-}
-
-func (x PresenceMode) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use PresenceMode.Descriptor instead.
-func (PresenceMode) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_presence_proto_rawDescGZIP(), []int{0}
-}
-
 // Latest choice at presence.{userId} in the existing RUNTIME_STATE bucket.
 // History is one value; updates replace the previous choice. No expiry.
 type PresencePreference struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Mode  PresenceMode           `protobuf:"varint,1,opt,name=mode,proto3,enum=chatto.core.runtime_state.v1.PresenceMode" json:"mode,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Status v1.PresenceStatus      `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
 	// Random replacement token; it reveals no broker coordinates.
 	Revision      string `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -118,11 +63,11 @@ func (*PresencePreference) Descriptor() ([]byte, []int) {
 	return file_chatto_core_runtime_state_v1_presence_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PresencePreference) GetMode() PresenceMode {
+func (x *PresencePreference) GetStatus() v1.PresenceStatus {
 	if x != nil {
-		return x.Mode
+		return x.Status
 	}
-	return PresenceMode_PRESENCE_MODE_UNSPECIFIED
+	return v1.PresenceStatus(0)
 }
 
 func (x *PresencePreference) GetRevision() string {
@@ -136,16 +81,10 @@ var File_chatto_core_runtime_state_v1_presence_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_presence_proto_rawDesc = "" +
 	"\n" +
-	"+chatto/core/runtime_state/v1/presence.proto\x12\x1cchatto.core.runtime_state.v1\"p\n" +
-	"\x12PresencePreference\x12>\n" +
-	"\x04mode\x18\x01 \x01(\x0e2*.chatto.core.runtime_state.v1.PresenceModeR\x04mode\x12\x1a\n" +
-	"\brevision\x18\x02 \x01(\tR\brevision*\x9e\x01\n" +
-	"\fPresenceMode\x12\x1d\n" +
-	"\x19PRESENCE_MODE_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14PRESENCE_MODE_ONLINE\x10\x01\x12\x16\n" +
-	"\x12PRESENCE_MODE_AWAY\x10\x02\x12 \n" +
-	"\x1cPRESENCE_MODE_DO_NOT_DISTURB\x10\x03\x12\x1b\n" +
-	"\x17PRESENCE_MODE_INVISIBLE\x10\x04B\x89\x02\n" +
+	"+chatto/core/runtime_state/v1/presence.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1cchatto/api/v1/presence.proto\"g\n" +
+	"\x12PresencePreference\x125\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\tR\brevisionB\x89\x02\n" +
 	" com.chatto.core.runtime_state.v1B\rPresenceProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
@@ -160,14 +99,13 @@ func file_chatto_core_runtime_state_v1_presence_proto_rawDescGZIP() []byte {
 	return file_chatto_core_runtime_state_v1_presence_proto_rawDescData
 }
 
-var file_chatto_core_runtime_state_v1_presence_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_core_runtime_state_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_chatto_core_runtime_state_v1_presence_proto_goTypes = []any{
-	(PresenceMode)(0),          // 0: chatto.core.runtime_state.v1.PresenceMode
-	(*PresencePreference)(nil), // 1: chatto.core.runtime_state.v1.PresencePreference
+	(*PresencePreference)(nil), // 0: chatto.core.runtime_state.v1.PresencePreference
+	(v1.PresenceStatus)(0),     // 1: chatto.api.v1.PresenceStatus
 }
 var file_chatto_core_runtime_state_v1_presence_proto_depIdxs = []int32{
-	0, // 0: chatto.core.runtime_state.v1.PresencePreference.mode:type_name -> chatto.core.runtime_state.v1.PresenceMode
+	1, // 0: chatto.core.runtime_state.v1.PresencePreference.status:type_name -> chatto.api.v1.PresenceStatus
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -185,14 +123,13 @@ func file_chatto_core_runtime_state_v1_presence_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_presence_proto_rawDesc), len(file_chatto_core_runtime_state_v1_presence_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_core_runtime_state_v1_presence_proto_goTypes,
 		DependencyIndexes: file_chatto_core_runtime_state_v1_presence_proto_depIdxs,
-		EnumInfos:         file_chatto_core_runtime_state_v1_presence_proto_enumTypes,
 		MessageInfos:      file_chatto_core_runtime_state_v1_presence_proto_msgTypes,
 	}.Build()
 	File_chatto_core_runtime_state_v1_presence_proto = out.File

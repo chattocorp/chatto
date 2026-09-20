@@ -36,7 +36,7 @@ func (s *PresenceModel) syncPreference(ctx context.Context, userID string) (uint
 	if err := proto.Unmarshal(entry.Data, &value); err != nil {
 		return 0, fmt.Errorf("decode current presence choice: %w", err)
 	}
-	s.hub.applyPreference(userID, &apiv1.PresencePreference{Mode: apiv1.PresenceMode(value.Mode), Revision: value.Revision}, entry.Sequence)
+	s.hub.applyPreference(userID, &apiv1.PresencePreference{Status: value.Status, Revision: value.Revision}, entry.Sequence)
 	return entry.Sequence, nil
 }
 
@@ -100,9 +100,9 @@ func (s *PresenceModel) forgetUser(ctx context.Context, userID string) error {
 
 // SetPresencePreference commits an explicit, revision-checked selection. It
 // does not retry stale user intent. Heartbeats never call this operation.
-func (c *ChattoCore) SetPresencePreference(ctx context.Context, userID string, mode apiv1.PresenceMode, revision string) (*apiv1.PresencePreference, error) {
-	if !validPresenceUserID(userID) || mode < apiv1.PresenceMode_PRESENCE_MODE_ONLINE || mode > apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE {
-		return nil, fmt.Errorf("invalid presence mode")
+func (c *ChattoCore) SetPresencePreference(ctx context.Context, userID string, status apiv1.PresenceStatus, revision string) (*apiv1.PresencePreference, error) {
+	if !validPresenceUserID(userID) || status < apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE || status > apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		return nil, fmt.Errorf("invalid presence status")
 	}
 	s := c.presenceModel
 	seq, err := s.syncPreference(ctx, userID)
@@ -113,10 +113,10 @@ func (c *ChattoCore) SetPresencePreference(ctx context.Context, userID string, m
 	if current.GetRevision() != revision {
 		return nil, events.ErrConflict
 	}
-	if current != nil && current.Mode == mode {
+	if current != nil && current.Status == status {
 		return current, nil
 	}
-	value := &runtimestatev1.PresencePreference{Mode: runtimestatev1.PresenceMode(mode), Revision: newID("P")}
+	value := &runtimestatev1.PresencePreference{Status: status, Revision: newID("P")}
 	data, err := proto.Marshal(value)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (c *ChattoCore) SetPresencePreference(ctx context.Context, userID string, m
 	if err != nil {
 		return nil, err
 	}
-	s.hub.applyPreference(userID, &apiv1.PresencePreference{Mode: mode, Revision: value.Revision}, saved)
+	s.hub.applyPreference(userID, &apiv1.PresencePreference{Status: status, Revision: value.Revision}, saved)
 	// This signal is private, transient, and contains no choice. A lost signal
 	// is recovered by the next authoritative heartbeat read.
 	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged{ViewerPresencePreferenceChanged: &realtimev1.ViewerPresencePreferenceChangedEvent{}}})
@@ -150,7 +150,7 @@ func (c *ChattoCore) MayPublishTyping(ctx context.Context, userID string) (bool,
 	if err != nil {
 		return false, err
 	}
-	return p == nil || (p.Mode >= apiv1.PresenceMode_PRESENCE_MODE_ONLINE && p.Mode <= apiv1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB), nil
+	return p == nil || (p.Status >= apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE && p.Status <= apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB), nil
 }
 
 // notificationPresence preserves the saved DND policy even with no connected
@@ -160,7 +160,7 @@ func (c *ChattoCore) notificationPresence(ctx context.Context, userID string) (s
 	if err != nil {
 		return PresenceStatusOffline, err
 	}
-	if p.GetMode() == apiv1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB {
+	if p.GetStatus() == apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		return PresenceStatusDoNotDisturb, nil
 	}
 	return c.GetUserPresence(ctx, userID)

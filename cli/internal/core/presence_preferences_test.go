@@ -20,7 +20,7 @@ import (
 func TestPresencePreferenceOverridesEveryDevice(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := context.Background()
-	p, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, "")
+	p, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
 	require.NoError(t, err)
 	for _, explicit := range []bool{false, true} {
 		require.NoError(t, c.SetPresenceWithOptions(ctx, "user", PresenceStatusOnline, explicit))
@@ -31,9 +31,9 @@ func TestPresencePreferenceOverridesEveryDevice(t *testing.T) {
 	allowed, err := c.MayPublishTyping(ctx, "user")
 	require.NoError(t, err)
 	require.False(t, allowed)
-	_, err = c.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_ONLINE, "")
+	_, err = c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, "")
 	require.ErrorIs(t, err, events.ErrConflict)
-	p, err = c.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB, p.Revision)
+	p, err = c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB, p.Revision)
 	require.NoError(t, err)
 	require.NoError(t, c.SetPresenceWithOptions(ctx, "user", PresenceStatusOnline, true))
 	status, err := c.GetUserPresence(ctx, "user")
@@ -48,7 +48,7 @@ func TestInvisiblePresenceHasNoPublicRefreshOrExpiryEvents(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, "")
+	_, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
 	require.NoError(t, err)
 	sub, err := c.presenceModel.Subscribe(ctx)
 	require.NoError(t, err)
@@ -69,14 +69,14 @@ func TestInvisiblePresenceHasNoPublicRefreshOrExpiryEvents(t *testing.T) {
 	require.Zero(t, count)
 	p, err := c.GetPresencePreference(ctx, "user")
 	require.NoError(t, err)
-	require.Equal(t, apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, p.Mode)
+	require.Equal(t, apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, p.Status)
 }
 
 func TestPresencePreferenceRejectsDelayedReadsAndClearsDeletedState(t *testing.T) {
 	h := NewPresenceHub(nil, nil, nil)
 	h.live["user"] = PresenceStatusOnline
-	h.applyPreference("user", &apiv1.PresencePreference{Mode: apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, Revision: "choice"}, 2)
-	h.applyPreference("user", &apiv1.PresencePreference{Mode: apiv1.PresenceMode_PRESENCE_MODE_ONLINE, Revision: "old"}, 1)
+	h.applyPreference("user", &apiv1.PresencePreference{Status: apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, Revision: "choice"}, 2)
+	h.applyPreference("user", &apiv1.PresencePreference{Status: apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, Revision: "old"}, 1)
 	require.Empty(t, h.snapshot)
 	require.Equal(t, "choice", h.preference("user").Revision)
 	h.applyPreference("user", nil, 3)
@@ -87,7 +87,7 @@ func TestPresencePreferenceRejectsDelayedReadsAndClearsDeletedState(t *testing.T
 func TestPresencePreferenceSharedAcrossReplicasAndRestart(t *testing.T) {
 	c, nc := setupTestCore(t)
 	ctx := testContext(t)
-	p, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, "")
+	p, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
 	require.NoError(t, err)
 	replica, err := NewChattoCore(ctx, nc, c.config)
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestPresencePreferenceSharedAcrossReplicasAndRestart(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, PresenceStatusOffline, status)
 	}
-	p, err = replica.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB, p.Revision)
+	p, err = replica.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB, p.Revision)
 	require.NoError(t, err)
 	loaded, err = c.GetPresencePreference(ctx, "user")
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestPresenceWatcherWaitsForPrivateChoiceBeforeExposingLiveness(t *testing.T
 		t.Fatal("liveness bypassed the private-choice readiness barrier")
 	}
 	// Simulate the lagging replica catching up to a committed invisible choice.
-	s.hub.applyPreference("user", &apiv1.PresencePreference{Mode: apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, Revision: "saved"}, 1)
+	s.hub.applyPreference("user", &apiv1.PresencePreference{Status: apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, Revision: "saved"}, 1)
 	close(release)
 	statuses, err := s.GetUserPresences(ctx, []string{"user"})
 	require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestPresenceChoicesReplaceRuntimeStateWithoutWritingEVT(t *testing.T) {
 	before, err := evt.Info(ctx)
 	require.NoError(t, err)
 	var revision string
-	for _, mode := range []apiv1.PresenceMode{apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, apiv1.PresenceMode_PRESENCE_MODE_ONLINE, apiv1.PresenceMode_PRESENCE_MODE_AWAY, apiv1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB} {
+	for _, mode := range []apiv1.PresenceStatus{apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, apiv1.PresenceStatus_PRESENCE_STATUS_AWAY, apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB} {
 		choice, err := c.SetPresencePreference(ctx, "user", mode, revision)
 		require.NoError(t, err)
 		revision = choice.Revision
@@ -169,7 +169,7 @@ func TestPresenceChoicesReplaceRuntimeStateWithoutWritingEVT(t *testing.T) {
 	require.Len(t, history, 1, "presence must retain only its current value")
 	var stored runtimestatev1.PresencePreference
 	require.NoError(t, proto.Unmarshal(history[0].Value(), &stored))
-	require.Equal(t, runtimestatev1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB, stored.Mode)
+	require.Equal(t, apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB, stored.Status)
 	stream, err := c.js.Stream(ctx, "KV_RUNTIME_STATE")
 	require.NoError(t, err)
 	info, err := stream.Info(ctx)
@@ -196,16 +196,16 @@ func TestPresencePreferenceConcurrentReplacementAcrossReplicas(t *testing.T) {
 	replica, err := NewChattoCore(ctx, nc, c.config)
 	require.NoError(t, err)
 	startCoreServices(t, replica)
-	initial, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_ONLINE, "")
+	initial, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, "")
 	require.NoError(t, err)
 	start := make(chan struct{})
 	results := make(chan error, 2)
 	for index, instance := range []*ChattoCore{c, replica} {
 		go func() {
 			<-start
-			mode := apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE
+			mode := apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE
 			if index == 1 {
-				mode = apiv1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB
+				mode = apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB
 			}
 			_, err := instance.SetPresencePreference(ctx, "user", mode, initial.Revision)
 			results <- err
@@ -235,7 +235,7 @@ func TestPresencePreferenceConcurrentReplacementAcrossReplicas(t *testing.T) {
 func TestPresencePreferenceKVDeletionClearsWatcherAndSurvivesResync(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
-	_, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceMode_PRESENCE_MODE_INVISIBLE, "")
+	_, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
 	require.NoError(t, err)
 	require.NoError(t, c.presenceModel.forgetUser(ctx, "user"))
 	require.NoError(t, c.presenceModel.waitPreferencesCurrent(ctx))

@@ -467,7 +467,7 @@ Current private choice, or absence before first initialization.
 ### SetPresencePreference
 
 Saves a choice for all devices on this server. A stale revision returns ABORTED.
-Invisible suppresses public presence and typing; the choice survives disconnects.
+OFFLINE suppresses public presence and typing; the choice survives disconnects.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/SetPresencePreference
@@ -481,7 +481,7 @@ An explicit selection. Heartbeats must not call this operation.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `mode` | [`PresenceMode`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceMode) | Explicit new choice for every device on this server. |
+| `status` | [`PresenceStatus`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceStatus) | Explicit new choice for every device on this server. |
 | `expected_revision` | `string` | Revision from the last read; empty only when initializing an absent choice. |
 
 
@@ -502,7 +502,7 @@ Acknowledged current choice after the selection commits.
 
 Refreshes connection liveness without changing the saved choice. Clients call
 every 30 seconds; liveness expires after 60 seconds without a refresh.
-Invisible accounts may refresh without producing public presence signals.
+Accounts with a saved OFFLINE choice may refresh without public presence signals.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/RefreshPresence

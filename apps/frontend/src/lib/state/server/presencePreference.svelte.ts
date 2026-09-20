@@ -12,7 +12,8 @@ export function isPresenceMode(value: unknown): value is PresenceMode {
   );
 }
 
-function presenceModeStatus(mode: PresenceMode): PresenceStatus {
+/** Convert the legacy device-local choice to the shared presence status. */
+export function presenceModeStatus(mode: PresenceMode): PresenceStatus {
   switch (mode) {
     case 'away':
       return PresenceStatus.AWAY;

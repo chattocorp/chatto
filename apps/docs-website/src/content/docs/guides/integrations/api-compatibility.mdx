@@ -23,6 +23,9 @@ Read `MyAccountService.GetPresencePreference` before reporting presence. If no
 choice exists, initialize it with `SetPresencePreference`. Send its revision
 with each deliberate replacement; on `ABORTED`, reread instead of retrying a
 stale selection. Preserve an existing local invisible choice during migration.
+The preference and selection request use `status: PresenceStatus`. Save
+`PRESENCE_STATUS_OFFLINE` for "Appear Offline". Other users' public Offline
+status does not reveal whether they selected it or have no connected devices.
 
 Call `RefreshPresence` every 30 seconds for connection liveness. Heartbeats
 must not call `SetPresencePreference`. Legacy `SetPresence` reports cannot

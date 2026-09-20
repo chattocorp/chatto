@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import {
-  PresenceMode,
-  PresencePreference,
-  PresenceStatus
-} from '@chatto/api-types/api/v1/presence_pb';
+import { PresencePreference, PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import {
   initPresenceTracking,
@@ -15,16 +11,17 @@ import {
 
 const origin = { serverId: 'origin', userId: 'user' };
 const remote = { serverId: 'remote', userId: 'user' };
-const choice = (mode: PresenceMode, revision = 'one') => new PresencePreference({ mode, revision });
+const choice = (mode: PresenceStatus, revision = 'one') =>
+  new PresencePreference({ status: mode, revision });
 function reporter(
   scope = origin,
-  initial: PresencePreference | null = choice(PresenceMode.ONLINE)
+  initial: PresencePreference | null = choice(PresenceStatus.ONLINE)
 ) {
   let saved: PresencePreference | undefined = initial ?? undefined;
   return {
     ...scope,
     getPreference: vi.fn(async (): Promise<PresencePreference | undefined> => saved),
-    setPreference: vi.fn(async (mode: PresenceMode, revision: string) => {
+    setPreference: vi.fn(async (mode: PresenceStatus, revision: string) => {
       if (revision !== (saved?.revision ?? '')) throw new Error('conflict');
       saved = choice(mode, `${revision}-next`);
       return saved;
@@ -61,7 +58,7 @@ describe('shared account presence', () => {
   });
 
   it('loads shared DND before refreshing and does not write on heartbeats', async () => {
-    const api = reporter(origin, choice(PresenceMode.DO_NOT_DISTURB));
+    const api = reporter(origin, choice(PresenceStatus.DO_NOT_DISTURB));
     reporters = [api];
     await start();
     expect(presencePreferences.get(origin).mode).toBe('doNotDisturb');
@@ -73,12 +70,12 @@ describe('shared account presence', () => {
 
   it('changes only the selected server account', async () => {
     const a = reporter();
-    const b = reporter(remote, choice(PresenceMode.INVISIBLE));
+    const b = reporter(remote, choice(PresenceStatus.OFFLINE));
     reporters = [a, b];
     await start();
     await setPresenceMode(origin, 'doNotDisturb');
     await settle();
-    expect(a.setPreference).toHaveBeenCalledWith(PresenceMode.DO_NOT_DISTURB, 'one');
+    expect(a.setPreference).toHaveBeenCalledWith(PresenceStatus.DO_NOT_DISTURB, 'one');
     expect(b.setPreference).not.toHaveBeenCalled();
     expect(presencePreferences.get(remote).mode).toBe('invisible');
   });
@@ -88,7 +85,7 @@ describe('shared account presence', () => {
     const api = reporter(origin, null);
     reporters = [api];
     await start();
-    expect(api.setPreference).toHaveBeenCalledWith(PresenceMode.INVISIBLE, '');
+    expect(api.setPreference).toHaveBeenCalledWith(PresenceStatus.OFFLINE, '');
     expect(presencePreferences.get(origin).mode).toBe('invisible');
   });
 
@@ -97,9 +94,9 @@ describe('shared account presence', () => {
     const api = reporter();
     reporters = [api];
     await start();
-    expect(api.setPreference).toHaveBeenCalledWith(PresenceMode.INVISIBLE, 'one');
-    api.getPreference.mockResolvedValue(choice(PresenceMode.ONLINE, 'other-device'));
-    api.refreshPresence.mockResolvedValue(choice(PresenceMode.ONLINE, 'other-device'));
+    expect(api.setPreference).toHaveBeenCalledWith(PresenceStatus.OFFLINE, 'one');
+    api.getPreference.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
+    api.refreshPresence.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
     refreshPresencePreference(origin);
     await settle();
     expect(presencePreferences.get(origin).mode).toBe('online');
@@ -118,11 +115,16 @@ describe('shared account presence', () => {
 
   it('follows another device after migration even when browser storage cannot save', async () => {
     presencePreferences.get(origin).select('invisible');
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('storage unavailable'); });
-    const api = reporter(); reporters = [api]; await start();
-    api.getPreference.mockResolvedValue(choice(PresenceMode.ONLINE, 'other-device'));
-    api.refreshPresence.mockResolvedValue(choice(PresenceMode.ONLINE, 'other-device'));
-    refreshPresencePreference(origin); await settle();
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+    const api = reporter();
+    reporters = [api];
+    await start();
+    api.getPreference.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
+    api.refreshPresence.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
+    refreshPresencePreference(origin);
+    await settle();
     expect(presencePreferences.get(origin).mode).toBe('online');
     expect(api.setPreference).toHaveBeenCalledTimes(1);
   });
@@ -169,7 +171,7 @@ describe('shared account presence', () => {
     await start();
     reporters = [];
     tracking.sync();
-    finish(choice(PresenceMode.ONLINE));
+    finish(choice(PresenceStatus.ONLINE));
     await settle();
     expect(api.refreshPresence).not.toHaveBeenCalled();
     expect(presencePreferences.get(origin).ready).toBe(false);
@@ -190,7 +192,7 @@ describe('shared account presence', () => {
     await settle();
     await setPresenceMode(origin, 'invisible');
     await settle();
-    finish(choice(PresenceMode.ONLINE));
+    finish(choice(PresenceStatus.ONLINE));
     await settle();
     expect(presencePreferences.get(origin).mode).toBe('invisible');
   });

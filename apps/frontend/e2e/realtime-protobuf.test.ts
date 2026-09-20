@@ -217,7 +217,7 @@ test.describe('protobuf realtime stream', () => {
             page,
             'chatto.api.v1.MyAccountService/SetPresencePreference',
             {
-              mode: 'PRESENCE_MODE_ONLINE',
+              status: 'PRESENCE_STATUS_ONLINE',
               expectedRevision: initial.preference?.revision ?? ''
             }
           );
@@ -234,7 +234,7 @@ test.describe('protobuf realtime stream', () => {
               (event) => event.event.case === 'viewerPresencePreferenceChanged'
             );
           await connectPost(page, 'chatto.api.v1.MyAccountService/SetPresencePreference', {
-            mode: 'PRESENCE_MODE_INVISIBLE',
+            status: 'PRESENCE_STATUS_OFFLINE',
             expectedRevision: online.preference.revision
           });
           const privateHint = await ownStream.waitForEvent(
@@ -480,7 +480,7 @@ test.describe('protobuf realtime stream', () => {
         'chatto.api.v1.MyAccountService/GetPresencePreference'
       );
       await connectPost(page, 'chatto.api.v1.MyAccountService/SetPresencePreference', {
-        mode: 'PRESENCE_MODE_DO_NOT_DISTURB',
+        status: 'PRESENCE_STATUS_DO_NOT_DISTURB',
         expectedRevision: presence.preference?.revision ?? ''
       });
       await withServerUser(browser!, serverURL, async ({ user, page: senderPage }) => {

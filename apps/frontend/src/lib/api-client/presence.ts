@@ -5,7 +5,7 @@ import {
   type ConnectAPIConfig
 } from './connect.js';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
-import { PresenceStatus, PresenceMode } from '@chatto/api-types/api/v1/presence_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 export type PresenceAPIConfig = ConnectAPIConfig;
 
@@ -22,10 +22,10 @@ export function createPresenceAPI(config: PresenceAPIConfig) {
         return handleAuthError(config, err);
       }
     },
-    async setPreference(mode: PresenceMode, expectedRevision: string) {
+    async setPreference(status: PresenceStatus, expectedRevision: string) {
       try {
         return (
-          await client.setPresencePreference({ mode, expectedRevision }, { headers: headers() })
+          await client.setPresencePreference({ status, expectedRevision }, { headers: headers() })
         ).preference;
       } catch (err) {
         return handleAuthError(config, err);

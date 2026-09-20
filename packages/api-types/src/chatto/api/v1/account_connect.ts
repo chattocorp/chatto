@@ -187,7 +187,7 @@ export const MyAccountService = {
     },
     /**
      * Saves a choice for all devices on this server. A stale revision returns ABORTED.
-     * Invisible suppresses public presence and typing; the choice survives disconnects.
+     * OFFLINE suppresses public presence and typing; the choice survives disconnects.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.SetPresencePreference
      */
@@ -200,7 +200,7 @@ export const MyAccountService = {
     /**
      * Refreshes connection liveness without changing the saved choice. Clients call
      * every 30 seconds; liveness expires after 60 seconds without a refresh.
-     * Invisible accounts may refresh without producing public presence signals.
+     * Accounts with a saved OFFLINE choice may refresh without public presence signals.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.RefreshPresence
      */

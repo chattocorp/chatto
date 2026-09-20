@@ -1,12 +1,10 @@
 import { untrack } from 'svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { PresenceAPI } from '$lib/api-client/presence';
-import {
-  PresenceMode as APIMode,
-  type PresencePreference
-} from '@chatto/api-types/api/v1/presence_pb';
+import { PresenceStatus, type PresencePreference } from '@chatto/api-types/api/v1/presence_pb';
 import {
   presencePreferences,
+  presenceModeStatus,
   type PresenceMode
 } from '$lib/state/server/presencePreference.svelte';
 import type { PresenceCacheScope } from '$lib/state/presenceCache.svelte';
@@ -29,26 +27,13 @@ export function refreshPresencePreference(scope: PresenceCacheScope) {
   refreshChoice?.(scope);
 }
 
-function apiMode(mode: PresenceMode): APIMode {
-  switch (mode) {
-    case 'online':
-      return APIMode.ONLINE;
-    case 'away':
-      return APIMode.AWAY;
-    case 'doNotDisturb':
-      return APIMode.DO_NOT_DISTURB;
-    case 'invisible':
-      return APIMode.INVISIBLE;
-  }
-}
-
-function localMode(mode: APIMode): PresenceMode {
-  switch (mode) {
-    case APIMode.ONLINE:
+function localMode(status: PresenceStatus): PresenceMode {
+  switch (status) {
+    case PresenceStatus.ONLINE:
       return 'online';
-    case APIMode.AWAY:
+    case PresenceStatus.AWAY:
       return 'away';
-    case APIMode.DO_NOT_DISTURB:
+    case PresenceStatus.DO_NOT_DISTURB:
       return 'doNotDisturb';
     default:
       return 'invisible';
@@ -79,7 +64,7 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
 
   function accept(account: Account, sequence: number, value: PresencePreference | undefined) {
     if (!current(account, sequence) || !value?.revision) return;
-    presencePreferences.get(account.reporter).accept(localMode(value.mode), value.revision);
+    presencePreferences.get(account.reporter).accept(localMode(value.status), value.revision);
   }
 
   async function reconcile(account: Account, retryConflict = true) {
@@ -90,16 +75,16 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
       let value = await account.reporter.getPreference();
       if (!current(account, sequence)) return;
       if (!value) {
-        value = await account.reporter.setPreference(apiMode(preference.mode), '');
+        value = await account.reporter.setPreference(presenceModeStatus(preference.mode), '');
       } else if (
         !preference.revision &&
         !preference.migrated.get() &&
         preference.mode === 'invisible' &&
-        value.mode !== APIMode.INVISIBLE
+        value.status !== PresenceStatus.OFFLINE
       ) {
         // An older device's explicit invisible choice must not become public
         // during its first upgrade to the shared preference.
-        value = await account.reporter.setPreference(APIMode.INVISIBLE, value.revision);
+        value = await account.reporter.setPreference(PresenceStatus.OFFLINE, value.revision);
       }
       if (!current(account, sequence)) return;
       accept(account, sequence, value);
@@ -109,7 +94,8 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
       if (
         retryConflict &&
         current(account, sequence) &&
-        (ConnectError.from(error).code === Code.Aborted || ConnectError.from(error).code === Code.Canceled)
+        (ConnectError.from(error).code === Code.Aborted ||
+          ConnectError.from(error).code === Code.Canceled)
       ) {
         await reconcile(account, false);
       }
@@ -125,7 +111,10 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     const sequence = ++account.sequence;
     account.busy = true;
     try {
-      const value = await account.reporter.setPreference(apiMode(mode), preference.revision);
+      const value = await account.reporter.setPreference(
+        presenceModeStatus(mode),
+        preference.revision
+      );
       if (!current(account, sequence) || !value?.revision)
         throw new Error('Presence selection interrupted');
       accept(account, sequence, value);

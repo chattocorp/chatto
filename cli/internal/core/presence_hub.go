@@ -112,12 +112,12 @@ func (h *PresenceHub) effectiveStatusLocked(userID, live string) string {
 		return PresenceStatusOffline
 	}
 	if p := h.preferences[userID]; p != nil {
-		switch p.Mode {
-		case apiv1.PresenceMode_PRESENCE_MODE_ONLINE:
+		switch p.Status {
+		case apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE:
 			return PresenceStatusOnline
-		case apiv1.PresenceMode_PRESENCE_MODE_AWAY:
+		case apiv1.PresenceStatus_PRESENCE_STATUS_AWAY:
 			return PresenceStatusAway
-		case apiv1.PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB:
+		case apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB:
 			return PresenceStatusDoNotDisturb
 		default:
 			return PresenceStatusOffline
@@ -248,7 +248,7 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 						preferences.Stop()
 						return fmt.Errorf("decode private presence choice: %w", err)
 					}
-					choice = &apiv1.PresencePreference{Mode: apiv1.PresenceMode(value.Mode), Revision: value.Revision}
+					choice = &apiv1.PresencePreference{Status: value.Status, Revision: value.Revision}
 				}
 				h.applyPreference(userID, choice, entry.Revision())
 				h.mu.Lock()

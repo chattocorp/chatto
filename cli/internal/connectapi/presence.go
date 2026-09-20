@@ -27,7 +27,7 @@ func (s *accountService) SetPresencePreference(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
-	p, err := s.api.core.SetPresencePreference(ctx, caller.UserID, req.Msg.Mode, req.Msg.ExpectedRevision)
+	p, err := s.api.core.SetPresencePreference(ctx, caller.UserID, req.Msg.Status, req.Msg.ExpectedRevision)
 	if errors.Is(err, events.ErrConflict) {
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}

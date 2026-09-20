@@ -143,11 +143,11 @@ type MyAccountServiceClient interface {
 	// Reads the authenticated account's private saved availability choice.
 	GetPresencePreference(context.Context, *connect.Request[v1.GetPresencePreferenceRequest]) (*connect.Response[v1.GetPresencePreferenceResponse], error)
 	// Saves a choice for all devices on this server. A stale revision returns ABORTED.
-	// Invisible suppresses public presence and typing; the choice survives disconnects.
+	// OFFLINE suppresses public presence and typing; the choice survives disconnects.
 	SetPresencePreference(context.Context, *connect.Request[v1.SetPresencePreferenceRequest]) (*connect.Response[v1.SetPresencePreferenceResponse], error)
 	// Refreshes connection liveness without changing the saved choice. Clients call
 	// every 30 seconds; liveness expires after 60 seconds without a refresh.
-	// Invisible accounts may refresh without producing public presence signals.
+	// Accounts with a saved OFFLINE choice may refresh without public presence signals.
 	RefreshPresence(context.Context, *connect.Request[v1.RefreshPresenceRequest]) (*connect.Response[v1.RefreshPresenceResponse], error)
 	// Sets the current user's complete custom status. Emoji and text are required.
 	// Omit expires_at for no expiry, or supply a future time.
@@ -462,11 +462,11 @@ type MyAccountServiceHandler interface {
 	// Reads the authenticated account's private saved availability choice.
 	GetPresencePreference(context.Context, *connect.Request[v1.GetPresencePreferenceRequest]) (*connect.Response[v1.GetPresencePreferenceResponse], error)
 	// Saves a choice for all devices on this server. A stale revision returns ABORTED.
-	// Invisible suppresses public presence and typing; the choice survives disconnects.
+	// OFFLINE suppresses public presence and typing; the choice survives disconnects.
 	SetPresencePreference(context.Context, *connect.Request[v1.SetPresencePreferenceRequest]) (*connect.Response[v1.SetPresencePreferenceResponse], error)
 	// Refreshes connection liveness without changing the saved choice. Clients call
 	// every 30 seconds; liveness expires after 60 seconds without a refresh.
-	// Invisible accounts may refresh without producing public presence signals.
+	// Accounts with a saved OFFLINE choice may refresh without public presence signals.
 	RefreshPresence(context.Context, *connect.Request[v1.RefreshPresenceRequest]) (*connect.Response[v1.RefreshPresenceResponse], error)
 	// Sets the current user's complete custom status. Emoji and text are required.
 	// Omit expires_at for no expiry, or supply a future time.

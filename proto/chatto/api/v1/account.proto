@@ -230,11 +230,11 @@ service MyAccountService {
   // Reads the authenticated account's private saved availability choice.
   rpc GetPresencePreference(GetPresencePreferenceRequest) returns (GetPresencePreferenceResponse);
   // Saves a choice for all devices on this server. A stale revision returns ABORTED.
-  // Invisible suppresses public presence and typing; the choice survives disconnects.
+  // OFFLINE suppresses public presence and typing; the choice survives disconnects.
   rpc SetPresencePreference(SetPresencePreferenceRequest) returns (SetPresencePreferenceResponse);
   // Refreshes connection liveness without changing the saved choice. Clients call
   // every 30 seconds; liveness expires after 60 seconds without a refresh.
-  // Invisible accounts may refresh without producing public presence signals.
+  // Accounts with a saved OFFLINE choice may refresh without public presence signals.
   rpc RefreshPresence(RefreshPresenceRequest) returns (RefreshPresenceResponse);
   // Sets the current user's complete custom status. Emoji and text are required.
   // Omit expires_at for no expiry, or supply a future time.

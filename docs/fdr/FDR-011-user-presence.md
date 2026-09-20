@@ -42,6 +42,9 @@ or Offline on presence indicators.
 **Decision:** Keep only the current private account choice in the existing
 `RUNTIME_STATE` bucket under `presence.{userId}`. Replace it with KV revision
 checks. Never append presence changes to EVT. Expire live heartbeats separately.
+Use one `PresenceStatus` enum for both the saved choice and public status.
+A saved Offline choice means "Look offline"; a public Offline value can also
+mean that no device is connected. The private record contains status and revision.
 **Why:** Refreshing a device must not overwrite another device's selection.
 **Tradeoff:** The server retains the current choice, including the hidden choice,
 across restarts. Runtime-state backups also contain that current value. There

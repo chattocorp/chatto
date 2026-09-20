@@ -22,85 +22,23 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Private availability choice shared by the account's devices on this server.
-// Other users only receive PresenceStatus, never this choice.
-type PresenceMode int32
-
-const (
-	// No choice supplied; rejected on selection.
-	PresenceMode_PRESENCE_MODE_UNSPECIFIED PresenceMode = 0
-	// Show Online while at least one device refreshes liveness.
-	PresenceMode_PRESENCE_MODE_ONLINE PresenceMode = 1
-	// Show Away while at least one device refreshes liveness.
-	PresenceMode_PRESENCE_MODE_AWAY PresenceMode = 2
-	// Suppress notification alerts on all devices until the choice changes.
-	PresenceMode_PRESENCE_MODE_DO_NOT_DISTURB PresenceMode = 3
-	// Public presence is indistinguishable from an offline account.
-	PresenceMode_PRESENCE_MODE_INVISIBLE PresenceMode = 4
-)
-
-// Enum value maps for PresenceMode.
-var (
-	PresenceMode_name = map[int32]string{
-		0: "PRESENCE_MODE_UNSPECIFIED",
-		1: "PRESENCE_MODE_ONLINE",
-		2: "PRESENCE_MODE_AWAY",
-		3: "PRESENCE_MODE_DO_NOT_DISTURB",
-		4: "PRESENCE_MODE_INVISIBLE",
-	}
-	PresenceMode_value = map[string]int32{
-		"PRESENCE_MODE_UNSPECIFIED":    0,
-		"PRESENCE_MODE_ONLINE":         1,
-		"PRESENCE_MODE_AWAY":           2,
-		"PRESENCE_MODE_DO_NOT_DISTURB": 3,
-		"PRESENCE_MODE_INVISIBLE":      4,
-	}
-)
-
-func (x PresenceMode) Enum() *PresenceMode {
-	p := new(PresenceMode)
-	*p = x
-	return p
-}
-
-func (x PresenceMode) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (PresenceMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_presence_proto_enumTypes[0].Descriptor()
-}
-
-func (PresenceMode) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_presence_proto_enumTypes[0]
-}
-
-func (x PresenceMode) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use PresenceMode.Descriptor instead.
-func (PresenceMode) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{0}
-}
-
-// Live presence status returned by public read APIs.
+// Availability used for private choices and effective public presence.
 //
-// Offline is a public read-side state. It reveals neither connection liveness
-// nor whether the account selected Invisible. Use the private preference API
-// for explicit choices and RefreshPresence for connection heartbeats.
+// Public Offline reveals neither connection liveness nor whether the account
+// selected "Appear Offline". A saved Online, Away, or Do Not Disturb choice
+// becomes public Offline when no device refreshes liveness.
 type PresenceStatus int32
 
 const (
 	// No presence status was specified.
 	PresenceStatus_PRESENCE_STATUS_UNSPECIFIED PresenceStatus = 0
-	// The user is actively available.
+	// Online while at least one device refreshes liveness.
 	PresenceStatus_PRESENCE_STATUS_ONLINE PresenceStatus = 1
-	// The user is connected but away or idle.
+	// Away while at least one device refreshes liveness.
 	PresenceStatus_PRESENCE_STATUS_AWAY PresenceStatus = 2
-	// The user does not want notifications while this live status is active.
+	// Do Not Disturb. A saved choice suppresses alerts even while disconnected.
 	PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB PresenceStatus = 3
-	// The user has no public live presence.
+	// No public live presence. As a saved choice, suppresses presence and typing.
 	PresenceStatus_PRESENCE_STATUS_OFFLINE PresenceStatus = 4
 )
 
@@ -133,11 +71,11 @@ func (x PresenceStatus) String() string {
 }
 
 func (PresenceStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_presence_proto_enumTypes[1].Descriptor()
+	return file_chatto_api_v1_presence_proto_enumTypes[0].Descriptor()
 }
 
 func (PresenceStatus) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_presence_proto_enumTypes[1]
+	return &file_chatto_api_v1_presence_proto_enumTypes[0]
 }
 
 func (x PresenceStatus) Number() protoreflect.EnumNumber {
@@ -146,14 +84,15 @@ func (x PresenceStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PresenceStatus.Descriptor instead.
 func (PresenceStatus) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{0}
 }
 
 // Saved choice visible only to the authenticated account itself.
 type PresencePreference struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The account's saved choice, independent of current connection liveness.
-	Mode PresenceMode `protobuf:"varint,1,opt,name=mode,proto3,enum=chatto.api.v1.PresenceMode" json:"mode,omitempty"`
+	// Saved choice, independent of liveness. OFFLINE means "Appear Offline";
+	// DO_NOT_DISTURB suppresses alerts even while disconnected.
+	Status PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
 	// Opaque revision required when replacing this choice.
 	Revision      string `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -190,11 +129,11 @@ func (*PresencePreference) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PresencePreference) GetMode() PresenceMode {
+func (x *PresencePreference) GetStatus() PresenceStatus {
 	if x != nil {
-		return x.Mode
+		return x.Status
 	}
-	return PresenceMode_PRESENCE_MODE_UNSPECIFIED
+	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
 }
 
 func (x *PresencePreference) GetRevision() string {
@@ -291,7 +230,7 @@ func (x *GetPresencePreferenceResponse) GetPreference() *PresencePreference {
 type SetPresencePreferenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Explicit new choice for every device on this server.
-	Mode PresenceMode `protobuf:"varint,1,opt,name=mode,proto3,enum=chatto.api.v1.PresenceMode" json:"mode,omitempty"`
+	Status PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
 	// Revision from the last read; empty only when initializing an absent choice.
 	ExpectedRevision string `protobuf:"bytes,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -328,11 +267,11 @@ func (*SetPresencePreferenceRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *SetPresencePreferenceRequest) GetMode() PresenceMode {
+func (x *SetPresencePreferenceRequest) GetStatus() PresenceStatus {
 	if x != nil {
-		return x.Mode
+		return x.Status
 	}
-	return PresenceMode_PRESENCE_MODE_UNSPECIFIED
+	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
 }
 
 func (x *SetPresencePreferenceRequest) GetExpectedRevision() string {
@@ -576,18 +515,18 @@ var File_chatto_api_v1_presence_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"a\n" +
-	"\x12PresencePreference\x12/\n" +
-	"\x04mode\x18\x01 \x01(\x0e2\x1b.chatto.api.v1.PresenceModeR\x04mode\x12\x1a\n" +
+	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"g\n" +
+	"\x12PresencePreference\x125\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\tR\brevision\"\x1e\n" +
 	"\x1cGetPresencePreferenceRequest\"b\n" +
 	"\x1dGetPresencePreferenceResponse\x12A\n" +
 	"\n" +
 	"preference\x18\x01 \x01(\v2!.chatto.api.v1.PresencePreferenceR\n" +
-	"preference\"\x88\x01\n" +
-	"\x1cSetPresencePreferenceRequest\x12;\n" +
-	"\x04mode\x18\x01 \x01(\x0e2\x1b.chatto.api.v1.PresenceModeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04mode\x12+\n" +
+	"preference\"\x8e\x01\n" +
+	"\x1cSetPresencePreferenceRequest\x12A\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06status\x12+\n" +
 	"\x11expected_revision\x18\x02 \x01(\tR\x10expectedRevision\"b\n" +
 	"\x1dSetPresencePreferenceResponse\x12A\n" +
 	"\n" +
@@ -602,13 +541,7 @@ const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusB\f\xbaH\t\x82\x01\x06\x10\x01 \x00 \x04R\x06status\x12#\n" +
 	"\ruser_selected\x18\x02 \x01(\bR\fuserSelected\"L\n" +
 	"\x13SetPresenceResponse\x125\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status*\x9e\x01\n" +
-	"\fPresenceMode\x12\x1d\n" +
-	"\x19PRESENCE_MODE_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14PRESENCE_MODE_ONLINE\x10\x01\x12\x16\n" +
-	"\x12PRESENCE_MODE_AWAY\x10\x02\x12 \n" +
-	"\x1cPRESENCE_MODE_DO_NOT_DISTURB\x10\x03\x12\x1b\n" +
-	"\x17PRESENCE_MODE_INVISIBLE\x10\x04*\xa8\x01\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status*\xa8\x01\n" +
 	"\x0ePresenceStatus\x12\x1f\n" +
 	"\x1bPRESENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PRESENCE_STATUS_ONLINE\x10\x01\x12\x18\n" +
@@ -629,29 +562,28 @@ func file_chatto_api_v1_presence_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_presence_proto_rawDescData
 }
 
-var file_chatto_api_v1_presence_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chatto_api_v1_presence_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_api_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chatto_api_v1_presence_proto_goTypes = []any{
-	(PresenceMode)(0),                     // 0: chatto.api.v1.PresenceMode
-	(PresenceStatus)(0),                   // 1: chatto.api.v1.PresenceStatus
-	(*PresencePreference)(nil),            // 2: chatto.api.v1.PresencePreference
-	(*GetPresencePreferenceRequest)(nil),  // 3: chatto.api.v1.GetPresencePreferenceRequest
-	(*GetPresencePreferenceResponse)(nil), // 4: chatto.api.v1.GetPresencePreferenceResponse
-	(*SetPresencePreferenceRequest)(nil),  // 5: chatto.api.v1.SetPresencePreferenceRequest
-	(*SetPresencePreferenceResponse)(nil), // 6: chatto.api.v1.SetPresencePreferenceResponse
-	(*RefreshPresenceRequest)(nil),        // 7: chatto.api.v1.RefreshPresenceRequest
-	(*RefreshPresenceResponse)(nil),       // 8: chatto.api.v1.RefreshPresenceResponse
-	(*SetPresenceRequest)(nil),            // 9: chatto.api.v1.SetPresenceRequest
-	(*SetPresenceResponse)(nil),           // 10: chatto.api.v1.SetPresenceResponse
+	(PresenceStatus)(0),                   // 0: chatto.api.v1.PresenceStatus
+	(*PresencePreference)(nil),            // 1: chatto.api.v1.PresencePreference
+	(*GetPresencePreferenceRequest)(nil),  // 2: chatto.api.v1.GetPresencePreferenceRequest
+	(*GetPresencePreferenceResponse)(nil), // 3: chatto.api.v1.GetPresencePreferenceResponse
+	(*SetPresencePreferenceRequest)(nil),  // 4: chatto.api.v1.SetPresencePreferenceRequest
+	(*SetPresencePreferenceResponse)(nil), // 5: chatto.api.v1.SetPresencePreferenceResponse
+	(*RefreshPresenceRequest)(nil),        // 6: chatto.api.v1.RefreshPresenceRequest
+	(*RefreshPresenceResponse)(nil),       // 7: chatto.api.v1.RefreshPresenceResponse
+	(*SetPresenceRequest)(nil),            // 8: chatto.api.v1.SetPresenceRequest
+	(*SetPresenceResponse)(nil),           // 9: chatto.api.v1.SetPresenceResponse
 }
 var file_chatto_api_v1_presence_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.PresencePreference.mode:type_name -> chatto.api.v1.PresenceMode
-	2, // 1: chatto.api.v1.GetPresencePreferenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
-	0, // 2: chatto.api.v1.SetPresencePreferenceRequest.mode:type_name -> chatto.api.v1.PresenceMode
-	2, // 3: chatto.api.v1.SetPresencePreferenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
-	2, // 4: chatto.api.v1.RefreshPresenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
-	1, // 5: chatto.api.v1.SetPresenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
-	1, // 6: chatto.api.v1.SetPresenceResponse.status:type_name -> chatto.api.v1.PresenceStatus
+	0, // 0: chatto.api.v1.PresencePreference.status:type_name -> chatto.api.v1.PresenceStatus
+	1, // 1: chatto.api.v1.GetPresencePreferenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
+	0, // 2: chatto.api.v1.SetPresencePreferenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
+	1, // 3: chatto.api.v1.SetPresencePreferenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
+	1, // 4: chatto.api.v1.RefreshPresenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
+	0, // 5: chatto.api.v1.SetPresenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
+	0, // 6: chatto.api.v1.SetPresenceResponse.status:type_name -> chatto.api.v1.PresenceStatus
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name
@@ -669,7 +601,7 @@ func file_chatto_api_v1_presence_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_presence_proto_rawDesc), len(file_chatto_api_v1_presence_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      1,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
