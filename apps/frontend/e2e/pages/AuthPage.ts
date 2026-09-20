@@ -477,12 +477,13 @@ export class AuthPage {
   }
 
   /**
-   * Request a password reset by filling and submitting the forgot password form.
+   * Request a password reset and wait for the server confirmation before returning.
    */
   async requestPasswordReset(email: string): Promise<void> {
     await this.gotoForgotPassword();
     await this.fillForgotPasswordForm(email);
     await this.submitForgotPassword();
+    await expect(this.page.getByText(/check your email/i)).toBeVisible();
   }
 
   /**
