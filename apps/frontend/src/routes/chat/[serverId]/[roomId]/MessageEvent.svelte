@@ -405,7 +405,8 @@
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
   const hasThreadUnread = $derived(
-    hasReplies && event && messageEvent?.viewerHasUnreadThread === true
+    hasReplies && event && messageEvent?.viewerHasUnreadThread === true &&
+      !stores.readViews.covers(roomId, event.id)
   );
   const hasMessageFooter = $derived(
     (isEcho && !!onOpenThread) ||

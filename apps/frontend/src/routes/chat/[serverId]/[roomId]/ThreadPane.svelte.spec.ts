@@ -12,6 +12,8 @@ const { mocks } = vi.hoisted(() => {
   return {
     mocks: {
       markThreadAsRead: vi.fn(),
+      registerReadView: vi.fn(() => vi.fn()),
+      reconcileThreadRead: vi.fn(),
       followThread: vi.fn(),
       unfollowThread: vi.fn(),
       setThread: vi.fn(),
@@ -108,6 +110,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: (serverId: string) => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+      readViews: { register: mocks.registerReadView },
+      reconcileThreadRead: mocks.reconcileThreadRead,
       retainMessagesForThread:
         serverId === 'server-2'
           ? mocks.nextServerRetainMessagesForThread
@@ -258,7 +262,8 @@ describe('ThreadPane', () => {
     expect(container.querySelector('[role="slider"]')).toBeNull();
   });
 
-  it('marks the thread as read through its content cursor', async () => {
+  it.each([null, '2026-07-04T13:00:00Z'])('reconciles a read with previous position %s', async (previousLastReadAt) => {
+    mocks.markThreadAsRead.mockResolvedValue({ previousLastReadAt, lastReadAt: '2026-07-04T13:00:00Z' });
     render(ThreadPane, {
       props: {
         roomId: 'room-1',
@@ -280,6 +285,23 @@ describe('ThreadPane', () => {
     );
 
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
+    expect(mocks.reconcileThreadRead).toHaveBeenCalledWith('room-1', 'thread-root');
+  });
+
+  it('registers only visible panes and releases the registration on unmount', () => {
+    const release = vi.fn();
+    mocks.registerReadView.mockReturnValue(release);
+    const pane = render(ThreadPane, {
+      props: { roomId: 'room-1', roomName: 'General', threadRootEventId: 'thread-root', onClose: mocks.onClose }
+    });
+    expect(mocks.registerReadView).toHaveBeenCalledWith({ roomId: 'room-1', threadRootId: 'thread-root' });
+    pane.unmount();
+    expect(release).toHaveBeenCalledOnce();
+    mocks.registerReadView.mockClear();
+    render(ThreadPane, {
+      props: { roomId: 'room-1', roomName: 'General', threadRootEventId: 'thread-root', isVisible: false, onClose: mocks.onClose }
+    });
+    expect(mocks.registerReadView).not.toHaveBeenCalled();
   });
 
   it('forwards unread marker state and bottom arrival to EventList', () => {

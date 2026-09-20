@@ -13,6 +13,7 @@ import type { PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPermissions, ViewerData } from './permissions';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
+import { ReadViewRegistry } from './readViews.svelte';
 import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
@@ -149,6 +150,7 @@ export class ServerStateStore {
   readonly currentUser: CurrentUserState;
   readonly serverInfo: ServerInfoState;
   readonly notifications: NotificationStore;
+  readonly readViews = new ReadViewRegistry();
   readonly roomUnread: RoomUnreadStore;
   readonly pendingHighlights: PendingHighlightStore;
   readonly voiceCall: VoiceCallState;
@@ -265,7 +267,9 @@ export class ServerStateStore {
       onAuthenticationRequired
     );
     this.serverInfo = new ServerInfoState(registration.url, publicServerInfoLoader);
-    this.notifications = new NotificationStore(notificationAPI);
+    this.notifications = new NotificationStore(notificationAPI, (roomId, threadRootId) =>
+      this.readViews.covers(roomId, threadRootId)
+    );
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
@@ -288,7 +292,15 @@ export class ServerStateStore {
       new CallPreferencesState(this.serverId)
     );
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
-    this.navigation = new NavigationStore(this.projection, this.realtimeSync, this.notifications);
+    const notifications = this.notifications;
+    this.navigation = new NavigationStore(this.projection, this.realtimeSync, {
+      get roomUnreadCounts() {
+        return notifications.attention.roomUnreadCounts;
+      },
+      get roomImportantUnreadCounts() {
+        return notifications.attention.roomImportantUnreadCounts;
+      }
+    });
     this.roomDirectory = new RoomDirectoryStore(
       this.navigation,
       memberDirectoryAPI,
@@ -514,14 +526,24 @@ export class ServerStateStore {
 
   /** Check loaded canonical room timelines for one unread followed thread. */
   hasUnreadFollowedThreadInLoadedRooms(): boolean {
-    return Object.values(this.#roomMessages).some((store) =>
+    return Object.entries(this.#roomMessages).some(([roomId, store]) =>
       store.rootEvents.some(
         (event) =>
           event.event.kind === TimelineEventKind.MessagePosted &&
           event.event.viewerIsFollowingThread === true &&
-          event.event.viewerHasUnreadThread === true
+          event.event.viewerHasUnreadThread === true &&
+          !this.readViews.covers(roomId, event.id)
       )
     );
+  }
+
+  /** Reconcile a successful thread read even when its realtime hint is absent or a no-op. */
+  reconcileThreadRead(roomId: string, threadRootEventId: string): void {
+    const roomStore = this.#roomMessages[roomId];
+    if (roomStore) this.scheduleMessageWindowRefresh(roomStore, threadRootEventId);
+    refreshRegisteredFollowedThreadQueries(this.serverId);
+    this.refreshRealtimeResource('notifications');
+    this.refreshRealtimeResource('rooms');
   }
 
   /** Stable lazy file-list owner for one room on this server. */
@@ -1733,7 +1755,7 @@ export class ServerStateStore {
    */
   serverIndicator(): ServerIndicator {
     // Channel + DM activity both roll up to the single server indicator.
-    if (this.notifications.unreadNotificationCount > 0) return 'notification';
+    if (this.notifications.attention.unreadNotificationCount > 0) return 'notification';
     if (this.notifications.hasNonDMNotifications()) return 'notification';
     if (this.notifications.hasDMNotifications()) return 'notification';
     if (this.roomUnread.hasAnyUnread) return 'unread';
@@ -1795,6 +1817,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.readViews.clear();
     // In-flight destination and realtime reads must not revive a retired store.
     this.#realtimeProjectionGeneration++;
     this.#permissionCheckGeneration++;

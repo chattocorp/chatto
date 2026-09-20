@@ -410,7 +410,7 @@ also prevents old navigation. See ADR-062.
 Notification creation hints carry `created_notification_id`, including during
 Do Not Disturb and for initially read occurrences. Updates and removals omit it.
 The frontend waits for the coalesced notification resource reads, then checks
-the retained unread row and its attention level, local Do Not Disturb status,
+the retained unread row and its attention level, local read views, Do Not Disturb status,
 and per-server sound preferences. This wait adds no RPC and does not consume
 cursor-owner failures.
 Only newly created unread Important occurrences can trigger sound; Ambient
@@ -419,6 +419,18 @@ sound and remembers 256 IDs per server
 subscription. Failed reads, missing rows, reset state, and disposed subscriptions
 do not play a sound. Periodic reconciliation is silent. Web Push keeps its
 server-side policy checks.
+
+Each server store owns a RAM-only
+[`ReadViewRegistry`](../../apps/frontend/src/lib/state/server/readViews.svelte.ts).
+Visible thread panes register independently and remove their own registration
+when hidden or unmounted. Exact room and thread targets permit concurrent views;
+a room view does not cover its threads. App focus and visibility gate the shared
+attention rule. Notification badges and sound use this rule without changing
+server rows or counts. Presentation counts subtract only loaded unread
+occurrences covered by a view. Each successful thread read also refreshes its
+parent message, followed-thread queries, notifications, and room state through
+the existing refresh scheduler, without requiring a realtime invalidation.
+This read does not replace the open thread's loaded message window.
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
 it receives a snapshot and applies all resource families from that one frame.

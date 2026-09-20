@@ -1998,6 +1998,67 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps a long thread window when reconciling a successful read', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const thread = store.messagesForThread('R1', 'ROOT');
+    await flushPromises();
+    const row = (index: number): TimelineEventView => ({
+      id: index === 0 ? 'ROOT' : `REPLY-${index}`,
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+      event: {
+        kind: TimelineEventKind.MessagePosted,
+        roomId: 'R1',
+        threadRootEventId: index === 0 ? null : 'ROOT',
+        body: `Message ${index}`,
+        attachments: [],
+        replyCount: 0,
+        threadParticipants: [],
+        reactions: []
+      }
+    });
+    const loaded = Array.from({ length: 121 }, (_, index) => row(index));
+    for (const event of loaded) thread.ingestEvent(event);
+    const beforeRead = thread.threadEvents.map((event) => event.id);
+    expect(beforeRead).toHaveLength(120);
+    const api: ReturnType<typeof createRoomTimelineAPI> = vi
+      .mocked(createRoomTimelineAPI).mock.results.at(-1)!.value;
+    vi.mocked(api.getThreadEventsAround).mockResolvedValue({
+      events: loaded.slice(0, 50),
+      startCursor: 'first-reply',
+      endCursor: 'reply-49',
+      hasOlder: false,
+      hasNewer: true
+    });
+
+    store.reconcileThreadRead('R1', 'ROOT');
+    await flushPromises();
+
+    expect(thread.threadEvents.map((event) => event.id)).toEqual(beforeRead);
+  });
+
+  it('reconciles every successful thread read without a realtime hint', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    const thread = store.messagesForThread('R1', 'E-ROOT');
+    const result = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
+    const refreshRoom = vi.spyOn(room, 'refreshCurrentWindow').mockResolvedValue(result);
+    const refreshThread = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue(result);
+    await flushPromises();
+    refreshRoom.mockClear();
+    refreshThread.mockClear();
+    cacheMocks.refreshFollowedThreads.mockClear();
+
+    store.reconcileThreadRead('R1', 'E-ROOT');
+    await flushPromises();
+    store.reconcileThreadRead('R1', 'E-ROOT');
+    await flushPromises();
+
+    expect(refreshRoom).toHaveBeenCalledTimes(2);
+    expect(refreshThread).not.toHaveBeenCalled();
+    expect(refreshRoom).toHaveBeenLastCalledWith('E-ROOT', false, undefined, expect.any(Function));
+    expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
+  });
+
   it.each([false, true])('uses cached realtime authors (bot: %s)', async (isBot) => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');

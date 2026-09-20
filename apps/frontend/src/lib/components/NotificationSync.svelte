@@ -71,7 +71,7 @@ Include this component once in the application root so signed-out pages also cle
         const hasAudibleCreation = stores.notifications.occurrences.some(
           (row) =>
             pendingCreations.includes(row.id) &&
-            row.unread &&
+            stores.notifications.needsAttention(row) &&
             row.attentionLevel === NotificationAttentionLevel.IMPORTANT
         );
         pendingCreations.length = 0;
@@ -126,7 +126,7 @@ Include this component once in the application root so signed-out pages also cle
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       if (!stores.notifications.hasLoaded) return null;
-      unreadOccurrenceCount += stores.notifications.unreadNotificationCount;
+      unreadOccurrenceCount += stores.notifications.attention.unreadNotificationCount;
     }
 
     if (unreadOccurrenceCount > 0) return { kind: 'count', count: unreadOccurrenceCount };

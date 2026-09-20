@@ -28,6 +28,8 @@ const { mocks } = vi.hoisted(() => {
       }>,
       count: 0,
       unreadNotificationCount: 0,
+      get attention() { return { unreadNotificationCount: this.unreadNotificationCount }; },
+      needsAttention: vi.fn((row: { unread: boolean }) => row.unread),
       hasLoaded: true,
       nextExpiryAt: null as string | null,
       fetch: vi.fn(async () => {}),
@@ -181,6 +183,7 @@ describe('NotificationSync', () => {
       store.notifications.nextExpiryAt = null;
       store.notifications.fetch.mockClear();
       store.notifications.reconcile.mockClear();
+      store.notifications.needsAttention.mockReset().mockImplementation((row) => row.unread);
     }
   });
 
@@ -190,6 +193,15 @@ describe('NotificationSync', () => {
     dispatch(true);
 
     await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
+  });
+
+  it('keeps a viewed thread silent even while its server occurrence is unread', async () => {
+    mocks.stores.origin.notifications.needsAttention.mockReturnValue(false);
+    await renderAndWaitForSubscription();
+    dispatch(true);
+    await vi.waitFor(() => expect(mocks.stores.origin.notifications.needsAttention).toHaveBeenCalled());
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+    expect(mocks.stores.origin.notifications.occurrences[0].unread).toBe(true);
   });
 
   it('keeps a new Ambient notification silent despite existing Important notifications', async () => {

@@ -19,7 +19,7 @@ export function usePageTitle(): () => string {
     const totalCount = serverRegistry.servers.reduce((sum, instance) => {
       const store = serverRegistry.getStore(instance.id);
       if (!store.isAuthenticated) return sum;
-      return sum + store.notifications.unreadNotificationCount;
+      return sum + store.notifications.attention.unreadNotificationCount;
     }, 0);
 
     return totalCount > 0 ? `(${totalCount}) ${base}` : base;

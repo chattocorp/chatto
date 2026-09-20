@@ -49,6 +49,7 @@
   const connection = {} as ServerConnection;
   const store = {
     notifications: { hasThreadNotification: () => false },
+    readViews: { covers: () => false },
     serverInfo: { messageEditWindowSeconds: 31_536_000, supportsFeature: () => true },
     activeCallRooms: { getParticipantCallPresence: () => null },
     currentUser: {

@@ -229,8 +229,8 @@
   href={setupRequired ? resolve('/setup') : resolve('/chat/[serverId]', { serverId: serverSegment })}
   selected={isActiveServer}
   indicator={stores.serverIndicator()}
-  notificationCount={notificationStore.unreadNotificationCount}
-  importantNotificationCount={notificationStore.importantUnreadNotificationCount}
+  notificationCount={notificationStore.attention.unreadNotificationCount}
+  importantNotificationCount={notificationStore.attention.importantUnreadNotificationCount}
   onclick={handleServerClick}
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}

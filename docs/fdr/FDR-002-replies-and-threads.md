@@ -59,6 +59,10 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   reply, participant preview, reply count, activity time, reply unread state,
   and client-side decoration for a matching unread notification.
 - An open thread overlays the dimmed, inactive room timeline by default. A user can instead select a side-by-side layout in App Preferences. The side-by-side layout keeps both panes interactive when the room area is wide enough and uses the overlay when the area becomes too narrow. The side-by-side thread pane is resizable, and the app remembers its width on the device.
+- A visible thread in a focused app reads incoming replies automatically. Its
+  unread and notification indicators stay hidden while the user views it.
+  After a successful read, the client refreshes the thread state even if no
+  live read update arrives. A hidden pane does not read new replies.
 - Within the room's Threading Mode, a user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread. Location permissions still gate the allowed operations independently.
 
 ## Design Decisions

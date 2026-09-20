@@ -103,7 +103,7 @@ describe('AppHeader', () => {
 
   it('shows notifications when a server is registered', () => {
     mocks.servers = [{ id: 'remote' }];
-    mocks.getStore.mockReturnValue({ notifications: { count: 0 } });
+    mocks.getStore.mockReturnValue({ notifications: { attention: { unreadNotificationCount: 0 } } });
 
     const { container } = render(AppHeader);
 
@@ -124,7 +124,7 @@ describe('AppHeader', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.activeServer = 'remote';
     mocks.authenticated = { remote: true };
-    mocks.getStore.mockReturnValue({ notifications: { count: 0 } });
+    mocks.getStore.mockReturnValue({ notifications: { attention: { unreadNotificationCount: 0 } } });
 
     const { container } = render(AppHeader);
 
