@@ -911,6 +911,61 @@ describe('notifications page', () => {
     }
   });
 
+  it('Dismiss read rechecks a server refreshed while another server is loading', async () => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const read = { ...mocks.occurrence, id: 'older-read', unread: false };
+    const incoming = { ...mocks.occurrence, id: 'incoming-unread' };
+    const originAPI = {
+      listNotificationOccurrences: vi.fn().mockResolvedValue(page([read])),
+      batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(1)
+    };
+    let finishRemote!: (value: ReturnType<typeof page>) => void;
+    const remoteAPI = {
+      listNotificationOccurrences: vi.fn(
+        () =>
+          new Promise<ReturnType<typeof page>>((resolve) => {
+            finishRemote = resolve;
+          })
+      ),
+      batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(1)
+    };
+    const origin = new NotificationStore(originAPI as never);
+    const remote = new NotificationStore(remoteAPI as never);
+    origin.replaceOccurrenceProjection(page([mocks.occurrence], true));
+    remote.replaceOccurrenceProjection(page([mocks.occurrence], true));
+    const previous = mocks.store.notifications;
+    (mocks.store as { notifications: unknown }).notifications = origin;
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', { ...mocks.store, notifications: remote });
+    const { container, unmount } = render(NotificationsPage);
+    try {
+      (q(container, 'button[aria-label="Dismiss read"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => {
+        expect(origin.hasMore).toBe(false);
+        expect(remoteAPI.listNotificationOccurrences).toHaveBeenCalled();
+      });
+      origin.replaceOccurrenceProjection(page([incoming], true));
+      finishRemote(page([{ ...read, id: 'remote-read' }]));
+      await vi.waitFor(() => {
+        expect(originAPI.batchDeleteNotificationOccurrences).toHaveBeenCalledWith(['older-read']);
+        expect(remoteAPI.batchDeleteNotificationOccurrences).toHaveBeenCalledWith(['remote-read']);
+      });
+      expect(originAPI.listNotificationOccurrences).toHaveBeenCalledTimes(2);
+      expect(origin.occurrences.map((item) => item.id)).toEqual(['incoming-unread']);
+    } finally {
+      await unmount();
+      mocks.store.notifications = previous;
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('Dismiss read does not delete a partial list when an older page fails', async () => {
     vi.stubGlobal(
       'IntersectionObserver',

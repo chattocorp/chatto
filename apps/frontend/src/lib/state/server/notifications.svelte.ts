@@ -512,7 +512,14 @@ export class NotificationStore {
   async fetchAllPages(): Promise<void> {
     while (this.hasMore) {
       const offset = this.consumedCount;
+      const generation = this.#authoritativeGeneration;
       await this.fetchPage(offset);
+      if (offset > 0 && generation !== this.#authoritativeGeneration) {
+        // A replacement can discard intermediate pages. Start again instead
+        // of treating the retried append's offset as a complete prefix.
+        await this.fetchPage(0);
+        continue;
+      }
       if (this.hasMore && this.consumedCount <= offset) {
         throw new Error('Notification pagination did not advance');
       }

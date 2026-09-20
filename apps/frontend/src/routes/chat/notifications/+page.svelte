@@ -427,15 +427,18 @@
     if (dismissingRead || loadingMore || hasPendingMutation) return;
     dismissingRead = true;
     // Finish pagination before deleting anything: deletions shift page offsets.
-    const loads = await Promise.allSettled(
-      pagination
-        .filter((source) => source.hasMore)
-        .map((source) => serverRegistry.getStore(source.serverId).notifications.fetchAllPages())
-    );
-    if (loads.some((result) => result.status === 'rejected')) {
-      toast.error(m('common.error.network'));
-      dismissingRead = false;
-      return;
+    while (notificationPaginationFromProjection().some((source) => source.hasMore)) {
+      const loads = await Promise.allSettled(
+        notificationPaginationFromProjection()
+          .filter((source) => source.hasMore)
+          .map((source) => serverRegistry.getStore(source.serverId).notifications.fetchAllPages())
+      );
+      if (loads.some((result) => result.status === 'rejected')) {
+        toast.error(m('common.error.network'));
+        dismissingRead = false;
+        return;
+      }
+      // Another server's projection can change while its peers are loading.
     }
     const batches = readOccurrencesByServer().map((batch) => ({
       serverId: batch.serverId,
