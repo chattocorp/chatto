@@ -44,14 +44,18 @@ func TestMessageServiceInteractionPostingCapability(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := env.post(room.Id, author.Id, "context", "")
-	check := func(want bool) {
+	check := func(want, threadExists bool) {
 		t.Helper()
 		message, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{RoomId: room.Id, EventId: root.Id}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if message.Msg.Message.CanReplyInThread == nil || message.Msg.Message.GetCanReplyInThread() != want {
-			t.Fatalf("reply capability = %v, want %v", message.Msg.Message.CanReplyInThread, want)
+		if (message.Msg.Message.Thread != nil) != threadExists {
+			t.Fatalf("thread presence = %v, want %v", message.Msg.Message.Thread != nil, threadExists)
+		}
+		viewerState := message.Msg.Message.GetViewerState()
+		if viewerState == nil || viewerState.CanReplyInThread == nil || viewerState.GetCanReplyInThread() != want {
+			t.Fatalf("viewer state = %v, want reply capability %v", viewerState, want)
 		}
 		_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{RoomId: room.Id, Body: "response", ThreadRootEventId: root.Id}))
 		if want && err != nil {
@@ -61,13 +65,13 @@ func TestMessageServiceInteractionPostingCapability(t *testing.T) {
 			t.Fatalf("reply error = %v", err)
 		}
 	}
-	check(false)
+	check(false, false)
 	env.post(room.Id, author.Id, "@"+env.viewer.Login, root.Id)
-	check(true)
+	check(true, true)
 	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInteractions); err != nil {
 		t.Fatal(err)
 	}
-	check(false)
+	check(false, true)
 }
 
 func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *testing.T) {

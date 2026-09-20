@@ -736,6 +736,55 @@ func (x *ThreadSummary) GetViewerState() *ThreadViewerState {
 	return nil
 }
 
+// Viewer-specific capabilities for one message, independent of whether its
+// canonical thread has been established.
+type MessageViewerState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the viewer can reply in this message's canonical thread, including
+	// starting the first reply to a root. Includes read access, room policy, and
+	// broad or interaction-scoped posting authority. Absent when not resolved.
+	CanReplyInThread *bool `protobuf:"varint,1,opt,name=can_reply_in_thread,json=canReplyInThread,proto3,oneof" json:"can_reply_in_thread,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *MessageViewerState) Reset() {
+	*x = MessageViewerState{}
+	mi := &file_chatto_api_v1_message_types_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageViewerState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageViewerState) ProtoMessage() {}
+
+func (x *MessageViewerState) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_message_types_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageViewerState.ProtoReflect.Descriptor instead.
+func (*MessageViewerState) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_message_types_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MessageViewerState) GetCanReplyInThread() bool {
+	if x != nil && x.CanReplyInThread != nil {
+		return *x.CanReplyInThread
+	}
+	return false
+}
+
 // Renderable message data.
 //
 // The same shape is used for top-level room messages, thread replies, and
@@ -783,17 +832,16 @@ type Message struct {
 	// True when this message's canonical message is currently pinned in its
 	// channel room. Always false for direct-message rooms.
 	Pinned bool `protobuf:"varint,22,opt,name=pinned,proto3" json:"pinned,omitempty"`
-	// Whether the viewer can reply in this message's canonical thread, including
-	// starting the first reply to a root. Includes read access, room policy, and
-	// broad or interaction-scoped posting authority. Absent when not resolved.
-	CanReplyInThread *bool `protobuf:"varint,23,opt,name=can_reply_in_thread,json=canReplyInThread,proto3,oneof" json:"can_reply_in_thread,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// State resolved for the current viewer. Available even before a durable
+	// thread exists. Absent when viewer state has not been resolved.
+	ViewerState   *MessageViewerState `protobuf:"bytes,24,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_chatto_api_v1_message_types_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_message_types_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -805,7 +853,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_message_types_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_message_types_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -818,7 +866,7 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_message_types_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_message_types_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Message) GetId() string {
@@ -940,11 +988,11 @@ func (x *Message) GetPinned() bool {
 	return false
 }
 
-func (x *Message) GetCanReplyInThread() bool {
-	if x != nil && x.CanReplyInThread != nil {
-		return *x.CanReplyInThread
+func (x *Message) GetViewerState() *MessageViewerState {
+	if x != nil {
+		return x.ViewerState
 	}
-	return false
+	return nil
 }
 
 var File_chatto_api_v1_message_types_proto protoreflect.FileDescriptor
@@ -1005,7 +1053,10 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12?\n" +
 	"\x1cparticipant_preview_user_ids\x18\x04 \x03(\tR\x19participantPreviewUserIds\x12+\n" +
 	"\x11participant_count\x18\x05 \x01(\x05R\x10participantCount\x12C\n" +
-	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\xe8\a\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"`\n" +
+	"\x12MessageViewerState\x122\n" +
+	"\x13can_reply_in_thread\x18\x01 \x01(\bH\x00R\x10canReplyInThread\x88\x01\x01B\x16\n" +
+	"\x14_can_reply_in_thread\"\xfd\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x129\n" +
@@ -1027,10 +1078,9 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\x06thread\x18\x14 \x01(\v2\x1c.chatto.api.v1.ThreadSummaryR\x06thread\x129\n" +
 	"\n" +
 	"deleted_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12\x16\n" +
-	"\x06pinned\x18\x16 \x01(\bR\x06pinned\x122\n" +
-	"\x13can_reply_in_thread\x18\x17 \x01(\bH\x01R\x10canReplyInThread\x88\x01\x01B\a\n" +
-	"\x05_bodyB\x16\n" +
-	"\x14_can_reply_in_threadJ\x04\b\x0e\x10\x13R\vreply_countR\rlast_reply_atR#thread_participant_preview_user_idsR\x18thread_participant_countR\x1aviewer_is_following_thread*\xda\x01\n" +
+	"\x06pinned\x18\x16 \x01(\bR\x06pinned\x12D\n" +
+	"\fviewer_state\x18\x18 \x01(\v2!.chatto.api.v1.MessageViewerStateR\vviewerStateB\a\n" +
+	"\x05_bodyJ\x04\b\x0e\x10\x13J\x04\b\x17\x10\x18R\x13can_reply_in_threadR\vreply_countR\rlast_reply_atR#thread_participant_preview_user_idsR\x18thread_participant_countR\x1aviewer_is_following_thread*\xda\x01\n" +
 	"\x1cMessageVideoProcessingStatus\x12/\n" +
 	"+MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED\x10\x00\x12.\n" +
 	"*MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING\x10\x01\x12-\n" +
@@ -1051,7 +1101,7 @@ func file_chatto_api_v1_message_types_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_message_types_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_message_types_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_chatto_api_v1_message_types_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_chatto_api_v1_message_types_proto_goTypes = []any{
 	(MessageVideoProcessingStatus)(0), // 0: chatto.api.v1.MessageVideoProcessingStatus
 	(*MessageAssetUrl)(nil),           // 1: chatto.api.v1.MessageAssetUrl
@@ -1062,12 +1112,13 @@ var file_chatto_api_v1_message_types_proto_goTypes = []any{
 	(*MessageReaction)(nil),           // 6: chatto.api.v1.MessageReaction
 	(*ThreadViewerState)(nil),         // 7: chatto.api.v1.ThreadViewerState
 	(*ThreadSummary)(nil),             // 8: chatto.api.v1.ThreadSummary
-	(*Message)(nil),                   // 9: chatto.api.v1.Message
-	(*timestamppb.Timestamp)(nil),     // 10: google.protobuf.Timestamp
-	(*LinkPreview)(nil),               // 11: chatto.api.v1.LinkPreview
+	(*MessageViewerState)(nil),        // 9: chatto.api.v1.MessageViewerState
+	(*Message)(nil),                   // 10: chatto.api.v1.Message
+	(*timestamppb.Timestamp)(nil),     // 11: google.protobuf.Timestamp
+	(*LinkPreview)(nil),               // 12: chatto.api.v1.LinkPreview
 }
 var file_chatto_api_v1_message_types_proto_depIdxs = []int32{
-	10, // 0: chatto.api.v1.MessageAssetUrl.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 0: chatto.api.v1.MessageAssetUrl.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 1: chatto.api.v1.MessageVideoVariant.asset_url:type_name -> chatto.api.v1.MessageAssetUrl
 	1,  // 2: chatto.api.v1.MessageVideoHLS.master_playlist_url:type_name -> chatto.api.v1.MessageAssetUrl
 	0,  // 3: chatto.api.v1.MessageVideoProcessing.status:type_name -> chatto.api.v1.MessageVideoProcessingStatus
@@ -1077,20 +1128,21 @@ var file_chatto_api_v1_message_types_proto_depIdxs = []int32{
 	1,  // 7: chatto.api.v1.MessageAttachment.asset_url:type_name -> chatto.api.v1.MessageAssetUrl
 	1,  // 8: chatto.api.v1.MessageAttachment.thumbnail_asset_url:type_name -> chatto.api.v1.MessageAssetUrl
 	4,  // 9: chatto.api.v1.MessageAttachment.video_processing:type_name -> chatto.api.v1.MessageVideoProcessing
-	10, // 10: chatto.api.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
+	11, // 10: chatto.api.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
 	7,  // 11: chatto.api.v1.ThreadSummary.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
-	10, // 12: chatto.api.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	11, // 12: chatto.api.v1.Message.created_at:type_name -> google.protobuf.Timestamp
 	5,  // 13: chatto.api.v1.Message.attachments:type_name -> chatto.api.v1.MessageAttachment
-	11, // 14: chatto.api.v1.Message.link_preview:type_name -> chatto.api.v1.LinkPreview
-	10, // 15: chatto.api.v1.Message.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 14: chatto.api.v1.Message.link_preview:type_name -> chatto.api.v1.LinkPreview
+	11, // 15: chatto.api.v1.Message.updated_at:type_name -> google.protobuf.Timestamp
 	6,  // 16: chatto.api.v1.Message.reactions:type_name -> chatto.api.v1.MessageReaction
 	8,  // 17: chatto.api.v1.Message.thread:type_name -> chatto.api.v1.ThreadSummary
-	10, // 18: chatto.api.v1.Message.deleted_at:type_name -> google.protobuf.Timestamp
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	11, // 18: chatto.api.v1.Message.deleted_at:type_name -> google.protobuf.Timestamp
+	9,  // 19: chatto.api.v1.Message.viewer_state:type_name -> chatto.api.v1.MessageViewerState
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_message_types_proto_init() }
@@ -1102,13 +1154,14 @@ func file_chatto_api_v1_message_types_proto_init() {
 	file_chatto_api_v1_message_types_proto_msgTypes[4].OneofWrappers = []any{}
 	file_chatto_api_v1_message_types_proto_msgTypes[6].OneofWrappers = []any{}
 	file_chatto_api_v1_message_types_proto_msgTypes[8].OneofWrappers = []any{}
+	file_chatto_api_v1_message_types_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_message_types_proto_rawDesc), len(file_chatto_api_v1_message_types_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

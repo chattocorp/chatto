@@ -424,7 +424,7 @@ export function messagePostedPayload(
     deletedAt: timestampToISOOrNull(message.deletedAt),
     pinned: message.pinned,
     threadExists: thread !== undefined,
-    canReplyInThread: message.canReplyInThread,
+    canReplyInThread: message.viewerState?.canReplyInThread,
     replyCount: thread?.replyCount ?? 0,
     lastReplyAt: timestampToISOOrNull(thread?.lastReplyAt),
     threadParticipantCount: thread?.participantCount ?? 0,

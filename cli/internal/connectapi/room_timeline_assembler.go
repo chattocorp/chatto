@@ -290,7 +290,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		if err != nil {
 			return nil, err
 		}
-		message.CanReplyInThread = &canReply
+		message.ViewerState = &apiv1.MessageViewerState{CanReplyInThread: &canReply}
 	}
 
 	var body *core.DecryptedMessageBody
