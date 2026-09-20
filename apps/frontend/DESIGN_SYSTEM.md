@@ -188,9 +188,22 @@ formats, and lists with indentation. Only the groups have gaps between them. For
 shared active fill. Keep an intrinsic-width group inside a horizontal scroller
 when the controls must stay on one row in a narrow pane.
 
-Below 320 px of composer content width, message actions move below the editor.
-The editor keeps the remaining width beside the formatting toggle instead of
-competing with every action button. Wider composers keep the single input row.
+Below 560 px of composer content width, the editor uses the full inner width.
+Formatting, attachment, and timestamp actions sit below it at the start of the
+surface. Thread options and Send sit at the end. Groups wrap in very narrow
+panes. Wider composers keep inline actions. Layout and labels use the named
+`composer` container.
+
+In wider panes, a draft that grows beyond one text line also moves the actions
+below the editor. Keep this layout until the draft is cleared or sent, or its
+destination or edit mode changes. The extra text width can remove a line wrap;
+keeping the expanded layout prevents repeated layout changes while typing.
+
+Both composer toolbars use 44 px targets and 20 px icons when any touch pointer
+is available (`any-pointer: coarse`), including on hybrid devices. Mouse-only
+devices use compact controls at every pane width. `CompactActionButton` opts in
+through `touchFriendly`; joined formatting groups use `pill-button-group-touch`.
+The formatting shelf scrolls horizontally when its controls do not fit.
 
 ## Standard Dialogs
 
@@ -650,7 +663,11 @@ Touch context menus keep their bottom-sheet presentation.
   for softer product-specific objects, such as server tiles.
 - Nested rounded surfaces should be concentric when their padding is small.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
-  metadata, timestamps, and terse labels.
+  metadata, timestamps, and terse labels. When any touch pointer is available
+  (`any-pointer: coarse`), these sizes are 17, 15, and 13 px at the browser
+  default, including on hybrid devices. Mouse-only devices keep 16, 14, and
+  12 px at every viewport width. These text tokens do not change spacing or
+  heading sizes.
 - A compact surface uses one text size throughout. Menus, popovers, controls,
   and nested rows must not mix smaller metadata text with base-sized actions;
   express hierarchy with color, weight, spacing, and icons instead.

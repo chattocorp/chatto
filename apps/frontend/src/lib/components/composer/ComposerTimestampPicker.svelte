@@ -101,6 +101,7 @@
 </script>
 
 <CompactActionButton
+  touchFriendly
   label={m('composer.timestamp.insert_label')}
   type="button"
   onpointerdown={(event) => event.preventDefault()}

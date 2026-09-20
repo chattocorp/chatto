@@ -1,6 +1,7 @@
 import '../../../app.css';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { cdp, userEvent } from 'vitest/browser';
+import type {} from '@vitest/browser-playwright';
 import { render } from 'vitest-browser-svelte';
 import { tick, type ComponentProps } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
@@ -448,7 +449,10 @@ describe('MessageComposer', () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    if (matchMedia('(any-pointer: coarse)').matches) {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    }
     vi.useRealTimers();
     window.getSelection()?.removeAllRanges();
     vi.restoreAllMocks();
@@ -655,43 +659,113 @@ describe('MessageComposer', () => {
       expect(window.getSelection()?.toString()).toBe('keep this selected');
     });
 
-    it('keeps the editor usable when a narrow pane needs a second action row', async () => {
-      const { container } = renderMessageComposer({ roomId: 'narrow-composer' });
-      container.style.width = '200px';
+    it.each([
+      ['visual', false], ['visual', true], ['markdown', false], ['markdown', true]
+    ] as const)('keeps the %s editor usable across composer widths with touch=%s', async (mode, touch) => {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+      expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
+      userPreferences.composerEditor = mode;
+      const { container } = renderMessageComposer({
+        roomId: 'narrow-composer', showCreateThread: true, showAlsoSendToChannel: true
+      });
       const editor = await findEditor(container);
       const row = q(container, '[data-testid="composer-editor-row"]')!;
       const actions = q(container, '[data-testid="composer-action-toolbar"]')!;
       const surface = q(container, '[data-testid="composer-input-surface"]')!;
-      await expect.poll(() => row.getBoundingClientRect().width).toBeGreaterThan(100);
-      expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(row.getBoundingClientRect().bottom);
-      expect(surface.getBoundingClientRect().height).toBeLessThan(120);
-      expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
-      await userEvent.type(editor, 'A readable message');
-      expect(editor.textContent).toContain('A readable message');
-
-      container.style.width = '600px';
-      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
-      expect(row.getBoundingClientRect().width).toBeGreaterThan(200);
-      const formattingToggle = surface.querySelector('button[aria-controls]')!;
-      const centre = (element: Element) => {
-        const rect = element.getBoundingClientRect();
-        return rect.top + rect.height / 2;
-      };
-      expect(Math.abs(centre(formattingToggle) - centre(row))).toBeLessThan(1);
-      expect(Math.abs(centre(actions) - centre(row))).toBeLessThan(1);
-      expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
+      for (const draft of ['', 'A readable message\nWith another line']) {
+        if (draft) {
+          await typeInEditor(editor, 'A readable message');
+          await userEvent.keyboard('{Shift>}{Enter}{/Shift}With another line');
+        }
+        editor.focus();
+        const selection = window.getSelection();
+        const anchorNode = selection?.anchorNode;
+        const anchorOffset = selection?.anchorOffset;
+        for (const width of [200, 320, 390, 559, 560, 800, 320]) {
+          // The outer composer adds 8 px padding on each side of its query box.
+          container.style.width = `${width + 16}px`;
+          expect(getComputedStyle(document.body).fontSize).toBe(touch ? '17px' : '16px');
+          const stacked = width < 560 || draft !== '';
+          await expect.poll(() => getComputedStyle(surface).display).toBe(stacked ? 'grid' : 'flex');
+          const formattingToggle = surface.querySelector('button[aria-controls]')!;
+          if (stacked) {
+            expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(row.getBoundingClientRect().bottom);
+            expect(formattingToggle.getBoundingClientRect().top).toBeGreaterThanOrEqual(row.getBoundingClientRect().bottom);
+            expect(row.getBoundingClientRect().width).toBeGreaterThan(width - 30);
+          } else {
+            expect(actions.getBoundingClientRect().top).toBeLessThan(row.getBoundingClientRect().bottom);
+            expect(formattingToggle.getBoundingClientRect().top).toBeLessThan(row.getBoundingClientRect().bottom);
+          }
+          for (const button of surface.querySelectorAll('button')) {
+            expect(button.getBoundingClientRect().height).toBe(touch ? 44 : 28);
+            expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(touch ? 44 : 28);
+            expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(surface.getBoundingClientRect().right);
+            const icon = button.querySelector('.iconify');
+            if (icon) expect(icon.getBoundingClientRect().width).toBe(touch ? 20 : 15);
+          }
+          expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
+          expect(await findEditor(container)).toBe(editor);
+          expect(editor.contains(document.activeElement) || document.activeElement === editor).toBe(true);
+          expect(selection?.anchorNode).toBe(anchorNode);
+          expect(selection?.anchorOffset).toBe(anchorOffset);
+          if (draft) expect(editor.textContent).toContain('A readable message');
+        }
+      }
     });
 
-    it('uses the composer width to control labels and keeps formatting controls on one row', async () => {
+    it.each(['visual', 'markdown'] as const)('keeps a wrapped %s draft expanded until cleared or sent', async (mode) => {
+      userPreferences.composerEditor = mode;
+      const { container } = renderMessageComposer({ roomId: 'height-layout', showCreateThread: true });
+      container.style.width = '616px';
+      const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]')!;
+      const row = q(container, '[data-testid="composer-editor-row"]')!;
+      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+
+      // This text wraps beside the actions, but fits one line with the full width.
+      await typeInEditor(editor, 'W'.repeat(32));
+      await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
+      await expect.poll(() => row.getBoundingClientRect().height).toBeLessThan(50);
+      const selection = window.getSelection();
+      const anchor = selection?.anchorNode;
+      const offset = selection?.anchorOffset;
+      for (let frame = 0; frame < 3; frame++) {
+        await new Promise(requestAnimationFrame);
+        expect(getComputedStyle(surface).display).toBe('grid');
+      }
+      expect(await findEditor(container)).toBe(editor);
+      expect(selection?.anchorNode).toBe(anchor);
+      expect(selection?.anchorOffset).toBe(offset);
+
+      await typeInEditor(editor, '');
+      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+      await typeInEditor(editor, 'Short draft');
+      expect(getComputedStyle(surface).display).toBe('flex');
+      await typeInEditor(editor, 'W'.repeat(32));
+      await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+      expect(editor.textContent).not.toContain('W'.repeat(32));
+    });
+
+    it.each([false, true])('keeps formatting controls on one row with touch=%s', async (touch) => {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+      expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await findEditor(container);
       await openFormattingShelf(container);
 
-      expect(q(container, '[data-testid="composer-input-surface"]')).toHaveClass('@container');
-      expect(q(container, '[data-testid="composer-formatting-toolbar"]')).toHaveClass(
+      expect(q(container, '[data-testid="message-composer"]')).toHaveClass('@container/composer');
+      const toolbar = q(container, '[data-testid="composer-formatting-toolbar"]')!;
+      expect(toolbar).toHaveClass(
         'overflow-x-auto'
       );
+      for (const button of toolbar.querySelectorAll('button')) {
+        await expect.poll(() => button.getBoundingClientRect().height).toBe(touch ? 44 : 28);
+        expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(touch ? 44 : 28);
+        expect(button.querySelector('.iconify')!.getBoundingClientRect().width).toBe(touch ? 20 : 15);
+      }
     });
 
     it('hides attachment controls when uploads are not allowed', async () => {
@@ -3321,7 +3395,7 @@ describe('MessageComposer', () => {
       expect(echoToggle.querySelector('.iconify')).toHaveClass('icon-[uil--megaphone]');
       expect(echoToggle.querySelector('span:not(.iconify)')).toHaveClass(
         'hidden',
-        '@min-[560px]:inline'
+        '@min-[560px]/composer:inline'
       );
       expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
       echoToggle.click();
@@ -3330,7 +3404,7 @@ describe('MessageComposer', () => {
       expect(sendButton).toHaveTextContent('Send');
       expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass(
         'hidden',
-        '@min-[560px]:inline'
+        '@min-[560px]/composer:inline'
       );
       sendButton.click();
 
@@ -3371,7 +3445,7 @@ describe('MessageComposer', () => {
       expect(threadToggle).toHaveTextContent('Thread');
       expect(threadToggle.querySelector('span:not(.iconify)')).toHaveClass(
         'hidden',
-        '@min-[560px]:inline'
+        '@min-[560px]/composer:inline'
       );
       expect(threadToggle).not.toHaveClass('active:scale-[0.96]');
       await typeInEditor(editor, 'discuss this');
