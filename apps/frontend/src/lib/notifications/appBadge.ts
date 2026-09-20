@@ -30,7 +30,7 @@ export async function updateAppBadge(intent: AppBadgeIntent): Promise<void> {
   }
 }
 
-/** Replays the visible page's aggregate badge when a regular push may have replaced it. */
+/** Reconciles a push flag with the visible page's current important notification state. */
 export function listenForAppBadgeRefresh(refresh: () => void): () => void {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return () => {};
 

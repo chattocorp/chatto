@@ -8,7 +8,7 @@
  * behavior without service-worker interception.
  */
 
-import { APP_BADGE_REFRESH_MESSAGE_TYPE } from '$lib/notifications/appBadge';
+import { APP_BADGE_REFRESH_MESSAGE_TYPE, updateAppBadge } from '$lib/notifications/appBadge';
 import {
   routeNotificationClick,
   type NotificationClickClients
@@ -198,6 +198,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     (async () => {
       await self.registration.showNotification(notification.title, notification.options);
+      // Push notifications represent important activity. The visible app then
+      // reconciles this flag with current state, including reads on other devices.
+      await updateAppBadge({ kind: 'flag' });
       await refreshVisibleAppBadges();
     })()
   );

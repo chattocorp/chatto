@@ -28,7 +28,13 @@ const { mocks } = vi.hoisted(() => {
       }>,
       count: 0,
       unreadNotificationCount: 0,
-      get attention() { return { unreadNotificationCount: this.unreadNotificationCount }; },
+      importantUnreadNotificationCount: 0,
+      get attention() {
+        return {
+          unreadNotificationCount: this.unreadNotificationCount,
+          importantUnreadNotificationCount: this.importantUnreadNotificationCount
+        };
+      },
       needsAttention: vi.fn((row: { unread: boolean }) => row.unread),
       hasLoaded: true,
       nextExpiryAt: null as string | null,
@@ -179,6 +185,7 @@ describe('NotificationSync', () => {
       store.waitForRealtimeResourceRefresh.mockReset().mockResolvedValue(true);
       store.notifications.count = 0;
       store.notifications.unreadNotificationCount = 0;
+      store.notifications.importantUnreadNotificationCount = 0;
       store.notifications.hasLoaded = true;
       store.notifications.nextExpiryAt = null;
       store.notifications.fetch.mockClear();
@@ -407,70 +414,92 @@ describe('NotificationSync', () => {
     await vi.waitFor(() => expect(mocks.stores.origin.notifications.fetch).toHaveBeenCalledOnce());
   });
 
-  it('uses the exact unread-occurrence count for the installed-app badge', async () => {
+  it('uses an unnumbered badge for important unread notifications', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 2;
+    mocks.stores.origin.notifications.importantUnreadNotificationCount = 2;
 
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 2 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
     );
   });
 
-  it('uses a numeric badge for every notification cause', async () => {
+  it('clears the badge when only ambient notifications are unread', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 1;
 
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
     );
   });
 
   it('uses the server aggregate independently of the bounded group page', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 3;
+    mocks.stores.origin.notifications.importantUnreadNotificationCount = 1;
+    mocks.stores.origin.notifications.occurrences = [];
 
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 3 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
     );
   });
 
-  it('aggregates exact unread-occurrence counts across authenticated servers', async () => {
+  it('includes important attention from another authenticated server', async () => {
     mocks.servers.push({ id: 'remote' });
     mocks.stores.origin.notifications.unreadNotificationCount = 1;
     mocks.stores.remote.notifications.unreadNotificationCount = 2;
+    mocks.stores.remote.notifications.importantUnreadNotificationCount = 1;
 
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 3 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
     );
   });
 
-  it('keeps an exact numeric badge when the group page is truncated', async () => {
-    mocks.stores.origin.notifications.unreadNotificationCount = 3;
+  it('ignores important attention from signed-out servers', async () => {
+    mocks.servers.push({ id: 'remote' });
+    mocks.stores.remote.isAuthenticated = false;
+    mocks.stores.remote.notifications.importantUnreadNotificationCount = 3;
 
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 3 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
     );
   });
 
   it('reasserts the unchanged aggregate badge after a regular push', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 1;
+    mocks.stores.origin.notifications.importantUnreadNotificationCount = 1;
     await renderAndWaitForSubscription();
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
     );
     mocks.updateAppBadge.mockClear();
 
     for (const refresh of mocks.badgeRefreshHandlers) refresh();
 
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
+    );
+  });
+
+  it('clears the flag after the last important notification is read with ambient activity remaining', async () => {
+    const notifications = $state(mocks.stores.origin.notifications);
+    mocks.stores.origin.notifications = notifications;
+    mocks.stores.origin.notifications.unreadNotificationCount = 2;
+    mocks.stores.origin.notifications.importantUnreadNotificationCount = 1;
+    await renderAndWaitForSubscription();
+    expect(mocks.updateAppBadge).toHaveBeenLastCalledWith({ kind: 'flag' });
+
+    mocks.stores.origin.notifications.unreadNotificationCount = 1;
+    mocks.stores.origin.notifications.importantUnreadNotificationCount = 0;
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenLastCalledWith({ kind: 'clear' })
     );
   });
 

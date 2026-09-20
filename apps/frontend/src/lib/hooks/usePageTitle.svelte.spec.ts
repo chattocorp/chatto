@@ -10,7 +10,12 @@ const mocks = vi.hoisted(() => ({
     {
       isAuthenticated: boolean;
       serverInfo: { name: string };
-      notifications: { attention: { unreadNotificationCount: number } };
+      notifications: {
+        attention: {
+          unreadNotificationCount: number;
+          importantUnreadNotificationCount: number;
+        };
+      };
     }
   >()
 }));
@@ -33,12 +38,18 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 import { usePageTitle } from './usePageTitle.svelte';
 
-function store(name: string, unreadNotificationCount = 0, isAuthenticated = true) {
-  return {
+function store(name: string, importantUnreadNotificationCount = 0, isAuthenticated = true) {
+  const result = $state({
     isAuthenticated,
     serverInfo: { name },
-    notifications: { attention: { unreadNotificationCount } }
-  };
+    notifications: {
+      attention: {
+        unreadNotificationCount: importantUnreadNotificationCount + 4,
+        importantUnreadNotificationCount
+      }
+    }
+  });
+  return result;
 }
 
 function setServers(
@@ -107,7 +118,7 @@ describe('usePageTitle', () => {
     cleanup();
   });
 
-  it('prefixes authenticated unread notification counts across servers', () => {
+  it('prefixes only important authenticated unread notification counts across servers', () => {
     setServers([
       { id: 'origin', name: 'Chatto Test', count: 2, origin: true },
       { id: 'remote', name: 'Remote', count: 3 },
@@ -117,6 +128,19 @@ describe('usePageTitle', () => {
     const { getTitle, cleanup } = createTitleGetter();
 
     expect(getTitle()).toBe('(5) Overview | Chatto Test');
+
+    cleanup();
+  });
+
+  it('omits the count when only ambient notifications remain', () => {
+    setServers([{ id: 'origin', name: 'Chatto Test', origin: true, count: 1 }]);
+    const { getTitle, cleanup } = createTitleGetter();
+    expect(getTitle()).toBe('(1) Chatto Test');
+
+    mocks.stores.get('origin')!.notifications.attention.importantUnreadNotificationCount = 0;
+    flushSync();
+
+    expect(getTitle()).toBe('Chatto Test');
 
     cleanup();
   });

@@ -50,6 +50,8 @@ Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` us
 
 Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. Important notifications use orange indicators and can play your selected sound.
 
+The installed app icon shows an unnumbered badge for Important unread notifications. The window title shows their total count across signed-in servers. Ambient notifications do not contribute to either indicator. A background push can set the app icon badge when the browser runs the app's notification handler; otherwise, the badge stays unchanged until the app can update it.
+
 The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Badge, Notification, and Push notification.
 
 Room-group and room cells cycle through Inherit, Off, Badge, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. A grey filled bell means Badge. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.

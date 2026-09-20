@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-09-17
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -23,13 +23,13 @@ tab is not open. Push is opt-in for each device, requires operator configuration
 - Push endpoints must be absolute HTTPS URLs without user information or fragments. Delivery bypasses environment proxies, rejects redirects, and blocks private and other special-use network addresses after resolving the hostname immediately before connecting.
 - An account can have up to 16 active subscriptions on each server. Every current subscription is attempted for pushes originating from that server. Once any endpoint accepts an occurrence, Chatto does not retry the complete device set only because another endpoint failed. This behavior prevents duplicate pushes on healthy devices.
 - Test notifications are limited to one attempt per account every 10 seconds across server replicas. Delivery failures expose neither provider response bodies nor low-level network errors through the public API.
-- Push payloads include a mutable declarative-compatible notification envelope with a title, a message preview truncated to at most 100 Unicode characters including its ellipsis and preferring a nearby word boundary, a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
+- Push payloads include a mutable declarative-compatible notification envelope with a title, a message preview truncated to at most 100 Unicode characters including its ellipsis and preferring a nearby word boundary, and a navigation URL. They do not include a numeric app badge. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly.
 - Notification pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - If the subscription's client host matches one of the server's configured exact public origins, regular and test notifications use that origin's scheme and the local `/chat/-` route. This includes custom domains in `webserver.allowed_origins`. Other client hosts use the sending server's primary hostname in the route. Wildcard origins do not identify aliases. Subscriptions without a client host keep the primary URL fallback.
 - Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries. It then confirms that the occurrence is still unread and has the Push notification mode, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
-- While Chatto is visible, its notification stores are authoritative for the aggregate app-icon badge. Declarative Web Push supplies the sending server's exact unread-occurrence count while the app is closed or suspended.
+- While Chatto is visible, its notification stores control an unnumbered app-icon badge for Important unread attention across signed-in servers. When the service worker displays a push, it sets an unnumbered badge and asks visible app windows to check current attention. If the browser displays a declarative push without running the worker, the badge stays unchanged; there is no numeric fallback.
 - Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
 - While Chatto is running, it asks the browser to close matching OS notifications after confirmed read or delete actions. It checks again after notification state updates, app focus, network recovery, and a regular push received by a visible app. Each check matches the sending server and recipient account.
 - Cleanup preserves unread notifications. It also preserves uncertain results after failed requests or partial notification pages. Older payloads without account metadata remain visible until the user closes them. Closing an OS notification is best-effort and depends on browser support.
@@ -105,20 +105,19 @@ server and account metadata are not eligible for automatic cleanup.
 
 ### 9. Declarative-compatible payloads with service-worker notification fallback
 
-**Decision:** Regular push notifications use a mutable Declarative Web Push JSON envelope while keeping the older Chatto root fields in the same payload. Badge counts appear in both WebKit's current top-level location and its earlier nested location during the format transition.
+**Decision:** Regular push notifications use a mutable Declarative Web Push JSON envelope while keeping the older Chatto root fields in the same payload. Numeric app badge fields are omitted.
 **Why:** Modern browsers can display and navigate from the declarative notification if the service worker is unavailable. The installed worker remains a compatibility path for notification display and click routing, while older browsers and already-installed Chatto workers can keep using the legacy fields.
-**Tradeoff:** Payloads duplicate a small amount of title/body/navigation and badge data. That is preferable to a flag-day service-worker rollout or dropping badge updates on either side of WebKit's payload-format change.
+**Tradeoff:** Payloads duplicate a small amount of title, body, and navigation data so older workers can still display notifications. A browser that displays a push without running the worker cannot set the unnumbered badge from this payload.
 
 ### 10. Late delivery and badge ownership
 
 **Decision:** Regular push delivery revalidates the exact unread occurrence
 whose delivery mode is Push notification. It also revalidates target visibility
 and the active subscription immediately before sending. The visible app owns
-its aggregate multi-server badge;
-Declarative Web Push carries the sending server's exact unread-occurrence count
-while the app is closed.
+its unnumbered multi-server badge. The worker sets an unnumbered badge when it
+displays a push, then asks visible windows to check current Important attention.
 **Why:** Occurrence materialization and push delivery are asynchronous, so a slower delivery can otherwise overtake read/delete state, target removal, or subscription rotation. Revalidation keeps the push tied to current authoritative state without persisting a separate badge record.
-**Tradeoff:** The server cannot revoke a request after final validation and provider acceptance. Concurrent badge-bearing pushes remain last-delivery-wins until another push or the visible app refreshes the aggregate, and a closed-app count reflects only the server whose push arrived last.
+**Tradeoff:** The server cannot revoke a request after final validation and provider acceptance. A delayed push can set a flag after the notification was read. The visible app clears it when no Important attention remains. Without worker execution, the existing badge stays unchanged.
 
 ### 11. High urgency only for user-visible pushes
 

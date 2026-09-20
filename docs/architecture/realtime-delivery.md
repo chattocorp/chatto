@@ -420,6 +420,12 @@ subscription. Failed reads, missing rows, reset state, and disposed subscription
 do not play a sound. Periodic reconciliation is silent. Web Push keeps its
 server-side policy checks.
 
+The app-icon badge uses Important unread attention across authenticated servers.
+It is an unnumbered flag; the window title shows the Important count. Ambient
+attention contributes to neither. The push worker sets a flag after notification
+display, then asks visible windows to reconcile it with their current stores.
+Outgoing push payloads omit numeric app badge values.
+
 Each server store owns a RAM-only
 [`ReadViewRegistry`](../../apps/frontend/src/lib/state/server/readViews.svelte.ts).
 Visible thread panes register independently and remove their own registration

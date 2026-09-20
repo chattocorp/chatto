@@ -77,7 +77,6 @@ type Payload struct {
 	ServerOrigin string `json:"serverOrigin,omitempty"`
 	RecipientID  string `json:"recipientId,omitempty"`
 	URL          string `json:"url,omitempty"`
-	AppBadge     string `json:"-"`
 	// TTLSeconds overrides the provider retention horizon. Notification alerts
 	// set this to their remaining immutable delivery lifetime; other push types
 	// retain the normal 24-hour default.
@@ -98,7 +97,6 @@ type declarativeNotification struct {
 	Tag      string                       `json:"tag,omitempty"`
 	Icon     string                       `json:"icon,omitempty"`
 	Badge    string                       `json:"badge,omitempty"`
-	AppBadge string                       `json:"app_badge,omitempty"`
 	Data     *declarativeNotificationData `json:"data,omitempty"`
 }
 
@@ -124,7 +122,6 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Action         string                   `json:"action,omitempty"`
 		WebPush        int                      `json:"web_push,omitempty"`
 		Mutable        bool                     `json:"mutable,omitempty"`
-		AppBadge       string                   `json:"app_badge,omitempty"`
 		Notification   *declarativeNotification `json:"notification,omitempty"`
 	}
 
@@ -139,7 +136,6 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		RecipientID:    p.RecipientID,
 		URL:            p.URL,
 		Action:         p.Action,
-		AppBadge:       p.AppBadge,
 	}
 	if p.declarativeNotificationEligible() {
 		out.WebPush = declarativeWebPushValue
@@ -151,7 +147,6 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 			Tag:      p.Tag,
 			Icon:     p.Icon,
 			Badge:    p.Badge,
-			AppBadge: p.AppBadge,
 			Data: &declarativeNotificationData{
 				NotificationID: p.NotificationID,
 				ServerOrigin:   p.ServerOrigin,

@@ -124,7 +124,6 @@ func TestPayloadMarshal(t *testing.T) {
 			Tag:            "test-tag",
 			NotificationID: "notif-123",
 			URL:            "/chat/room/123",
-			AppBadge:       "7",
 		}
 
 		data, err := json.Marshal(payload)
@@ -153,8 +152,8 @@ func TestPayloadMarshal(t *testing.T) {
 		if result["mutable"] != true {
 			t.Errorf("Expected mutable true, got %v", result["mutable"])
 		}
-		if result["app_badge"] != "7" {
-			t.Errorf("Expected top-level app_badge '7', got %v", result["app_badge"])
+		if _, exists := result["app_badge"]; exists {
+			t.Error("Push payload must not set a numeric app badge")
 		}
 
 		notification, ok := result["notification"].(map[string]interface{})
@@ -173,8 +172,8 @@ func TestPayloadMarshal(t *testing.T) {
 		if notification["tag"] != "test-tag" {
 			t.Errorf("Expected declarative tag 'test-tag', got %v", notification["tag"])
 		}
-		if notification["app_badge"] != "7" {
-			t.Errorf("Expected declarative app_badge '7', got %v", notification["app_badge"])
+		if _, exists := notification["app_badge"]; exists {
+			t.Error("Declarative notification must not set a numeric app badge")
 		}
 
 		notificationData, ok := notification["data"].(map[string]interface{})

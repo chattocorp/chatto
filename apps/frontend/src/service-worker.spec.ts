@@ -186,7 +186,7 @@ describe('service worker notifications', () => {
       }
     });
 
-    expect(worker.setAppBadge).not.toHaveBeenCalled();
+    expect(worker.setAppBadge).toHaveBeenCalledExactlyOnceWith();
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
     expect(worker.registration.showNotification).toHaveBeenCalledWith('Declarative notification', {
       body: 'Opened by the browser or worker fallback',
@@ -223,8 +223,34 @@ describe('service worker notifications', () => {
     });
 
     expect(visibleClient.postMessage).toHaveBeenCalledWith({ type: 'app-badge-refresh' });
-    expect(worker.setAppBadge).not.toHaveBeenCalled();
+    expect(worker.setAppBadge).toHaveBeenCalledExactlyOnceWith();
+    expect(worker.setAppBadge.mock.invocationCallOrder[0]).toBeLessThan(
+      visibleClient.postMessage.mock.invocationCallOrder[0]
+    );
   });
+
+  it.each(['unavailable', 'rejected'])(
+    'still displays and reconciles a push when badging is %s',
+    async (failure) => {
+      const worker = await importServiceWorker();
+      const visibleClient: TestWindowClient = {
+        id: 'visible-app',
+        visibilityState: 'visible',
+        postMessage: vi.fn()
+      };
+      worker.clients.matchAll.mockResolvedValueOnce([visibleClient]);
+      if (failure === 'unavailable') {
+        vi.stubGlobal('navigator', {});
+      } else {
+        worker.setAppBadge.mockRejectedValueOnce(new Error('Badging unavailable'));
+      }
+
+      await worker.dispatch('push', { data: { json: () => ({ title: 'Important activity' }) } });
+
+      expect(worker.registration.showNotification).toHaveBeenCalledOnce();
+      expect(visibleClient.postMessage).toHaveBeenCalledWith({ type: 'app-badge-refresh' });
+    }
+  );
 
   it('handles mutable declarative push events with event.notification and no payload data', async () => {
     const worker = await importServiceWorker();
