@@ -114,6 +114,11 @@ description = "Run official OIDC discovery tests and start an interactive confor
 depends = ["build"]
 run = "node tools/conformance/run.mjs"
 
+[tasks.test-conformance-ci]
+description = "Run automated official OIDC provider checks and remove test state"
+depends = ["build", "deps-playwright"]
+run = "node tools/conformance/run.mjs --automated"
+
 [tasks.authling]
 description = "Build and run the Authling CLI command"
 depends = ["build"]

@@ -879,3 +879,7 @@ printf '#!/bin/sh\necho chatto dummy\n' > "$context/chatto"
 chmod +x "$context/chatto"
 docker buildx build --build-arg TARGETARCH=amd64 -f "$context/Dockerfile" "$context"
 """
+
+[tasks.test-oidc-conformance]
+description = "Check Authling and Chatto against the official OIDC suite"
+run = "bash tools/test-oidc-conformance.sh"

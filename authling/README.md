@@ -113,7 +113,7 @@ it while diagnosing a failure.
 
 ### Official OIDC conformance tests
 
-On macOS with Docker Desktop or OrbStack running, use:
+On macOS or Linux with Docker Compose running, use:
 
 ```sh
 mise test-conformance
@@ -133,18 +133,32 @@ The two confidential suite clients explicitly set `require_pkce = false`.
 Public and CIMD clients retain mandatory PKCE. This task does not run the
 complete Basic OP plan or prove certification. See the
 [local conformance baseline](tools/conformance/README.md) for the full manual
-run and its remaining failures.
+run and its remaining warnings and review results.
 
-Press Ctrl-C to stop the processes and containers. Test accounts, suite results,
+For automated provider regression checks, run `mise test-conformance-ci`.
+This task creates a synthetic account, drives login and consent, and checks
+discovery, supported scopes, POST client authentication, and S256 PKCE. It
+uses fresh state and removes the processes, containers, and database volume
+when it finishes. `conformance-results.json` contains only module outcomes
+and condition names. Unexpected warnings, failures, skips, review results,
+and timeouts fail the task. See the [baseline](tools/conformance/README.md)
+for the explicit warning policy and coverage limits.
+
+The repository integration task `mise test-oidc-conformance`, run from the
+repository root, also checks Chatto as a relying party. Authling's task does
+not require Chatto. CI runs the combined task and uploads only its summary.
+
+For the interactive task, press Ctrl-C to stop the processes and containers. Test accounts, suite results,
 and generated client configuration remain in `.authling/conformance/`. This
 directory is separate from normal development data. Do not publish it: the
 suite stores test tokens and secrets. Only use synthetic accounts.
 
-The task uses loopback ports 8443, 9443, 19400, 19408, and 19409. It needs `curl`
-and Docker Compose. Image downloads contact GitLab and Docker registries;
+The task uses ports 8443, 9443, 19400, 19408, and 19409. It needs `curl`
+and Docker Compose, OpenSSL, and Playwright Chromium. On Linux the isolated
+Authling listener binds all host interfaces so the Docker proxy can reach it;
+use a trusted development host or an isolated CI runner. Image downloads contact GitLab and Docker registries;
 test traffic stays local. The suite runs in development mode without a hosted
-login. Its endpoints must remain local. Linux networking is not yet supported
-by this task.
+login. The suite and TLS proxy bind only to loopback.
 
 ### Build and run
 

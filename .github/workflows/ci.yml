@@ -425,6 +425,32 @@ jobs:
         if: needs.changes.outputs.chatto == 'true'
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
+  test-oidc-conformance:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      - name: Install Authling toolchain and browser dependencies
+        working-directory: authling
+        run: |
+          mise install
+          mise deps-web
+      - uses: ./.github/actions/setup-playwright
+        with:
+          working-directory: authling
+      - name: Run official provider and client checks
+        run: mise test-oidc-conformance
+      - name: Upload outcome summary only
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: oidc-conformance-results
+          path: authling/conformance-results.json
+          retention-days: 14
+
   test-authling-e2e:
     needs: changes
     if: ${{ needs.changes.outputs.authling == 'true' }}

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, readFile, writeFile, open, unlink } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, readFile, writeFile, open, unlink } from 'node:fs/promises';
+import os from 'node:os';
 import { randomBytes, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -12,15 +13,24 @@ import net from 'node:net';
 const exec = promisify(execFile);
 const source = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(source, '../..');
-const state = path.join(root, '.authling/conformance');
+const automated = process.argv.includes('--automated');
+const driverIndex = process.argv.indexOf('--client-driver');
+const clientDriver = driverIndex < 0 ? undefined : process.argv[driverIndex + 1];
+if (driverIndex >= 0 && (!automated || !clientDriver || !path.isAbsolute(clientDriver))) {
+  throw new Error('--client-driver requires --automated and an absolute module path');
+}
+const state = automated ? await mkdtemp(path.join(os.tmpdir(), 'authling-conformance-')) : path.join(root, '.authling/conformance');
+const summaryPath = path.join(root, 'conformance-results.json');
 const suite = 'https://conformance.localhost:8443';
 const issuer = 'https://conformance.localhost:9443';
 // Do not let deployment credentials or ordinary development settings enter this instance.
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('AUTHLING_')));
 Object.assign(env, { CONFORMANCE_SOURCE: source, CONFORMANCE_STATE: state });
-const project = `authling-conformance-${createHash('sha256').update(root).digest('hex').slice(0, 10)}`;
+if (automated) env.CONFORMANCE_MONGO_VOLUME = 'ephemeral-mongo';
+const project = `authling-conformance-${createHash('sha256').update(automated ? state : root).digest('hex').slice(0, 10)}`;
 const composeArgs = ['compose', '-p', project, '-f', path.join(source, 'compose.yml')];
 const children = [];
+const abort = new AbortController();
 let stopping = false;
 let composeStarted = false;
 let locked = false;
@@ -28,6 +38,8 @@ let locked = false;
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(signal, () => {
     stopping = true;
+    process.exitCode = signal === 'SIGINT' ? 130 : 143;
+    abort.abort();
     for (const child of children) child.kill('SIGTERM');
   });
 }
@@ -57,7 +69,9 @@ async function curl(url, body) {
 }
 
 async function api(route, body) {
-  const text = await curl(suite + route, body);
+  let text;
+  try { text = await curl(suite + route, body); }
+  catch { throw new Error(`Suite API failed: ${route.split('?')[0]}`); }
   return text ? JSON.parse(text) : {};
 }
 
@@ -79,7 +93,8 @@ async function availablePort(port) {
 }
 
 async function main() {
-  if (process.platform !== 'darwin') throw new Error('This local setup currently requires macOS with Docker Desktop or OrbStack.');
+  if (automated) await writeFile(summaryPath, '[]\n');
+  if (!['darwin', 'linux'].includes(process.platform)) throw new Error('This setup requires macOS or Linux with Docker Compose.');
   await exec('docker', ['info'], { env });
   await exec('docker', ['compose', 'version'], { env });
   await mkdir(state, { recursive: true, mode: 0o700 });
@@ -92,6 +107,12 @@ async function main() {
     throw new Error(`A conformance session is already running. If a previous run was killed, stop its containers and remove ${state}/run.lock.`);
   }
   for (const port of [8443, 9443, 19400, 19408, 19409]) await availablePort(port);
+  // The upstream proxy certificate has only a localhost common name. Generate
+  // a short-lived SAN certificate so client tests keep normal TLS verification.
+  const certificate = path.join(state, 'proxy.crt');
+  await exec('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '2',
+    '-subj', '/CN=conformance.localhost', '-addext', 'subjectAltName=DNS:conformance.localhost',
+    '-keyout', path.join(state, 'proxy.key'), '-out', certificate], { env });
   let secret;
   try { secret = (await readFile(path.join(state, 'client-secret'), 'utf8')).trim(); }
   catch (error) {
@@ -104,7 +125,7 @@ async function main() {
   await writeFile(path.join(state, 'authling.toml'), `[site]
 name = 'Authling Conformance'
 [http]
-bind_address = '127.0.0.1:19400'
+bind_address = '${process.platform === 'linux' ? '0.0.0.0' : '127.0.0.1'}:19400'
 public_url = '${issuer}'
 trust_proxy_headers = true
 [nats.embedded]
@@ -145,6 +166,13 @@ redirect_uris = ['${suite}/test/a/authling/callback']
   await exec('docker', [...composeArgs, 'up', '-d'], { env, timeout: 300_000 });
   await ready(`${suite}/api/plan?length=1`);
   await ready(`${issuer}/.well-known/openid-configuration`);
+  if (automated) {
+    const { runAutomated } = await import('./automated.mjs');
+    // Trust only this test proxy certificate in the optional client process.
+    await runAutomated({ api, suite, issuer, state, configPath, summaryPath, checkRunning, clientDriver, signal: abort.signal,
+      clientEnv: { ...env, SSL_CERT_FILE: certificate } });
+    return;
+  }
   const plan = await api('/api/plan?planName=oidcc-config-certification-test-plan', configPath);
   const test = await api(`/api/runner?test=oidcc-discovery-endpoint-verification&plan=${plan.id}`, null);
   await api(`/api/runner/${test.id}`, null);
@@ -174,7 +202,9 @@ try { await main(); }
 catch (error) {
   if (!stopping) {
     // exec errors can include request bodies or service output; do not print those.
-    console.error(error.cmd ? 'A setup or suite HTTP command failed. Check Docker, curl, and the local service ports.' : error.message);
+    console.error(automated
+      ? (error.safeMessage ?? 'Automated conformance setup or browser operation failed; no private diagnostics were printed.')
+      : (error.cmd ? 'A setup or suite HTTP command failed. Check Docker, curl, and the local service ports.' : error.message));
     process.exitCode = 1;
   }
 } finally {
@@ -184,8 +214,9 @@ catch (error) {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
   }));
   if (composeStarted) {
-    try { await exec('docker', [...composeArgs, 'down'], { env, timeout: 30_000 }); }
+    try { await exec('docker', [...composeArgs, 'down', ...(automated ? ['--volumes'] : [])], { env, timeout: 30_000 }); }
     catch { console.error(`Container cleanup failed. Run docker compose -p ${project} -f tools/conformance/compose.yml down with CONFORMANCE_SOURCE and CONFORMANCE_STATE set.`); process.exitCode = 1; }
   }
   if (locked) await unlink(path.join(state, 'run.lock'));
+  if (automated) await rm(state, { recursive: true, force: true });
 }
