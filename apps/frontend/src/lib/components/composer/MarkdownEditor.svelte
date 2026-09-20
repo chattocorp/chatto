@@ -400,7 +400,10 @@ the same API as the visual editor while keeping the stored Markdown visible.
       'aria-label': label,
       'aria-multiline': 'true',
       spellcheck: 'true',
+      autocorrect: 'on',
       autocapitalize: 'sentences',
+      writingsuggestions: 'true',
+      inputmode: 'text',
       ...(dataTestid ? { 'data-testid': dataTestid } : {})
     });
   }
