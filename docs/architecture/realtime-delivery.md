@@ -444,6 +444,14 @@ This applies to profile refreshes, DM user reads, and catch-up user batches.
 The deletion record stays in memory until the next exact snapshot resets the
 projection. Reads from an earlier reset generation cannot update that snapshot.
 
+The DM destination `/chat/[serverId]/dm/[userId]` calls `StartDM` after
+navigation. Before it replaces the URL with the canonical room URL, it uses
+`ServerStateStore.ensureRoomAvailable` to refresh a missing room through the
+same resource pipeline and wait for DM participant hydration. This prevents
+the room view from treating a delayed creation event as an unavailable room.
+Route cleanup suppresses late navigation. Store disposal and projection resets
+invalidate pending reads. Empty DMs remain excluded from sidebar navigation.
+
 The browser keeps one in-memory resource view and cursor for each
 authenticated server. Only the active server keeps a persistent socket.
 Inactive servers use bounded periodic catch-up sockets. A page reload starts

@@ -2134,6 +2134,47 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls', undefined);
   });
 
+  it('prepares a missing room destination and waits for its participant hydration', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const rooms = deferred<RealtimeResourceUpdate[]>();
+    const users = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeResource.mockReturnValueOnce(rooms.promise);
+    apiMocks.readRealtimeUsers.mockReturnValueOnce(users.promise);
+    const ready = vi.fn();
+    const pending = store.ensureRoomAvailable('DM1').then(ready);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
+    rooms.resolve([roomResource([new RoomWithViewerState({
+      room: { id: 'DM1' }, memberUserIds: ['U2'], viewerState: { isMember: true }
+    })])]);
+    await flushPromises();
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledWith(['U2'], undefined);
+    expect(ready).not.toHaveBeenCalled();
+    users.resolve([]);
+    await pending;
+    expect(store.projection.rooms.has('DM1')).toBe(true);
+    expect(ready).toHaveBeenCalledOnce();
+    apiMocks.readRealtimeResource.mockClear();
+    await store.ensureRoomAvailable('DM1');
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
+  });
+
+  it.each(['missing', 'failed', 'reset', 'disposed'])(
+    'rejects an unavailable room destination: %s', async (failure) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const rooms = deferred<RealtimeResourceUpdate[]>();
+      apiMocks.readRealtimeResource.mockReturnValueOnce(rooms.promise);
+      const rejected = expect(store.ensureRoomAvailable('DM1')).rejects.toThrow();
+      if (failure === 'reset') store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
+      if (failure === 'disposed') store.dispose();
+      if (failure === 'failed') rooms.reject(new Error('offline'));
+      else rooms.resolve(failure === 'missing' ? [roomResource([])] : [roomResource([
+        new RoomWithViewerState({ room: { id: 'DM1' }, viewerState: { isMember: true } })
+      ])]);
+      await rejected;
+      expect(store.projection.rooms.has('DM1')).toBe(false);
+    }
+  );
+
   it('refreshes canonical rooms after a neutral unread invalidation', () => {
     const store = makeStore(new FakeServerConnection([]));
     apiMocks.readRealtimeResource.mockClear();
