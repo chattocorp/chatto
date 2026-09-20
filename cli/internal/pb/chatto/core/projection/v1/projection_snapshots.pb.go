@@ -4423,7 +4423,8 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x1b\n" +
-	"\tauthor_id\x18\x04 \x01(\tR\bauthorIdBDZBhmans.de/chatto/internal/pb/chatto/core/projection/v1;projectionv1b\x06proto3"
+	"\tauthor_id\x18\x04 \x01(\tR\bauthorIdB\x84\x02\n" +
+	"\x1dcom.chatto.core.projection.v1B\x18ProjectionSnapshotsProtoP\x01ZBhmans.de/chatto/internal/pb/chatto/core/projection/v1;projectionv1\xa2\x02\x03CCP\xaa\x02\x19Chatto.Core.Projection.V1\xca\x02\x19Chatto\\Core\\Projection\\V1\xe2\x02%Chatto\\Core\\Projection\\V1\\GPBMetadata\xea\x02\x1cChatto::Core::Projection::V1b\x06proto3"
 
 var (
 	file_chatto_core_projection_v1_projection_snapshots_proto_rawDescOnce sync.Once
