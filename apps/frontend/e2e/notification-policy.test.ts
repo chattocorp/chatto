@@ -63,11 +63,15 @@ test.describe('Notification policy', () => {
     await directMessages.click();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Off/);
 
+    // The label updates before the inherited-policy refresh enables the cell.
+    await expect(directMessages).toBeEnabled();
     await directMessages.press('Enter');
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Badge/);
 
+    await expect(directMessages).toBeEnabled();
     await directMessages.press('Enter');
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
+    await expect(directMessages).toBeEnabled();
 
     await page.reload();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
