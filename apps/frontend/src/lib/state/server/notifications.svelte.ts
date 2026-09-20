@@ -116,7 +116,13 @@ export class NotificationStore {
   error = $state<string | null>(null);
   readonly notificationPolicies: NotificationPolicyMatrixState;
 
-  constructor(api: NotificationAPI) {
+  constructor(
+    api: NotificationAPI,
+    private readonly isViewed: (
+      roomId: string | null,
+      threadRootId: string | null
+    ) => boolean = () => false
+  ) {
     this.#api = api;
     this.notificationPolicies = new NotificationPolicyMatrixState(api);
   }
@@ -131,6 +137,44 @@ export class NotificationStore {
       .filter((occurrence) => occurrence.unread)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 50);
+  }
+
+  /** Loaded unread occurrences that need local attention, without calculating badge counts. */
+  get attentionOccurrences(): NotificationOccurrenceItem[] {
+    return this.unreadOccurrences.filter((row) => this.needsAttention(row));
+  }
+
+  /** Local badge counts exclude viewed targets without changing authoritative unread state. */
+  get attention() {
+    const suppressed = this.occurrences.filter((row) => row.unread && !this.needsAttention(row));
+    const roomUnreadCounts = { ...this.roomUnreadCounts };
+    const roomImportantUnreadCounts = { ...this.roomImportantUnreadCounts };
+    let importantCount = 0;
+    for (const row of suppressed) {
+      const important = row.attentionLevel === NotificationAttentionLevel.IMPORTANT;
+      if (important) importantCount++;
+      if (row.room) {
+        roomUnreadCounts[row.room.id] = Math.max(0, (roomUnreadCounts[row.room.id] ?? 0) - 1);
+        if (important)
+          roomImportantUnreadCounts[row.room.id] = Math.max(
+            0, (roomImportantUnreadCounts[row.room.id] ?? 0) - 1
+          );
+      }
+    }
+    return {
+      unreadNotificationCount: Math.max(0, this.unreadNotificationCount - suppressed.length),
+      importantUnreadNotificationCount: Math.max(
+        0, this.importantUnreadNotificationCount - importantCount
+      ),
+      roomUnreadCounts,
+      roomImportantUnreadCounts
+    };
+  }
+
+  /** Shared eligibility rule for visual attention and in-app sound. */
+  needsAttention(occurrence: NotificationOccurrenceItem): boolean {
+    const target = notificationTarget(occurrence);
+    return occurrence.unread && !this.isViewed(target.roomId, target.threadRootId);
   }
 
   setUnreadNotificationCount(count: number, importantCount = count): void {
@@ -272,12 +316,12 @@ export class NotificationStore {
   }
 
   /**
-   * Get the set of thread root IDs that have pending reply notifications.
+   * Get thread root IDs with unread notifications that need local attention.
    * Used to show notification indicators on thread buttons.
    */
   get threadsWithNotifications(): SvelteSet<string> {
     const threadIds = new SvelteSet<string>();
-    for (const n of this.unreadOccurrences) {
+    for (const n of this.attentionOccurrences) {
       const threadRootId = notificationTarget(n).threadRootId;
       if (threadRootId) threadIds.add(threadRootId);
     }
@@ -285,17 +329,19 @@ export class NotificationStore {
   }
 
   /**
-   * Check if a specific thread has unread notification occurrences.
+   * Check if a thread has unread occurrences that need local attention.
    */
   hasThreadNotification(threadRootId: string): boolean {
-    return this.unreadOccurrences.some((n) => notificationTarget(n).threadRootId === threadRootId);
+    return this.attentionOccurrences.some(
+      (n) => notificationTarget(n).threadRootId === threadRootId
+    );
   }
 
   /**
    * Check if a specific room has pending non-DM notifications.
    */
   hasRoomNotification(roomId: string): boolean {
-    return this.unreadOccurrences.some((n) => {
+    return this.attentionOccurrences.some((n) => {
       const t = notificationTarget(n);
       return !t.isDM && t.roomId === roomId;
     });
@@ -303,7 +349,7 @@ export class NotificationStore {
 
   /** Check if the server has any pending non-DM notifications. */
   hasNonDMNotifications(): boolean {
-    return this.unreadOccurrences.some((n) => !notificationTarget(n).isDM);
+    return this.attentionOccurrences.some((n) => !notificationTarget(n).isDM);
   }
 
   /**
@@ -311,14 +357,14 @@ export class NotificationStore {
    * Notifications are sorted most-recent-first, so .find returns the freshest.
    */
   getNonDMNotification(): NotificationOccurrenceItem | undefined {
-    return this.unreadOccurrences.find((n) => n.targetSupported && !notificationTarget(n).isDM);
+    return this.attentionOccurrences.find((n) => n.targetSupported && !notificationTarget(n).isDM);
   }
 
   /**
    * Get the most recent non-DM notification for a room.
    */
   getRoomNotification(roomId: string): NotificationOccurrenceItem | undefined {
-    return this.unreadOccurrences.find((n) => {
+    return this.attentionOccurrences.find((n) => {
       const t = notificationTarget(n);
       return !t.isDM && t.roomId === roomId;
     });
@@ -328,7 +374,7 @@ export class NotificationStore {
    * Check if there are any pending DM notifications.
    */
   hasDMNotifications(): boolean {
-    return this.unreadOccurrences.some((n) => isDMNotification(n));
+    return this.attentionOccurrences.some((n) => isDMNotification(n));
   }
 
   /**
@@ -336,7 +382,7 @@ export class NotificationStore {
    * Returns undefined if no DM notifications exist.
    */
   getDMNotification(): NotificationOccurrenceItem | undefined {
-    return this.unreadOccurrences.find((n) => isDMNotification(n));
+    return this.attentionOccurrences.find((n) => isDMNotification(n));
   }
 
   /**
@@ -344,14 +390,14 @@ export class NotificationStore {
    * Counterpart to {@link hasRoomNotification}, which excludes DMs.
    */
   hasDMRoomNotification(roomId: string): boolean {
-    return this.unreadOccurrences.some((n) => isDMNotification(n) && n.room?.id === roomId);
+    return this.attentionOccurrences.some((n) => isDMNotification(n) && n.room?.id === roomId);
   }
 
   /**
    * Get the most recent notification for a DM conversation.
    */
   getDMRoomNotification(roomId: string): NotificationOccurrenceItem | undefined {
-    return this.unreadOccurrences.find((n) => isDMNotification(n) && n.room?.id === roomId);
+    return this.attentionOccurrences.find((n) => isDMNotification(n) && n.room?.id === roomId);
   }
 
   getCachedRoomNotification(

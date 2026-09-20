@@ -21,7 +21,7 @@
   const totalNotificationCount = $derived(
     serverRegistry.servers.reduce(
       (sum, instance) =>
-        sum + (serverRegistry.tryGetStore(instance.id)?.notifications.unreadNotificationCount ?? 0),
+        sum + (serverRegistry.tryGetStore(instance.id)?.notifications.attention.unreadNotificationCount ?? 0),
       0
     )
   );
@@ -29,7 +29,7 @@
     serverRegistry.servers.reduce(
       (sum, instance) =>
         sum +
-        (serverRegistry.tryGetStore(instance.id)?.notifications.importantUnreadNotificationCount ?? 0),
+        (serverRegistry.tryGetStore(instance.id)?.notifications.attention.importantUnreadNotificationCount ?? 0),
       0
     )
   );

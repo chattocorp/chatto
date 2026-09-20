@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { ReadViewRegistry } from './readViews.svelte';
 import {
   NotificationStore,
   notificationAttentionForThread,
@@ -145,6 +146,45 @@ describe('notificationAttentionForThread', () => {
 });
 
 describe('NotificationStore', () => {
+  it.each(['before', 'after'])('suppresses viewed thread attention when notifications arrive %s registration', (order) => {
+    const views = new ReadViewRegistry();
+    const store = new NotificationStore(makeAPI(), (roomId, threadRootId) => views.covers(roomId, threadRootId));
+    const rows = [
+      { ...mention('thread-a'), threadRootId: 'a' },
+      { ...mention('thread-b'), threadRootId: 'b' },
+      mention('room')
+    ];
+    const snapshot = notificationPage(page(rows));
+    // Include unread activity beyond the retained page. It must not be subtracted.
+    snapshot.unreadCount += 4;
+    snapshot.importantUnreadCount += 4;
+    snapshot.roomUnreadCounts.r1 += 4;
+    snapshot.roomImportantUnreadCounts.r1 += 4;
+    if (order === 'before') store.replaceOccurrenceProjection(snapshot);
+    const closeA = views.register({ roomId: 'r1', threadRootId: 'a' });
+    if (order === 'after') store.replaceOccurrenceProjection(snapshot);
+
+    expect(store.attention.unreadNotificationCount).toBe(6);
+    expect(store.attention.importantUnreadNotificationCount).toBe(6);
+    expect(store.attention.roomUnreadCounts.r1).toBe(6);
+    expect(store.attention.roomImportantUnreadCounts.r1).toBe(6);
+    expect(store.attentionOccurrences.map((row) => row.id)).toEqual(['thread-b', 'room']);
+    expect(store.hasThreadNotification('a')).toBe(false);
+    expect(store.needsAttention(rows[0])).toBe(false);
+    expect(store.unreadNotificationCount).toBe(7);
+    expect(store.occurrences.every((row) => row.unread)).toBe(true);
+
+    const closeB = views.register({ roomId: 'r1', threadRootId: 'b' });
+    expect(store.attention.unreadNotificationCount).toBe(5);
+    // A stale authoritative snapshot must still pass through the same local rule.
+    store.replaceOccurrenceProjection(snapshot);
+    expect(store.attention.unreadNotificationCount).toBe(5);
+    closeA();
+    closeB();
+    expect(store.attention.unreadNotificationCount).toBe(7);
+    expect(store.hasThreadNotification('a')).toBe(true);
+  });
+
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {

@@ -4,8 +4,69 @@ import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
+import { postThreadReplyViaConnect } from './fixtures/connectHelpers';
 
 test.describe('Thread Following', () => {
+  test('viewed replies stay quiet while the read request is pending', async ({ page, chatPage, roomPage, browser, serverURL }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const roomId = new URL(page.url()).pathname.split('/').at(-1)!;
+    const root = await roomPage.sendMessage(`Viewed thread ${Date.now()}`);
+    const rootId = (await root.getEventId())!;
+    await root.openThread();
+    await roomPage.postThreadReply('Initial reply');
+    await roomPage.expectThreadPaneFollowing();
+
+    await withServerUser(browser!, serverURL, async ({ page: sender }) => {
+      await page.bringToFront();
+      await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true);
+      let releaseRead!: () => void;
+      const readGate = new Promise<void>((resolve) => { releaseRead = resolve; });
+      let readRequested = false;
+      await page.route('**/chatto.api.v1.ThreadService/MarkThreadAsRead', async (route) => {
+        readRequested = true;
+        await readGate;
+        await route.continue();
+      });
+      // Observe the complete interval, not only the final DOM after auto-reading.
+      await page.evaluate(() => {
+        const selector = '[data-testid="thread-notification-dot"], [data-testid="thread-unread-dot"], [data-testid="my-threads-unread-dot"], [data-testid="notifications-unread-dot"]';
+        const state = { flashed: false, observer: new MutationObserver(() => {
+          if (document.querySelector(selector)) state.flashed = true;
+        }) };
+        state.observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+        Object.assign(window, { threadAttentionCheck: state });
+      });
+      try {
+        const notificationRead = page.waitForResponse(async (response) =>
+          response.url().includes('/ListNotificationOccurrences') && response.ok() &&
+          (await response.text()).includes(rootId)
+        );
+        await postThreadReplyViaConnect(sender, roomId, 'Reply while read is pending', rootId);
+        await expect(page.getByTestId('thread-pane').getByText('Reply while read is pending', { exact: true })).toBeVisible();
+        await notificationRead;
+        await expect.poll(() => readRequested).toBe(true);
+        expect(await page.evaluate(() => {
+          const state = (window as unknown as { threadAttentionCheck: { flashed: boolean } }).threadAttentionCheck;
+          return state.flashed;
+        })).toBe(false);
+      } finally {
+        releaseRead();
+        await page.unrouteAll({ behavior: 'wait' });
+        await page.evaluate(() => {
+          (window as unknown as { threadAttentionCheck: { observer: MutationObserver } }).threadAttentionCheck.observer.disconnect();
+        });
+      }
+      await roomPage.closeThread();
+      await expect(root.locator.getByTestId('thread-notification-dot')).toHaveCount(0);
+      await expect(root.locator.getByTestId('thread-unread-dot')).toHaveCount(0);
+    });
+    expect(errors).toEqual([]);
+  });
+
   test('follow bell is visible on messages with thread replies', async ({
     page,
     chatPage,

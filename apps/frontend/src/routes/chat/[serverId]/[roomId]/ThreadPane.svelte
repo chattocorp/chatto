@@ -36,6 +36,7 @@
     roomName,
     isDirectMessage = false,
     threadRootEventId,
+    isVisible = true,
     onClose,
     canPostInThread = true,
     canAttach = true,
@@ -57,6 +58,8 @@
     roomName: string;
     isDirectMessage?: boolean;
     threadRootEventId: string;
+    /** False when a retained pane is hidden and must not read or suppress attention. */
+    isVisible?: boolean;
     onClose: () => void;
     canPostInThread?: boolean;
     canAttach?: boolean;
@@ -82,6 +85,11 @@
   const members = $derived(getRoomMembers());
   const stores = $derived(serverScope.store);
   const currentUser = $derived(stores.currentUser);
+
+  $effect(() => {
+    if (!isVisible || !currentUser.user) return;
+    return stores.readViews.register({ roomId, threadRootId: threadRootEventId });
+  });
 
   const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
 
@@ -109,6 +117,7 @@
 
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
+    canMarkAsRead: () => isVisible,
     markerWindowFromReadResult: (result, markedAtMs) =>
       result.previousLastReadAt ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs } : null,
     getMarkerEvents: () => threadEvents,
@@ -257,9 +266,20 @@
     upToEventId: string | undefined,
     signal: AbortSignal
   ): Promise<MarkThreadAsReadResult> {
-    return connection()
+    const readStores = stores;
+    const readRoomId = roomId;
+    const readConnection = connection();
+    const dataGeneration = readConnection.dataGeneration;
+    const result = await readConnection
       .getAPI(createReadStateAPI)
-      .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId }, { signal });
+      .markThreadAsRead(
+        { roomId: readRoomId, threadRootEventId: currentThreadId, upToEventId },
+        { signal }
+      );
+    if (!signal.aborted && dataGeneration === readConnection.dataGeneration) {
+      readStores.reconcileThreadRead(readRoomId, currentThreadId);
+    }
+    return result;
   }
 </script>
 

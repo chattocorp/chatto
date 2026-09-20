@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     {
       isAuthenticated: boolean;
       serverInfo: { name: string };
-      notifications: { unreadNotificationCount: number };
+      notifications: { attention: { unreadNotificationCount: number } };
     }
   >()
 }));
@@ -37,7 +37,7 @@ function store(name: string, unreadNotificationCount = 0, isAuthenticated = true
   return {
     isAuthenticated,
     serverInfo: { name },
-    notifications: { unreadNotificationCount }
+    notifications: { attention: { unreadNotificationCount } }
   };
 }
 

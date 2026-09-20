@@ -296,21 +296,23 @@
             {#each section.items as thread (thread.threadRootEventId)}
               {@const actors = rowActors(thread)}
               {@const primary = primaryEvent(thread)}
+              {@const hasUnreadAttention = thread.hasUnreadReplies &&
+                !serverStore.readViews.covers(thread.roomId, thread.threadRootEventId)}
               {@const attention = notificationAttentionForThread(
-                serverStore.notifications.unreadOccurrences,
+                serverStore.notifications.attentionOccurrences,
                 thread.roomId,
                 thread.threadRootEventId
               )}
               <ActivityListRow
                 pending={actionThreadId === thread.threadRootEventId}
                 disabled={actionThreadId === thread.threadRootEventId}
-                dimmed={!thread.hasUnreadReplies &&
+                dimmed={!hasUnreadAttention &&
                   attention === NotificationAttentionLevel.UNSPECIFIED}
                 important={attention === NotificationAttentionLevel.IMPORTANT}
                 onclick={() => navigateToThread(thread)}
                 rowAttributes={{
                   'data-testid': 'my-thread-item',
-                  'data-thread-state': thread.hasUnreadReplies ? 'unread' : 'read',
+                  'data-thread-state': hasUnreadAttention ? 'unread' : 'read',
                   'data-thread-attention':
                     attention === NotificationAttentionLevel.IMPORTANT
                       ? 'important'
@@ -335,7 +337,7 @@
                   </span>
                 {/snippet}
 
-                {#if thread.hasUnreadReplies}<span class="sr-only"
+                {#if hasUnreadAttention}<span class="sr-only"
                     >{m('chat.threads.filter_unread')}</span
                   >{/if}
                 {#if attention !== NotificationAttentionLevel.UNSPECIFIED}<span class="sr-only"

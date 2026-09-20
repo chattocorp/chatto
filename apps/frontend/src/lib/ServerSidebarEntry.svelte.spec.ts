@@ -48,6 +48,12 @@ const { mocks } = vi.hoisted(() => {
           setUnreadNotificationCount: vi.fn(),
           unreadNotificationCount: 0,
           importantUnreadNotificationCount: 0,
+          get attention() {
+            return {
+              unreadNotificationCount: this.unreadNotificationCount,
+              importantUnreadNotificationCount: this.importantUnreadNotificationCount
+            };
+          },
           getNonDMNotification: vi.fn().mockReturnValue(null),
           getDMNotification: vi.fn().mockReturnValue(null),
           markRead: vi.fn(),

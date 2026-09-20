@@ -13,7 +13,7 @@
   const serverId = $derived(serverScope.serverId);
   const notificationStore = $derived(serverScope.store.notifications);
   const threadNotifications = $derived(
-    notificationStore.unreadOccurrences.filter((notification) => {
+    notificationStore.attentionOccurrences.filter((notification) => {
       const target = notificationTarget(notification);
       if (!target.roomId || !target.threadRootId) return false;
       // A loaded room timeline can prove that a thread is not followed. When

@@ -25,7 +25,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'server-1',
     store: {
       notifications: {
-        get unreadOccurrences() {
+        get attentionOccurrences() {
           return mocks.unreadOccurrences;
         }
       },

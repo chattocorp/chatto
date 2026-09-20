@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-18
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -37,6 +37,11 @@ targets, unread counts, read state, or deletion semantics.
   event. The occurrence is marked Read only after the target is displayed.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
+- While a thread is visible in a focused app, its loaded unread notifications
+  do not add local badges or play sound. This rule applies before the server
+  confirms the read. It does not change notification history or remote push
+  delivery. If a read fails, remaining unread activity can show again when
+  the user leaves the thread. Other threads keep their attention indicators.
 - Notifications cannot be marked Unread. There is no Done state or Inbox/Done
   split.
 - The Delete action deletes the exact visible occurrences in the current row.
