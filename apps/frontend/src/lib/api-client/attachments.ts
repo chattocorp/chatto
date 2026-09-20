@@ -1,4 +1,4 @@
-import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import { authHeaders, createChattoClient, handleAuthError, REALTIME_MINIMUM_CURSOR_HEADER } from './connect.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
 import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
 import { imageFitModeOrCover } from './enumDefaults.js';
@@ -6,6 +6,7 @@ import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import type { Asset } from '@chatto/api-types/api/v1/attachments_pb';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import {
+  type Message,
   type MessageAttachment,
   MessageVideoProcessingStatus,
   type MessageAssetUrl,
@@ -73,6 +74,7 @@ export type AttachmentAPI = {
     limit: number;
     offset: number;
     thumbnail: AttachmentRefreshOptions;
+    minimumCursor?: string;
   }): Promise<RoomFilesPage>;
   refreshAssetUrls(
     roomId: string,
@@ -95,15 +97,17 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
         return handleAuthError(config, err);
       }
     },
-    async listRoomAttachments({ roomId, limit, offset, thumbnail }) {
+    async listRoomAttachments({ roomId, limit, offset, thumbnail, minimumCursor }) {
       try {
+        const requestHeaders = new Headers(headers());
+        if (minimumCursor) requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
         const response = await rooms.listRoomAttachments(
           {
             roomId,
             page: { limit, offset },
             thumbnail: thumbnailOptions(thumbnail)
           },
-          { headers: headers() }
+          { headers: requestHeaders, ...(minimumCursor ? { timeoutMs: 10_000 } : {}) }
         );
         return {
           items: response.attachments.map(roomFileItem),
@@ -181,11 +185,18 @@ function roomFileItem(item: {
 export function roomFileItemsForTimelineEvent(event: RoomTimelineEvent): RoomFileItem[] {
   if (event.event.case !== 'messagePosted') return [];
   const message = event.event.value.message;
+  return message ? roomFileItemsForMessage(message).map((item) => ({
+    ...item, messageEventId: event.id, createdAt: timestampToISO(event.createdAt)
+  })) : [];
+}
+
+/** Convert a shared authoritative message read to file-list rows. */
+export function roomFileItemsForMessage(message: Message): RoomFileItem[] {
   if (!message || message.deletedAt) return [];
   return message.attachments.map((attachment) => ({
-    messageEventId: event.id,
+    messageEventId: message.id,
     threadRootEventId: message.threadRootEventId || null,
-    createdAt: timestampToISO(event.createdAt),
+    createdAt: timestampToISO(message.createdAt),
     attachment: roomFileAttachment(attachment, attachment.description)
   }));
 }

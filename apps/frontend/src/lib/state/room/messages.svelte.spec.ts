@@ -371,6 +371,38 @@ function timelineFromFixtures(fake: FakeQueryClient): RoomTimelineAPI {
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
+  it('preserves a shared message update when an older initial page arrives', async () => {
+    const pending = deferred<EventConnectionPage>();
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents: vi.fn(() => pending.promise) })
+    );
+    store.setRoom('room-1');
+    const row = threadMessageEvent('m1');
+    const edited = { ...row, event: { ...row.event, body: 'edited' } };
+    store.captureMessageReconciliation()('m1', edited, true);
+    pending.resolve(pageFromEvent(row));
+    await vi.waitFor(() => expect(store.isInitialLoading).toBe(false));
+    expect(store.getEventById('m1')?.event).toMatchObject({ body: 'edited' });
+    store.dispose();
+  });
+
+  it('does not overwrite a newer local change with a shared read', async () => {
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null, fakeTimelineAPI()
+    );
+    store.setRoom('room-1');
+    await settle();
+    const row = threadMessageEvent('m1');
+    store.ingestEvent(row);
+    const apply = store.captureMessageReconciliation();
+    store.events = [{ ...row, event: { ...row.event, body: 'newer' } }];
+    apply('m1', { ...row, event: { ...row.event, body: 'older' } }, false);
+    expect(store.getEventById('m1')?.event).toMatchObject({ body: 'newer' });
+    store.dispose();
+  });
+
   it('scrubs deleted-user actors, thread participants, and reaction previews', () => {
     const fake = new FakeQueryClient();
     const store = new MessagesStore(

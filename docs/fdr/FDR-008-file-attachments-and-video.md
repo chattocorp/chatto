@@ -100,7 +100,7 @@ message, and sorts by newest message first. The bundled client owns one lazy
 file cache per room in its server-scoped state: opening Files hydrates it once,
 after which authoritative timeline message snapshots reconcile attachment rows
 already in the cache and newly posted attachments are inserted directly.
-**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the server read from the existing room/message projections and updating the client cache from the same realtime message snapshots keeps both surfaces consistent without duplicate durable state or repeated full-list reads.
+**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. The frontend shares bounded message reads across timelines, Files, and pins. Each affected message supplies the current attachment data to all loaded views, including Files when a reply's thread is closed. This keeps the views consistent without separate message reads for each panel or repeated full-list reads.
 **Tradeoff:** There is no search or media filtering in this iteration. Hydrated room caches consume client memory for the server session, and attachment changes beyond a partially loaded page converge when that page is loaded.
 
 ### 10. Displayed images use bounded derivatives

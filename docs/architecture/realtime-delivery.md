@@ -97,26 +97,36 @@ unchanged.
 Public asset processing and deletion events include the owning room and
 message IDs. The mapper uses the same retained ownership lookup as event
 authorization, including deleted derivatives. Events without a message target
-are omitted. The frontend uses these IDs to refresh message windows, files,
-and pins only in the affected room.
+are omitted. The frontend uses these IDs to read each affected message once
+and update its loaded timeline, file, and pin rows.
 
 An authorized message-post event carries `body_plaintext` for immediate
 display. EVT does not store this field. The frontend inserts a temporary
 timeline row from the event ID, actor, time, reply references, and plaintext
 body. Values that belong only to the complete message resource start empty.
 These values include attachments, link previews, reactions, pin state, thread
-counts, thread participants, and the timeline cursor. A background `GetMessage`
-read uses the event cursor as its minimum boundary and replaces the temporary
-row with the authoritative resource. A wider cursor-bounded timeline-window
-refresh then reconciles ordering and pagination cursors. The client does not
-save the event cursor if either read fails.
+counts, thread participants, and the timeline cursor. The server-scoped
+[`MessageReconciler`](../../apps/frontend/src/lib/state/server/messageReconciler.ts)
+collects affected message IDs for 10 milliseconds, then reads at most 100 IDs
+per room with `BatchGetMessages`. It uses the latest received event cursor as
+the minimum read boundary. Opaque cursor strings are never sorted.
+
+Each result supplies the same authoritative message to room timelines, open
+threads, Files, and pins. Loaded thread roots and echo rows join the same
+batch. Related IDs first found in a response use a follow-up batch. Closed
+threads do not need a mounted timeline for their files to update. Text-only
+posts leave file rows unchanged. File and pin updates preserve loaded pages;
+they do not restart the lists. Initial loads, pagination, system-event rows,
+and snapshot recovery still use their collection APIs. Message updates do not
+replace pagination cursors or imply that a gap in a loaded window is complete.
 
 The temporary row uses the projected user directory, then the per-server user
 summary cache, to resolve its author. If neither has the author, the row keeps
-its body visible and shows a neutral avatar and a name skeleton. A failed or
-empty message read changes this state to “Unknown user”. It does not mark the
-account as deleted. The single-message response replaces the temporary row
-only if no newer row change occurred during the read. Account deletion clears
+its body visible and shows a neutral avatar and a name skeleton. A failed
+message read fails reconciliation. An omitted message is removed or tombstoned
+through the existing message-deletion rules. Neither case marks the account
+as deleted. The shared response replaces a temporary row only if no newer row
+change occurred during the read. Account deletion clears
 copied author data and the loading state. Deletion fences also apply to late
 responses and cached-author fallback.
 
@@ -179,10 +189,11 @@ capability.
 Room and thread timelines are not unconditional bootstrap families. The
 frontend reloads each mounted timeline at `E` through `RoomService` or
 `ThreadService`. A read caused by a later durable event uses that event's cursor
-as its minimum boundary. Files, pins, search, and other large or lazy data keep
-their independent ConnectRPC reads. They are not part of the retained realtime
-projection or its cursor. Canonical events act as refresh hints for resources
-that the client already uses.
+as its minimum boundary. Files and pins retain independent paginated reads
+for their collection membership. Changes to their message content use the
+shared message queue, whose completion is part of cursor reconciliation.
+Search and other lazy data retain their own reads. Canonical events update
+resources that the client already uses; they do not open lazy collections.
 
 The bundled frontend gives each cursor-bounded ConnectRPC call a 10-second
 deadline. A timeout fails reconciliation and closes the socket without cursor
@@ -450,9 +461,14 @@ The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events start
 coalesced ConnectRPC reads. If another event reaches the same resource family
 during a read, the frontend runs one follow-up read at the newest event cursor.
-Timeline-derived stores retain each distinct pending anchor, direction, and
-minimum cursor. They run these reads in order. One bounded page cannot replace
-a read for another anchor. Identical pending reads share one request. Cursor
+The message queue deduplicates pending IDs and serializes batches within each
+room. An event that arrives during a read queues another read for its ID and
+prevents the older result from being applied. Reset, room-access loss, and
+disposal fence outstanding responses. Required author reads are also bounded
+to 100 IDs. Both message and author failures prevent cursor advancement.
+Remaining timeline-window reads retain each distinct pending anchor, direction,
+and minimum cursor. One bounded page cannot replace a read for another anchor.
+Identical pending window reads share one request. Cursor
 advancement waits for active and queued reads, including reads that started
 without a cursor. A failed refresh closes the socket without saving that event
 cursor.

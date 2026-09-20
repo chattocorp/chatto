@@ -132,6 +132,21 @@ describe('RoomPinsStore', () => {
     release();
   });
 
+  it('applies shared message changes that arrive during initial hydration', async () => {
+    let resolve!: (value: ReturnType<typeof pinPage>) => void;
+    const pending = new Promise<ReturnType<typeof pinPage>>((done) => { resolve = done; });
+    const api = { list: vi.fn(() => pending), create: vi.fn(), remove: vi.fn() };
+    const store = makeStore(api);
+    const loading = store.hydrate();
+    store.applyMessageUpdate('M1', new Message({ id: 'M1', body: 'edited' }));
+    store.applyMessageRetraction('M2');
+    resolve(pinPage([pin('P1', 'M1'), pin('P2', 'M2')]));
+    await loading;
+    expect(store.items.map((item) => item.message?.body)).toEqual(['edited']);
+    expect(store.totalCount).toBe(1);
+    expect(api.list).toHaveBeenCalledOnce();
+  });
+
   it('drops late mutation responses and purges the viewer marker after access revocation', async () => {
     let resolveCreate: (item: PinnedMessage) => void = () => undefined;
     let resolveRemove: () => void = () => undefined;

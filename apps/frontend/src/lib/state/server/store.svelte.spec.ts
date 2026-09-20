@@ -7,13 +7,16 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import type { RoomFileItem } from '$lib/api-client/attachments';
-import { createRoomTimelineAPI, type EventConnectionPage } from '$lib/api-client/roomTimeline';
+import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import type { MessageResource } from '$lib/api-client/messageResources';
+import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
+import { messageToTimelineEvent } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { GetMotdResponse } from '@chatto/api-types/api/v1/server_state_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room, PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   ListRoomsResponse,
   ListRoomGroupsResponse,
@@ -80,6 +83,8 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     scrubRoomMemberUser: vi.fn()
   },
   apiMocks: {
+    listPins: vi.fn(),
+    readMessages: vi.fn<(roomId: string, ids: string[], cursor?: string) => Promise<MessageResource[]>>(() => Promise.resolve([])),
     readRealtimeResource: vi.fn<
       (family: RealtimeResourceFamily, cursor?: string) => Promise<RealtimeResourceUpdate[]>
     >(() => Promise.resolve([])),
@@ -287,6 +292,14 @@ vi.mock('$lib/api-client/realtimeResources', async (importActual) => {
   };
 });
 
+vi.mock('$lib/api-client/messageResources', () => ({
+  createMessageResourcesAPI: () => ({ read: apiMocks.readMessages })
+}));
+
+vi.mock('$lib/api-client/pinnedMessages', () => ({
+  createPinnedMessagesAPI: () => ({ list: apiMocks.listPins, create: vi.fn(), remove: vi.fn() })
+}));
+
 vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
   const emptyPage = {
@@ -471,6 +484,8 @@ function userLeftRoom(roomId: string, actorId: string, eventId = ''): RealtimePr
 }
 
 beforeEach(() => {
+  apiMocks.listPins.mockReset().mockResolvedValue({ items: [], totalCount: 0, hasMore: false, latestPinMarker: '' });
+  apiMocks.readMessages.mockReset().mockResolvedValue([]);
   __resetUserSummaryCachesForTests();
   registerServerQueryCache({
     server: cacheMocks.removeRegisteredServerQueries,
@@ -1371,7 +1386,7 @@ describe('ServerStateStore unified realtime resources', () => {
   );
 
   it.each(['room', 'thread'] as const)(
-    'keeps edits and reactions at distinct queued %s anchors',
+    'batches edits and reactions across the loaded %s window',
     async (scope) => {
       const store = makeStore(new FakeServerConnection([]));
       const messages =
@@ -1392,21 +1407,14 @@ describe('ServerStateStore unified realtime resources', () => {
         }
       });
       for (let id = 1; id <= 140; id++) messages.ingestEvent(row(id));
-      const page = (id: number): EventConnectionPage => ({
-        events: [row(id, true)],
-        startCursor: null,
-        endCursor: null,
-        hasOlder: true,
-        hasNewer: true
-      });
-      const first = deferred<EventConnectionPage>();
       const api: ReturnType<typeof createRoomTimelineAPI> = vi
         .mocked(createRoomTimelineAPI)
         .mock.results.at(-1)!.value;
-      const read = vi
-        .mocked(scope === 'room' ? api.getRoomEventsAround : api.getThreadEventsAround)
-        .mockImplementation(({ eventId }) => Promise.resolve(page(Number(eventId.slice(1)))))
-        .mockReturnValueOnce(first.promise);
+      const read = vi.mocked(scope === 'room' ? api.getRoomEventsAround : api.getThreadEventsAround);
+      apiMocks.readMessages.mockImplementation(async (_roomId, ids) => ids.map((id) => ({
+        message: new Message({ id, roomId: 'R1' }),
+        timeline: id === 'ROOT' ? null : row(Number(id.slice(1)), true)
+      })));
       for (const id of [1, 70, 140]) {
         store.realtimeProjectionHandler(
           new RealtimeProjectionUpdate({
@@ -1426,15 +1434,16 @@ describe('ServerStateStore unified realtime resources', () => {
           })
         );
       }
-      expect(read).toHaveBeenCalledTimes(1);
-      first.resolve(page(1));
-      await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3));
-      await flushPromises(20);
-      expect(read.mock.calls.map(([input]) => input.eventId)).toEqual(['M1', 'M70', 'M140']);
+      await store.waitForRealtimeReconciliation();
+      expect(read).not.toHaveBeenCalled();
+      expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith(
+        'R1', scope === 'room' ? ['M1', 'M70', 'M140'] : ['M1', 'ROOT', 'M70', 'M140'], 'cursor-140'
+      );
       expect(messages.getEventById('M70')?.event).toMatchObject({ body: 'edited' });
       expect(messages.getEventById('M140')?.event).toMatchObject({
         reactions: [{ emoji: 'ok', count: 1 }]
       });
+      expect(messages.events).toHaveLength(140);
     }
   );
 
@@ -1620,10 +1629,10 @@ describe('ServerStateStore unified realtime resources', () => {
   });
 
   it('does not complete a durable cursor when message hydration fails', async () => {
-    const messageRead = deferred<boolean>();
+    const messageRead = deferred<MessageResource[]>();
     const store = makeStore(new FakeServerConnection([]));
-    const messages = store.messagesForRoom('R1');
-    const hydrate = vi.spyOn(messages, 'refreshPostedMessage').mockReturnValue(messageRead.promise);
+    store.messagesForRoom('R1');
+    apiMocks.readMessages.mockReturnValueOnce(messageRead.promise);
     await flushPromises();
 
     store.realtimeProjectionHandler(
@@ -1638,7 +1647,7 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       })
     );
-    expect(hydrate).toHaveBeenCalledWith('E-POST', 'opaque-message-cursor', expect.any(Function));
+    await vi.waitFor(() => expect(apiMocks.readMessages).toHaveBeenCalledWith('R1', ['E-POST'], 'opaque-message-cursor'));
 
     const completion = store.waitForRealtimeReconciliation();
     let completed = false;
@@ -1656,18 +1665,17 @@ describe('ServerStateStore unified realtime resources', () => {
     await expect(completion).rejects.toBe(failure);
   });
 
-  it('waits for cursorless window reads and every queued direction without auxiliary RPCs', async () => {
+  it('waits for cursorless window reads and shared message reads without auxiliary RPCs', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
     await flushPromises(20);
     const first = deferred<Awaited<ReturnType<typeof messages.refreshCurrentWindow>>>();
-    const last = deferred<Awaited<ReturnType<typeof messages.refreshCurrentWindow>>>();
+    const last = deferred<MessageResource[]>();
     const result = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
     const refresh = vi
       .spyOn(messages, 'refreshCurrentWindow')
       .mockResolvedValue(result)
       .mockReturnValueOnce(first.promise);
-    vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(true);
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'FIRST'));
     await flushPromises(20);
     apiMocks.readRealtimeResource.mockClear();
@@ -1698,22 +1706,20 @@ describe('ServerStateStore unified realtime resources', () => {
     });
     store.realtimeProjectionHandler(edit);
     store.realtimeProjectionHandler(edit);
-    refresh.mockResolvedValueOnce(result).mockReturnValueOnce(last.promise);
+    apiMocks.readMessages.mockReturnValueOnce(last.promise);
     const complete = vi.fn();
     const completion = store.waitForRealtimeReconciliation().then(complete);
     await flushPromises(20);
     expect(complete).not.toHaveBeenCalled();
     first.resolve(result);
-    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(apiMocks.readMessages).toHaveBeenCalled());
     expect(
       refresh.mock.calls.map(([anchor, forward, cursor]) => [anchor, forward, cursor])
     ).toEqual([
-      ['FIRST', false, undefined],
-      ['POST', true, 'post-cursor'],
-      ['POST', false, 'edit-cursor']
+      ['FIRST', false, undefined]
     ]);
     expect(complete).not.toHaveBeenCalled();
-    last.resolve(result);
+    last.resolve([]);
     await completion;
     expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
     expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
@@ -1860,17 +1866,8 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
     await store.waitForRealtimeReconciliation();
-    for (const read of [refreshes[0].room, refreshes[0].thread]) {
-      expect(read).toHaveBeenCalledExactlyOnceWith(
-        'M1',
-        false,
-        'asset-cursor',
-        expect.any(Function)
-      );
-    }
-    expect(refreshes[0].files).toHaveBeenCalledOnce();
-    expect(refreshes[0].pins).toHaveBeenCalledOnce();
-    for (const read of Object.values(refreshes[1])) expect(read).not.toHaveBeenCalled();
+    expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['M1'], 'asset-cursor');
+    for (const room of refreshes) for (const read of Object.values(room)) expect(read).not.toHaveBeenCalled();
   });
 
   it('refreshes a mounted room timeline for canonical membership rows', async () => {
@@ -1937,7 +1934,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
   });
 
-  it('refreshes thread reads for follow changes and replies', async () => {
+  it('batches thread roots and replies without refreshing timeline windows', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
     const threadMessages = store.messagesForThread('R1', 'E-ROOT');
@@ -1953,9 +1950,6 @@ describe('ServerStateStore unified realtime resources', () => {
       refreshed: true,
       changed: true
     });
-    const refreshPostedThread = vi
-      .spyOn(threadMessages, 'refreshPostedMessage')
-      .mockResolvedValue(true);
     const setThreadFollow = vi.spyOn(threadMessages, 'setThreadRootFollowState');
     await flushPromises();
     refresh.mockClear();
@@ -1990,11 +1984,11 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       })
     );
-    await flushPromises();
+    await store.waitForRealtimeReconciliation();
 
-    expect(refresh).toHaveBeenCalledWith('E-ROOT', false, undefined, expect.any(Function));
-    expect(refreshPostedThread).toHaveBeenCalledWith('E-REPLY', undefined, expect.any(Function));
-    expect(refreshThread).toHaveBeenCalledWith('E-REPLY', true, undefined, expect.any(Function));
+    expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['E-ROOT', 'E-REPLY'], undefined);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(refreshThread).not.toHaveBeenCalled();
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
@@ -2121,10 +2115,90 @@ describe('ServerStateStore unified realtime resources', () => {
     );
   });
 
-  it('hydrates a new room post before advancing the retained window', async () => {
+  it.each([false, true])('shares one reply read across Files, pins and timelines (thread open: %s)', async (openThread) => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.messagesForRoom('R1');
+    const thread = openThread ? store.messagesForThread('R1', 'ROOT') : null;
+    const unrelated = store.messagesForThread('R1', 'OTHER');
+    const files = store.filesForRoom('R1');
+    const pins = store.pinsForRoom('R1');
+    const message = new Message({
+      id: 'REPLY', roomId: 'R1', threadRootEventId: 'ROOT', body: 'file',
+      attachments: [new MessageAttachment({ id: 'ASSET', filename: 'file.txt', contentType: 'text/plain' })]
+    });
+    apiMocks.listPins.mockResolvedValue({
+      items: [new PinnedMessage({ message })], totalCount: 1, hasMore: false, latestPinMarker: 'PIN'
+    });
+    await Promise.all([files.hydrate(), pins.hydrate()]);
+    await flushPromises(20);
+    const roomRefresh = vi.spyOn(room, 'refreshCurrentWindow');
+    const unrelatedRefresh = vi.spyOn(unrelated, 'refreshCurrentWindow');
+    const resource = (value: Message): MessageResource => ({ message: value, timeline: messageToTimelineEvent(value, {}) });
+    apiMocks.readMessages.mockResolvedValue([resource(message)]);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'post', event: new RealtimeEvent({ id: 'REPLY', event: {
+        case: 'messagePosted', value: new MessagePostedEvent({ roomId: 'R1', threadRootEventId: 'ROOT', bodyPlaintext: 'file' })
+      } })
+    }));
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['REPLY', 'ROOT'], 'post');
+    expect(files.items.map((item) => item.attachment.id)).toEqual(['ASSET']);
+    if (thread) expect(thread.getEventById('REPLY')?.event).toMatchObject({ attachments: [{ id: 'ASSET' }] });
+    expect(unrelated.threadEvents).toHaveLength(0);
+    expect(roomRefresh).not.toHaveBeenCalled();
+    expect(unrelatedRefresh).not.toHaveBeenCalled();
+    const existingRows = files.items;
+
+    apiMocks.readMessages.mockResolvedValue([resource(new Message({ id: 'TEXT', roomId: 'R1', body: 'text only' }))]);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'text', event: new RealtimeEvent({ id: 'TEXT', event: {
+        case: 'messagePosted', value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'text only' })
+      } })
+    }));
+    await store.waitForRealtimeReconciliation();
+    expect(files.items).toBe(existingRows);
+    expect(files.isInitialLoading).toBe(false);
+
+    const edited = message.clone();
+    edited.body = 'edited';
+    edited.attachments = [];
+    apiMocks.readMessages.mockResolvedValue([resource(edited)]);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'edit', event: new RealtimeEvent({ event: {
+        case: 'messageEdited', value: new MessageEditedEvent({ roomId: 'R1', messageEventId: 'REPLY' })
+      } })
+    }));
+    await store.waitForRealtimeReconciliation();
+    expect(files.items).toEqual([]);
+    expect(pins.items[0].message?.body).toBe('edited');
+    expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
+    expect(apiMocks.listPins).toHaveBeenCalledOnce();
+  });
+
+  it('does not restore files from a message read after room access is revoked', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    store.messagesForRoom('R1');
+    const files = store.filesForRoom('R1');
+    await files.hydrate();
+    const pending = deferred<MessageResource[]>();
+    apiMocks.readMessages.mockReturnValue(pending.promise);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'post', event: new RealtimeEvent({ id: 'POST', event: {
+        case: 'messagePosted', value: new MessagePostedEvent({ roomId: 'R1' })
+      } })
+    }));
+    await vi.waitFor(() => expect(apiMocks.readMessages).toHaveBeenCalledOnce());
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
+    const message = new Message({ id: 'POST', roomId: 'R1', attachments: [new MessageAttachment({ id: 'SECRET' })] });
+    pending.resolve([{ message, timeline: messageToTimelineEvent(message, {}) }]);
+    await store.waitForRealtimeReconciliation();
+    expect(files.items).toEqual([]);
+  });
+
+  it('hydrates a new room post through the shared batch without a window read', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
-    const hydrate = vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(true);
     const ingest = vi.spyOn(messages, 'ingestEvent');
     const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
       hasOlder: false,
@@ -2133,7 +2207,6 @@ describe('ServerStateStore unified realtime resources', () => {
       changed: true
     });
     await flushPromises();
-    hydrate.mockClear();
     ingest.mockClear();
     refresh.mockClear();
 
@@ -2167,10 +2240,10 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       })
     );
-    expect(hydrate).toHaveBeenCalledWith('E-POST', undefined, expect.any(Function));
     expect(refresh).not.toHaveBeenCalled();
-    await flushPromises();
-    expect(refresh).toHaveBeenCalledWith('E-POST', true, undefined, expect.any(Function));
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['E-POST'], undefined);
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('drives call sounds from the canonical participant event', () => {
