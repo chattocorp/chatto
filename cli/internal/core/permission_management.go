@@ -837,6 +837,10 @@ func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, includeDM b
 			if err != nil || room == nil {
 				continue
 			}
+			// Filter before pagination so archived rooms contribute neither columns nor counts.
+			if room.GetArchived() {
+				continue
+			}
 			visible := true
 			for _, viewerID := range viewerIDs {
 				canSee, err := c.CanSeeRoom(ctx, viewerID, KindChannel, room.Id)
