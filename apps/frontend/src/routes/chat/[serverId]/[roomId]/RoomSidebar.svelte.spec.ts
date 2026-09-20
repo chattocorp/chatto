@@ -1897,6 +1897,8 @@ describe('RoomSidebar', () => {
   });
 
   it('shows a desktop call maximize action and toggles to minimize copy', async () => {
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.roomId = 'room-1';
     const onToggleMaximized = vi.fn();
     const fullscreenTargets: Element[] = [];
     const requestFullscreen = vi
@@ -1963,10 +1965,18 @@ describe('RoomSidebar', () => {
     requestFullscreen.mockRestore();
   });
 
-  it('hides call maximize and fullscreen actions until the call is active', async () => {
+  it.each([
+    { hasActiveCall: false, connected: false, roomId: null },
+    { hasActiveCall: true, connected: false, roomId: null },
+    { hasActiveCall: true, connected: false, roomId: 'room-1' },
+    { hasActiveCall: true, connected: true, roomId: 'other-room' }
+  ])('hides call layout actions when not participating: %j', async (state) => {
+    callStore.voiceCall.connected = state.connected;
+    callStore.voiceCall.roomId = state.roomId;
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         activePanel: 'call',
+        hasActiveCall: state.hasActiveCall,
         livekitUrl: 'wss://livekit.example.test',
         roomData: roomData([member(1)], 1, false),
         onToggleMaximized: vi.fn()
@@ -1978,6 +1988,8 @@ describe('RoomSidebar', () => {
   });
 
   it('keeps call fullscreen available in overlay but maximizes only on desktop', async () => {
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.roomId = 'room-1';
     const onToggleMaximized = vi.fn();
     const { container, rerender } = render(RoomSidebarTestHarness, {
       props: {

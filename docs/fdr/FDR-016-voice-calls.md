@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-09-17
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -138,6 +138,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Opening the call tab shows the current room call. If no call is active, it offers a "Start call" action. If a call is active and the viewer has not joined, it shows projected participants as ungrouped participant cards and a "Join call" action.
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
 - Joining the call switches the call tab into participant mode with pinned screen-share tiles first, larger camera video participant cards next, and compact voice-only participant cards after that, without separate Video or Voice section headings. Participant mode exposes a voice activity glow, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
+- The pane header shows maximize and fullscreen controls only while the viewer is connected to that room's call. An active call alone does not show these controls.
 - On desktop, an active call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout: the first screen share is featured, otherwise the first camera participant is featured, otherwise the first voice participant is featured; remaining screen shares, camera feeds, and voice cards stay visible as secondary tiles.
 - A desktop active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route.
 - Camera and screen-share tiles expose a compact fullscreen button in their header. Joined participant cards expose a compact mute button directly in the header; remote cards keep volume controls in their three-dot menu. Voice cards use the same height for local and remote participants. In a wide sidebar with a screen share or multiple video feeds, participant cards use equal-width columns; screen shares span the full row. Narrow sidebars use one column. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. The local participant card controls the viewer's own microphone.

@@ -111,6 +111,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const presenceCache = getPresenceCache();
   const activeServerId = $derived(serverScope.serverId);
   const activeCallRooms = $derived(serverScope.store.activeCallRooms);
+  const isInThisCall = $derived(serverScope.store.voiceCall.isInCall(roomId));
 
   const members = $derived(membersStore.filteredMembers);
   const allMembers = $derived(membersStore.members);
@@ -136,10 +137,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
       presentation === 'desktop' &&
       activePanel === 'call' &&
       hasActiveCall &&
+      isInThisCall &&
       !!onToggleMaximized
   );
   const showCallFullscreenButton = $derived(
-    !activeProfileUserId && activePanel === 'call' && hasActiveCall
+    !activeProfileUserId && activePanel === 'call' && hasActiveCall && isInThisCall
   );
 
   const canStartDMs = $derived(serverScope.store.permissions.canStartDMs);
