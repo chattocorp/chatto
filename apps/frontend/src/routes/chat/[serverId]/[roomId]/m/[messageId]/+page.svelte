@@ -13,8 +13,8 @@
 
   /**
    * Fetch a message by ID and redirect to the appropriate room or thread URL.
-   * If the message is a thread reply, opens the thread pane. If not found or
-   * on error, falls back to the room URL.
+   * Open the thread pane for a reply or a root with an existing thread,
+   * including an empty thread. If not found or on error, use the room URL.
    */
   export async function resolveAndRedirect(
     api: Pick<RoomTimelineAPI, 'getMessage'>,
@@ -41,7 +41,7 @@
 
       const threadRootEventId =
         target.event.kind === TimelineEventKind.MessagePosted
-          ? (target.event.threadRootEventId ?? null)
+          ? (target.event.threadRootEventId || (target.event.threadExists ? target.id : null))
           : null;
 
       if (threadRootEventId) {
