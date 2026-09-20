@@ -491,7 +491,10 @@ beforeEach(() => {
   stubMatchMedia(true);
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Default Members can start an import that outlives a membership-only assertion.
+  // Finish it before the next test clears and checks the module-load spies.
+  await vi.dynamicImportSettled();
   vi.restoreAllMocks();
 });
 
