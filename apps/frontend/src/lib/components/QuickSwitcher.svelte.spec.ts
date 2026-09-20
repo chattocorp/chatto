@@ -432,10 +432,10 @@ describe('QuickSwitcher', () => {
       .click();
 
     await vi.waitFor(() => {
-      expect(mocks.startDM).toHaveBeenCalledWith(['user-river-login']);
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-new');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/user-river-login');
     });
-    expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-new');
+    expect(mocks.startDM).not.toHaveBeenCalled();
+    expect(mocks.recents.record).not.toHaveBeenCalled();
   });
 
   it('shows user results before a stalled server finishes and aborts it at the deadline', async () => {
@@ -497,7 +497,7 @@ describe('QuickSwitcher', () => {
     await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(2));
     expect(resultButtons(container)[0].textContent).not.toContain('River Friend');
     input(container).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await vi.waitFor(() => expect(mocks.startDM).toHaveBeenCalledWith(['fast']));
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/fast'));
   });
 
   it('finishes user search when all servers fail', async () => {

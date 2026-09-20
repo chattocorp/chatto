@@ -9,7 +9,7 @@ import {
   MessageSearchOrder,
   type MessageSearchResult
 } from '$lib/api-client/messageSearch';
-import { createRoomCommandAPI } from '$lib/api-client/rooms';
+import { startDMWith } from '$lib/dm/startDM';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
@@ -234,13 +234,8 @@ export class QuickSwitcherModel {
 
     if (item.kind === 'user') {
       try {
-        const roomId = await this.#startDMFromUser(item);
-        const url = resolve('/chat/[serverId]/[roomId]', {
-          serverId: serverIdToSegment(item.serverId),
-          roomId
-        });
-        recentQuickSwitcher.record(url);
-        await goto(url);
+        if (!item.targetUserId) throw new Error('Missing DM target');
+        await startDMWith(item.serverId, item.targetUserId);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to start DM');
       }
@@ -560,16 +555,6 @@ export class QuickSwitcherModel {
   #isRecent(item: QuickSwitcherItem): boolean {
     const url = this.#itemUrl(item);
     return url !== undefined && recentQuickSwitcher.urls.includes(url);
-  }
-
-  async #startDMFromUser(item: QuickSwitcherItem): Promise<string> {
-    if (!item.targetUserId) throw new Error('Missing DM target');
-    const room = await serverConnectionManager
-      .getClient(item.serverId)
-      .getAPI(createRoomCommandAPI)
-      .startDM(item.targetUserId === item.currentUserId ? [] : [item.targetUserId]);
-    if (!room?.id) throw new Error('Failed to start DM');
-    return room.id;
   }
 }
 

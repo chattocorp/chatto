@@ -477,6 +477,23 @@ export class ServerStateStore {
     return succeeded;
   }
 
+  /**
+   * Make a command's room destination readable before mounting the room UI.
+   * A successful command can precede its realtime event. Refresh missing rooms
+   * through the canonical pipeline, which also hydrates DM users and fences resets.
+   */
+  async ensureRoomAvailable(roomId: string): Promise<void> {
+    const generation = this.#realtimeProjectionGeneration;
+    if (!this.projection.rooms.get(roomId)?.room) {
+      this.refreshRealtimeResource('rooms');
+    }
+    const refreshed = await this.waitForRealtimeResourceRefresh('rooms');
+    this.requireCurrentRealtimeProjection(generation);
+    if (!refreshed) throw new Error('Could not load the conversation');
+    const room = this.projection.rooms.get(roomId)?.room;
+    if (!room || room.archived) throw new Error('Conversation is unavailable');
+  }
+
   /** Stable room timeline owner used by routes as a rendering selector. */
   messagesForRoom(roomId: string): MessagesStore {
     let store = this.#roomMessages[roomId];
@@ -1772,6 +1789,8 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    // In-flight destination and realtime reads must not revive a retired store.
+    this.#realtimeProjectionGeneration++;
     this.#permissionCheckGeneration++;
     this.checkingPermissions = false;
     this.#serverConnection.invalidatePrivateData();
