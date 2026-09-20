@@ -336,6 +336,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			LoginHint       string `json:"loginHint"`
 			DisplayNameHint string `json:"displayNameHint"`
 			BoundUserID     string `json:"boundUserId"`
+			RedirectPath    string `json:"redirectPath"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -354,6 +355,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			VerifiedEmail:   req.VerifiedEmail,
 			LoginHint:       req.LoginHint,
 			DisplayNameHint: req.DisplayNameHint,
+			RedirectPath:    req.RedirectPath,
 		}
 
 		var (

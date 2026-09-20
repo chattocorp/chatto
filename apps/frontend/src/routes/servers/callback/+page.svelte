@@ -43,7 +43,7 @@
   }
 
   onMount(async () => {
-    if (page.url.searchParams.get('mode') === 'popup') {
+    if (['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '')) {
       const popupResponse = oauthPopupResponseFromURL(page.url);
       if (!popupResponse) {
         status = 'error';

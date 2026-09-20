@@ -70,17 +70,21 @@ test('transfers an editable Authling profile into a new Chatto account', async (
   await page.getByRole('button', { name: 'Sign out' }).click();
 
   await page.goto(routes.login);
+  const popupPromise = page.waitForEvent('popup');
   await page.getByRole('link', { name: /Authling/ }).click();
-  await page.getByLabel('Email address').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.getByRole('button', { name: 'Authorize' }).click();
+  const popup = await popupPromise;
+  await popup.getByLabel('Email address').fill(email);
+  await popup.getByLabel('Password').fill(password);
+  await popup.getByRole('button', { name: 'Sign in' }).click();
+  await popup.getByRole('button', { name: 'Authorize' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
-  await expect(page.getByLabel('Username')).toHaveValue(preferredUsername);
-  await expect(page.getByLabel('Display Name')).toHaveValue(authlingName);
-  await page.getByLabel('Display Name').fill(chattoName);
-  await page.getByRole('button', { name: 'Create Account' }).click();
+  await expect(popup.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
+  await expect(popup.getByLabel('Username')).toHaveValue(preferredUsername);
+  await expect(popup.getByLabel('Display Name')).toHaveValue(authlingName);
+  await popup.getByLabel('Display Name').fill(chattoName);
+  const closed = popup.waitForEvent('close');
+  await popup.getByRole('button', { name: 'Create Account' }).click();
+  await closed;
   await page.waitForURL(routes.patterns.chatRedirect);
 
   await page.goto(routes.settings);
@@ -117,7 +121,7 @@ test('links a remote identity in one popup and refreshes the original client', a
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 
     await createUserOnRemote(clientServer.baseURL, 'local-link-user', password);
-    const remoteUser = await createUserOnRemote(server.baseURL, 'remote-link-user', password);
+    await createUserOnRemote(server.baseURL, 'remote-link-user', password);
     await clientPage.goto('/login');
     await clientPage.getByLabel('Username or Email').fill('local-link-user');
     await clientPage.getByLabel('Password', { exact: true }).fill(password);
@@ -154,22 +158,13 @@ test('links a remote identity in one popup and refreshes the original client', a
     await linkPopup.getByLabel('Password', { exact: true }).fill(password);
     await linkPopup.getByRole('button', { name: 'Sign In', exact: true }).click();
 
-    // The same popup continues to the real provider and returns to confirmation.
+    // The same popup completes real provider authorization and closes itself.
     await linkPopup.getByLabel('Email address').fill(email);
     await linkPopup.getByLabel('Password', { exact: true }).fill(password);
     await linkPopup.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const linkClosed = linkPopup.waitForEvent('close');
     await linkPopup.getByRole('button', { name: 'Authorize' }).click();
-    await expect(linkPopup.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
-    await linkPopup.getByRole('button', { name: 'Link Account', exact: true }).click();
-    await expect(linkPopup).toHaveURL(`${server.baseURL}/chat/-/settings/account`);
-    await expect(linkPopup.getByText(remoteUser.userId, { exact: true })).toBeVisible();
-    await expect(
-      linkPopup
-        .locator('div.rounded.border')
-        .filter({ hasText: 'Authling' })
-        .getByRole('button', { name: 'Disconnect' })
-    ).toBeVisible();
-    await linkPopup.close();
+    await linkClosed;
     await expect(remoteRow.getByRole('button', { name: 'Disconnect' })).toBeVisible();
     await expect(clientPage).toHaveURL(/\/chat\/127\.0\.0\.1\/settings\/account$/);
     expect(errors).toEqual([]);

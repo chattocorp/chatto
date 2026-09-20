@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -293,6 +294,26 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
 	_ = session.Save()
 
+	// The authenticated link-start handoff already records consent and binds the
+	// target account. Complete it only after the provider identity is verified;
+	// linking must never replace the browser's current login session.
+	if intent == "link" {
+		if linkUserID == "" {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
+			return
+		}
+		if err := s.core.LinkExternalIdentity(ctx, providerRuntime.config.ID, providerRuntime.config.Type, identity.issuer, identity.subject, linkUserID); err != nil {
+			errorCode := "provider_failed"
+			if errors.Is(err, core.ErrExternalIdentityAlreadyClaimed) {
+				errorCode = "external_identity_conflict"
+			}
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", errorCode))
+			return
+		}
+		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
+		return
+	}
+
 	user, authGeneration, err := s.core.GetUserByExternalIdentityForAuthentication(ctx, identity.issuer, identity.subject)
 	if err != nil {
 		log.Error("Failed to lookup user by external identity", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", err)
@@ -301,16 +322,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 	if user == nil {
 		log.Info("Provider login has no linked account", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
-		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, intent, linkUserID, invitationID)
-		return
-	}
-
-	if intent == "link" {
-		if linkUserID == "" || linkUserID != user.Id {
-			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "external_identity_conflict"))
-			return
-		}
-		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
+		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, invitationID)
 		return
 	}
 
@@ -627,7 +639,7 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, accessToken string) (s
 	return "", fmt.Errorf("github account has no verified primary email")
 }
 
-func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID, invitationID string) {
+func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, invitationID string) {
 	ctx := c.Request.Context()
 	flow := core.PendingExternalIdentityFlow{
 		ProviderID:      providerConfig.ID,
@@ -642,30 +654,18 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		RedirectPath:    providerReturnPath(session, "/"),
 	}
 
-	var (
-		token string
-		err   error
-	)
-	if intent == "link" {
-		if linkUserID == "" {
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
-			return
-		}
-		token, err = s.core.CreatePendingExternalIdentityLinkFlow(ctx, flow, linkUserID)
-	} else {
-		if !providerConfig.AutoProvisionOrDefault() {
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
-			return
-		}
-		if s.config.Auth.InvitationRequired() {
-			if invitationID == "" {
-				c.Redirect(http.StatusTemporaryRedirect, "/login?error=invalid_invitation")
-				return
-			}
-			flow.InvitationID = invitationID
-		}
-		token, err = s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
+	if !providerConfig.AutoProvisionOrDefault() {
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
+		return
 	}
+	if s.config.Auth.InvitationRequired() {
+		if invitationID == "" {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=invalid_invitation")
+			return
+		}
+		flow.InvitationID = invitationID
+	}
+	token, err := s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	if err != nil {
 		log.Error("Failed to create pending external identity flow", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")

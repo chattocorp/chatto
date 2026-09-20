@@ -1,6 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { onDestroy } from 'svelte';
+  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
+  import type { OAuthPopup } from '$lib/oauth/popup';
   import type { PublicAuthProvider } from '$lib/api-client/server';
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
@@ -8,14 +11,7 @@
   import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import {
-    Button,
-    FormError,
-    TextInput,
-    VerificationCodeInput,
-    validate,
-    z
-  } from '$lib/ui/form';
+  import { Button, FormError, TextInput, VerificationCodeInput, validate, z } from '$lib/ui/form';
 
   const { data } = $props();
 
@@ -41,6 +37,14 @@
   let error = $state('');
   let isLoading = $state(false);
   let isResending = $state(false);
+  let selectedProviderId = $state<string | null>(null);
+  let providerError = $state('');
+  let providerPopup: OAuthPopup | null = null;
+  let active = true;
+  onDestroy(() => {
+    active = false;
+    providerPopup?.close();
+  });
 
   const emailSchema = z.string().email(m('common.validation.email'));
   const loginSchema = z
@@ -90,6 +94,23 @@
 
   function providerLoginHref(provider: PublicAuthProvider): string {
     return `${provider.loginUrl}?redirect=${encodeURIComponent('/')}`;
+  }
+
+  async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
+    event.preventDefault();
+    providerError = '';
+    selectedProviderId = provider.id;
+    try {
+      providerPopup = openProviderSignIn(provider.loginUrl);
+      await verifyProviderSignIn(providerPopup);
+      if (!active) return;
+      if (!(await completeOriginAuthentication())) await goto(resolve('/'));
+    } catch (err) {
+      if (active) providerError = err instanceof Error ? err.message : m('auth.register.failed');
+    } finally {
+      selectedProviderId = null;
+      providerPopup = null;
+    }
   }
 
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
@@ -268,11 +289,21 @@
     {#if registrationProviders.length > 0}
       <div class="flex flex-col gap-3">
         {#each registrationProviders as provider (provider.id)}
-          <Button href={providerLoginHref(provider)} variant="secondary" size="lg" fullWidth>
+          <Button
+            href={providerLoginHref(provider)}
+            variant="secondary"
+            size="lg"
+            fullWidth
+            disabled={selectedProviderId !== null && selectedProviderId !== provider.id}
+            loading={selectedProviderId === provider.id}
+            loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
+            onclick={(event) => handleProviderClick(event, provider)}
+          >
             <span class={['iconify', providerIcon(provider.type)]}></span>
             {m('auth.login.continue_with_provider', { provider: provider.label })}
           </Button>
         {/each}
+        <FormError error={providerError} />
       </div>
     {/if}
   {:else if step === 'code'}
