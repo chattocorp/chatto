@@ -511,6 +511,24 @@ describe('QuickSwitcher', () => {
     });
   });
 
+  it('limits group DM avatars while marking bots after the first two participants', async () => {
+    mocks.store.navigation.rooms.push({
+      id: 'dm-group',
+      name: '',
+      type: RoomKind.DM,
+      viewerIsMember: true,
+      members: [
+        user('first', 'first', 'First'),
+        user('second', 'second', 'Second'),
+        user('helper', 'helper_bot', 'Group Helper', true)
+      ]
+    });
+    const { container } = await renderOpenSwitcher();
+    const row = resultButtons(container).find((button) => button.textContent?.includes('Group Helper'))!;
+    expect(row.querySelectorAll('.command-palette-leading [role="img"]')).toHaveLength(2);
+    expect(row.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Group Helper');
+  });
+
   it('marks bot user results beside their names', async () => {
     mocks.listUsers.mockResolvedValue({
       members: [user('user-helper', 'helper_bot', 'Helper', true)],

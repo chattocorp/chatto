@@ -148,7 +148,7 @@
                 {:else if item.kind === 'dm' && item.participants}
                   <span class="command-palette-leading">
                     <span class="flex -space-x-2">
-                      {#each item.participants as participant (participant.id)}
+                      {#each item.participants.slice(0, 2) as participant (participant.id)}
                         {@render avatar(participant)}
                       {/each}
                     </span>
