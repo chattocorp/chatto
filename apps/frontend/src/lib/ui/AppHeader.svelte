@@ -135,17 +135,17 @@
     <span class="flex-1"></span>
   {/if}
 
-  <!-- Actions: Version + Logout -->
-  <div class="flex items-center gap-3">
+  <!-- Actions: About + Logout -->
+  <div class="flex shrink-0 items-center gap-3">
     {#if version}
       <button
         type="button"
-        class="app-header-text-action"
+        class="app-header-icon"
         onclick={showAboutChatto}
         title={m('ui.tooltip.about', { subject: 'Chatto' })}
         aria-label={m('ui.tooltip.about', { subject: 'Chatto' })}
       >
-        v{version}
+        <span class="iconify icon-[uil--info-circle] text-lg" aria-hidden="true"></span>
       </button>
     {/if}
 

@@ -8,7 +8,12 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string }>,
     activeServer: '',
-    activeStore: undefined as { serverInfo: { motd: string } } | undefined,
+    activeStore: undefined as {
+      serverInfo: { motd: string };
+      notifications: {
+        attention: { unreadNotificationCount: number; importantUnreadNotificationCount: number };
+      };
+    } | undefined,
     authenticated: {} as Record<string, boolean>,
     getStore: vi.fn(),
     pushState: vi.fn(),
@@ -22,7 +27,7 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
     params?.serverId ? path.replace('[serverId]', params.serverId) : path
 }));
-vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
+vi.mock('$app/environment', () => ({ version: '0.5.0-dev+f7b4e515c998' }));
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServer
 }));
@@ -134,7 +139,7 @@ describe('AppHeader', () => {
     expect(container.querySelector('a[href="/chat/preferences"]')).toBeNull();
   });
 
-  it('opens the About Chatto dialog from the frontend version', () => {
+  it('opens the About Chatto dialog from the info button', () => {
     const { container } = render(AppHeader);
 
     (container.querySelector('button[aria-label="About Chatto"]') as HTMLButtonElement).click();
@@ -142,7 +147,8 @@ describe('AppHeader', () => {
     expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'aboutChatto' } });
   });
 
-  it.each([390, 1280])('keeps the header height and truncates the MOTD at %i pixels', async (width) => {
+  it.each([320, 390, 1280])('keeps the header height and truncates the MOTD at %i pixels', async (width) => {
+    mocks.servers = [{ id: 'remote' }];
     mocks.activeServer = 'remote';
     const motd = '**Chatto HQ** · https://chatto.run\n\n' + 'Server news. '.repeat(30);
     await page.viewport(width, 800);
@@ -150,11 +156,27 @@ describe('AppHeader', () => {
       const empty = render(AppHeader);
       const emptyHeight = empty.container.querySelector('header')!.getBoundingClientRect().height;
       await empty.unmount();
-      mocks.activeStore = { serverInfo: { motd } };
+      mocks.activeStore = {
+        serverInfo: { motd },
+        notifications: {
+          attention: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
+        }
+      };
       const { container, getByRole } = render(AppHeader);
       const header = container.querySelector('header')!;
       await expect.element(getByRole('link', { name: 'https://chatto.run' })).toBeVisible();
       expect(header.getBoundingClientRect().height).toBe(emptyHeight);
+      const headerBounds = header.getBoundingClientRect();
+      expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
+      const about = container.querySelector<HTMLButtonElement>('button[aria-label="About Chatto"]')!;
+      expect(about.textContent?.trim()).toBe('');
+      expect(about.getBoundingClientRect().width).toBe(44);
+      expect(about.getBoundingClientRect().height).toBe(44);
+      for (const control of header.querySelectorAll<HTMLElement>('.app-header-icon')) {
+        const bounds = control.getBoundingClientRect();
+        expect(bounds.left).toBeGreaterThanOrEqual(headerBounds.left);
+        expect(bounds.right).toBeLessThanOrEqual(headerBounds.right);
+      }
       const preview = container.querySelector<HTMLElement>('[data-testid="motd-preview"]')!;
       expect(preview.scrollWidth).toBeGreaterThan(preview.clientWidth);
       expect(getComputedStyle(preview).textOverflow).toBe('ellipsis');
