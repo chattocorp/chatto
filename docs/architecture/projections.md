@@ -74,7 +74,10 @@ production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared
 content-view projector. Threads also derives channel-room and DM message-to-root
 mappings and account-to-thread interaction relationships from message-post
-facts. Its snapshot contract is v3 and records the DM room identity set. The
+facts. It also consumes room join, leave, and ban facts to derive DM-received
+relationships for the other participants at the time of each post. Its v3
+snapshot contract records DM membership; the schema fingerprint selects a new
+cache namespace when this shape changes. The
 RBAC component snapshot contract is v2 and retains decisions from the
 `evt.rbac.dm` singleton lane. Membership, message, thread, reaction, asset, realtime, room-group OCC,
 and sidebar-ordering paths use focused `RoomModel` operations instead of

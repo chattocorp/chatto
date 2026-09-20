@@ -103,7 +103,10 @@ account directly mentioned it. A direct mention gives access to messages from
 before the mention. An effective `message.read` allow includes
 `message.read-interactions` for the bot and for its owner. A narrow allow does
 not grant broad access. A DM also needs membership and the matching DM-scoped
-read permission. Posting remains a separate `message.post` or
+read permission. Receiving a DM creates an interaction just as a direct
+mention does in a channel. A DM-scoped `message.read-interactions` grant is
+enough to read those messages and receive their outbound webhooks, including
+group DMs and replies. Posting remains a separate `message.post` or
 `message.post-in-thread` decision.
 
 ## Post from an external webhook

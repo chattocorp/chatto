@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-04
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
@@ -20,6 +20,9 @@ permissions. Room membership remains a separate requirement.
 - The same permissions and rules apply to human and bot accounts.
 - A direct mention from another account creates an interaction relationship.
   The mention can be in a root message or a reply.
+- Receiving a DM from another account creates the same thread access. Each
+  other participant at the time of the post receives this relationship,
+  including in group DMs and replies. No explicit mention is required.
 - Authoring a room root message creates an interaction relationship
   with that thread.
 - A self-mention, role mention, `@all`, `@here`, or authored reply does not
@@ -33,7 +36,9 @@ permissions. Room membership remains a separate requirement.
   membership loss closes current access. Permission restoration or room
   re-entry opens an existing relationship again.
 - A DM participant with `message.read` can read the complete DM. A participant
-  with only `message.read-interactions` can read its interaction threads.
+  with only `message.read-interactions` can read its interaction threads,
+  including threads in which it received a DM. Membership alone does not
+  create a relationship with messages posted before the account joined.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
 - A channel-room operation that reads or returns an existing message also
@@ -92,13 +97,17 @@ An absent broad permission does not cause an implicit privacy mode.
 relationship. The resolver and inspection surfaces must explain the
 explicit catalog inclusion.
 
-### 2. Direct mentions and authored roots create relationships
+### 2. Direct mentions, received DMs, and authored roots create relationships
 
 **Decision:** Create a relationship when another account directly mentions the
 account or when the account authors a channel-room root. Do not use broad,
 role, self, or authored-reply causes.
+In DMs, also create a relationship for each other participant when a message
+is posted. Use membership at the time of the post.
 **Why:** These causes show an intentional interaction with one account or a
 thread that the account started. Broadcast causes do not show the same intent.
+Sending a DM addresses its participants directly, as a direct mention does
+in a channel.
 **Tradeoff:** A bot that authors only a reply does not gain read access from
 that reply.
 

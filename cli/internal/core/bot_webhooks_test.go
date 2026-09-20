@@ -417,6 +417,72 @@ func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
 	require.Zero(t, calls.Load())
 }
 
+func TestBotOutboundWebhookDMReadInteractions(t *testing.T) {
+	c, _ := newTestCore(t)
+	c.config.BotWebhooks = config.BotWebhooksConfig{}
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	c.botWebhooks.client = newBotWebhookModel(c, c.botWebhooks.projection).client
+	startCoreServices(t, c)
+	owner, bot, room := webhookTestBot(t, c)
+	ctx := testContext(t)
+	scope := PermissionTargetScope{Kind: MatrixScopeDM}
+	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, scope, PermMessageRead, PermissionStateNone))
+	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, scope, PermMessageReadInteractions, PermissionStateAllow))
+	broad, err := c.CanReadMessages(ctx, bot, KindDM, room)
+	require.NoError(t, err)
+	require.False(t, broad)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	require.NoError(t, err)
+	message, err := c.PostMessage(ctx, KindDM, room, owner, "Hello without a mention", nil, "", "", nil, false)
+	require.NoError(t, err)
+	_, err = c.RoomTimelineReads().GetMessage(ctx, bot, room, message.GetId())
+	require.NoError(t, err)
+	allowed, err := c.CanReadThreadMessages(ctx, bot, KindDM, room, message.GetId())
+	require.NoError(t, err)
+	require.True(t, allowed)
+	allowed, err = c.CanReadMessageEvent(ctx, bot, KindDM, room, message)
+	require.NoError(t, err)
+	require.True(t, allowed)
+	waitWebhookDeliveriesDrained(t, c)
+	require.Equal(t, int32(1), calls.Load())
+
+	other, err := c.CreateUser(ctx, SystemActorID, "dm-other", "Other", "password123")
+	require.NoError(t, err)
+	_, err = c.RoomTimelineReads().GetMessage(ctx, other.GetId(), room, message.GetId())
+	require.ErrorIs(t, err, ErrNotRoomMember)
+	group, _, err := c.FindOrCreateDM(ctx, other.GetId(), []string{owner, bot})
+	require.NoError(t, err)
+	_, err = c.PostMessage(ctx, KindDM, group.GetId(), other.GetId(), "Group DM without a mention", nil, "", "", nil, false)
+	require.NoError(t, err)
+	waitWebhookDeliveriesDrained(t, c)
+	require.Equal(t, int32(2), calls.Load())
+
+	require.NoError(t, c.AssignAdminRole(ctx, other.GetId()))
+	for _, permission := range []Permission{PermMessageRead, PermMessageReadInteractions} {
+		require.NoError(t, c.SetUserPermissionState(ctx, other.GetId(), owner, scope, permission, PermissionStateDeny))
+	}
+	_, err = c.RoomTimelineReads().GetMessage(ctx, bot, room, message.GetId())
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	for _, permission := range []Permission{PermMessageRead, PermMessageReadInteractions} {
+		require.NoError(t, c.SetUserPermissionState(ctx, other.GetId(), owner, scope, permission, PermissionStateNone))
+	}
+	_, err = c.RoomTimelineReads().GetMessage(ctx, bot, room, message.GetId())
+	require.NoError(t, err)
+
+	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, scope, PermMessageReadInteractions, PermissionStateNone))
+	_, err = c.RoomTimelineReads().GetMessage(ctx, bot, room, message.GetId())
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	_, err = c.PostMessage(ctx, KindDM, room, owner, "No read grant", nil, "", "", nil, false)
+	require.NoError(t, err)
+	waitWebhookDeliveriesDrained(t, c)
+	require.Equal(t, int32(2), calls.Load())
+}
+
 func TestBotOutboundWebhookChannelSelection(t *testing.T) {
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{}

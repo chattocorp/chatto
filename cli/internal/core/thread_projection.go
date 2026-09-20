@@ -38,16 +38,18 @@ type threadFollowRef struct {
 }
 
 // ThreadInteractionCauseKind identifies the durable fact that established one
-// account's relationship with a channel-room thread.
+// account's relationship with a channel-room or DM thread.
 type ThreadInteractionCauseKind string
 
 const (
 	ThreadInteractionCauseRootAuthored  ThreadInteractionCauseKind = "root-authored"
 	ThreadInteractionCauseDirectMention ThreadInteractionCauseKind = "direct-mention"
+	// ThreadInteractionCauseDMReceived records a DM received while a member.
+	ThreadInteractionCauseDMReceived ThreadInteractionCauseKind = "dm-received"
 )
 
 // ThreadInteractionCause is one immutable post-time reason that an account is
-// related to a channel-room thread.
+// related to a channel-room or DM thread.
 type ThreadInteractionCause struct {
 	Kind          ThreadInteractionCauseKind
 	SourceEventID string
@@ -102,7 +104,9 @@ type ThreadProjection struct {
 	byThread        map[string][]ThreadTimelineEntry
 	messageToThread map[string]string // reply event_id → thread root event_id
 	channelRooms    map[string]struct{}
-	dmRooms         map[string]struct{}
+	// dmRooms retains membership at the current replay position so a DM post
+	// establishes relationships only for accounts that received it.
+	dmRooms         map[string]map[string]struct{}
 	messageThreads  map[string]threadMessageRef
 	interactions    map[string]map[string]*projectedThreadInteraction
 	replySummaries  map[string]*threadReplySummary
@@ -120,7 +124,7 @@ func NewThreadProjection() *ThreadProjection {
 		byThread:        make(map[string][]ThreadTimelineEntry),
 		messageToThread: make(map[string]string),
 		channelRooms:    make(map[string]struct{}),
-		dmRooms:         make(map[string]struct{}),
+		dmRooms:         make(map[string]map[string]struct{}),
 		messageThreads:  make(map[string]threadMessageRef),
 		interactions:    make(map[string]map[string]*projectedThreadInteraction),
 		replySummaries:  make(map[string]*threadReplySummary),
@@ -133,13 +137,16 @@ func NewThreadProjection() *ThreadProjection {
 	}
 }
 
-// Subjects implements evtstream.Projection. Room lifecycle and every message
-// post supply the channel and relationship indexes. Thread lifecycle, message
-// mutation, and user key-shred facts supply the existing thread views.
+// Subjects implements evtstream.Projection. Room lifecycle, DM membership,
+// and every message post supply the room and relationship indexes. Thread
+// lifecycle, message mutation, and user key-shred facts supply the thread views.
 func (p *ThreadProjection) Subjects() []string {
 	return []string{
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomCreated),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.RoomEventTypeFilter(evtstream.EventUserJoinedRoom),
+		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberBanned),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),
@@ -172,8 +179,8 @@ func (p *ThreadProjection) ReplaySubjects() []string {
 //   - MessageRetractedEvent whose target event_id is a known thread reply →
 //     fold the retraction into the thread summary.
 //
-// Everything else (root messages, room lifecycle, memberships,
-// edits/retracts of non-reply messages) is silently ignored.
+// Room lifecycle and DM membership establish the recipient set for message
+// interactions. Edits/retracts of non-reply messages are silently ignored.
 func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
@@ -198,11 +205,29 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 		case evtv1.RoomKind_ROOM_KIND_CHANNEL:
 			p.channelRooms[room.GetRoomId()] = struct{}{}
 		case evtv1.RoomKind_ROOM_KIND_DM:
-			p.dmRooms[room.GetRoomId()] = struct{}{}
+			p.dmRooms[room.GetRoomId()] = make(map[string]struct{})
 		default:
 			return nil
 		}
 		markApplied()
+
+	case *evtv1.Event_UserJoinedRoom:
+		if members, dm := p.dmRooms[e.UserJoinedRoom.GetRoomId()]; dm && event.GetActorId() != "" {
+			members[event.GetActorId()] = struct{}{}
+			markApplied()
+		}
+
+	case *evtv1.Event_UserLeftRoom:
+		if members, dm := p.dmRooms[e.UserLeftRoom.GetRoomId()]; dm {
+			delete(members, event.GetActorId())
+			markApplied()
+		}
+
+	case *evtv1.Event_RoomMemberBanned:
+		if members, dm := p.dmRooms[e.RoomMemberBanned.GetRoomId()]; dm {
+			delete(members, e.RoomMemberBanned.GetUserId())
+			markApplied()
+		}
 
 	case *evtv1.Event_RoomDeleted:
 		roomID := e.RoomDeleted.GetRoomId()
@@ -329,6 +354,14 @@ func (p *ThreadProjection) applyMessageInteractionStateLocked(event *evtv1.Event
 	if message.GetInThread() == "" {
 		p.addInteractionCauseLocked(event.GetActorId(), message.GetRoomId(), rootID, ThreadInteractionCause{
 			Kind: ThreadInteractionCauseRootAuthored, SourceEventID: event.GetId(), CreatedAt: eventCreatedAt(event),
+		})
+	}
+	for userID := range p.dmRooms[message.GetRoomId()] {
+		if userID == event.GetActorId() {
+			continue
+		}
+		p.addInteractionCauseLocked(userID, message.GetRoomId(), rootID, ThreadInteractionCause{
+			Kind: ThreadInteractionCauseDMReceived, SourceEventID: event.GetId(), CreatedAt: eventCreatedAt(event),
 		})
 	}
 	for _, mention := range message.GetMentions() {

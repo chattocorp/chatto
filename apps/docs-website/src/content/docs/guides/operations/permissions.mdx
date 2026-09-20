@@ -139,7 +139,7 @@ also includes `server.manage-neighbors` through the same explicit metadata.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `server.manage-neighbors` | Create, read, update, and delete servers in the public Neighbor directory. `server.manage` includes this permission. |
 | `message.read`            | Read room and thread content, attachments, search results, typing indicators, and message-derived activity. It includes `message.read-interactions`. Room membership is also required. |
-| `message.read-interactions` | Read a complete thread when the account authored its root or another account directly mentioned it there. Room membership is also required. |
+| `message.read-interactions` | Read a complete thread when the account authored its root, another account directly mentioned it there, or it received a DM there. Current room membership is also required. |
 | `message.post`            | Post root messages. A human with this permission at DM scope can also start DMs. A bot cannot start a DM. Explicit thread creation also requires `message.post-in-thread`. |
 | `message.post-in-thread`  | Post messages inside channel-room or DM threads and, together with `message.post`, explicitly establish a root as a thread. |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |

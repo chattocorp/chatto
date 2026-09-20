@@ -559,6 +559,7 @@ func eventNeedsReactionProjection(event *evtv1.Event) bool {
 func eventNeedsThreadProjection(event *evtv1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *evtv1.Event_RoomCreated, *evtv1.Event_RoomDeleted,
+		*evtv1.Event_UserJoinedRoom, *evtv1.Event_UserLeftRoom, *evtv1.Event_RoomMemberBanned,
 		*evtv1.Event_ThreadCreated, *evtv1.Event_ThreadFollowed, *evtv1.Event_ThreadUnfollowed:
 		return true
 	case *evtv1.Event_MessagePosted:

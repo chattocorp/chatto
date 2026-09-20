@@ -7,9 +7,77 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+func TestThreadProjectionDMReceivedInteractions(t *testing.T) {
+	joined := func(id, userID string) *evtv1.Event {
+		return &evtv1.Event{Id: id, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{
+			UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "DM"},
+		}}
+	}
+	left := &evtv1.Event{Id: "LEFT", ActorId: "RECIPIENT", Event: &evtv1.Event_UserLeftRoom{
+		UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: "DM"},
+	}}
+	steps := []struct {
+		event *evtv1.Event
+		check func(*ThreadProjection)
+	}{
+		{event: roomCreatedEvent("DM", "", "", evtv1.RoomKind_ROOM_KIND_DM)},
+		{event: joined("JOIN", "RECIPIENT"), check: func(p *ThreadProjection) {
+			require.False(t, p.HasInteraction("RECIPIENT", "DM", "ROOT"))
+		}},
+		{event: postedEvent(postedOpts{envelopeID: "ROOT", roomID: "DM", actorID: "AUTHOR"}), check: func(p *ThreadProjection) {
+			interaction, ok := p.Interaction("RECIPIENT", "DM", "ROOT")
+			require.True(t, ok)
+			require.Len(t, interaction.Causes, 1)
+			require.Equal(t, ThreadInteractionCauseDMReceived, interaction.Causes[0].Kind)
+			require.Equal(t, "ROOT", interaction.Causes[0].SourceEventID)
+			require.False(t, p.HasInteraction("OUTSIDER", "DM", "ROOT"))
+		}},
+		{event: left},
+		{event: postedEvent(postedOpts{envelopeID: "ABSENT", roomID: "DM", actorID: "AUTHOR"}), check: func(p *ThreadProjection) {
+			require.False(t, p.HasInteraction("RECIPIENT", "DM", "ABSENT"))
+			require.True(t, p.HasInteraction("RECIPIENT", "DM", "ROOT"))
+		}},
+		{event: joined("REJOIN", "RECIPIENT"), check: func(p *ThreadProjection) {
+			require.False(t, p.HasInteraction("RECIPIENT", "DM", "ABSENT"))
+		}},
+		{event: postedEvent(postedOpts{envelopeID: "REPLY", roomID: "DM", actorID: "AUTHOR", inThread: "ABSENT"}), check: func(p *ThreadProjection) {
+			require.True(t, p.HasInteraction("RECIPIENT", "DM", "ABSENT"))
+		}},
+		{event: editedEvent("EDIT", "REPLY", "DM", "AUTHOR", "edited", 8)},
+		{event: retractedEvent("RETRACT", "REPLY", "DM", "AUTHOR", "removed", 9), check: func(p *ThreadProjection) {
+			require.True(t, p.HasInteraction("RECIPIENT", "DM", "ABSENT"))
+		}},
+		{event: &evtv1.Event{Id: "BAN", Event: &evtv1.Event_RoomMemberBanned{
+			RoomMemberBanned: &evtv1.RoomMemberBannedEvent{RoomId: "DM", UserId: "RECIPIENT"},
+		}}},
+		{event: postedEvent(postedOpts{envelopeID: "BANNED", roomID: "DM", actorID: "AUTHOR"}), check: func(p *ThreadProjection) {
+			require.False(t, p.HasInteraction("RECIPIENT", "DM", "BANNED"))
+		}},
+	}
+	full, restored := NewThreadProjection(), NewThreadProjection()
+	for i, step := range steps {
+		for _, p := range []*ThreadProjection{full, restored} {
+			require.NoError(t, p.Apply(step.event, uint64(i+1)))
+			if step.check != nil {
+				step.check(p)
+			}
+		}
+		data, err := restored.Snapshot()
+		require.NoError(t, err)
+		restored = NewThreadProjection()
+		require.NoError(t, restored.Restore(data))
+		want, err := full.Snapshot()
+		require.NoError(t, err)
+		got, err := restored.Snapshot()
+		require.NoError(t, err)
+		require.Equal(t, want, got, "snapshot and tail replay at step %d", i)
+	}
+}
 
 func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 	full := NewThreadProjection()
@@ -607,6 +675,9 @@ func TestThreadProjection_SubjectFilter(t *testing.T) {
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated):             true,
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed):            true,
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed):          true,
+		evtstream.RoomEventTypeFilter(evtstream.EventUserJoinedRoom):            true,
+		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom):              true,
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberBanned):          true,
 		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted):             true,
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited):             true,
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted):          true,
