@@ -33,6 +33,8 @@ async function touchDrag(
 }
 
 test.describe('Mobile Navigation', () => {
+  // A narrow mouse window has compact chrome. These cases exercise touch chrome.
+  test.use({ hasTouch: true });
   test('hamburger menu toggles sidebar on mobile', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

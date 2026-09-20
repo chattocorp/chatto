@@ -270,7 +270,7 @@ preview-card styling. Its parent owns shared link-preview actions.
         event.stopPropagation();
         onDismiss?.();
       }}
-      class="embed-control-button md:group-hover/preview:opacity-100"
+      class="embed-control-button"
       aria-label={m('preview.dismiss')}
     >
       <span class="iconify icon-[uil--times] text-sm"></span>
@@ -283,7 +283,7 @@ preview-card styling. Its parent owns shared link-preview actions.
         event.stopPropagation();
         onDelete();
       }}
-      class="embed-control-button md:group-hover/preview:opacity-100"
+      class="embed-control-button"
       aria-label={m('preview.delete')}
     >
       <span class="iconify icon-[uil--times] text-sm"></span>

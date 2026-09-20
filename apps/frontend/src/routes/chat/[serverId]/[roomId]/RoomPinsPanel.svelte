@@ -136,7 +136,7 @@ message presentation. Each message row itself opens the original message.
                       viewerLogin={serverScope.store.currentUser.user?.login}
                       timestampSettings={userSettings}
                       timestampLocale={activeLocale}
-                      rowClass="hover:bg-transparent md:mx-0 md:pe-2"
+                      rowClass="hover:bg-transparent desktop-presentation:mx-0 desktop-presentation:pe-2"
                     >
                       {#snippet headerMeta()}
                         {#if message.createdAt}

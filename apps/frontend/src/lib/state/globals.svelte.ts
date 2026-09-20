@@ -152,9 +152,16 @@ export const titleState = new TitleState();
  * CSS transitions while dragging and apply the transform from `progress`.
  */
 export class SidebarNavState {
-  /** Combined mobile drawer width; shared by transforms and gesture progress. */
+  private measuredPanelWidth = $state<number | null>(null);
+
+  /** Combined drawer width; the inset frame can be narrower than the viewport. */
   get panelWidth(): number {
-    return innerWidth.current ?? 0;
+    return this.measuredPanelWidth ?? innerWidth.current ?? 0;
+  }
+
+  /** The mounted sidebar row supplies its width and clears it on unmount. */
+  setPanelWidth(width: number | null) {
+    this.measuredPanelWidth = width;
   }
 
   isOpen = $state(true);
@@ -197,6 +204,11 @@ export class SidebarNavState {
 
   get isMobile(): boolean {
     return this._isMobile;
+  }
+
+  /** Closed drawers remain mounted for their exit animation but must be inert. */
+  get drawerClosed(): boolean {
+    return this.isMobile && this.progress === 0 && this.dragOffset === null;
   }
 
   /**

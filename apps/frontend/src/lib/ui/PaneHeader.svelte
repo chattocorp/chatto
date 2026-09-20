@@ -62,7 +62,7 @@ shared viewport detector reports an open software keyboard.
     actions?: Snippet;
     /** Collapse actions below 32 rem of pane width. Expand them beside the title. */
     collapseActions?: boolean;
-    /** Hide below the md breakpoint while the software keyboard is detected. */
+    /** Hide in narrow touch-capable windows while the software keyboard is detected. */
     hideOnKeyboard?: boolean;
     /** Important actions to show instead of the full list while collapsed. */
     collapsedActions?: Snippet;

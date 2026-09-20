@@ -94,14 +94,14 @@
 </script>
 
 {#if eventKind === TimelineEventKind.CallEnded}
-  <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
+  <div class="mt-4 flex items-center gap-4 px-2 desktop-presentation:px-4" data-event-id={event.id}>
     <div class="flex w-11 shrink-0 items-center justify-center text-muted">
       <span class="iconify icon-[uil--phone-slash] text-base"></span>
     </div>
     <span class="text-sm text-muted">{m('room.system_events.call_ended')}</span>
   </div>
 {:else if action && !isDeletedJoinLeave}
-  <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
+  <div class="mt-4 flex items-center gap-4 px-2 desktop-presentation:px-4" data-event-id={event.id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       {#if subject.user}

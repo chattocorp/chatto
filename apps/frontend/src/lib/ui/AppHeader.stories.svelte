@@ -16,7 +16,7 @@
   </div>
 </Story>
 
-<Story name="Narrow shell" asChild>
+<Story name="Narrow shell with input-aware height" asChild>
   <div class="w-80 max-w-full bg-background">
     <AppHeader />
   </div>
