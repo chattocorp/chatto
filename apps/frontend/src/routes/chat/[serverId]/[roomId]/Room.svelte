@@ -618,6 +618,8 @@
 
 <svelte:window
   onkeydown={(e) => {
+    // The modal owns keyboard actions while the room remains visible behind it.
+    if (page.state.modal) return;
     handleWindowKeydown(e);
     if (e.defaultPrevented) return;
 
@@ -897,7 +899,7 @@
               ...sharedRoomSidebarProps,
               activePanel: mobileRoomSidebarPanel ?? 'members',
               activeProfileUserId: activeMobileRoomSidebarProfileUserId,
-              onOpenFile: (messageEventId, threadRootEventId) =>
+              onOpenFileMessage: (messageEventId, threadRootEventId) =>
                 openFileMessage(messageEventId, threadRootEventId, true),
               onOpenSearchResult: (messageEventId, threadRootEventId) =>
                 openSearchResult(messageEventId, threadRootEventId, true),
@@ -917,7 +919,7 @@
           activePanel: activeRoomSidebarPanel ?? 'members',
           activeProfileUserId: activeDesktopRoomSidebarProfileUserId,
           maximized: isDesktopCallMaximized,
-          onOpenFile: openFileMessage,
+          onOpenFileMessage: openFileMessage,
           onOpenSearchResult: openSearchResult,
           onOpenPin: openPinnedMessage,
           onToggleMaximized: toggleDesktopCallWide,

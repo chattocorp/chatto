@@ -188,6 +188,7 @@
       "delete_failed": "Bağlantı önizlemesi silinemedi"
     },
     "sidebar": {
+      "go_to_message": "Mesaja git",
       "extras": "Oda ekstraları",
       "resize": "Oda ekstraları bölmesini yeniden boyutlandır",
       "hide": "Oda ekstralarını gizle",

@@ -188,6 +188,7 @@
       "delete_failed": "Lingi eelvaate kustutamine ebaõnnestus"
     },
     "sidebar": {
+      "go_to_message": "Mine sõnumi juurde",
       "extras": "Ruumi lisad",
       "resize": "Muutke ruumi lisade paani suurust",
       "hide": "Peida ruumi lisad",

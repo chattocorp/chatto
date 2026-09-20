@@ -4,6 +4,8 @@
 Room-scoped file list for the room sidebar.
 -->
 <script lang="ts">
+  import { pushState } from '$app/navigation';
+  import { VideoProcessingStatus } from '$lib/render/messageAttachments';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import type { RoomFileItem, RoomFilesStore } from '$lib/state/room';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
@@ -31,13 +33,13 @@ Room-scoped file list for the room sidebar.
     serverId,
     roomId,
     fileGroupingNow,
-    onOpenFile
+    onOpenFileMessage
   }: {
     store: RoomFilesStore;
     serverId: string;
     roomId: string;
     fileGroupingNow?: Date;
-    onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onOpenFileMessage?: (messageEventId: string, threadRootEventId: string | null) => void;
   } = $props();
 
   const serverScope = useServerScope();
@@ -108,7 +110,28 @@ Room-scoped file list for the room sidebar.
   }
 
   function openFile(item: RoomFileItem): void {
-    onOpenFile?.(item.messageEventId, item.threadRootEventId ?? null);
+    const processing = item.attachment.videoProcessing;
+    pushState('', {
+      modal: {
+        type: 'attachmentViewer',
+        serverId,
+        roomId,
+        eventId: item.messageEventId,
+        items: [{
+          ...item.attachment,
+          assetUrl: store.assetUrlFor(item),
+          videoProcessing: processing ? {
+            ...processing,
+            status: {
+              PROCESSING: VideoProcessingStatus.Processing,
+              COMPLETED: VideoProcessingStatus.Completed,
+              FAILED: VideoProcessingStatus.Failed
+            }[processing.status]
+          } : null
+        }],
+        index: 0
+      }
+    });
   }
 
   function handleThumbnailError(item: RoomFileItem, url: string): void {
@@ -137,16 +160,13 @@ Room-scoped file list for the room sidebar.
 {#snippet fileRow(entry: RoomFileListItem)}
   {@const item = entry.file}
   {@const thumb = usableThumbnailUrl(thumbnailUrl(item))}
-  <button
-    type="button"
-    class="sidebar-item min-h-14 w-full cursor-pointer gap-3 text-start"
-    onclick={() => openFile(item)}
-    title={m('room.sidebar.jump_to_file', { filename: item.attachment.filename })}
-    data-testid="room-file-row"
-    aria-describedby={item.attachment.description ? `${entry.id}-description` : undefined}
-  >
-    <span
-      class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface text-muted"
+  <div class="sidebar-item min-h-14 min-w-0 gap-3" data-testid="room-file-row">
+    <button
+      type="button"
+      class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-border bg-surface text-muted"
+      onclick={() => openFile(item)}
+      aria-label={m('room.attachment.view_label', { filename: item.attachment.filename })}
+      title={m('room.attachment.view_label', { filename: item.attachment.filename })}
     >
       {#if thumb}
         <img
@@ -162,17 +182,40 @@ Room-scoped file list for the room sidebar.
           aria-hidden="true"
         ></span>
       {/if}
-    </span>
-    <span class="min-w-0 flex-1">
-      <bdi class="block truncate text-sm">{item.attachment.filename}</bdi>
+    </button>
+    <div class="min-w-0 flex-1">
+      <div class="flex min-w-0 items-center gap-1.5">
+        <button
+          type="button"
+          class="min-w-0 cursor-pointer text-start text-sm"
+          onclick={() => openFile(item)}
+          title={m('room.attachment.view_label', { filename: item.attachment.filename })}
+          data-testid="room-file-preview"
+          aria-describedby={item.attachment.description ? `${entry.id}-description` : undefined}
+        >
+          <bdi class="block truncate">{item.attachment.filename}</bdi>
+        </button>
+        {#if onOpenFileMessage}
+          <button
+            type="button"
+            class="inline-flex shrink-0 cursor-pointer text-muted/40 hover:text-muted"
+            onclick={() => onOpenFileMessage?.(item.messageEventId, item.threadRootEventId ?? null)}
+            aria-label={m('room.sidebar.go_to_message')}
+            title={m('room.sidebar.go_to_message')}
+            data-testid="room-file-message"
+          >
+            <span class="iconify icon-[mdi--arrow-right-circle] text-sm rtl:rotate-180" aria-hidden="true"></span>
+          </button>
+        {/if}
+      </div>
       {#if item.attachment.description}
         <span id={`${entry.id}-description`} class="block truncate text-xs text-muted" dir="auto">
           {item.attachment.description}
         </span>
       {/if}
       <span class="block truncate text-xs text-muted">{formatTimestamp(item.createdAt)}</span>
-    </span>
-  </button>
+    </div>
+  </div>
 {/snippet}
 
 <nav

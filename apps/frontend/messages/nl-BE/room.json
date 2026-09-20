@@ -188,6 +188,7 @@
       "delete_failed": "Kan linkvoorbeeld niet verwijderen"
     },
     "sidebar": {
+      "go_to_message": "Ga naar bericht",
       "extras": "Kamerextra's",
       "resize": "Wijzig het formaat van het deelvenster met kamerextra's",
       "hide": "Kamerextra's verbergen",

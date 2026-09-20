@@ -188,6 +188,7 @@
       "delete_failed": "Náhled odkazu se nepodařilo smazat"
     },
     "sidebar": {
+      "go_to_message": "Přejít na zprávu",
       "extras": "Pokoj navíc",
       "resize": "Změnit velikost podokna doplňků místnosti",
       "hide": "Skrýt doplňky pokoje",

@@ -188,6 +188,7 @@
       "delete_failed": "Kunne ikke slette forhåndsvisning av koblingen"
     },
     "sidebar": {
+      "go_to_message": "Gå til meldingen",
       "extras": "Romtillegg",
       "resize": "Endre størrelse på tilleggsruten for rom",
       "hide": "Skjul romtilbehør",

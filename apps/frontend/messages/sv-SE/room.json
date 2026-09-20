@@ -188,6 +188,7 @@
       "delete_failed": "Det gick inte att ta bort länkförhandsgranskningen"
     },
     "sidebar": {
+      "go_to_message": "Gå till meddelandet",
       "extras": "Extra rum",
       "resize": "Ändra storlek på rummets extrafönster",
       "hide": "Dölj extrafunktioner i rummet",

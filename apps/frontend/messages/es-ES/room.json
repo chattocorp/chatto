@@ -188,6 +188,7 @@
       "delete_failed": "No se pudo eliminar la vista previa del enlace"
     },
     "sidebar": {
+      "go_to_message": "Ir al mensaje",
       "extras": "Extras de habitación",
       "resize": "Cambiar el tamaño del panel de extras de la habitación",
       "hide": "Ocultar extras de habitación",

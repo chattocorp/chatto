@@ -188,6 +188,7 @@
       "delete_failed": "Neizdevās izdzēst saites priekšskatījumu"
     },
     "sidebar": {
+      "go_to_message": "Pāriet uz ziņojumu",
       "extras": "Istabas ekstras",
       "resize": "Mainiet telpas papildu rūts izmērus",
       "hide": "Paslēpt telpas ekstras",

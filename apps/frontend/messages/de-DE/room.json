@@ -188,6 +188,7 @@
       "delete_failed": "Linkvorschau konnte nicht gelöscht werden"
     },
     "sidebar": {
+      "go_to_message": "Zur Nachricht",
       "extras": "Raumdetails",
       "resize": "Raumdetails-Bereich vergrößern/verkleinern",
       "hide": "Raumdetails ausblenden",

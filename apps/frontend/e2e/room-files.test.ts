@@ -16,7 +16,7 @@ async function postFillerMessages(page: Page, roomId: string, prefix: string, co
   }
 }
 
-test('room Files sidebar jumps to root files and opens thread reply files', async ({ page }) => {
+test('room Files sidebar previews files and separately jumps to their messages', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
   const { roomPage } = await loginAndEnterRoom(page);
 
@@ -65,13 +65,49 @@ test('room Files sidebar jumps to root files and opens thread reply files', asyn
     filesPanel.getByTestId('room-file-row').filter({ hasText: 'brighton2.jpg' })
   ).toBeVisible();
 
-  await filesPanel.getByTestId('room-file-row').filter({ hasText: 'brighton.jpg' }).click();
+  const rootRow = filesPanel.getByTestId('room-file-row').filter({ hasText: 'brighton.jpg' });
+  const threadRow = filesPanel.getByTestId('room-file-row').filter({ hasText: 'brighton2.jpg' });
+  const roomUrl = page.url();
+  const scrollTop = await filesPanel.evaluate((element) => element.scrollTop);
+  await rootRow.getByTestId('room-file-preview').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('brighton.jpg');
+  await expect(page).toHaveURL(roomUrl);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(filesPanel).toBeVisible();
+  expect(await filesPanel.evaluate((element) => element.scrollTop)).toBe(scrollTop);
+
+  await rootRow.getByRole('button', { name: 'Go to message', exact: true }).click();
   await expect(rootFileMessage.locator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-  await filesPanel.getByTestId('room-file-row').filter({ hasText: 'brighton2.jpg' }).click();
+  await threadRow.getByTestId('room-file-preview').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('brighton2.jpg');
+  await expect(page).toHaveURL(roomUrl);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await threadRow.getByRole('button', { name: 'Go to message', exact: true }).click();
   await roomPage.expectThreadRouteActive(threadRootEventId);
   await roomPage.expectTextInThreadPane(threadReplyText);
   await expect(roomPage.getThreadMessage(threadReplyText).locator).toHaveClass(/highlight-flash/, {
     timeout: TIMEOUTS.UI_STANDARD
   });
+});
+
+test('mobile Files panel stays open when Escape closes the file viewer', async ({ page }) => {
+  const { roomPage } = await loginAndEnterRoom(page);
+  await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', 'Mobile file preview');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Actions for #general' }).click();
+  await page.getByRole('button', { name: 'Show files', exact: true }).click();
+
+  const filesPanel = page.locator('[data-testid="room-sidebar-mobile-pane"] nav[aria-label="Files"]');
+  await filesPanel.getByTestId('room-file-preview').click();
+  await expect(page.getByRole('dialog', { name: 'brighton.jpg' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(filesPanel).toBeVisible();
+  await expect(filesPanel.getByTestId('room-file-preview')).toBeFocused();
 });

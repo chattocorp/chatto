@@ -188,6 +188,7 @@
       "delete_failed": "Failed to delete link preview"
     },
     "sidebar": {
+      "go_to_message": "Go to message",
       "extras": "Room extras",
       "resize": "Resize room extras pane",
       "hide": "Hide room extras",
