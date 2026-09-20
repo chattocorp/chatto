@@ -27,6 +27,13 @@ repository once it no longer needs frequent atomic changes with the shared
 
 ## Local Development Stack
 
+The root pnpm workspace contains the JavaScript apps, examples, and libraries.
+The independent [Runling](packages/runling/README.md) workflow and agent
+orchestrator lives in `packages/runling/` and is published to npm as `runling`.
+It keeps its own version and MIT license. The Chatto bot uses this local package.
+Use `mise check-runling`, `mise test-runling`, and `mise test-runling-package`
+to verify it without running the complete Chatto test suite.
+
 Run the local Chatto backend and Vite frontend, Authling, Mailpit, and LiveKit:
 
 ```sh
@@ -39,7 +46,7 @@ mise dev
 
 `mise dev` runs the services in one supervised process group. Vite reloads
 frontend changes. Restart it after you change Chatto or Authling Go code.
-`mise setup` builds the shared API types and Lingua packages.
+`mise setup` builds the shared API types, Lingua, and Runling packages.
 
 [Portless](https://portless.sh/) provides HTTPS routes for browser-facing
 services. In Conductor, replace `<workspace>` with the workspace name:
@@ -109,7 +116,7 @@ See [Synthetic Test Data](CONTRIBUTING.md#synthetic-test-data) for e2e use.
 
 Chatto is licensed under `AGPL-3.0-or-later` by default. The independently
 versioned shared framework modules, standalone frontend, integration surfaces,
-documentation, and examples use Apache-2.0. See
+documentation, and examples use Apache-2.0. Runling uses MIT. See
 [LICENSING.md](LICENSING.md) and [REUSE.toml](REUSE.toml) for the exact
 boundary.
 

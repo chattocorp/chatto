@@ -29,6 +29,7 @@ run = [
     { task = "setup-frontend" },
     { task = "build-api-types" },
     { task = "build-lingua" },
+    { task = "build-runling" },
 ]
 
 # =============================================================================
@@ -205,8 +206,28 @@ sources = ["package.json", "tsconfig.json", "src/**/*"]
 
 [tasks.test-runling-bot]
 description = "Test the Runling webhook bot example"
-depends = ["setup-frontend"]
+depends = ["build-runling"]
 run = "node --test examples/runling-bot/*.test.ts"
+
+[tasks.build-runling]
+description = "Build the Runling runtime and web console"
+depends = ["setup-frontend"]
+run = "pnpm run build:runling"
+
+[tasks.check-runling]
+description = "Check Runling types and Svelte components"
+depends = ["setup-frontend"]
+run = "pnpm run check:runling"
+
+[tasks.test-runling]
+description = "Run Runling unit and integration tests"
+depends = ["setup-frontend"]
+run = "pnpm run test:runling"
+
+[tasks.test-runling-package]
+description = "Build Runling and test its installed npm package"
+depends = ["build-runling"]
+run = "pnpm --filter runling test:package"
 
 [tasks.build-frontend]
 description = "Build the frontend application"
@@ -338,7 +359,7 @@ run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen 
 
 [tasks.dev]
 description = "Run the regular local development services with Portless"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend", "build-api-types", "build-lingua", "build-runling"]
 env = {
   PORTLESS_PORT = "{{env.CHATTO_DEV_PROXY_PORT | default(value='42444')}}",
   PORTLESS_HTTPS = "1",
@@ -531,7 +552,7 @@ export CHATTO_RUNLING_API_KEY_FILE="$data_root/bootstrap/test_bot.key"
 cd examples/runling-bot
 exec portless \
   "runling.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$CHATTO_RUNLING_PORT" -- \
-  node "$project_dir/node_modules/runling/bin/runling.js" --host 127.0.0.1 --port "$CHATTO_RUNLING_PORT"
+  node "$project_dir/node_modules/runling/bin/runling.js" serve --host 127.0.0.1 --port "$CHATTO_RUNLING_PORT"
 '''
 
 [tasks.dev-stack-frontend]
@@ -762,7 +783,7 @@ run = "tools/test-desktop-macos-capture.sh"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
-depends = ["setup-frontend", "build-e2e-server"]
+depends = ["setup-frontend", "build-e2e-server", "build-runling"]
 dir = "apps/frontend"
 run = "pnpm exec playwright test"
 

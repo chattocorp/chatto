@@ -49,6 +49,14 @@ git push -u origin begin-0.6
 Merge this branch into `main`, preserving the `Release-As` footer in the squash
 commit or pull request body.
 
+## Runling releases
+
+Runling is versioned independently under `packages/runling/`. Its releases
+use stable versions and `runling/vX.Y.Z` tags. The `publish-runling` workflow
+tests the npm tarball before publishing it. For the one-time npm trusted
+publisher setup and local verification commands, see
+[Runling development and releases](../packages/runling/README.md#monorepo-development-and-releases).
+
 ## Chatto Desktop releases
 
 Chatto Desktop is an independently versioned component under `apps/desktop`.

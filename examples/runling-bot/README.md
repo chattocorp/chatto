@@ -6,7 +6,8 @@ an agent-generated reply through the Chatto API. It uses Runling’s agent with
 an existing thread receive a reply in that thread. Messages from bots are
 ignored.
 
-Runling is installed as a development dependency at the repository root.
+Runling is linked from `packages/runling/` as a root workspace dependency.
+`mise dev` builds the local package before it starts the bot.
 Run the commands below from that root unless a command changes the directory.
 
 ## Run locally
@@ -49,8 +50,8 @@ TestBot; the Runling workflow supplies its replies.
 The `/api/runs/start/chatto` route validates the workflow input and returns
 `202` after starting the run. This avoids holding Chatto's webhook request
 open during the workflow. A later workflow failure appears in Runling and does
-not cause Chatto to retry the accepted webhook. The synchronous
-`/api/webhooks/chatto` route is not used here.
+not cause Chatto to retry the accepted webhook. Runling 0.7 also starts runs
+asynchronously through `/api/webhooks/chatto`.
 
 ## Agent behavior
 

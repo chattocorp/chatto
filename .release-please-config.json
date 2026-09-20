@@ -19,6 +19,7 @@
       "exclude-paths": [
         "apps/desktop",
         "authling",
+        "packages/runling",
         "pkg/appconfig",
         "pkg/datacrypto",
         "pkg/events",
@@ -63,6 +64,24 @@
         {
           "type": "generic",
           "path": "version.go"
+        }
+      ]
+    },
+    "packages/runling": {
+      "release-type": "simple",
+      "package-name": "runling",
+      "component": "runling",
+      "versioning": "default",
+      "prerelease": false,
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "package.json",
+          "jsonpath": "$.version"
         }
       ]
     },
