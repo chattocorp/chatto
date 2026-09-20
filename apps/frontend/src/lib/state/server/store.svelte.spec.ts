@@ -1000,7 +1000,7 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(store.voiceCall.permissionsFor('R1').join).toBe(join);
   });
 
-  it.each(['unchanged owner', 'unchanged member', 'revoked', 'room revoked', 'read narrowed', 'failed', 'privilege expired', 'reset while pending'])(
+  it.each(['unchanged owner', 'unchanged member', 'revoked', 'room revoked', 'read narrowed', 'posting granted', 'posting revoked', 'failed', 'privilege expired', 'reset while pending'])(
     'reconciles permission changes without resetting the view: %s', async (change) => {
       const fake = new FakeServerConnection([]);
       const store = makeStore(fake);
@@ -1012,7 +1012,10 @@ describe('ServerStateStore unified realtime resources', () => {
       });
       store.projection.viewer = viewer;
       store.projection.rooms.set('R1', new RoomWithViewerState({
-        room: { id: 'R1' }, viewerState: { isMember: true, permissions: [{ permission: 'message.read', granted: true }] }
+        room: { id: 'R1' }, viewerState: { isMember: true, permissions: [
+          { permission: 'message.read', granted: true },
+          { permission: 'message.post-interactions', granted: change === 'posting revoked' }
+        ] }
       }));
       store.realtimeSync.markCaughtUp('retained');
       const resetMessages = vi.spyOn(store.messagesForRoom('R1'), 'resetProjectionState');
@@ -1029,7 +1032,10 @@ describe('ServerStateStore unified realtime resources', () => {
         } })];
         if (family === 'rooms') return [roomResource(change === 'room revoked' ? [] : [
           new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true,
-            permissions: [{ permission: 'message.read', granted: change !== 'read narrowed' }]
+            permissions: [
+              { permission: 'message.read', granted: change !== 'read narrowed' },
+              { permission: 'message.post-interactions', granted: change === 'posting granted' }
+            ]
           } })
         ])];
         if (family === 'roomGroups') return [new RealtimeResourceUpdate({ resource: {
@@ -1066,7 +1072,7 @@ describe('ServerStateStore unified realtime resources', () => {
         expect(resetMessages).toHaveBeenCalledOnce();
         expect(store.projection.viewer).toBeNull();
       }
-      if (['room revoked', 'read narrowed', 'failed'].includes(change)) {
+      if (['room revoked', 'read narrowed', 'posting granted', 'posting revoked', 'failed'].includes(change)) {
         expect(revokeMessages).toHaveBeenCalled();
       } else expect(revokeMessages).not.toHaveBeenCalled();
       if (change === 'failed') {

@@ -41,6 +41,12 @@ describe('roomTimelineEventToView', () => {
 });
 
 describe('messagePostedPayload', () => {
+  it('preserves resolved reply authority and distinguishes absent authority', () => {
+    for (const canReplyInThread of [true, false, undefined]) {
+      expect(messagePostedPayload(new Message({ canReplyInThread }), {}).canReplyInThread)
+        .toBe(canReplyInThread);
+    }
+  });
   it('maps current pin state', () => {
     expect(messagePostedPayload(new Message({ pinned: true }), {}).pinned).toBe(true);
   });

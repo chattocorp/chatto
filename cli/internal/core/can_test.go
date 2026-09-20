@@ -521,6 +521,9 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	})
 
 	t.Run("CanPostInThread respects room-level denial", func(t *testing.T) {
+		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+			t.Fatal(err)
+		}
 		// Ensure space grants message.post-in-thread
 		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePostInThread)
 
@@ -537,6 +540,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 
 		// Cleanup
 		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
+		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 	})
 
 	t.Run("CanReactToMessage respects room-level grant", func(t *testing.T) {

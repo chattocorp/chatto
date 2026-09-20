@@ -443,13 +443,18 @@ edit. Retracted or inaccessible messages are not sent.
   thread that it started, where another account directly mentioned it, or
   where it received a DM, subject to membership and the owner's effective broad or
   narrow read authority.
-- `message.post` — post room-timeline messages at configured scopes. A bot can
+- `message.post` — post roots and thread replies at configured scopes. Includes
+  `message.post-in-thread` and `message.post-interactions`. A bot can
   receive this permission only at Direct messages scope when it must not post
   in channels.
-- `message.post-in-thread` — create and reply in threads at configured scopes.
+- `message.post-in-thread` — post replies, including the first reply to a root,
+  in readable threads at configured scopes.
   A bot that responds only in private-conversation threads can combine this
   DM-scoped allow with DM-scoped `message.read`. It does not need
   `message.post`.
+- `message.post-interactions` — reply only in related threads, with separate
+  read access. A broad reader can use this grant to speak only in conversations
+  involving it. The owner's effective authority must also include this grant.
 
 Notification delivery modes are user preferences, not permissions. A bot can
 change its own notification policy through the normal notification policy API

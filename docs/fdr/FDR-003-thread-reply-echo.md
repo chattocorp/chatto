@@ -106,7 +106,7 @@ not repaired automatically because their original echo intent was not stored.
 - `message.echo` — permits the echo. A DM can override it at the Direct
   messages scope.
 - `message.post` — permits the new artifact in the main room timeline.
-- `message.post-in-thread` — required for the thread reply itself. Covers replies with `inReplyTo` attribution as well; there is no separate reply permission.
+- `message.post-in-thread` or `message.post-interactions` with a relationship — permits the reply itself, with separate read access. The required `message.post` grant already includes both. Reply attribution needs no separate permission.
 
 ## Related
 

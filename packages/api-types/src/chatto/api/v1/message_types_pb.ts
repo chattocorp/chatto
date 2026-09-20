@@ -771,6 +771,15 @@ export class Message extends Message$1<Message> {
    */
   pinned = false;
 
+  /**
+   * Whether the viewer can reply in this message's canonical thread, including
+   * starting the first reply to a root. Includes read access, room policy, and
+   * broad or interaction-scoped posting authority. Absent when not resolved.
+   *
+   * @generated from field: optional bool can_reply_in_thread = 23;
+   */
+  canReplyInThread?: boolean;
+
   constructor(data?: PartialMessage<Message>) {
     super();
     proto3.util.initPartial(data, this);
@@ -796,6 +805,7 @@ export class Message extends Message$1<Message> {
     { no: 20, name: "thread", kind: "message", T: ThreadSummary },
     { no: 21, name: "deleted_at", kind: "message", T: Timestamp },
     { no: 22, name: "pinned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 23, name: "can_reply_in_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Message {

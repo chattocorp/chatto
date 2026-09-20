@@ -41,6 +41,13 @@ permissions. Room membership remains a separate requirement.
   create a relationship with messages posted before the account joined.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
+- `message.post` permits root messages and thread replies. It includes
+  `message.post-in-thread` and `message.post-interactions`.
+- `message.post-interactions` permits replies only in threads with an existing
+  interaction relationship. It does not permit new roots. Thread replies also
+  need read access, membership, and a room policy that permits threads.
+- Broad read access with interaction posting lets an account read the room
+  but respond only in related threads. The same rule applies to humans and bots.
 - A channel-room operation that reads or returns an existing message also
   needs access to that message's thread. Deletion remains independently
   authorized and does not return surrounding message state.
@@ -177,8 +184,22 @@ relevant message and thread IDs from its normal notification occurrences.
 - `message.read-interactions` — read message content and message-specific
   metadata only in threads with a current interaction
   relationship.
-- `message.post` — post root messages and send messages in an existing DM.
+- `message.post` — post roots and thread replies in channel rooms and existing
+  DMs. Includes both narrower posting permissions.
 - `message.post-in-thread` — post replies in a channel-room or DM thread.
+- `message.post-interactions` — post replies only in related threads. Reuses
+  the read interaction relationship without granting read access.
+
+### Posting compatibility
+
+Existing `message.post` allows now permit thread replies, including when a
+narrow posting permission is denied. Operators must review these grants.
+For reply-only access, remove broad posting and grant `message.post-in-thread`
+or `message.post-interactions`. Root-only posting is no longer a separate
+permission. No stored grants or interaction facts are rewritten. Old replicas
+do not support the new permission or posting inclusion; complete the rollout
+before relying on them. Bot grants and the owner's authority each use the
+same explicit inclusion rules.
 
 ## Related
 

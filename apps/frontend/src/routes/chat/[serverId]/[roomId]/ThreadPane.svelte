@@ -142,8 +142,16 @@
   let composerApi = $state<MessageComposerApi | null>(null);
   let isDraggingFiles = $state(false);
 
+  const threadMessage = $derived(threadEvents.find((entry) => isMessagePostedEvent(entry.event))?.event);
+  let canPost = $derived(
+    threadingMode !== RoomThreadingMode.DISABLED &&
+      (isMessagePostedEvent(threadMessage)
+        ? (threadMessage.canReplyInThread ?? canPostInThread)
+        : canPostInThread)
+  );
+
   const threadDropZone = $derived(
-    canPostInThread && canAttach
+    canPost && canAttach
       ? dropZone({
           onDrop: (files) => composerApi?.addFiles(files),
           onDragStateChange: (dragging) => (isDraggingFiles = dragging)
@@ -158,7 +166,6 @@
     return true;
   });
 
-  let canPost = $derived(canPostInThread);
   let threadTitle = $derived(
     isDirectMessage ? roomName : m('room.thread.title', { room: roomName })
   );

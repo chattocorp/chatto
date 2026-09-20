@@ -287,6 +287,23 @@ describe('MessageEvent action model integration', () => {
       .toHaveTextContent(event.id);
   });
 
+  it.each([true, false])('uses resolved interaction reply authority: %s', (allowed) => {
+    const event = messageEvent();
+    if (event.event.kind !== TimelineEventKind.MessagePosted) throw new Error('Expected message');
+    event.event.canReplyInThread = allowed;
+    const { container } = render(MessageEventTestHarness, {
+      props: {
+        event,
+        onOpenThread: vi.fn(),
+        threadingMode: RoomThreadingMode.REQUIRED,
+        canPostMessage: false,
+        canPostInThread: !allowed
+      }
+    });
+    expect(!!q(container, 'button[aria-label="Reply in thread"]')).toBe(allowed);
+    expect(!!q(container, 'button[aria-label="Reply"]')).toBe(allowed);
+  });
+
   it('rebinds every action surface when a virtualized row changes message shape', async () => {
     const regular = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: regular } });

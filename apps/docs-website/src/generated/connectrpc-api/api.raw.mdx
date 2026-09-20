@@ -3041,8 +3041,10 @@ Result of fetching link preview metadata.
 ### CreateMessage
 
 Creates a message for the current user. The user must be a room member and
-must have message.post for room messages or message.post-in-thread for
-thread replies. Echoing a thread reply also requires message.echo and
+must have message.post for room messages. Thread replies require read
+access and either message.post, message.post-in-thread, or
+message.post-interactions with an existing interaction relationship.
+Echoing a thread reply also requires message.echo and
 message.post. The room's Threading Mode may automatically establish a root
 thread or reject a thread placement that the mode does not allow.
 
@@ -3065,7 +3067,7 @@ Request to create a message in a room or thread.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
-| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Cannot be combined with thread_root_event_id. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires message.post (which includes thread posting). Cannot be combined with thread_root_event_id. |
 | `attachment_descriptions` | repeated [`MessageAttachmentDescriptionInput`](#chatto-api-v1-MessageAttachmentDescriptionInput) | Optional descriptions for assets in attachment_asset_ids. Asset IDs must be unique in this list. At most one description can target each asset. |
 
 
@@ -5151,6 +5153,7 @@ requests.
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. Present only when a durable thread has been established for this root message, including an empty thread. |
 | `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
 | `pinned` | `bool` | True when this message's canonical message is currently pinned in its channel room. Always false for direct-message rooms. |
+| `can_reply_in_thread` | `optional bool` | Whether the viewer can reply in this message's canonical thread, including starting the first reply to a root. Includes read access, room policy, and broad or interaction-scoped posting authority. Absent when not resolved. |
 
 
 

@@ -90,6 +90,7 @@ const RoomPermission = {
   ReadInteractions: 'message.read-interactions',
   ReadMessages: 'message.read',
   PostInThread: 'message.post-in-thread',
+  PostInteractions: 'message.post-interactions',
   PostMessage: 'message.post',
   React: 'message.react'
 } as const;

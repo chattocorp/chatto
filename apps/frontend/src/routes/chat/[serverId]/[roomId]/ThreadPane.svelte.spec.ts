@@ -190,8 +190,8 @@ vi.mock('./EventList.svelte', async () => {
 });
 
 vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: ComposerMock } = await import('./ThreadComposerPermissionMock.svelte');
+  return { default: ComposerMock };
 });
 
 describe('ThreadPane', () => {
@@ -216,6 +216,29 @@ describe('ThreadPane', () => {
       following: false,
       state: { roomId: 'room-1', threadRootEventId: 'thread-root', following: false }
     });
+  });
+
+  it('updates the composer when interaction posting is granted and revoked', async () => {
+    const { container } = render(ThreadPane, {
+      props: {
+        roomId: 'room-1', roomName: 'General', threadRootEventId: 'thread-root',
+        onClose: mocks.onClose, canPostInThread: false
+      }
+    });
+    const send = q(container, '[data-testid="thread-composer-send"]') as HTMLButtonElement;
+    await expect.element(send).toBeDisabled();
+    mocks.threadStore!.threadEvents = [{
+      id: 'thread-root', createdAt: '2026-09-20T12:00:00Z',
+      event: {
+        kind: TimelineEventKind.MessagePosted, roomId: 'room-1', body: 'Related thread',
+        attachments: [], reactions: [], replyCount: 0, threadParticipants: [], canReplyInThread: true
+      }
+    }];
+    await expect.element(send).toBeEnabled();
+    const root = mocks.threadStore!.threadEvents[0].event;
+    if (root.kind !== TimelineEventKind.MessagePosted) throw new Error('Expected message');
+    root.canReplyInThread = false;
+    await expect.element(send).toBeDisabled();
   });
 
   it('uses the persisted width and accessible resize handle in split layouts', async () => {

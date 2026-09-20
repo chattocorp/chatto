@@ -196,4 +196,8 @@ message Message {
   // True when this message's canonical message is currently pinned in its
   // channel room. Always false for direct-message rooms.
   bool pinned = 22;
+  // Whether the viewer can reply in this message's canonical thread, including
+  // starting the first reply to a root. Includes read access, room policy, and
+  // broad or interaction-scoped posting authority. Absent when not resolved.
+  optional bool can_reply_in_thread = 23;
 }

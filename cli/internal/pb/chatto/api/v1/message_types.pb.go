@@ -782,9 +782,13 @@ type Message struct {
 	DeletedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	// True when this message's canonical message is currently pinned in its
 	// channel room. Always false for direct-message rooms.
-	Pinned        bool `protobuf:"varint,22,opt,name=pinned,proto3" json:"pinned,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Pinned bool `protobuf:"varint,22,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	// Whether the viewer can reply in this message's canonical thread, including
+	// starting the first reply to a root. Includes read access, room policy, and
+	// broad or interaction-scoped posting authority. Absent when not resolved.
+	CanReplyInThread *bool `protobuf:"varint,23,opt,name=can_reply_in_thread,json=canReplyInThread,proto3,oneof" json:"can_reply_in_thread,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Message) Reset() {
@@ -936,6 +940,13 @@ func (x *Message) GetPinned() bool {
 	return false
 }
 
+func (x *Message) GetCanReplyInThread() bool {
+	if x != nil && x.CanReplyInThread != nil {
+		return *x.CanReplyInThread
+	}
+	return false
+}
+
 var File_chatto_api_v1_message_types_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_message_types_proto_rawDesc = "" +
@@ -994,7 +1005,7 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12?\n" +
 	"\x1cparticipant_preview_user_ids\x18\x04 \x03(\tR\x19participantPreviewUserIds\x12+\n" +
 	"\x11participant_count\x18\x05 \x01(\x05R\x10participantCount\x12C\n" +
-	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\x9c\a\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\xe8\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x129\n" +
@@ -1016,8 +1027,10 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\x06thread\x18\x14 \x01(\v2\x1c.chatto.api.v1.ThreadSummaryR\x06thread\x129\n" +
 	"\n" +
 	"deleted_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12\x16\n" +
-	"\x06pinned\x18\x16 \x01(\bR\x06pinnedB\a\n" +
-	"\x05_bodyJ\x04\b\x0e\x10\x13R\vreply_countR\rlast_reply_atR#thread_participant_preview_user_idsR\x18thread_participant_countR\x1aviewer_is_following_thread*\xda\x01\n" +
+	"\x06pinned\x18\x16 \x01(\bR\x06pinned\x122\n" +
+	"\x13can_reply_in_thread\x18\x17 \x01(\bH\x01R\x10canReplyInThread\x88\x01\x01B\a\n" +
+	"\x05_bodyB\x16\n" +
+	"\x14_can_reply_in_threadJ\x04\b\x0e\x10\x13R\vreply_countR\rlast_reply_atR#thread_participant_preview_user_idsR\x18thread_participant_countR\x1aviewer_is_following_thread*\xda\x01\n" +
 	"\x1cMessageVideoProcessingStatus\x12/\n" +
 	"+MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED\x10\x00\x12.\n" +
 	"*MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING\x10\x01\x12-\n" +
