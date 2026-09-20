@@ -188,6 +188,7 @@
       "delete_failed": "無法刪除連結預覽"
     },
     "sidebar": {
+      "go_to_message": "前往訊息",
       "extras": "聊天室資訊",
       "resize": "調整聊天室資訊面板大小",
       "hide": "隱藏聊天室資訊",

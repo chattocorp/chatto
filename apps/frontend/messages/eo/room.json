@@ -188,6 +188,7 @@
       "delete_failed": "Malsukcesis forigi ligilon antaŭrigardon"
     },
     "sidebar": {
+      "go_to_message": "Iri al mesaĝo",
       "extras": "Ĉambrokromaĵoj",
       "resize": "Regrandigi la fenestron de ekstraj ĉambroj",
       "hide": "Kaŝi ekstrajn ĉambrojn",

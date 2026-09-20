@@ -188,6 +188,7 @@
       "delete_failed": "Falha ao excluir visualização do link"
     },
     "sidebar": {
+      "go_to_message": "Ir para a mensagem",
       "extras": "Extras do quarto",
       "resize": "Redimensionar painel de extras da sala",
       "hide": "Ocultar extras do quarto",

@@ -188,6 +188,7 @@
       "delete_failed": "Échec de la suppression de l'aperçu du lien"
     },
     "sidebar": {
+      "go_to_message": "Aller au message",
       "extras": "Les meilleurs de la chambre",
       "resize": "Redimensionner le volet des extras de la salle",
       "hide": "Cacher les extras de la chambre",

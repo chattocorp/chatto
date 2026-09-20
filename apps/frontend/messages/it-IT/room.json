@@ -188,6 +188,7 @@
       "delete_failed": "Impossibile eliminare l'anteprima del collegamento"
     },
     "sidebar": {
+      "go_to_message": "Vai al messaggio",
       "extras": "Extra della camera",
       "resize": "Ridimensiona il riquadro degli extra della stanza",
       "hide": "Nascondi gli extra della stanza",

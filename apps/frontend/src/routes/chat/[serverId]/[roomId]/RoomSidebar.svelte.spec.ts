@@ -27,8 +27,14 @@ const memberDirectoryMocks = vi.hoisted(() => ({
   listRoomMembers: vi.fn()
 }));
 const attachmentMocks = vi.hoisted(() => ({
+  pushState: vi.fn(),
   listRoomAttachments: vi.fn(),
   refreshAssetUrls: vi.fn()
+}));
+vi.mock('$app/navigation', () => ({
+  goto: vi.fn(),
+  pushState: attachmentMocks.pushState,
+  replaceState: vi.fn()
 }));
 const callStore = vi.hoisted(() => ({
   permissions: {
@@ -402,6 +408,7 @@ describe('RoomSidebar', () => {
     queryMock.mockReset();
     memberDirectoryMocks.listRoomMembers.mockReset();
     attachmentMocks.listRoomAttachments.mockReset();
+    attachmentMocks.pushState.mockReset();
     attachmentMocks.refreshAssetUrls.mockReset();
     memberDirectoryMocks.listRoomMembers.mockResolvedValue(memberPage([member(1)]));
     attachmentMocks.listRoomAttachments.mockResolvedValue({
@@ -2097,8 +2104,8 @@ describe('RoomSidebar', () => {
     }
   });
 
-  it('renders room files, opens their message anchors, and automatically loads more', async () => {
-    const onOpenFile = vi.fn();
+  it('previews room files, separately opens their messages, and automatically loads more', async () => {
+    const onOpenFileMessage = vi.fn();
     attachmentMocks.listRoomAttachments
       .mockResolvedValueOnce({
         items: [roomFile('root-message', null, 'root.txt')],
@@ -2115,7 +2122,7 @@ describe('RoomSidebar', () => {
       props: {
         activePanel: 'files',
         roomData: roomData([member(1)], 1, false),
-        onOpenFile
+        onOpenFileMessage
       }
     });
 
@@ -2128,7 +2135,21 @@ describe('RoomSidebar', () => {
 
     buttonByText(container, 'root.txt')!.click();
     await tick();
-    expect(onOpenFile).toHaveBeenCalledWith('root-message', null);
+    expect(onOpenFileMessage).not.toHaveBeenCalled();
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'attachmentViewer',
+        serverId: 'test-server',
+        roomId: 'room-1',
+        eventId: 'root-message',
+        items: [roomFile('root-message', null, 'root.txt').attachment],
+        index: 0
+      }
+    });
+    attachmentMocks.pushState.mockClear();
+    container.querySelector<HTMLButtonElement>('[data-testid="room-file-message"]')!.click();
+    expect(onOpenFileMessage).toHaveBeenCalledWith('root-message', null);
+    expect(attachmentMocks.pushState).not.toHaveBeenCalled();
 
     MockIntersectionObserver.instances[0].trigger();
     await tick();
@@ -2150,7 +2171,18 @@ describe('RoomSidebar', () => {
 
     buttonByText(container, 'thread.txt')!.click();
     await tick();
-    expect(onOpenFile).toHaveBeenCalledWith('thread-message', 'thread-root');
+    expect(onOpenFileMessage).toHaveBeenCalledTimes(1);
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: expect.objectContaining({
+        eventId: 'thread-message',
+        items: [roomFile('thread-message', 'thread-root', 'thread.txt').attachment],
+        index: 0
+      })
+    });
+    attachmentMocks.pushState.mockClear();
+    container.querySelectorAll<HTMLButtonElement>('[data-testid="room-file-message"]')[1].click();
+    expect(onOpenFileMessage).toHaveBeenCalledWith('thread-message', 'thread-root');
+    expect(attachmentMocks.pushState).not.toHaveBeenCalled();
   });
 
   it('groups room files by date and appends loaded pages into the matching groups', async () => {

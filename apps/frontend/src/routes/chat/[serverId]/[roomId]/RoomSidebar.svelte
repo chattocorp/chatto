@@ -73,7 +73,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     pinsStore,
     livekitUrl,
     fileGroupingNow,
-    onOpenFile,
+    onOpenFileMessage,
     onOpenSearchResult,
     onOpenPin,
     onToggleMaximized,
@@ -96,7 +96,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     pinsStore?: RoomPinsStore;
     livekitUrl?: string;
     fileGroupingNow?: Date;
-    onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onOpenFileMessage?: (messageEventId: string, threadRootEventId: string | null) => void;
     onOpenSearchResult?: (messageEventId: string, threadRootEventId: string | null) => void;
     onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
@@ -512,7 +512,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         serverId={activeServerId}
         {roomId}
         {fileGroupingNow}
-        {onOpenFile}
+        {onOpenFileMessage}
       />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">

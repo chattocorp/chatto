@@ -195,6 +195,7 @@
       "delete_failed": "Nie udało się usunąć podglądu linku"
     },
     "sidebar": {
+      "go_to_message": "Przejdź do wiadomości",
       "extras": "Dodatki do pokoju",
       "resize": "Zmień rozmiar okienka z dodatkami do pokoju",
       "hide": "Ukryj dodatki do pokoju",

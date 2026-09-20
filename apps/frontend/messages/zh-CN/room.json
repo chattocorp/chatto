@@ -188,6 +188,7 @@
       "delete_failed": "删除链接预览失败"
     },
     "sidebar": {
+      "go_to_message": "转到消息",
       "extras": "聊天室附加内容",
       "resize": "调整聊天室附加内容面板大小",
       "hide": "隐藏聊天室附加内容",
