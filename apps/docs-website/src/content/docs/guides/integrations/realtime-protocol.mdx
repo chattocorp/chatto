@@ -15,13 +15,6 @@ reads, pagination, history, and read-your-writes results. Realtime events tell
 you what happened. ConnectRPC gives you the resource detail that your
 integration needs.
 
-`ViewerPresencePreferenceChanged` is private to the authenticated account. On
-receipt, reread `MyAccountService.GetPresencePreference` to update the device's
-selected mode and DND behavior. Other users receive no event for this private
-choice. Their `PresenceChanged` events and API reads show ordinary Offline for
-invisible accounts, without a hidden-mode flag. Invisible accounts do not publish
-typing indicators. Deliberate messages and call participation remain visible.
-
 | Need                                                                     | Use               |
 | ------------------------------------------------------------------------ | ----------------- |
 | React to a message, edit, reaction, membership change, or other activity | Realtime event    |
