@@ -6,6 +6,9 @@ import { registerServerQueryCache } from './cacheRegistry';
 const SERVER_QUERY_STALE_TIME_MS = 30_000;
 const SERVER_QUERY_GC_TIME_MS = 5 * 60_000;
 
+/** Identify the current permission recheck so superseded reads cannot end it. */
+const permissionRefreshes = new Map<string, symbol>();
+
 function retryServerQuery(failureCount: number, error: Error): boolean {
   if (
     error instanceof ConnectError &&
@@ -26,10 +29,13 @@ function retryServerQuery(failureCount: number, error: Error): boolean {
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
-      if (query.queryKey[0] === 'server' && error instanceof ConnectError &&
-        [Code.PermissionDenied, Code.NotFound, Code.Unauthenticated].includes(error.code)) {
+      const [kind, serverId] = query.queryKey;
+      if (kind === 'server' && typeof serverId === 'string' &&
+        (permissionRefreshes.has(serverId) ||
+          (error instanceof ConnectError &&
+            [Code.PermissionDenied, Code.NotFound, Code.Unauthenticated].includes(error.code)))) {
         // TanStack normally keeps the last successful response on a refetch
-        // error. A denied read must not retain that private response.
+        // error. A failed permission recheck or denied read must clear it.
         query.setState({ data: undefined, dataUpdatedAt: 0 });
       }
     }
@@ -53,19 +59,17 @@ export function serverQueryRoot(serverId: string): QueryKey {
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {
-  permissionRefreshes.set(serverId, (permissionRefreshes.get(serverId) ?? 0) + 1);
+  permissionRefreshes.delete(serverId);
   for (const query of queryClient.getQueryCache().findAll({ queryKey: serverQueryRoot(serverId) }))
     query.reset();
   queryClient.removeQueries({ queryKey: serverQueryRoot(serverId) });
 }
 
-const permissionRefreshes = new Map<string, number>();
-
 /** Keep authorized active data visible while replacing it with a fresh response.
- * Cancel old reads, discard inactive snapshots, and clear only the reads that fail.
+ * Cancel old reads, discard inactive snapshots, and clear failed or offline checks.
  */
 export async function refreshServerQueries(serverId: string): Promise<void> {
-  const generation = (permissionRefreshes.get(serverId) ?? 0) + 1;
+  const generation = Symbol();
   permissionRefreshes.set(serverId, generation);
   const filters = { queryKey: serverQueryRoot(serverId) };
   await queryClient.cancelQueries(filters);
@@ -74,15 +78,24 @@ export async function refreshServerQueries(serverId: string): Promise<void> {
   // Active queries can load inactive row snapshots through fetchQuery. Clear
   // those dependencies first, so fresh loads cannot reuse or lose stale rows.
   for (const query of queries) if (!query.isActive()) query.reset();
-  await Promise.all(queries.filter((query) => query.isActive()).map(async (query) => {
-    try {
-      await query.fetch();
-    } catch {
-      if (permissionRefreshes.get(serverId) !== generation || query.state.fetchStatus !== 'idle') return;
-      // A failed authority check is unknown, not permission to show old data.
-      query.setState({ data: undefined, dataUpdatedAt: 0 });
+  try {
+    // Invalidate all keys before any read can reuse a cached dependency. Older
+    // reads were cancelled above; share new reads started by other queries.
+    await queryClient.invalidateQueries(
+      { ...filters, refetchType: 'active' },
+      { cancelRefetch: false }
+    );
+    if (permissionRefreshes.get(serverId) !== generation) return;
+    // Invalidation does not wait for offline reads. Hide their unchecked data;
+    // TanStack resumes the existing requests when the client reconnects.
+    for (const query of queryClient.getQueryCache().findAll(filters)) {
+      if (query.state.fetchStatus === 'paused') {
+        query.setState({ data: undefined, dataUpdatedAt: 0 });
+      }
     }
-  }));
+  } finally {
+    if (permissionRefreshes.get(serverId) === generation) permissionRefreshes.delete(serverId);
+  }
 }
 
 /** Refresh role and member snapshots after a public role event; retain other data. */

@@ -305,7 +305,7 @@ effective authority when its own assignments, a
 retained role's permissions, the `everyone` role, or its direct permissions
 change. Cursor-bounded resource reads refresh authority in place for every
 viewer. Active snapshot queries reauthorize their own scopes; inactive private
-snapshots are discarded. The page remains visible, with input blocked during
+snapshots are discarded. The page remains visible and interactive during
 the check. Denied or failed reads clear the affected resource, not the server
 projection. Permission events do not clear the resume cursor or request a new
 WebSocket snapshot.
@@ -395,8 +395,12 @@ uses this refresh. The existing projection and cursor remain usable. Unrelated
 users' assignments and cosmetic role changes keep the current projection.
 
 Snapshot queries retain their observers and current data while they cancel
-older reads and fetch authorized replacements. Failed reads remove cached data;
-inactive snapshots are discarded. Query invalidation also fences late matrix
+older reads. TanStack invalidates the server's snapshot queries before it
+refetches active queries, so dependent reads cannot reuse stale snapshots.
+Queries that share a dependency also share its replacement request. Failed
+permission checks remove cached data; inactive snapshots are discarded without
+refetching them. Checks paused while offline hide their cached data and resume
+when the client reconnects. Query invalidation also fences late matrix
 mutations independently of component disposal. Room membership or message-read
 changes clear only the affected plaintext stores and fence their older reads.
 Searches keep their input and refresh their results. Fresh route authorization
