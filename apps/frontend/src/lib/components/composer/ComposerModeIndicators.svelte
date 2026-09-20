@@ -29,7 +29,7 @@
   >
     <span class="min-w-0 truncate text-text">
       {m('composer.replying_to')}
-      <AccountName name={replyDisplayName} identity={replyIdentity} class="font-semibold" />
+      <strong class="inline-flex max-w-full min-w-0 font-semibold"><AccountName name={replyDisplayName} identity={replyIdentity} /></strong>
       {#if replyExcerpt}
         <span class="text-muted"> &mdash; {replyExcerpt}</span>
       {/if}
