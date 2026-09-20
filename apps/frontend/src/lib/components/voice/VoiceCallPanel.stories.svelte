@@ -70,3 +70,9 @@
 		<VoiceCallPanelStoryHarness layout="sidebar" scenario="screen-voice" />
 	</div>
 </Story>
+
+<Story name="Sidebar muted microphone" asChild>
+	<div class="flex h-[720px] w-[280px] overflow-hidden rounded-md border border-border bg-background">
+		<VoiceCallPanelStoryHarness layout="sidebar" scenario="voice" initiallyMuted />
+	</div>
+</Story>
