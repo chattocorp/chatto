@@ -1444,11 +1444,11 @@
   @apply max-w-xs rounded-md border border-text/10 bg-surface-emphasized px-2.5 py-1.5 text-xs leading-snug text-text shadow-lg;
 }
 
-/* Fixed mobile drawers share the toolbar and device-safe bounds. Variables
-   allow embedded hosts to supply insets when CSS environment values differ. */
+/* Fixed mobile drawers cover the browser content down to the viewport edge.
+   Embedded hosts can supply a bottom inset to match their content padding. */
 @utility mobile-sidebar-insets {
   top: calc(3.5rem + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)));
-  bottom: var(--mobile-sidebar-safe-bottom, env(safe-area-inset-bottom, 0px));
+  bottom: var(--mobile-sidebar-safe-bottom, 0px);
 }
 
 @layer base {
