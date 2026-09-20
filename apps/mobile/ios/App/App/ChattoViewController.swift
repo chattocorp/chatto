@@ -91,6 +91,7 @@ class ChattoViewController: CAPBridgeViewController {
             // inside the page so the inner background continues behind the home bar.
             const safeAreaStyle = document.createElement('style');
             safeAreaStyle.textContent = `
+                :root { --mobile-sidebar-safe-bottom: env(safe-area-inset-bottom, 0px); }
                 body { padding-bottom: env(safe-area-inset-bottom, 0px); background-color: var(--color-background); }
                 [data-safari-bottom-edge] { display: none; }
             `;
