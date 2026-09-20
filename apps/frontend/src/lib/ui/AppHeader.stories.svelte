@@ -16,6 +16,12 @@
   </div>
 </Story>
 
+<Story name="Narrow shell" asChild>
+  <div class="w-80 max-w-full bg-background">
+    <AppHeader />
+  </div>
+</Story>
+
 <Story name="With pane header" asChild>
   <div class="max-w-4xl bg-background">
     <AppHeader />
