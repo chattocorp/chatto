@@ -9,6 +9,7 @@
 
   let {
     roomId,
+    hasLimitedMessageAccess = false,
     messageStore: store,
     unreadMarkerEventId = null,
     onUnreadMarkerCleared,
@@ -22,6 +23,8 @@
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     roomId: string;
+    /** Display the server's interaction-only read scope without changing timeline loading. */
+    hasLimitedMessageAccess?: boolean;
     messageStore: MessagesStore;
     unreadMarkerEventId?: string | null;
     onUnreadMarkerCleared?: () => void;
@@ -88,6 +91,8 @@
   enablePagination={true}
   isLoadingMore={store.isLoadingMore}
   hasReachedStart={store.hasReachedStart}
+  showStartMarker={!hasLimitedMessageAccess}
+  emptyMessage={m(hasLimitedMessageAccess ? 'room.timeline.limited_empty' : 'room.message.empty')}
   onLoadMore={() => store.loadMore()}
   {updateCounter}
   {onOpenThread}

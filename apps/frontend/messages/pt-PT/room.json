@@ -70,8 +70,12 @@
       "remove_account_suffix": " deste servidor antes de o remover."
     },
     "timeline": {
+      "post_denied": "Não tens permissão para enviar mensagens nesta sala.",
       "beginning": "Este é o início desta conversa.",
-      "read_denied": "Não tens permissão para ler mensagens nesta sala."
+      "read_denied": "Não tens permissão para ler mensagens nesta sala.",
+      "limited_access": "Só podes ver conversas que iniciaste ou em que alguém te mencionou.",
+      "limited_access_dm": "Só podes ver conversas que iniciaste, recebeste ou em que alguém te mencionou.",
+      "limited_empty": "Ainda não há conversas que possas ler."
     },
     "message": {
       "empty": "Ainda não há mensagens",

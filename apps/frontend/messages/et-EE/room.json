@@ -70,8 +70,12 @@
       "remove_account_suffix": " selle serveri jaoks enne selle eemaldamist."
     },
     "timeline": {
+      "post_denied": "Sul pole õigust selles toas sõnumeid saata.",
       "beginning": "See on selle vestluse algus.",
-      "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda."
+      "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
+      "limited_access": "Näed ainult vestlusi, mille oled alustanud või kus keegi on sind maininud.",
+      "limited_access_dm": "Näed ainult vestlusi, mille oled alustanud, vastu võtnud või kus keegi on sind maininud.",
+      "limited_empty": "Veel pole vestlusi, mida saad lugeda."
     },
     "message": {
       "empty": "Sõnumeid pole veel",

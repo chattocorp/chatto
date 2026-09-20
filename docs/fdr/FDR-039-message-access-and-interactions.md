@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -41,6 +41,9 @@ permissions. Room membership remains a separate requirement.
   create a relationship with messages posted before the account joined.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
+- When the account cannot post messages, the client shows a posting-permission
+  notice above the room timeline. It can appear together with the limited-read
+  notice. Both notices update when the effective permissions change.
 - A channel-room operation that reads or returns an existing message also
   needs access to that message's thread. Deletion remains independently
   authorized and does not return surrounding message state.
@@ -51,6 +54,13 @@ permissions. Room membership remains a separate requirement.
 - A room timeline for an account with only interaction-scoped access contains
   the roots of threads that the account can read. The account can then read
   each complete thread through the thread API.
+- The client shows a persistent notice above this limited timeline. It explains
+  that only conversations started by the account or with a direct mention are
+  visible. In DMs, the notice also includes received conversations.
+- An empty limited timeline says that there are no conversations the account
+  can read yet. It does not imply that the room is empty or show the normal
+  beginning-of-conversation marker. The notice follows effective permissions
+  without an additional request or a page-wide loading lock.
 - Main-room typing indicators require broad access. A thread typing indicator
   is visible when the account can read that thread.
 - The normal realtime protocol carries authorized semantic message events.

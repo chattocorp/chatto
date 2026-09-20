@@ -86,6 +86,39 @@ describe('useRoomData projection selector', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it('reactively distinguishes limited, broad, denied, and unknown message access', () => {
+    mocks.store.realtimeSync.phase = 'ready';
+    let room!: ReturnType<typeof useRoomData>;
+    const destroy = $effect.root(() => {
+      room = useRoomData(() => ({ roomId: 'channel' }));
+    });
+
+    try {
+      for (const [broad, interactions, limited, readable] of [
+        [false, true, true, true],
+        [true, true, false, true],
+        [true, false, false, true],
+        [false, false, false, false],
+        [undefined, undefined, false, null]
+      ] as const) {
+        const entry = projectedRoom('channel', RoomKind.CHANNEL);
+        entry.viewerState.permissions = [
+          ...(broad === undefined ? [] : [{ permission: 'message.read', granted: broad }]),
+          ...(interactions === undefined
+            ? []
+            : [{ permission: 'message.read-interactions', granted: interactions }])
+        ];
+        mocks.store.projection.rooms.set('channel', entry);
+        flushSync();
+        expect(room.roomData?.hasLimitedMessageAccess).toBe(limited);
+        expect(room.roomData?.canReadMessages).toBe(readable);
+        expect(room.isRoomLoading).toBe(false);
+      }
+    } finally {
+      destroy();
+    }
+  });
+
   it('keeps the honest loading state until the server projection is usable', () => {
     let room!: ReturnType<typeof useRoomData>;
     const destroy = $effect.root(() => {

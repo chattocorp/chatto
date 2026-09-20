@@ -70,8 +70,12 @@
       "remove_account_suffix": " van deze server."
     },
     "timeline": {
+      "post_denied": "Je hebt geen toestemming om berichten in deze kamer te plaatsen.",
       "beginning": "Dit is het begin van dit gesprek.",
-      "read_denied": "Je hebt geen toestemming om berichten in deze ruimte te lezen."
+      "read_denied": "Je hebt geen toestemming om berichten in deze ruimte te lezen.",
+      "limited_access": "Je kunt alleen gesprekken zien die je hebt gestart of waarin iemand je heeft vermeld.",
+      "limited_access_dm": "Je kunt alleen gesprekken zien die je hebt gestart, ontvangen of waarin iemand je heeft vermeld.",
+      "limited_empty": "Er zijn nog geen gesprekken die je kunt lezen."
     },
     "message": {
       "empty": "Nog geen berichten",

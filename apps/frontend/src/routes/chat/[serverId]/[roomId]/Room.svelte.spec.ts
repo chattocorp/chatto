@@ -63,6 +63,7 @@ const { mocks } = vi.hoisted(() => {
       threadingMode: 3,
       canReadMessages: true as boolean | null,
       canPostMessage: true,
+      hasLimitedMessageAccess: false,
       canPostInThread: true,
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
@@ -133,6 +134,7 @@ vi.mock('$lib/hooks', () => ({
       spaceName: 'Test Space',
       canReadMessages: mocks.canReadMessages,
       canPostMessage: mocks.canPostMessage,
+      hasLimitedMessageAccess: mocks.hasLimitedMessageAccess,
       canPostInThread: mocks.canPostInThread,
       canAttach: false,
       canReact: true,
@@ -350,7 +352,8 @@ vi.mock('$lib/ui/PaneHeader.svelte', async () => {
 
 vi.mock('$lib/ui', async () => {
   const { default: EmptyState } = await import('$lib/ui/EmptyState.svelte');
-  return { EmptyState };
+  const { default: Hint } = await import('$lib/ui/Hint.svelte');
+  return { EmptyState, Hint };
 });
 
 import Room from './Room.svelte';
@@ -477,6 +480,7 @@ beforeEach(() => {
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
   mocks.canPostMessage = true;
+  mocks.hasLimitedMessageAccess = false;
   mocks.canPostInThread = true;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
@@ -552,6 +556,32 @@ describe('Room interaction bundles', () => {
 
     expect(mocks.threadPaneModuleLoaded).not.toHaveBeenCalled();
     expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])('explains posting denial with read access %s', async (canRead) => {
+    mocks.canPostMessage = false;
+    mocks.canReadMessages = canRead;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(container, '[data-testid="room-post-denied"]'))
+      .toHaveTextContent('You do not have permission to post messages in this room.');
+  });
+
+  it.each([true, false])('groups the limited-read notice with posting allowed %s', async (canPost) => {
+    mocks.canPostMessage = canPost;
+    mocks.hasLimitedMessageAccess = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const notices = q(container, '[data-testid="room-permission-notices"]');
+    await expect.element(notices).toHaveTextContent(
+      'You can only see conversations you started or where someone mentioned you.'
+    );
+    expect(notices?.children.length).toBe(canPost ? 1 : 2);
+  });
+
+  it('omits the posting notice when posting is allowed', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    expect(container.querySelector('[data-testid="room-post-denied"]')).toBeNull();
   });
 
   it('explains when the viewer cannot read messages and keeps the composer available', async () => {
@@ -1451,5 +1481,16 @@ describe('Room local message echo', () => {
 
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
     expect(mocks.timeline.getRoomEventsAround).not.toHaveBeenCalled();
+  });
+});
+
+describe('Room DM permission notice', () => {
+  it('includes received conversations', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.hasLimitedMessageAccess = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="limited-message-access"]')).toHaveTextContent(
+      'You can only see conversations you started, received, or where someone mentioned you.'
+    );
   });
 });

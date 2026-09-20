@@ -16,6 +16,7 @@ export type RoomData = {
   };
   spaceName: string | null;
   canReadMessages: boolean | null;
+  hasLimitedMessageAccess: boolean;
   canPostMessage: boolean;
   canPostInThread: boolean;
   canAttach: boolean;
@@ -73,6 +74,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
       },
       spaceName: currentStore.serverInfo.name ?? null,
       canReadMessages: room.canReadMessages,
+      hasLimitedMessageAccess: room.hasLimitedMessageAccess,
       canPostMessage: room.canPostMessage,
       canPostInThread: room.canPostInThread,
       canAttach: room.canAttach,

@@ -70,8 +70,12 @@
       "remove_account_suffix": " šim serverim pirms tā noņemšanas."
     },
     "timeline": {
+      "post_denied": "Tev nav atļaujas sūtīt ziņas šajā istabā.",
       "beginning": "Tas ir šīs sarunas sākums.",
-      "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā."
+      "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā.",
+      "limited_access": "Vari redzēt tikai sarunas, kuras sāki vai kurās kāds tevi pieminēja.",
+      "limited_access_dm": "Vari redzēt tikai sarunas, kuras sāki, saņēmi vai kurās kāds tevi pieminēja.",
+      "limited_empty": "Vēl nav sarunu, kuras vari lasīt."
     },
     "message": {
       "empty": "Vēl nav ziņojumu",

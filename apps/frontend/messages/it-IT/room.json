@@ -70,8 +70,12 @@
       "remove_account_suffix": " per questo server prima di rimuoverlo."
     },
     "timeline": {
+      "post_denied": "Non hai il permesso di inviare messaggi in questa stanza.",
       "beginning": "Questo è l'inizio di questa conversazione.",
-      "read_denied": "Non hai l'autorizzazione per leggere i messaggi in questa stanza."
+      "read_denied": "Non hai l'autorizzazione per leggere i messaggi in questa stanza.",
+      "limited_access": "Puoi vedere solo le conversazioni che hai iniziato o in cui qualcuno ti ha menzionato.",
+      "limited_access_dm": "Puoi vedere solo le conversazioni che hai iniziato, ricevuto o in cui qualcuno ti ha menzionato.",
+      "limited_empty": "Non ci sono ancora conversazioni che puoi leggere."
     },
     "message": {
       "empty": "Nessun messaggio ancora",
