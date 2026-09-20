@@ -4,34 +4,70 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 
-// Live presence status returned by public read APIs.
+// Saved choice visible only to the authenticated account itself.
+message PresencePreference {
+  // Saved choice, independent of liveness. OFFLINE means "Appear Offline";
+  // DO_NOT_DISTURB suppresses alerts even while disconnected.
+  PresenceStatus status = 1;
+  // Opaque revision required when replacing this choice.
+  string revision = 2;
+}
+
+// Read the authenticated account's own choice; accepts no other user ID.
+message GetPresencePreferenceRequest {}
+// Current private choice, or absence before first initialization.
+message GetPresencePreferenceResponse {
+  // Absent until the account first saves a choice.
+  PresencePreference preference = 1;
+}
+
+// An explicit selection. Heartbeats must not call this operation.
+message SetPresencePreferenceRequest {
+  // Explicit new choice for every device on this server.
+  PresenceStatus status = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  // Revision from the last read; empty only when initializing an absent choice.
+  string expected_revision = 2;
+}
+// Acknowledged current choice after the selection commits.
+message SetPresencePreferenceResponse {
+  PresencePreference preference = 1;
+}
+
+// Refresh the authenticated account's liveness without supplying a choice.
+message RefreshPresenceRequest {}
+// Current private choice after refreshing liveness.
+message RefreshPresenceResponse {
+  // Private saved choice; clients use this to recover missed device updates.
+  PresencePreference preference = 1;
+}
+
+// Availability used for private choices and effective public presence.
 //
-// Offline is a read-side state only. Clients cannot update their presence to
-// Offline through the account presence RPC; they should stop refreshing and let
-// the server's live presence record expire.
+// Public Offline reveals neither connection liveness nor whether the account
+// selected "Appear Offline". A saved Online, Away, or Do Not Disturb choice
+// becomes public Offline when no device refreshes liveness.
 enum PresenceStatus {
   // No presence status was specified.
   PRESENCE_STATUS_UNSPECIFIED = 0;
-  // The user is actively available.
+  // Online while at least one device refreshes liveness.
   PRESENCE_STATUS_ONLINE = 1;
-  // The user is connected but away or idle.
+  // Away while at least one device refreshes liveness.
   PRESENCE_STATUS_AWAY = 2;
-  // The user does not want notifications while this live status is active.
+  // Do Not Disturb. A saved choice suppresses alerts even while disconnected.
   PRESENCE_STATUS_DO_NOT_DISTURB = 3;
-  // The user has no active live presence record.
+  // No public live presence. As a saved choice, suppresses presence and typing.
   PRESENCE_STATUS_OFFLINE = 4;
 }
 
-// Request to update the current user's live presence status.
+// Legacy live report. A saved private choice takes precedence over this report.
 message SetPresenceRequest {
   // Live status to store for the authenticated user. Offline is rejected.
   PresenceStatus status = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0, 4]
   }];
-  // True when this update comes from a deliberate user selection rather than
-  // automatic idle/refresh updates. Automatic updates do not overwrite an
-  // active manually selected Away or Do Not Disturb status from another client.
+  // Legacy manual-selection flag. It cannot replace a saved private choice.
+  // New clients use SetPresencePreference for explicit selections.
   bool user_selected = 2;
 }
 

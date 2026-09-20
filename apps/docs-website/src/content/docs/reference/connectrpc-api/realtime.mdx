@@ -237,6 +237,7 @@ a snapshot or a ConnectRPC resource.
 | `event.role_revoked` | [`RoleRevokedEvent`](#chatto-realtime-v1-RoleRevokedEvent) | No field description provided. |
 | `event.role_permissions_changed` | [`RolePermissionsChangedEvent`](#chatto-realtime-v1-RolePermissionsChangedEvent) | No field description provided. |
 | `event.viewer_permissions_changed` | [`ViewerPermissionsChangedEvent`](#chatto-realtime-v1-ViewerPermissionsChangedEvent) | No field description provided. |
+| `event.viewer_presence_preference_changed` | [`ViewerPresencePreferenceChangedEvent`](#chatto-realtime-v1-ViewerPresencePreferenceChangedEvent) | No field description provided. |
 
 <a id="chatto-realtime-v1-AllMessageMention"></a>
 
@@ -767,6 +768,13 @@ state before displaying it again. The connection itself remains open.
 ViewerPreferencesChangedEvent reports that the caller's private user
 preferences changed. Read ViewerService with this event's resume cursor as
 the minimum boundary.
+
+<a id="chatto-realtime-v1-ViewerPresencePreferenceChangedEvent"></a>
+
+### ViewerPresencePreferenceChangedEvent
+
+Delivered only to the account whose private availability choice changed.
+Refetch MyAccountService.GetPresencePreference to obtain the current choice.
 
 <a id="chatto-realtime-v1-VoiceCallEndedEvent"></a>
 

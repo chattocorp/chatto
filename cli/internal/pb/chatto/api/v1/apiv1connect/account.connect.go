@@ -69,6 +69,15 @@ const (
 	// MyAccountServiceSetPresenceProcedure is the fully-qualified name of the MyAccountService's
 	// SetPresence RPC.
 	MyAccountServiceSetPresenceProcedure = "/chatto.api.v1.MyAccountService/SetPresence"
+	// MyAccountServiceGetPresencePreferenceProcedure is the fully-qualified name of the
+	// MyAccountService's GetPresencePreference RPC.
+	MyAccountServiceGetPresencePreferenceProcedure = "/chatto.api.v1.MyAccountService/GetPresencePreference"
+	// MyAccountServiceSetPresencePreferenceProcedure is the fully-qualified name of the
+	// MyAccountService's SetPresencePreference RPC.
+	MyAccountServiceSetPresencePreferenceProcedure = "/chatto.api.v1.MyAccountService/SetPresencePreference"
+	// MyAccountServiceRefreshPresenceProcedure is the fully-qualified name of the MyAccountService's
+	// RefreshPresence RPC.
+	MyAccountServiceRefreshPresenceProcedure = "/chatto.api.v1.MyAccountService/RefreshPresence"
 	// MyAccountServiceSetCustomStatusProcedure is the fully-qualified name of the MyAccountService's
 	// SetCustomStatus RPC.
 	MyAccountServiceSetCustomStatusProcedure = "/chatto.api.v1.MyAccountService/SetCustomStatus"
@@ -126,11 +135,20 @@ type MyAccountServiceClient interface {
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
-	// Updates the current user's live presence status. This state is transient:
-	// refresh every 30 seconds while visible. The server expires presence after
-	// 60 seconds without a refresh. Stop calling this RPC to appear offline;
-	// another client for the same account can keep presence active.
+	// Legacy live presence report, expiring after 60 seconds without refresh.
+	// A saved private choice overrides this report, including user_selected.
+	// New clients use SetPresencePreference for choices and RefreshPresence
+	// every 30 seconds for liveness.
 	SetPresence(context.Context, *connect.Request[v1.SetPresenceRequest]) (*connect.Response[v1.SetPresenceResponse], error)
+	// Reads the authenticated account's private saved availability choice.
+	GetPresencePreference(context.Context, *connect.Request[v1.GetPresencePreferenceRequest]) (*connect.Response[v1.GetPresencePreferenceResponse], error)
+	// Saves a choice for all devices on this server. A stale revision returns ABORTED.
+	// OFFLINE suppresses public presence and typing; the choice survives disconnects.
+	SetPresencePreference(context.Context, *connect.Request[v1.SetPresencePreferenceRequest]) (*connect.Response[v1.SetPresencePreferenceResponse], error)
+	// Refreshes connection liveness without changing the saved choice. Clients call
+	// every 30 seconds; liveness expires after 60 seconds without a refresh.
+	// Accounts with a saved OFFLINE choice may refresh without public presence signals.
+	RefreshPresence(context.Context, *connect.Request[v1.RefreshPresenceRequest]) (*connect.Response[v1.RefreshPresenceResponse], error)
 	// Sets the current user's complete custom status. Emoji and text are required.
 	// Omit expires_at for no expiry, or supply a future time.
 	SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error)
@@ -229,6 +247,24 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(myAccountServiceMethods.ByName("SetPresence")),
 			connect.WithClientOptions(opts...),
 		),
+		getPresencePreference: connect.NewClient[v1.GetPresencePreferenceRequest, v1.GetPresencePreferenceResponse](
+			httpClient,
+			baseURL+MyAccountServiceGetPresencePreferenceProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("GetPresencePreference")),
+			connect.WithClientOptions(opts...),
+		),
+		setPresencePreference: connect.NewClient[v1.SetPresencePreferenceRequest, v1.SetPresencePreferenceResponse](
+			httpClient,
+			baseURL+MyAccountServiceSetPresencePreferenceProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("SetPresencePreference")),
+			connect.WithClientOptions(opts...),
+		),
+		refreshPresence: connect.NewClient[v1.RefreshPresenceRequest, v1.RefreshPresenceResponse](
+			httpClient,
+			baseURL+MyAccountServiceRefreshPresenceProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("RefreshPresence")),
+			connect.WithClientOptions(opts...),
+		),
 		setCustomStatus: connect.NewClient[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse](
 			httpClient,
 			baseURL+MyAccountServiceSetCustomStatusProcedure,
@@ -271,6 +307,9 @@ type myAccountServiceClient struct {
 	startExternalIdentityLink  *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
 	disconnectExternalIdentity *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
 	setPresence                *connect.Client[v1.SetPresenceRequest, v1.SetPresenceResponse]
+	getPresencePreference      *connect.Client[v1.GetPresencePreferenceRequest, v1.GetPresencePreferenceResponse]
+	setPresencePreference      *connect.Client[v1.SetPresencePreferenceRequest, v1.SetPresencePreferenceResponse]
+	refreshPresence            *connect.Client[v1.RefreshPresenceRequest, v1.RefreshPresenceResponse]
 	setCustomStatus            *connect.Client[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse]
 	deleteCustomStatus         *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
 	requestAccountDeletion     *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
@@ -337,6 +376,21 @@ func (c *myAccountServiceClient) SetPresence(ctx context.Context, req *connect.R
 	return c.setPresence.CallUnary(ctx, req)
 }
 
+// GetPresencePreference calls chatto.api.v1.MyAccountService.GetPresencePreference.
+func (c *myAccountServiceClient) GetPresencePreference(ctx context.Context, req *connect.Request[v1.GetPresencePreferenceRequest]) (*connect.Response[v1.GetPresencePreferenceResponse], error) {
+	return c.getPresencePreference.CallUnary(ctx, req)
+}
+
+// SetPresencePreference calls chatto.api.v1.MyAccountService.SetPresencePreference.
+func (c *myAccountServiceClient) SetPresencePreference(ctx context.Context, req *connect.Request[v1.SetPresencePreferenceRequest]) (*connect.Response[v1.SetPresencePreferenceResponse], error) {
+	return c.setPresencePreference.CallUnary(ctx, req)
+}
+
+// RefreshPresence calls chatto.api.v1.MyAccountService.RefreshPresence.
+func (c *myAccountServiceClient) RefreshPresence(ctx context.Context, req *connect.Request[v1.RefreshPresenceRequest]) (*connect.Response[v1.RefreshPresenceResponse], error) {
+	return c.refreshPresence.CallUnary(ctx, req)
+}
+
 // SetCustomStatus calls chatto.api.v1.MyAccountService.SetCustomStatus.
 func (c *myAccountServiceClient) SetCustomStatus(ctx context.Context, req *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error) {
 	return c.setCustomStatus.CallUnary(ctx, req)
@@ -400,11 +454,20 @@ type MyAccountServiceHandler interface {
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
-	// Updates the current user's live presence status. This state is transient:
-	// refresh every 30 seconds while visible. The server expires presence after
-	// 60 seconds without a refresh. Stop calling this RPC to appear offline;
-	// another client for the same account can keep presence active.
+	// Legacy live presence report, expiring after 60 seconds without refresh.
+	// A saved private choice overrides this report, including user_selected.
+	// New clients use SetPresencePreference for choices and RefreshPresence
+	// every 30 seconds for liveness.
 	SetPresence(context.Context, *connect.Request[v1.SetPresenceRequest]) (*connect.Response[v1.SetPresenceResponse], error)
+	// Reads the authenticated account's private saved availability choice.
+	GetPresencePreference(context.Context, *connect.Request[v1.GetPresencePreferenceRequest]) (*connect.Response[v1.GetPresencePreferenceResponse], error)
+	// Saves a choice for all devices on this server. A stale revision returns ABORTED.
+	// OFFLINE suppresses public presence and typing; the choice survives disconnects.
+	SetPresencePreference(context.Context, *connect.Request[v1.SetPresencePreferenceRequest]) (*connect.Response[v1.SetPresencePreferenceResponse], error)
+	// Refreshes connection liveness without changing the saved choice. Clients call
+	// every 30 seconds; liveness expires after 60 seconds without a refresh.
+	// Accounts with a saved OFFLINE choice may refresh without public presence signals.
+	RefreshPresence(context.Context, *connect.Request[v1.RefreshPresenceRequest]) (*connect.Response[v1.RefreshPresenceResponse], error)
 	// Sets the current user's complete custom status. Emoji and text are required.
 	// Omit expires_at for no expiry, or supply a future time.
 	SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error)
@@ -499,6 +562,24 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		connect.WithSchema(myAccountServiceMethods.ByName("SetPresence")),
 		connect.WithHandlerOptions(opts...),
 	)
+	myAccountServiceGetPresencePreferenceHandler := connect.NewUnaryHandler(
+		MyAccountServiceGetPresencePreferenceProcedure,
+		svc.GetPresencePreference,
+		connect.WithSchema(myAccountServiceMethods.ByName("GetPresencePreference")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceSetPresencePreferenceHandler := connect.NewUnaryHandler(
+		MyAccountServiceSetPresencePreferenceProcedure,
+		svc.SetPresencePreference,
+		connect.WithSchema(myAccountServiceMethods.ByName("SetPresencePreference")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceRefreshPresenceHandler := connect.NewUnaryHandler(
+		MyAccountServiceRefreshPresenceProcedure,
+		svc.RefreshPresence,
+		connect.WithSchema(myAccountServiceMethods.ByName("RefreshPresence")),
+		connect.WithHandlerOptions(opts...),
+	)
 	myAccountServiceSetCustomStatusHandler := connect.NewUnaryHandler(
 		MyAccountServiceSetCustomStatusProcedure,
 		svc.SetCustomStatus,
@@ -550,6 +631,12 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 			myAccountServiceDisconnectExternalIdentityHandler.ServeHTTP(w, r)
 		case MyAccountServiceSetPresenceProcedure:
 			myAccountServiceSetPresenceHandler.ServeHTTP(w, r)
+		case MyAccountServiceGetPresencePreferenceProcedure:
+			myAccountServiceGetPresencePreferenceHandler.ServeHTTP(w, r)
+		case MyAccountServiceSetPresencePreferenceProcedure:
+			myAccountServiceSetPresencePreferenceHandler.ServeHTTP(w, r)
+		case MyAccountServiceRefreshPresenceProcedure:
+			myAccountServiceRefreshPresenceHandler.ServeHTTP(w, r)
 		case MyAccountServiceSetCustomStatusProcedure:
 			myAccountServiceSetCustomStatusHandler.ServeHTTP(w, r)
 		case MyAccountServiceDeleteCustomStatusProcedure:
@@ -613,6 +700,18 @@ func (UnimplementedMyAccountServiceHandler) DisconnectExternalIdentity(context.C
 
 func (UnimplementedMyAccountServiceHandler) SetPresence(context.Context, *connect.Request[v1.SetPresenceRequest]) (*connect.Response[v1.SetPresenceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.SetPresence is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) GetPresencePreference(context.Context, *connect.Request[v1.GetPresencePreferenceRequest]) (*connect.Response[v1.GetPresencePreferenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.GetPresencePreference is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) SetPresencePreference(context.Context, *connect.Request[v1.SetPresencePreferenceRequest]) (*connect.Response[v1.SetPresencePreferenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.SetPresencePreference is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) RefreshPresence(context.Context, *connect.Request[v1.RefreshPresenceRequest]) (*connect.Response[v1.RefreshPresenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.RefreshPresence is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error) {

@@ -351,6 +351,10 @@ message PresenceChangedEvent {
   chatto.api.v1.PresenceStatus status = 1;
 }
 
+// Delivered only to the account whose private availability choice changed.
+// Refetch MyAccountService.GetPresencePreference to obtain the current choice.
+message ViewerPresencePreferenceChangedEvent {}
+
 // NotificationOccurrencesChangedEvent reports that the caller's current
 // notification occurrences changed and requests an authoritative resource read.
 message NotificationOccurrencesChangedEvent {

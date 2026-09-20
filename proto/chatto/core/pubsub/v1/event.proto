@@ -52,6 +52,9 @@ message PubSubEvent {
 
     // ----- Session termination -----
     SessionTerminatedEvent session_terminated = 16;
+
+    // Private current-state invalidation; delivered only to this account.
+    chatto.realtime.v1.ViewerPresencePreferenceChangedEvent viewer_presence_preference_changed = 17;
   }
 }
 

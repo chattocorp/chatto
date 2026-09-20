@@ -72,6 +72,17 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
+<a id="chatto-api-v1-PresencePreference"></a>
+
+### PresencePreference
+
+Saved choice visible only to the authenticated account itself.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Saved choice, independent of liveness. OFFLINE means "Appear Offline"; DO_NOT_DISTURB suppresses alerts even while disconnected. |
+| `revision` | `string` | Opaque revision required when replacing this choice. |
+
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
 ### CustomUserStatus
@@ -1848,19 +1859,19 @@ Mode of a pending external identity confirmation flow.
 
 ### PresenceStatus
 
-Live presence status returned by public read APIs.
+Availability used for private choices and effective public presence.
 
-Offline is a read-side state only. Clients cannot update their presence to
-Offline through the account presence RPC; they should stop refreshing and let
-the server's live presence record expire.
+Public Offline reveals neither connection liveness nor whether the account
+selected "Appear Offline". A saved Online, Away, or Do Not Disturb choice
+becomes public Offline when no device refreshes liveness.
 
 | Name | Number | Description |
 | --- | --- | --- |
 | `PRESENCE_STATUS_UNSPECIFIED` | `0` | No presence status was specified. |
-| `PRESENCE_STATUS_ONLINE` | `1` | The user is actively available. |
-| `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
-| `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
-| `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
+| `PRESENCE_STATUS_ONLINE` | `1` | Online while at least one device refreshes liveness. |
+| `PRESENCE_STATUS_AWAY` | `2` | Away while at least one device refreshes liveness. |
+| `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | Do Not Disturb. A saved choice suppresses alerts even while disconnected. |
+| `PRESENCE_STATUS_OFFLINE` | `4` | No public live presence. As a saved choice, suppresses presence and typing. |
 
 <a id="chatto-api-v1-EffectivePermissionScopeKind"></a>
 

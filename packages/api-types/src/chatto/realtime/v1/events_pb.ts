@@ -2286,6 +2286,40 @@ export class PresenceChangedEvent extends Message<PresenceChangedEvent> {
 }
 
 /**
+ * Delivered only to the account whose private availability choice changed.
+ * Refetch MyAccountService.GetPresencePreference to obtain the current choice.
+ *
+ * @generated from message chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
+ */
+export class ViewerPresencePreferenceChangedEvent extends Message<ViewerPresencePreferenceChangedEvent> {
+  constructor(data?: PartialMessage<ViewerPresencePreferenceChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.ViewerPresencePreferenceChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerPresencePreferenceChangedEvent {
+    return new ViewerPresencePreferenceChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ViewerPresencePreferenceChangedEvent {
+    return new ViewerPresencePreferenceChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ViewerPresencePreferenceChangedEvent {
+    return new ViewerPresencePreferenceChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ViewerPresencePreferenceChangedEvent | PlainMessage<ViewerPresencePreferenceChangedEvent> | undefined, b: ViewerPresencePreferenceChangedEvent | PlainMessage<ViewerPresencePreferenceChangedEvent> | undefined): boolean {
+    return proto3.util.equals(ViewerPresencePreferenceChangedEvent, a, b);
+  }
+}
+
+/**
  * NotificationOccurrencesChangedEvent reports that the caller's current
  * notification occurrences changed and requests an authoritative resource read.
  *

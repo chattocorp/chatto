@@ -1,82 +1,118 @@
 import { untrack } from 'svelte';
-import { APIPresenceStatus, type PresenceAPI } from '$lib/api-client/presence';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import {
-  isPresenceMode,
-  presencePreferences,
-  type PresenceMode
-} from '$lib/state/server/presencePreference.svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
+import type { PresenceAPI } from '$lib/api-client/presence';
+import { PresenceStatus, type PresencePreference } from '@chatto/api-types/api/v1/presence_pb';
+import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import type { PresenceCacheScope } from '$lib/state/presenceCache.svelte';
 
 const PRESENCE_REFRESH_MS = 30_000;
+export type PresenceReporter = PresenceCacheScope &
+  Pick<PresenceAPI, 'getPreference' | 'setPreference' | 'refreshPresence'>;
 
-/** Authenticated account identity and its server's presence API. */
-export type PresenceReporter = PresenceCacheScope & Pick<PresenceAPI, 'setPresence'>;
+let selectStatus: ((scope: PresenceCacheScope, status: PresenceStatus) => Promise<void>) | null =
+  null;
+let refreshChoice: ((scope: PresenceCacheScope) => void) | null = null;
 
-let applyModeFromUI: ((scope: PresenceCacheScope) => void) | null = null;
-
-/** Save and report a choice only for the selected server/account. */
-export function setPresenceMode(scope: PresenceCacheScope, mode: PresenceMode) {
-  presencePreferences.get(scope).select(mode);
-  applyModeFromUI?.(scope);
+/** Save a deliberate selection on this server. Never report success before acknowledgement. */
+export async function setPresenceStatus(scope: PresenceCacheScope, status: PresenceStatus) {
+  if (!selectStatus) throw new Error('Presence is not connected');
+  await selectStatus(scope, status);
 }
 
-function apiStatus(status: PresenceStatus): APIPresenceStatus {
-  switch (status) {
-    case PresenceStatus.AWAY:
-      return APIPresenceStatus.AWAY;
-    case PresenceStatus.DO_NOT_DISTURB:
-      return APIPresenceStatus.DO_NOT_DISTURB;
-    default:
-      return APIPresenceStatus.ONLINE;
-  }
+/** Reconcile a private device update; event payloads are invalidations, not stale choices. */
+export function refreshPresencePreference(scope: PresenceCacheScope) {
+  refreshChoice?.(scope);
 }
 
-function acceptedStatus(status: APIPresenceStatus): PresenceStatus {
-  switch (status) {
-    case APIPresenceStatus.AWAY:
-      return PresenceStatus.AWAY;
-    case APIPresenceStatus.DO_NOT_DISTURB:
-      return PresenceStatus.DO_NOT_DISTURB;
-    default:
-      return PresenceStatus.ONLINE;
-  }
-}
-
-function identity(scope: PresenceCacheScope): string {
+function identity(scope: PresenceCacheScope) {
   return JSON.stringify([scope.serverId, scope.userId]);
 }
 
-/**
- * Owns reports for the chat root's authenticated accounts. Call sync when the
- * authenticated account list changes, and stop when the root is destroyed.
- * Each account has independent preferences and request ordering. Invisible
- * accounts send no presence reports, including their first report after login.
+/** Owns private preference recovery and liveness. Each account has an independent
+ * request generation; auth changes and newer choices invalidate older replies.
+ * A failed initial read never falls back to a legacy Online report.
  */
 export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
-  const accounts = new Map<string, { reporter: PresenceReporter; sequence: number }>();
+  type Account = { reporter: PresenceReporter; sequence: number; busy: boolean };
+  const accounts = new Map<string, Account>();
   let stopped = false;
 
-  function report(account: { reporter: PresenceReporter; sequence: number }) {
-    const { reporter } = account;
-    if (!getReporters().some((current) => identity(current) === identity(reporter))) return;
-    const preference = presencePreferences.get(reporter);
+  function current(account: Account, sequence: number) {
+    return (
+      !stopped &&
+      sequence === account.sequence &&
+      accounts.get(identity(account.reporter)) === account &&
+      getReporters().some((r) => identity(r) === identity(account.reporter))
+    );
+  }
+
+  function accept(account: Account, sequence: number, value: PresencePreference | undefined) {
+    if (!current(account, sequence) || !value?.revision) return;
+    presencePreferences.get(account.reporter).accept(value.status, value.revision);
+  }
+
+  async function reconcile(account: Account, retryConflict = true) {
+    if (account.busy || !current(account, account.sequence)) return;
     const sequence = ++account.sequence;
-    if (preference.mode === 'invisible') return;
-    void reporter
-      .setPresence(apiStatus(preference.effectiveStatus), true)
-      .then((accepted) => {
-        if (
-          stopped ||
-          sequence !== account.sequence ||
-          accounts.get(identity(reporter)) !== account
-        )
-          return;
-        // Authentication may have changed before the root's next reconciliation.
-        if (!getReporters().some((current) => identity(current) === identity(reporter))) return;
-        preference.effectiveStatus = acceptedStatus(accepted);
-      })
-      .catch(() => {});
+    const preference = presencePreferences.get(account.reporter);
+    try {
+      // Once initialized, the heartbeat also recovers missed device updates.
+      // Every new authenticated reporter still reads before its first heartbeat.
+      if (preference.ready) {
+        const value = await account.reporter.refreshPresence();
+        if (!current(account, sequence)) return;
+        if (value?.revision) accept(account, sequence, value);
+        else preference.ready = false;
+        return;
+      }
+      let value = await account.reporter.getPreference();
+      if (!current(account, sequence)) return;
+      if (!value) {
+        value = await account.reporter.setPreference(preference.status, '');
+      } else if (
+        !preference.revision &&
+        !preference.migrated.get() &&
+        preference.status === PresenceStatus.OFFLINE &&
+        value.status !== PresenceStatus.OFFLINE
+      ) {
+        // An older device's explicit invisible choice must not become public
+        // during its first upgrade to the shared preference.
+        value = await account.reporter.setPreference(PresenceStatus.OFFLINE, value.revision);
+      }
+      if (!current(account, sequence)) return;
+      accept(account, sequence, value);
+      if (!value?.revision) return;
+      accept(account, sequence, await account.reporter.refreshPresence());
+    } catch (error) {
+      if (
+        retryConflict &&
+        current(account, sequence) &&
+        (ConnectError.from(error).code === Code.Aborted ||
+          ConnectError.from(error).code === Code.Canceled)
+      ) {
+        await reconcile(account, false);
+      }
+      // Retry on the next tick; never replace a saved privacy choice on failure.
+    }
+  }
+
+  async function choose(scope: PresenceCacheScope, status: PresenceStatus) {
+    const account = accounts.get(identity(scope));
+    if (!account || account.busy) throw new Error('Presence is not ready');
+    const preference = presencePreferences.get(scope);
+    if (!preference.ready) throw new Error('Presence is not ready');
+    const sequence = ++account.sequence;
+    account.busy = true;
+    try {
+      const value = await account.reporter.setPreference(status, preference.revision);
+      if (!current(account, sequence) || !value?.revision)
+        throw new Error('Presence selection interrupted');
+      accept(account, sequence, value);
+    } finally {
+      account.busy = false;
+      // Recover both conflicts and lost acknowledgements without retrying user intent.
+      void reconcile(account);
+    }
   }
 
   function sync() {
@@ -84,50 +120,30 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     untrack(() => {
       if (stopped) return;
       const retained = new Set(reporters.map(identity));
-      for (const key of accounts.keys()) {
-        if (!retained.has(key)) accounts.delete(key);
-      }
+      for (const key of accounts.keys()) if (!retained.has(key)) accounts.delete(key);
       for (const reporter of reporters) {
-        const key = identity(reporter);
-        const existing = accounts.get(key);
-        if (existing) {
-          existing.reporter = reporter;
-        } else {
-          presencePreferences.get(reporter).reload();
-          const account = { reporter, sequence: 0 };
-          accounts.set(key, account);
-          report(account);
+        const existing = accounts.get(identity(reporter));
+        if (existing) existing.reporter = reporter;
+        else {
+          presencePreferences.get(reporter).ready = false;
+          const account = { reporter, sequence: 0, busy: false };
+          accounts.set(identity(reporter), account);
+          void reconcile(account);
         }
       }
     });
   }
 
-  function applySelection(scope: PresenceCacheScope) {
+  function refresh(scope: PresenceCacheScope) {
     const account = accounts.get(identity(scope));
-    if (account) report(account);
+    if (account) void reconcile(account);
   }
-
-  function onStorage(event: StorageEvent) {
-    if (!isPresenceMode(event.newValue)) return;
-    for (const account of accounts.values()) {
-      const preference = presencePreferences.get(account.reporter);
-      if (event.key !== preference.slot.key) continue;
-      // Storage events can arrive after a newer choice in this tab. Read the
-      // current value so a delayed Online event cannot expose an invisible user.
-      preference.reload();
-      report(account);
-    }
-  }
-
-  applyModeFromUI = applySelection;
-  window.addEventListener('storage', onStorage);
+  selectStatus = choose;
+  refreshChoice = refresh;
   const timer = setInterval(() => {
-    // Reconcile before refreshing, so signed-out accounts cannot report again.
     const existing = new Set(accounts.values());
     sync();
-    for (const account of accounts.values()) {
-      if (existing.has(account)) report(account);
-    }
+    for (const account of accounts.values()) if (existing.has(account)) void reconcile(account);
   }, PRESENCE_REFRESH_MS);
 
   return {
@@ -135,8 +151,8 @@ export function initPresenceTracking(getReporters: () => PresenceReporter[]) {
     stop() {
       stopped = true;
       clearInterval(timer);
-      window.removeEventListener('storage', onStorage);
-      if (applyModeFromUI === applySelection) applyModeFromUI = null;
+      if (selectStatus === choose) selectStatus = null;
+      if (refreshChoice === refresh) refreshChoice = null;
       accounts.clear();
       presencePreferences.clear();
     }

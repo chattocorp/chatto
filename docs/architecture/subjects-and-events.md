@@ -55,7 +55,7 @@ durable EVT fact, a pubsub event, or a heartbeat.
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
 | JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, RoomSlowModeChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
 | Room pubsub                 | NATS Core  | UserTyping | Ephemeral room activity where another store or projection is the source of truth |
-| User pubsub | NATS Core | NotificationOccurrencesChanged, NotificationUnreadStateChanged, RoomReadStateChanged, ThreadViewerStateChanged, SessionTerminated | Private latest-value convergence and session control |
+| User pubsub | NATS Core | NotificationOccurrencesChanged, NotificationUnreadStateChanged, RoomReadStateChanged, ThreadViewerStateChanged, ViewerPresencePreferenceChanged, SessionTerminated | Private latest-value convergence and session control |
 | Process-local transient | In-memory hub | PresenceChanged | Ephemeral current presence changes |
 
 The separate `Event` and `PubSubEvent` wrapper types make the distinction
@@ -454,6 +454,7 @@ for raw EVT committed facts. `myEvents` consumes both roots server-side:
 | `live.sync.user.{userId}.thread_viewer_state`            | Current thread follow or read state changed outside the durable follow command |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
+| `live.sync.user.{userId}.presence_preference`            | Current private availability changed; requests an account-owned read, with no choice in the signal |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
 
 User profile, private preference, public server profile, and durable thread
@@ -461,6 +462,11 @@ follow changes use their EVT facts on `live.evt.>`. The realtime mapper groups
 related facts into `UserProfileChangedEvent`, `ViewerPreferencesChangedEvent`,
 `ServerProfileChangedEvent`, or `ThreadViewerStateChangedEvent`. Presence comes
 from the process-local `PresenceHub`; it does not use a `live.sync.>` subject.
+
+`live.sync.user.{userId}.presence_preference` carries the private transient
+`ViewerPresencePreferenceChanged` invalidation. The current choice lives at
+`presence.{userId}` in `RUNTIME_STATE`; presence changes never enter EVT.
+Public presence is derived from this choice and live heartbeat state.
 
 Room-group and sidebar-layout changes use durable group or layout facts only.
 The command path waits until the local `ServerContentView` applies the final
@@ -516,7 +522,7 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   before it continues live. Fresh and unsafe subscriptions use an exact
   authorized content snapshot or the requested live-only fallback. Cursorless
   pubsub activity remains live-only.
-- The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
+- The PresenceHub (two per-process KV watchers on `presence.>` in `RUNTIME_STATE` and `MEMORY_CACHE`, deriving public status changes for subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).
 
 ## Outbound bot webhooks

@@ -73,6 +73,20 @@ size, and total expanded bytes.
 survives restart but is not content/domain history. See
 [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 
+Private availability uses `presence.{userId}` with a `PresencePreference`
+protobuf and an opaque replacement token. The existing bucket retains one
+value per key; revision-checked writes replace it without an EVT event or
+presence history. The choice has no TTL, survives restart, and is included in
+normal runtime-state backups. Account deletion purges the key. Server operators
+can access this current private state; ordinary users cannot read another
+account's choice.
+
+One process-wide filtered watcher indexes these choices. Public bulk reads
+wait for its current revision, while singular privacy checks read the stream
+leader to avoid a stale replica value. Liveness processing reads the current
+choice before exposing a heartbeat. A second watcher handles liveness in
+`MEMORY_CACHE`.
+
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event. Membership and DM initialization create the key only when absent. |
@@ -143,14 +157,15 @@ so NATS emits delete markers on expiry. A single per-process **PresenceHub**
 watches `presence.>`, retains the current snapshot for bulk API response
 hydration, and emits `PresenceChanged` only when a user's status changes.
 Singular mutation responses still read KV directly when they require
-read-your-writes. Clients refresh through `MyAccountService.SetPresence`;
-disconnect and "look offline" stop refreshing instead of writing `OFFLINE`.
+read-your-writes. Clients refresh through `MyAccountService.RefreshPresence`.
+The private saved choice overrides legacy live status. Invisible liveness never
+appears in public snapshots, counts, or transition events.
 
-The frontend keeps a device-local presence preference for each server and
-account. It loads this preference before reporting and refreshes each visible
-account independently. Local notification sounds use the same account's DND
-state. The old global preference is a migration fallback only; a new selection
-does not modify it. See
+The frontend reads the current account choice before reporting. Owner-only
+events reconcile other devices; heartbeat responses recover missed updates.
+After the initial read and migration, each refresh needs only the heartbeat RPC.
+Local choices remain migration fallbacks. DND applies across devices, including
+push suppression while disconnected. See
 [`presencePreference.svelte.ts`](../../apps/frontend/src/lib/state/server/presencePreference.svelte.ts)
 and [`presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts).
 

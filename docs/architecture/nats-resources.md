@@ -36,7 +36,7 @@ and retry exhaustion fail startup. The JetStream default request timeout is
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `evtv1.Event` facts on `evt.>`              |
 | Stream       | `LOG` | File | No | Retained operational protobuf records from `chatto.core.log.v1`; seven-day default age, configurable with `core.log.retention`; no byte/count limit |
 | Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded `notificationv1.NotificationEvent` log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
-| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value records from `chatto.core.runtime_state.v1`, including credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
+| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value records from `chatto.core.runtime_state.v1`, including current private presence choices, credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile shared records from `chatto.core.cache_state.v1`, plus non-protobuf worker leases, cooldowns, counters, and health heartbeats |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS records from `chatto.core.key_material.v1`; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |

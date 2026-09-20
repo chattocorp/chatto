@@ -63,11 +63,17 @@ test.describe('Multi-Instance Identity', () => {
     await page.getByTestId('current-user-presence-menu').click();
     await expect(page.getByText('Presence on this server', { exact: true })).toBeVisible();
     await page.getByRole('menuitemradio', { name: 'Look offline', exact: true }).click();
+    await expect(
+      page.getByTestId('current-user-presence-menu').getByTestId('presence-dot')
+    ).toHaveClass(/bg-presence-offline/);
 
     const remotePresenceReports: string[] = [];
     page.on('request', (request) => {
       const url = new URL(request.url());
-      if (url.origin === baseURL && url.pathname.endsWith('/SetPresence')) {
+      if (
+        url.origin === baseURL &&
+        (url.pathname.endsWith('/SetPresence') || url.pathname.endsWith('/SetPresencePreference'))
+      ) {
         remotePresenceReports.push(url.pathname);
       }
     });

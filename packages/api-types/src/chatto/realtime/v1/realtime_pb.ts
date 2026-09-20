@@ -9,7 +9,7 @@ import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { RoomGroup, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoleAssignedEvent, RoleCreatedEvent, RoleDeletedEvent, RolePermissionsChangedEvent, RoleRevokedEvent, RolesReorderedEvent, RoleUpdatedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomLayoutChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPermissionsChangedEvent, ViewerPreferencesChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoleAssignedEvent, RoleCreatedEvent, RoleDeletedEvent, RolePermissionsChangedEvent, RoleRevokedEvent, RolesReorderedEvent, RoleUpdatedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomLayoutChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPermissionsChangedEvent, ViewerPreferencesChangedEvent, ViewerPresencePreferenceChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -781,6 +781,12 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
      */
     value: ViewerPermissionsChangedEvent;
     case: "viewerPermissionsChanged";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.ViewerPresencePreferenceChangedEvent viewer_presence_preference_changed = 68;
+     */
+    value: ViewerPresencePreferenceChangedEvent;
+    case: "viewerPresencePreferenceChanged";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeEvent>) {
@@ -842,6 +848,7 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 65, name: "role_revoked", kind: "message", T: RoleRevokedEvent, oneof: "event" },
     { no: 66, name: "role_permissions_changed", kind: "message", T: RolePermissionsChangedEvent, oneof: "event" },
     { no: 67, name: "viewer_permissions_changed", kind: "message", T: ViewerPermissionsChangedEvent, oneof: "event" },
+    { no: 68, name: "viewer_presence_preference_changed", kind: "message", T: ViewerPresencePreferenceChangedEvent, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {

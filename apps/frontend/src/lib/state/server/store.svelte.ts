@@ -4,6 +4,7 @@
  */
 
 import { CallPreferencesState } from './callPreferences.svelte';
+import { refreshPresencePreference } from '$lib/presenceTracking';
 import { affectsViewerPermissions } from './permissionEvents';
 import { runResetHandlers } from './resetHandlers';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
@@ -1323,6 +1324,11 @@ export class ServerStateStore {
         // Admin rows have a separate private cache; public profile hydration
         // cannot update its email, permission, or search snapshots.
         refreshRegisteredAdminProfileQueries(this.serverId);
+        return;
+      case 'viewerPresencePreferenceChanged':
+        if (this.currentUser.user?.id) {
+          refreshPresencePreference({ serverId: this.serverId, userId: this.currentUser.user.id });
+        }
         return;
       case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');

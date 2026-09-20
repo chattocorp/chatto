@@ -1,270 +1,264 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { APIPresenceStatus } from '$lib/api-client/presence';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { PresencePreference, PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
 import {
-  LEGACY_PRESENCE_MODE_STORAGE_KEY,
-  presencePreferences
-} from '$lib/state/server/presencePreference.svelte';
-import { initPresenceTracking, setPresenceMode, type PresenceReporter } from './presenceTracking';
+  initPresenceTracking,
+  refreshPresencePreference,
+  setPresenceStatus,
+  type PresenceReporter
+} from './presenceTracking';
 
-const origin = { serverId: 'origin', userId: 'same-user-id' };
-const remote = { serverId: 'remote', userId: 'same-user-id' };
-const report = () => vi.fn((status: APIPresenceStatus) => Promise.resolve(status));
-let originReport: ReturnType<typeof report>;
-let remoteReport: ReturnType<typeof report>;
+const origin = { serverId: 'origin', userId: 'user' };
+const remote = { serverId: 'remote', userId: 'user' };
+const choice = (mode: PresenceStatus, revision = 'one') =>
+  new PresencePreference({ status: mode, revision });
+function reporter(
+  scope = origin,
+  initial: PresencePreference | null = choice(PresenceStatus.ONLINE)
+) {
+  let saved: PresencePreference | undefined = initial ?? undefined;
+  return {
+    ...scope,
+    getPreference: vi.fn(async (): Promise<PresencePreference | undefined> => saved),
+    setPreference: vi.fn(async (mode: PresenceStatus, revision: string) => {
+      if (revision !== (saved?.revision ?? '')) throw new Error('conflict');
+      saved = choice(mode, `${revision}-next`);
+      return saved;
+    }),
+    refreshPresence: vi.fn(async () => saved)
+  };
+}
 let reporters: PresenceReporter[];
 let tracking: ReturnType<typeof initPresenceTracking>;
-let windowTarget: EventTarget;
-
-function start() {
+async function settle() {
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+}
+async function start() {
   tracking = initPresenceTracking(() => reporters);
   tracking.sync();
+  await settle();
 }
 
-function storageSelection(scope: typeof origin, mode: string) {
-  const key = presencePreferences.get(scope).slot.key;
-  localStorage.setItem(key, mode);
-  const event = new Event('storage');
-  Object.defineProperties(event, { key: { value: key }, newValue: { value: mode } });
-  windowTarget.dispatchEvent(event);
-}
-
-describe('per-account presence tracking', () => {
+describe('shared account presence', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    presencePreferences.clear();
     const storage = new Map<string, string>();
     vi.stubGlobal('localStorage', {
-      getItem: vi.fn((key: string) => storage.get(key) ?? null),
-      setItem: vi.fn((key: string, value: string) => {
-        storage.set(key, value);
-      }),
-      removeItem: vi.fn((key: string) => {
-        storage.delete(key);
-      })
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key)
     });
-    windowTarget = new EventTarget();
-    vi.stubGlobal('window', {
-      addEventListener: windowTarget.addEventListener.bind(windowTarget),
-      removeEventListener: windowTarget.removeEventListener.bind(windowTarget)
-    });
-    originReport = report();
-    remoteReport = report();
-    reporters = [
-      { ...origin, setPresence: originReport },
-      { ...remote, setPresence: remoteReport }
-    ];
+    presencePreferences.clear();
   });
-
   afterEach(() => {
     tracking?.stop();
-    presencePreferences.clear();
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
-  it('reports each default and refreshes explicit choices without idle changes', () => {
-    start();
-    expect(originReport).toHaveBeenCalledWith(APIPresenceStatus.ONLINE, true);
-    expect(remoteReport).toHaveBeenCalledWith(APIPresenceStatus.ONLINE, true);
-    setPresenceMode(origin, 'away');
-    vi.advanceTimersByTime(60_000);
-    expect(originReport.mock.calls.map(([status]) => status)).toEqual([
-      APIPresenceStatus.ONLINE,
-      APIPresenceStatus.AWAY,
-      APIPresenceStatus.AWAY,
-      APIPresenceStatus.AWAY
-    ]);
-    expect(remoteReport.mock.calls.map(([status]) => status)).toEqual([
-      APIPresenceStatus.ONLINE,
-      APIPresenceStatus.ONLINE,
-      APIPresenceStatus.ONLINE
-    ]);
+  it('loads shared DND before refreshing and does not write on heartbeats', async () => {
+    const api = reporter(origin, choice(PresenceStatus.DO_NOT_DISTURB));
+    reporters = [api];
+    await start();
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.DO_NOT_DISTURB);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(api.setPreference).not.toHaveBeenCalled();
+    expect(api.refreshPresence).toHaveBeenCalledTimes(3);
+    expect(api.getPreference).toHaveBeenCalledOnce();
   });
 
-  it('never reports to an invisible server when another server changes, including after reload', () => {
-    setPresenceMode(remote, 'invisible');
+  it('recovers a missed device update from a heartbeat without another read', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    api.refreshPresence.mockResolvedValue(choice(PresenceStatus.OFFLINE, 'other-device'));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.OFFLINE);
+    expect(api.getPreference).toHaveBeenCalledOnce();
+    expect(api.setPreference).not.toHaveBeenCalled();
+  });
+
+  it('reads before heartbeats when an authenticated account reconnects', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    reporters = [];
+    tracking.sync();
+    api.getPreference.mockRejectedValue(new Error('unavailable'));
+    api.refreshPresence.mockClear();
+    reporters = [api];
+    tracking.sync();
+    await settle();
+    expect(api.getPreference).toHaveBeenCalledTimes(2);
+    expect(api.refreshPresence).not.toHaveBeenCalled();
+    expect(presencePreferences.get(origin).ready).toBe(false);
+  });
+
+  it('reinitializes through a fresh read if a heartbeat finds no saved choice', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    api.refreshPresence.mockResolvedValueOnce(undefined);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(presencePreferences.get(origin).ready).toBe(false);
+    await expect(setPresenceStatus(origin, PresenceStatus.ONLINE)).rejects.toThrow('not ready');
+    api.getPreference.mockResolvedValueOnce(undefined);
+    api.setPreference.mockResolvedValueOnce(choice(PresenceStatus.ONLINE, 'restored'));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(api.getPreference).toHaveBeenCalledTimes(2);
+    expect(api.setPreference).toHaveBeenCalledWith(PresenceStatus.ONLINE, '');
+    expect(presencePreferences.get(origin).ready).toBe(true);
+  });
+
+  it.each([
+    ['online', PresenceStatus.ONLINE],
+    ['away', PresenceStatus.AWAY],
+    ['doNotDisturb', PresenceStatus.DO_NOT_DISTURB],
+    ['invisible', PresenceStatus.OFFLINE],
+    ['auto', PresenceStatus.ONLINE],
+    ['invalid', PresenceStatus.OFFLINE]
+  ] as const)('migrates the legacy %s value before the first heartbeat', async (raw, status) => {
+    localStorage.setItem('chatto.presence.mode', raw);
+    const api = reporter(origin, null);
+    reporters = [api];
+    await start();
+    expect(presencePreferences.get(origin).status).toBe(status);
+    expect(api.setPreference).toHaveBeenCalledWith(status, '');
+    expect(api.refreshPresence).toHaveBeenCalledOnce();
+    expect(api.setPreference.mock.invocationCallOrder[0]).toBeLessThan(
+      api.refreshPresence.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('changes only the selected server account', async () => {
+    const a = reporter();
+    const b = reporter(remote, choice(PresenceStatus.OFFLINE));
+    reporters = [a, b];
+    await start();
+    await setPresenceStatus(origin, PresenceStatus.DO_NOT_DISTURB);
+    await settle();
+    expect(a.setPreference).toHaveBeenCalledWith(PresenceStatus.DO_NOT_DISTURB, 'one');
+    expect(b.setPreference).not.toHaveBeenCalled();
+    expect(presencePreferences.get(remote).status).toBe(PresenceStatus.OFFLINE);
+  });
+
+  it('initializes an absent choice from the local invisible preference', async () => {
+    const key = presencePreferences.get(origin).slot.key;
+    localStorage.setItem(key, 'invisible');
     presencePreferences.clear();
-    start();
-    setPresenceMode(origin, 'doNotDisturb');
-    vi.advanceTimersByTime(60_000);
-    expect(remoteReport).not.toHaveBeenCalled();
-    expect(presencePreferences.get(remote).mode).toBe('invisible');
-    expect(presencePreferences.get(remote).effectiveStatus).toBe(PresenceStatus.OFFLINE);
-    expect(originReport).toHaveBeenLastCalledWith(APIPresenceStatus.DO_NOT_DISTURB, true);
-
-    tracking.stop();
-    start();
-    expect(remoteReport).not.toHaveBeenCalled();
-    expect(originReport).toHaveBeenLastCalledWith(APIPresenceStatus.DO_NOT_DISTURB, true);
+    const api = reporter(origin, null);
+    reporters = [api];
+    await start();
+    expect(api.setPreference).toHaveBeenCalledWith(PresenceStatus.OFFLINE, '');
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.OFFLINE);
   });
 
-  it.each(['invisible', 'away', 'doNotDisturb'] as const)(
-    'migrates the legacy %s choice independently',
-    (mode) => {
-      localStorage.setItem(LEGACY_PRESENCE_MODE_STORAGE_KEY, mode);
-      start();
-      expect(presencePreferences.get(origin).mode).toBe(mode);
-      expect(presencePreferences.get(remote).mode).toBe(mode);
-      if (mode === 'invisible') {
-        expect(originReport).not.toHaveBeenCalled();
-        expect(remoteReport).not.toHaveBeenCalled();
-      }
-      setPresenceMode(origin, 'online');
-      expect(presencePreferences.get(remote).mode).toBe(mode);
-      expect(localStorage.getItem(LEGACY_PRESENCE_MODE_STORAGE_KEY)).toBe(mode);
-      tracking.stop();
-      start();
-      expect(presencePreferences.get(origin).mode).toBe('online');
-      expect(presencePreferences.get(remote).mode).toBe(mode);
-    }
-  );
-
-  it('normalizes the retired auto choice to online', () => {
-    localStorage.setItem(LEGACY_PRESENCE_MODE_STORAGE_KEY, 'auto');
-    start();
-    expect(originReport).toHaveBeenCalledWith(APIPresenceStatus.ONLINE, true);
+  it('preserves legacy local invisible on first migration, then follows other devices', async () => {
+    localStorage.setItem('chatto.presence.mode', 'invisible');
+    const api = reporter();
+    reporters = [api];
+    await start();
+    expect(api.setPreference).toHaveBeenCalledWith(PresenceStatus.OFFLINE, 'one');
+    api.getPreference.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
+    api.refreshPresence.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
+    refreshPresencePreference(origin);
+    await settle();
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.ONLINE);
+    expect(api.setPreference).toHaveBeenCalledTimes(1);
   });
 
-  it('does not expose accounts when saved preferences cannot be read', () => {
-    vi.mocked(localStorage.getItem).mockImplementation(() => {
-      throw new Error('Unavailable');
+  it('never refreshes or initializes after a failed private read', async () => {
+    const api = reporter();
+    api.getPreference.mockRejectedValue(new Error('offline'));
+    reporters = [api];
+    await start();
+    expect(api.setPreference).not.toHaveBeenCalled();
+    expect(api.refreshPresence).not.toHaveBeenCalled();
+    await expect(setPresenceStatus(origin, PresenceStatus.ONLINE)).rejects.toThrow('not ready');
+  });
+
+  it('follows another device after migration even when browser storage cannot save', async () => {
+    localStorage.setItem('chatto.presence.mode', 'invisible');
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
     });
-    start();
-    vi.advanceTimersByTime(60_000);
-    expect(originReport).not.toHaveBeenCalled();
-    expect(remoteReport).not.toHaveBeenCalled();
+    const api = reporter();
+    reporters = [api];
+    await start();
+    api.getPreference.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
+    api.refreshPresence.mockResolvedValue(choice(PresenceStatus.ONLINE, 'other-device'));
+    refreshPresencePreference(origin);
+    await settle();
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.ONLINE);
+    expect(api.setPreference).toHaveBeenCalledTimes(1);
   });
 
-  it('does not report an unsaved choice when browser storage rejects it', () => {
-    setPresenceMode(origin, 'invisible');
-    start();
-    vi.mocked(localStorage.setItem).mockImplementation(() => {
-      throw new Error('Storage full');
-    });
-    expect(() => setPresenceMode(origin, 'online')).toThrow('Could not save presence preference');
-    expect(presencePreferences.get(origin).mode).toBe('invisible');
-    expect(originReport).not.toHaveBeenCalled();
+  it('rereads promptly when permission recovery discards an initial response', async () => {
+    const api = reporter();
+    api.getPreference.mockRejectedValueOnce(new ConnectError('permission reset', Code.Canceled));
+    reporters = [api];
+    await start();
+    expect(presencePreferences.get(origin).ready).toBe(true);
+    expect(api.refreshPresence).toHaveBeenCalledOnce();
   });
 
-  it('does not turn a corrupt account preference into an online report', () => {
-    const key = presencePreferences.get(remote).slot.key;
-    localStorage.setItem(key, 'invalid');
-    presencePreferences.clear();
-    start();
-    expect(remoteReport).not.toHaveBeenCalled();
-    expect(originReport).toHaveBeenCalledWith(APIPresenceStatus.ONLINE, true);
+  it('recovers immediately when another device initializes the choice first', async () => {
+    const api = reporter();
+    api.getPreference.mockResolvedValueOnce(undefined);
+    api.setPreference.mockRejectedValueOnce(new ConnectError('conflict', Code.Aborted));
+    reporters = [api];
+    await start();
+    expect(presencePreferences.get(origin).ready).toBe(true);
+    expect(api.refreshPresence).toHaveBeenCalledOnce();
   });
 
-  it('applies cross-tab choices only to the matching account without echo writes', () => {
-    start();
-    originReport.mockClear();
-    remoteReport.mockClear();
-    vi.mocked(localStorage.setItem).mockClear();
-    storageSelection(remote, 'away');
-    expect(originReport).not.toHaveBeenCalled();
-    expect(remoteReport).toHaveBeenCalledWith(APIPresenceStatus.AWAY, true);
-    expect(localStorage.setItem).toHaveBeenCalledTimes(1);
-    storageSelection(remote, 'invisible');
-    vi.advanceTimersByTime(60_000);
-    expect(remoteReport).toHaveBeenCalledTimes(1);
-    expect(presencePreferences.get(origin).mode).toBe('online');
+  it('rejects failed saves without claiming success and recovers the shared choice', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    api.setPreference.mockRejectedValue(new Error('conflict'));
+    await expect(setPresenceStatus(origin, PresenceStatus.OFFLINE)).rejects.toThrow('conflict');
+    await settle();
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.ONLINE);
   });
 
-  it('keeps different accounts on the same server separate and restores a returning account', () => {
-    start();
-    setPresenceMode(origin, 'invisible');
-    const other = { ...origin, userId: 'other-user' };
-    reporters = [{ ...other, setPresence: originReport }];
-    tracking.sync();
-    expect(presencePreferences.get(other).mode).toBe('online');
-    originReport.mockClear();
-    reporters = [{ ...origin, setPresence: originReport }];
-    tracking.sync();
-    vi.advanceTimersByTime(30_000);
-    expect(originReport).not.toHaveBeenCalled();
-  });
-
-  it('does not let a delayed cross-tab event expose a newer invisible choice', () => {
-    start();
-    const key = presencePreferences.get(remote).slot.key;
-    // Another tab wrote Online, but its event has not reached this tab yet.
-    localStorage.setItem(key, 'online');
-    setPresenceMode(remote, 'invisible');
-    remoteReport.mockClear();
-    const event = new Event('storage');
-    Object.defineProperties(event, { key: { value: key }, newValue: { value: 'online' } });
-    windowTarget.dispatchEvent(event);
-    vi.advanceTimersByTime(60_000);
-    expect(presencePreferences.get(remote).mode).toBe('invisible');
-    expect(remoteReport).not.toHaveBeenCalled();
-  });
-
-  it('retains the selected mode after a failed report and refreshes only visible accounts', async () => {
-    setPresenceMode(remote, 'invisible');
-    originReport.mockRejectedValueOnce(new Error('Unavailable'));
-    setPresenceMode(origin, 'doNotDisturb');
-    start();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(presencePreferences.get(origin).mode).toBe('doNotDisturb');
-    vi.advanceTimersByTime(30_000);
-    expect(originReport).toHaveBeenLastCalledWith(APIPresenceStatus.DO_NOT_DISTURB, true);
-    expect(originReport).toHaveBeenCalledTimes(2);
-    expect(remoteReport).not.toHaveBeenCalled();
-  });
-
-  it('hydrates accounts added later before their first report and stops signed-out reporters', () => {
-    setPresenceMode(remote, 'invisible');
-    reporters = [{ ...origin, setPresence: originReport }];
-    start();
-    reporters.push({ ...remote, setPresence: remoteReport });
-    tracking.sync();
-    expect(remoteReport).not.toHaveBeenCalled();
-    reporters = [];
-    originReport.mockClear();
-    vi.advanceTimersByTime(60_000);
-    expect(originReport).not.toHaveBeenCalled();
-  });
-
-  it('reloads a cross-tab preference changed while the account was signed out', () => {
-    start();
+  it('discards a late reply after authentication is removed', async () => {
+    const api = reporter();
+    let finish!: (p: PresencePreference) => void;
+    api.getPreference.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    reporters = [api];
+    await start();
     reporters = [];
     tracking.sync();
-    storageSelection(remote, 'invisible');
-    reporters = [{ ...remote, setPresence: remoteReport }];
-    remoteReport.mockClear();
-    tracking.sync();
-    expect(remoteReport).not.toHaveBeenCalled();
+    finish(choice(PresenceStatus.ONLINE));
+    await settle();
+    expect(api.refreshPresence).not.toHaveBeenCalled();
+    expect(presencePreferences.get(origin).ready).toBe(false);
   });
 
-  it('isolates accepted statuses and ignores responses to superseded choices', async () => {
-    const pending = Promise.withResolvers<APIPresenceStatus>();
-    originReport.mockImplementationOnce(() => pending.promise);
-    remoteReport.mockResolvedValueOnce(APIPresenceStatus.AWAY);
-    start();
-    await Promise.resolve();
-    expect(presencePreferences.get(remote).effectiveStatus).toBe(PresenceStatus.AWAY);
-    expect(presencePreferences.get(origin).effectiveStatus).toBe(PresenceStatus.ONLINE);
-    setPresenceMode(origin, 'invisible');
-    pending.resolve(APIPresenceStatus.DO_NOT_DISTURB);
-    await Promise.resolve();
-    expect(presencePreferences.get(origin).effectiveStatus).toBe(PresenceStatus.OFFLINE);
-    expect(presencePreferences.get(remote).effectiveStatus).toBe(PresenceStatus.AWAY);
-  });
-
-  it('ignores late responses after an account is removed or tracking stops', async () => {
-    const pending = Promise.withResolvers<APIPresenceStatus>();
-    originReport.mockImplementationOnce(() => pending.promise);
-    start();
-    const preference = presencePreferences.get(origin);
-    reporters = [];
-    pending.resolve(APIPresenceStatus.AWAY);
-    await Promise.resolve();
-    expect(preference.effectiveStatus).toBe(PresenceStatus.ONLINE);
-    tracking.stop();
-    originReport.mockClear();
-    vi.advanceTimersByTime(60_000);
-    expect(originReport).not.toHaveBeenCalled();
+  it('discards an old refresh after a newer explicit choice', async () => {
+    const api = reporter();
+    reporters = [api];
+    await start();
+    let finish!: (p: PresencePreference) => void;
+    api.refreshPresence.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    refreshPresencePreference(origin);
+    await settle();
+    await setPresenceStatus(origin, PresenceStatus.OFFLINE);
+    await settle();
+    finish(choice(PresenceStatus.ONLINE));
+    await settle();
+    expect(presencePreferences.get(origin).status).toBe(PresenceStatus.OFFLINE);
   });
 });

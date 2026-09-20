@@ -82,6 +82,11 @@ socket.
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
+`MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
+change the caller's private availability across devices. `RefreshPresence`
+refreshes liveness without changing this choice. Legacy `SetPresence` cannot
+override a saved choice.
+
 `MyAccountService.GetSettings` exposes caller-owned display preferences using
 the same settings resource as updates and the combined viewer response.
 `MyAccountService` also lists the caller's verified emails, sends and confirms

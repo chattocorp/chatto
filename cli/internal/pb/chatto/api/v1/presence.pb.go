@@ -22,23 +22,23 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Live presence status returned by public read APIs.
+// Availability used for private choices and effective public presence.
 //
-// Offline is a read-side state only. Clients cannot update their presence to
-// Offline through the account presence RPC; they should stop refreshing and let
-// the server's live presence record expire.
+// Public Offline reveals neither connection liveness nor whether the account
+// selected "Appear Offline". A saved Online, Away, or Do Not Disturb choice
+// becomes public Offline when no device refreshes liveness.
 type PresenceStatus int32
 
 const (
 	// No presence status was specified.
 	PresenceStatus_PRESENCE_STATUS_UNSPECIFIED PresenceStatus = 0
-	// The user is actively available.
+	// Online while at least one device refreshes liveness.
 	PresenceStatus_PRESENCE_STATUS_ONLINE PresenceStatus = 1
-	// The user is connected but away or idle.
+	// Away while at least one device refreshes liveness.
 	PresenceStatus_PRESENCE_STATUS_AWAY PresenceStatus = 2
-	// The user does not want notifications while this live status is active.
+	// Do Not Disturb. A saved choice suppresses alerts even while disconnected.
 	PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB PresenceStatus = 3
-	// The user has no active live presence record.
+	// No public live presence. As a saved choice, suppresses presence and typing.
 	PresenceStatus_PRESENCE_STATUS_OFFLINE PresenceStatus = 4
 )
 
@@ -87,14 +87,335 @@ func (PresenceStatus) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{0}
 }
 
-// Request to update the current user's live presence status.
+// Saved choice visible only to the authenticated account itself.
+type PresencePreference struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Saved choice, independent of liveness. OFFLINE means "Appear Offline";
+	// DO_NOT_DISTURB suppresses alerts even while disconnected.
+	Status PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
+	// Opaque revision required when replacing this choice.
+	Revision      string `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PresencePreference) Reset() {
+	*x = PresencePreference{}
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PresencePreference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PresencePreference) ProtoMessage() {}
+
+func (x *PresencePreference) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PresencePreference.ProtoReflect.Descriptor instead.
+func (*PresencePreference) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *PresencePreference) GetStatus() PresenceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
+}
+
+func (x *PresencePreference) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+// Read the authenticated account's own choice; accepts no other user ID.
+type GetPresencePreferenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPresencePreferenceRequest) Reset() {
+	*x = GetPresencePreferenceRequest{}
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPresencePreferenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPresencePreferenceRequest) ProtoMessage() {}
+
+func (x *GetPresencePreferenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPresencePreferenceRequest.ProtoReflect.Descriptor instead.
+func (*GetPresencePreferenceRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{1}
+}
+
+// Current private choice, or absence before first initialization.
+type GetPresencePreferenceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absent until the account first saves a choice.
+	Preference    *PresencePreference `protobuf:"bytes,1,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPresencePreferenceResponse) Reset() {
+	*x = GetPresencePreferenceResponse{}
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPresencePreferenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPresencePreferenceResponse) ProtoMessage() {}
+
+func (x *GetPresencePreferenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPresencePreferenceResponse.ProtoReflect.Descriptor instead.
+func (*GetPresencePreferenceResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetPresencePreferenceResponse) GetPreference() *PresencePreference {
+	if x != nil {
+		return x.Preference
+	}
+	return nil
+}
+
+// An explicit selection. Heartbeats must not call this operation.
+type SetPresencePreferenceRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Explicit new choice for every device on this server.
+	Status PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
+	// Revision from the last read; empty only when initializing an absent choice.
+	ExpectedRevision string `protobuf:"bytes,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SetPresencePreferenceRequest) Reset() {
+	*x = SetPresencePreferenceRequest{}
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPresencePreferenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPresencePreferenceRequest) ProtoMessage() {}
+
+func (x *SetPresencePreferenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPresencePreferenceRequest.ProtoReflect.Descriptor instead.
+func (*SetPresencePreferenceRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SetPresencePreferenceRequest) GetStatus() PresenceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
+}
+
+func (x *SetPresencePreferenceRequest) GetExpectedRevision() string {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return ""
+}
+
+// Acknowledged current choice after the selection commits.
+type SetPresencePreferenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preference    *PresencePreference    `protobuf:"bytes,1,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPresencePreferenceResponse) Reset() {
+	*x = SetPresencePreferenceResponse{}
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPresencePreferenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPresencePreferenceResponse) ProtoMessage() {}
+
+func (x *SetPresencePreferenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPresencePreferenceResponse.ProtoReflect.Descriptor instead.
+func (*SetPresencePreferenceResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SetPresencePreferenceResponse) GetPreference() *PresencePreference {
+	if x != nil {
+		return x.Preference
+	}
+	return nil
+}
+
+// Refresh the authenticated account's liveness without supplying a choice.
+type RefreshPresenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshPresenceRequest) Reset() {
+	*x = RefreshPresenceRequest{}
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshPresenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshPresenceRequest) ProtoMessage() {}
+
+func (x *RefreshPresenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshPresenceRequest.ProtoReflect.Descriptor instead.
+func (*RefreshPresenceRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{5}
+}
+
+// Current private choice after refreshing liveness.
+type RefreshPresenceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Private saved choice; clients use this to recover missed device updates.
+	Preference    *PresencePreference `protobuf:"bytes,1,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshPresenceResponse) Reset() {
+	*x = RefreshPresenceResponse{}
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshPresenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshPresenceResponse) ProtoMessage() {}
+
+func (x *RefreshPresenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshPresenceResponse.ProtoReflect.Descriptor instead.
+func (*RefreshPresenceResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RefreshPresenceResponse) GetPreference() *PresencePreference {
+	if x != nil {
+		return x.Preference
+	}
+	return nil
+}
+
+// Legacy live report. A saved private choice takes precedence over this report.
 type SetPresenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Live status to store for the authenticated user. Offline is rejected.
 	Status PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
-	// True when this update comes from a deliberate user selection rather than
-	// automatic idle/refresh updates. Automatic updates do not overwrite an
-	// active manually selected Away or Do Not Disturb status from another client.
+	// Legacy manual-selection flag. It cannot replace a saved private choice.
+	// New clients use SetPresencePreference for explicit selections.
 	UserSelected  bool `protobuf:"varint,2,opt,name=user_selected,json=userSelected,proto3" json:"user_selected,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -102,7 +423,7 @@ type SetPresenceRequest struct {
 
 func (x *SetPresenceRequest) Reset() {
 	*x = SetPresenceRequest{}
-	mi := &file_chatto_api_v1_presence_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -114,7 +435,7 @@ func (x *SetPresenceRequest) String() string {
 func (*SetPresenceRequest) ProtoMessage() {}
 
 func (x *SetPresenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_presence_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -127,7 +448,7 @@ func (x *SetPresenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPresenceRequest.ProtoReflect.Descriptor instead.
 func (*SetPresenceRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SetPresenceRequest) GetStatus() PresenceStatus {
@@ -155,7 +476,7 @@ type SetPresenceResponse struct {
 
 func (x *SetPresenceResponse) Reset() {
 	*x = SetPresenceResponse{}
-	mi := &file_chatto_api_v1_presence_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -167,7 +488,7 @@ func (x *SetPresenceResponse) String() string {
 func (*SetPresenceResponse) ProtoMessage() {}
 
 func (x *SetPresenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_presence_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_presence_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -180,7 +501,7 @@ func (x *SetPresenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPresenceResponse.ProtoReflect.Descriptor instead.
 func (*SetPresenceResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SetPresenceResponse) GetStatus() PresenceStatus {
@@ -194,7 +515,28 @@ var File_chatto_api_v1_presence_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"~\n" +
+	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"g\n" +
+	"\x12PresencePreference\x125\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\tR\brevision\"\x1e\n" +
+	"\x1cGetPresencePreferenceRequest\"b\n" +
+	"\x1dGetPresencePreferenceResponse\x12A\n" +
+	"\n" +
+	"preference\x18\x01 \x01(\v2!.chatto.api.v1.PresencePreferenceR\n" +
+	"preference\"\x8e\x01\n" +
+	"\x1cSetPresencePreferenceRequest\x12A\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06status\x12+\n" +
+	"\x11expected_revision\x18\x02 \x01(\tR\x10expectedRevision\"b\n" +
+	"\x1dSetPresencePreferenceResponse\x12A\n" +
+	"\n" +
+	"preference\x18\x01 \x01(\v2!.chatto.api.v1.PresencePreferenceR\n" +
+	"preference\"\x18\n" +
+	"\x16RefreshPresenceRequest\"\\\n" +
+	"\x17RefreshPresenceResponse\x12A\n" +
+	"\n" +
+	"preference\x18\x01 \x01(\v2!.chatto.api.v1.PresencePreferenceR\n" +
+	"preference\"~\n" +
 	"\x12SetPresenceRequest\x12C\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusB\f\xbaH\t\x82\x01\x06\x10\x01 \x00 \x04R\x06status\x12#\n" +
 	"\ruser_selected\x18\x02 \x01(\bR\fuserSelected\"L\n" +
@@ -221,20 +563,32 @@ func file_chatto_api_v1_presence_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_presence_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_api_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chatto_api_v1_presence_proto_goTypes = []any{
-	(PresenceStatus)(0),         // 0: chatto.api.v1.PresenceStatus
-	(*SetPresenceRequest)(nil),  // 1: chatto.api.v1.SetPresenceRequest
-	(*SetPresenceResponse)(nil), // 2: chatto.api.v1.SetPresenceResponse
+	(PresenceStatus)(0),                   // 0: chatto.api.v1.PresenceStatus
+	(*PresencePreference)(nil),            // 1: chatto.api.v1.PresencePreference
+	(*GetPresencePreferenceRequest)(nil),  // 2: chatto.api.v1.GetPresencePreferenceRequest
+	(*GetPresencePreferenceResponse)(nil), // 3: chatto.api.v1.GetPresencePreferenceResponse
+	(*SetPresencePreferenceRequest)(nil),  // 4: chatto.api.v1.SetPresencePreferenceRequest
+	(*SetPresencePreferenceResponse)(nil), // 5: chatto.api.v1.SetPresencePreferenceResponse
+	(*RefreshPresenceRequest)(nil),        // 6: chatto.api.v1.RefreshPresenceRequest
+	(*RefreshPresenceResponse)(nil),       // 7: chatto.api.v1.RefreshPresenceResponse
+	(*SetPresenceRequest)(nil),            // 8: chatto.api.v1.SetPresenceRequest
+	(*SetPresenceResponse)(nil),           // 9: chatto.api.v1.SetPresenceResponse
 }
 var file_chatto_api_v1_presence_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.SetPresenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
-	0, // 1: chatto.api.v1.SetPresenceResponse.status:type_name -> chatto.api.v1.PresenceStatus
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: chatto.api.v1.PresencePreference.status:type_name -> chatto.api.v1.PresenceStatus
+	1, // 1: chatto.api.v1.GetPresencePreferenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
+	0, // 2: chatto.api.v1.SetPresencePreferenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
+	1, // 3: chatto.api.v1.SetPresencePreferenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
+	1, // 4: chatto.api.v1.RefreshPresenceResponse.preference:type_name -> chatto.api.v1.PresencePreference
+	0, // 5: chatto.api.v1.SetPresenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
+	0, // 6: chatto.api.v1.SetPresenceResponse.status:type_name -> chatto.api.v1.PresenceStatus
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_presence_proto_init() }
@@ -248,7 +602,7 @@ func file_chatto_api_v1_presence_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_presence_proto_rawDesc), len(file_chatto_api_v1_presence_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
