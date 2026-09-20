@@ -543,7 +543,7 @@ for (const editor of ['visual', 'markdown'] as const) {
         const { roomId } = await getIdsFromUrlViaConnect(page);
         for (const body of ['First focus thread', 'Second focus thread']) {
           const rootId = await postMessageViaConnect(page, roomId, body);
-          await postThreadReplyWithEchoViaConnect(page, roomId, `${body} reply`, rootId);
+          await postThreadReplyWithEchoViaConnect(page, roomId, `${body} reply`, rootId, rootId);
         }
 
         // Reopen the first thread, then switch to another thread. Use navigation
