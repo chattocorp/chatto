@@ -178,6 +178,7 @@ describe('service worker notifications', () => {
             app_badge: '5',
             navigate: 'https://chatto.example/chat/-/room-2?highlight=event-2',
             data: {
+              attentionLevel: 'important',
               notificationId: 'notif-2',
               url: 'https://chatto.example/chat/-/room-2?highlight=event-2'
             }
@@ -200,6 +201,37 @@ describe('service worker notifications', () => {
     });
   });
 
+  it.each(['legacy', 'declarative', 'event'])(
+    'badges only explicit important attention from %s pushes',
+    async (format) => {
+      const worker = await importServiceWorker();
+      for (const attentionLevel of ['important', 'ambient', undefined, 'future']) {
+        worker.setAppBadge.mockClear();
+        const notification = { title: 'Activity', data: { attentionLevel } };
+        await worker.dispatch(
+          'push',
+          format === 'event'
+            ? { notification }
+            : {
+                data: {
+                  json: () =>
+                    format === 'legacy'
+                      ? { title: 'Activity', attentionLevel }
+                      : { notification }
+                }
+              }
+        );
+        if (attentionLevel === 'important') {
+          expect(worker.setAppBadge).toHaveBeenCalledExactlyOnceWith();
+        } else {
+          expect(worker.setAppBadge).not.toHaveBeenCalled();
+        }
+      }
+      expect(worker.registration.showNotification).toHaveBeenCalledTimes(4);
+      expect(worker.clearAppBadge).not.toHaveBeenCalled();
+    }
+  );
+
   it('asks a visible app to restore its aggregate badge after a regular push', async () => {
     const worker = await importServiceWorker();
     const visibleClient = {
@@ -214,6 +246,7 @@ describe('service worker notifications', () => {
         json: () => ({
           web_push: 8030,
           app_badge: '2',
+          attentionLevel: 'important',
           notification: {
             title: 'Origin notification',
             navigate: 'https://chatto.example/chat/-/room-1'
@@ -245,7 +278,9 @@ describe('service worker notifications', () => {
         worker.setAppBadge.mockRejectedValueOnce(new Error('Badging unavailable'));
       }
 
-      await worker.dispatch('push', { data: { json: () => ({ title: 'Important activity' }) } });
+      await worker.dispatch('push', {
+        data: { json: () => ({ title: 'Important activity', attentionLevel: 'important' }) }
+      });
 
       expect(worker.registration.showNotification).toHaveBeenCalledOnce();
       expect(visibleClient.postMessage).toHaveBeenCalledWith({ type: 'app-badge-refresh' });

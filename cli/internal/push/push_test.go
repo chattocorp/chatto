@@ -307,6 +307,36 @@ func optionalString(value string) *string {
 
 func TestBuildPayloadFromOccurrence(t *testing.T) {
 	baseURL := "https://chatto.example.com"
+	t.Run("preserves attention for legacy and declarative workers", func(t *testing.T) {
+		for _, test := range []struct {
+			level notificationv1.NotificationAttentionLevel
+			want  string
+		}{
+			{notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, "important"},
+			{notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT, "ambient"},
+			{notificationv1.NotificationAttentionLevel(99), ""},
+		} {
+			notif := notificationOccurrenceForTest("notification", "recipient", "actor", "room", "event", "", notificationTestSignalReaction)
+			notif.AttentionLevel = test.level
+			payload := BuildPayloadFromOccurrence(notif, "Actor", baseURL, nil)
+			encoded, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded struct {
+				AttentionLevel string
+				Notification   struct {
+					Data struct{ AttentionLevel string }
+				}
+			}
+			if err := json.Unmarshal(encoded, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			if decoded.AttentionLevel != test.want || decoded.Notification.Data.AttentionLevel != test.want {
+				t.Fatalf("attention level %v: payload = %+v, want %q in both formats", test.level, decoded, test.want)
+			}
+		}
+	})
 
 	t.Run("builds DM message payload without context", func(t *testing.T) {
 		notif := notificationOccurrenceForTest("notif-123", "user-1", "user-2", "dm-room-456", "event-789", "", notificationTestSignalDirectMessage)

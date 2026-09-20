@@ -61,6 +61,7 @@ interface PushPayload {
   recipientId?: string;
   url?: string;
   app_badge?: string | number;
+  attentionLevel?: string;
 }
 
 interface DeclarativePushPayload extends PushPayload {
@@ -79,6 +80,7 @@ interface DeclarativeNotificationPayload {
   navigate?: string;
   data?: {
     notificationId?: string;
+    attentionLevel?: string;
     serverOrigin?: string;
     recipientId?: string;
     url?: string;
@@ -86,6 +88,7 @@ interface DeclarativeNotificationPayload {
 }
 
 type NormalizedPushNotification = {
+  important: boolean;
   title: string;
   options: NotificationOptions;
 };
@@ -107,6 +110,7 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
   const url = payload.url ?? notification?.data?.url ?? notification?.navigate;
 
   return {
+    important: (payload.attentionLevel ?? notification?.data?.attentionLevel) === 'important',
     title: payload.title ?? notification?.title ?? 'New notification',
     options: {
       body: payload.body ?? notification?.body,
@@ -142,6 +146,7 @@ function notificationData(data: unknown): DeclarativeNotificationPayload['data']
   if (typeof data !== 'object' || data === null) return undefined;
   return {
     notificationId: stringProperty(data, 'notificationId'),
+    attentionLevel: stringProperty(data, 'attentionLevel'),
     serverOrigin: stringProperty(data, 'serverOrigin'),
     recipientId: stringProperty(data, 'recipientId'),
     url: stringProperty(data, 'url')
@@ -198,9 +203,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     (async () => {
       await self.registration.showNotification(notification.title, notification.options);
-      // Push notifications represent important activity. The visible app then
-      // reconciles this flag with current state, including reads on other devices.
-      await updateAppBadge({ kind: 'flag' });
+      // Ambient pushes and older payloads without a classification must not
+      // create a badge. Visible apps reconcile against current state afterward.
+      if (notification.important) await updateAppBadge({ kind: 'flag' });
       await refreshVisibleAppBadges();
     })()
   );

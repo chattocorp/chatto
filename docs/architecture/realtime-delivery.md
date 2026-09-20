@@ -422,8 +422,10 @@ server-side policy checks.
 
 The app-icon badge uses Important unread attention across authenticated servers.
 It is an unnumbered flag; the window title shows the Important count. Ambient
-attention contributes to neither. The push worker sets a flag after notification
-display, then asks visible windows to reconcile it with their current stores.
+attention contributes to neither. Push payloads carry `attentionLevel` at the
+root and in declarative notification data. The worker sets a flag only for
+explicit `important` attention, then asks visible windows to reconcile current
+state. Ambient, unknown, and legacy unclassified pushes do not set a badge.
 Outgoing push payloads omit numeric app badge values.
 
 Each server store owns a RAM-only

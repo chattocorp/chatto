@@ -77,6 +77,9 @@ type Payload struct {
 	ServerOrigin string `json:"serverOrigin,omitempty"`
 	RecipientID  string `json:"recipientId,omitempty"`
 	URL          string `json:"url,omitempty"`
+	// AttentionLevel is "important" or "ambient". Workers badge only explicit
+	// important activity; an absent or unknown value leaves the badge unchanged.
+	AttentionLevel string `json:"attentionLevel,omitempty"`
 	// TTLSeconds overrides the provider retention horizon. Notification alerts
 	// set this to their remaining immutable delivery lifetime; other push types
 	// retain the normal 24-hour default.
@@ -103,9 +106,10 @@ type declarativeNotification struct {
 type declarativeNotificationData struct {
 	NotificationID string `json:"notificationId,omitempty"`
 	// ServerOrigin and RecipientID scope native notification cleanup to one account.
-	ServerOrigin string `json:"serverOrigin,omitempty"`
-	RecipientID  string `json:"recipientId,omitempty"`
-	URL          string `json:"url,omitempty"`
+	ServerOrigin   string `json:"serverOrigin,omitempty"`
+	RecipientID    string `json:"recipientId,omitempty"`
+	URL            string `json:"url,omitempty"`
+	AttentionLevel string `json:"attentionLevel,omitempty"`
 }
 
 func (p Payload) MarshalJSON() ([]byte, error) {
@@ -120,6 +124,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		RecipientID    string                   `json:"recipientId,omitempty"`
 		URL            string                   `json:"url,omitempty"`
 		Action         string                   `json:"action,omitempty"`
+		AttentionLevel string                   `json:"attentionLevel,omitempty"`
 		WebPush        int                      `json:"web_push,omitempty"`
 		Mutable        bool                     `json:"mutable,omitempty"`
 		Notification   *declarativeNotification `json:"notification,omitempty"`
@@ -136,6 +141,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		RecipientID:    p.RecipientID,
 		URL:            p.URL,
 		Action:         p.Action,
+		AttentionLevel: p.AttentionLevel,
 	}
 	if p.declarativeNotificationEligible() {
 		out.WebPush = declarativeWebPushValue
@@ -149,6 +155,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 			Badge:    p.Badge,
 			Data: &declarativeNotificationData{
 				NotificationID: p.NotificationID,
+				AttentionLevel: p.AttentionLevel,
 				ServerOrigin:   p.ServerOrigin,
 				RecipientID:    p.RecipientID,
 				URL:            p.URL,
@@ -582,6 +589,12 @@ func buildPayloadFromOccurrence(
 		RecipientID:    occurrence.GetRecipientId(),
 		Icon:           buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""),
 		Badge:          buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
+	}
+	switch occurrence.GetAttentionLevel() {
+	case notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT:
+		payload.AttentionLevel = "important"
+	case notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT:
+		payload.AttentionLevel = "ambient"
 	}
 
 	// Match the browser origin without a trailing slash or server path.
