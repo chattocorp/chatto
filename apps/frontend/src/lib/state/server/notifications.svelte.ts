@@ -508,6 +508,17 @@ export class NotificationStore {
     return safePage;
   }
 
+  /** Load the remaining pages before an action selects all read occurrences. */
+  async fetchAllPages(): Promise<void> {
+    while (this.hasMore) {
+      const offset = this.consumedCount;
+      await this.fetchPage(offset);
+      if (this.hasMore && this.consumedCount <= offset) {
+        throw new Error('Notification pagination did not advance');
+      }
+    }
+  }
+
   async markOccurrenceRead(notificationId: string): Promise<void> {
     if (!(await this.markRead(notificationId))) {
       throw new Error('Failed to mark notification read');

@@ -153,7 +153,7 @@
   }
 
   async function loadMore() {
-    if (loading || loadingMore || !hasMore) return;
+    if (loading || loadingMore || dismissingRead || !hasMore) return;
     loadingMore = true;
     loadMoreError = false;
     const pending = pagination.filter((source) => source.hasMore);
@@ -369,7 +369,7 @@
 
   async function openGroup(item: ServerGroup) {
     const key = mutationKey(item);
-    if (pendingMutationKeys.has(key)) return;
+    if (dismissingRead || pendingMutationKeys.has(key)) return;
     const occurrence = item.group.openTarget;
     if (!occurrence || occurrence.targetSupported === false) return;
     setMutationPending(key, true);
@@ -396,7 +396,7 @@
 
   async function dismiss(item: ServerGroup) {
     const key = mutationKey(item);
-    if (pendingMutationKeys.has(key)) return;
+    if (dismissingRead || pendingMutationKeys.has(key)) return;
     setMutationPending(key, true);
     const store = serverRegistry.getStore(item.serverId).notifications;
     for (const occurrence of item.group.occurrences) {
@@ -424,9 +424,20 @@
   }
 
   async function dismissRead() {
-    if (dismissingRead || hasPendingMutation || readOccurrenceBatches.length === 0) return;
+    if (dismissingRead || loadingMore || hasPendingMutation) return;
     dismissingRead = true;
-    const batches = readOccurrenceBatches.map((batch) => ({
+    // Finish pagination before deleting anything: deletions shift page offsets.
+    const loads = await Promise.allSettled(
+      pagination
+        .filter((source) => source.hasMore)
+        .map((source) => serverRegistry.getStore(source.serverId).notifications.fetchAllPages())
+    );
+    if (loads.some((result) => result.status === 'rejected')) {
+      toast.error(m('common.error.network'));
+      dismissingRead = false;
+      return;
+    }
+    const batches = readOccurrencesByServer().map((batch) => ({
       serverId: batch.serverId,
       occurrenceIds: [...batch.occurrenceIds]
     }));
@@ -496,11 +507,11 @@
           <span>{m('settings.notifications.push_prompt.title')}</span>
         </Button>
       {/if}
-      {#if readOccurrenceBatches.length > 0 || dismissingRead}
+      {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
         <Button
           variant="danger-secondary"
           size="sm"
-          disabled={dismissingRead || hasPendingMutation}
+          disabled={dismissingRead || loadingMore || hasPendingMutation}
           label={m('chat.notifications.clear_read')}
           onclick={dismissRead}
         >
