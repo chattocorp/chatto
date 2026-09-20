@@ -521,7 +521,8 @@ export class MessageComposerState {
       const api = this.editorApi;
       if (!request || !api || request.id === this.#insertedQuoteRequestId) return;
       this.#insertedQuoteRequestId = request.id;
-      api.insertQuote(request.text);
+      // Let the message action sheet close before the editor takes focus.
+      this.insertQuote(request.text);
     });
   }
 
