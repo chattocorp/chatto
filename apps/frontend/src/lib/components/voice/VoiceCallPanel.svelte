@@ -626,7 +626,6 @@ Room sidebar panel for voice/video calls.
                 ? m('voice.already_in_another_call')
                 : joinLabel}
           >
-            <span class="icon-[uil--phone] text-lg" aria-hidden="true"></span>
             {joinLabel}
           </button>
         </div>
