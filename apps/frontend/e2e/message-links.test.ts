@@ -14,6 +14,54 @@ import * as routes from './routes';
 test.describe('Message links', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  for (const entry of ['direct URL', 'body link', 'preview card'] as const) {
+    test(`opening a root through a ${entry} opens and highlights its attached thread`, async ({
+      page,
+      chatPage,
+      roomPage,
+      serverURL
+    }) => {
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() === 'error') errors.push(message.text());
+      });
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+
+      const { roomId } = await getIdsFromUrlViaConnect(page);
+      const rootBody = `Linked thread root - ${Date.now()}`;
+      const rootId = await postMessageViaConnect(page, roomId, rootBody);
+      const linkUrl = `${serverURL}${routes.messageLink(roomId, rootId)}`;
+
+      // Create the link before the thread exists. Navigation must use current data.
+      await roomPage.sendMessage(`Open this conversation: ${linkUrl}`);
+      const linkedMessage = page.locator('[role="article"]', { hasText: linkUrl });
+      await expect(linkedMessage.getByTestId('message-preview-card')).toBeVisible();
+      const replyBody = `Attached thread reply - ${Date.now()}`;
+      await postThreadReplyViaConnect(page, roomId, replyBody, rootId);
+
+      const pageCount = page.context().pages().length;
+      if (entry === 'direct URL') {
+        await page.goto(routes.messageLink(roomId, rootId));
+      } else if (entry === 'body link') {
+        await linkedMessage.locator(`.prose a[href*="/m/${rootId}"]`).click();
+      } else {
+        await linkedMessage.getByTestId('message-preview-card').click();
+      }
+
+      const root = roomPage.threadPane.locator(`[data-event-id="${rootId}"]`);
+      await expect(root).toHaveClass(/highlight-flash/, { timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(root).toBeVisible();
+      await expect(root).toContainText(rootBody);
+      await expect(roomPage.threadPane.getByText(replyBody, { exact: true })).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`/chat/-/${roomId}/${rootId}$`));
+      expect(page.context().pages()).toHaveLength(pageCount);
+      expect(errors).toEqual([]);
+    });
+  }
+
   test('navigating to /m/ URL for a room message redirects to the room with highlight', async ({
     page,
     chatPage,

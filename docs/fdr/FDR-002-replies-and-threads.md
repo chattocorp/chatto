@@ -11,6 +11,10 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 
 ## Behavior
 
+- Following a message link opens the target's thread when it is a thread reply
+  or has an existing thread, including a thread with no replies. The linked
+  message is highlighted in the thread pane. A message without a thread opens
+  in the room timeline. Thread existence is checked when the link is opened.
 - Integrations can read all distinct authors of current thread replies in
   bounded pages. Retracted replies and erased authors do not contribute. The
   root author is included only if they also replied. Counts cover the full set.
@@ -96,7 +100,7 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 ### 6. Thread message links identify both the thread and focused message
 
 **Decision:** A link copied from the thread pane preserves the thread root separately from the message it focuses. Opening the link shows the thread pane even when the focused message is the root and no replies exist.
-**Why:** A message identifier alone can locate a reply's thread after a lookup, but it cannot express that a root message should open as an empty thread. Carrying both identities makes the intended view explicit and directly shareable.
+**Why:** An ordinary message link opens a reply's thread or a root's existing thread after a lookup. An explicit thread message link also opens a root in the thread pane before a durable thread exists. Carrying both identities makes that intended view explicit and directly shareable.
 **Tradeoff:** Thread message links contain two event identifiers, making them longer than ordinary room message links.
 
 ### 7. Root authors can establish a thread before the first reply
