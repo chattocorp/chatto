@@ -46,7 +46,10 @@ it.each([false, true])('keeps frame and timeline presentation in sync with touch
 
 it.each([false, true])('keeps embed controls reachable with touch=%s at any width', async (touch) => {
 	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-	expect(matchMedia('(any-hover: hover) and (any-pointer: fine)').matches).toBe(!touch);
+	expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
+	// Disabling touch does not imply hover support (for example, in headless CI).
+	const hoverControls = !touch && matchMedia('(any-hover: hover) and (any-pointer: fine)').matches;
+	const idleOpacity = hoverControls ? '0' : '1';
 	const { container } = render(Frame, {
 		children: testSnippet('<div><div class="group/preview relative h-40 w-64"><button class="embed-control-button" aria-label="Open attachment">Open</button></div><button data-testid="outside-preview">Outside preview</button></div>')
 	});
@@ -62,10 +65,10 @@ it.each([false, true])('keeps embed controls reachable with touch=%s at any widt
 		outside.focus();
 		expect(button.parentElement!.matches(':hover')).toBe(false);
 		expect(button.parentElement!.matches(':focus-within')).toBe(false);
-		await expect.poll(() => getComputedStyle(button).opacity).toBe(touch ? '1' : '0');
+		await expect.poll(() => getComputedStyle(button).opacity).toBe(idleOpacity);
 		button.focus();
 		await expect.poll(() => getComputedStyle(button).opacity).toBe('1');
 		outside.focus();
-		await expect.poll(() => getComputedStyle(button).opacity).toBe(touch ? '1' : '0');
+		await expect.poll(() => getComputedStyle(button).opacity).toBe(idleOpacity);
 	}
 });
