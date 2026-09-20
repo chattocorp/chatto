@@ -1,5 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { notifyUserSummaries } from './hooks.js';
+import { notifyUserSummaries, resolveUserSummaries } from './hooks.js';
 import {
   authHeaders,
   createChattoClient,
@@ -225,10 +225,13 @@ async function batchTimelineUsers(
 
   try {
     const api = createUserAPI(config);
-    const summaries: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
-    for (let offset = 0; offset < userIds.length; offset += 100) {
-      summaries.push(...await api.batchGetUsers(userIds.slice(offset, offset + 100), minimumCursor));
-    }
+    const summaries = await resolveUserSummaries(config.serverId, userIds, async (ids, cursor) => {
+      const result: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        result.push(...await api.batchGetUsers(ids.slice(offset, offset + 100), cursor));
+      }
+      return result;
+    }, minimumCursor, config.onUserSummaries);
     const users: Record<string, User> = {};
     for (const summary of summaries) {
       // The view helpers read generated `User` values; the only difference
@@ -242,7 +245,6 @@ async function batchTimelineUsers(
         avatarUrl: summary.avatarUrl ?? undefined
       } as User;
     }
-    notifyUserSummaries(config.serverId, summaries, config.onUserSummaries);
     return users;
   } catch (error) {
     if (minimumCursor || requireSuccess) throw error;
