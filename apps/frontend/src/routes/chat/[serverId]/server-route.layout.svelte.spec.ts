@@ -2,6 +2,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { page, userEvent } from 'vitest/browser';
 import { testSnippet } from '$lib/test-utils';
 import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
 
@@ -84,7 +85,7 @@ beforeEach(() => {
 });
 
 describe('server route authentication privacy', () => {
-  it('keeps the page visible and restores focus during an authority check', async () => {
+  it('keeps the page mounted, focused, and interactive during an authority check', async () => {
     const { container } = render(Layout, {
       props: { children: testSnippet('<input data-testid="filter" />') }
     });
@@ -94,12 +95,17 @@ describe('server route authentication privacy', () => {
     mocks.servers!.set('origin', { reauthRequiredAt: null, checkingPermissions: true });
     await tick();
     expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
-    expect(filter.closest('[inert]')).not.toBeNull();
+    expect(filter.closest('[inert]')).toBeNull();
+    expect(filter.closest('[aria-busy="true"]')).toBeNull();
     expect(getComputedStyle(filter).visibility).toBe('visible');
+    expect(document.activeElement).toBe(filter);
+    await userEvent.fill(page.getByTestId('filter'), 'room');
+    expect(filter.value).toBe('room');
     mocks.servers!.set('origin', { reauthRequiredAt: null, checkingPermissions: false });
     await tick();
     expect(filter.closest('[inert]')).toBeNull();
-    expect(filter.value).toBe('message');
+    expect(container.querySelector('[data-testid="filter"]')).toBe(filter);
+    expect(filter.value).toBe('room');
     expect(document.activeElement).toBe(filter);
   });
 
