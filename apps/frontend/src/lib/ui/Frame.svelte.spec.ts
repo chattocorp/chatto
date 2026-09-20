@@ -47,12 +47,16 @@ it.each([false, true])('keeps frame and timeline presentation in sync with touch
 it.each([false, true])('keeps embed controls reachable with touch=%s at any width', async (touch) => {
 	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
 	const { container } = render(Frame, {
-		children: testSnippet('<div class="group/preview relative h-40"><button class="embed-control-button" aria-label="Open attachment">Open</button></div>')
+		children: testSnippet('<div><div class="group/preview relative h-40 w-64"><button class="embed-control-button" aria-label="Open attachment">Open</button></div><button data-testid="outside-preview">Outside preview</button></div>')
 	});
-	const button = container.querySelector('button')!;
+	const button = container.querySelector<HTMLButtonElement>('.embed-control-button')!;
+	const outside = container.querySelector<HTMLElement>('[data-testid="outside-preview"]')!;
 	for (const width of [375, 1024]) {
 		await page.viewport(width, 800);
-		expect(getComputedStyle(button).opacity).toBe(touch ? '1' : '0');
+		// Pointer position survives viewport changes. Explicitly leave the preview
+		// before testing keyboard-only access, then let its opacity transition settle.
+		await userEvent.hover(outside);
+		await expect.poll(() => getComputedStyle(button).opacity).toBe(touch ? '1' : '0');
 		button.focus();
 		await expect.poll(() => getComputedStyle(button).opacity).toBe('1');
 		button.blur();
