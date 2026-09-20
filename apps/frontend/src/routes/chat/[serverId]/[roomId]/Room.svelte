@@ -217,7 +217,11 @@
     if (room.roomData?.canPostMessage !== false) return null;
     if (canReadMessages && !room.roomData.room.archived && threadingMode !== RoomThreadingMode.DISABLED) {
       if (room.roomData.canPostInThread) return m('room.timeline.post_threads_only');
-      if (room.roomData.canPostInteractions) return m('room.timeline.post_interactions_only');
+      if (room.roomData.canPostInteractions) {
+        return m(room.isDM
+          ? 'room.timeline.post_interactions_only'
+          : 'room.timeline.post_interactions_only_channel');
+      }
     }
     return m('room.timeline.post_denied');
   });

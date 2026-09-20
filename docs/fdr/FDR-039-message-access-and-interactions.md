@@ -52,7 +52,8 @@ permissions. Room membership remains a separate requirement.
   notice above the room timeline. It distinguishes replies in readable threads,
   replies only in related threads, and no posting. Read access and room policy
   must also permit replies. The posting notice can appear with the limited-read
-  notice. Both update when effective permissions change.
+  notice. Only DM notices include received DMs as an interaction condition.
+  Both update when effective permissions change.
 - A channel-room operation that reads or returns an existing message also
   needs access to that message's thread. Deletion remains independently
   authorized and does not return surrounding message state.

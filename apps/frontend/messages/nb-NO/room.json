@@ -70,6 +70,7 @@
       "remove_account_suffix": " for denne serveren før du fjerner den."
     },
     "timeline": {
+      "post_interactions_only_channel": "Du kan bare svare i tråder du startet eller der noen nevnte deg.",
       "post_threads_only": "Du kan bare svare i tråder du kan lese.",
       "post_interactions_only": "Du kan bare svare i tråder du startet, der noen nevnte deg eller der du mottok en direktemelding.",
       "post_denied": "Du har ikke tillatelse til å sende meldinger i dette rommet.",

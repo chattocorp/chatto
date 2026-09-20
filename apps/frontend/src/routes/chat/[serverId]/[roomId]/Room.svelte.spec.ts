@@ -594,13 +594,24 @@ describe('Room interaction bundles', () => {
 
   it.each([
     [true, true, 'You can only reply in threads you can read.'],
-    [false, true, 'You can only reply in threads you started, where someone mentioned you, or where you received a DM.']
+    [false, true, 'You can only reply in threads you started or where someone mentioned you.']
   ] as const)('explains reply-only posting with thread grant %s and interaction grant %s', async (threads, interactions, notice) => {
     mocks.canPostMessage = false;
     mocks.canPostInThread = threads;
     mocks.canPostInteractions = interactions;
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(notice);
+  });
+
+  it('explains received messages as an interaction in DMs', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = false;
+    mocks.canPostInteractions = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(
+      'You can only reply in threads you started, where someone mentioned you, or where you received a DM.'
+    );
   });
 
   it.each([RoomThreadingMode.DISABLED, RoomThreadingMode.ENABLED])('does not promise interaction replies without room access in threading mode %s', async (mode) => {

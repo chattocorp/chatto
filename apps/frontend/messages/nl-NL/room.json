@@ -70,6 +70,7 @@
       "remove_account_suffix": " van deze server."
     },
     "timeline": {
+      "post_interactions_only_channel": "Je kunt alleen antwoorden in threads die je hebt gestart of waarin iemand je heeft vermeld.",
       "post_threads_only": "Je kunt alleen antwoorden in threads die je kunt lezen.",
       "post_interactions_only": "Je kunt alleen antwoorden in threads die je hebt gestart, waarin iemand je heeft vermeld of waarin je een privébericht hebt ontvangen.",
       "post_denied": "Je hebt geen toestemming om berichten in deze kamer te plaatsen.",

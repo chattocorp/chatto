@@ -70,6 +70,7 @@
       "remove_account_suffix": "を開いてください。"
     },
     "timeline": {
+      "post_interactions_only_channel": "自分が開始したスレッド、または誰かにメンションされたスレッドにのみ返信できます。",
       "post_threads_only": "読むことができるスレッドにのみ返信できます。",
       "post_interactions_only": "自分が開始したスレッド、誰かにメンションされたスレッド、またはDMを受信したスレッドにのみ返信できます。",
       "post_denied": "このルームでメッセージを投稿する権限がありません。",

@@ -70,6 +70,7 @@
       "remove_account_suffix": " per questo server prima di rimuoverlo."
     },
     "timeline": {
+      "post_interactions_only_channel": "Puoi rispondere solo nei thread che hai creato o in cui qualcuno ti ha menzionato.",
       "post_threads_only": "Puoi rispondere solo nei thread che puoi leggere.",
       "post_interactions_only": "Puoi rispondere solo nei thread che hai creato, in cui qualcuno ti ha menzionato o in cui hai ricevuto un messaggio diretto.",
       "post_denied": "Non hai il permesso di inviare messaggi in questa stanza.",

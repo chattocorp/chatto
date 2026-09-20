@@ -70,6 +70,7 @@
       "remove_account_suffix": " kaldırmadan önce bu sunucu için."
     },
     "timeline": {
+      "post_interactions_only_channel": "Yalnızca başlattığın veya birinin senden bahsettiği ileti dizilerinde yanıt verebilirsin.",
       "post_threads_only": "Yalnızca okuyabildiğin ileti dizilerinde yanıt verebilirsin.",
       "post_interactions_only": "Yalnızca başlattığın, birinin senden bahsettiği veya doğrudan mesaj aldığın ileti dizilerinde yanıt verebilirsin.",
       "post_denied": "Bu odada mesaj gönderme izniniz yok.",

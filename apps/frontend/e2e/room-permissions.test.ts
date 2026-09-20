@@ -338,7 +338,7 @@ test.describe('Room-Level Permission Overrides', () => {
         await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
         await grantRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
         await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
-          'You can only reply in threads you started, where someone mentioned you, or where you received a DM.'
+          'You can only reply in threads you started or where someone mentioned you.'
         );
         await denyRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
         await expect(memberPage.getByTestId('room-post-denied')).toHaveText(

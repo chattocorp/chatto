@@ -70,6 +70,7 @@
       "remove_account_suffix": " de este servidor antes de eliminarlo."
     },
     "timeline": {
+      "post_interactions_only_channel": "Solo puedes responder en hilos que hayas iniciado o donde alguien te haya mencionado.",
       "post_threads_only": "Solo puedes responder en hilos que puedas leer.",
       "post_interactions_only": "Solo puedes responder en hilos que hayas iniciado, donde alguien te haya mencionado o donde hayas recibido un mensaje directo.",
       "post_denied": "No tienes permiso para enviar mensajes en esta sala.",
