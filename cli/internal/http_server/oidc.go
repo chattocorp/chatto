@@ -77,7 +77,10 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 	// with the wrong method and then submit the same code a second time.
 	o.oauth2Config.Endpoint.AuthStyle = style
 	o.authMethod = method
-	o.verifier = provider.Verifier(&oidc.Config{ClientID: clientID})
+	// Keep the library's signature verification and rotating-key cache while
+	// ignoring unsupported JWK types/curves in mixed provider key sets.
+	keyClient := &http.Client{Transport: oidcKeyTransport{base: http.DefaultTransport}}
+	o.verifier = provider.VerifierContext(oidc.ClientContext(ctx, keyClient), &oidc.Config{ClientID: clientID})
 	o.ready = true
 
 	log.Info("OIDC provider initialized", "issuer", issuerURL)

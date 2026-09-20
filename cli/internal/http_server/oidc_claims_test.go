@@ -48,6 +48,30 @@ func TestOIDCTokenAuthenticationSelection(t *testing.T) {
 	}
 }
 
+func TestOIDCUnsupportedKeysDoNotHideSigningKey(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		keys      []any
+		omit      bool
+		wantError bool
+	}{
+		{"mixed", []any{map[string]any{"kty": "EC", "crv": "future-curve"}, map[string]any{"kty": "future-key"}, map[string]any{"kty": "OKP", "crv": "Ed448"}}, false, false},
+		{"no supported signing key", []any{map[string]any{"kty": "EC", "crv": "future-curve"}}, true, true},
+		{"malformed supported key", []any{map[string]any{"kty": "RSA", "n": "invalid!", "e": "AQAB"}}, false, true},
+		{"oversized key set", []any{map[string]any{"kty": "future-key", "padding": strings.Repeat("x", 1<<20)}}, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			issuer := newNoEmailOIDCIssuer(t, "client-id")
+			defer issuer.Close()
+			issuer.extraKeys, issuer.omitSigningKey = tc.keys, tc.omit
+			_, err := resolveTestOIDC(t, issuer, "none", "", false)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("verification error = %v, want error %v", err, tc.wantError)
+			}
+		})
+	}
+}
+
 func TestOIDCSingleExchangeWithPKCE(t *testing.T) {
 	for _, method := range []string{"none", "client_secret_basic", "client_secret_post"} {
 		for _, fail := range []bool{false, true} {

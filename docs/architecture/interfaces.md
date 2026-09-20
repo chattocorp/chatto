@@ -326,6 +326,9 @@ match the verified ID token before missing fields are filled. Email and its
 verification flag come from the same response. Unavailable or malformed
 UserInfo leaves ID-token claims intact. Token-exchange diagnostics record only
 provider ID, authentication method, status, and allow-listed OAuth error codes.
+The verifier's key-fetch transport removes unsupported JWK types and curves
+from mixed key sets, with a 1 MiB response limit. Supported keys still use the
+OIDC library's validation, signature verification, and rotating-key cache.
 
 `MessageSearchService.GetStatus` remains the authority for configured search
 availability and transient provider readiness. Viewer permissions remain the

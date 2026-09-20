@@ -714,6 +714,8 @@ type noEmailOIDCIssuer struct {
 	methods          json.RawMessage
 	tokenRequests    int
 	tokenCheck       func(*http.Request) bool
+	extraKeys        []any
+	omitSigningKey   bool
 }
 
 func newNoEmailOIDCIssuer(t *testing.T, clientID string) *noEmailOIDCIssuer {
@@ -781,12 +783,16 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	case "/keys":
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
-			Key:       &i.key.PublicKey,
-			KeyID:     "test-key",
-			Algorithm: string(jose.RS256),
-			Use:       "sig",
-		}}})
+		keys := append([]any(nil), i.extraKeys...)
+		if !i.omitSigningKey {
+			keys = append(keys, jose.JSONWebKey{
+				Key:       &i.key.PublicKey,
+				KeyID:     "test-key",
+				Algorithm: string(jose.RS256),
+				Use:       "sig",
+			})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": keys})
 	case "/userinfo":
 		i.userInfoRequests++
 		if i.failUserInfo {

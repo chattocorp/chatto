@@ -27,6 +27,10 @@ providers, and a bootstrap path for first-boot operator setup.
   stays paired with its address. An unavailable or malformed UserInfo response
   does not discard valid ID-token hints. Suggestions keep their existing order
   and normalization; linked accounts retain their existing names.
+- OIDC key sets can contain key types or curves that Chatto does not support.
+  Chatto ignores these keys and verifies signatures with supported keys. A set
+  without a usable signing key still fails verification. The official suite
+  checks this behavior and selected positive and negative client flows in CI.
 
 - **Consent identity display** — the consent page shows the host for a URL-based
   client ID and the exact ID for an opaque native client identity. The server
