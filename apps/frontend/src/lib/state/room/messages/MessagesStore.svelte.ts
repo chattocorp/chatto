@@ -264,6 +264,52 @@ export class MessagesStore {
     this.applyDeletion(messageEventId, retractedAt);
   }
 
+  /** Include loaded echo wrappers and thread roots in the shared message read. */
+  relatedMessageIds(messageEventId: string): string[] {
+    const ids = new SvelteSet<string>();
+    for (const row of [...this.events, ...this.previewEvents.values()]) {
+      if (!row || !isMessagePostedPayload(row.event)) continue;
+      if (row.id !== messageEventId && row.event.echoOfEventId !== messageEventId &&
+        row.event.channelEchoEventId !== messageEventId) continue;
+      ids.add(row.id);
+      if (row.event.threadRootEventId) ids.add(row.event.threadRootEventId);
+      if (row.event.echoOfEventId) ids.add(row.event.echoOfEventId);
+      if (row.event.channelEchoEventId) ids.add(row.event.channelEchoEventId);
+    }
+    return [...ids];
+  }
+
+  /**
+   * Capture this timeline before a shared read. A local edit or a newer page
+   * response wins over that read. Only new posts may insert off-window rows;
+   * resource updates do not change pagination cursors or loaded continuity.
+   */
+  captureMessageReconciliation(): (id: string, event: TimelineEventView | null, insert: boolean) => void {
+    const source = this.source;
+    const before = snapshotEventFingerprints(this.events);
+    const previews = snapshotEventFingerprints(
+      [...this.previewEvents.values()].filter((event): event is TimelineEventView => !!event)
+    );
+    return (id, event, insert) => {
+      if (!source || this.source !== source || this.#projectionAccessRevoked) return;
+      if (!event) {
+        this.applyMessageRetraction(id, new SvelteDate().toISOString());
+        return;
+      }
+      const hydrated = this.unmaskEvents([event])[0];
+      if (!hydrated) return;
+      const index = this.events.findIndex((row) => row.id === id);
+      if (index >= 0) {
+        if (eventFingerprint(this.events[index]) !== before.get(id)) return;
+        this.clearOptimisticVersionForEvent(id);
+        this.events[index] = hydrated;
+        this.sortEvents();
+      } else if (insert) this.ingestEvent(hydrated);
+      const preview = this.previewEvents.get(id);
+      if (preview && eventFingerprint(preview) === previews.get(id)) this.previewEvents.set(id, hydrated);
+    };
+  }
+
   /**
    * Apply a provisional local reaction update. The returned handle can
    * reconcile the touched emoji from the RPC response or roll back if the
@@ -781,13 +827,18 @@ export class MessagesStore {
     this.#pendingJumpId = jumpId;
     jumpState.isLoadingNewer = false;
     this.isInitialLoading = true;
+    const existingBeforeFetch = snapshotEventFingerprints(this.events);
     try {
       const around = await source.fetchAround(eventId, PAGE_SIZE);
 
       if (this.#jumpId !== jumpId || this.source !== source) return false;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
-      const parsed = this.unmaskEvents(rawEvents);
+      const parsed = this.unmaskEvents(rawEvents).map((event) => {
+        const current = this.events.find((row) => row.id === event.id);
+        return current && eventFingerprint(current) !== existingBeforeFetch.get(event.id)
+          ? current : event;
+      });
       if (!parsed.some((event) => event.id === eventId)) {
         if (this.events.some((event) => event.id === eventId)) {
           jumpState.scrollToEventId = eventId;
@@ -1387,7 +1438,7 @@ export class MessagesStore {
       const page = await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
       if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
       if (source.scope === 'room') {
-        this.replaceWithFetchedAndUpdateCursors(page);
+        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, { preserveExistingWindow: true });
         this.hasReachedStart = !page.hasOlder;
         if (!minimumCursor) await this.backfillInitialRoomWindow(thisLoad);
       } else {

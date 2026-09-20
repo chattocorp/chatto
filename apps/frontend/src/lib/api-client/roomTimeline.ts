@@ -208,10 +208,11 @@ export async function timelineUsersForEvents(
 export async function timelineUsersForMessages(
   config: RoomTimelineAPIConfig,
   messages: Message[],
-  minimumCursor?: string
+  minimumCursor?: string,
+  requireSuccess = false
 ): Promise<Record<string, User>> {
   const userIds = messageUserIds(messages);
-  return batchTimelineUsers(config, userIds, minimumCursor);
+  return batchTimelineUsers(config, userIds, minimumCursor, requireSuccess);
 }
 
 async function batchTimelineUsers(
@@ -223,7 +224,11 @@ async function batchTimelineUsers(
   if (userIds.length === 0) return {};
 
   try {
-    const summaries = await createUserAPI(config).batchGetUsers(userIds, minimumCursor);
+    const api = createUserAPI(config);
+    const summaries: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
+    for (let offset = 0; offset < userIds.length; offset += 100) {
+      summaries.push(...await api.batchGetUsers(userIds.slice(offset, offset + 100), minimumCursor));
+    }
     const users: Record<string, User> = {};
     for (const summary of summaries) {
       // The view helpers read generated `User` values; the only difference

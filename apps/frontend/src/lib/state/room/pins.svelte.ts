@@ -37,6 +37,8 @@ export class RoomPinsStore {
   private hydrated = false;
   private retainCount = 0;
   private requestEpoch = 0;
+  private paginationEpoch = 0;
+  private pendingMessages = new SvelteMap<string, Message | null>();
   private hydrationPromise: Promise<void> | null = null;
   private pinStatuses = new SvelteMap<string, boolean>();
   private accessBlocked = false;
@@ -94,14 +96,15 @@ export class RoomPinsStore {
     }
   }
 
-  async loadMore(): Promise<void> {
+  async loadMore(minimumCursor?: string): Promise<void> {
     if (this.accessBlocked || !this.hydrated || this.isLoadingMore || !this.hasMore) return;
     const epoch = this.requestEpoch;
+    const paginationEpoch = this.paginationEpoch;
     this.isLoadingMore = true;
     try {
-      await this.loadPage(this.items.length, false, epoch);
+      await this.loadPage(this.items.length, false, epoch, paginationEpoch, minimumCursor);
     } finally {
-      if (this.requestEpoch === epoch) this.isLoadingMore = false;
+      if (this.requestEpoch === epoch && this.paginationEpoch === paginationEpoch) this.isLoadingMore = false;
     }
   }
 
@@ -140,19 +143,32 @@ export class RoomPinsStore {
   }
 
   applyMessageRetraction(messageEventId: string): void {
-    if (this.accessBlocked) return;
-    this.removeLocal(messageEventId);
-    this.invalidateAndReload();
+    this.applyMessageUpdate(messageEventId, null);
   }
 
-  applyMessageUpdate(messageEventId: string, message: Message): void {
-    if (this.accessBlocked || !this.isPinned(messageEventId)) return;
+  /** Reconcile shared message data without restarting the pin collection. */
+  applyMessageUpdate(messageEventId: string, message: Message | null, minimumCursor?: string): void {
+    if (this.accessBlocked) return;
+    if (!this.hydrated) {
+      if (this.hydrationPromise) this.pendingMessages.set(messageEventId, message);
+      return;
+    }
+    if (!this.isPinned(messageEventId) && (!this.isLoadingMore || (message && !message.pinned))) return;
+    const retryPagination = this.isLoadingMore;
+    this.paginationEpoch++;
+    this.isLoadingMore = false;
+    if (!message || message.deletedAt) {
+      this.removeLocal(messageEventId);
+      if (retryPagination) void this.loadMore(minimumCursor);
+      return;
+    }
     this.items = this.items.map((item) => {
       if (item.message?.id !== messageEventId) return item;
       const updated = item.clone();
       updated.message = message;
       return updated;
     });
+    if (retryPagination) void this.loadMore(minimumCursor);
   }
 
   markSeen(): void {
@@ -173,6 +189,7 @@ export class RoomPinsStore {
     this.loadMoreError = false;
     this.hydrated = false;
     this.hydrationPromise = null;
+    this.pendingMessages.clear();
     this.pinStatuses.clear();
     this.latestKnownMarker = '';
     if (options.accessRevoked) {
@@ -198,13 +215,13 @@ export class RoomPinsStore {
     this.invalidateAndReload();
   }
 
-  private async loadPage(offset: number, replace: boolean, epoch: number): Promise<void> {
+  private async loadPage(offset: number, replace: boolean, epoch: number, paginationEpoch?: number, minimumCursor?: string): Promise<void> {
     if (replace) this.isInitialLoading = true;
     if (replace) this.error = false;
     else this.loadMoreError = false;
     try {
-      const page = await this.api.list(this.roomId, ROOM_PINS_PAGE_SIZE, offset);
-      if (this.requestEpoch !== epoch) return;
+      const page = await this.api.list(this.roomId, ROOM_PINS_PAGE_SIZE, offset, minimumCursor);
+      if (this.requestEpoch !== epoch || (paginationEpoch !== undefined && this.paginationEpoch !== paginationEpoch)) return;
       this.items = replace ? page.items : [...this.items, ...page.items];
       for (const item of page.items) {
         if (item.message?.id) this.pinStatuses.set(item.message.id, true);
@@ -212,9 +229,12 @@ export class RoomPinsStore {
       this.totalCount = page.totalCount;
       this.hasMore = page.hasMore;
       this.hydrated = true;
+      const pending = this.pendingMessages;
+      this.pendingMessages = new SvelteMap();
+      for (const [id, message] of pending) this.applyMessageUpdate(id, message);
       if (replace) this.noteLatest(page.latestPinMarker);
     } catch {
-      if (this.requestEpoch === epoch) {
+      if (this.requestEpoch === epoch && (paginationEpoch === undefined || this.paginationEpoch === paginationEpoch)) {
         if (replace) this.error = true;
         else this.loadMoreError = true;
       }

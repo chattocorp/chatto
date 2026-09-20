@@ -239,6 +239,23 @@ describe('RoomFilesStore', () => {
     expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2']);
   });
 
+  it('fences an old file page when a not-yet-loaded message is removed', async () => {
+    const pending = deferred<{ items: RoomFileItem[]; totalCount: number; hasMore: boolean }>();
+    attachmentMocks.listRoomAttachments
+      .mockResolvedValueOnce({ items: [roomFileItem()], totalCount: 2, hasMore: true })
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce({ items: [], totalCount: 1, hasMore: false });
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    await store.hydrate();
+    const loading = store.loadMore();
+    store.applyMessageUpdate('off-page', null, false, 'delete-cursor');
+    await vi.waitFor(() => expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(3));
+    pending.resolve({ items: [roomFileItem('deleted', 'off-page')], totalCount: 2, hasMore: false });
+    await loading;
+    expect(store.items.map((item) => item.messageEventId)).toEqual(['event-1']);
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenLastCalledWith(expect.objectContaining({ minimumCursor: 'delete-cursor' }));
+  });
+
   it('does not perturb pagination or URL overrides for an identical attachment snapshot', async () => {
     const pendingPage = deferred<{
       items: RoomFileItem[];

@@ -10,9 +10,11 @@ import {
 } from '$lib/attachments/attachmentUrls';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
+import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import {
   createAttachmentAPI,
   roomFileItemsForTimelineEvent,
+  roomFileItemsForMessage,
   type AttachmentAPI,
   type RoomFileItem
 } from '$lib/api-client/attachments';
@@ -111,8 +113,9 @@ export class RoomFilesStore {
   private paginationEpoch = 0;
   private hydrationPromise: Promise<void> | null = null;
   private pendingTimelineEvents: Array<{
-    event: RoomTimelineEvent;
-    sourceEventId: string;
+    id: string;
+    replacement: RoomFileItem[];
+    isNewMessage: boolean;
   }> = [];
   private attachmentVersions = new SvelteMap<string, number>();
   private urlRefreshPromise: Promise<void> | null = null;
@@ -151,20 +154,42 @@ export class RoomFilesStore {
   applyTimelineEvent(event: RoomTimelineEvent, sourceEventId: string): void {
     const replacement = roomFileItemsForTimelineEvent(event);
     const isNewMessage = event.id === sourceEventId;
+    this.reconcileMessage(event.id, replacement, isNewMessage);
+  }
+
+  /** Apply a shared message read without clearing loaded pages or signed URLs. */
+  applyMessageUpdate(id: string, message: Message | null, insert: boolean, minimumCursor?: string): void {
+    this.reconcileMessage(id, message ? roomFileItemsForMessage(message) : [], insert, minimumCursor);
+  }
+
+  /** Loaded echo rows share original attachment IDs, even outside the timeline. */
+  relatedMessageIds(id: string): string[] {
+    const assets = new SvelteSet(this.items.filter((item) => item.messageEventId === id).map((item) => item.attachment.id));
+    return this.items.filter((item) => assets.has(item.attachment.id)).map((item) => item.messageEventId);
+  }
+
+  private reconcileMessage(id: string, replacement: RoomFileItem[], isNewMessage: boolean, minimumCursor?: string): void {
     if (isNewMessage && replacement.length === 0) return;
 
     if (!this.hydrated) {
       if (this.hydrationPromise) {
         this.pendingTimelineEvents = [
-          ...this.pendingTimelineEvents.filter((pending) => pending.event.id !== event.id),
-          { event, sourceEventId }
+          ...this.pendingTimelineEvents.filter((pending) => pending.id !== id),
+          { id, replacement, isNewMessage }
         ];
       }
       return;
     }
 
-    const current = this.items.filter((item) => item.messageEventId === event.id);
-    if (sameAttachmentState(current, replacement)) return;
+    const current = this.items.filter((item) => item.messageEventId === id);
+    if (sameAttachmentState(current, replacement)) {
+      // A changed off-page message can invalidate a page already in flight.
+      if (!isNewMessage && current.length === 0 && this.isLoadingMore) {
+        this.fencePagination();
+        void this.loadMore(minimumCursor);
+      }
+      return;
+    }
     if (!isNewMessage && current.length === 0 && replacement.length === 0 && !this.hasMore) return;
 
     const retryPagination = this.fencePagination();
@@ -177,21 +202,21 @@ export class RoomFilesStore {
       this.refreshedAttachmentUrls.delete(attachmentId);
     }
     if (!isNewMessage && current.length === 0 && this.hasMore) {
-      if (retryPagination) void this.loadMore();
+      if (retryPagination) void this.loadMore(minimumCursor);
       return;
     }
     if (current.length === 0 && replacement.length === 0) {
-      if (retryPagination) void this.loadMore();
+      if (retryPagination) void this.loadMore(minimumCursor);
       return;
     }
 
     this.items = [
-      ...this.items.filter((item) => item.messageEventId !== event.id),
+      ...this.items.filter((item) => item.messageEventId !== id),
       ...replacement
     ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     this.totalCount = Math.max(0, this.totalCount - current.length + replacement.length);
     this.hasMore = this.totalCount > this.items.length;
-    if (retryPagination) void this.loadMore();
+    if (retryPagination) void this.loadMore(minimumCursor);
   }
 
   /** Clear cached room content, optionally restoring a still-visible panel. */
@@ -213,14 +238,14 @@ export class RoomFilesStore {
     if (this.retainCount > 0 && !this.hydrated) void this.hydrate();
   }
 
-  async loadMore(): Promise<void> {
+  async loadMore(minimumCursor?: string): Promise<void> {
     if (this.hydrationPromise || this.isLoadingMore || !this.hasMore || !this.hydrated) return;
     const roomId = this.roomId;
     const requestEpoch = this.requestEpoch;
     const paginationEpoch = this.paginationEpoch;
     this.isLoadingMore = true;
     try {
-      await this.loadPage(this.items.length, false, ROOM_FILES_PAGE_SIZE, paginationEpoch);
+      await this.loadPage(this.items.length, false, ROOM_FILES_PAGE_SIZE, paginationEpoch, minimumCursor);
     } finally {
       if (
         this.roomId === roomId &&
@@ -348,7 +373,7 @@ export class RoomFilesStore {
       const pending = this.pendingTimelineEvents;
       this.pendingTimelineEvents = [];
       for (const update of pending) {
-        this.applyTimelineEvent(update.event, update.sourceEventId);
+        this.reconcileMessage(update.id, update.replacement, update.isNewMessage);
       }
     })();
     this.hydrationPromise = hydration;
@@ -379,7 +404,8 @@ export class RoomFilesStore {
     offset: number,
     replace: boolean,
     limit: number = ROOM_FILES_PAGE_SIZE,
-    paginationEpoch?: number
+    paginationEpoch?: number,
+    minimumCursor?: string
   ): Promise<boolean> {
     const roomId = this.roomId;
     const requestEpoch = this.requestEpoch;
@@ -389,6 +415,7 @@ export class RoomFilesStore {
         roomId,
         limit,
         offset,
+        ...(minimumCursor ? { minimumCursor } : {}),
         thumbnail: {
           width: 120,
           height: 120,

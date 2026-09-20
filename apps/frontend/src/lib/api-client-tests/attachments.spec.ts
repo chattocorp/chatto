@@ -159,8 +159,9 @@ describe('createAttachmentAPI', () => {
         page: { limit: 50, offset: 0 },
         thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
       },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: expect.any(Headers) }
     );
+    expect(mocks.listRoomAttachments.mock.calls[0][1].headers.get('Authorization')).toBe('Bearer token');
     expect(page).toMatchObject({
       totalCount: 2,
       hasMore: true,
