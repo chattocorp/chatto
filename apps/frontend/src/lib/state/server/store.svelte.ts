@@ -213,6 +213,8 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
+  /** Catch-up reads can replace retained state while live hints arrive. */
+  #catchUpResourceReads = 0;
   #permissionCheckGeneration = 0;
   /** Block edits while authoritative permission reads are pending; retain the visible view. */
   checkingPermissions = $state(false);
@@ -416,6 +418,7 @@ export class ServerStateStore {
   async completeRealtimeCatchUp(cursor: string): Promise<void> {
     if (this.#privacyCleanupFailed) throw new Error('Private data cleanup did not complete');
     const generation = this.#realtimeProjectionGeneration;
+    this.#catchUpResourceReads++;
     const batches = await Promise.all(
       (
         [
@@ -426,7 +429,7 @@ export class ServerStateStore {
           'notifications'
         ] as RealtimeResourceFamily[]
       ).map((family) => this.#realtimeResources.read(family, cursor))
-    );
+    ).finally(() => { this.#catchUpResourceReads--; });
     this.requireCurrentRealtimeProjection(generation);
     for (const resource of batches.flat()) {
       this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
@@ -557,8 +560,23 @@ export class ServerStateStore {
     const roomStore = this.#roomMessages[roomId];
     if (roomStore) this.scheduleMessageReconciliation(roomId, threadRootEventId);
     refreshRegisteredFollowedThreadQueries(this.serverId);
-    this.refreshRealtimeResource('notifications');
-    this.refreshRealtimeResource('rooms');
+    if (!this.notifications.hasLoaded || this.notifications.loading || this.notifications.error ||
+      (this.notifications.roomUnreadCounts[roomId] ?? 0) > 0 || this.resourceReadMayChange('notifications')) {
+      this.refreshRealtimeResource('notifications');
+    }
+    if (this.roomAttentionMayChange(roomId)) this.refreshRealtimeResource('rooms');
+  }
+
+  /** Do not skip a read based on state that an outstanding response can replace. */
+  private resourceReadMayChange(family: RealtimeResourceFamily): boolean {
+    return this.#resourceRefreshes.has(family) || this.#catchUpResourceReads > 0 ||
+      this.#realtimeSnapshotPending || this.checkingPermissions || this.#reconciliationError !== null;
+  }
+
+  /** Reading an already-read room cannot clear more Badge attention. Unknown state must be read. */
+  private roomAttentionMayChange(roomId: string): boolean {
+    return this.projection.rooms.get(roomId)?.viewerState?.hasUnread !== false ||
+      this.resourceReadMayChange('rooms');
   }
 
   /** Stable lazy file-list owner for one room on this server. */
@@ -1253,7 +1271,10 @@ export class ServerStateStore {
         if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
         else this.forEachMessageSearch((store) => store.clearResults());
         if (payload.case === 'messagePosted') {
-          this.refreshRealtimeResource('rooms');
+          // Posts do not establish viewer attention. Its user-scoped hints arrive
+          // after the server applies Badge decisions and the poster's read state.
+          // Known DM activity is already applied by the room projection.
+          if (!this.projection.rooms.has(roomId)) this.refreshRealtimeResource('rooms');
           if (payload.value.threadRootEventId)
             refreshRegisteredFollowedThreadQueries(this.serverId);
         }
@@ -1316,8 +1337,14 @@ export class ServerStateStore {
         this.refreshRealtimeResource('notifications');
         return;
       case 'notificationUnreadStateChanged':
-        this.refreshRealtimeResource('notifications');
-        this.refreshRealtimeResource('rooms');
+        // A self-authored hint can clear existing attention but cannot create it.
+        // Post-commit hints also carry the invalidation for Slow Mode deadlines.
+        // Occurrence changes have their own hint and must not be inferred here.
+        if (!event.actorId || event.actorId !== this.currentUserId() ||
+          this.roomAttentionMayChange(payload.value.roomId) ||
+          (this.projection.rooms.get(payload.value.roomId)?.room?.slowModeSeconds ?? 0) > 0) {
+          this.refreshRealtimeResource('rooms');
+        }
         return;
       case 'roomCreated':
       case 'roomUpdated':
@@ -1370,7 +1397,7 @@ export class ServerStateStore {
         if (this.currentUser.user?.id) this.refreshRealtimeUsers([this.currentUser.user.id]);
         return;
       case 'roomReadStateChanged':
-        this.refreshRealtimeResource('rooms');
+        if (this.roomAttentionMayChange(payload.value.roomId)) this.refreshRealtimeResource('rooms');
         return;
       case 'threadCreated':
         this.scheduleMessageReconciliation(roomId, payload.value.threadRootEventId);

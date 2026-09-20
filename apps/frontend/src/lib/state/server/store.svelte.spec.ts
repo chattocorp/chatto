@@ -15,6 +15,7 @@ import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineE
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { GetMotdResponse } from '@chatto/api-types/api/v1/server_state_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { Room, PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import {
@@ -1318,10 +1319,100 @@ describe('ServerStateStore unified realtime resources', () => {
     }));
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
-      ['rooms', 'a-read'], ['notifications', 'n-notification']
+      ['rooms', 'a-read']
     ]);
     expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['POST'], 'z-post');
     expect(apiMocks.readRealtimeUsers.mock.calls.every(([ids]) => [...ids].length === 0)).toBe(true);
+  });
+
+  it.each(['', 'ROOT'])('does not reload attention for a warm self-post in scope "%s"', async (threadRootEventId) => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.rooms.set('R1', new RoomWithViewerState({
+      room: { id: 'R1' }, viewerState: { isMember: true, hasUnread: false }
+    }));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ id: 'POST', actorId: 'U1', event: {
+        case: 'messagePosted', value: { roomId: 'R1', threadRootEventId }
+      } })
+    }));
+    for (const hint of ['notificationUnreadStateChanged', 'roomReadStateChanged'] as const) {
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ actorId: 'U1', event: { case: hint, value: { roomId: 'R1' } } })
+      }));
+    }
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
+  });
+
+  it.each(['unread', 'unknown', 'slow mode', 'other actor', 'unknown actor'])(
+    'retains room reads for an unread hint with %s state', async (state) => {
+      const store = makeStore(new FakeServerConnection([]));
+      if (state !== 'unknown') store.projection.rooms.set('R1', new RoomWithViewerState({
+        room: { id: 'R1', slowModeSeconds: state === 'slow mode' ? 30 : 0 },
+        viewerState: { isMember: true, hasUnread: state === 'unread' }
+      }));
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          actorId: state === 'other actor' ? 'U2' : state === 'unknown actor' ? '' : 'U1',
+          event: { case: 'notificationUnreadStateChanged', value: { roomId: 'R1' } }
+        })
+      }));
+      await store.waitForRealtimeReconciliation();
+      expect(apiMocks.readRealtimeResource.mock.calls).toEqual([['rooms', undefined]]);
+    }
+  );
+
+  it('coalesces occurrence changes without reading rooms or filtering by actor', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    for (const actorId of ['U1', 'U2', '']) {
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ actorId, event: {
+          case: 'notificationOccurrencesChanged', value: {}
+        } })
+      }));
+    }
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource.mock.calls).toEqual([['notifications', undefined]]);
+  });
+
+  it('follows an in-flight room read when a self-read hint arrives', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const row = (hasUnread: boolean) => new RoomWithViewerState({
+      room: { id: 'R1' }, viewerState: { isMember: true, hasUnread }
+    });
+    store.projection.rooms.set('R1', row(false));
+    const stale = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeResource.mockReturnValueOnce(stale.promise)
+      .mockResolvedValueOnce([roomResource([row(false)])]);
+    const hint = (actorId: string) => new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ actorId, event: {
+        case: 'notificationUnreadStateChanged', value: { roomId: 'R1' }
+      } })
+    });
+    store.realtimeProjectionHandler(hint('U2'));
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledOnce());
+    store.realtimeProjectionHandler(hint('U1'));
+    stale.resolve([roomResource([row(true)])]);
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource.mock.calls).toEqual([['rooms', undefined], ['rooms', undefined]]);
+    expect(store.projection.rooms.get('R1')?.viewerState?.hasUnread).toBe(false);
+  });
+
+  it.each([false, true])('thread-read recovery only reloads known attention when unread=%s', async (unread) => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.rooms.set('R1', new RoomWithViewerState({
+      room: { id: 'R1' }, viewerState: { isMember: true, hasUnread: unread }
+    }));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ resource: new RealtimeResourceUpdate({
+      resource: { case: 'notifications', value: new ListNotificationOccurrencesResponse({
+        unreadCount: unread ? 1 : 0,
+        roomUnreadCounts: unread ? [{ roomId: 'R1', unreadCount: 1 }] : []
+      }) }
+    }) }));
+    store.reconcileThreadRead('R1', 'ROOT');
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource.mock.calls).toEqual(unread
+      ? [['notifications', undefined], ['rooms', undefined]] : []);
   });
 
   it('invalidates a cached author as soon as a profile change arrives', async () => {
@@ -2396,7 +2487,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
 
     await store.waitForRealtimeReconciliation();
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications', undefined);
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalledWith('notifications', undefined);
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
   });
 });
