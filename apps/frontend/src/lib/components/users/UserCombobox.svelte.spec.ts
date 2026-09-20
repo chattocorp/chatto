@@ -118,7 +118,7 @@ describe('UserCombobox', () => {
     expect(second.container.textContent).toContain('Alice Admin');
   });
 
-  it('shows bot results without a badge on tiny avatars', async () => {
+  it('marks bot results beside their names', async () => {
     mocks.listUsers.mockResolvedValue({
       members: [
         {
@@ -146,7 +146,7 @@ describe('UserCombobox', () => {
     await settle();
 
     expect(view.container.querySelector('[aria-label="helper_bot"]')).not.toBeNull();
-    expect(view.container.querySelector('[data-testid="bot-badge"]')).toBeNull();
+    expect(view.container.querySelector('[data-testid="bot-badge"]')?.textContent).toBe('BOT');
   });
 
   it('omits bot accounts when restricted to human users', async () => {

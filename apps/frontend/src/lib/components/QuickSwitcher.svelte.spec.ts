@@ -511,7 +511,7 @@ describe('QuickSwitcher', () => {
     });
   });
 
-  it('shows bot user results without a badge on tiny avatars', async () => {
+  it('marks bot user results beside their names', async () => {
     mocks.listUsers.mockResolvedValue({
       members: [user('user-helper', 'helper_bot', 'Helper', true)],
       totalCount: 1,
@@ -523,7 +523,7 @@ describe('QuickSwitcher', () => {
     await waitForDebouncedUserSearch('helper');
     await vi.waitFor(() => {
       expect(container.querySelector('[aria-label="helper_bot"]')).not.toBeNull();
-      expect(container.querySelector('[data-testid="bot-badge"]')).toBeNull();
+      expect(container.querySelector('[data-testid="bot-badge"]')?.textContent).toBe('BOT');
     });
   });
 

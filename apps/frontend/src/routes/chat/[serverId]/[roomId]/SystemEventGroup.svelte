@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import type { TimelineEventView } from '$lib/render/timelineEvents';
   import type { UserAvatarUserView } from '$lib/render/users';
   import type { SystemGroupKind } from './virtualItems';
@@ -74,7 +75,7 @@
 </script>
 
 {#snippet actorName(actor: Actor)}
-  <bdi>{actor.name}</bdi>
+  <AccountName name={actor.name} identity={actor.user} badgeSize="md" />
 {/snippet}
 
 {#snippet actorNames(items: Actor[])}

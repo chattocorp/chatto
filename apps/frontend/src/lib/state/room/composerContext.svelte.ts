@@ -1,4 +1,5 @@
 import { createContext } from 'svelte';
+import type { AccountNameIdentity } from '$lib/render/accountName';
 
 // ---------------------------------------------------------------------------
 // EditState — tracks which message is being edited
@@ -35,17 +36,26 @@ export class EditState {
 export class ReplyState {
   messageEventId = $state<string | null>(null);
   actorDisplayName = $state('');
+  /** Identity of the reply target, used only for presentation. */
+  actorIdentity = $state<AccountNameIdentity | undefined>();
   excerpt = $state('');
 
-  startReply(messageEventId: string, actorDisplayName: string, excerpt: string) {
+  startReply(
+    messageEventId: string,
+    actorDisplayName: string,
+    excerpt: string,
+    actorIdentity?: AccountNameIdentity
+  ) {
     this.messageEventId = messageEventId;
     this.actorDisplayName = actorDisplayName;
+    this.actorIdentity = actorIdentity;
     this.excerpt = excerpt;
   }
 
   cancelReply() {
     this.messageEventId = null;
     this.actorDisplayName = '';
+    this.actorIdentity = undefined;
     this.excerpt = '';
   }
 }

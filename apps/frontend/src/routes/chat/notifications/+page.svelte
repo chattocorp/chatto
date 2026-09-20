@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -301,10 +302,15 @@
     const occurrence = group.openTarget;
     if (!occurrence) return m('chat.notifications.activity');
     const signalKind = occurrence.signalKind;
-    const actor = occurrence.actor?.displayName;
+    const actor = occurrence.actor
+      ? formatAccountName(occurrence.actor.displayName, occurrence.actor)
+      : undefined;
     if (signalKind === NotificationSignalKind.REACTION) {
       const reactionOccurrence = group.occurrences.find((item) => item.actor) ?? occurrence;
-      const reactionActor = reactionOccurrence.actor?.displayName ?? m('common.deleted_user');
+      const reactionActor = formatAccountName(
+        reactionOccurrence.actor?.displayName ?? m('common.deleted_user'),
+        reactionOccurrence.actor
+      );
       const emojis = [
         ...new Set(
           group.occurrences

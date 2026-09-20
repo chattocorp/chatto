@@ -1,9 +1,12 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import type { AccountNameIdentity } from '$lib/render/accountName';
   import { m } from '$lib/i18n/messages';
 
   let {
     inReplyTo,
     replyDisplayName,
+    replyIdentity,
     replyExcerpt,
     isEditing,
     oncancelreply,
@@ -11,6 +14,7 @@
   }: {
     inReplyTo?: string;
     replyDisplayName?: string;
+    replyIdentity?: AccountNameIdentity;
     replyExcerpt?: string;
     isEditing: boolean;
     oncancelreply: () => void;
@@ -24,7 +28,8 @@
     class="flex items-center justify-between rounded-md bg-surface-emphasized px-3 py-2 text-sm"
   >
     <span class="min-w-0 truncate text-text">
-      {m('composer.replying_to')} <strong>{replyDisplayName}</strong>
+      {m('composer.replying_to')}
+      <AccountName name={replyDisplayName} identity={replyIdentity} class="font-semibold" />
       {#if replyExcerpt}
         <span class="text-muted"> &mdash; {replyExcerpt}</span>
       {/if}

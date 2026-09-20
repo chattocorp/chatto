@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import {
     TimelineEventKind,
     timelineEventKind,
@@ -118,7 +119,7 @@
 
     <span class="text-sm text-muted">
       {#if subject.user}
-        {subject.name}
+        <AccountName name={subject.name} identity={subject.user} badgeSize="md" />
       {:else}
         <DeletedUserLabel />
       {/if}

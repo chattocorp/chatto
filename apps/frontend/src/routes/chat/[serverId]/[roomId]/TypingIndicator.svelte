@@ -23,6 +23,7 @@ message list layout, and it announces changes politely to screen readers via a
 </script>
 
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { prefersReducedMotion } from 'svelte/motion';
@@ -59,7 +60,10 @@ message list layout, and it announces changes politely to screen readers via a
 
     const names = activeUserIds.slice(0, MAX_LABEL_NAMES).map((id) => {
       const member = members.find((member) => member.id === id);
-      const name = member?.displayName || member?.login || m('common.unknown_user');
+      const name = formatAccountName(
+        member?.displayName || member?.login || m('common.unknown_user'),
+        member
+      );
       return String.fromCodePoint(0x2068) + name + String.fromCodePoint(0x2069);
     });
 

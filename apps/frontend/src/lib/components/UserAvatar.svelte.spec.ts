@@ -89,14 +89,14 @@ describe('UserAvatar', () => {
   });
 
   it.each(['sm', 'md', 'message', 'lg', 'xl'] as const)(
-    'marks %s bot avatars with a robot badge',
+    'keeps %s bot avatars free of robot badges',
     (size) => {
       const { container } = render(UserAvatarTestHarness, {
         size,
         isBot: true
       });
 
-      expect(q(container, '[data-testid="bot-badge"][aria-label="bot"]')).toBeTruthy();
+      expect(q(container, '[data-testid="bot-badge"]')).toBeFalsy();
     }
   );
 
@@ -117,6 +117,6 @@ describe('UserAvatar', () => {
       }
     });
 
-    expect(q(container, '[data-testid="bot-badge"]')).toBeTruthy();
+    expect(q(container, '[data-testid="bot-badge"]')).toBeFalsy();
   });
 });

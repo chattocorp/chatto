@@ -1,8 +1,6 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { untrack } from 'svelte';
-  import botIcon from '$lib/assets/bot.svg';
-  import { m } from '$lib/i18n/messages';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
@@ -121,8 +119,7 @@
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
-  const showBotBadge = $derived(!!user && !user.deleted && user.isBot === true && size !== 'xs');
-  const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot || showBotBadge);
+  const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot);
   const wrapperClass = $derived(
     [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]
       .filter(Boolean)
@@ -163,16 +160,6 @@
       <div class={placeholderClass} role="img" aria-label={user.login}>
         {initials}
       </div>
-    {/if}
-    {#if showBotBadge}
-      <span
-        class="pointer-events-none absolute top-0 left-0 grid h-5 w-5 -translate-x-1/4 -translate-y-1/4 place-items-center rounded-full"
-        data-testid="bot-badge"
-        role="img"
-        aria-label={m('settings.bots.singular')}
-      >
-        <img src={botIcon} alt="" class="h-full w-full outline-none" aria-hidden="true" />
-      </span>
     {/if}
     {#if showCustomStatusBadge}
       <UserCustomStatusBadge

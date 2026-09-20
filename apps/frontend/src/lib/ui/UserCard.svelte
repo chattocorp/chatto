@@ -7,6 +7,8 @@ non-interactive when identityAttributes supplies a whole-identity button.
 Actions are siblings of that button, so controls never nest inside a button.
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { formatAccountName, type AccountNameIdentity } from '$lib/render/accountName';
   import type { Snippet } from 'svelte';
   import type { ClassValue, HTMLButtonAttributes, HTMLAttributes } from 'svelte/elements';
   import CompactActionButton from './CompactActionButton.svelte';
@@ -14,6 +16,7 @@ Actions are siblings of that button, so controls never nest inside a button.
 
   let {
     name,
+    identity,
     username,
     avatar,
     secondary,
@@ -32,6 +35,8 @@ Actions are siblings of that button, so controls never nest inside a button.
     secondaryTestId
   }: {
     name: string | Snippet;
+    /** Account metadata for a string name; snippets render their own identity. */
+    identity?: AccountNameIdentity | null;
     /** Canonical login, rendered consistently below the display name. */
     username?: string;
     avatar: Snippet;
@@ -65,15 +70,12 @@ Actions are siblings of that button, so controls never nest inside a button.
   } = $props();
 </script>
 
-{#snippet identity()}
+{#snippet identityContent()}
   <span class="flex shrink-0 items-center">{@render avatar()}</span>
   <span class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight" data-testid={textTestId}>
     <span class="flex min-w-0 items-center gap-1.5">
-      <span
-        class={['min-w-0 truncate text-sm font-semibold', nameClass]}
-        data-testid="user-card-name"
-      >
-        {#if typeof name === 'string'}<bdi>{name}</bdi>{:else}{@render name()}{/if}
+      <span class={['min-w-0 text-sm font-semibold', nameClass]} data-testid="user-card-name">
+        {#if typeof name === 'string'}<AccountName {name} {identity} />{:else}{@render name()}{/if}
       </span>
       {@render badges?.()}
     </span>
@@ -88,7 +90,7 @@ Actions are siblings of that button, so controls never nest inside a button.
 
 <div
   role="group"
-  aria-label={typeof name === 'string' ? name : undefined}
+  aria-label={typeof name === 'string' ? formatAccountName(name, identity) : undefined}
   class={[
     'group/user-card min-h-12 min-w-0 shrink-0',
     variant === 'card' && 'overflow-hidden shell-surface',
@@ -114,10 +116,10 @@ Actions are siblings of that button, so controls never nest inside a button.
         class={[
           'flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-start text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action',
           identityAttributes.class
-        ]}>{@render identity()}</button
+        ]}>{@render identityContent()}</button
       >
     {:else}
-      <div class="flex min-w-0 flex-1 items-center gap-2">{@render identity()}</div>
+      <div class="flex min-w-0 flex-1 items-center gap-2">{@render identityContent()}</div>
     {/if}
     {@render actions?.()}
     {#if menu}

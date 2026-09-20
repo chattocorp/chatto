@@ -34,6 +34,7 @@ export type DMData = {
     id: string;
     login: string;
     displayName: string;
+    isBot?: boolean;
     deleted?: boolean;
     avatarUrl?: string | null;
     presenceStatus: DirectoryMember['presenceStatus'];

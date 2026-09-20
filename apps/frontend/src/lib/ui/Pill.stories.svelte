@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-  const tones = ['success', 'danger', 'action', 'neutral', 'muted', 'subtle', 'server'] as const;
+  const tones = ['default', 'success', 'danger', 'action', 'neutral', 'muted', 'subtle', 'server'] as const;
 </script>
 
 <Story name="All tones" asChild>
@@ -45,4 +45,8 @@
     <Pill tone="success">Allow from space</Pill>
     <Pill tone="danger" dimmed>Inherited Allow (overridden)</Pill>
   </div>
+</Story>
+
+<Story name="Account label padding" asChild>
+  <Pill tone="default" paddingClass="px-1.5 py-[2.5px]" class="leading-tight">BOT</Pill>
 </Story>

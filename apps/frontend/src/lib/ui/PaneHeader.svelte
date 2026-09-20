@@ -39,7 +39,9 @@ shared viewport detector reports an open software keyboard.
 
   let {
     title,
+    titleContent,
     subtitle,
+    subtitleContent,
     loading = false,
     skeletonButtons = 3,
     afterTitle,
@@ -55,7 +57,11 @@ shared viewport detector reports an open software keyboard.
     showMobileNav: _showMobileNav = false
   }: {
     title: string;
+    /** Rich visual title; keep title as its plain-text equivalent. */
+    titleContent?: Snippet;
     subtitle?: string;
+    /** Rich visual subtitle; keep subtitle as its plain-text equivalent. */
+    subtitleContent?: Snippet;
     loading?: boolean;
     skeletonButtons?: number;
     afterTitle?: Snippet;
@@ -155,7 +161,11 @@ shared viewport detector reports an open software keyboard.
           <PaneHeaderSkeleton buttons={skeletonButtons} />
         {:else}
           <div class="flex min-w-0 items-baseline gap-3">
-            <h1 class="truncate font-black"><bdi>{title}</bdi></h1>
+            <h1 class="min-w-0 font-black">
+              {#if titleContent}{@render titleContent()}{:else}<bdi class="block truncate"
+                  >{title}</bdi
+                >{/if}
+            </h1>
             {#if afterTitle}
               <div class="shrink-0">
                 {@render afterTitle()}
@@ -164,7 +174,11 @@ shared viewport detector reports an open software keyboard.
           </div>
         {/if}
         {#if subtitle}
-          <span class="hidden truncate text-sm text-muted md:inline">{subtitle}</span>
+          <span class="hidden min-w-0 text-sm text-muted md:inline"
+            >{#if subtitleContent}{@render subtitleContent()}{:else}<span class="block truncate"
+                >{subtitle}</span
+              >{/if}</span
+          >
         {/if}
       </div>
     </div>

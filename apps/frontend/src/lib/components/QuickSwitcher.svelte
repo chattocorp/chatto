@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
@@ -188,9 +190,14 @@
                   </span>
                 {:else}
                   <span class="min-w-0 flex-1 truncate">
-                    {#if item.kind === 'room'}<span class="text-muted">#</span>{/if}<bdi
-                      >{item.label}</bdi
-                    >{#if item.detail}<span class="text-muted"
+                    {#if item.kind === 'room'}<span class="text-muted">#</span
+                      >{/if}{#if item.kind === 'dm'}<DirectMessageName
+                        participants={item.participants ?? []}
+                        currentUserId={item.currentUserId}
+                      />{:else}<AccountName
+                        name={item.label}
+                        identity={item.kind === 'user' ? item.participants?.[0] : undefined}
+                      />{/if}{#if item.detail}<span class="text-muted"
                         >&nbsp;· <bdi>{item.detail}</bdi></span
                       >{/if}
                   </span>
