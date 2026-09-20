@@ -588,3 +588,15 @@ func TestTokenRejectsAmbiguousAuthentication(t *testing.T) {
 		})
 	}
 }
+func TestStandardAuthorizeScopes(t *testing.T) {
+	for _, scope := range []string{"openid", "openid profile", "openid email", "openid profile email", "email openid profile"} {
+		if !validAuthorizeScopes(scope) {
+			t.Errorf("rejected scopes %q", scope)
+		}
+	}
+	for _, scope := range []string{"", "profile", "email", "profile email", "openid profile profile", "openid email email", "openid unknown"} {
+		if validAuthorizeScopes(scope) {
+			t.Errorf("accepted scopes %q", scope)
+		}
+	}
+}

@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -10,8 +11,13 @@ import (
 
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
+	"hmans.de/authling/internal/evtstream"
+	"hmans.de/authling/internal/keyvault"
+	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/authling/internal/web"
+	"hmans.de/chatto/pkg/datacrypto"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestOIDCScopeClaimsAndCurrentEmail(t *testing.T) {
@@ -142,5 +148,73 @@ func TestOIDCScopeClaimsAndCurrentEmail(t *testing.T) {
 		if userinfo(tokens.AccessToken).Code == http.StatusOK {
 			t.Fatalf("scope %s accepted erased account", scope)
 		}
+	}
+}
+
+func TestOIDCLegacyGrantRequiresFreshConsentAfterRestart(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	defer func() { stopTestRuntime(t, runtime, cancel, runErrors) }()
+	account, err := runtime.Accounts.CreateLocal(t.Context(), "legacy@example.com", "a deliberately uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := authorizations.Client{ID: "legacy-client", Name: "Legacy App", Host: "legacy.example"}
+	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, _ := lastAccountEvent(t, runtime, account.ID)
+	legacy.Id = "evt_legacy_disclosure"
+	payload := legacy.GetOidcGrantAuthorized()
+	payload.PriorAuthorizationEventId = grant.AuthorizationEventID
+	payload.ConsentVersion = 1
+	js, stream, err := storage.Open(t.Context(), runtime.connection.NATS, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stores, err := storage.OpenStores(t.Context(), js, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := keyvault.New(stores.Keys).ResolveDataKey(t.Context(), payload.CredentialKeyRef, payload.UserKeyRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Historical version-1 envelope contract, deliberately independent of
+	// the current writer so this fixture cannot silently advance versions.
+	aad, err := json.Marshal([]any{"authling:oidc-grant-metadata:v1", legacy.Id, account.ID, payload.GrantId, payload.ClientIdDigest, payload.Scopes, payload.PriorAuthorizationEventId, uint32(1), payload.UserKeyRef, payload.CredentialKeyRef})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sealed, err := datacrypto.Seal(key, []byte(`{"Name":"Legacy App","Host":"legacy.example"}`), aad)
+	clear(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload.MetadataNonce, payload.MetadataCiphertext = sealed.Nonce, sealed.Ciphertext
+	publisher := evtstream.NewPublisher(events.NewEncodedEventLog(js, stream, logging.Events{Logger: slog.Default()}))
+	tail, err := publisher.AccountTail(t.Context(), account.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := publisher.AppendOIDCGrantAuthorized(t.Context(), legacy, tail); err != nil {
+		t.Fatal(err)
+	}
+	stopTestRuntime(t, runtime, cancel, runErrors)
+	runtime, cancel, runErrors = startTestRuntime(t, cfg)
+	grants, err := runtime.Authorizations.List(t.Context(), account.ID)
+	if err != nil || len(grants) != 1 || grants[0].ClientName != "Legacy App" {
+		t.Fatalf("historical grant read: %v", err)
+	}
+	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid"}); err != nil || covered {
+		t.Fatalf("legacy disclosure reused: covered=%v err=%v", covered, err)
+	}
+	renewed, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid", "profile"})
+	if err != nil || renewed.ID != grant.ID {
+		t.Fatalf("renewal: %v", err)
+	}
+	if covered, err := runtime.Authorizations.Covers(t.Context(), account.ID, client.ID, []string{"openid"}); err != nil || !covered {
+		t.Fatalf("new disclosure not reused: %v", err)
 	}
 }

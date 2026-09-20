@@ -1,11 +1,14 @@
 package http_server
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -73,7 +76,14 @@ func TestOIDCSingleExchangeWithPKCE(t *testing.T) {
 					}
 					return !fail
 				}
-				_, err := resolveTestOIDC(t, issuer, method, secret, false)
+				override := method
+				if !fail {
+					// Exercise discovery through the HTTP boundary on success,
+					// and explicit overrides on rejected single-use exchanges.
+					issuer.methods = json.RawMessage(`["` + method + `"]`)
+					override = ""
+				}
+				_, err := resolveTestOIDC(t, issuer, override, secret, false)
 				if (err != nil) != fail {
 					t.Fatalf("exchange error = %v", err)
 				}
@@ -82,6 +92,33 @@ func TestOIDCSingleExchangeWithPKCE(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestOIDCExchangeFailureLogsOnlySafeMetadata(t *testing.T) {
+	var output bytes.Buffer
+	previous := log.Default()
+	log.SetDefault(log.New(&output))
+	t.Cleanup(func() { log.SetDefault(previous) })
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.tokenCheck = func(*http.Request) bool { return false }
+	if _, err := resolveTestOIDC(t, issuer, "client_secret_post", "secret", false); err == nil {
+		t.Fatal("expected exchange failure")
+	}
+	logged := output.String()
+	for _, required := range []string{"provider_id=test", "auth_method=client_secret_post", "http_status=401", "oauth_error=invalid_client"} {
+		if !strings.Contains(logged, required) {
+			t.Errorf("missing safe field %s", required)
+		}
+	}
+	for _, private := range []string{"private provider response", "single-use-code", "test-verifier"} {
+		if strings.Contains(logged, private) {
+			t.Fatal("private response or credential was logged")
+		}
+	}
+	if safeOAuthError("private-user@example.com") != "unknown" {
+		t.Fatal("provider-controlled error accepted")
 	}
 }
 
