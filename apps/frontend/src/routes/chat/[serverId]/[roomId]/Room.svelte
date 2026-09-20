@@ -38,7 +38,7 @@
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
@@ -778,8 +778,26 @@
           {/snippet}
         </PaneHeader>
 
+        {#if room.roomData?.canPostMessage === false || room.roomData?.hasLimitedMessageAccess}
+          <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
+            {#if room.roomData?.canPostMessage === false}
+              <div data-testid="room-post-denied">
+                <Hint>{m('room.timeline.post_denied')}</Hint>
+              </div>
+            {/if}
+            {#if room.roomData?.hasLimitedMessageAccess}
+              <div data-testid="limited-message-access">
+                <Hint>
+                  {m(room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access')}
+                </Hint>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
         {#if canReadMessages}
           <RoomEventsPane
+            hasLimitedMessageAccess={room.roomData?.hasLimitedMessageAccess ?? false}
             {roomId}
             messageStore={roomMessageStore}
             unreadMarkerEventId={unread.unreadMarkerEventId}

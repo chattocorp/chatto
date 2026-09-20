@@ -39,6 +39,8 @@ export type DirectoryRoomSummary = {
 };
 
 export type DirectoryRoomDetails = DirectoryRoomSummary & {
+  /** True only when the server explicitly grants interaction-only message access. */
+  hasLimitedMessageAccess: boolean;
   canPostMessage: boolean;
   canPostInThread: boolean;
   canAttach: boolean;
@@ -188,6 +190,9 @@ export function mapDirectoryRoomDetails(
 
   return {
     ...summary,
+    hasLimitedMessageAccess:
+      roomPermissionDecision(entry.viewerState, RoomPermission.ReadMessages) === false &&
+      hasRoomPermission(entry.viewerState, RoomPermission.ReadInteractions),
     canPostMessage: hasRoomPermission(entry.viewerState, RoomPermission.PostMessage),
     canPostInThread: hasRoomPermission(entry.viewerState, RoomPermission.PostInThread),
     canAttach: hasRoomPermission(entry.viewerState, RoomPermission.Attach),

@@ -70,8 +70,12 @@
       "remove_account_suffix": " kaldırmadan önce bu sunucu için."
     },
     "timeline": {
+      "post_denied": "Bu odada mesaj gönderme izniniz yok.",
       "beginning": "Bu, bu konuşmanın başlangıcıdır.",
-      "read_denied": "Bu odadaki mesajları okuma izniniz yok."
+      "read_denied": "Bu odadaki mesajları okuma izniniz yok.",
+      "limited_access": "Yalnızca başlattığınız veya birinin sizden bahsettiği konuşmaları görebilirsiniz.",
+      "limited_access_dm": "Yalnızca başlattığınız, aldığınız veya birinin sizden bahsettiği konuşmaları görebilirsiniz.",
+      "limited_empty": "Henüz okuyabileceğiniz konuşma yok."
     },
     "message": {
       "empty": "Henüz mesaj yok",

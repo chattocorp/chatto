@@ -325,6 +325,20 @@ test.describe('Room-Level Permission Overrides', () => {
         );
         expect(beforeMention.page?.events ?? []).toEqual([]);
 
+        await memberPage.goto(routes.room(roomId));
+        await expect(memberPage.getByTestId('limited-message-access')).toHaveText(
+          'You can only see conversations you started or where someone mentioned you.'
+        );
+        await expect(memberPage.getByText('No conversations you can read yet.')).toBeVisible();
+        await denyRoomPermission(page, roomId, 'everyone', 'message.post');
+        await expect(memberPage.getByTestId('room-post-denied')).toBeVisible();
+        await expect(memberPage.getByTestId('limited-message-access')).toBeVisible();
+        await grantRoomPermission(page, roomId, 'everyone', 'message.post');
+        await expect(memberPage.getByTestId('room-post-denied')).toHaveCount(0);
+        await expect(
+          memberPage.getByText('This is the beginning of this conversation.')
+        ).toHaveCount(0);
+
         const mentionBody = `@${member.login} interaction access ${Date.now()}`;
         const mentionReply = await replyToMessageViaAPI(page, roomId, root!.id, mentionBody);
         expect(mentionReply).not.toBeNull();
@@ -352,6 +366,14 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(memberPage.getByText(earlierBody)).toBeVisible();
         await expect(memberPage.getByText(mentionBody)).toBeVisible();
         await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
+        await expect(memberPage.getByTestId('limited-message-access')).toBeVisible();
+
+        await memberPage.goto(routes.room(roomId));
+        await grantRoomPermission(page, roomId, 'everyone', 'message.read');
+        await expect(memberPage.getByTestId('limited-message-access')).toHaveCount(0, {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(memberPage.getByText(unrelatedBody)).toBeVisible();
       });
     });
   });

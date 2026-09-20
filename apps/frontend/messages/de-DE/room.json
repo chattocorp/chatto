@@ -70,8 +70,12 @@
       "remove_account_suffix": " dieses Servers."
     },
     "timeline": {
+      "post_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu senden.",
       "beginning": "Dies ist der Anfang dieser Unterhaltung.",
-      "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen."
+      "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen.",
+      "limited_access": "Du kannst nur Gespräche sehen, die du begonnen hast oder in denen dich jemand erwähnt hat.",
+      "limited_access_dm": "Du kannst nur Gespräche sehen, die du begonnen oder empfangen hast oder in denen dich jemand erwähnt hat.",
+      "limited_empty": "Noch keine Gespräche, die du lesen kannst."
     },
     "message": {
       "empty": "Noch keine Nachrichten",

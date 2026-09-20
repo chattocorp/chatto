@@ -70,8 +70,12 @@
       "remove_account_suffix": " pro tento server před jeho odebráním."
     },
     "timeline": {
+      "post_denied": "Nemáte oprávnění posílat zprávy v této místnosti.",
       "beginning": "Toto je začátek tohoto rozhovoru.",
-      "read_denied": "Nemáte oprávnění číst zprávy v této místnosti."
+      "read_denied": "Nemáte oprávnění číst zprávy v této místnosti.",
+      "limited_access": "Vidíte pouze konverzace, které jste zahájili nebo ve kterých vás někdo zmínil.",
+      "limited_access_dm": "Vidíte pouze konverzace, které jste zahájili, obdrželi nebo ve kterých vás někdo zmínil.",
+      "limited_empty": "Zatím žádné konverzace, které můžete číst."
     },
     "message": {
       "empty": "Zatím žádné zprávy",

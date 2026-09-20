@@ -70,8 +70,12 @@
       "remove_account_suffix": " för den här servern innan du tar bort den."
     },
     "timeline": {
+      "post_denied": "Du har inte behörighet att skicka meddelanden i det här rummet.",
       "beginning": "Det här är början på den här konversationen.",
-      "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet."
+      "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet.",
+      "limited_access": "Du kan bara se konversationer som du startade eller där någon nämnde dig.",
+      "limited_access_dm": "Du kan bara se konversationer som du startade, tog emot eller där någon nämnde dig.",
+      "limited_empty": "Det finns inga konversationer du kan läsa ännu."
     },
     "message": {
       "empty": "Inga meddelanden än",

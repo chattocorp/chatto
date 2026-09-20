@@ -70,8 +70,12 @@
       "remove_account_suffix": " for this server before removing it."
     },
     "timeline": {
+      "post_denied": "You do not have permission to post messages in this room.",
       "beginning": "This is the beginning of this conversation.",
-      "read_denied": "You do not have permission to read messages in this room."
+      "read_denied": "You do not have permission to read messages in this room.",
+      "limited_access": "You can only see conversations you started or where someone mentioned you.",
+      "limited_access_dm": "You can only see conversations you started, received, or where someone mentioned you.",
+      "limited_empty": "No conversations you can read yet."
     },
     "message": {
       "empty": "No messages yet",

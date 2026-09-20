@@ -70,8 +70,12 @@
       "remove_account_suffix": " de ce serveur avant de le retirer."
     },
     "timeline": {
+      "post_denied": "Tu n’as pas la permission d’envoyer des messages dans ce salon.",
       "beginning": "Voici le début de cette conversation.",
-      "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon."
+      "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon.",
+      "limited_access": "Tu ne peux voir que les conversations que tu as commencées ou dans lesquelles quelqu’un t’a mentionné.",
+      "limited_access_dm": "Tu ne peux voir que les conversations que tu as commencées, reçues ou dans lesquelles quelqu’un t’a mentionné.",
+      "limited_empty": "Aucune conversation que tu peux lire pour le moment."
     },
     "message": {
       "empty": "Aucun message pour l'instant",
