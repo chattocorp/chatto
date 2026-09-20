@@ -35,6 +35,9 @@ export class MessageComponent {
    * Open the context menu by right-clicking the message content.
    */
   private async openContextMenu(): Promise<void> {
+    // Leave any neighbouring message's toolbar before clicking the content.
+    // In narrow panes that toolbar can cover the content's centre.
+    await this.locator.hover({ position: { x: 4, y: 4 } });
     await this.locator.locator('.message-content-stack').click({ button: 'right' });
     await expect(this.contextMenu).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
   }

@@ -369,10 +369,11 @@
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
+  const defaultDesktopRoomSidebarPanel = $derived(room.roomData && !room.isDM ? 'members' : null);
   const activeRoomSidebarPanel = $derived(
     roomSidebarPanelForRoom(
       room.isDM,
-      appUi.activeDesktopRoomSidebarPanel,
+      appUi.desktopRoomSidebarPanel(defaultDesktopRoomSidebarPanel),
       showVoiceCall,
       messageSearchAvailable,
       supportsPinnedMessages
@@ -501,7 +502,7 @@
   let leavingRoom = $state(false);
 
   function toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    appUi.toggleDesktopRoomSidebarPanel(panel);
+    appUi.toggleDesktopRoomSidebarPanel(panel, defaultDesktopRoomSidebarPanel);
   }
 
   function openDirectMessageProfile(userId: string): void {

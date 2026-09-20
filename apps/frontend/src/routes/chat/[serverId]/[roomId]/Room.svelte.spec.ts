@@ -491,7 +491,10 @@ beforeEach(() => {
   stubMatchMedia(true);
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Default Members can start an import that outlives a membership-only assertion.
+  // Finish it before the next test clears and checks the module-load spies.
+  await vi.dynamicImportSettled();
   vi.restoreAllMocks();
 });
 
@@ -544,7 +547,8 @@ describe('Room interaction bundles', () => {
     expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
   });
 
-  it('does not load thread or sidebar panes for the default room view', async () => {
+  it('does not load thread or sidebar panes when the sidebar is explicitly closed', async () => {
+    appUi.closeDesktopRoomSidebarPanel();
     render(Room, { props: { roomId: 'room-1' } });
 
     await tick();
@@ -576,6 +580,7 @@ describe('Room interaction bundles', () => {
   });
 
   it('loads the thread pane when the thread route is active', async () => {
+    appUi.closeDesktopRoomSidebarPanel();
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
@@ -597,13 +602,27 @@ describe('Room interaction bundles', () => {
       .toBeInTheDocument();
   });
 
+  it('opens the sidebar by default in a desktop channel and allows closing it', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+    const close = await waitForElement<HTMLButtonElement>(
+      container,
+      '[data-testid="close-room-sidebar"]'
+    );
+    close.click();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+  });
+
   it('loads the desktop room sidebar for a transient profile view', async () => {
     appUi.openRoomSidebarProfile('user-1');
     expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
-    await vi.waitFor(() => expect(mocks.roomSidebarModuleLoaded).toHaveBeenCalledOnce());
     await expect
       .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
       .toBeInTheDocument();
@@ -1089,7 +1108,8 @@ describe('Room local message echo', () => {
     await expect.element(pane).not.toBeInTheDocument();
   });
 
-  it('starts with the desktop room sidebar closed', async () => {
+  it('restores an explicitly closed desktop room sidebar', async () => {
+    appUi.closeDesktopRoomSidebarPanel();
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await tick();
