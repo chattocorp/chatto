@@ -352,7 +352,6 @@
     onEscape={onClose}
     onReady={(api: MessageComposerApi) => {
       composerApi = api;
-      api.focus();
     }}
     onTyping={canPost ? () => typingIndicator?.sendTypingIndicator() : undefined}
     onMessageSent={(event) => {
