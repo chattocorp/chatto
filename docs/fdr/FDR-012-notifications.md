@@ -52,9 +52,10 @@ targets, unread counts, read state, or deletion semantics.
 - The Delete action deletes the exact visible occurrences in the current row.
   On devices that support hover, this action appears when the row has hover or
   keyboard focus. It remains visible on touch devices.
-- Dismiss read deletes only the loaded occurrences that were Read when the user
-  selected the action. It does not delete Unread occurrences that arrived
-  before or during the action. Both deletion actions update the UI
+- Dismiss read loads all remaining pages across signed-in servers, then deletes
+  the Read occurrences. It does not delete Unread occurrences that arrived
+  before or during the action. If a page fails to load, the action reports an
+  error and does not start deletion. Both deletion actions update the UI
   optimistically and then reconcile with the server.
 - Every occurrence leaves application-visible state exactly 90 days after its
   source activity. Reading or deleting it does not extend that lifetime.

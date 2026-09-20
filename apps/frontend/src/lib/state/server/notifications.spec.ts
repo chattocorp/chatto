@@ -419,6 +419,36 @@ describe('NotificationStore', () => {
     expect(store.unreadNotificationCount).toBe(0);
   });
 
+  it('fetchAllPages restarts after a realtime replacement during an append', async () => {
+    const pending = deferred<NotificationOccurrencePage>();
+    const api = makeAPI();
+    const first = notificationPage(page([mention('first')]));
+    first.hasMore = true;
+    const middle = notificationPage(page([mention('middle')]));
+    middle.hasMore = true;
+    const last = notificationPage(page([mention('last')]));
+    api.listNotificationOccurrences
+      .mockReturnValueOnce(pending.promise)
+      .mockImplementation(async (_limit: number, offset: number) => {
+        if (offset === 0) return first;
+        if (offset === 1) return middle;
+        return last;
+      });
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection({
+      ...first,
+      occurrences: [mention('first'), mention('middle')]
+    });
+
+    const loading = store.fetchAllPages();
+    store.replaceOccurrenceProjection(first);
+    pending.resolve(last);
+    await loading;
+
+    expect(store.occurrences.map((item) => item.id).sort()).toEqual(['first', 'last', 'middle']);
+    expect(store.hasMore).toBe(false);
+  });
+
   it('fetchRoomNotification returns the newest room-scoped notification and caches it', async () => {
     const roomMention = mention('room-mention');
     const store = new NotificationStore(makeAPI({ notifications: page([roomMention]) }));

@@ -110,7 +110,7 @@ export class NotificationsPage {
   }
 
   /**
-   * Permanently dismiss every loaded notification occurrence that is already read.
+   * Permanently dismiss every read notification occurrence, including unloaded pages.
    */
   async dismissRead(): Promise<void> {
     await expect(this.readItems.first()).toBeVisible({
