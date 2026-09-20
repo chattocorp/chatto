@@ -696,6 +696,18 @@ describe('MessageComposer', () => {
             expect(actions.getBoundingClientRect().top).toBeLessThan(row.getBoundingClientRect().bottom);
             expect(formattingToggle.getBoundingClientRect().top).toBeLessThan(row.getBoundingClientRect().bottom);
           }
+          const attachment = q(actions, 'button[title="Attach file"]')!.getBoundingClientRect();
+          const timestamp = q(actions, 'button[aria-label="Insert timestamp"]')!.getBoundingClientRect();
+          const send = q(actions, 'button[aria-label="Send message"]')!.getBoundingClientRect();
+          const trailingGroup = q(actions, 'button[aria-label="Send message"]')!.parentElement!.parentElement!.getBoundingClientRect();
+          expect(timestamp.left).toBeGreaterThanOrEqual(attachment.right);
+          expect(send.right).toBeCloseTo(actions.getBoundingClientRect().right, 0);
+          if (timestamp.top === send.top) {
+            expect(trailingGroup.left - timestamp.right).toBeCloseTo(4, 0);
+          } else {
+            // When the groups wrap, each row still ends at the right edge.
+            expect(timestamp.right).toBeCloseTo(actions.getBoundingClientRect().right, 0);
+          }
           for (const button of surface.querySelectorAll('button')) {
             expect(button.getBoundingClientRect().height).toBe(touch ? 44 : 28);
             expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(touch ? 44 : 28);

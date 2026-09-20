@@ -55,3 +55,17 @@
     />
   </div>
 </Story>
+
+<Story name="Expanded draft actions" asChild>
+  <div class="@container/composer w-[640px] chat-input-surface p-2">
+    <ComposerToolbar
+      editorApi={null}
+      inputDisabled={false}
+      canAttach
+      isEditing={false}
+      canSubmit
+      showAlsoSendToChannel
+      onsubmit={() => {}}
+    />
+  </div>
+</Story>
