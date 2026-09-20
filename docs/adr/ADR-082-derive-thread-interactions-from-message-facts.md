@@ -9,6 +9,10 @@
 > **Amended 2026-09-04:** ADR-091 extends message-fact-derived interaction
 > relationships and the two read permissions to DMs.
 
+> **Amended 2026-09-19:** Receiving a DM establishes a thread interaction,
+> equivalent to receiving a direct mention. Derive recipients from DM
+> membership at the message's position in EVT.
+
 ## Context
 
 ADR-080 adds broad channel-room access through `message.read`. Chatto also
@@ -49,6 +53,8 @@ starts. The projection uses `MessagePostedEvent` source facts:
 - A channel-room root author gets an authored-root relationship.
 - A different account named by a typed direct mention gets a direct-mention
   relationship with that message's thread.
+- Each other DM participant at the time of a post gets a DM-received
+  relationship with that message's thread. This applies to roots and replies.
 - A legacy flattened mention recipient, self-mention, role mention, `@all`,
   `@here`, and authored reply do not create a relationship.
 
@@ -62,7 +68,10 @@ write an end fact. Permission loss or membership loss closes current access;
 restoration opens the derived relationship again.
 
 Extend the Threads snapshot with the message-to-thread index and interaction
-causes. The snapshot remains an encrypted, disposable acceleration artifact.
+causes. Retain DM membership from join, leave, and ban facts so replay and
+snapshot-tail replay use the recipients at the time of each post. Store that
+membership in the snapshot. The snapshot remains an encrypted, disposable
+acceleration artifact.
 Its protobuf schema fingerprint selects a new contract namespace. Cold replay
 from EVT remains authoritative.
 

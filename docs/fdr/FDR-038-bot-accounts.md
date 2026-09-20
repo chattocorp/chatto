@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-19
 
 ## Overview
 
@@ -438,8 +438,8 @@ edit. Retracted or inaccessible messages are not sent.
   authority at the same scope.
   This grant includes `message.read-interactions`.
 - `message.read-interactions` — give the bot complete access to a
-  thread that it started or where another account directly
-  mentioned it, subject to membership and the owner's effective broad or
+  thread that it started, where another account directly mentioned it, or
+  where it received a DM, subject to membership and the owner's effective broad or
   narrow read authority.
 - `message.post` — post room-timeline messages at configured scopes. A bot can
   receive this permission only at Direct messages scope when it must not post

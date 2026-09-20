@@ -169,7 +169,7 @@ contributes only its nearest explicit decision. See
 
 **Request-time authorization** — Command authorization decision that becomes final after Chatto confirms that its projected RBAC, room-group, user, and other declared inputs did not change during evaluation. A later concurrent authorization change does not cancel the command; domain invariants use OCC separately. See [ADR-087](adr/ADR-087-request-time-authorization-with-aggregate-occ.md).
 
-**Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a room root or another account directly mentions it. With room membership and `message.read-interactions`, it permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
+**Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a room root, another account directly mentions it, or it receives a DM from another account. DM recipients are the other participants at the time of the post. With current room membership and `message.read-interactions`, the relationship permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
 
 **User-level decision** — Permission grant or deny attached directly to a user, not via a role. It participates alongside named-role decisions, so a user deny blocks named-role grants while a named-role deny blocks a user grant. Used for suspensions and ad-hoc grants.
 

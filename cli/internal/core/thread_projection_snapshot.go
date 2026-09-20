@@ -29,7 +29,11 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		},
 	}
 	snapshot.ChannelRoomIds = sortedMapKeys(p.channelRooms)
-	snapshot.DirectMessageRoomIds = sortedMapKeys(p.dmRooms)
+	for _, roomID := range sortedMapKeys(p.dmRooms) {
+		snapshot.DirectMessageRooms = append(snapshot.DirectMessageRooms, &projectionv1.RoomMembershipSnapshot{
+			RoomId: roomID, UserIds: sortedMapKeys(p.dmRooms[roomID]),
+		})
+	}
 
 	threadRoots := sortedMapKeys(p.byThread)
 	for _, root := range threadRoots {
@@ -128,7 +132,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		byThread        map[string][]ThreadTimelineEntry
 		messageToThread map[string]string
 		channelRooms    map[string]struct{}
-		dmRooms         map[string]struct{}
+		dmRooms         map[string]map[string]struct{}
 		messageThreads  map[string]threadMessageRef
 		interactions    map[string]map[string]*projectedThreadInteraction
 		replySummaries  map[string]*threadReplySummary
@@ -174,7 +178,8 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		}
 		p.channelRooms[roomID] = struct{}{}
 	}
-	for _, roomID := range snapshot.GetDirectMessageRoomIds() {
+	for _, room := range snapshot.GetDirectMessageRooms() {
+		roomID := room.GetRoomId()
 		if roomID == "" {
 			return fmt.Errorf("Thread projection snapshot has empty direct-message room id")
 		}
@@ -184,7 +189,17 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		if _, channel := p.channelRooms[roomID]; channel {
 			return fmt.Errorf("Thread projection snapshot room %q has conflicting kinds", roomID)
 		}
-		p.dmRooms[roomID] = struct{}{}
+		members := make(map[string]struct{})
+		for _, userID := range room.GetUserIds() {
+			if userID == "" {
+				return fmt.Errorf("Thread projection snapshot has empty DM member id")
+			}
+			if _, duplicate := members[userID]; duplicate {
+				return fmt.Errorf("Thread projection snapshot repeats DM member")
+			}
+			members[userID] = struct{}{}
+		}
+		p.dmRooms[roomID] = members
 	}
 
 	for _, message := range snapshot.GetMessages() {
@@ -296,8 +311,11 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		if userID == "" || roomID == "" || rootID == "" || row.GetSourceEventId() == "" {
 			return fmt.Errorf("Thread projection snapshot has incomplete interaction identity")
 		}
-		if kind != ThreadInteractionCauseRootAuthored && kind != ThreadInteractionCauseDirectMention {
+		if kind != ThreadInteractionCauseRootAuthored && kind != ThreadInteractionCauseDirectMention && kind != ThreadInteractionCauseDMReceived {
 			return fmt.Errorf("Thread projection snapshot has invalid interaction cause %q", kind)
+		}
+		if _, dm := p.dmRooms[roomID]; kind == ThreadInteractionCauseDMReceived && !dm {
+			return fmt.Errorf("Thread projection snapshot has DM interaction in a channel")
 		}
 		if !p.isInteractionRoomLocked(roomID) {
 			return fmt.Errorf("Thread projection snapshot interaction has unknown room %q", roomID)
@@ -363,7 +381,7 @@ func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.byThread = make(map[string][]ThreadTimelineEntry)
 	p.messageToThread = make(map[string]string)
 	p.channelRooms = make(map[string]struct{})
-	p.dmRooms = make(map[string]struct{})
+	p.dmRooms = make(map[string]map[string]struct{})
 	p.messageThreads = make(map[string]threadMessageRef)
 	p.interactions = make(map[string]map[string]*projectedThreadInteraction)
 	p.replySummaries = make(map[string]*threadReplySummary)

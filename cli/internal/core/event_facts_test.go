@@ -393,7 +393,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: true,
 			reactions:   false,
-			threads:     false,
+			threads:     true,
 			directory:   true,
 			callState:   false,
 		},

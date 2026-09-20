@@ -78,6 +78,9 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			want: []string{
 				evtstream.RoomEventTypeFilter(evtstream.EventRoomCreated),
 				evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+				evtstream.RoomEventTypeFilter(evtstream.EventUserJoinedRoom),
+				evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
+				evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberBanned),
 				evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated),
 				evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
 				evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),
