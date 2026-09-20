@@ -7,7 +7,7 @@ and installed-app badge updates.
 **Responsibilities:**
 - Listens for live notification creation hints
 - Plays the user's selected sound for eligible in-app notification creations
-- Reconciles the installed-app badge from authoritative unread occurrence counts
+- Reconciles the unnumbered installed-app badge from important unread notifications
 
 Include this component once in the application root so signed-out pages also clear stale badges.
 -->
@@ -120,16 +120,16 @@ Include this component once in the application root so signed-out pages also cle
   });
 
   function appBadgeIntent(): AppBadgeIntent | null {
-    let unreadOccurrenceCount = 0;
+    let importantUnreadCount = 0;
 
     for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       if (!stores.notifications.hasLoaded) return null;
-      unreadOccurrenceCount += stores.notifications.attention.unreadNotificationCount;
+      importantUnreadCount += stores.notifications.attention.importantUnreadNotificationCount;
     }
 
-    if (unreadOccurrenceCount > 0) return { kind: 'count', count: unreadOccurrenceCount };
+    if (importantUnreadCount > 0) return { kind: 'flag' };
     return { kind: 'clear' };
   }
 
@@ -142,8 +142,8 @@ Include this component once in the application root so signed-out pages also cle
   // Avoid clearing an existing badge until every authenticated store has loaded.
   $effect(syncAppBadge);
 
-  // Declarative Web Push may apply an origin-only count without changing a store.
-  // Reassert the existing aggregate when the worker reports a regular push.
+  // A push can set a flag after its notification was read or removed.
+  // Reassert current important attention when the worker reports a regular push.
   $effect(() => {
     return listenForAppBadgeRefresh(syncAppBadge);
   });

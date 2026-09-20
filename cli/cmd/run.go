@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"time"
 
@@ -494,10 +493,6 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 			}
 		}
 		payloadCtx := fetchOccurrencePayloadContext(ctx, chattoCore, occurrence, logger)
-		appBadge := ""
-		if count, countErr := chattoCore.NotificationOccurrences().UnreadCount(ctx, occurrence.GetRecipientId()); countErr == nil {
-			appBadge = strconv.Itoa(count)
-		}
 
 		// Revalidate after hydration so a concurrent delete or visibility purge
 		// cannot overtake a slow alert preparation.
@@ -538,7 +533,6 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 				payloadCtx,
 				cfg.Webserver.ServerOrigins()...,
 			)
-			payload.AppBadge = appBadge
 			payload.DeliveryDeadline = alertDeadline
 			return payload
 		})

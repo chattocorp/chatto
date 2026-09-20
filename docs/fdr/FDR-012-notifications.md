@@ -29,6 +29,11 @@ targets, unread counts, read state, or deletion semantics.
   unread dot to the applicable room. A thread-scoped Badge contributes to its
   parent room. An orange notification indicator takes priority when both types
   of attention apply.
+- The application icon shows an unnumbered badge when unread Important
+  notifications need attention on any signed-in server. The window title
+  shows their total count. Ambient notifications do not contribute to either
+  indicator. Reading the last Important notification clears both indicators,
+  even if Ambient notifications remain unread.
 - The list is divided into Today, Yesterday, This Week, and month sections
   using the preferred time zone of the account on each server.
 - Rows use concise, full localized sentences without message previews.

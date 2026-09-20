@@ -178,6 +178,7 @@ describe('service worker notifications', () => {
             app_badge: '5',
             navigate: 'https://chatto.example/chat/-/room-2?highlight=event-2',
             data: {
+              attentionLevel: 'important',
               notificationId: 'notif-2',
               url: 'https://chatto.example/chat/-/room-2?highlight=event-2'
             }
@@ -186,7 +187,7 @@ describe('service worker notifications', () => {
       }
     });
 
-    expect(worker.setAppBadge).not.toHaveBeenCalled();
+    expect(worker.setAppBadge).toHaveBeenCalledExactlyOnceWith();
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
     expect(worker.registration.showNotification).toHaveBeenCalledWith('Declarative notification', {
       body: 'Opened by the browser or worker fallback',
@@ -199,6 +200,37 @@ describe('service worker notifications', () => {
       }
     });
   });
+
+  it.each(['legacy', 'declarative', 'event'])(
+    'badges only explicit important attention from %s pushes',
+    async (format) => {
+      const worker = await importServiceWorker();
+      for (const attentionLevel of ['important', 'ambient', undefined, 'future']) {
+        worker.setAppBadge.mockClear();
+        const notification = { title: 'Activity', data: { attentionLevel } };
+        await worker.dispatch(
+          'push',
+          format === 'event'
+            ? { notification }
+            : {
+                data: {
+                  json: () =>
+                    format === 'legacy'
+                      ? { title: 'Activity', attentionLevel }
+                      : { notification }
+                }
+              }
+        );
+        if (attentionLevel === 'important') {
+          expect(worker.setAppBadge).toHaveBeenCalledExactlyOnceWith();
+        } else {
+          expect(worker.setAppBadge).not.toHaveBeenCalled();
+        }
+      }
+      expect(worker.registration.showNotification).toHaveBeenCalledTimes(4);
+      expect(worker.clearAppBadge).not.toHaveBeenCalled();
+    }
+  );
 
   it('asks a visible app to restore its aggregate badge after a regular push', async () => {
     const worker = await importServiceWorker();
@@ -214,6 +246,7 @@ describe('service worker notifications', () => {
         json: () => ({
           web_push: 8030,
           app_badge: '2',
+          attentionLevel: 'important',
           notification: {
             title: 'Origin notification',
             navigate: 'https://chatto.example/chat/-/room-1'
@@ -223,8 +256,36 @@ describe('service worker notifications', () => {
     });
 
     expect(visibleClient.postMessage).toHaveBeenCalledWith({ type: 'app-badge-refresh' });
-    expect(worker.setAppBadge).not.toHaveBeenCalled();
+    expect(worker.setAppBadge).toHaveBeenCalledExactlyOnceWith();
+    expect(worker.setAppBadge.mock.invocationCallOrder[0]).toBeLessThan(
+      visibleClient.postMessage.mock.invocationCallOrder[0]
+    );
   });
+
+  it.each(['unavailable', 'rejected'])(
+    'still displays and reconciles a push when badging is %s',
+    async (failure) => {
+      const worker = await importServiceWorker();
+      const visibleClient: TestWindowClient = {
+        id: 'visible-app',
+        visibilityState: 'visible',
+        postMessage: vi.fn()
+      };
+      worker.clients.matchAll.mockResolvedValueOnce([visibleClient]);
+      if (failure === 'unavailable') {
+        vi.stubGlobal('navigator', {});
+      } else {
+        worker.setAppBadge.mockRejectedValueOnce(new Error('Badging unavailable'));
+      }
+
+      await worker.dispatch('push', {
+        data: { json: () => ({ title: 'Important activity', attentionLevel: 'important' }) }
+      });
+
+      expect(worker.registration.showNotification).toHaveBeenCalledOnce();
+      expect(visibleClient.postMessage).toHaveBeenCalledWith({ type: 'app-badge-refresh' });
+    }
+  );
 
   it('handles mutable declarative push events with event.notification and no payload data', async () => {
     const worker = await importServiceWorker();
