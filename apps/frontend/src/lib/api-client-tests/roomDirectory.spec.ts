@@ -215,6 +215,7 @@ describe('createRoomDirectoryAPI', () => {
       id: 'room-1',
       name: 'general',
       description: 'Lobby channel',
+      hasLimitedMessageAccess: false,
       kind: RoomKind.CHANNEL,
       archived: false,
       isUniversal: true,
