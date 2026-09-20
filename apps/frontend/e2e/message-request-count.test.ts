@@ -13,7 +13,10 @@ test('warm room posts share all reconciliation reads', async ({ page }) => {
     await page.waitForLoadState('networkidle');
     const methods: string[] = [];
     const record = (request: import('@playwright/test').Request) => {
-      if (request.url().includes('/api/connect/')) methods.push(request.url().split('/').at(-1)!);
+      // Typing leases have a separate timer and can overlap the posting cycle.
+      if (request.url().includes('/api/connect/') && !request.url().endsWith('/RefreshTypingIndicator')) {
+        methods.push(request.url().split('/').at(-1)!);
+      }
     };
     page.on('request', record);
     await roomPage.messageInput.press('Control+Enter');
@@ -87,10 +90,13 @@ test('warm thread replies reuse authors across command and realtime hydration', 
   await page.waitForLoadState('networkidle');
   const methods: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/api/connect/')) methods.push(request.url().split('/').at(-1)!);
+    // Count posting/reconciliation, independently of the typing lease timer.
+    if (request.url().includes('/api/connect/') && !request.url().endsWith('/RefreshTypingIndicator')) {
+      methods.push(request.url().split('/').at(-1)!);
+    }
   });
   await roomPage.threadReplyInput.press('Control+Enter');
-  await expect(page.getByText('Measured thread reply', { exact: true })).toBeVisible();
+  await expect(roomPage.getThreadMessage('Measured thread reply').locator).toBeVisible();
   // Include read-marker and notification reconciliation in the measurement.
   await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
   await page.waitForLoadState('networkidle');
