@@ -111,9 +111,25 @@ unknown instance) the component renders nothing.
     return salt ? withAssetUrlRetryParam(thumbnailAssetUrl.url, salt) : thumbnailAssetUrl.url;
   }
 
-  $effect(() => {
-    const { serverId, roomId, threadRootEventId, messageId } = link;
+  // Parent updates can replace the link object without changing its target.
+  // Track scalar values so those updates do not clear or reload the preview.
+  const serverId = $derived(link.serverId);
+  const roomId = $derived(link.roomId);
+  const threadRootEventId = $derived(link.threadRootEventId);
+  const messageId = $derived(link.messageId);
 
+  $effect(() => {
+    // Capture the target before the async read and track all target fields.
+    const target = { serverId, roomId, threadRootEventId, messageId };
+    return loadPreview(target);
+  });
+
+  function loadPreview({
+    serverId,
+    roomId,
+    threadRootEventId,
+    messageId
+  }: Pick<MessageLink, 'serverId' | 'roomId' | 'threadRootEventId' | 'messageId'>) {
     preview = null;
     if (!serverId) return;
 
@@ -184,7 +200,7 @@ unknown instance) the component renders nothing.
     return () => {
       cancelled = true;
     };
-  });
+  }
 
   const displayName = $derived(
     preview?.actor

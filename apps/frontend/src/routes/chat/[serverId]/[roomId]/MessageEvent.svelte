@@ -237,7 +237,8 @@
   );
 
   // Message links referenced in this message's body — rendered inline as previews.
-  const messageLinks = $derived(embeddedMessageLinks(msg?.body));
+  const messageBody = $derived(msg?.body);
+  const messageLinks = $derived(embeddedMessageLinks(messageBody));
 
   async function copyMessageLink(e: MouseEvent) {
     if (!event) return;
