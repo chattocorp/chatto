@@ -8,7 +8,7 @@ export const load: PageLoad = async ({ parent, url }) => {
   const redirectUrl = isSafeInternalPath(raw) ? raw : '/';
 
   if (user) {
-    redirect(302, redirectUrl.startsWith('/oauth/') ? redirectUrl : '/chat');
+    redirect(302, redirectUrl === '/' ? '/chat' : redirectUrl);
   }
 
   return {

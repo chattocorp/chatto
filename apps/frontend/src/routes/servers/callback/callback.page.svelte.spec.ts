@@ -53,4 +53,22 @@ describe('server OAuth callback page', () => {
     expect(gotoMock).not.toHaveBeenCalled();
     channel.close();
   });
+
+  it('returns cookie sign-in completion without exchanging an OAuth code', async () => {
+    pageState.url = 'https://app.example/servers/callback?mode=provider&state=cookie-state';
+    const channel = new BroadcastChannel('chatto:oauth-popup:cookie-state');
+    const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {});
+    const response = new Promise<unknown>((resolve) => {
+      channel.onmessage = (event) => resolve(event.data);
+    });
+    render(CallbackPage);
+    await expect(response).resolves.toEqual({
+      type: 'chatto:oauth-popup-response',
+      state: 'cookie-state',
+      completed: true
+    });
+    await vi.waitFor(() => expect(closeSpy).toHaveBeenCalledOnce());
+    expect(completeServerOAuthFlowMock).not.toHaveBeenCalled();
+    channel.close();
+  });
 });

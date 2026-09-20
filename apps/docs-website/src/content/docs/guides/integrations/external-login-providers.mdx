@@ -7,6 +7,8 @@ import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Chatto can consume external OAuth and OIDC providers for sign-in. Providers are configured in `chatto.toml` as repeated `[[auth.providers]]` tables, and the login page renders one button per configured provider.
 
+Provider sign-in and account linking open in a popup, including on the server's own frontend. Allow popups for the frontend in your browser. After successful sign-in or linking, the popup closes and the original page updates. If authorization is already in a popup, the provider flow continues in that window.
+
 <Aside type="note">
   Chatto acts as an OAuth/OIDC client here. This does not change Chatto's own OAuth authorization endpoint used by Chatto frontends when they connect to a server.
 </Aside>
@@ -275,7 +277,7 @@ If a provider callback returns an identity that is not linked to an account, Cha
 
 Set `auto_provision = true` on a provider to allow new users from that provider to create accounts. If `auto_provision` is omitted or `false`, an unlinked provider identity cannot create an account.
 
-Existing users can link providers from their account settings. Linking requires the user to already be signed in, lets Chatto create a short-lived provider link-start URL, and asks the user to confirm the pending link after the provider callback. Pending create and link tokens are short-lived and scoped to that specific action.
+Existing users can link providers from their account settings. Linking requires a recent sign-in or current-password check. After the user authorizes the provider, Chatto completes the link without another confirmation, closes the popup, and updates the account page. An identity already linked to another account cannot be linked. New account creation still requires confirmation. Disconnecting a provider requires confirmation and, when needed, your current password. It removes that sign-in method and keeps existing sessions active.
 
 Accounts created through an email-less provider are passwordless until the user adds a password in account settings. Password reset by email requires a verified email address, so operators running SSO without email should keep at least one trusted provider link available for affected users.
 

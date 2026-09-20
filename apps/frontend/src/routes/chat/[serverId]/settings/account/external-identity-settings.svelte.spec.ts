@@ -192,7 +192,7 @@ describe('external identity settings query lifecycle', () => {
     await settle();
   });
 
-  it('preserves the existing sign-out flow after a successful disconnect', async () => {
+  it('refreshes identities without signing out after a successful disconnect', async () => {
     const view = renderSettings();
     await settle();
 
@@ -206,10 +206,11 @@ describe('external identity settings query lifecycle', () => {
     );
     confirmButton?.click();
 
-    await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin'));
-    expect(mocks.clearCachedUser).toHaveBeenCalledOnce();
-    expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
-    expect(mocks.notifyLogout).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    expect(mocks.clearCachedUser).not.toHaveBeenCalled();
+    expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
+    expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
 
   it('does not fence a successful disconnect when only admin queries are purged', async () => {
@@ -235,8 +236,9 @@ describe('external identity settings query lifecycle', () => {
 
     removeRegisteredAdminQueries('origin');
     resolveDisconnect();
-    await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin'));
-    expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
+    await vi.waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
   });
 
   it('fences a late disconnect after the session is removed', async () => {
@@ -267,10 +269,10 @@ describe('external identity settings query lifecycle', () => {
 
     expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
     expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
-    expect(mocks.cancelExplicitSignOutRedirect).toHaveBeenCalledOnce();
+    expect(mocks.list).toHaveBeenCalledOnce();
   });
 
-  it('finishes remote sign-out when authentication cleanup precedes an unauthenticated error', async () => {
+  it('leaves expired-session cleanup to the API authentication handler', async () => {
     mocks.serverId = 'remote';
     connection.serverId = 'remote';
     connection.queryScope = 'remote-external-identities-test';
@@ -297,8 +299,10 @@ describe('external identity settings query lifecycle', () => {
     removeRegisteredServerQueries('remote');
     rejectDisconnect(new ConnectError('expired', Code.Unauthenticated));
 
-    await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote'));
-    expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
+    await settle();
+    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
+    expect(mocks.list).toHaveBeenCalledOnce();
     expect(mocks.clearCachedUser).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
@@ -359,6 +363,18 @@ describe('identity link popup and continuation', () => {
     expect(mocks.startLink).not.toHaveBeenCalled();
   });
 
+  it('also opens a popup when linking on the origin server', async () => {
+    const { popup, open } = remote();
+    mocks.serverId = 'origin';
+    connection.serverId = 'origin';
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    expect(open).toHaveBeenCalledOnce();
+    expect(popup.opener).toBeNull();
+    expect(new URL(popup.location.href).searchParams.get('link_provider')).toBe('github-main');
+    expect(mocks.startLink).not.toHaveBeenCalled();
+  });
+
   it('shows a blocked popup error', async () => {
     const { open } = remote();
     open.mockReturnValue(null);
@@ -368,6 +384,50 @@ describe('identity link popup and continuation', () => {
       .element(browserPage.getByText('Allow pop-ups for this site, then try linking again.'))
       .toBeVisible();
     expect(mocks.startLink).not.toHaveBeenCalled();
+  });
+
+  it('updates settings after linking without a focus event', async () => {
+    const { popup } = remote();
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    mocks.list.mockResolvedValue(linkedIdentityList());
+
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeVisible();
+    expect(popup.close).not.toHaveBeenCalled();
+    mocks.list.mockClear();
+    window.dispatchEvent(new Event('focus'));
+    await settle();
+    expect(mocks.list).not.toHaveBeenCalled();
+  });
+
+  it('keeps the popup open when only another provider is linked', async () => {
+    const { popup } = remote();
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    const other = linkedIdentityList().providers[0];
+    mocks.list.mockResolvedValue({
+      providers: [...unlinkedIdentityList().providers, { ...other, id: 'other-provider' }],
+      linkedIdentities: []
+    });
+    mocks.list.mockClear();
+    await vi.waitFor(() => expect(mocks.list).toHaveBeenCalled(), { timeout: 5000 });
+    await settle();
+    expect(popup.close).not.toHaveBeenCalled();
+  });
+
+  it('keeps monitoring after a failed read until a successful link read', async () => {
+    const { popup } = remote();
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    mocks.list.mockRejectedValue(new Error('Temporarily unavailable'));
+    await expect.element(browserPage.getByText('Temporarily unavailable')).toBeVisible();
+    expect(popup.close).not.toHaveBeenCalled();
+    mocks.list.mockResolvedValue(linkedIdentityList());
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeVisible();
   });
 
   it('refreshes on focus and closure, then stops monitoring', async () => {
@@ -440,7 +500,8 @@ describe('identity link popup and continuation', () => {
     expect(mocks.url.search).toBe('');
     expect(mocks.startLink).toHaveBeenCalledWith({
       providerId: 'github-main',
-      redirectPath: '/chat/-/settings/account',
+      redirectPath:
+        '/chat/-/settings/account?link_provider=github-main&link_user=user-alice&link_complete=1',
       currentPassword: undefined
     });
     await expect
@@ -465,19 +526,40 @@ describe('identity link popup and continuation', () => {
   });
 
   it('does not restart an already linked provider', async () => {
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
     continuation();
     mocks.list.mockResolvedValue(linkedIdentityList());
     renderSettings();
     await vi.waitFor(() => expect(mocks.replaceState).toHaveBeenCalledOnce());
     expect(mocks.startLink).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledOnce();
     await expect
       .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
       .toBeVisible();
   });
 
+  it.each([
+    ['user-alice', true, true],
+    ['other-user', true, false],
+    ['user-alice', false, false]
+  ])(
+    'closes a completed popup only for its linked account: %s / %s',
+    async (userId, linked, shouldClose) => {
+      const close = vi.spyOn(window, 'close').mockImplementation(() => {});
+      continuation(userId);
+      mocks.url.searchParams.set('link_complete', '1');
+      mocks.list.mockResolvedValue(linked ? linkedIdentityList() : unlinkedIdentityList());
+      renderSettings();
+      await vi.waitFor(() => expect(mocks.replaceState).toHaveBeenCalledOnce());
+      expect(close).toHaveBeenCalledTimes(shouldClose ? 1 : 0);
+      expect(mocks.startLink).not.toHaveBeenCalled();
+      expect(mocks.url.search).toBe('');
+    }
+  );
+
   it('shows a repeated freshness failure in the password dialog', async () => {
+    continuation();
     renderSettings();
-    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     await browserPage.getByLabelText('Current Password', { exact: true }).fill('test-password');
     await browserPage.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect

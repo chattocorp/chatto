@@ -586,6 +586,7 @@ export class AuthPage {
     loginHint?: string;
     displayNameHint?: string;
     boundUserId?: string;
+    redirectPath?: string;
   }): Promise<{ token: string; confirmUrl: string }> {
     const response = await this.page.request.post('/auth/test/external-identity-flow', {
       data: input

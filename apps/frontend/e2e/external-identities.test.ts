@@ -1,15 +1,6 @@
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import * as routes from './routes';
-import { TIMEOUTS } from './constants';
-import type { Page } from '@playwright/test';
-
-async function expectLoggedOutRedirect(page: Page): Promise<void> {
-  await expect(page).toHaveURL(
-    (url) => url.pathname === routes.root || url.pathname === routes.login,
-    { timeout: TIMEOUTS.REALTIME_EVENT }
-  );
-}
 
 test.describe('External identity confirmation flows', () => {
   test.use({
@@ -30,10 +21,10 @@ test.describe('External identity confirmation flows', () => {
     }
   });
 
-  test('shows immediate feedback while starting provider sign-in', async ({ page }) => {
+  test('shows immediate feedback while starting provider sign-in', async ({ page, context }) => {
     let releaseProviderRequest: (() => void) | undefined;
     const providerRequestStarted = new Promise<void>((resolve) => {
-      page.route('**/auth/providers/github-main?**', async (route) => {
+      context.route('**/auth/providers/github-main?**', async (route) => {
         resolve();
         await new Promise<void>((release) => {
           releaseProviderRequest = release;
@@ -56,6 +47,116 @@ test.describe('External identity confirmation flows', () => {
 
     await providerRequestStarted;
     releaseProviderRequest?.();
+  });
+
+  test('signs in through a popup from the origin login page and resumes its destination', async ({
+    page,
+    context,
+    serverURL
+  }) => {
+    const destination = '/chat/-/settings/account';
+    await context.route('**/auth/providers/github-main?**', async (route) => {
+      const response = await context.request.post(`${serverURL}/auth/browser/login`, {
+        headers: { Origin: serverURL, 'X-Chatto-Authentication-Mode': 'cookie' },
+        data: { identifier: 'e2eadmin', password: 'adminpassword123' }
+      });
+      expect(response.ok()).toBe(true);
+      const callback = new URL(route.request().url()).searchParams.get('redirect');
+      expect(callback).toContain('/servers/callback?mode=provider&state=');
+      await route.fulfill({ status: 302, headers: { Location: callback! } });
+    });
+    await page.goto(`/login?redirect=${encodeURIComponent(destination)}`);
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
+    const popup = await popupPromise;
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    await expect(page).toHaveURL(new URL(destination, serverURL).href);
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
+  });
+
+  test('links a provider in a popup from origin account settings without reloading', async ({
+    page,
+    context,
+    authPage
+  }) => {
+    const user = await createAndLoginTestUser(page, { loginPrefix: 'originpopup' });
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'link',
+      providerId: 'discord-main',
+      providerType: 'discord',
+      providerLabel: 'Discord',
+      subject: `discord-popup-${Date.now()}`,
+      boundUserId: user.id,
+      redirectPath: `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}&link_complete=1`
+    });
+    // Model a verified callback that commits the link before returning to settings.
+    // The real provider callback is covered by the backend OIDC integration test.
+    await context.route('**/auth/providers/discord-main?**', async (route) => {
+      const response = await context.request.post(
+        '/api/connect/chatto.auth.v1.ExternalIdentityAuthService/ConfirmExternalIdentityLink',
+        { data: { token: flow.token } }
+      );
+      expect(response.ok()).toBe(true);
+      await route.fulfill({
+        status: 302,
+        headers: {
+          Location: `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}&link_complete=1`
+        }
+      });
+    });
+    await page.goto(routes.settingsAccount);
+    const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+    const popupPromise = page.waitForEvent('popup');
+    await row.getByRole('button', { name: 'Link', exact: true }).click();
+    const popup = await popupPromise;
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(routes.settingsAccount + '$'));
+  });
+
+  test('creates a provider account in a popup from registration', async ({
+    page,
+    context,
+    authPage
+  }) => {
+    await context.route('**/auth/providers/github-main?**', async (route) => {
+      const redirectPath = new URL(route.request().url()).searchParams.get('redirect')!;
+      const flow = await authPage.createExternalIdentityFlow({
+        kind: 'create',
+        providerId: 'github-main',
+        providerType: 'github',
+        providerLabel: 'GitHub',
+        subject: `create-popup-${Date.now()}`,
+        loginHint: 'popupsignup',
+        displayNameHint: 'Popup Signup',
+        redirectPath
+      });
+      await route.fulfill({ status: 302, headers: { Location: flow.confirmUrl } });
+    });
+    await page.goto('/register');
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
+    const popup = await popupPromise;
+    await popup.getByRole('button', { name: 'Create Account', exact: true }).click();
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    await expect(page).toHaveURL(routes.patterns.chatRedirect);
+  });
+
+  test('recovers when the user closes the provider sign-in popup', async ({ page, context }) => {
+    await context.route('**/auth/providers/github-main?**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<p>Test provider consent</p>' })
+    );
+    await page.goto(routes.login);
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
+    const popup = await popupPromise;
+    await popup.close();
+    await expect(page.getByRole('link', { name: 'Continue with GitHub' })).not.toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
+    await expect(page.getByLabel('Username or Email')).toBeEnabled();
+    await expect(page).toHaveURL(/\/login$/);
   });
 
   test('explains unlinked provider sign-in when account creation is disabled', async ({ page }) => {
@@ -141,7 +242,9 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await expect(page.getByText('Disconnect GitHub from this account?')).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
-    await expectLoggedOutRedirect(page);
+    await expect(githubRow.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
+    await page.reload();
+    await expect(githubRow.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
   });
 
   test('can leave create confirmation to sign in without cancelling the pending flow', async ({
@@ -222,7 +325,10 @@ test.describe('External identity confirmation flows', () => {
     await expect(githubRow.getByRole('button', { name: 'Link' })).toBeDisabled();
     releaseDisconnectRequest?.();
 
-    await expectLoggedOutRedirect(page);
+    await expect(discordRow.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(routes.settingsAccount + '$'));
+    await page.reload();
+    await expect(discordRow.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
   });
 
   test('disconnects a linked identity for an unconfigured provider', async ({ page, authPage }) => {
@@ -248,7 +354,8 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await expect(page.getByText('Disconnect retired-provider from this account?')).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
-    await expectLoggedOutRedirect(page);
+    await expect(retiredRow).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(routes.settingsAccount + '$'));
   });
 
   test('confirms a link token through the public flow service', async ({ page, authPage }) => {
