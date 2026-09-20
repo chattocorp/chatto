@@ -49,8 +49,7 @@ pubsub events. Client-facing variants reference the public payload messages
 directly. Private controls, such as session termination, keep private payloads.
 `chatto.realtime.v1.RealtimeEvent` is the authorized public event shape for
 both sources. It contains common metadata, one public payload variant, and an
-optional opaque resume cursor. Selected payloads also contain current viewer
-state as defined in [ADR-100](../adr/ADR-100-current-state-in-realtime-updates.md).
+optional opaque resume cursor. It does not contain resource state.
 
 A public event has a stable event ID, source time, visible actor ID, and one
 event variant. Variants cover messages, reactions, pins, assets, rooms,
@@ -141,27 +140,6 @@ account deletion, projection reset, and store disposal fence pending cache
 loads. A missing result from a shared read at a different cursor is retried at
 the caller's cursor. Each user request contains at most 100 IDs.
 
-
-## Current state in frequent events
-
-Message posts, room-read changes, and notification Badge changes carry the
-current affected `RoomWithViewerState` when hydration succeeds. The delivery
-assembler waits for the current content view and for the affected runtime
-boundary revisions on its replica, then checks directory visibility. It uses
-the canonical room assembler, including DM participants and history state.
-The frontend merges the row by ID without replacing unrelated rooms.
-
-Notification occurrence changes carry the first 50 visible occurrences and
-complete attention counts. The list API and realtime use the same page
-assembler. Badge-only hints update room state without reading notifications.
-Hydration failures omit the optional field and retain the explicit read path.
-
-The values describe current state at delivery, not history at the source event
-cursor. Frontend delivery-local versions preserve pushed room rows and
-notification pages when an older HTTP read finishes later, including catch-up
-and permission reads. Projection resets still fence all older work. Initial
-load, reconnect, pagination, expiry, and thread-read acknowledgement recovery
-keep their explicit reads.
 
 ## Exact snapshot and targeted resource reads
 
@@ -479,8 +457,10 @@ a room view does not cover its threads. App focus and visibility gate the shared
 attention rule. Notification badges and sound use this rule without changing
 server rows or counts. Presentation counts subtract only loaded unread
 occurrences covered by a view. Each successful thread read also refreshes its
-parent message, followed-thread queries, notifications, and room state through
-the existing refresh scheduler, without requiring a realtime invalidation.
+parent message and followed-thread queries. It refreshes notifications and room
+state when the affected room has unread attention, the state is unknown, or an
+outstanding read can replace it. These recovery reads use the existing refresh
+scheduler without requiring a realtime invalidation.
 This read does not replace the open thread's loaded message window.
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
@@ -505,7 +485,21 @@ the same resource family during a read, the frontend runs one follow-up read
 at the newest event cursor. Both the collection delay and follow-up reads are
 part of cursor reconciliation. Notification invalidations still require an
 authoritative notification-list read because their events carry no replacement
-notification data.
+notification data. Only occurrence-change hints request that list. Badge hints
+request room state, not notifications. A message post requests room state only
+when the room is missing from the retained directory; known DM activity is
+applied locally. The user-scoped post-commit hint reconciles the poster's read
+state and Slow Mode deadline after those updates finish on the server.
+
+A self-authored Badge hint can skip the room read when the room is already
+read and Slow Mode is disabled. A room-read hint can also skip an already-read
+room. These checks use raw server state, not the attention hidden by an active
+view. Unknown state, failed reconciliation, and outstanding reads retain the
+refresh. Other actors' Badge hints always refresh rooms because they can either
+create or remove attention. Posting can clear older notification occurrences;
+their occurrence-change hints still refresh the list. Reconnect reconciliation
+is unchanged and repairs missed transient hints. No resources are added to
+event payloads, and no new external system receives user data.
 The message queue deduplicates pending IDs and serializes batches within each
 room. An event that arrives during a read queues another read for its ID and
 prevents the older result from being applied. Reset, room-access loss, and

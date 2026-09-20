@@ -108,15 +108,6 @@ together. Protocol 4 uses one
 `RealtimeSubscribe` client message and does not use hello or subscribed frames.
 The server sends only snapshot, event, caught-up, heartbeat, and close frames.
 
-Message posts, room-read changes, and notification Badge changes can include
-an optional current `room` resource. Notification occurrence changes can include
-an optional `notifications` first page with complete unread counts. Existing
-clients can ignore these additive fields and continue to read resources. To
-avoid those reads, regenerate your client and apply the supplied state. Merge
-rooms by ID and replace the notification page. Keep explicit reads when a
-field is absent and after reconnect. These fields do not change the event
-cursor, protocol version, or stored data.
-
 Notification change events use `created_notification_id`, not a sound-candidate
 field. A creation ID does not mean that the client should play a sound. Clients
 check current notification state and their own alert preferences. This changes

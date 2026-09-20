@@ -7,9 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { RoomKind } from "../../api/v1/rooms_pb.js";
 import { RoomThreadingMode } from "../../api/v1/common_pb.js";
-import { RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { PresenceStatus } from "../../api/v1/presence_pb.js";
-import { ListNotificationOccurrencesResponse } from "../../api/v1/notifications_pb.js";
 
 /**
  * AssetProcessingFailureCode identifies a stable processing failure class.
@@ -1077,14 +1075,6 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
    */
   roomKind = RoomKind.UNSPECIFIED;
 
-  /**
-   * Current affected room for this viewer, when available. Merge by room ID.
-   * This is current state at delivery, not historical state at the event cursor.
-   *
-   * @generated from field: chatto.api.v1.RoomWithViewerState room = 10;
-   */
-  room?: RoomWithViewerState;
-
   constructor(data?: PartialMessage<MessagePostedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1101,7 +1091,6 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
     { no: 7, name: "mentions", kind: "message", T: MessageMention, repeated: true },
     { no: 8, name: "body_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 9, name: "room_kind", kind: "enum", T: proto3.getEnumType(RoomKind) },
-    { no: 10, name: "room", kind: "message", T: RoomWithViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessagePostedEvent {
@@ -2332,8 +2321,7 @@ export class ViewerPresencePreferenceChangedEvent extends Message<ViewerPresence
 
 /**
  * NotificationOccurrencesChangedEvent reports that the caller's current
- * notification occurrences changed. Use the supplied page when present;
- * otherwise read NotificationService.ListNotificationOccurrences.
+ * notification occurrences changed and requests an authoritative resource read.
  *
  * @generated from message chatto.realtime.v1.NotificationOccurrencesChangedEvent
  */
@@ -2348,15 +2336,6 @@ export class NotificationOccurrencesChangedEvent extends Message<NotificationOcc
    */
   createdNotificationId?: string;
 
-  /**
-   * Current first page (up to 50 occurrences), with complete unread counts.
-   * Replace the retained page; fetch subsequent pages through NotificationService.
-   * Reconnect recovery must read current state because these updates are transient.
-   *
-   * @generated from field: chatto.api.v1.ListNotificationOccurrencesResponse notifications = 2;
-   */
-  notifications?: ListNotificationOccurrencesResponse;
-
   constructor(data?: PartialMessage<NotificationOccurrencesChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2366,7 +2345,6 @@ export class NotificationOccurrencesChangedEvent extends Message<NotificationOcc
   static readonly typeName = "chatto.realtime.v1.NotificationOccurrencesChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "created_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "notifications", kind: "message", T: ListNotificationOccurrencesResponse },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrencesChangedEvent {
@@ -2388,7 +2366,7 @@ export class NotificationOccurrencesChangedEvent extends Message<NotificationOcc
 
 /**
  * NotificationUnreadStateChangedEvent reports that the caller's notification
- * Badge state changed. Notification occurrence changes are reported separately.
+ * unread state changed and requests authoritative notification and room reads.
  *
  * @generated from message chatto.realtime.v1.NotificationUnreadStateChangedEvent
  */
@@ -2405,14 +2383,6 @@ export class NotificationUnreadStateChangedEvent extends Message<NotificationUnr
    */
   threadRootEventId = "";
 
-  /**
-   * Current affected room for this viewer. Merge by room ID. If absent, read
-   * RoomDirectoryService.GetRoom. This event does not require a notification read.
-   *
-   * @generated from field: chatto.api.v1.RoomWithViewerState room = 3;
-   */
-  room?: RoomWithViewerState;
-
   constructor(data?: PartialMessage<NotificationUnreadStateChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2423,7 +2393,6 @@ export class NotificationUnreadStateChangedEvent extends Message<NotificationUnr
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "room", kind: "message", T: RoomWithViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationUnreadStateChangedEvent {
@@ -2454,14 +2423,6 @@ export class RoomReadStateChangedEvent extends Message<RoomReadStateChangedEvent
    */
   roomId = "";
 
-  /**
-   * Current affected room for this viewer. Merge by room ID. If absent, read
-   * RoomDirectoryService.GetRoom. Reconnect recovery must read current state.
-   *
-   * @generated from field: chatto.api.v1.RoomWithViewerState room = 2;
-   */
-  room?: RoomWithViewerState;
-
   constructor(data?: PartialMessage<RoomReadStateChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2471,7 +2432,6 @@ export class RoomReadStateChangedEvent extends Message<RoomReadStateChangedEvent
   static readonly typeName = "chatto.realtime.v1.RoomReadStateChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room", kind: "message", T: RoomWithViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomReadStateChangedEvent {

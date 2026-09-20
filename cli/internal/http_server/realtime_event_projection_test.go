@@ -128,9 +128,6 @@ func TestPublicRealtimeMessageCarriesPlaintextAndRoomKindWithoutChangingEVT(t *t
 		t.Fatal(err)
 	}
 	posted := projected.GetMessagePosted()
-	if posted.GetRoom().GetRoom().GetId() != room.Id || !posted.GetRoom().GetViewerState().GetIsMember() {
-		t.Fatalf("public post omitted current viewer room state: %v", posted.GetRoom())
-	}
 	if posted.GetBodyPlaintext() != "public message" || posted.GetRoomKind() != apiv1.RoomKind_ROOM_KIND_CHANNEL {
 		t.Fatalf("public post = %v, want plaintext and channel kind", posted)
 	}

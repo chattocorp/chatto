@@ -5,22 +5,11 @@ import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import { postThreadReplyViaConnect } from './fixtures/connectHelpers';
-import { RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 test.describe('Thread Following', () => {
   test('viewed replies stay quiet while the read request is pending', async ({ page, chatPage, roomPage, browser, serverURL }) => {
     const errors: string[] = [];
-    const notificationThreads = new Set<string>();
     page.on('pageerror', (error) => errors.push(error.message));
-    page.on('websocket', (socket) => socket.on('framereceived', ({ payload }) => {
-      if (typeof payload === 'string') return;
-      const frame = RealtimeServerFrame.fromBinary(payload).frame;
-      if (frame.case !== 'event' || frame.value.event.case !== 'notificationOccurrencesChanged') return;
-      for (const occurrence of frame.value.event.value.notifications?.occurrences ?? []) {
-        const threadId = occurrence.signal?.kind.value?.message?.threadRootEventId;
-        if (threadId) notificationThreads.add(threadId);
-      }
-    }));
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -52,11 +41,13 @@ test.describe('Thread Following', () => {
         Object.assign(window, { threadAttentionCheck: state });
       });
       try {
+        const notificationRead = page.waitForResponse(async (response) =>
+          response.url().includes('/ListNotificationOccurrences') && response.ok() &&
+          (await response.text()).includes(rootId)
+        );
         await postThreadReplyViaConnect(sender, roomId, 'Reply while read is pending', rootId);
         await expect(page.getByTestId('thread-pane').getByText('Reply while read is pending', { exact: true })).toBeVisible();
-        // Observe authoritative notification delivery while the read command
-        // is held. The current page now arrives in the realtime payload.
-        await expect.poll(() => notificationThreads.has(rootId)).toBe(true);
+        await notificationRead;
         await expect.poll(() => readRequested).toBe(true);
         expect(await page.evaluate(() => {
           const state = (window as unknown as { threadAttentionCheck: { flashed: boolean } }).threadAttentionCheck;

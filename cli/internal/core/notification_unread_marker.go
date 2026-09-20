@@ -137,34 +137,6 @@ func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context,
 	return false, nil
 }
 
-// WaitRoomStateCurrent closes the runtime-state watcher interval before a
-// transient room-state hint is hydrated on another replica. Read the changed
-// scope and its parent from KV, then wait for those revisions in the index.
-// This does not expose broker revisions in the public realtime protocol.
-func (m *NotificationOccurrenceModel) WaitRoomStateCurrent(ctx context.Context, userID, roomID, threadRootEventID string) error {
-	keys := []string{
-		notificationReadBoundaryKey(userID, roomID, ""),
-		notificationUnreadMarkerKey(userID, roomID, ""),
-	}
-	if threadRootEventID != "" {
-		keys = append(keys, notificationReadBoundaryKey(userID, roomID, threadRootEventID),
-			notificationUnreadMarkerKey(userID, roomID, threadRootEventID))
-	}
-	for _, key := range keys {
-		entry, err := m.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		if err := m.core.notificationBoundaries.waitForRevision(ctx, key, entry.Revision()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context.Context, userID string, marker *runtimestatev1.NotificationUnreadMarker) (bool, error) {
 	if marker == nil || marker.GetSourceStreamSequence() == 0 {
 		return false, nil

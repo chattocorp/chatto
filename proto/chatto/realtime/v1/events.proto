@@ -66,8 +66,6 @@ message ViewerPermissionsChangedEvent {}
 import "chatto/api/v1/common.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/rooms.proto";
-import "chatto/api/v1/room_directory.proto";
-import "chatto/api/v1/notifications.proto";
 
 // RoomCreatedEvent reports a new room that is visible to the caller.
 message RoomCreatedEvent {
@@ -169,9 +167,6 @@ message MessagePostedEvent {
   optional string body_plaintext = 8;
   // Immutable room kind. Direct messages do not require a mention to address a bot.
   chatto.api.v1.RoomKind room_kind = 9;
-  // Current affected room for this viewer, when available. Merge by room ID.
-  // This is current state at delivery, not historical state at the event cursor.
-  chatto.api.v1.RoomWithViewerState room = 10;
 }
 
 // DirectUserMention identifies a direct user mention.
@@ -361,35 +356,24 @@ message PresenceChangedEvent {
 message ViewerPresencePreferenceChangedEvent {}
 
 // NotificationOccurrencesChangedEvent reports that the caller's current
-// notification occurrences changed. Use the supplied page when present;
-// otherwise read NotificationService.ListNotificationOccurrences.
+// notification occurrences changed and requests an authoritative resource read.
 message NotificationOccurrencesChangedEvent {
   // ID of a newly created notification, including read notifications and
   // creations during Do Not Disturb. Absent for updates and removals.
   // This is a best-effort live hint, not a sound instruction or durable delivery.
   // Clients decide whether to alert after they read current notification state.
   optional string created_notification_id = 1;
-  // Current first page (up to 50 occurrences), with complete unread counts.
-  // Replace the retained page; fetch subsequent pages through NotificationService.
-  // Reconnect recovery must read current state because these updates are transient.
-  chatto.api.v1.ListNotificationOccurrencesResponse notifications = 2;
 }
 
 // NotificationUnreadStateChangedEvent reports that the caller's notification
-// Badge state changed. Notification occurrence changes are reported separately.
+// unread state changed and requests authoritative notification and room reads.
 message NotificationUnreadStateChangedEvent {
   string room_id = 1;
   // Event ID of the affected thread root, or empty for room state.
   string thread_root_event_id = 2;
-  // Current affected room for this viewer. Merge by room ID. If absent, read
-  // RoomDirectoryService.GetRoom. This event does not require a notification read.
-  chatto.api.v1.RoomWithViewerState room = 3;
 }
 
 // RoomReadStateChangedEvent reports the caller's current room read state.
 message RoomReadStateChangedEvent {
   string room_id = 1;
-  // Current affected room for this viewer. Merge by room ID. If absent, read
-  // RoomDirectoryService.GetRoom. Reconnect recovery must read current state.
-  chatto.api.v1.RoomWithViewerState room = 2;
 }

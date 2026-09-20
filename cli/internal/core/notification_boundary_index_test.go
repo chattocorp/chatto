@@ -11,35 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestNotificationRoomStateWaitsForReplicaBoundary(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	kv := chattoCore.storage.runtimeStateKV
-	ctx := testContext(t)
-	// A second replica has completed startup but has not consumed this write.
-	index := newNotificationBoundaryIndex(kv, testCoreLogger())
-	index.completeSync(false)
-	model := &NotificationOccurrenceModel{core: &ChattoCore{notificationBoundaries: index}, kv: kv}
-	key := notificationReadBoundaryKey("reader", "room", "thread")
-	if _, err := kv.Put(ctx, key, encodeNotificationReadBoundary(notificationReadBoundary{targetSequence: 4, observedSequence: 5})); err != nil {
-		t.Fatal(err)
-	}
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Millisecond)
-	defer cancel()
-	if err := model.WaitRoomStateCurrent(waitCtx, "reader", "room", "thread"); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("unapplied replica boundary returned %v, want deadline", err)
-	}
-	entry, err := kv.Get(ctx, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := index.apply(entry); err != nil {
-		t.Fatal(err)
-	}
-	if err := model.WaitRoomStateCurrent(ctx, "reader", "room", "thread"); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	kv := chattoCore.storage.runtimeStateKV

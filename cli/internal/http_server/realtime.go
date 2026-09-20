@@ -900,7 +900,6 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		}
 		projected.Cursor = &cursor
 	}
-	s.hydrateRealtimeState(ctx, viewerID, projected)
 	return projected, nil
 }
 

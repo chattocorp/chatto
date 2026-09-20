@@ -42,7 +42,7 @@ test('a known remote author does not cause a user read on each received post', a
     await page.waitForLoadState('networkidle');
     const redundantReads: string[] = [];
     page.on('request', (request) => {
-      if (['BatchGetUsers', 'ListRooms', 'ListNotificationOccurrences'].some((method) => request.url().endsWith(`/${method}`))) {
+      if (['BatchGetUsers', 'ListNotificationOccurrences'].some((method) => request.url().endsWith(`/${method}`))) {
         redundantReads.push(request.url().split('/').at(-1)!);
       }
     });
@@ -54,12 +54,13 @@ test('a known remote author does not cause a user read on each received post', a
   });
 });
 
-test('notification creation and read state arrive without collection reads', async ({ page, browser, serverURL }) => {
+test('notification creation and read state fetch the changed occurrence list', async ({ page, browser, serverURL }) => {
   const receiver = await loginAndEnterRoom(page, 'announcements');
   const badge = receiver.chatPage.roomList.locator('a', { hasText: '# general' }).getByTestId('room-notification-badge');
   await withServerUser(browser, serverURL, async ({ chatPage, roomPage: sender }) => {
     await chatPage.enterRoom('general');
     await sender.sendMessage('Warm notification sender');
+    await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
     await page.waitForLoadState('networkidle');
     const reads: string[] = [];
     const record = (request: import('@playwright/test').Request) => {
@@ -68,7 +69,7 @@ test('notification creation and read state arrive without collection reads', asy
       }
     };
     page.on('request', record);
-    await sender.sendMessage(`@${receiver.user.login} Pushed notification`);
+    await sender.sendMessage(`@${receiver.user.login} Changed notification`);
     await expect(badge).toHaveText('1');
     await receiver.chatPage.enterRoom('general');
     await expect(badge).not.toBeVisible();
@@ -76,7 +77,8 @@ test('notification creation and read state arrive without collection reads', asy
     await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
     await page.waitForLoadState('networkidle');
     page.off('request', record);
-    expect(reads).toEqual([]);
+    expect(reads.filter((method) => method === 'ListNotificationOccurrences')).toHaveLength(2);
+    expect(reads.filter((method) => method === 'ListRooms').length).toBeLessThanOrEqual(2);
   });
 });
 
@@ -104,13 +106,11 @@ test('warm thread replies reuse authors across command and realtime hydration', 
     [method, methods.filter((value) => value === method).length]
   ));
   expect(Object.keys(counts).sort()).toEqual([
-    'BatchGetMessages', 'CreateMessage', 'ListNotificationOccurrences', 'ListRooms', 'MarkThreadAsRead'
+    'BatchGetMessages', 'CreateMessage', 'MarkThreadAsRead'
   ]);
   expect(counts.CreateMessage).toBe(1);
   expect(counts.MarkThreadAsRead).toBe(1);
   // A read-marker response that arrives after the post read starts needs a
   // follow-up read. It must not reload windows or refetch known users.
-  for (const method of ['BatchGetMessages', 'ListRooms', 'ListNotificationOccurrences']) {
-    expect(counts[method]).toBeLessThanOrEqual(2);
-  }
+  expect(counts.BatchGetMessages).toBeLessThanOrEqual(2);
 });
