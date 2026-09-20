@@ -819,7 +819,7 @@ export class Message extends Message$1<Message> {
    * State resolved for the current viewer. Available even before a durable
    * thread exists. Absent when viewer state has not been resolved.
    *
-   * @generated from field: chatto.api.v1.MessageViewerState viewer_state = 24;
+   * @generated from field: chatto.api.v1.MessageViewerState viewer_state = 23;
    */
   viewerState?: MessageViewerState;
 
@@ -848,7 +848,7 @@ export class Message extends Message$1<Message> {
     { no: 20, name: "thread", kind: "message", T: ThreadSummary },
     { no: 21, name: "deleted_at", kind: "message", T: Timestamp },
     { no: 22, name: "pinned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 24, name: "viewer_state", kind: "message", T: MessageViewerState },
+    { no: 23, name: "viewer_state", kind: "message", T: MessageViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Message {

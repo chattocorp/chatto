@@ -834,7 +834,7 @@ type Message struct {
 	Pinned bool `protobuf:"varint,22,opt,name=pinned,proto3" json:"pinned,omitempty"`
 	// State resolved for the current viewer. Available even before a durable
 	// thread exists. Absent when viewer state has not been resolved.
-	ViewerState   *MessageViewerState `protobuf:"bytes,24,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	ViewerState   *MessageViewerState `protobuf:"bytes,23,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1056,7 +1056,7 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"`\n" +
 	"\x12MessageViewerState\x122\n" +
 	"\x13can_reply_in_thread\x18\x01 \x01(\bH\x00R\x10canReplyInThread\x88\x01\x01B\x16\n" +
-	"\x14_can_reply_in_thread\"\xfd\a\n" +
+	"\x14_can_reply_in_thread\"\xe2\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x129\n" +
@@ -1079,8 +1079,8 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\n" +
 	"deleted_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12\x16\n" +
 	"\x06pinned\x18\x16 \x01(\bR\x06pinned\x12D\n" +
-	"\fviewer_state\x18\x18 \x01(\v2!.chatto.api.v1.MessageViewerStateR\vviewerStateB\a\n" +
-	"\x05_bodyJ\x04\b\x0e\x10\x13J\x04\b\x17\x10\x18R\x13can_reply_in_threadR\vreply_countR\rlast_reply_atR#thread_participant_preview_user_idsR\x18thread_participant_countR\x1aviewer_is_following_thread*\xda\x01\n" +
+	"\fviewer_state\x18\x17 \x01(\v2!.chatto.api.v1.MessageViewerStateR\vviewerStateB\a\n" +
+	"\x05_bodyJ\x04\b\x0e\x10\x13R\vreply_countR\rlast_reply_atR#thread_participant_preview_user_idsR\x18thread_participant_countR\x1aviewer_is_following_thread*\xda\x01\n" +
 	"\x1cMessageVideoProcessingStatus\x12/\n" +
 	"+MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED\x10\x00\x12.\n" +
 	"*MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING\x10\x01\x12-\n" +

@@ -164,8 +164,6 @@ message MessageViewerState {
 // requests.
 message Message {
   reserved 14 to 18;
-  reserved 23;
-  reserved "can_reply_in_thread";
   reserved "reply_count", "last_reply_at", "thread_participant_preview_user_ids", "thread_participant_count", "viewer_is_following_thread";
 
   // Stable message event ID.
@@ -209,5 +207,5 @@ message Message {
   bool pinned = 22;
   // State resolved for the current viewer. Available even before a durable
   // thread exists. Absent when viewer state has not been resolved.
-  MessageViewerState viewer_state = 24;
+  MessageViewerState viewer_state = 23;
 }
