@@ -27,6 +27,12 @@ afterEach(async () => {
 });
 
 describe('TypingIndicator', () => {
+  it('identifies a bot in the plain-text typing label', () => {
+    const { container } = render(TypingIndicator, {
+      props: { typingUserIds: ['helper'], members: [{ ...member('helper', 'Helper'), isBot: true }] }
+    });
+    expect(indicatorText(container)).toContain('Helper (BOT)');
+  });
   it('renders nothing when nobody is typing', () => {
     const { container } = render(TypingIndicator, { props: { typingUserIds: [], members } });
     expect(q(container, '[data-testid="typing-indicator"]')).toBeNull();

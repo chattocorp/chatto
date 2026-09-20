@@ -39,3 +39,4 @@ export { default as StatCard } from './StatCard.svelte';
 export { default as ToggleChip } from './ToggleChip.svelte';
 export { default as TopOverlayNotice } from './TopOverlayNotice.svelte';
 export { default as UnreadDot } from './UnreadDot.svelte';
+export { default as UserCard } from './UserCard.svelte';

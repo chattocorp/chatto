@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { formatAccountName } from '$lib/render/accountName';
   import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -328,16 +330,22 @@
   );
 </script>
 
+{#snippet memberName()}<AccountName
+    name={member?.displayName ?? m('common.loading')}
+    identity={member}
+  />{/snippet}
+
 <PageTitle
   title={m('admin.common.server_admin_page_title', {
-    title: member?.displayName ?? m('admin.members.member_fallback')
+    title: formatAccountName(member?.displayName ?? m('admin.members.member_fallback'), member)
   })}
 />
 
 <div class="pane-page">
   <PaneHeader
     title={m('admin.members.member_details')}
-    subtitle={member?.displayName ?? m('common.loading')}
+    subtitle={formatAccountName(member?.displayName ?? m('common.loading'), member)}
+    subtitleContent={memberName}
     {backHref}
     backLabel={m('admin.members.back_to_members')}
     showMobileNav

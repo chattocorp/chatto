@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api-client/account';
   import Panel from '$lib/ui/Panel.svelte';
@@ -44,7 +45,9 @@
         </div>
         <div class="flex items-center justify-between">
           <dt class="text-muted">{m('settings.account.display_name')}</dt>
-          <dd>{currentUser.user?.displayName}</dd>
+          <dd>
+            <AccountName name={currentUser.user?.displayName ?? ''} identity={currentUser.user} />
+          </dd>
         </div>
       </dl>
     </Panel>

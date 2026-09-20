@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import type { CallPresenceKind } from '$lib/state/server/activeCallRooms.svelte';
@@ -64,7 +65,7 @@
       }}
     >
       <UserAvatar user={preview.actor} size="xs" />
-      <strong class="truncate font-medium"><bdi>{preview.name}</bdi></strong>
+      <AccountName name={preview.name} identity={preview.actor} class="font-medium" />
       {#if callPresence}
         <span
           class={[

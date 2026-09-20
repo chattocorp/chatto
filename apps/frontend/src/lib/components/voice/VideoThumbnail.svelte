@@ -21,6 +21,7 @@ resolution to request for sidebar-width tiles.
 - `fill` - Whether the video should fill its parent's height instead of using thumbnail aspect-ratio sizing.
 -->
 <script lang="ts">
+	import { formatAccountName } from '$lib/render/accountName';
 	import { onDestroy } from 'svelte';
 	import type { Track } from 'livekit-client';
 	import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -40,6 +41,8 @@ resolution to request for sidebar-width tiles.
 			id: string;
 			login: string;
 			displayName: string;
+			isBot?: boolean;
+			deleted?: boolean;
 			avatarUrl: string | null;
 			presenceStatus: PresenceStatus;
 		};
@@ -95,7 +98,7 @@ resolution to request for sidebar-width tiles.
 		width="640"
 		height="360"
 		class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}
-		title={name}
+		title={formatAccountName(name, user)}
 		autoplay
 		playsinline
 		muted

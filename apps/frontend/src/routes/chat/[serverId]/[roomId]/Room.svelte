@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery } from 'svelte/reactivity';
@@ -724,8 +725,18 @@
           />
         {/snippet}
 
+        {#snippet directMessageTitle()}
+          {#if room.dmData}<DirectMessageName
+              participants={room.dmData.participants}
+              currentUserId={room.dmData.currentUserId}
+              getDisplayName={getLiveDisplayName}
+            />{/if}
+        {/snippet}
         <PaneHeader
           title={presentation.title}
+          titleContent={room.isDM && room.dmData?.participants.length
+            ? directMessageTitle
+            : undefined}
           subtitle={presentation.description}
           loading={!room.roomData}
           collapseActions
@@ -820,6 +831,7 @@
           {getRecentThreadRootCandidate}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
+          replyIdentity={replyState.actorIdentity}
           replyExcerpt={replyState.excerpt || undefined}
           onCancelReply={() => replyState.cancelReply()}
           autoFocus={!threadId && !hasMobileRoomSidebar}

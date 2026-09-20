@@ -647,7 +647,7 @@
     ontouchmove={markUserScrollIntent}
     onpointerdown={markUserScrollIntent}
   >
-    <div class="mt-auto max-md:px-1">
+    <div class="mt-auto mobile-presentation:px-1">
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>

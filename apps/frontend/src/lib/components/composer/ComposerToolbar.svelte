@@ -48,13 +48,13 @@ Formatting commands live in `ComposerFormattingToolbar`.
 </script>
 
 <div
-  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:mb-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap"
+  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:desktop-presentation:mb-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap"
   data-testid="composer-action-toolbar"
 >
   <div class="flex items-center gap-0.5">
     {#if !isEditing && canAttach}
       <CompactActionButton
-        touchFriendly
+        wrapperClass="mobile-presentation:pill-button-group-touch"
         label={m('composer.attach_file')}
         type="button"
         onclick={() => fileInputElement?.click()}
@@ -71,7 +71,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
   <div class="flex max-w-full flex-wrap items-center justify-end gap-0.5 @min-[560px]/composer:flex-nowrap">
     {#if showCreateThread}
       <CompactActionButton
-        touchFriendly
+        wrapperClass="mobile-presentation:pill-button-group-touch"
         label={m('composer.post_as_thread')}
         type="button"
         onpointerdown={(event) => event.preventDefault()}
@@ -92,7 +92,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
 
     {#if showAlsoSendToChannel}
       <CompactActionButton
-        touchFriendly
+        wrapperClass="mobile-presentation:pill-button-group-touch"
         label={m(
           echoToConversation
             ? 'composer.also_send_to_conversation'
@@ -118,7 +118,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
       </CompactActionButton>
     {/if}
     <CompactActionButton
-      touchFriendly
+      wrapperClass="mobile-presentation:pill-button-group-touch"
       label={m('composer.send')}
       type="button"
       onpointerdown={(event) => event.preventDefault()}

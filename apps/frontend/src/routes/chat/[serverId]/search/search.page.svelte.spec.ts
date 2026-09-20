@@ -442,9 +442,9 @@ describe('message search page', () => {
       '[data-search-result-id="message-1"]'
     ) as HTMLElement;
     expect(firstResult.getAttribute('role')).toBe('link');
-    expect(firstResult.querySelector('.message-row')?.classList).toContain('md:mx-0');
-    expect(firstResult.querySelector('.message-row')?.classList).toContain('md:pe-2');
-    expect(firstResult.querySelector('.message-row')?.classList).not.toContain('md:pr-2');
+    expect(firstResult.querySelector('.message-row')?.classList).toContain('desktop-presentation:mx-0');
+    expect(firstResult.querySelector('.message-row')?.classList).toContain('desktop-presentation:pe-2');
+    expect(firstResult.querySelector('.message-row')?.classList).not.toContain('desktop-presentation:pr-2');
     expect(container.querySelector('ol')?.classList).not.toContain('divide-y');
     expect(container.querySelector('ol')?.classList).toContain('gap-4');
 

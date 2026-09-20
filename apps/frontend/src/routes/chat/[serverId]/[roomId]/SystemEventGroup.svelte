@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import type { TimelineEventView } from '$lib/render/timelineEvents';
   import type { UserAvatarUserView } from '$lib/render/users';
   import type { SystemGroupKind } from './virtualItems';
@@ -74,7 +75,7 @@
 </script>
 
 {#snippet actorName(actor: Actor)}
-  <bdi>{actor.name}</bdi>
+  <AccountName name={actor.name} identity={actor.user} badgeSize="md" />
 {/snippet}
 
 {#snippet actorNames(items: Actor[])}
@@ -91,7 +92,7 @@
 {/snippet}
 
 {#if actors.length > 0}
-  <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={events[0].id}>
+  <div class="mt-4 flex items-center gap-4 px-2 desktop-presentation:px-4" data-event-id={events[0].id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
       <div class="flex -space-x-1.5">

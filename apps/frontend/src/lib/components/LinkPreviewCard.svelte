@@ -145,7 +145,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
           e.stopPropagation();
           onDismiss?.();
         }}
-        class="embed-control-button md:group-hover/preview:opacity-100"
+        class="embed-control-button"
         aria-label={m('preview.dismiss')}
       >
         <span class="iconify icon-[uil--times] text-sm"></span>
@@ -158,7 +158,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
           e.stopPropagation();
           openDeleteConfirmation();
         }}
-        class="embed-control-button md:group-hover/preview:opacity-100"
+        class="embed-control-button"
         aria-label={m('preview.delete')}
       >
         <span class="iconify icon-[uil--times] text-sm"></span>

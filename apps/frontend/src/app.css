@@ -77,10 +77,23 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 /* Hover affordances should follow input capability, not viewport width. */
 @custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
+/* Keep these queries in sync with utils/inputMediaQueries.ts. Width still owns
+ * content fitting; only narrow touch-capable windows use mobile presentation. */
+@custom-variant touch-input (@media (any-pointer: coarse));
+@custom-variant compact-input (@media not all and (any-pointer: coarse));
+@custom-variant mobile-presentation (@media (width < 768px) and (any-pointer: coarse));
+@custom-variant desktop-presentation {
+  @media (width >= 768px) {
+    @slot;
+  }
+  @media not all and (any-pointer: coarse) {
+    @slot;
+  }
+}
 
 /* Opt in to reclaiming header space while the software keyboard is open. */
 @utility keyboard-hide-mobile {
-  @variant max-md {
+  @variant mobile-presentation {
     [data-keyboard-open] & {
       display: none;
     }
@@ -510,8 +523,8 @@
   @apply max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
-/* Desktop actions form one row and can expand the dialog up to its viewport
- * limit. Task sheets add dialog-actions-sheet for complete, stacked labels. */
+/* Desktop actions expand the dialog up to its viewport limit. Narrow windows
+ * wrap complete labels. Task sheets use dialog-actions-sheet for stacked actions. */
 @utility dialog-actions {
   width: max-content;
   max-width: 100%;
@@ -531,6 +544,16 @@
    * actions surrender their longer labels first. */
   & > :is(button, a):first-child:not(:last-child) {
     flex-shrink: 0;
+  }
+
+  /* This is a space constraint, independent of input or sheet presentation. */
+  @variant max-md {
+    flex-wrap: wrap;
+    & > :is(button, a),
+    & .button-content {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
   }
 }
 
@@ -937,7 +960,8 @@
 }
 
 @utility embed-control-button {
-  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] md:opacity-0;
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] compact-input:hover-actions:opacity-0 focus-visible:opacity-100;
+  @apply group-hover/preview:opacity-100 group-focus-within/preview:opacity-100;
 }
 
 @utility attachment-action-button {
@@ -1001,7 +1025,7 @@
 /* Chat message row primitives. These keep the hover-highlight shell and its
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {
-  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface md:mx-2 md:rounded-md md:pe-8;
+  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface desktop-presentation:mx-2 desktop-presentation:rounded-md desktop-presentation:pe-8;
 }
 
 @utility inline-end-overlay-shadow {
@@ -1370,9 +1394,51 @@
 @utility app-frame-inset {
   @apply relative shadow-[-1px_-1px_0_var(--app-edge-upper),1px_1px_0_var(--app-edge-lower),var(--app-frame-elevation)];
 
+  /* Narrow mouse drawers slide within the rounded work plane. Establish a
+   * containing block for their fixed positioning and clip every animation
+   * frame. Touch drawers still use the viewport for iOS safe-area handling. */
+  @variant max-md {
+    @variant compact-input {
+      contain: layout paint;
+      --sidebar-overlay-top: 0px;
+      --sidebar-overlay-bottom: 0px;
+    }
+  }
+
   &::after {
     @apply floating-inset pointer-events-none absolute inset-0 z-40 rounded-[inherit] opacity-[var(--app-inset-opacity)];
     content: '';
+  }
+}
+
+/* Both sidebar columns inherit one progress value from MobileSidebarChrome.
+ * Mouse drawers use the thread overlay's short slide and fade. Touch drawers
+ * travel their full width so the surface follows a finger without scaling. */
+@utility sidebar-drawer {
+  @variant max-md {
+    --sidebar-motion-duration: var(--motion-duration-pane);
+    transform: translateX(calc((var(--sidebar-progress, 1) - 1) * var(--sidebar-width, 100vw) * var(--inline-direction)));
+
+    @variant compact-input {
+      transform: translateX(calc((var(--sidebar-progress, 1) - 1) * 300px * var(--inline-direction)));
+      opacity: var(--sidebar-progress, 1);
+    }
+
+    [data-sidebar-dragging='false'] & {
+      transition:
+        transform var(--sidebar-motion-duration) var(--ease-out-expo),
+        opacity var(--sidebar-motion-duration) var(--ease-out-expo),
+        visibility 0s;
+    }
+
+    [data-sidebar-closed='true'] & {
+      visibility: hidden;
+      transition-delay: 0s, 0s, var(--sidebar-motion-duration);
+    }
+
+    @variant motion-reduce {
+      --sidebar-motion-duration: 0ms;
+    }
   }
 }
 
@@ -1428,6 +1494,7 @@
 /* Semantic command rows for ContextMenu and related action surfaces. */
 @utility menu-entry {
   @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
+  @apply touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
@@ -1465,12 +1532,16 @@
 /* Fixed mobile drawers cover the browser content down to the viewport edge.
    Embedded hosts can supply a bottom inset to match their content padding. */
 @utility mobile-sidebar-insets {
-  top: calc(3.5rem + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)));
-  bottom: var(--mobile-sidebar-safe-bottom, 0px);
+  top: var(--sidebar-overlay-top, calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px))));
+  bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
 }
 
 @layer base {
   html {
+    --app-header-height: 2.75rem;
+    @variant mobile-presentation {
+      --app-header-height: 3.5rem;
+    }
     @media (any-pointer: coarse) {
       --text-base: 1.0625rem;
       --text-sm: 0.9375rem;

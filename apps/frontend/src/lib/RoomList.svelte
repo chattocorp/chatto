@@ -5,6 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { goto, pushState } from '$app/navigation';
@@ -855,7 +856,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <UserAvatar user={participant} size="xs" />
         {/each}
       </div>
-      <span class="flex-1 truncate">{presentation.label}</span>
+      <span class="min-w-0 flex-1"
+        ><DirectMessageName
+          participants={room.members}
+          currentUserId={navigation.currentUserId}
+          getDisplayName={getLiveDisplayName}
+        /></span
+      >
     {:else}
       <span class="relative flex shrink-0">
         {#if isJoined}
@@ -865,7 +872,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
                 'iconify sidebar-icon icon-[uil--globe] transition-opacity',
                 showUnread ? 'text-text-top' : 'text-muted',
                 showDragHandle
-                  ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 [@media(hover:none)]:opacity-0'
+                  ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
                   : ''
               ]}
               role="img"
@@ -878,7 +885,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
                 'sidebar-icon transition-opacity',
                 showUnread ? 'text-text-top' : 'text-muted',
                 showDragHandle
-                  ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 [@media(hover:none)]:opacity-0'
+                  ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
                   : ''
               ]}>#</span
             >
@@ -888,7 +895,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
             class={[
               'sidebar-icon text-muted transition-opacity',
               showDragHandle
-                ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 [@media(hover:none)]:opacity-0'
+                ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
                 : ''
             ]}>+</span
           >
@@ -897,7 +904,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
             class={[
               'iconify sidebar-icon icon-[uil--lock] text-muted transition-opacity',
               showDragHandle
-                ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 [@media(hover:none)]:opacity-0'
+                ? 'group-focus-within/room:opacity-0 group-hover/room:opacity-0 touch-input:opacity-0'
                 : ''
             ]}
           ></span>
@@ -905,7 +912,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {#if showDragHandle}
           <button
             type="button"
-            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/room:pointer-events-auto group-focus-within/room:opacity-100 group-hover/room:pointer-events-auto group-hover/room:opacity-100 active:cursor-grabbing [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/room:pointer-events-auto group-focus-within/room:opacity-100 group-hover/room:pointer-events-auto group-hover/room:opacity-100 active:cursor-grabbing touch-input:pointer-events-auto touch-input:opacity-100"
             aria-label={m('admin.rooms_admin.drag_room')}
             onclick={(event) => {
               event.preventDefault();
@@ -985,14 +992,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           class={[
             'iconify sidebar-icon icon-[uil--external-link-alt] text-muted transition-opacity',
             showDragHandle
-              ? 'group-focus-within/link:opacity-0 group-hover/link:opacity-0 [@media(hover:none)]:opacity-0'
+              ? 'group-focus-within/link:opacity-0 group-hover/link:opacity-0 touch-input:opacity-0'
               : ''
           ]}
         ></span>
         {#if showDragHandle}
           <button
             type="button"
-            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 active:cursor-grabbing [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 active:cursor-grabbing touch-input:pointer-events-auto touch-input:opacity-100"
             aria-label={m('admin.rooms_admin.drag_link')}
             onclick={(event) => {
               event.preventDefault();
@@ -1020,7 +1027,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {@const expanded = expandedRoomSections.get(section.persistKey) ?? false}
     <button
       type="button"
-      class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-xs text-start"
+      class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-start text-xs"
       aria-expanded={expanded}
       aria-label={expanded ? m('room_list.hide_rooms_in_group', { group: section.label }) : m('room_list.show_rooms_in_group', { count: unjoinedCount, group: section.label })}
       title={expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}
@@ -1038,7 +1045,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet groupLeadingOverlay()}
   <button
     type="button"
-    class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+    class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing touch-input:pointer-events-auto touch-input:opacity-100"
     aria-label={m('admin.rooms_admin.drag_group')}
     onclick={(event) => event.stopPropagation()}
     onpointerdown={(event) => event.stopPropagation()}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import type { AdminMember, AdminRoleDetails } from '$lib/api-client/adminUsers';
   import { CopyId } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
@@ -82,7 +83,9 @@
 
       <div class="min-w-0 flex-1">
         <div class="flex flex-col gap-1">
-          <h3 class="truncate text-2xl font-semibold">{member.displayName}</h3>
+          <h3 class="min-w-0 text-2xl font-semibold">
+            <AccountName name={member.displayName} identity={member} />
+          </h3>
           <div class="truncate text-muted">@{getLiveLogin(member.id, member.login)}</div>
         </div>
 

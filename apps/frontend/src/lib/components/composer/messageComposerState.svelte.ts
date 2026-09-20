@@ -1,4 +1,5 @@
 import { tick, untrack } from 'svelte';
+import type { AccountNameIdentity } from '$lib/render/accountName';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import type {
   ComposerContext,
@@ -56,6 +57,7 @@ export type MessageComposerProps = {
   inThread?: string;
   inReplyTo?: string;
   replyDisplayName?: string;
+  replyIdentity?: AccountNameIdentity;
   replyExcerpt?: string;
   placeholder?: string;
   canPost?: boolean;

@@ -6,6 +6,7 @@ uses cached user data while it refreshes and updates shared profile fields as
 realtime changes arrive.
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
@@ -117,7 +118,7 @@ realtime changes arrive.
       <UserAvatar user={avatarUser} serverId={serverScope.serverId} size="xl" />
       <div class="min-w-0 flex-1">
         <h2 class="truncate text-lg font-semibold text-text-top">
-          <bdi>{displayName}</bdi>
+          <AccountName name={displayName} identity={baseUser} />
         </h2>
         <p class="truncate text-sm text-muted" dir="ltr">@{login}</p>
         <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />

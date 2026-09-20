@@ -1,6 +1,6 @@
 import '../../app.css';
-import { page } from 'vitest/browser';
-import { beforeEach, describe, it, expect, expectTypeOf, vi } from 'vitest';
+import { cdp, page } from 'vitest/browser';
+import { afterEach, beforeEach, describe, it, expect, expectTypeOf, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync, type ComponentProps, type Snippet } from 'svelte';
 import Dialog from './Dialog.svelte';
@@ -12,6 +12,10 @@ function renderDialog(props: ComponentProps<typeof Dialog>) {
 
 const FRAME = 'dialog > div';
 const WELL = `${FRAME} > div`;
+
+afterEach(async () => {
+  await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+});
 
 describe('Dialog', () => {
   // Compile-time contract checks run through svelte-check.
@@ -130,7 +134,8 @@ describe('Dialog', () => {
       }
     });
 
-    it('fills narrow screens and wraps complete action labels', async () => {
+    it('fills narrow touch screens and wraps complete action labels', async () => {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
       await page.viewport(425, 720);
       const { container } = renderDialog({
         visible: true,

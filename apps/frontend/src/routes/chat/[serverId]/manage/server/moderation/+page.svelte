@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { onDestroy } from 'svelte';
   import {
     createRoomCommandAPI,
@@ -200,7 +201,11 @@
                     </div>
                   {/if}
                   <div class="min-w-0">
-                    <div class="truncate font-medium">{user?.displayName || ban.userId}</div>
+                    <AccountName
+                      name={user?.displayName || ban.userId}
+                      identity={user}
+                      class="font-medium"
+                    />
                     <div class="truncate text-xs text-muted">
                       {#if user}@{user.login}{/if}
                     </div>

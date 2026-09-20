@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -64,7 +66,7 @@
 
   function userLabel(user: User): string {
     const handle = user.login ? `@${user.login}` : user.id;
-    return [user.displayName, handle].filter(Boolean).join(' ');
+    return [formatAccountName(user.displayName, user), handle].filter(Boolean).join(' ');
   }
 
   function scheduleSearch(query: string) {
@@ -102,7 +104,7 @@
 >
   {#snippet item({ item: user })}
     <UserAvatar {user} size="xs" useLiveProfile={false} class="shrink-0" />
-    <span class="min-w-0 truncate text-sm text-text">{user.displayName}</span>
+    <AccountName name={user.displayName} identity={user} class="text-sm text-text" />
     <span class="min-w-0 truncate text-sm text-muted">@{user.login}</span>
   {/snippet}
 </Combobox>

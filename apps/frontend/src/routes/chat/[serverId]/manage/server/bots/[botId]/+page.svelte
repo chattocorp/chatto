@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { formatAccountName } from '$lib/render/accountName';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -350,13 +352,19 @@
   );
 </script>
 
+{#snippet botName()}<AccountName
+    name={bot?.displayName ?? m('settings.bots.title')}
+    identity={bot ? { isBot: true } : undefined}
+  />{/snippet}
+
 <PageTitle
   title={m('admin.common.server_admin_page_title', {
-    title: bot?.displayName ?? m('settings.bots.title')
+    title: bot ? formatAccountName(bot.displayName, { isBot: true }) : m('settings.bots.title')
   })}
 />
 <PaneHeader
   title={bot?.displayName ?? m('settings.bots.title')}
+  titleContent={botName}
   subtitle={bot ? `@${bot.login}` : undefined}
   {backHref}
   loading={botQuery.isPending}
@@ -369,7 +377,7 @@
     <Hint tone="danger">{botQuery.error.message}</Hint>
   {:else if bot}
     <div class="flex flex-col gap-6">
-      <Panel title={bot.displayName} subtitle={`@${bot.login}`}>
+      <Panel title={bot.displayName} titleContent={botName} subtitle={`@${bot.login}`}>
         {#snippet actions()}
           {#if canReassignOwner && supportsOwnerReassignment}
             <Button size="sm" variant="secondary" onclick={openReassignOwner}>
@@ -540,5 +548,7 @@
   onconfirm={deleteBot}
   onclose={() => (deleteVisible = false)}
 >
-  {m('settings.bots.delete_warning', { name: bot?.displayName ?? '' })}
+  {m('settings.bots.delete_warning', {
+    name: bot ? formatAccountName(bot.displayName, { isBot: true }) : ''
+  })}
 </ConfirmDialog>

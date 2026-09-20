@@ -4,7 +4,7 @@ import { createRawSnippet } from 'svelte';
 import { q } from '$lib/test-utils';
 import PaneHeader from './PaneHeader.svelte';
 import '../../app.css';
-import { page } from 'vitest/browser';
+import { cdp, page } from 'vitest/browser';
 
 const actions = createRawSnippet(() => ({
   render: () => '<div><button type="button" data-testid="members">Members</button><button type="button">Call</button></div>'
@@ -15,6 +15,7 @@ const collapsedActions = createRawSnippet(() => ({
 
 describe('PaneHeader responsive actions', () => {
   it('reclaims only opted-in header space on mobile and restores it on close', async () => {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
     await page.viewport(390, 800);
     const optedIn = render(PaneHeader, { props: { title: 'Room', hideOnKeyboard: true } });
     const normal = render(PaneHeader, { props: { title: 'Thread', onBack: () => {} } });
@@ -34,6 +35,7 @@ describe('PaneHeader responsive actions', () => {
       await expect.element(optedIn.getByRole('heading', { name: 'Room' })).toBeVisible();
       expect(header.getBoundingClientRect().height).toBe(height);
     } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
       document.body.removeAttribute('data-keyboard-open');
       await page.viewport(1280, 720);
     }

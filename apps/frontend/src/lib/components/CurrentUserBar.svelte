@@ -310,6 +310,7 @@ sidebar. Shows the avatar with presence and the live display name.
     <UserCard
       variant="card"
       name={displayName}
+      identity={activeServerUser}
       username={login}
       testId="current-user-identity-card"
       textTestId="current-user-identity-text"

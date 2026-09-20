@@ -14,6 +14,8 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { formatAccountName } from '$lib/render/accountName';
   import UserCard from '$lib/ui/UserCard.svelte';
   import WipeReveal from '$lib/ui/WipeReveal.svelte';
   import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
@@ -349,6 +351,7 @@ Room sidebar panel for voice/video calls.
 )}
   <UserCard
     name={label}
+    identity={participant.avatarUser}
     username={participant.avatarUser.login}
     voiceLevel={isInThisCall
       ? () =>
@@ -359,7 +362,9 @@ Room sidebar panel for voice/video calls.
     class="shrink-0"
     identityAttributes={{ onclick: (e) => showUserMenu(participant, e, screen) }}
     menu={{
-      label: m('room.sidebar.view_profile', { name: participant.displayName }),
+      label: m('room.sidebar.view_profile', {
+        name: formatAccountName(participant.displayName, participant.avatarUser)
+      }),
       onclick: (event) => showUserMenu(participant, event, screen),
       expanded: popoverParticipant?.key === participant.key && popoverScreen === screen,
       testId: 'call-participant-menu-button'
@@ -398,7 +403,7 @@ Room sidebar panel for voice/video calls.
       callTileCardClass,
       mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
     ]}
-    title={participant.displayName}
+    title={formatAccountName(participant.displayName, participant.avatarUser)}
     data-testid="call-participant-card"
     {@attach contextMenuTrigger((details) => showParticipantContextMenu(participant, details))}
     data-call-media-card={showVideo ? true : undefined}
@@ -430,7 +435,9 @@ Room sidebar panel for voice/video calls.
 {#snippet screenShareCard(participant: DisplayParticipant)}
   <div
     class={[callTileCardClass, 'participant-card-video col-span-full']}
-    title={m('voice.screen_title', { name: participant.displayName })}
+    title={m('voice.screen_title', {
+      name: formatAccountName(participant.displayName, participant.avatarUser)
+    })}
     data-testid="call-screen-share-card"
     {@attach contextMenuTrigger((details) =>
       showParticipantContextMenu(participant, details, true)
@@ -467,8 +474,10 @@ Room sidebar panel for voice/video calls.
   <div
     class={[callTileCardClass, 'participant-card-video h-full min-h-0']}
     title={isScreen
-      ? m('voice.screen_title', { name: participant.displayName })
-      : participant.displayName}
+      ? m('voice.screen_title', {
+          name: formatAccountName(participant.displayName, participant.avatarUser)
+        })
+      : formatAccountName(participant.displayName, participant.avatarUser)}
     data-testid="call-featured-stage-card"
     {@attach contextMenuTrigger((details) =>
       showParticipantContextMenu(participant, details, isScreen)
@@ -513,7 +522,11 @@ Room sidebar panel for voice/video calls.
       {:else}
         <div class="flex min-w-0 flex-col items-center gap-4">
           <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
-          <span class="max-w-full truncate text-lg font-semibold">{participant.displayName}</span>
+          <AccountName
+            name={participant.displayName}
+            identity={participant.avatarUser}
+            class="text-lg font-semibold"
+          />
         </div>
       {/if}
     </button>

@@ -68,7 +68,7 @@ Enter activates the result only when the result itself has focus.
     {timestampSettings}
     {timestampLocale}
     {headerMeta}
-    rowClass="hover:bg-transparent md:mx-0 md:pe-2"
+    rowClass="hover:bg-transparent desktop-presentation:mx-0 desktop-presentation:pe-2"
   >
     {#snippet afterBody()}
       {#if result.attachmentCount > 0}

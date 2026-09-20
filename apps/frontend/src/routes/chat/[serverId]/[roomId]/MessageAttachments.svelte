@@ -433,7 +433,7 @@
           layout === 'row' ? 'max-w-full flex-wrap items-center' : 'shrink-0 flex-col',
           layout === 'overlay' && 'absolute top-3 right-2',
           layout !== 'row' &&
-            'transition-opacity feedback-quick md:opacity-0 md:group-hover/attachment:opacity-100 md:focus-within:opacity-100'
+            'transition-opacity feedback-quick compact-input:hover-actions:opacity-0 group-hover/attachment:opacity-100 focus-within:opacity-100'
         ]}
       >
         {@render deleteAttachmentButton(attachment)}

@@ -5,6 +5,7 @@ Room-scoped message search for the room sidebar. Its store is retained per room
 so switching rooms cannot leak a query or plaintext results into another room.
 -->
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import SearchResult from '$lib/components/search/SearchResult.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { m } from '$lib/i18n/messages';
@@ -75,7 +76,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
         {#snippet children(result)}
           <SearchResult
             {result}
-            aria-label={`${result.actor?.displayName || result.actor?.login || m('common.unknown')}: ${result.body}`}
+            aria-label={`${formatAccountName(result.actor?.displayName || result.actor?.login || m('common.unknown'), result.actor)}: ${result.body}`}
             data-room-search-result-id={result.id}
             class="group/search-result"
             viewerLogin={serverScope.store.currentUser.user?.login}

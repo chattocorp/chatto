@@ -12,6 +12,8 @@ unknown instance) the component renders nothing.
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -359,7 +361,7 @@ unknown instance) the component renders nothing.
   <div
     role="link"
     tabindex="0"
-    aria-label={`Open linked message${displayName ? ` from ${displayName}` : ''}`}
+    aria-label={`Open linked message${displayName ? ` from ${formatAccountName(displayName, preview.actor)}` : ''}`}
     data-testid="message-preview-card"
     class="group/preview relative embed-frame flex w-full max-w-[min(42rem,100%)] cursor-pointer flex-col"
     onclick={openPreview}
@@ -381,7 +383,11 @@ unknown instance) the component renders nothing.
           <div class="flex min-w-0 items-center gap-2">
             {#if preview.actor && !preview.actor.deleted}
               <UserAvatar user={preview.actor} size="xs" />
-              <bdi class="truncate text-sm font-medium">{displayName}</bdi>
+              <AccountName
+                name={displayName ?? ''}
+                identity={preview.actor}
+                class="text-sm font-medium"
+              />
             {:else}
               <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
             {/if}
@@ -473,7 +479,7 @@ unknown instance) the component renders nothing.
           e.stopPropagation();
           onDismiss?.();
         }}
-        class="embed-control-button md:group-hover/preview:opacity-100"
+        class="embed-control-button"
         aria-label={m('preview.dismiss')}
       >
         <span class="iconify icon-[uil--times] text-sm"></span>

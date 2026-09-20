@@ -59,4 +59,15 @@ describe('input capabilities', () => {
     expect(prefersTouchActions()).toBe(true);
     expect(supportsHoverActions()).toBe(true);
   });
+
+  it('keeps mouse keyboard defaults and hover actions on mouse-primary hybrids', () => {
+    mockMedia({
+      '(pointer: fine)': true,
+      '(any-pointer: coarse)': true,
+      '(any-pointer: fine)': true,
+      '(any-hover: hover)': true
+    });
+    expect(prefersTouchActions()).toBe(false);
+    expect(supportsHoverActions()).toBe(true);
+  });
 });

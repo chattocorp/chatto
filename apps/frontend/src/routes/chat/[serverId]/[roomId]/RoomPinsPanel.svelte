@@ -5,6 +5,7 @@ Channel pinned messages rendered through the room timeline's canonical
 message presentation. Each message row itself opens the original message.
 -->
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
@@ -84,11 +85,10 @@ message presentation. Each message row itself opens the original message.
   }
 
   const loadMoreWhenVisible = useLoadMoreWhenVisible({
-    getCursor: () => store.hasMore ? store.items.length : null,
+    getCursor: () => (store.hasMore ? store.items.length : null),
     loadMore: () => store.loadMore(),
     hasError: () => store.loadMoreError
   });
-
 </script>
 
 <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
@@ -119,7 +119,7 @@ message presentation. Each message row itself opens the original message.
               <div
                 role="link"
                 tabindex="0"
-                aria-label={`${actor?.displayName || actor?.login || m('common.unknown')}: ${message.body || ''}`}
+                aria-label={`${formatAccountName(actor?.displayName || actor?.login || m('common.unknown'), actor)}: ${message.body || ''}`}
                 data-room-pin-id={message.id}
                 class="group/search-result cursor-pointer selectable-list-item"
                 onclick={(pointerEvent) => openPinFromPointer(pointerEvent, message)}
@@ -136,7 +136,7 @@ message presentation. Each message row itself opens the original message.
                       viewerLogin={serverScope.store.currentUser.user?.login}
                       timestampSettings={userSettings}
                       timestampLocale={activeLocale}
-                      rowClass="hover:bg-transparent md:mx-0 md:pe-2"
+                      rowClass="hover:bg-transparent desktop-presentation:mx-0 desktop-presentation:pe-2"
                     >
                       {#snippet headerMeta()}
                         {#if message.createdAt}
