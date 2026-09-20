@@ -23,6 +23,7 @@ keep the compact menu without a navigation action.
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
 
@@ -73,6 +74,8 @@ keep the compact menu without a navigation action.
       id: string;
       login: string;
       displayName: string;
+      isBot?: boolean;
+      deleted?: boolean;
       avatarUrl?: string | null;
       bio?: string | null;
       timezone?: string | null;
@@ -168,7 +171,7 @@ keep the compact menu without a navigation action.
   <div class="flex items-center gap-3 menu-section p-3">
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">
-      <div class="truncate font-semibold">{displayName}</div>
+      <AccountName name={displayName} identity={user} class="font-semibold" />
       <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
       <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
     </div>

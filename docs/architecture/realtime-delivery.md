@@ -461,8 +461,10 @@ a room view does not cover its threads. App focus and visibility gate the shared
 attention rule. Notification badges and sound use this rule without changing
 server rows or counts. Presentation counts subtract only loaded unread
 occurrences covered by a view. Each successful thread read also refreshes its
-parent message, followed-thread queries, notifications, and room state through
-the existing refresh scheduler, without requiring a realtime invalidation.
+parent message and followed-thread queries. It refreshes notifications and room
+state when the affected room has unread attention, the state is unknown, or an
+outstanding read can replace it. These recovery reads use the existing refresh
+scheduler without requiring a realtime invalidation.
 This read does not replace the open thread's loaded message window.
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
@@ -487,7 +489,21 @@ the same resource family during a read, the frontend runs one follow-up read
 at the newest event cursor. Both the collection delay and follow-up reads are
 part of cursor reconciliation. Notification invalidations still require an
 authoritative notification-list read because their events carry no replacement
-notification data.
+notification data. Only occurrence-change hints request that list. Badge hints
+request room state, not notifications. A message post requests room state only
+when the room is missing from the retained directory; known DM activity is
+applied locally. The user-scoped post-commit hint reconciles the poster's read
+state and Slow Mode deadline after those updates finish on the server.
+
+A self-authored Badge hint can skip the room read when the room is already
+read and Slow Mode is disabled. A room-read hint can also skip an already-read
+room. These checks use raw server state, not the attention hidden by an active
+view. Unknown state, failed reconciliation, and outstanding reads retain the
+refresh. Other actors' Badge hints always refresh rooms because they can either
+create or remove attention. Posting can clear older notification occurrences;
+their occurrence-change hints still refresh the list. Reconnect reconciliation
+is unchanged and repairs missed transient hints. No resources are added to
+event payloads, and no new external system receives user data.
 The message queue deduplicates pending IDs and serializes batches within each
 room. An event that arrives during a read queues another read for its ID and
 prevents the older result from being applied. Reset, room-access loss, and

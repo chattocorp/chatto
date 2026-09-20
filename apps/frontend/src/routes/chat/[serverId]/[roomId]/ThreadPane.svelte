@@ -233,7 +233,12 @@
     }
 
     consumedReplyId = reply.id;
-    replyState.startReply(reply.eventId, reply.actorDisplayName, reply.excerpt);
+    replyState.startReply(
+      reply.eventId,
+      reply.actorDisplayName,
+      reply.excerpt,
+      reply.actorIdentity
+    );
     api.focus();
     onReplyConsumed?.();
   });
@@ -367,6 +372,7 @@
     inThread={threadRootEventId}
     inReplyTo={replyState.messageEventId ?? undefined}
     replyDisplayName={replyState.actorDisplayName || undefined}
+    replyIdentity={replyState.actorIdentity}
     replyExcerpt={replyState.excerpt || undefined}
     onCancelReply={() => replyState.cancelReply()}
     placeholder={m('room.thread.reply_placeholder')}

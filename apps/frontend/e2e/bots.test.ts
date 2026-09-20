@@ -272,7 +272,7 @@ test.describe('Bot account lifecycle', () => {
     const originalKey = await captureShowOnceBotKey(page);
     await page.waitForURL(routes.patterns.anyAdminBot);
     await expect(
-      page.getByRole('heading', { name: botDisplayName, exact: true, level: 1 })
+      page.getByRole('heading', { name: `${botDisplayName} BOT`, exact: true, level: 1 })
     ).toBeVisible();
 
     const listedBots = await connectPost<ListBotsResponse>(

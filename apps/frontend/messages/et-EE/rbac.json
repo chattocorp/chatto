@@ -121,7 +121,7 @@
       "room_list": "Vaadake ruume kataloogis. Kasutajal võib lubada ruumi näha (nt taotleda juurdepääsu), ilma et tal lubataks sellega liituda.",
       "room_manage": "Muutke ruumi seadeid ja lubasid ning kustutage ruume",
       "room_ban_member": "Keelake liikmetele tubadest lahkuda",
-      "message_read": "Lugege sõnumeid kanaliruumides",
+      "message_read": "Kõigi sõnumite lugemine tubades. Selle õiguse eemaldamisel säilib piiratud juurdepääs, kui message.read-interactions on eraldi antud.",
       "message_read_interactions": "Lugeda terveid lõimi, mille olete loonud või kus teine kasutaja teid otse mainis",
       "message_post": "Postitada sõnumeid ja lõimevastuseid ning alustada privaatsõnumeid",
       "message_post_interactions": "Vastata lõimedes, mille alustasid, kus sind otse mainiti või kus said privaatsõnumi",

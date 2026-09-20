@@ -17,6 +17,7 @@ function roomData(overrides: Partial<RoomData> = {}): RoomData {
     },
     spaceName: 'Test Space',
     canReadMessages: true,
+    hasLimitedMessageAccess: false,
     canPostMessage: true,
     canPostInThread: true,
     canAttach: true,

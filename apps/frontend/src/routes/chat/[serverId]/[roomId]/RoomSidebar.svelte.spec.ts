@@ -306,6 +306,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     },
     spaceName: 'Test Server',
     canReadMessages: true,
+    hasLimitedMessageAccess: false,
     canPostMessage: true,
     canPostInThread: true,
     canAttach: true,

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery } from 'svelte/reactivity';
@@ -37,7 +38,7 @@
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
@@ -368,10 +369,11 @@
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
+  const defaultDesktopRoomSidebarPanel = $derived(room.roomData && !room.isDM ? 'members' : null);
   const activeRoomSidebarPanel = $derived(
     roomSidebarPanelForRoom(
       room.isDM,
-      appUi.activeDesktopRoomSidebarPanel,
+      appUi.desktopRoomSidebarPanel(defaultDesktopRoomSidebarPanel),
       showVoiceCall,
       messageSearchAvailable,
       supportsPinnedMessages
@@ -500,7 +502,7 @@
   let leavingRoom = $state(false);
 
   function toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    appUi.toggleDesktopRoomSidebarPanel(panel);
+    appUi.toggleDesktopRoomSidebarPanel(panel, defaultDesktopRoomSidebarPanel);
   }
 
   function openDirectMessageProfile(userId: string): void {
@@ -724,8 +726,18 @@
           />
         {/snippet}
 
+        {#snippet directMessageTitle()}
+          {#if room.dmData}<DirectMessageName
+              participants={room.dmData.participants}
+              currentUserId={room.dmData.currentUserId}
+              getDisplayName={getLiveDisplayName}
+            />{/if}
+        {/snippet}
         <PaneHeader
           title={presentation.title}
+          titleContent={room.isDM && room.dmData?.participants.length
+            ? directMessageTitle
+            : undefined}
           subtitle={presentation.description}
           loading={!room.roomData}
           collapseActions
@@ -766,8 +778,26 @@
           {/snippet}
         </PaneHeader>
 
+        {#if room.roomData?.canPostMessage === false || room.roomData?.hasLimitedMessageAccess}
+          <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
+            {#if room.roomData?.canPostMessage === false}
+              <div data-testid="room-post-denied">
+                <Hint>{m('room.timeline.post_denied')}</Hint>
+              </div>
+            {/if}
+            {#if room.roomData?.hasLimitedMessageAccess}
+              <div data-testid="limited-message-access">
+                <Hint>
+                  {m(room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access')}
+                </Hint>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
         {#if canReadMessages}
           <RoomEventsPane
+            hasLimitedMessageAccess={room.roomData?.hasLimitedMessageAccess ?? false}
             {roomId}
             messageStore={roomMessageStore}
             unreadMarkerEventId={unread.unreadMarkerEventId}
@@ -802,6 +832,7 @@
           {getRecentThreadRootCandidate}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
+          replyIdentity={replyState.actorIdentity}
           replyExcerpt={replyState.excerpt || undefined}
           onCancelReply={() => replyState.cancelReply()}
           autoFocus={!threadId && !hasMobileRoomSidebar}

@@ -5,6 +5,7 @@ Renders the standard user record table. The caller owns the surrounding panel
 and supplies an optional row-navigation callback.
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -17,6 +18,8 @@ and supplies an optional row-navigation callback.
     id: string;
     login: string;
     displayName: string;
+    isBot?: boolean;
+    deleted?: boolean;
   };
 
   let {
@@ -81,7 +84,7 @@ and supplies an optional row-navigation callback.
     {/snippet}
     {#snippet row(user: User)}
       <td class="px-4 py-3 font-medium">{user.login}</td>
-      <td class="px-4 py-3">{user.displayName}</td>
+      <td class="px-4 py-3"><AccountName name={user.displayName} identity={user} /></td>
       <td class="px-4 py-3 text-muted"><CopyId value={user.id} /></td>
     {/snippet}
   </DataTable>

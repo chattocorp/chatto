@@ -70,8 +70,12 @@
       "remove_account_suffix": " for denne serveren før du fjerner den."
     },
     "timeline": {
+      "post_denied": "Du har ikke tillatelse til å sende meldinger i dette rommet.",
       "beginning": "Dette er begynnelsen på denne samtalen.",
-      "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet."
+      "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet.",
+      "limited_access": "Du kan bare se samtaler du startet, eller der noen nevnte deg.",
+      "limited_access_dm": "Du kan bare se samtaler du startet, mottok, eller der noen nevnte deg.",
+      "limited_empty": "Ingen samtaler du kan lese ennå."
     },
     "message": {
       "empty": "Ingen meldinger ennå",

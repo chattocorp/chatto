@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
@@ -96,7 +97,7 @@
     class="relative flex max-w-md items-start gap-6"
     data-testid="avatar-drop-zone"
     role="group"
-    aria-label={`${m('settings.profile.avatar.title')}: ${user.displayName}`}
+    aria-label={`${m('settings.profile.avatar.title')}: ${formatAccountName(user.displayName, user)}`}
     {@attach avatarDropZone}
   >
     <DropZoneOverlay
@@ -119,7 +120,7 @@
         />
         <Button
           onclick={() => fileInput?.click()}
-          label={`${user.avatarUrl ? m('settings.profile.avatar.change') : m('settings.profile.avatar.upload')}: ${user.displayName}`}
+          label={`${user.avatarUrl ? m('settings.profile.avatar.change') : m('settings.profile.avatar.upload')}: ${formatAccountName(user.displayName, user)}`}
           loading={uploading}
           loadingText={m('settings.profile.avatar.uploading')}
         >
@@ -134,7 +135,7 @@
           <Button
             variant="danger-secondary"
             onclick={deleteAvatar}
-            label={`${m('settings.profile.avatar.remove')}: ${user.displayName}`}
+            label={`${m('settings.profile.avatar.remove')}: ${formatAccountName(user.displayName, user)}`}
             loading={deleting}
             loadingText={m('settings.profile.avatar.removing')}
           >

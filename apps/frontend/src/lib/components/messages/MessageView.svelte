@@ -6,6 +6,7 @@ their own contextual metadata and actions while this component keeps message
 identity, body rendering, and row geometry consistent.
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
   import type { UserAvatarUserView } from '$lib/render/users';
@@ -172,17 +173,19 @@ identity, body rendering, and row geometry consistent.
             {#if actorInteractive}
               <button
                 type="button"
-                class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
+                class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
                 onclick={onActorClick}
                 ontouchstart={onActorTouchStart}
                 oncontextmenu={onActorContextMenu}
               >
-                <bdi>{displayName}</bdi>
+                <AccountName name={displayName} identity={actor} badgeSize="md" />
                 {@render authorSuffix?.()}
               </button>
             {:else}
-              <strong class="inline-flex shrink-0 items-center gap-1.5 leading-none font-semibold">
-                <bdi>{displayName}</bdi>
+              <strong
+                class="inline-flex max-w-full min-w-0 items-center gap-1.5 leading-none font-semibold"
+              >
+                <AccountName name={displayName} identity={actor} badgeSize="md" />
                 {@render authorSuffix?.()}
               </strong>
             {/if}

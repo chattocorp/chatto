@@ -7,6 +7,10 @@
   const { Story } = defineMeta({ title: 'UI/UserCard', component: UserCard, tags: ['autodocs'] });
 </script>
 
+<Story name="Bot identity" asChild>
+  <div class="w-64"><UserCard name="Assistant" identity={{ isBot: true }} username="assistant_bot" {avatar} /></div>
+</Story>
+
 <script lang="ts">
   let lastAction = $state('No action yet');
   let speaking = $state(true);

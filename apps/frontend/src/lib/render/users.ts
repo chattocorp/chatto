@@ -1,4 +1,5 @@
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { formatAccountName } from './accountName';
 
 export type CustomUserStatusView = {
   emoji: string;
@@ -20,7 +21,10 @@ export type UserAvatarUserView = {
   customStatus?: CustomUserStatusView | null;
 };
 
-type DirectMessageParticipant = Pick<UserAvatarUserView, 'id' | 'login' | 'displayName'>;
+type DirectMessageParticipant = Pick<
+  UserAvatarUserView,
+  'id' | 'login' | 'displayName' | 'isBot'
+> & { deleted?: boolean };
 
 /** Builds the shared label and avatar participants for a direct message. */
 export function buildDirectMessagePresentation<T extends DirectMessageParticipant>(
@@ -35,10 +39,13 @@ export function buildDirectMessagePresentation<T extends DirectMessageParticipan
       others.length > 0
         ? others
             .map((participant) =>
-              getDisplayName(participant.id, participant.displayName || participant.login)
+              formatAccountName(
+                getDisplayName(participant.id, participant.displayName || participant.login),
+                participant
+              )
             )
             .join(', ')
-        : currentUserLabel,
+        : formatAccountName(currentUserLabel, participants[0]),
     visibleParticipants: others.length > 0 ? others : participants.slice(0, 1)
   };
 }

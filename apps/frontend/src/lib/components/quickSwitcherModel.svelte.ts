@@ -1,4 +1,5 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { formatAccountName } from '$lib/render/accountName';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { onDestroy, untrack } from 'svelte';
@@ -356,7 +357,8 @@ export class QuickSwitcherModel {
             detail: serverLabel,
             serverId: instance.id,
             serverName,
-            participants: presentation.visibleParticipants.slice(0, 2),
+            participants: presentation.visibleParticipants,
+            currentUserId,
             score: 0
           });
           continue;
@@ -505,7 +507,9 @@ export class QuickSwitcherModel {
           id: message.id,
           label: message.body,
           detail: [
-            message.actor?.displayName || message.actor?.login,
+            message.actor
+              ? formatAccountName(message.actor.displayName || message.actor.login, message.actor)
+              : undefined,
             message.roomName ? `#${message.roomName}` : null,
             serverName
           ]

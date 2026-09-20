@@ -501,6 +501,7 @@
         reply: {
           eventId: messageEvent.echoOfEventId,
           actorDisplayName: displayName,
+          actorIdentity: actor ?? undefined,
           excerpt
         }
       });
@@ -524,6 +525,7 @@
         reply: {
           eventId: roomReplyTargetEventId(event),
           actorDisplayName: displayName,
+          actorIdentity: actor ?? undefined,
           excerpt
         }
       });
@@ -539,7 +541,7 @@
 
   function startReplyInCurrentComposer(quote: QuoteInsertionContent | null) {
     const excerpt = (msg?.body ?? '').slice(0, 80);
-    replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt);
+    replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt, actor ?? undefined);
     if (quote) {
       composerContext.quoteInsertionState.requestInsertQuote(quote);
     }

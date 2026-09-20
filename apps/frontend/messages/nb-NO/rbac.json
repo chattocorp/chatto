@@ -121,7 +121,7 @@
       "room_list": "Se rom i katalogen. En bruker kan få lov til å se et rom (f.eks. for å be om tilgang) uten å få lov til å bli med i det.",
       "room_manage": "Rediger et roms innstillinger og tillatelser, og slett rom",
       "room_ban_member": "Ban medlemmer fra rom",
-      "message_read": "Les meldinger i kanalrom",
+      "message_read": "Les alle meldinger i rom. Fjerning av denne tillatelsen gir fortsatt begrenset tilgang hvis message.read-interactions er gitt separat.",
       "message_read_interactions": "Les hele tråder som du opprettet, eller der en annen bruker nevnte deg direkte",
       "message_post": "Publisere meldinger og trådsvar og starte direktemeldinger",
       "message_post_interactions": "Svare i tråder du startet, der du ble nevnt direkte eller mottok en direktemelding",

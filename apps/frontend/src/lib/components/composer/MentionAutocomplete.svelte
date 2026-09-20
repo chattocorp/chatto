@@ -11,6 +11,7 @@ Shows matching room members when typing @username in chat input.
 - `onClose` - Callback to close the popup
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import type { RoomMember } from '$lib/state/room';
   import { fuzzyMatch } from '$lib/fuzzyMatch';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -96,7 +97,11 @@ Shows matching room members when typing @username in chat input.
   {#snippet item({ item: result })}
     {#if result.type === 'user'}
       <UserAvatar user={result.member} size="xs" class="h-6 w-6" useLiveProfile={false} />
-      <bdi class="min-w-0 truncate text-sm text-text">{result.member.displayName}</bdi>
+      <AccountName
+        name={result.member.displayName}
+        identity={result.member}
+        class="text-sm text-text"
+      />
       <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.member.login}</bdi>
     {:else if result.type === 'virtual'}
       <div

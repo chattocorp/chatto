@@ -9,6 +9,7 @@ plane for forms, summaries, record tables, and dense matrices.
 
   let {
     title,
+    titleContent,
     subtitle,
     icon,
     count,
@@ -18,6 +19,8 @@ plane for forms, summaries, record tables, and dense matrices.
     fillHeight = false
   }: {
     title?: string;
+    /** Optional rich title content, with title kept as a plain-text fallback. */
+    titleContent?: Snippet;
     subtitle?: string | Snippet;
     icon?: string;
     count?: number;
@@ -44,7 +47,7 @@ plane for forms, summaries, record tables, and dense matrices.
           {#if icon}
             <span class={icon}></span>
           {/if}
-          {title}
+          {#if titleContent}{@render titleContent()}{:else}{title}{/if}
           {#if count !== undefined}
             <span class="text-muted">({count})</span>
           {/if}

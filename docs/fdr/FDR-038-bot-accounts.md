@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -15,6 +15,13 @@ exercise more authority than its human owner currently possesses.
 - Public `User.bot` metadata identifies a bot by its presence and contains
   `owner_user_id`. It is absent for humans and deleted-account references.
   The stored account model keeps its existing bot fields.
+
+- The client shows a small **BOT** label after each bot display name, including
+  messages, direct-message lists, profiles, and account pickers. Each bot in a
+  group direct message has its own label. Plain-text references use **Name (BOT)**.
+  The label stays visible when a long name is shortened. Deleted accounts do not
+  have the label. Avatars keep their presence and custom-status indicators.
+  This makes account type clear without covering the avatar or implying verification.
 
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card

@@ -121,7 +121,7 @@
       "room_list": "Skatīt telpas direktorijā. Lietotājam var atļaut redzēt telpu (piemēram, pieprasīt piekļuvi), neļaujot tai pievienoties.",
       "room_manage": "Rediģējiet telpas iestatījumus un atļaujas un dzēsiet telpas",
       "room_ban_member": "Aizliegt dalībniekus no telpām",
-      "message_read": "Lasīt ziņojumus kanālu telpās",
+      "message_read": "Lasīt visas ziņas istabās. Noņemot šo atļauju, ierobežota piekļuve joprojām ir iespējama, ja message.read-interactions ir piešķirta atsevišķi.",
       "message_read_interactions": "Lasīt pilnus pavedienus, kurus izveidojāt vai kuros cits lietotājs jūs tieši pieminēja",
       "message_post": "Publicēt ziņojumus un atbildes pavedienos un sākt privātas sarunas",
       "message_post_interactions": "Atbildēt pavedienos, kurus sākāt, kuros jūs tieši pieminēja vai kuros saņēmāt privātu ziņojumu",
