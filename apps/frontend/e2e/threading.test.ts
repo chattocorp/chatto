@@ -1005,12 +1005,14 @@ test.describe('Message Threading', () => {
     chatPage,
     roomPage
   }) => {
-    // Keep enough room for the default sidebar to split the conversation panes,
+    // Keep enough room for the server sidebar to split the conversation panes,
     // while letting either surrounding sidebar reduce their container below 768px.
     await page.setViewportSize({ width: 1250, height: 900 });
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
+    await page.getByRole('button', { name: 'Hide members', exact: true }).click();
+    await expect(roomPage.memberList).not.toBeVisible();
     await page.evaluate(() => {
       const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
       stored.threadPanePresentation = 'split';
