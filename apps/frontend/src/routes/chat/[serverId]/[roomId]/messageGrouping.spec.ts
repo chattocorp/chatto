@@ -24,6 +24,9 @@ function createMockEvent(
     kind: TimelineEventKindValue;
     body: string | null;
     attachments: unknown[];
+    threadExists: boolean;
+    replyCount: number;
+    threadRootEventId: string;
   }> = {}
 ): TimelineEventView {
   const kind = overrides.kind ?? TimelineEventKind.MessagePosted;
@@ -55,8 +58,9 @@ function createMockEvent(
         reactions: [],
         updatedAt: null,
         inReplyTo: null,
-        threadRootEventId: null,
-        replyCount: 0,
+        threadRootEventId: overrides.threadRootEventId ?? null,
+        threadExists: overrides.threadExists,
+        replyCount: overrides.replyCount ?? 0,
         lastReplyAt: null,
         threadParticipants: [],
         viewerIsFollowingThread: null
@@ -102,6 +106,69 @@ describe('computeEventMetadata', () => {
   });
 
   describe('message grouping', () => {
+    it.each([{ replyCount: 2 }, { threadExists: true, replyCount: 0 }])(
+      'separates an attached thread on both sides: %j',
+      (thread) => {
+        const events = Array.from({ length: 5 }, (_, index) =>
+          createMockEvent({
+            id: `evt_${index}`,
+            createdAt: `2025-11-28T10:0${index}:00Z`,
+            ...(index === 2 ? thread : {})
+          })
+        );
+
+        expect(
+          computeEventMetadata(events, defaultSettings).map((item) => item.isFirstInGroup)
+        ).toEqual([true, false, true, true, false]);
+      }
+    );
+
+    it('keeps consecutive thread roots separate', () => {
+      const events = Array.from({ length: 3 }, (_, index) =>
+        createMockEvent({
+          createdAt: `2025-11-28T10:0${index}:00Z`,
+          threadExists: true
+        })
+      );
+
+      expect(
+        computeEventMetadata(events, defaultSettings).map((item) => item.isFirstInGroup)
+      ).toEqual([true, true, true]);
+    });
+
+    it('still groups ordinary messages inside a thread', () => {
+      const events = Array.from({ length: 3 }, (_, index) =>
+        createMockEvent({
+          createdAt: `2025-11-28T10:0${index}:00Z`,
+          threadRootEventId: 'evt_root'
+        })
+      );
+
+      expect(
+        computeEventMetadata(events, defaultSettings).map((item) => item.isFirstInGroup)
+      ).toEqual([true, false, false]);
+    });
+
+    it('recomputes both boundaries when a message gains a thread', () => {
+      const events = Array.from({ length: 4 }, (_, index) =>
+        createMockEvent({ createdAt: `2025-11-28T10:0${index}:00Z` })
+      );
+
+      expect(
+        computeEventMetadata(events, defaultSettings).map((item) => item.isFirstInGroup)
+      ).toEqual([true, false, false, false]);
+
+      events[1] = createMockEvent({
+        id: events[1].id,
+        createdAt: events[1].createdAt,
+        threadExists: true
+      });
+
+      expect(
+        computeEventMetadata(events, defaultSettings).map((item) => item.isFirstInGroup)
+      ).toEqual([true, true, true, false]);
+    });
+
     it('groups consecutive messages from same user within 10 minutes', () => {
       const events = [
         createMockEvent({

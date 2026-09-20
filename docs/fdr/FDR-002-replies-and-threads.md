@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-09-10
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -28,6 +28,10 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- A root message with an attached thread does not group with adjacent messages
+  from the same author. The root and the next message show a full author header.
+  This also applies to an empty thread. Plain messages inside a thread can still
+  group by author.
 - Posting a reply attempts to follow the thread for its author, even after an
   earlier unfollow. The first reply also attempts to follow the root author when
   they have never made a follow choice. These post-commit subscription writes
