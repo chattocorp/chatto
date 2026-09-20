@@ -5,10 +5,114 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
+
+func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	for _, permission := range []core.Permission{core.PermRoleManage, core.PermUserManagePermissions} {
+		require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, permission))
+	}
+	service := &botService{api: env.api}
+	bot, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "archive_bot", DisplayName: "Archive Bot"}))
+	require.NoError(t, err)
+	group, err := env.core.CreateRoomGroup(env.ctx, core.SystemActorID, "Archive matrix", "")
+	require.NoError(t, err)
+	archived, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, group.Id, "archive-matrix-room", "")
+	require.NoError(t, err)
+	active, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, env.defaultRoomGroupID(t), "active-matrix-room", "")
+	require.NoError(t, err)
+	target := &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM, Id: archived.Id}
+
+	// Both response matrix types expose the same scope and cell collections.
+	type matrixView interface {
+		GetScopes() []*adminv1.PermissionMatrixScope
+		GetCells() []*adminv1.PermissionMatrixCell
+	}
+	for _, subject := range []struct{ name, userID string }{
+		{"role", ""}, {"human", env.viewer.Id}, {"bot", bot.Msg.Bot.User.Id},
+	} {
+		t.Run(subject.name, func(t *testing.T) {
+			fetch := func(page *apiv1.PageRequest, scope *adminv1.PermissionScope) (matrixView, *apiv1.PageInfo) {
+				t.Helper()
+				if subject.name == "role" {
+					res, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
+						RoleName: core.RoleModerator, IncludeDirectMessageScope: true, Page: page, Scope: scope,
+					}))
+					require.NoError(t, err)
+					return res.Msg.Matrix, res.Msg.Page
+				}
+				res, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{
+					UserId: subject.userID, IncludeDirectMessageScope: true, Page: page, Scope: scope,
+				}))
+				require.NoError(t, err)
+				return res.Msg.Matrix, res.Msg.Page
+			}
+			if subject.name == "role" {
+				_, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+					RoleName: core.RoleModerator, Scope: target, Permission: string(core.PermMessagePost),
+					Decision: adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+				}))
+				require.NoError(t, err)
+			} else {
+				_, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
+					UserId: subject.userID, Scope: target, Permission: string(core.PermMessagePost),
+					Decision: adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+				}))
+				require.NoError(t, err)
+			}
+			before, beforePage := fetch(&apiv1.PageRequest{Limit: 100}, nil)
+			scopeIDs := func(matrix matrixView) []string {
+				ids := make([]string, 0, len(matrix.GetScopes()))
+				for _, scope := range matrix.GetScopes() {
+					ids = append(ids, scope.Id)
+				}
+				return ids
+			}
+			require.Contains(t, scopeIDs(before), "room:"+archived.Id)
+			_, err := env.core.ArchiveRoom(env.ctx, core.SystemActorID, core.KindChannel, archived.Id)
+			require.NoError(t, err)
+			after, afterPage := fetch(&apiv1.PageRequest{Limit: 100}, nil)
+			ids := scopeIDs(after)
+			require.NotContains(t, ids, "room:"+archived.Id)
+			for _, id := range []string{"server", "dm", "group:" + group.Id, "room:" + active.Id} {
+				require.Contains(t, ids, id)
+			}
+			for _, cell := range after.GetCells() {
+				require.NotEqual(t, "room:"+archived.Id, cell.ScopeId)
+			}
+			require.Equal(t, beforePage.TotalCount-1, afterPage.TotalCount)
+			require.False(t, afterPage.HasMore)
+			for offset, id := range ids {
+				matrix, page := fetch(&apiv1.PageRequest{Limit: 1, Offset: int32(offset)}, nil)
+				require.Equal(t, []string{id}, scopeIDs(matrix))
+				require.Equal(t, afterPage.TotalCount, page.TotalCount)
+				require.Equal(t, offset < len(ids)-1, page.HasMore)
+			}
+			end, endPage := fetch(&apiv1.PageRequest{Limit: 1, Offset: int32(len(ids))}, nil)
+			require.Empty(t, end.GetScopes())
+			require.False(t, endPage.HasMore)
+			exact, exactPage := fetch(nil, target)
+			require.Empty(t, exact.GetScopes())
+			require.Empty(t, exact.GetCells())
+			require.Zero(t, exactPage.TotalCount)
+			require.False(t, exactPage.HasMore)
+
+			_, err = env.core.UnarchiveRoom(env.ctx, core.SystemActorID, core.KindChannel, archived.Id)
+			require.NoError(t, err)
+			restored, restoredPage := fetch(nil, target)
+			require.Equal(t, []string{"room:" + archived.Id}, scopeIDs(restored))
+			require.EqualValues(t, 1, restoredPage.TotalCount)
+			cell := findAPIPermissionCell(restored.GetCells(), "room:"+archived.Id, string(core.PermMessagePost))
+			require.NotNil(t, cell)
+			require.Equal(t, adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW, cell.Override)
+		})
+	}
+}
 
 func TestPermissionScopePagesAndInheritance(t *testing.T) {
 	env := newConnectAPITestEnv(t)

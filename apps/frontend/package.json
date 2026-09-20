@@ -1,7 +1,7 @@
 {
   "name": "chatto-frontend",
   "private": true,
-  "version": "0.5.0-beta.4",
+  "version": "0.5.0-beta.5",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -85,7 +85,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0",
-    "virtua": "^0.48.8",
+    "virtua": "^0.52.1",
     "vite": "^8.2.2",
     "vite-plugin-devtools-json": "^1.1.0",
     "vitest": "^4.1.11",

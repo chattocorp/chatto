@@ -1,8 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
-import { postMessageViaConnect } from './fixtures/connectHelpers';
-import { loginAndEnterRoom } from './fixtures/serverUser';
+import { postMessageViaConnect, postThreadReplyViaConnect } from './fixtures/connectHelpers';
+import { loginAndEnterRoom, withServerUser } from './fixtures/serverUser';
 
 function roomIdFromUrl(page: Page): string {
   const match = page.url().match(/\/chat\/-\/([^/]+)/);
@@ -110,4 +110,48 @@ test('mobile Files panel stays open when Escape closes the file viewer', async (
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(filesPanel).toBeVisible();
   await expect(filesPanel.getByTestId('room-file-preview')).toBeFocused();
+});
+
+test('Files keeps its rows and scroll position during room and closed-thread posts', async ({ page, browser, serverURL }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  const { roomPage } = await loginAndEnterRoom(page);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const roomId = roomIdFromUrl(page);
+  await page.locator('[data-testid="room-view-region"] input[type="file"]').first().setInputFiles(
+    Array.from({ length: 10 }, (_, index) => ({
+      name: `stable-file-${index}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`File ${index}`)
+    }))
+  );
+  await expect(page.getByTestId('composer-attachment-preview')).toHaveCount(10);
+  const root = await roomPage.sendMessage('Files regression root');
+  const rootId = await root.getEventId();
+  if (!rootId) throw new Error('Missing root message ID');
+  await page.locator('[data-testid="room-sidebar-toggle"]:visible').getByLabel('Show files').click();
+  const panel = page.locator('aside[aria-label="Room extras"] nav[aria-label="Files"]');
+  await expect(panel.getByTestId('room-file-row')).toHaveCount(10);
+  await panel.hover();
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  const scrollTop = await panel.evaluate((element) => element.scrollTop);
+  const original = await panel.getByTestId('room-file-row').first().elementHandle();
+  const listRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/ListRoomAttachments')) listRequests.push(request.url());
+  });
+
+  await withServerUser(browser, serverURL, async ({ page: sender, chatPage }) => {
+    await chatPage.enterRoom('general');
+    const roomUpdate = page.waitForResponse((response) => response.url().endsWith('/BatchGetMessages') && response.ok());
+    await postMessageViaConnect(sender, roomId, 'Receiver room update');
+    await roomUpdate;
+    await expect(page.getByText('Receiver room update', { exact: true })).toBeVisible();
+    const threadUpdate = page.waitForResponse((response) => response.url().endsWith('/BatchGetMessages') && response.ok());
+    await postThreadReplyViaConnect(sender, roomId, 'Receiver closed-thread update', rootId);
+    await threadUpdate;
+  });
+  expect(await original!.evaluate((element) => element.isConnected)).toBe(true);
+  expect(await panel.evaluate((element) => element.scrollTop)).toBe(scrollTop);
+  expect(listRequests).toEqual([]);
+  expect(errors).toEqual([]);
 });

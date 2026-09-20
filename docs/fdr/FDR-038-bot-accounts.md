@@ -146,14 +146,16 @@ exercise more authority than its human owner currently possesses.
   any other baseline grants. An absent bot permission is denied.
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
-  channel room. A confirmation dialog explains that the change takes effect immediately
-  after confirmation. Cancel leaves membership unchanged; grants stay unchanged.
+  channel room that is not archived. A confirmation dialog explains that the
+  change takes effect immediately after confirmation. Cancel leaves membership
+  unchanged; grants stay unchanged.
   `user.manage-accounts` or `room.manage` for the room can override a
   missing join permission. Otherwise joining requires the bot's effective
   `room.join`, including the owner's permission ceiling. Bans and archived
   rooms prevent joining. Bot owners do not need `room.manage`. Removal does
-  not require `room.join` and remains
-  available for archived rooms. Universal membership is automatic; server,
+  not require `room.join`. Archived channels have no matrix column; their
+  permissions and membership stay unchanged. Unarchiving restores their columns
+  on the next matrix fetch. Universal membership is automatic; server,
   group, and DM columns have no membership control.
 - Channel-room membership does not give a bot message content. The bot needs
   an explicit `message.read` grant for broad access or an explicit

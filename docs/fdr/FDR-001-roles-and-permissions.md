@@ -22,6 +22,11 @@ changed session. This separates privacy cleanup from request completion
 
 ## Account Room Membership
 
+Role and account permission matrices show only channels that are not archived.
+Server, DM, and group columns remain available, including empty groups.
+Archiving preserves permissions and membership. Unarchiving restores the channel
+column with its existing permissions on the next matrix fetch.
+
 The account permission matrix has a **Joined** row for human and bot accounts.
 A confirmation dialog explains that the membership change takes effect
 immediately after confirmation. Cancel leaves membership unchanged.
@@ -29,7 +34,7 @@ Configured permission grants stay unchanged.
 `user.manage-accounts` or `room.manage` for the room can add an account without
 its `room.join` permission. This lets a room manager invite a user who cannot
 join independently. These permissions also authorize removal after join
-permission is lost, including from archived rooms.
+permission is lost. Archived channels have no column in this matrix.
 
 Bot owners and human bot managers can manage their bots without `room.manage`.
 Without an account or room management override, adding a bot requires its

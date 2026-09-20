@@ -190,8 +190,8 @@ shared active fill. Keep an intrinsic-width group inside a horizontal scroller
 when the controls must stay on one row in a narrow pane.
 
 Below 560 px of composer content width, the editor uses the full inner width.
-Formatting, attachment, and timestamp actions sit below it at the start of the
-surface. Thread options and Send sit at the end. Groups wrap in very narrow
+The formatting toggle sits below it at the start of the surface. Attachment,
+timestamp, thread options, and Send stay together at the end. Groups wrap in very narrow
 panes. Wider composers keep inline actions. Layout and labels use the named
 `composer` container.
 

@@ -1,6 +1,6 @@
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
-import { authHeaders, createChattoClient, handleAuthError, type ConnectAPIConfig } from './connect';
+import { authHeaders, createChattoClient, handleAuthError, REALTIME_MINIMUM_CURSOR_HEADER, type ConnectAPIConfig } from './connect';
 import { timelineUsersForMessages } from './roomTimeline';
 
 export type PinnedMessagesPage = {
@@ -14,15 +14,18 @@ export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
   const rooms = createChattoClient(RoomService, config);
   const headers = () => authHeaders(config);
   return {
-    async list(roomId: string, limit: number, offset: number): Promise<PinnedMessagesPage> {
+    async list(roomId: string, limit: number, offset: number, minimumCursor?: string): Promise<PinnedMessagesPage> {
       try {
+        const requestHeaders = new Headers(headers());
+        if (minimumCursor) requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
         const response = await rooms.listPinnedMessages(
           { roomId, page: { limit, offset } },
-          { headers: headers() }
+          { headers: requestHeaders, ...(minimumCursor ? { timeoutMs: 10_000 } : {}) }
         );
         await timelineUsersForMessages(
           config,
-          response.pinnedMessages.flatMap((item) => (item.message ? [item.message] : []))
+          response.pinnedMessages.flatMap((item) => (item.message ? [item.message] : [])),
+          minimumCursor
         );
         return {
           items: response.pinnedMessages,

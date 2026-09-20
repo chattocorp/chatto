@@ -3,6 +3,37 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.5](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.4...v0.5.0-beta.5) (2026-09-20)
+
+
+### Features
+
+* **auth:** register official mobile OAuth client ([#2456](https://github.com/chattocorp/chatto/issues/2456)) ([4f1736e](https://github.com/chattocorp/chatto/commit/4f1736ecde39694db90a2be42b1133f5a5c227ab))
+* **frontend:** unify responsive dialog and sheet presentation ([#2479](https://github.com/chattocorp/chatto/issues/2479)) ([8f2a043](https://github.com/chattocorp/chatto/commit/8f2a043c44a40d431ecf1a2d2c1512f1ae050f62))
+* **mobile:** add experimental iOS client and native sign-in ([#2465](https://github.com/chattocorp/chatto/issues/2465)) ([48e4bca](https://github.com/chattocorp/chatto/commit/48e4bca2700b17033d09255d4dac802d9e958916))
+* **presence:** sync private availability choices across devices ([#2468](https://github.com/chattocorp/chatto/issues/2468)) ([06b3467](https://github.com/chattocorp/chatto/commit/06b3467217a2da26da8ddd66681cdb720cfe14fe))
+
+
+### Bug Fixes
+
+* **auth:** complete provider popups and preserve sessions on unlink ([#2469](https://github.com/chattocorp/chatto/issues/2469)) ([15896a5](https://github.com/chattocorp/chatto/commit/15896a52c888058dda3235e38cfe59390ec7e641))
+* **auth:** treat received DMs as message interactions ([#2471](https://github.com/chattocorp/chatto/issues/2471)) ([e83293c](https://github.com/chattocorp/chatto/commit/e83293c8247a40a78b1659bbb8e612c41e06e52f))
+* **frontend:** align call button with shell surfaces ([#2474](https://github.com/chattocorp/chatto/issues/2474)) ([08514e8](https://github.com/chattocorp/chatto/commit/08514e8a03562929c08992f8fb12ea88328cccf9))
+* **frontend:** exclude attached threads from message grouping ([#2473](https://github.com/chattocorp/chatto/issues/2473)) ([9d415b8](https://github.com/chattocorp/chatto/commit/9d415b816e3dd05061eb715deb17679e9d4b910c))
+* **frontend:** improve Markdown keyboard assistance and stabilize E2E waits ([#2475](https://github.com/chattocorp/chatto/issues/2475)) ([4279f1a](https://github.com/chattocorp/chatto/commit/4279f1aded26dc831470545e6976076fb35a9642))
+* **frontend:** improve responsive composer layout and touch controls ([#2484](https://github.com/chattocorp/chatto/issues/2484)) ([5068839](https://github.com/chattocorp/chatto/commit/50688397c45a84650e4e08ed8209dc5556e0549b))
+* **frontend:** match mobile app and pane header heights ([#2464](https://github.com/chattocorp/chatto/issues/2464)) ([354dcbf](https://github.com/chattocorp/chatto/commit/354dcbfc778eb12db2fa39a68ba8c7542941e233))
+* **frontend:** open attached threads from message links ([#2480](https://github.com/chattocorp/chatto/issues/2480)) ([ddd69bd](https://github.com/chattocorp/chatto/commit/ddd69bd64c7896feda4f898fca09f25bf7b55b79))
+* **frontend:** open sidebar files in the file viewer ([#2483](https://github.com/chattocorp/chatto/issues/2483)) ([fad9d21](https://github.com/chattocorp/chatto/commit/fad9d21797b75a4ed687a7756e48b73d7aea648d))
+* **frontend:** prepare new DMs after navigation ([#2472](https://github.com/chattocorp/chatto/issues/2472)) ([38f78d8](https://github.com/chattocorp/chatto/commit/38f78d8f0783bcee8eea02c32fe1167ad7ce4fe5))
+* **frontend:** prevent thread autofocus on touch devices ([#2478](https://github.com/chattocorp/chatto/issues/2478)) ([79e2703](https://github.com/chattocorp/chatto/commit/79e2703bb9613d1401c5918d5503f09ae5f82fa4))
+* **frontend:** reconcile thread reads and suppress viewed attention ([#2476](https://github.com/chattocorp/chatto/issues/2476)) ([f7b4e51](https://github.com/chattocorp/chatto/commit/f7b4e515c998b7b454f650db57d8632ea8b6bee3))
+* **frontend:** replace header version with info icon ([#2481](https://github.com/chattocorp/chatto/issues/2481)) ([58e0c10](https://github.com/chattocorp/chatto/commit/58e0c103e34bf5acb52356bdba25f4a2f7c3852c))
+* **frontend:** restore full-height iOS web and PWA sidebars ([#2482](https://github.com/chattocorp/chatto/issues/2482)) ([6a81141](https://github.com/chattocorp/chatto/commit/6a8114152617a085095c04e2dc2d3f468f3cff25))
+* **frontend:** scope presence choices to each server account ([#2463](https://github.com/chattocorp/chatto/issues/2463)) ([9f912f7](https://github.com/chattocorp/chatto/commit/9f912f70342acf8b37cc0d8acbcc43b4cc5b63ff))
+* **frontend:** show call layout controls only to participants ([#2470](https://github.com/chattocorp/chatto/issues/2470)) ([7645f64](https://github.com/chattocorp/chatto/commit/7645f6456a1ed50e5507b8e94943187711af7f27))
+* **frontend:** unify quiet raised control styling ([#2477](https://github.com/chattocorp/chatto/issues/2477)) ([6e0298c](https://github.com/chattocorp/chatto/commit/6e0298c670b2c794f0c891f833942f9fd1d36c8b))
+
 ## [0.5.0-beta.4](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.3...v0.5.0-beta.4) (2026-09-19)
 
 
