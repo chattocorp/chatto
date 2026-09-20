@@ -33,6 +33,17 @@ describe('MessageReconciler', () => {
     expect(apply).toHaveBeenCalledWith('0', expect.anything(), true);
   });
 
+  it('keeps a change queued between drain completion and promise settlement', async () => {
+    const read = vi.fn(async (_room: string, ids: string[]) => ids.map(resource));
+    const queue = new MessageReconciler(read, () => (id) => {
+      if (id === 'first') queueMicrotask(() => { void queue.enqueue('room', 'second', true); });
+    });
+    const first = queue.enqueue('room', 'first', true);
+    await vi.runAllTimersAsync();
+    await first;
+    expect(read.mock.calls.map(([, ids]) => ids)).toEqual([['first'], ['second']]);
+  });
+
   it('shares completion and suppresses a response superseded during its read', async () => {
     const pending = deferred<MessageResource[]>();
     const read = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue([resource('post')]);

@@ -88,5 +88,8 @@ export class MessageReconciler {
       }
       queue.active.clear();
     }
+    // Retire a successful queue before yielding to promise-settlement tasks.
+    // A change in that interval must create a new drain, not join a finished one.
+    if (current()) this.rooms.delete(roomId);
   }
 }
