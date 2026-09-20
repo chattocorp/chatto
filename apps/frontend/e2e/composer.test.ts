@@ -5,7 +5,7 @@ import { withLoggedInServerWindow } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { TIMEOUTS } from './constants';
 import {
-  getIdsFromUrlViaConnect,
+  getRoomIdByNameViaConnect,
   postMessageViaConnect,
   postThreadReplyWithEchoViaConnect
 } from './fixtures/connectHelpers';
@@ -537,10 +537,9 @@ for (const editor of ['visual', 'markdown'] as const) {
             JSON.stringify({ ...preferences, composerEditor })
           );
         }, editor);
-        const roomHref = await chatPage.getRoomLink('general').getAttribute('href');
-        await page.goto(roomHref!);
+        const roomId = await getRoomIdByNameViaConnect(page, 'general');
+        await page.goto(routes.room(roomId));
         await waitForRoomReady(page, 'general');
-        const { roomId } = await getIdsFromUrlViaConnect(page);
         for (const body of ['First focus thread', 'Second focus thread']) {
           const rootId = await postMessageViaConnect(page, roomId, body);
           await postThreadReplyWithEchoViaConnect(page, roomId, `${body} reply`, rootId, rootId);
