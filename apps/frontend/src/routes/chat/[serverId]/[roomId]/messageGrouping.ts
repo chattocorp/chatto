@@ -6,6 +6,16 @@ import { isSameDay, formatDayLabel, type TimeFormatSettings } from '$lib/utils/f
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
+/** Attached threads separate their root message from both adjacent groups. */
+function hasAttachedThread({ event }: TimelineEventView): boolean {
+  return (
+    isMessagePostedEvent(event) &&
+    event.threadRootEventId == null &&
+    event.echoOfEventId == null &&
+    (event.threadExists === true || event.replyCount > 0)
+  );
+}
+
 export type EventWithMeta = {
   event: TimelineEventView;
   isFirstInGroup: boolean;
@@ -42,9 +52,15 @@ export function computeEventMetadata(
         isMessagePostedEvent(event.event) && isMessagePostedEvent(prevEvent.event);
       const isReply = isMessagePostedEvent(event.event) && event.event.inReplyTo != null;
 
-      // Group if same actor, within 10 minutes, both are messages, and not a reply.
       // Replies always render full (with avatar/name) to show the attribution context.
-      if (sameActor && withinTimeWindow && bothAreMessages && !isReply) {
+      if (
+        sameActor &&
+        withinTimeWindow &&
+        bothAreMessages &&
+        !isReply &&
+        !hasAttachedThread(event) &&
+        !hasAttachedThread(prevEvent)
+      ) {
         isFirstInGroup = false;
       }
     }
