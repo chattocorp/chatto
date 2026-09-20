@@ -183,6 +183,40 @@
     getLinkPreviewAPI: () => serverScope.connection.getAPI(createLinkPreviewAPI),
     isConnectionLost: () => serverScope.connection.showConnectionLostBanner
   });
+
+  let expandedDraft = $state(false);
+  const emptyDraft = $derived(composer.message.length === 0);
+
+  /** Keep an expanded draft stable when the extra text width removes a wrap. */
+  function observeEditorHeight(node: HTMLDivElement) {
+    // Reset when the draft is cleared, its destination changes, or edit mode changes.
+    void roomId;
+    void inThread;
+    void composer.isEditing;
+    const empty = emptyDraft;
+    expandedDraft = false;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      const editor = node.querySelector<HTMLElement>('[contenteditable]');
+      if (empty || !editor) return;
+      const style = getComputedStyle(editor);
+      const lineHeight = Number.parseFloat(style.lineHeight);
+      const padding = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+      if (editor.getBoundingClientRect().height > lineHeight * 1.5 + padding) {
+        // Change layout outside ResizeObserver delivery to avoid resize loops.
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+          observer.disconnect();
+          expandedDraft = true;
+        });
+      }
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -257,7 +291,10 @@
 
   <div
     data-testid="composer-input-surface"
-    class="@container relative grid chat-input-surface min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] items-end gap-1 px-2.5 py-1.5 @min-[320px]/composer:flex"
+    class={[
+      'relative grid chat-input-surface min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1 px-2.5 py-1.5',
+      !expandedDraft && '@min-[560px]/composer:flex @min-[560px]/composer:items-end'
+    ]}
     class:opacity-50={composer.inputDisabled}
   >
     {#if composer.autocomplete.emoji}
@@ -281,7 +318,8 @@
     {/if}
 
     <CompactActionButton
-      wrapperClass="mb-1 w-7"
+      touchFriendly
+      wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:mb-1'}
       label={m('composer.formatting_options')}
       type="button"
       onpointerdown={(event) => event.preventDefault()}
@@ -302,7 +340,14 @@
       <span aria-hidden="true">Aa</span>
     </CompactActionButton>
 
-    <div class="min-h-9 min-w-0 flex-1 px-0.5 py-0.5" data-testid="composer-editor-row">
+    <div
+      {@attach observeEditorHeight}
+      class={[
+        '-order-1 col-span-2 min-h-9 min-w-0 flex-1 px-0.5 py-0.5',
+        !expandedDraft && '@min-[560px]/composer:order-none'
+      ]}
+      data-testid="composer-editor-row"
+    >
       {#await editorModule}
         <div class="min-h-8 min-w-0" aria-hidden="true"></div>
       {:then { default: Editor }}

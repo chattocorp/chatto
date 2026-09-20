@@ -18,3 +18,17 @@
     </CompactActionButton>
   </div>
 </Story>
+
+<Story name="Touch-friendly actions" asChild>
+  <div class="w-80 shell-surface p-2">
+    <div class="flex gap-1">
+      <CompactActionButton label="Formatting" touchFriendly>Aa</CompactActionButton>
+      <CompactActionButton label="Attach file" touchFriendly>
+        <span class="iconify icon-[uil--image-upload]" aria-hidden="true"></span>
+      </CompactActionButton>
+      <CompactActionButton label="Send" touchFriendly disabled>
+        <span class="iconify icon-[uil--telegram-alt]" aria-hidden="true"></span>
+      </CompactActionButton>
+    </div>
+  </div>
+</Story>

@@ -624,6 +624,24 @@
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
 }
 
+/* Keep touch targets available on hybrid devices even when a mouse is present. */
+@utility pill-button-group-touch {
+  @media (any-pointer: coarse) {
+    height: 44px;
+    min-height: 44px;
+    & > button {
+      min-width: 44px;
+      min-height: 44px;
+      font-size: var(--text-base);
+    }
+    & > button > .iconify {
+      width: 20px;
+      height: 20px;
+      font-size: 20px;
+    }
+  }
+}
+
 @utility pill-button-success {
   @apply pill-button bg-(--color-button-success) text-white hover:bg-(--color-button-success-hover) hover:text-white enabled:active:bg-(--color-button-success-hover);
 }
@@ -1453,6 +1471,11 @@
 
 @layer base {
   html {
+    @media (any-pointer: coarse) {
+      --text-base: 1.0625rem;
+      --text-sm: 0.9375rem;
+      --text-xs: 0.8125rem;
+    }
     height: 100%;
     overflow: hidden;
     /* pan-y lets the browser own vertical scroll while reserving horizontal
@@ -1490,6 +1513,7 @@
   }
 
   body {
+    @apply text-base;
     /* inset:0 on a fixed element fills the layout viewport correctly in all
        modes, including standalone PWA — unlike dvh/vh/100% which are all
        short by safe-area-inset-top due to WebKit bug 237961.
