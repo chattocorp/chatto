@@ -251,7 +251,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
-    filter.value = 'root messages';
+    filter.value = 'messages and thread replies';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
