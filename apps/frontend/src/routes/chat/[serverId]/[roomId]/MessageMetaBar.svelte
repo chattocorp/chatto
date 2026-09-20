@@ -9,6 +9,7 @@ context-menu, and touch surfaces. Thread navigation and tooltip state remain
 local to the footer.
 -->
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import { resolve } from '$app/paths';
   import { on } from 'svelte/events';
   import type { MessagePostedPayload } from '$lib/render/timelineEvents';
@@ -90,7 +91,7 @@ local to the footer.
   } {
     const names = reaction.users
       .slice(0, REACTION_TOOLTIP_USER_LIMIT)
-      .map((user) => user.displayName);
+      .map((user) => formatAccountName(user.displayName, user));
     return {
       names,
       remaining: Math.max(0, reaction.count - names.length)

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
+  import { formatAccountName } from '$lib/render/accountName';
   import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -200,7 +202,9 @@
 
   function actorName(event: FollowedThread['rootMessage']): string {
     const actor = event?.actor;
-    return actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : '';
+    return actor
+      ? formatAccountName(getLiveDisplayName(actor.id, actor.displayName || actor.login), actor)
+      : '';
   }
 
   function rowActors(thread: FollowedThread): FollowedThread['participants'] {
@@ -362,7 +366,13 @@
                   <span class="flex min-w-0 items-baseline gap-2 text-sm text-muted">
                     <bdi class="min-w-0 flex-1 truncate" dir="auto">
                       <span class="font-medium"
-                        >{roomLabel(thread)}
+                        >{#if thread.isDirectMessage}
+                          <DirectMessageName
+                            participants={thread.directMessageParticipants}
+                            currentUserId={serverStore.currentUser.user?.id}
+                            getDisplayName={getLiveDisplayName}
+                          />
+                        {:else}{roomLabel(thread)}{/if}
                         {#if thread.latestReply}<span class="font-normal"
                             >· {actorName(thread.rootMessage)}: {messageExcerpt(
                               thread.rootMessage

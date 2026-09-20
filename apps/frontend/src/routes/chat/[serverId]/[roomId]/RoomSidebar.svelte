@@ -14,6 +14,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
@@ -330,7 +332,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
     banningMemberId = member.id;
     banError = null;
-    const displayName = member.displayName || member.login;
+    const displayName = formatAccountName(member.displayName || member.login, member);
     try {
       const api = connection().getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
@@ -580,7 +582,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       ? undefined
       : {
           label: m('room.sidebar.view_profile', {
-            name: getLiveDisplayName(member.id, member.displayName)
+            name: formatAccountName(getLiveDisplayName(member.id, member.displayName), member)
           }),
           onclick: (event) => togglePopover(member.id, event),
           revealOnHover: true,
@@ -598,7 +600,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {#if member.deleted}
         <DeletedUserLabel />
       {:else}
-        <bdi>{getLiveDisplayName(member.id, member.displayName)}</bdi>
+        <AccountName name={getLiveDisplayName(member.id, member.displayName)} identity={member} />
       {/if}
     {/snippet}
     {#snippet badges()}

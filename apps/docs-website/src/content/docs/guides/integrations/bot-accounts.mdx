@@ -269,9 +269,10 @@ Authorization: Bearer cht_BK_…
 The request is authorized as the bot user. For example, posting a message
 requires an explicit effective `message.post` allow and normal room access.
 The presence of canonical `User.bot` metadata identifies bot authors to API clients;
-the bundled client also shows a robot marker on their avatars, except on
-extra-small avatars such as thread participants. The marker uses
-soft shading and changes its colours to match the light or dark theme.
+the bundled client shows a small **BOT** label beside their display names,
+including in messages, direct-message lists, profiles, and account pickers.
+Plain-text account references use **Name (BOT)**. The label identifies the
+account type; it does not mean that the account is verified.
 
 A bot API key can update its own login, display name, and bio through
 `MyAccountService.UpdateProfile`. It can upload or delete its own avatar through

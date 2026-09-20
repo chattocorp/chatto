@@ -52,6 +52,7 @@
     inThread,
     inReplyTo,
     replyDisplayName,
+    replyIdentity,
     replyExcerpt,
     placeholder,
     canPost = true,
@@ -390,6 +391,7 @@
   <ComposerModeIndicators
     {inReplyTo}
     {replyDisplayName}
+    {replyIdentity}
     {replyExcerpt}
     isEditing={composer.isEditing}
     oncancelreply={() => onCancelReply?.()}

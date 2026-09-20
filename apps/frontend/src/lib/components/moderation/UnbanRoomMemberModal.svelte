@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -10,6 +12,8 @@
     id: string;
     login: string;
     displayName: string;
+    isBot?: boolean;
+    deleted?: boolean;
     avatarUrl?: string | null;
     presenceStatus: PresenceStatus;
   };
@@ -54,7 +58,7 @@
 
 <FormDialog
   bind:visible
-  title={m('admin.moderation.unban_title', { user: displayName })}
+  title={m('admin.moderation.unban_title', { user: formatAccountName(displayName, user) })}
   size="sm"
   submitLabel={m('admin.moderation.unban')}
   submitTone="warning"
@@ -77,7 +81,7 @@
       </div>
     {/if}
     <div class="min-w-0 flex-1">
-      <div class="truncate font-medium text-text">{displayName}</div>
+      <AccountName name={displayName} identity={user} class="font-medium text-text" />
       <div class="truncate text-sm text-muted">{roomLabel}</div>
     </div>
   </div>

@@ -5,6 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { goto, pushState } from '$app/navigation';
@@ -855,7 +856,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <UserAvatar user={participant} size="xs" />
         {/each}
       </div>
-      <span class="flex-1 truncate">{presentation.label}</span>
+      <span class="min-w-0 flex-1"
+        ><DirectMessageName
+          participants={room.members}
+          currentUserId={navigation.currentUserId}
+          getDisplayName={getLiveDisplayName}
+        /></span
+      >
     {:else}
       <span class="relative flex shrink-0">
         {#if isJoined}
@@ -1020,7 +1027,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {@const expanded = expandedRoomSections.get(section.persistKey) ?? false}
     <button
       type="button"
-      class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-xs text-start"
+      class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-start text-xs"
       aria-expanded={expanded}
       aria-label={expanded ? m('room_list.hide_rooms_in_group', { group: section.label }) : m('room_list.show_rooms_in_group', { count: unjoinedCount, group: section.label })}
       title={expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}
