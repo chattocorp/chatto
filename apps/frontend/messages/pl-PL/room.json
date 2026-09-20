@@ -70,6 +70,8 @@
       "remove_account_suffix": "."
     },
     "timeline": {
+      "post_threads_only": "Możesz odpowiadać tylko w wątkach, które możesz czytać.",
+      "post_interactions_only": "Możesz odpowiadać tylko w wątkach, które rozpoczęto, w których ktoś Cię wspomniał lub otrzymano wiadomość prywatną.",
       "post_denied": "Nie masz uprawnień do wysyłania wiadomości w tym pokoju.",
       "beginning": "To początek tej rozmowy.",
       "read_denied": "Nie masz uprawnień do odczytywania wiadomości w tym pokoju.",

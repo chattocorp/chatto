@@ -213,6 +213,14 @@
   });
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);
+  const postingNotice = $derived.by(() => {
+    if (room.roomData?.canPostMessage !== false) return null;
+    if (canReadMessages && !room.roomData.room.archived && threadingMode !== RoomThreadingMode.DISABLED) {
+      if (room.roomData.canPostInThread) return m('room.timeline.post_threads_only');
+      if (room.roomData.canPostInteractions) return m('room.timeline.post_interactions_only');
+    }
+    return m('room.timeline.post_denied');
+  });
   let composerCanCreateThread = $derived(
     permissions.canPostMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
@@ -778,11 +786,11 @@
           {/snippet}
         </PaneHeader>
 
-        {#if room.roomData?.canPostMessage === false || room.roomData?.hasLimitedMessageAccess}
+        {#if postingNotice || room.roomData?.hasLimitedMessageAccess}
           <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
-            {#if room.roomData?.canPostMessage === false}
+            {#if postingNotice}
               <div data-testid="room-post-denied">
-                <Hint>{m('room.timeline.post_denied')}</Hint>
+                <Hint>{postingNotice}</Hint>
               </div>
             {/if}
             {#if room.roomData?.hasLimitedMessageAccess}

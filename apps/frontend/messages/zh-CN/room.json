@@ -70,6 +70,8 @@
       "remove_account_suffix": "，然后再移除服务器。"
     },
     "timeline": {
+      "post_threads_only": "你只能在有权阅读的话题中回复。",
+      "post_interactions_only": "你只能在你发起、有人提及你或你收到私信的话题中回复。",
       "post_denied": "你没有在此房间发送消息的权限。",
       "beginning": "这是本次对话的开端。",
       "read_denied": "你没有权限阅读此房间中的消息。",

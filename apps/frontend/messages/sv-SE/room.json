@@ -70,6 +70,8 @@
       "remove_account_suffix": " för den här servern innan du tar bort den."
     },
     "timeline": {
+      "post_threads_only": "Du kan bara svara i trådar som du kan läsa.",
+      "post_interactions_only": "Du kan bara svara i trådar som du startat, där någon nämnt dig eller där du fått ett direktmeddelande.",
       "post_denied": "Du har inte behörighet att skicka meddelanden i det här rummet.",
       "beginning": "Det här är början på den här konversationen.",
       "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet.",

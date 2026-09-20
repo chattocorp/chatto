@@ -70,6 +70,8 @@
       "remove_account_suffix": " dieses Servers."
     },
     "timeline": {
+      "post_threads_only": "Du kannst nur in Threads antworten, die du lesen kannst.",
+      "post_interactions_only": "Du kannst nur in Threads antworten, die du gestartet hast, in denen dich jemand erwähnt hat oder in denen du eine DM erhalten hast.",
       "post_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu senden.",
       "beginning": "Dies ist der Anfang dieser Unterhaltung.",
       "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen.",

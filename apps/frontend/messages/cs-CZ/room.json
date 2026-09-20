@@ -70,6 +70,8 @@
       "remove_account_suffix": " pro tento server před jeho odebráním."
     },
     "timeline": {
+      "post_threads_only": "Můžete odpovídat pouze ve vláknech, která můžete číst.",
+      "post_interactions_only": "Můžete odpovídat pouze ve vláknech, která jste založili, kde vás někdo zmínil nebo kde jste obdrželi soukromou zprávu.",
       "post_denied": "Nemáte oprávnění posílat zprávy v této místnosti.",
       "beginning": "Toto je začátek tohoto rozhovoru.",
       "read_denied": "Nemáte oprávnění číst zprávy v této místnosti.",

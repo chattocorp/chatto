@@ -70,6 +70,8 @@
       "remove_account_suffix": " for this server before removing it."
     },
     "timeline": {
+      "post_threads_only": "You can only reply in threads you can read.",
+      "post_interactions_only": "You can only reply in threads you started, where someone mentioned you, or where you received a DM.",
       "post_denied": "You do not have permission to post messages in this room.",
       "beginning": "This is the beginning of this conversation.",
       "read_denied": "You do not have permission to read messages in this room.",

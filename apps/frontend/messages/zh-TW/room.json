@@ -70,6 +70,8 @@
       "remove_account_suffix": "，再將伺服器移除。"
     },
     "timeline": {
+      "post_threads_only": "你只能在有權閱讀的討論串中回覆。",
+      "post_interactions_only": "你只能在你發起、有人提及你或你收到私訊的討論串中回覆。",
       "post_denied": "你沒有在此房間傳送訊息的權限。",
       "beginning": "這是這段對話的開端。",
       "read_denied": "你沒有權限閱讀此房間中的訊息。",

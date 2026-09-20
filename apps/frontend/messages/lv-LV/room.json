@@ -70,6 +70,8 @@
       "remove_account_suffix": " šim serverim pirms tā noņemšanas."
     },
     "timeline": {
+      "post_threads_only": "Vari atbildēt tikai pavedienos, kurus vari lasīt.",
+      "post_interactions_only": "Vari atbildēt tikai pavedienos, kurus sāki, kuros kāds tevi pieminēja vai kuros saņēmi privātu ziņojumu.",
       "post_denied": "Tev nav atļaujas sūtīt ziņas šajā istabā.",
       "beginning": "Tas ir šīs sarunas sākums.",
       "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā.",

@@ -48,9 +48,11 @@ permissions. Room membership remains a separate requirement.
   need read access, membership, and a room policy that permits threads.
 - Broad read access with interaction posting lets an account read the room
   but respond only in related threads. The same rule applies to humans and bots.
-- When the account cannot post messages, the client shows a posting-permission
-  notice above the room timeline. It can appear together with the limited-read
-  notice. Both notices update when the effective permissions change.
+- When the account cannot post roots, the client shows a posting-permission
+  notice above the room timeline. It distinguishes replies in readable threads,
+  replies only in related threads, and no posting. Read access and room policy
+  must also permit replies. The posting notice can appear with the limited-read
+  notice. Both update when effective permissions change.
 - A channel-room operation that reads or returns an existing message also
   needs access to that message's thread. Deletion remains independently
   authorized and does not return surrounding message state.
