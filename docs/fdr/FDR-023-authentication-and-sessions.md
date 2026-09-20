@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -17,6 +17,16 @@ flows include classic password login, configured external
 providers, and a bootstrap path for first-boot operator setup.
 
 ## Behavior
+
+- OIDC token authentication can use an explicit Basic, POST, or public-client
+  method. Without an override, confidential clients prefer advertised Basic,
+  then POST; omitted metadata defaults to Basic. Unsupported advertised methods
+  fail before exchange. Each code is submitted once, with PKCE.
+- UserInfo fills missing names or requested email only after its subject matches
+  the verified ID token. Populated ID-token claims win, and email verification
+  stays paired with its address. An unavailable or malformed UserInfo response
+  does not discard valid ID-token hints. Suggestions keep their existing order
+  and normalization; linked accounts retain their existing names.
 
 - **Consent identity display** — the consent page shows the host for a URL-based
   client ID and the exact ID for an opaque native client identity. The server

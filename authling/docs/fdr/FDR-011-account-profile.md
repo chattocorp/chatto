@@ -1,7 +1,7 @@
 # FDR-011: Account Profile
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -21,7 +21,7 @@ profile data.
 - Saving replaces both fields atomically. It does not change the account ID,
   email credential, password, browser sessions, authentication version, or
   stable OIDC `sub`.
-- ID tokens and UserInfo publish non-empty values as the standard
+- With the `profile` scope, ID tokens and UserInfo publish non-empty values as the standard
   `preferred_username` and `name` claims. Relying parties must not treat either
   value as a stable identifier.
 - Consent lists the current identity values and discloses later profile changes,

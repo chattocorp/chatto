@@ -100,11 +100,25 @@ label = "Chatto Hub"
 issuer_url = "https://hub.chatto.dev"
 client_id = "..."
 client_secret = "..."
+# Optional: override the method selected from OIDC discovery.
+# token_endpoint_auth_method = "client_secret_basic"
 # Keep false for invite-only/account-linking deployments.
 auto_provision = false
 ```
 
 `issuer_url` must be an absolute `http` or `https` URL. Chatto uses OIDC discovery from that issuer and verifies the ID token before matching the external identity.
+
+Set `token_endpoint_auth_method` to `client_secret_basic`, `client_secret_post`,
+or `none` when your client registration requires a specific method. The
+environment equivalent is `CHATTO_AUTH_PROVIDERS_0_TOKEN_ENDPOINT_AUTH_METHOD`.
+Basic and POST require `client_secret`; `none` requires that you omit it.
+This option applies only to `type = "oidc"`.
+
+Without an override, public clients use `none`. Confidential clients prefer
+Basic when discovery advertises it, then POST. If discovery omits the methods
+field, Chatto uses Basic. An empty or unsupported list fails before exchange.
+Chatto sends each authorization code once and does not retry with another
+authentication method.
 
 By default, Chatto does not request email claims from OIDC providers:
 

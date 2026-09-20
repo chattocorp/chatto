@@ -170,7 +170,7 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService, func(ctx context.Context, accountID string) (string, string, error) {
 		profile, err := accountService.Profile(ctx, accountID)
 		return profile.PreferredUsername, profile.FullName, err
-	})
+	}, accountService.RequireActive, accountService.EmailAddress)
 	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage, authorizationService, vault)
 	authenticationService := authentication.New(stores.RuntimeState, js, workflowKey, accountService)
 	return &Runtime{

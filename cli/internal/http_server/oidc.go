@@ -36,11 +36,12 @@ type oidcProvider struct {
 	oauth2Config oauth2.Config
 	verifier     *oidc.IDTokenVerifier
 	ready        bool
+	authMethod   string
 }
 
 const accountInvitationSessionKey = "account_invitation_id"
 
-func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string) error {
+func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string, authMethod string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -51,7 +52,16 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 	ctx := context.Background()
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		log.Error("Failed to initialize OIDC provider", "issuer", issuerURL, "error", err)
+		return err
+	}
+	var metadata struct {
+		Methods json.RawMessage `json:"token_endpoint_auth_methods_supported"`
+	}
+	if err := provider.Claims(&metadata); err != nil {
+		return err
+	}
+	method, style, err := selectOIDCTokenAuth(authMethod, clientSecret, metadata.Methods)
+	if err != nil {
 		return err
 	}
 
@@ -63,16 +73,62 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 		RedirectURL:  redirectURL,
 		Scopes:       append([]string(nil), scopes...),
 	}
-	if clientSecret == "" {
-		// Public clients identify themselves in the token request body and must
-		// not send an empty HTTP Basic credential before retrying.
-		o.oauth2Config.Endpoint.AuthStyle = oauth2.AuthStyleInParams
-	}
+	// Set a concrete style before exchange. Auto-detection can consume a code
+	// with the wrong method and then submit the same code a second time.
+	o.oauth2Config.Endpoint.AuthStyle = style
+	o.authMethod = method
 	o.verifier = provider.Verifier(&oidc.Config{ClientID: clientID})
 	o.ready = true
 
 	log.Info("OIDC provider initialized", "issuer", issuerURL)
 	return nil
+}
+
+// selectOIDCTokenAuth gives explicit configuration precedence over discovery.
+// Missing metadata means Basic; an explicit empty list is not a default.
+func selectOIDCTokenAuth(override, secret string, advertised json.RawMessage) (string, oauth2.AuthStyle, error) {
+	method := override
+	if method == "" {
+		if secret == "" {
+			method = "none"
+		} else if len(advertised) == 0 {
+			method = "client_secret_basic"
+		} else {
+			var methods []string
+			if err := json.Unmarshal(advertised, &methods); err != nil {
+				return "", 0, errors.New("invalid token authentication metadata")
+			}
+			if hasScope(methods, "client_secret_basic") {
+				method = "client_secret_basic"
+			} else if hasScope(methods, "client_secret_post") {
+				method = "client_secret_post"
+			}
+		}
+	}
+	switch method {
+	case "none":
+		if secret == "" {
+			return method, oauth2.AuthStyleInParams, nil
+		}
+	case "client_secret_basic", "client_secret_post":
+		if secret != "" {
+			if method == "client_secret_basic" {
+				return method, oauth2.AuthStyleInHeader, nil
+			}
+			return method, oauth2.AuthStyleInParams, nil
+		}
+	}
+	return "", 0, errors.New("no supported token authentication method for client credentials")
+}
+
+// safeOAuthError prevents provider-controlled strings from entering logs.
+func safeOAuthError(code string) string {
+	switch code {
+	case "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client", "unsupported_grant_type", "invalid_scope", "access_denied", "server_error", "temporarily_unavailable", "login_required", "consent_required", "interaction_required":
+		return code
+	default:
+		return "unknown"
+	}
 }
 
 func (s *HTTPServer) setupOIDCRoutes() {
@@ -267,7 +323,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
-		log.Warn("Provider returned auth error", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", errCode)
+		log.Warn("Provider returned auth error", "provider_id", providerRuntime.config.ID, "error", safeOAuthError(errCode))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
 		_ = session.Save()
@@ -283,7 +339,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	identity, err := providerRuntime.resolveIdentity(c, session)
 	if err != nil {
-		log.Error("Provider callback failed", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", err)
+		log.Error("Provider callback failed", "provider_id", providerRuntime.config.ID)
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
 		_ = session.Save()
@@ -443,8 +499,8 @@ func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {
 	if r.oidc == nil {
 		return true
 	}
-	if err := r.oidc.init(r.config.IssuerURL, r.config.ClientID, r.config.ClientSecret, r.callbackURL, providerScopes(r.config)); err != nil {
-		log.Error("OIDC provider not available", "provider_id", r.config.ID, "error", err)
+	if err := r.oidc.init(r.config.IssuerURL, r.config.ClientID, r.config.ClientSecret, r.callbackURL, providerScopes(r.config), r.config.TokenEndpointAuthMethod); err != nil {
+		log.Error("OIDC provider not available", "provider_id", r.config.ID)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return false
 	}
@@ -470,7 +526,16 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		oauth2.SetAuthURLParam("code_verifier", codeVerifier),
 	)
 	if err != nil {
-		return resolvedProviderIdentity{}, fmt.Errorf("token exchange failed: %w", err)
+		status, code := 0, "unknown"
+		var responseError *oauth2.RetrieveError
+		if errors.As(err, &responseError) {
+			if responseError.Response != nil {
+				status = responseError.Response.StatusCode
+			}
+			code = safeOAuthError(responseError.ErrorCode)
+		}
+		log.Warn("OIDC token exchange failed", "provider_id", r.config.ID, "auth_method", r.oidc.authMethod, "http_status", status, "oauth_error", code)
+		return resolvedProviderIdentity{}, errors.New("token exchange failed")
 	}
 
 	// Extract and verify the ID token
@@ -485,28 +550,47 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}
 
 	// Extract claims from the ID token first
-	var claims struct {
+	type profileClaims struct {
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
 		Name          string `json:"name"`
 		PreferredUser string `json:"preferred_username"`
 		Picture       string `json:"picture"`
 	}
+	var claims profileClaims
 	if err := idToken.Claims(&claims); err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("parse id token claims: %w", err)
 	}
 
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
 
-	// Some providers (e.g. Zitadel) don't include email in the ID token.
-	// Fall back to the userinfo endpoint.
-	if claims.Email == "" {
-		log.Info("OIDC ID token missing email, falling back to userinfo", "provider_id", r.config.ID)
+	// UserInfo can supply names even when the ID token already has email.
+	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && hasScope(r.oidc.oauth2Config.Scopes, "email")) {
 		userInfo, err := r.oidc.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
-			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID, "error", err)
-		} else if err := userInfo.Claims(&claims); err != nil {
-			log.Warn("OIDC userinfo claims ignored", "provider_id", r.config.ID, "error", err)
+			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
+		} else {
+			if userInfo.Subject != idToken.Subject {
+				return resolvedProviderIdentity{}, errors.New("userinfo subject mismatch")
+			}
+			var supplemental profileClaims
+			if err := userInfo.Claims(&supplemental); err != nil {
+				log.Warn("OIDC userinfo claims ignored", "provider_id", r.config.ID)
+			} else {
+				if claims.PreferredUser == "" {
+					claims.PreferredUser = supplemental.PreferredUser
+				}
+				if claims.Name == "" {
+					claims.Name = supplemental.Name
+				}
+				if claims.Picture == "" {
+					claims.Picture = supplemental.Picture
+				}
+				// Never attach verification from one response to another email.
+				if claims.Email == "" {
+					claims.Email, claims.EmailVerified = supplemental.Email, supplemental.EmailVerified
+				}
+			}
 		}
 	}
 

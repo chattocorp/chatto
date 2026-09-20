@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-16
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -15,15 +15,15 @@ and returns to the relying party with an Authorization Code.
 - Discovery is available at `/.well-known/openid-configuration`; public keys
   are published at the advertised JWKS endpoint.
 - Authling advertises and accepts only Authorization Code. Every request
-  requires exactly `openid`. S256 PKCE is required by default. Operators may
+  requires `openid` and accepts optional `profile` and `email` scopes. Unknown
+  and duplicate scopes are rejected. S256 PKCE is required by default. Operators may
   set `require_pkce = false` only for configured confidential clients.
 - Redirect URI matching is exact. Authorization errors are sent to a client
   only after that client and redirect have been validated.
 - A signed-out person is sent through local login and then resumes the pending
   consent decision. When consent is required, the screen identifies the
-  signed-in account and client and lists the account ID, preferred username,
-  and optional full name that it can share. It explains that access includes
-  future profile changes.
+  signed-in account and client and lists only the requested information. It
+  explains that profile and email access include future changes.
 - Allowing creates or renews a durable exact-client authorization grant and
   binds the request to the current account. Later requests covered by that
   grant skip the consent screen only when its disclosure version is current
@@ -34,9 +34,13 @@ and returns to the relying party with an Authorization Code.
   exchange.
 - Successful exchange returns a five-minute RS256 ID token and opaque bearer
   access token. The issuer is Authling's immutable public URL, `sub` is the
-  Authling account ID, and local accounts also receive their non-empty durable
-  `preferred_username` and `name` identity hints. UserInfo returns the same
-  claims. Access-token state also binds the client and granted scopes.
+  Authling account ID. The `profile` scope permits non-empty `preferred_username`
+  and `name` hints. The `email` scope permits the current verified `email` and
+  `email_verified`. Both ID tokens and UserInfo omit unrequested claims.
+  UserInfo uses stored access-token scopes; request parameters cannot add access.
+  Each response checks that the account is active. Account and decryption
+  failures fail closed. Email is read through the account service only when
+  requested, with no plaintext projection or protocol-state cache.
 - Protocol state and token records are encrypted at rest and stored under
   non-reversible runtime keys. Raw codes and tokens are not durable keys and
   are never logged.
@@ -44,6 +48,11 @@ and returns to the relying party with an Authorization Code.
   credential-free CORS. Authorization and consent do not.
 
 ## Conventional Clients
+
+Clients that used `openid` alone must add `profile` to receive names. Existing
+signed ID tokens retain their claims until expiry. Live UserInfo responses use
+the stored scopes and the current release rules. See the disclosure-version
+rollout and rollback limits in [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 An operator declares conventional clients with `[[oidc.clients]]`. An empty
 secret creates a public client using token endpoint authentication method

@@ -272,7 +272,7 @@ func TestPublicOIDCClientUsesTokenRequestParameters(t *testing.T) {
 	defer issuer.Close()
 
 	var provider oidcProvider
-	if err := provider.init(issuer.URL(), "https://chat.example"+cimdPath, "", "https://chat.example/callback", []string{"openid"}); err != nil {
+	if err := provider.init(issuer.URL(), "https://chat.example"+cimdPath, "", "https://chat.example/callback", []string{"openid"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if provider.oauth2Config.Endpoint.AuthStyle != oauth2.AuthStyleInParams {

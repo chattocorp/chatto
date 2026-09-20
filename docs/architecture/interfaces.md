@@ -316,6 +316,17 @@ need to identify or present configured login options. Authling has no special
 frontend trust path: a Chatto server uses it only when the operator configures
 it as an ordinary OIDC provider.
 
+OIDC provider login selects token authentication before one code exchange.
+`token_endpoint_auth_method` overrides discovery; otherwise confidential
+clients prefer advertised Basic, then POST, with Basic as the default only
+when metadata omits the methods field. Public clients send their ID in the
+request body. Current and legacy callback routes share this behavior and PKCE.
+Missing names or a missing requested email trigger UserInfo. Its subject must
+match the verified ID token before missing fields are filled. Email and its
+verification flag come from the same response. Unavailable or malformed
+UserInfo leaves ID-token claims intact. Token-exchange diagnostics record only
+provider ID, authentication method, status, and allow-listed OAuth error codes.
+
 `MessageSearchService.GetStatus` remains the authority for configured search
 availability and transient provider readiness. Viewer permissions remain the
 authority for authenticated feature access.

@@ -117,6 +117,8 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 		provider.ClientID = value
 	case "CLIENT_SECRET":
 		provider.ClientSecret = value
+	case "TOKEN_ENDPOINT_AUTH_METHOD":
+		provider.TokenEndpointAuthMethod = value
 	case "ISSUER_URL":
 		provider.IssuerURL = value
 	case "SCOPES":

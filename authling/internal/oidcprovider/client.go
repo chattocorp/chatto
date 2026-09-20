@@ -49,11 +49,14 @@ func (c *Client) AuthMethod() liboidc.AuthMethod    { return c.Method }
 func (*Client) ResponseTypes() []liboidc.ResponseType {
 	return []liboidc.ResponseType{liboidc.ResponseTypeCode}
 }
-func (*Client) GrantTypes() []liboidc.GrantType      { return []liboidc.GrantType{liboidc.GrantTypeCode} }
-func (*Client) AccessTokenType() op.AccessTokenType  { return op.AccessTokenTypeBearer }
-func (*Client) IDTokenLifetime() time.Duration       { return 5 * time.Minute }
-func (c *Client) DevMode() bool                      { return c.Development }
-func (*Client) IDTokenUserinfoClaimsAssertion() bool { return false }
+func (*Client) GrantTypes() []liboidc.GrantType     { return []liboidc.GrantType{liboidc.GrantTypeCode} }
+func (*Client) AccessTokenType() op.AccessTokenType { return op.AccessTokenTypeBearer }
+func (*Client) IDTokenLifetime() time.Duration      { return 5 * time.Minute }
+func (c *Client) DevMode() bool                     { return c.Development }
+
+// IDTokenUserinfoClaimsAssertion retains authorized profile and email scopes
+// when the library constructs an ID token alongside an access token.
+func (*Client) IDTokenUserinfoClaimsAssertion() bool { return true }
 func (*Client) ClockSkew() time.Duration             { return 0 }
 func (*Client) IsScopeAllowed(string) bool           { return false }
 func (*Client) RestrictAdditionalIdTokenScopes() func([]string) []string {

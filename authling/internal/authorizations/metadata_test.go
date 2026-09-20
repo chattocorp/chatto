@@ -10,6 +10,7 @@ import (
 	"hmans.de/authling/internal/natsruntime"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/authling/internal/storage"
+	"hmans.de/chatto/pkg/datacrypto"
 )
 
 func TestProtectedMetadataBindsAuthorizationContext(t *testing.T) {
@@ -74,6 +75,34 @@ func TestProtectedMetadataBindsAuthorizationContext(t *testing.T) {
 	}
 	if projection.list("acc_one")[0].ClientName != "" {
 		t.Fatal("service read mutated ciphertext projection")
+	}
+	// Recreate the version-1 writer's associated data. Changing only the
+	// version on current ciphertext must fail, but historical ciphertext must
+	// still replay and decrypt after the disclosure upgrade.
+	legacy := proto.Clone(event).(*corev1.Event)
+	legacy.Id = "evt_legacy"
+	legacyGrant := legacy.GetOidcGrantAuthorized()
+	legacyGrant.ConsentVersion = 1
+	legacyGrant.PriorAuthorizationEventId = event.GetId()
+	legacyKey, err := vault.ResolveDataKey(t.Context(), dataRef, userRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyEnvelope, err := datacrypto.Seal(legacyKey, []byte(`{"Name":"Legacy App","Host":"legacy.example"}`), metadataAAD(legacy.Id, legacyGrant))
+	clear(legacyKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyGrant.MetadataNonce, legacyGrant.MetadataCiphertext = legacyEnvelope.Nonce, legacyEnvelope.Ciphertext
+	legacyProjection := NewProjection()
+	for index, historical := range []*corev1.Event{created, event, legacy} {
+		if err := legacyProjection.Apply(historical, uint64(index+1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	legacyOpened, err := service.openMetadata(t.Context(), legacyProjection.list("acc_one")[0])
+	if err != nil || legacyOpened.ClientName != "Legacy App" || legacyOpened.metadata.GetConsentVersion() == ConsentVersion {
+		t.Fatalf("legacy replay/decryption: %v", err)
 	}
 	for name, mutate := range map[string]func(*Grant){
 		"event":               func(g *Grant) { g.AuthorizationEventID = "evt_other" },

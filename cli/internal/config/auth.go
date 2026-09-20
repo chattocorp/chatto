@@ -30,16 +30,18 @@ var authProviderDefaultLabels = map[string]string{
 // a stable local issuer namespace for OAuth-only providers and must not be
 // changed after users link identities through it.
 type AuthProviderConfig struct {
-	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type            string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
-	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
-	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
-	ClientSecret    string            `toml:"client_secret,commented" comment:"OAuth/OIDC client secret. NEVER SHARE THIS! Optional only for public OIDC clients."`
-	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
-	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
-	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
-	AutoProvision   *bool             `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
-	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
+	// TokenEndpointAuthMethod overrides OIDC discovery for the token exchange.
+	TokenEndpointAuthMethod string            `toml:"token_endpoint_auth_method,commented" comment:"OIDC token authentication: client_secret_basic, client_secret_post, or none. Omit to select from discovery."`
+	ID                      string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type                    string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
+	Label                   string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID                string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret            string            `toml:"client_secret,commented" comment:"OAuth/OIDC client secret. NEVER SHARE THIS! Optional only for public OIDC clients."`
+	IssuerURL               string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
+	Scopes                  []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail            *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
+	AutoProvision           *bool             `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
+	ProviderOptions         map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
 }
 
 // LabelOrDefault returns the configured label, or a provider-specific default.

@@ -148,7 +148,7 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 			case "plain PKCE":
 				raw = strings.ReplaceAll(raw, "code_challenge_method=S256", "code_challenge_method=plain")
 			case "extra scope":
-				raw = strings.ReplaceAll(raw, "scope=openid", "scope=openid%20email")
+				raw = strings.ReplaceAll(raw, "scope=openid", "scope=openid%20unknown")
 			case "account data":
 				raw = strings.ReplaceAll(raw, "scope=openid", "scope=openid%20account_data")
 			case "account data first":
@@ -257,7 +257,7 @@ func TestValidateAuthorizeRequestRejectsDuplicateSecurityParameters(t *testing.T
 
 func TestAuthorizeValidationErrorsRedirectOnlyToValidatedClients(t *testing.T) {
 	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&state=opaque-state&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
-	invalidScope := strings.ReplaceAll(valid, "scope=openid", "scope=openid%20email")
+	invalidScope := strings.ReplaceAll(valid, "scope=openid", "scope=openid%20unknown")
 	service := &Service{storage: &Storage{clients: &Resolver{configured: map[string]*Client{
 		"client": {IDValue: "client", Redirects: []string{"https://client.example/callback"}},
 	}}}}

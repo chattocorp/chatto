@@ -235,11 +235,27 @@ binary; Node.js is not needed to run the resulting executable.
 ## OpenID Connect
 
 Authling publishes discovery at `/.well-known/openid-configuration`. The
-initial profile supports Authorization Code, requires `openid` and S256 PKCE
-by default, signs ID tokens with RS256, and exposes a minimal UserInfo
-response containing the account ID as `sub` plus non-empty
-`preferred_username` and `name` identity hints. It exposes no application-data
-scopes.
+provider supports Authorization Code, requires `openid` and S256 PKCE
+by default, and signs ID tokens with RS256. Request scopes for the information
+your client needs:
+
+| Scope | Claims in ID tokens and UserInfo |
+| --- | --- |
+| `openid` | Stable account ID as `sub`, plus authentication claims in ID tokens |
+| `profile` | Non-empty `preferred_username` and optional `name` |
+| `email` | Current verified `email` and `email_verified` |
+
+For example, send `scope=openid profile email` to request all supported account
+information. Unknown and duplicate scopes are rejected. Authling exposes no
+application-data scopes.
+
+Clients that previously requested only `openid` must add `profile` to keep
+receiving names. Add `email` only when needed. Existing signed ID tokens remain
+valid until expiry; UserInfo follows the token's stored scopes and the current
+claim-release rules. Consent now uses disclosure version 2. Version-1 grants
+remain readable but require fresh consent before reuse. Upgrade all Authling
+replicas together: older binaries cannot replay version-2 grants, so rollback
+to those binaries is not supported after the first new grant is recorded.
 
 Authling rotates its RS256 signing key automatically every 90 days. A new
 public key is published before use, and the preceding public key remains in
@@ -257,7 +273,7 @@ Authling process and therefore works with private embedded NATS. Authling does
 not yet expose a manual emergency-rotation command.
 
 Explicit consent creates a durable authorization grant for the exact client
-ID and `openid` scope. Later covered requests skip repeated consent unless the
+ID and exactly the approved scopes. Later covered requests skip repeated consent unless the
 client sends `prompt=consent`. The account page lists and revokes these grants.
 `prompt=none` checks the current session and grant without showing login or
 consent. It returns a code when both permit access, or `login_required` or

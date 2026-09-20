@@ -393,8 +393,8 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatalf("conflict Location = %q, want settings conflict error redirect (linked user %s)", conflictLocation, conflictUser.Id)
 	}
 
-	if issuer.UserInfoRequests() == 0 {
-		t.Fatal("expected userinfo fallback when ID token has no email claim")
+	if issuer.UserInfoRequests() != 0 {
+		t.Fatal("unexpected userinfo fallback when names are present and email was not requested")
 	}
 
 	// A valid provider response cannot restore an account deleted during the flow.
@@ -491,6 +491,7 @@ func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
 	requestEmail := false
 	issuer := newNoEmailOIDCIssuer(t, "client-id")
 	issuer.failUserInfo = true
+	issuer.tokenClaims = map[string]any{"preferred_username": "no-email-user"}
 	defer issuer.Close()
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
@@ -708,6 +709,11 @@ type noEmailOIDCIssuer struct {
 	subject          string
 	failUserInfo     bool
 	userInfoRequests int
+	tokenClaims      map[string]any
+	userInfoClaims   map[string]any
+	methods          json.RawMessage
+	tokenRequests    int
+	tokenCheck       func(*http.Request) bool
 }
 
 func newNoEmailOIDCIssuer(t *testing.T, clientID string) *noEmailOIDCIssuer {
@@ -745,16 +751,27 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/.well-known/openid-configuration":
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		metadata := map[string]any{
 			"issuer":                 i.server.URL,
 			"authorization_endpoint": i.server.URL + "/authorize",
 			"token_endpoint":         i.server.URL + "/token",
 			"jwks_uri":               i.server.URL + "/keys",
 			"userinfo_endpoint":      i.server.URL + "/userinfo",
-		})
+		}
+		if i.methods != nil {
+			metadata["token_endpoint_auth_methods_supported"] = i.methods
+		}
+		_ = json.NewEncoder(w).Encode(metadata)
 	case "/authorize":
 		http.Redirect(w, r, r.URL.Query().Get("redirect_uri")+"?state="+url.QueryEscape(r.URL.Query().Get("state"))+"&code=test-code", http.StatusTemporaryRedirect)
 	case "/token":
+		i.tokenRequests++
+		if i.tokenCheck != nil && !i.tokenCheck(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"invalid_client","error_description":"private provider response"}`))
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"access_token": "access-token",
@@ -777,6 +794,10 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		if i.userInfoClaims != nil {
+			_ = json.NewEncoder(w).Encode(i.userInfoClaims)
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"sub":                i.subject,
 			"name":               "No Email User",
@@ -803,12 +824,9 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 		Expiry:   josejwt.NewNumericDate(now.Add(time.Hour)),
 		IssuedAt: josejwt.NewNumericDate(now),
 	}
-	profileClaims := struct {
-		Name          string `json:"name"`
-		PreferredUser string `json:"preferred_username"`
-	}{
-		Name:          "No Email User",
-		PreferredUser: "no-email-user",
+	profileClaims := i.tokenClaims
+	if profileClaims == nil {
+		profileClaims = map[string]any{"name": "No Email User", "preferred_username": "no-email-user"}
 	}
 	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).Serialize()
 	if err != nil {

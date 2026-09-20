@@ -356,7 +356,7 @@ return target through login. Other submitted return targets are ignored.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
-requires exactly the `openid` scope. S256 PKCE is mandatory except for
+requires `openid`, and accepts optional `profile` and `email` scopes. S256 PKCE is mandatory except for
 configured confidential clients with `require_pkce = false`. Supplied PKCE
 challenges always require matching verifiers; unexpected verifiers are rejected.
 Signed-out requests resume through an opaque server-side request ID after
@@ -368,10 +368,23 @@ authentication time into the ID token's `auth_time` claim.
 `GET /oidc/consent` reuses a durable exact-client authorization grant
 when it covers the requested scopes and current disclosure version, except
 when `prompt=consent` requires an explicit decision. The page lists the account
-ID, username, and optional full name and discloses later profile changes. Same-origin `POST /oidc/consent`
+ID plus names and verified email only for the requested scopes, and discloses
+later changes. Same-origin `POST /oidc/consent`
 requires the current form disclosure version to record explicit approval
 before authorizing the expiring request or returns a denial to the validated
 client redirect.
+
+Disclosure version 2 is required for approval and reuse. The event decoder and
+metadata decryption retain version-1 support, but older binaries cannot replay
+new grants. Upgrade all replicas together; do not roll back after writing a
+version-2 grant. Explicit approval replaces scopes; subset reuse does not
+expand them.
+
+The provider's account dependencies check active status for every claim
+response and hydrate profile or current verified email only for authorized
+scopes. ID tokens retain authorized UserInfo claims. UserInfo uses the scopes
+stored in encrypted access-token state, never scopes from the HTTP request.
+Plaintext email is not added to events, projections, or token records.
 
 `GET /account` lists active OIDC grants separately from Authling browser
 sessions. Same-origin `POST /account/authorizations/revoke` authorizes the
