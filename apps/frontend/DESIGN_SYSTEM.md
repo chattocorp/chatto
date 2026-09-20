@@ -350,22 +350,21 @@ Each palette supplies a deeper shade and a brighter shade. `action` uses the
 deeper shade in light mode and the brighter shade in dark mode for links,
 focus borders, selection indicators, and compact status UI. Pair these filled
 indicators with `on-action`. `button-action` uses the deeper shade in both
-themes and pairs with `on-button-action` for white labels. Keep the gloss in
+themes and pairs with `on-button-action` for white labels. Keep the lighting in
 contrast checks. Warning, danger, presence, and server identity colours do not
 change with the accent. Do not use the selected accent as the only way to
 communicate status.
 
-Filled buttons use a subtle raised finish: a faint top highlight, a soft lower
-edge, and a small shadow over the semantic fill. Pressed buttons look inset.
-Ghost buttons stay flat. Disabled buttons have no gloss or raised edge.
+Filled buttons use the same quiet finish as the composer: a faint top highlight
+and soft rim over the semantic fill, without a cast shadow. Pressed buttons
+change fill. Ghost buttons stay flat. Disabled buttons have no lighting or raised edge.
 `ToggleChip` uses the same `btn` foundation through `toggle-chip`, including
 compact admin actions. It uses quiet `shell-lighting` without an outer shadow
 so dense action rows stay subtle. Neutral chips use `input-border` to keep
 a visible boundary on grey surfaces. Its labelled form uses the standard button radius;
 its square form uses the compact icon radius.
-Fills retain a matched tonal border. Secondary buttons use a quiet
-`surface-emphasized` fill and an input-coloured border, so they stay visible
-inside a `surface` card. Filled buttons and selected pane-header icon buttons
+Coloured fills retain a matched tonal border. Secondary buttons use a quiet
+`surface-emphasized` fill and transparent border space. Filled buttons, Select fields, and selected pane-header icon buttons
 share the `control-raised` finish. Inactive header icons stay flat. Do not add
 local gloss, blur, transparency, or extra shadows.
 
@@ -400,14 +399,14 @@ instead of adding local gradients or arbitrary inset shadows.
 | --- | --- |
 | `surface-raised` | Base raised finish. Semantic utilities set `--lighting-*` strength. |
 | `surface-lowered` | Base recessed finish. Semantic utilities set `--lowered-shadow` and `--lowered-edge`. |
-| `control-raised` | Filled buttons and selected header icons; includes pressed and disabled states. |
+| `control-raised` | Buttons, Select fields, and selected header icons; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback. |
 | `option-depth` | Quiet checkbox and radio rows; removes depth when disabled. |
 | `control-well` | Empty checkbox and radio indicators. |
 | `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow. |
 | `shell-surface` | User card and call participant cards; soft rim with no button elevation or pressed finish. |
 | `shell-action` | Standalone native buttons in the bottom row, such as Start call. Uses the same surface and 48 px minimum height as the composer and user card, with hover, focus, pressed, and disabled states. |
 | `chat-input-surface` | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card. |
-| `shell-lighting` | The same quiet finish over server gutter artwork; does not change the image or intercept clicks. |
+| `shell-lighting` | Shared quiet finish for shell surfaces and raised controls. Also lights server gutter artwork without changing the image or intercepting clicks. |
 | `floating-frame` | Lit panel, dialog, and menu frames. |
 | `floating-inset` | Recessed content inside those frames. |
 | `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no outer border or highlight in any depth mode. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
@@ -415,8 +414,13 @@ instead of adding local gradients or arbitrary inset shadows.
 
 The shared `--shell-*` theme tokens soften shell bevels in light mode with a
 cleaner top highlight, less lower shading, and a small edge blur. Dark mode
-keeps its sharper, low-light finish. Composer, user card, and pill segments
-all use the same recipe.
+keeps its sharper, low-light finish. Composer, user card, pill segments, buttons,
+Select fields, and selected toolbar controls all use the same recipe. Buttons
+have no cast shadow or inset pressed effect. Secondary buttons keep transparent
+border space; Select fields retain their field boundary. Ghost buttons stay flat.
+Disabled and loading controls, including button-like links, have no decorative
+lighting. See `Form/Button` → `Shared quiet depth` for a comparison in all three
+depth modes.
 
 Keep the `--lighting-*` and `--lowered-*` parameters inside semantic utilities.
 Each depth primitive resets its parameters so a nested control does not inherit the
@@ -685,7 +689,7 @@ closes. `PaneHeader` opts in with `hideOnKeyboard`; thread and settings headers
 stay visible. The `keyboard-hide-mobile` utility removes the complete header
 from the layout without an animation. Input focus alone does not hide it.
 
-Controls use solid semantic fills, with a subtle gloss on filled buttons;
+Controls use solid semantic fills, with quiet shell lighting on filled buttons;
 borders define structure, and shadows are reserved for genuinely floating or
 raised surfaces. Do not use decorative one-sided accent borders or inset edge
 stripes on cards, rows, panels, or selected states. When a boundary is needed,

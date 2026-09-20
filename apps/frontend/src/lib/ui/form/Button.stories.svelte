@@ -1,13 +1,15 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import Button from './Button.svelte';
+  import Select from './Select.svelte';
+  import HeaderIconButton from '../HeaderIconButton.svelte';
 
   const componentDescription = `
     Use Button for committed actions, form submits, destructive commands, and link-styled calls to
     action. Keep modal footer actions visible and horizontal, using secondary for cancel and the
     strongest applicable tone for the action. Labelled buttons share the rounded-xl radius
     of chat input surfaces; icon-only buttons keep rounded-md corners. Filled buttons have a
-    subtle gloss and raised edge. Ghost buttons stay flat; disabled buttons lose the raised finish.
+    quiet shell lighting without a cast shadow. Ghost buttons stay flat; disabled buttons lose the raised finish.
   `.trim();
 
   const { Story } = defineMeta({
@@ -61,7 +63,7 @@
     docs: {
       description: {
         story:
-          'Filled buttons use a faint top highlight, a soft lower edge, and a small shadow. Pressed buttons look inset. Secondary buttons keep a quiet surface fill; ghost buttons stay flat and use an action tint on hover.'
+          'Filled buttons share the soft rim and lighting of the composer. Fill changes give press feedback. Secondary buttons keep a quiet surface fill; ghost buttons stay flat and use an action tint on hover.'
       }
     }
   }}
@@ -71,6 +73,36 @@
     <Button variant="secondary">Sign in</Button>
     <Button variant="ghost">Save draft</Button>
   </div>
+</Story>
+
+<Story name="Shared quiet depth" asChild>
+	<div class="flex flex-col gap-6">
+		{#each [
+			{ label: 'Flat', strength: 0, width: 1 },
+			{ label: 'Kinda 3D', strength: 0.75, width: 1 },
+			{ label: 'Very 3D', strength: 1.75, width: 1.5 }
+		] as mode (mode.label)}
+			<section class="flex flex-col gap-3" style:--depth-strength={mode.strength} style:--depth-width={mode.width}>
+				<h2 class="font-semibold">{mode.label}</h2>
+				<div class="flex flex-wrap items-center gap-3">
+					<div class="chat-input-surface flex items-center px-4 text-muted">Composer surface</div>
+					<button type="button" class="shell-action">Start call</button>
+					<Button variant="secondary">Cancel</Button>
+					<Button>Current Server</Button>
+					<Button variant="danger">All Servers</Button>
+					<HeaderIconButton icon="icon-[uil--users-alt]" label="Members" tone="active" />
+				</div>
+				<div class="flex flex-wrap items-end gap-3">
+					<Select id={`quiet-depth-${mode.strength}`} label="Visibility" value="public" options={[{ value: 'public', label: 'Public' }, { value: 'private', label: 'Private' }]} />
+					<Button variant="ghost">Save draft</Button>
+					<Button href="#">Button link</Button>
+					<Button disabled>Disabled</Button>
+					<Button loading loadingText="Saving…">Save</Button>
+					<Button href="#" disabled>Disabled link</Button>
+				</div>
+			</section>
+		{/each}
+	</div>
 </Story>
 
 <Story

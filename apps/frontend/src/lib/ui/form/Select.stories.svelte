@@ -67,13 +67,13 @@
 </Story>
 
 <Story name="Flat" asChild>
-  <div class="max-w-md" style="--depth-strength: 0; --depth-width: 0">
+  <div class="max-w-md" style="--depth-strength: 0; --depth-width: 1">
     <Select id="flat-role" label="Role" options={role} value="member" />
   </div>
 </Story>
 
 <Story name="Kinda 3D" asChild>
-  <div class="max-w-md" style="--depth-strength: 1; --depth-width: 1">
+  <div class="max-w-md" style="--depth-strength: 0.75; --depth-width: 1">
     <Select id="raised-role" label="Role" options={role} value="member" />
   </div>
 </Story>

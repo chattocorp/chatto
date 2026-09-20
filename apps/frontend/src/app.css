@@ -478,13 +478,10 @@
     linear-gradient(to bottom right, color-mix(in srgb, var(--accent-strong), var(--accent-bright) calc(min(1, var(--depth-strength)) * 100%)), var(--accent-strong));
 }
 
-/* Shared lighting for filled buttons and selected header icon controls. */
+/* Interactive controls share the shell finish. Disabled controls lose lighting;
+ * semantic utilities own fill changes for hover and press feedback. */
 @utility control-raised {
-  @apply surface-raised shadow-[0_1px_2px_rgb(0_0_0/calc(0.12*var(--depth-strength)))];
-  /* Keep white labels readable even at the strongest depth setting. */
-  --lighting-top: rgb(255 255 255 / min(0.14, calc(0.1 * var(--depth-strength))));
-  @apply enabled:active:shadow-none enabled:active:inset-shadow-[0_1px_2px_rgb(0_0_0/calc(0.12*var(--depth-strength)))];
-  @apply disabled:shadow-none disabled:inset-shadow-none;
+  @apply shell-lighting shadow-none disabled:inset-shadow-none;
 
   &:disabled,
   &[aria-disabled='true'] {
@@ -506,7 +503,7 @@
 
 /* Compact actions and independent toggles share the standard button foundation. */
 @utility toggle-chip {
-  @apply btn shell-lighting shadow-none feedback-quick gap-1.5 px-2.5 text-xs;
+  @apply btn feedback-quick gap-1.5 px-2.5 text-xs;
 }
 
 @utility button-content {
@@ -612,46 +609,51 @@
 
 @utility btn-neutral {
   @apply btn border-neutral-action bg-neutral-action text-on-neutral-action hover:border-neutral-action-hover hover:bg-neutral-action-hover;
+  @apply active:bg-neutral-action-hover;
 }
 
 @utility btn-action {
   @apply btn border-(--color-button-action) bg-(--color-button-action) font-semibold text-(--color-on-button-action) hover:border-(--color-button-action-hover) hover:bg-(--color-button-action-hover);
+  @apply active:bg-(--color-button-action-hover);
 }
 
 @utility btn-success {
   @apply btn border-(--color-button-success) bg-(--color-button-success) font-semibold text-white hover:border-(--color-button-success-hover) hover:bg-(--color-button-success-hover);
+  @apply active:bg-(--color-button-success-hover);
 }
 
 @utility btn-secondary {
-  @apply btn border-input-border/70 bg-surface-emphasized/60 text-text;
-  @apply hover:border-input-border hover:bg-surface-emphasized;
+  @apply btn bg-surface-emphasized/60 text-text;
+  @apply hover:bg-surface-emphasized active:bg-surface-strong;
 }
 
 @utility btn-ghost {
-  @apply btn bg-transparent text-text shadow-none inset-shadow-none hover:bg-action/10 hover:text-action enabled:active:inset-shadow-none;
+  @apply btn bg-transparent text-text inset-shadow-none hover:bg-action/10 hover:text-action active:bg-action/15;
   background-image: none;
 }
 
 @utility btn-warning {
   @apply btn border-(--color-button-warning) bg-(--color-button-warning) font-semibold text-white hover:border-(--color-button-warning-hover) hover:bg-(--color-button-warning-hover);
+  @apply active:bg-(--color-button-warning-hover);
 }
 
 @utility btn-danger {
   @apply btn border-(--color-button-danger) bg-(--color-button-danger) font-semibold text-white hover:border-(--color-button-danger-hover) hover:bg-(--color-button-danger-hover);
+  @apply active:bg-(--color-button-danger-hover);
 }
 
 /* Quiet destructive action: neutral at rest, destructive on hover/focus. */
 @utility btn-danger-secondary {
   @apply btn-secondary;
-  @apply hover:border-danger/30 hover:bg-danger/10 hover:text-danger;
-  @apply focus-visible:border-danger/30 focus-visible:bg-danger/10 focus-visible:text-danger focus-visible:ring-danger/25;
+  @apply hover:bg-danger/10 hover:text-danger active:bg-danger/15;
+  @apply focus-visible:bg-danger/10 focus-visible:text-danger focus-visible:ring-danger/25;
 }
 
 /* Quiet room-membership action that reveals its destructive meaning on hover. */
 @utility btn-danger-ghost {
-  @apply btn bg-transparent text-muted shadow-none inset-shadow-none enabled:active:inset-shadow-none;
+  @apply btn bg-transparent text-muted inset-shadow-none;
   background-image: none;
-  @apply hover:bg-danger/10 hover:text-danger;
+  @apply hover:bg-danger/10 hover:text-danger active:bg-danger/15;
 }
 
 @utility btn-sm {
@@ -695,11 +697,6 @@
 @utility select-control {
   @apply input max-w-full min-w-0 cursor-pointer text-base;
   @apply control-raised bg-surface;
-  /* Select fields use softer lighting than action buttons. */
-  --lighting-top: rgb(255 255 255 / min(0.112, calc(0.08 * var(--depth-strength))));
-  --lighting-bottom: rgb(0 0 0 / calc(0.03 * var(--depth-strength)));
-  --lighting-edge-top: rgb(255 255 255 / calc(0.12 * var(--depth-strength)));
-  --lighting-edge-bottom: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
   text-overflow: ellipsis;
 
   @supports (appearance: base-select) {
@@ -998,11 +995,6 @@
 @utility pane-header-icon-button-active {
   @apply control-raised transition-[background-color,color,box-shadow] feedback-quick;
   @apply bg-surface-emphasized text-text-top not-disabled:hover:bg-surface-emphasized not-disabled:active:bg-surface-selected focus-visible:bg-surface-emphasized;
-  /* Selected toolbar actions need less gloss than primary action buttons. */
-  --lighting-top: rgb(255 255 255 / calc(0.025 * var(--depth-strength)));
-  --lighting-bottom: rgb(0 0 0 / calc(0.01 * var(--depth-strength)));
-  --lighting-edge-top: rgb(255 255 255 / calc(0.04 * var(--depth-strength)));
-  --lighting-edge-bottom: rgb(0 0 0 / calc(0.02 * var(--depth-strength)));
 }
 
 /* Sidebar navigation utilities */
@@ -1208,7 +1200,8 @@
   }
 }
 
-/* Resting shell surfaces have a soft rim, without button elevation or press feedback. */
+/* Shared quiet finish for shell surfaces and raised controls. No outer shadow
+ * or interaction states: consumers own those separately. */
 @utility shell-lighting {
   @apply surface-raised;
   --lighting-top: rgb(255 255 255 / calc(var(--shell-highlight) * var(--depth-strength)));
