@@ -20,11 +20,13 @@
 	let {
 		layout = 'stage',
 		scenario = 'screen',
-		animateVoice = false
+		animateVoice = false,
+		initiallyMuted = false
 	}: {
 		layout?: 'sidebar' | 'stage';
 		scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
 		animateVoice?: boolean;
+		initiallyMuted?: boolean;
 	} = $props();
 
 	const roomId = 'storybook-call-room';
@@ -238,7 +240,7 @@
 		store.voiceCall.connected = scenario !== 'idle';
 		store.voiceCall.audioBoostAvailable = true;
 		store.voiceCall.connecting = false;
-		store.voiceCall.isMuted = false;
+		store.voiceCall.isMuted = initiallyMuted;
 		store.voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
 		store.voiceCall.isScreenShareEnabled = scenario === 'screen';
 		store.voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();
