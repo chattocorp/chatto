@@ -1090,6 +1090,7 @@ describe('ServerStateStore unified realtime resources', () => {
       store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ cursor, event: new RealtimeEvent({
         event: { case: 'roomReadStateChanged', value: { roomId: 'R1' } }
       }) }));
+      if (cursor === 'first') await vi.waitFor(() => expect(releases).toHaveLength(1));
     }
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ cursor: 'permission', event: new RealtimeEvent({
       event: { case: 'viewerPermissionsChanged', value: {} }
@@ -1295,6 +1296,69 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(cacheMocks.scrubRoomMemberUser).toHaveBeenCalledWith(store.serverId, 'U2');
   });
 
+  it('coalesces the resource hints from a post before starting reads', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.messagesForRoom('R1');
+    await flushPromises(20);
+    apiMocks.readRealtimeResource.mockClear();
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'z-post', event: new RealtimeEvent({ id: 'POST', event: {
+        case: 'messagePosted', value: { roomId: 'R1' }
+      } })
+    }));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'n-notification', event: new RealtimeEvent({ event: {
+        case: 'notificationUnreadStateChanged', value: { roomId: 'R1' }
+      } })
+    }));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'a-read', event: new RealtimeEvent({ event: {
+        case: 'roomReadStateChanged', value: { roomId: 'R1' }
+      } })
+    }));
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
+      ['rooms', 'a-read'], ['notifications', 'n-notification']
+    ]);
+    expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['POST'], 'z-post');
+    expect(apiMocks.readRealtimeUsers.mock.calls.every(([ids]) => [...ids].length === 0)).toBe(true);
+  });
+
+  it('invalidates a cached author as soon as a profile change arrives', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    getUserSummaryCache(store.serverId).prime([
+      { id: 'U2', login: 'old', displayName: 'old', deleted: false, avatarUrl: null }
+    ]);
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      event: new RealtimeEvent({ event: { case: 'userProfileChanged', value: { userId: 'U2' } } })
+    }));
+    expect(getUserSummaryCache(store.serverId).get('U2')).toBeNull();
+    await store.waitForRealtimeReconciliation();
+  });
+
+  it('clears cached authors when the server store is disposed', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    getUserSummaryCache(store.serverId).prime([
+      { id: 'U2', login: 'cached', displayName: 'cached', deleted: false, avatarUrl: null }
+    ]);
+    store.dispose();
+    expect(getUserSummaryCache(store.serverId).get('U2')).toBeNull();
+  });
+
+  it.each(['reset', 'dispose'])('does not send queued resource reads after %s', async (boundary) => {
+    const store = makeStore(new FakeServerConnection([]));
+    const changed = (cursor: string) => store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor, event: new RealtimeEvent({ event: { case: 'roomReadStateChanged', value: { roomId: 'R1' } } })
+    }));
+    changed('old');
+    if (boundary === 'reset') {
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
+      changed('new');
+    } else store.dispose();
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource.mock.calls).toEqual(boundary === 'reset' ? [['rooms', 'new']] : []);
+  });
+
   it('runs one follow-up read when the same resource changes during an active refresh', async () => {
     const first = deferred<RealtimeResourceUpdate[]>();
     apiMocks.readRealtimeUsers.mockReturnValueOnce(first.promise).mockResolvedValueOnce([]);
@@ -1483,6 +1547,7 @@ describe('ServerStateStore unified realtime resources', () => {
       });
 
     store.realtimeProjectionHandler(membership(true, 'cursor-join-1'));
+    await vi.waitFor(() => expect(roomReads).toBe(1));
     store.realtimeProjectionHandler(membership(false, 'cursor-leave'));
     store.realtimeProjectionHandler(membership(true, 'cursor-join-2'));
     store.realtimeProjectionHandler(
@@ -1612,6 +1677,7 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       );
     changed();
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledTimes(1));
     const observed = store.waitForRealtimeResourceRefresh('notifications');
     let completed = false;
     void observed.then(() => {
@@ -1619,7 +1685,7 @@ describe('ServerStateStore unified realtime resources', () => {
     });
     changed();
     first.resolve([]);
-    await flushPromises();
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledTimes(2));
     expect(completed).toBe(false);
     const failure = new Error('notification read failed');
     second.reject(failure);
@@ -1677,7 +1743,9 @@ describe('ServerStateStore unified realtime resources', () => {
       .mockResolvedValue(result)
       .mockReturnValueOnce(first.promise);
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'FIRST'));
-    await flushPromises(20);
+    await Promise.all(['rooms', 'roomGroups'].map((family) =>
+      store.waitForRealtimeResourceRefresh(family as 'rooms' | 'roomGroups')
+    ));
     apiMocks.readRealtimeResource.mockClear();
     apiMocks.readRealtimeUsers.mockClear();
     store.realtimeProjectionHandler(
@@ -1692,9 +1760,6 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       })
     );
-    await flushPromises(20);
-    apiMocks.readRealtimeResource.mockClear();
-    apiMocks.readRealtimeUsers.mockClear();
     const edit = new RealtimeProjectionUpdate({
       cursor: 'edit-cursor',
       event: new RealtimeEvent({
@@ -1707,6 +1772,9 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(edit);
     store.realtimeProjectionHandler(edit);
     apiMocks.readMessages.mockReturnValueOnce(last.promise);
+    await store.waitForRealtimeResourceRefresh('rooms');
+    apiMocks.readRealtimeResource.mockClear();
+    apiMocks.readRealtimeUsers.mockClear();
     const complete = vi.fn();
     const completion = store.waitForRealtimeReconciliation().then(complete);
     await flushPromises(20);
@@ -2043,13 +2111,14 @@ describe('ServerStateStore unified realtime resources', () => {
     cacheMocks.refreshFollowedThreads.mockClear();
 
     store.reconcileThreadRead('R1', 'E-ROOT');
-    await flushPromises();
+    await store.waitForRealtimeReconciliation();
     store.reconcileThreadRead('R1', 'E-ROOT');
-    await flushPromises();
+    await store.waitForRealtimeReconciliation();
 
-    expect(refreshRoom).toHaveBeenCalledTimes(2);
+    expect(apiMocks.readMessages).toHaveBeenCalledTimes(2);
+    expect(apiMocks.readMessages).toHaveBeenLastCalledWith('R1', ['E-ROOT'], undefined);
+    expect(refreshRoom).not.toHaveBeenCalled();
     expect(refreshThread).not.toHaveBeenCalled();
-    expect(refreshRoom).toHaveBeenLastCalledWith('E-ROOT', false, undefined, expect.any(Function));
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
@@ -2246,7 +2315,7 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('drives call sounds from the canonical participant event', () => {
+  it('drives call sounds from the canonical participant event', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     vi.spyOn(store.voiceCall, 'callTransitionSoundDecision').mockReturnValue('play');
@@ -2265,6 +2334,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
 
     expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
+    await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls', undefined);
   });
 
@@ -2276,7 +2346,7 @@ describe('ServerStateStore unified realtime resources', () => {
     apiMocks.readRealtimeUsers.mockReturnValueOnce(users.promise);
     const ready = vi.fn();
     const pending = store.ensureRoomAvailable('DM1').then(ready);
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
+    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined));
     rooms.resolve([roomResource([new RoomWithViewerState({
       room: { id: 'DM1' }, memberUserIds: ['U2'], viewerState: { isMember: true }
     })])]);
@@ -2298,6 +2368,7 @@ describe('ServerStateStore unified realtime resources', () => {
       const rooms = deferred<RealtimeResourceUpdate[]>();
       apiMocks.readRealtimeResource.mockReturnValueOnce(rooms.promise);
       const rejected = expect(store.ensureRoomAvailable('DM1')).rejects.toThrow();
+      await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalled());
       if (failure === 'reset') store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true, privacyReset: true }));
       if (failure === 'disposed') store.dispose();
       if (failure === 'failed') rooms.reject(new Error('offline'));
@@ -2309,7 +2380,7 @@ describe('ServerStateStore unified realtime resources', () => {
     }
   );
 
-  it('refreshes canonical rooms after a neutral unread invalidation', () => {
+  it('refreshes canonical rooms after a neutral unread invalidation', async () => {
     const store = makeStore(new FakeServerConnection([]));
     apiMocks.readRealtimeResource.mockClear();
 
@@ -2324,6 +2395,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
 
+    await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications', undefined);
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
   });

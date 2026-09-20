@@ -119,6 +119,9 @@ posts leave file rows unchanged. File and pin updates preserve loaded pages;
 they do not restart the lists. Initial loads, pagination, system-event rows,
 and snapshot recovery still use their collection APIs. Message updates do not
 replace pagination cursors or imply that a gap in a loaded window is complete.
+After a successful thread-read acknowledgement, the root message also uses
+this queue. Acknowledgements that arrive during an active read can require a
+follow-up batch; they do not refresh the timeline window.
 
 The temporary row uses the projected user directory, then the per-server user
 summary cache, to resolve its author. If neither has the author, the row keeps
@@ -129,6 +132,13 @@ as deleted. The shared response replaces a temporary row only if no newer row
 change occurred during the read. Account deletion clears
 copied author data and the loading state. Deletion fences also apply to late
 responses and cached-author fallback.
+
+Message command responses and shared message reads also use the per-server
+user summary cache. They fetch only missing users and share concurrent reads
+for the same user. A profile-change event invalidates that user's summary;
+account deletion, projection reset, and store disposal fence pending cache
+loads. A missing result from a shared read at a different cursor is retried at
+the caller's cursor. Each user request contains at most 100 IDs.
 
 
 ## Exact snapshot and targeted resource reads
@@ -458,9 +468,14 @@ If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
 
 The projection stores canonical public resources. It does not store
-realtime-specific resource copies. Resource invalidation events start
-coalesced ConnectRPC reads. If another event reaches the same resource family
-during a read, the frontend runs one follow-up read at the newest event cursor.
+realtime-specific resource copies. Resource invalidation events collect for
+10 milliseconds before a ConnectRPC read starts. Adjacent events for the same
+family share one read at the latest received cursor. If another event reaches
+the same resource family during a read, the frontend runs one follow-up read
+at the newest event cursor. Both the collection delay and follow-up reads are
+part of cursor reconciliation. Notification invalidations still require an
+authoritative notification-list read because their events carry no replacement
+notification data.
 The message queue deduplicates pending IDs and serializes batches within each
 room. An event that arrives during a read queues another read for its ID and
 prevents the older result from being applied. Reset, room-access loss, and

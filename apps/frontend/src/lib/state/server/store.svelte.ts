@@ -555,7 +555,7 @@ export class ServerStateStore {
   /** Reconcile a successful thread read even when its realtime hint is absent or a no-op. */
   reconcileThreadRead(roomId: string, threadRootEventId: string): void {
     const roomStore = this.#roomMessages[roomId];
-    if (roomStore) this.scheduleMessageWindowRefresh(roomStore, threadRootEventId);
+    if (roomStore) this.scheduleMessageReconciliation(roomId, threadRootEventId);
     refreshRegisteredFollowedThreadQueries(this.serverId);
     this.refreshRealtimeResource('notifications');
     this.refreshRealtimeResource('rooms');
@@ -1035,17 +1035,22 @@ export class ServerStateStore {
   private refreshRealtimeResource(family: RealtimeResourceFamily, minimumCursor?: string): void {
     minimumCursor ??= this.#currentEventMinimumCursor;
     const generation = this.#realtimeProjectionGeneration;
-    if (this.#resourceRefreshes.has(family)) {
-      const pending = this.#pendingResourceRefreshes.get(family);
-      this.#pendingResourceRefreshes.set(family, {
-        minimumCursor:
-          minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
-        generation
-      });
-      return;
-    }
-    const refresh = this.#realtimeResources
-      .read(family, minimumCursor)
+    const pending = this.#pendingResourceRefreshes.get(family);
+    this.#pendingResourceRefreshes.set(family, {
+      minimumCursor:
+        minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
+      generation
+    });
+    if (this.#resourceRefreshes.has(family)) return;
+    // Collect adjacent event frames before reading. Once a read starts, later
+    // hints stay pending for a follow-up read at their own minimum boundary.
+    const refresh = new Promise<void>((resolve) => setTimeout(resolve, 10))
+      .then(() => {
+        this.requireCurrentRealtimeProjection(generation);
+        minimumCursor = this.#pendingResourceRefreshes.get(family)?.minimumCursor;
+        this.#pendingResourceRefreshes.delete(family);
+        return this.#realtimeResources.read(family, minimumCursor);
+      })
       .then(async (resources) => {
         this.requireCurrentRealtimeProjection(generation);
         for (const resource of resources) {
@@ -1345,6 +1350,7 @@ export class ServerStateStore {
         return;
       case 'userProfileChanged':
       case 'userAccountCreated':
+        if (rawValue?.userId) removeUserSummaryCacheEntry(this.serverId, rawValue.userId);
         if (payload.case === 'userAccountCreated' && rawValue?.userId) {
           this.invalidateUniversalMembership();
         }
@@ -1799,6 +1805,7 @@ export class ServerStateStore {
   /** Clean up resources. */
   dispose(): void {
     this.#messageReconciler.reset();
+    clearUserSummaryCache(this.serverId);
     this.readViews.clear();
     // In-flight destination and realtime reads must not revive a retired store.
     this.#realtimeProjectionGeneration++;

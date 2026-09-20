@@ -1,10 +1,14 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { UserAPI, UserSummary } from '$lib/api-client/users';
+import type { UserSummaryReader } from '$lib/api-client/hooks';
+import { StaleResponseError } from '$lib/api-client/connect';
 
 export class UserSummaryCache {
   readonly serverId: string;
   #entries = new SvelteMap<string, UserSummary>();
   #version = $state(0);
+  #generation = 0;
+  readonly #pending = new SvelteMap<string, { completion: Promise<void>; cursor?: string }>();
 
   constructor(serverId: string) {
     this.serverId = serverId;
@@ -15,16 +19,20 @@ export class UserSummaryCache {
     for (const user of users) {
       if (!user.id) continue;
       this.#entries.set(user.id, user);
+      this.#pending.delete(user.id);
       changed = true;
     }
     if (changed) this.#version++;
   }
 
   remove(userId: string): void {
+    this.#pending.delete(userId);
     if (this.#entries.delete(userId)) this.#version++;
   }
 
   clear(): void {
+    this.#generation++;
+    this.#pending.clear();
     if (this.#entries.size === 0) return;
     this.#entries.clear();
     this.#version++;
@@ -48,9 +56,45 @@ export class UserSummaryCache {
   }
 
   async loadMissing(api: Pick<UserAPI, 'batchGetUsers'>, userIds: Iterable<string>): Promise<void> {
-    const missing = this.missing(userIds);
-    if (missing.length === 0) return;
-    this.prime(await api.batchGetUsers(missing));
+    await this.resolve([...userIds], (ids) => api.batchGetUsers(ids));
+  }
+
+  /**
+   * Share missing-user reads across message consumers. A cached profile remains
+   * valid until a profile event invalidates it; message cursors do not invalidate
+   * unchanged users. Removal and reset fence reads already in flight.
+   */
+  async resolve(ids: string[], read: UserSummaryReader, minimumCursor?: string): Promise<UserSummary[]> {
+    const generation = this.#generation;
+    const weakerReads = ids.filter((id) => {
+      const pending = this.#pending.get(id);
+      return pending && pending.cursor !== minimumCursor;
+    });
+    const missing = this.missing(ids).filter((id) => !this.#pending.has(id));
+    for (let offset = 0; offset < missing.length; offset += 100) {
+      const batch = missing.slice(offset, offset + 100);
+      const request = Promise.resolve().then(() => read(batch, minimumCursor)).then((users) => {
+        if (generation !== this.#generation) throw new StaleResponseError(false);
+        const byId = new SvelteMap(users.map((user) => [user.id, user]));
+        for (const id of batch) {
+          if (this.#pending.get(id)?.completion !== request) {
+            if (!this.#entries.has(id)) throw new StaleResponseError(false);
+            continue;
+          }
+          const user = byId.get(id);
+          if (user) this.prime([user]);
+        }
+      }).finally(() => {
+        for (const id of batch) if (this.#pending.get(id)?.completion === request) this.#pending.delete(id);
+      });
+      for (const id of batch) this.#pending.set(id, { completion: request, cursor: minimumCursor });
+    }
+    await Promise.all([...new SvelteSet(ids.flatMap((id) => this.#pending.get(id)?.completion ?? []))]);
+    if (generation !== this.#generation) throw new StaleResponseError(false);
+    // A missing result at a different opaque boundary is not evidence that the
+    // user is absent at this caller's boundary. Retry only those unresolved IDs.
+    if (this.missing(weakerReads).length > 0) return this.resolve(ids, read, minimumCursor);
+    return [...new SvelteSet(ids)].flatMap((id) => this.get(id) ?? []);
   }
 }
 
