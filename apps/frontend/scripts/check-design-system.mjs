@@ -12,7 +12,7 @@ const styleBlockAllowlist = new Set([
   'src/lib/components/chat/VideoPlayer.svelte',
   'src/lib/components/composer/TipTapEditor.svelte',
   'src/lib/ui/AppHeader.svelte',
-  'src/lib/ui/BottomSheet.svelte',
+  'src/lib/ui/ModalSurface.svelte',
   'src/lib/ui/Dialog.svelte',
   'src/lib/ui/toast/ToastContainer.svelte'
 ]);
@@ -21,8 +21,7 @@ const styleBlockAllowlist = new Set([
 // dialogs must use Dialog, FormDialog, or ConfirmDialog instead.
 const nativeDialogAllowlist = new Set([
   'src/lib/components/QuickSwitcher.svelte',
-  'src/lib/ui/BottomSheet.svelte',
-  'src/lib/ui/Dialog.svelte',
+  'src/lib/ui/ModalSurface.svelte',
   'src/lib/ui/ImageModal.svelte',
   'src/routes/chat/ModalContainerConfirmDialogMock.svelte',
   'src/routes/chat/ModalContainerDialogMock.svelte',
@@ -156,6 +155,17 @@ for (const file of await svelteFiles(sourceRoot)) {
     for (const match of utilitySource.matchAll(pattern)) {
       const line = utilitySource.slice(0, match.index).split('\n').length;
       failures.push(`${path}:${line}: ${description} (${match[0].trim()})`);
+    }
+  }
+
+  for (const dialog of utilitySource.matchAll(/<Dialog\b[\s\S]*?<\/Dialog>/g)) {
+    if (
+      /\{#snippet footer\s*\(|\{footer\}/.test(dialog[0]) &&
+      !/\bmediaViewer\b|\bfooterDetails\b/.test(dialog[0])
+    ) {
+      failures.push(
+        `${path}: task dialogs must use primaryAction, secondaryActions, and dismissAction; custom footers are for viewer controls`
+      );
     }
   }
 

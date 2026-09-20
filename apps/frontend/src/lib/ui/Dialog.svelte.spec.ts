@@ -1,18 +1,12 @@
 import '../../app.css';
 import { page } from 'vitest/browser';
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, expectTypeOf, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { flushSync } from 'svelte';
+import { flushSync, type ComponentProps, type Snippet } from 'svelte';
 import Dialog from './Dialog.svelte';
 import { q, testSnippet } from '$lib/test-utils';
 
-function renderDialog(props: {
-  visible: boolean;
-  title?: string;
-  size?: 'sm' | 'md' | 'lg';
-  children: ReturnType<typeof testSnippet>;
-  footer?: ReturnType<typeof testSnippet>;
-}) {
+function renderDialog(props: ComponentProps<typeof Dialog>) {
   return render(Dialog, { props });
 }
 
@@ -20,6 +14,14 @@ const FRAME = 'dialog > div';
 const WELL = `${FRAME} > div`;
 
 describe('Dialog', () => {
+  // Compile-time contract checks run through svelte-check.
+  {
+    type Props = ComponentProps<typeof Dialog>;
+    expectTypeOf<{ children: Snippet; primaryAction: Snippet }>().toExtend<Props>();
+    expectTypeOf<{ children: Snippet; footer: Snippet; footerDetails: Snippet }>().toExtend<Props>();
+    expectTypeOf<{ children: Snippet; primaryAction: Snippet; footer: Snippet }>().not.toExtend<Props>();
+    expectTypeOf<{ children: Snippet; footerDetails: Snippet }>().not.toExtend<Props>();
+  }
   beforeEach(async () => {
     await page.viewport(1280, 720);
   });
@@ -128,12 +130,12 @@ describe('Dialog', () => {
       }
     });
 
-    it('clamps to the viewport and truncates long actions on narrow screens', async () => {
+    it('fills narrow screens and wraps complete action labels', async () => {
       await page.viewport(425, 720);
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>'),
-        footer: testSnippet(
+        primaryAction: testSnippet(
           '<button><span class="button-content">Im vorherigen außergewöhnlich langen Diskussionsthread mit allen bisherigen Nachrichten fortfahren</span></button>'
         )
       });
@@ -141,12 +143,11 @@ describe('Dialog', () => {
       const dialog = q(container, 'dialog') as HTMLDialogElement;
       const footer = dialog.querySelector('footer') as HTMLElement;
       const label = footer.querySelector('button > span') as HTMLElement;
-      const viewportGutter = 2 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-      expect(dialog.offsetWidth).toBe(window.innerWidth - viewportGutter);
-      expect(getComputedStyle(footer).flexWrap).toBe('nowrap');
-      expect(getComputedStyle(label).overflow).toBe('hidden');
-      expect(getComputedStyle(label).textOverflow).toBe('ellipsis');
-      expect(getComputedStyle(label).whiteSpace).toBe('nowrap');
+      expect(dialog.offsetWidth).toBe(window.innerWidth);
+      expect(getComputedStyle(footer).flexDirection).toBe('column');
+      expect(getComputedStyle(label).whiteSpace).toBe('normal');
+      expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+      expect(footer.querySelector('button')!.offsetHeight).toBeGreaterThanOrEqual(48);
     });
   });
 

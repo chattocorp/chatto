@@ -20,8 +20,10 @@
 
 <Dialog visible title={m('voice.microphone_silent_hint')} size="sm" {onclose}>
   <p>{m('voice.microphone_silence_explanation')}</p>
-  {#snippet footer()}
+  {#snippet dismissAction()}
     <Button variant="secondary" onclick={onclose}>{m('ui.close')}</Button>
+  {/snippet}
+  {#snippet primaryAction()}
     <Button onclick={openPreferences}>{m('voice.preferences.title')}</Button>
   {/snippet}
 </Dialog>

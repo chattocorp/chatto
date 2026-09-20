@@ -647,7 +647,7 @@
     })}
   </Hint>
 
-  {#snippet footer()}
+  {#snippet dismissAction()}
     <Button defaultAction variant="secondary" onclick={closeDisconnectBlockedModal}>
       {m('ui.close')}
     </Button>

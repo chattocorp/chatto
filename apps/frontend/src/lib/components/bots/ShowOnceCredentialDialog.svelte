@@ -54,7 +54,7 @@
     </div>
   </div>
 
-  {#snippet footer()}
+  {#snippet primaryAction()}
     <Button defaultAction onclick={close}>{m('common.got_it')}</Button>
   {/snippet}
 </Dialog>

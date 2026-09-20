@@ -2,9 +2,10 @@
 @component
 
 A dialog wrapping a `<form>`. Owns the form element, the submit handler,
-and a standard footer with cancel + submit buttons. Use this whenever a
+and responsive submit and Cancel actions. Use this whenever a
 modal dialog is collecting input — the submit button gets Enter-to-submit
 for free and the boilerplate stays out of the calling component.
+Below md the form becomes a sheet automatically; callers do not select a layout.
 
 ```svelte
 <FormDialog
@@ -114,11 +115,13 @@ The submit button's color follows `submitTone` (`action` by default; use
     {/if}
   </form>
 
-  {#snippet footer()}
+  {#snippet dismissAction()}
     <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>
       {#if cancelIcon}<span class={cancelIcon}></span>{/if}
       {cancelLabel}
     </Button>
+  {/snippet}
+  {#snippet primaryAction()}
     <Button
       type="submit"
       form={formId}
