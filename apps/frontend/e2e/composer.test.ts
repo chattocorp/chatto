@@ -4,6 +4,11 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import { withLoggedInServerWindow } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { TIMEOUTS } from './constants';
+import {
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect,
+  postThreadReplyWithEchoViaConnect
+} from './fixtures/connectHelpers';
 import * as routes from './routes';
 
 test.describe('Composer drafts', () => {
@@ -506,3 +511,97 @@ test.describe('Composer auto-focus on navigation (touch device)', () => {
     await expect(roomPage.messageInput).not.toBeFocused();
   });
 });
+
+for (const editor of ['visual', 'markdown'] as const) {
+  for (const device of ['phone', 'wide touch', 'desktop'] as const) {
+    test.describe(`Thread composer focus (${editor}, ${device})`, () => {
+      test.use({
+        hasTouch: device !== 'desktop',
+        isMobile: device !== 'desktop',
+        viewport: { width: device === 'phone' ? 390 : 1280, height: 844 }
+      });
+
+      test('navigation respects input capabilities and authoring still focuses', async ({
+        page,
+        chatPage,
+        roomPage
+      }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        await createAndLoginTestUser(page);
+        await chatPage.goto();
+        await page.evaluate((composerEditor) => {
+          const preferences = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+          localStorage.setItem(
+            'chatto:preferences',
+            JSON.stringify({ ...preferences, composerEditor })
+          );
+        }, editor);
+        const roomId = await getRoomIdByNameViaConnect(page, 'general');
+        await page.goto(routes.room(roomId));
+        await waitForRoomReady(page, 'general');
+        for (const body of ['First focus thread', 'Second focus thread']) {
+          const rootId = await postMessageViaConnect(page, roomId, body);
+          await postThreadReplyWithEchoViaConnect(page, roomId, `${body} reply`, rootId, rootId);
+        }
+
+        // Reopen the first thread, then switch to another thread. Use navigation
+        // links rather than Reply, which deliberately starts an authoring action.
+        for (const body of ['First focus thread', 'First focus thread', 'Second focus thread']) {
+          await roomPage.getMessage(body).locator.getByRole('link', { name: '1 reply' }).click();
+          const input = roomPage.threadReplyInput;
+          await expect(input).toHaveAttribute('contenteditable', 'true');
+          // TipTap schedules focus on an animation frame. Let both editor kinds
+          // finish pending focus work before making the negative assertion.
+          await page.evaluate(
+            () =>
+              new Promise<void>((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+              )
+          );
+          if (device === 'desktop') await expect(input).toBeFocused();
+          else await expect(input).not.toBeFocused();
+
+          if (body === 'Second focus thread') {
+            if (device === 'desktop') await input.click();
+            else await input.tap();
+            await expect(input).toBeFocused();
+            await input.fill('An intentional reply');
+            await roomPage.threadPane
+              .getByRole('button', { name: 'Send message', exact: true })
+              .click();
+            await roomPage.expectTextInThreadPane('An intentional reply');
+            await expect(input).not.toContainText('An intentional reply');
+            await expect(input).toBeFocused();
+            await roomPage.getThreadMessage('An intentional reply').startEdit();
+            await expect(input).toBeFocused();
+          } else if (device === 'phone') {
+            await roomPage.closeThreadWithBackButton();
+          } else {
+            await roomPage.closeThreadWithCloseButton();
+          }
+        }
+        if (device === 'phone') await roomPage.closeThreadWithBackButton();
+        else await roomPage.closeThreadWithCloseButton();
+
+        await roomPage.getMessage('Second focus thread reply').replyToEchoInThread();
+        await expect(roomPage.threadReplyInput).toBeFocused();
+
+        const quotedMessage = roomPage.getThreadMessage('An intentional reply');
+        await quotedMessage.locator
+          .getByText('An intentional reply', { exact: true })
+          .evaluate((element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            window.getSelection()?.removeAllRanges();
+            window.getSelection()?.addRange(range);
+            element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+          });
+        await quotedMessage.replyInRoom();
+        await expect(roomPage.threadReplyInput).toContainText('An intentional reply');
+        await expect(roomPage.threadReplyInput).toBeFocused();
+        expect(pageErrors).toEqual([]);
+      });
+    });
+  }
+}
