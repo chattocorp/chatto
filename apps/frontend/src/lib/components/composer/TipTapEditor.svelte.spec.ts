@@ -33,6 +33,8 @@ describe('Composer editor focus', () => {
       const editor = page.getByRole('textbox', { name: 'Focus test' }).element();
       api.setContent('First paragraph');
       api.focus('start');
+      // TipTap applies DOM focus on the next animation frame, after its selection changes.
+      await expect.element(editor).toHaveFocus();
       await expect.poll(() => api.getTextBeforeCursor()).toBe('');
       await userEvent.keyboard(
         '{ArrowRight}{ArrowRight}{ArrowRight}{Shift>}{ArrowRight}{ArrowRight}{/Shift}'
