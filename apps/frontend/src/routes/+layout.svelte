@@ -88,7 +88,7 @@
 <div
   {@attach initialPageReveal}
   use:sidebarSwipe
-  class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:app-frame-shell md:p-3 md:pt-0"
+  class="flex h-full w-full flex-col overscroll-y-contain bg-surface desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3 pt-[env(safe-area-inset-top,0px)]"
 >
   <AppHeader />
 
@@ -105,7 +105,7 @@
 <div
   data-safari-bottom-edge
   aria-hidden="true"
-  class="pointer-events-none fixed inset-x-0 bottom-0 h-px bg-surface md:hidden"
+  class="pointer-events-none fixed inset-x-0 bottom-0 hidden h-px bg-surface mobile-presentation:block"
 ></div>
 
 {#if page.state.modal}

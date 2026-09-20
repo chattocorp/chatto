@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AppHeader from './AppHeader.svelte';
-import { page } from 'vitest/browser';
+import { cdp, page } from 'vitest/browser';
 import '../../app.css';
 
 const { mocks } = vi.hoisted(() => ({
@@ -70,6 +70,7 @@ vi.mock('$lib/state/globals.svelte', () => ({
 }));
 describe('AppHeader', () => {
   it('hides on mobile with the keyboard and returns when it closes', async () => {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
     await page.viewport(390, 800);
     const { getByRole, container } = render(AppHeader);
     const header = container.querySelector('header')!;
@@ -85,6 +86,7 @@ describe('AppHeader', () => {
       await expect.element(getByRole('banner')).toBeVisible();
       expect(header.getBoundingClientRect().height).toBe(height);
     } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
       document.body.removeAttribute('data-keyboard-open');
       await page.viewport(1280, 720);
     }

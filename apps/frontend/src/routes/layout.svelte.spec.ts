@@ -230,9 +230,7 @@ describe('root layout mobile sidebar animation', () => {
     await tick();
 
     expect(sidebarNav.isOpen).toBe(true);
-    expect(q(container, '[data-testid="mobile-sidebar-panel"]')?.style.transform).toBe(
-      'translateX(calc(0px * var(--inline-direction)))'
-    );
+    expect(q(container, '[data-testid="mobile-sidebar-panel"]')?.inert).toBe(false);
   });
 
   it('keeps the sidebar and backdrop mounted while the mobile close animation runs', async () => {
@@ -251,7 +249,7 @@ describe('root layout mobile sidebar animation', () => {
     expect(backdrop).not.toBeNull();
     if (!panel || !backdrop) return;
 
-    expect(panel.style.transform).toBe('translateX(calc(0px * var(--inline-direction)))');
+    expect(panel.inert).toBe(false);
     expect(getComputedStyle(panel).visibility).toBe('visible');
     expect(backdrop.disabled).toBe(false);
     expect(backdrop.style.opacity).toBe('1');
@@ -262,8 +260,7 @@ describe('root layout mobile sidebar animation', () => {
     expect(q(container, '[data-testid="mobile-sidebar-backdrop"]')).toBe(backdrop);
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.style.opacity).toBe('0');
-    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
-    expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
+    expect(panel.inert).toBe(true);
   });
 
   it('keeps drag-to-close working for the mobile sidebar', async () => {
@@ -283,7 +280,7 @@ describe('root layout mobile sidebar animation', () => {
     await tick();
 
     expect(sidebarNav.isOpen).toBe(false);
-    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
+    expect(panel.inert).toBe(true);
   });
 
   it('opens the inline-start sidebar from a leftward drag in RTL', async () => {

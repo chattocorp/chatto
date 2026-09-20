@@ -84,10 +84,11 @@ Do not add a separate speaking border or pulse to the card.
 
 ### Sidebar links
 
-Below the `md` breakpoint, the mobile drawer fills the viewport width. The
+Below the `md` breakpoint, the drawer fills the available frame width. The
 server gutter keeps its width and the navigation pane fills the remaining
-space. Both panes use the viewport width for their shared slide and swipe
-distance. Select a destination, use the app-header toggle, or swipe towards
+space. Both panes inherit one animation state through `sidebar-drawer`.
+Mouse drawers use the thread overlay's 300 px slide and fade. Touch drawers
+move the full frame width to follow a finger. Select a destination, use the app-header toggle, or swipe towards
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
 
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
@@ -199,11 +200,15 @@ below the editor. Keep this layout until the draft is cleared or sent, or its
 destination or edit mode changes. The extra text width can remove a line wrap;
 keeping the expanded layout prevents repeated layout changes while typing.
 
-Both composer toolbars use 44 px targets and 20 px icons when any touch pointer
-is available (`any-pointer: coarse`), including on hybrid devices. Mouse-only
-devices use compact controls at every pane width. `CompactActionButton` opts in
-through `touchFriendly`; joined formatting groups use `pill-button-group-touch`.
+Both composer toolbars use 44 px targets and 20 px icons in narrow touch
+windows, including hybrid devices. Wide windows and mouse-only devices keep
+28 px controls and 15 px icons. Composer controls opt in through
+`mobile-presentation:pill-button-group-touch`. This is a composer-specific
+exception to touch target sizing at every viewport width.
 The formatting shelf scrolls horizontally when its controls do not fit.
+In a wide, single-line composer, centre the editor and touch controls vertically.
+The compact desktop controls retain their bottom offset; do not apply that offset
+to the taller touch controls.
 
 ## Standard Dialogs
 
@@ -213,8 +218,9 @@ Use the standard dialog family for focused tasks:
 - Use `FormDialog` when a dialog collects input and submits one form.
 - Use `Dialog` for information, custom content, or two or more action paths.
 
-All three components own responsive presentation. Below `md` (768 px), task
-dialogs become full-width bottom sheets with a drag handle, `rounded-lg` top
+All three components own responsive presentation. Below 768 px, task
+dialogs become full-width bottom sheets only when a coarse pointer is available.
+Mouse windows retain centred dialogs that fit the viewport. Sheets have a drag handle, `rounded-lg` top
 corners, and safe-area spacing. Both layouts keep a `surface` frame around one
 inset `background` work plane. `sheet-frame` owns the same 16 px side and bottom
 surround for task dialogs and context-menu sheets, including safe-area spacing.
@@ -252,7 +258,9 @@ complete labels, including loading labels. The order is primary, alternatives,
 then dismissal. Desktop actions form an end-aligned row in the order dismissal,
 alternatives, then primary. DOM and keyboard order follow the visible order.
 Desktop labels can expand the dialog beyond its baseline width and truncate
-only at the viewport limit. Keep alternative actions in their intended order.
+only at the viewport limit on wide screens. Below 768 px, centred dialogs wrap
+actions and complete labels to keep them readable. Keep alternative actions in
+their intended order.
 
 Use `secondary` for Cancel, `action` for the recommended path, and a semantic
 tone such as `danger` only when the action has that meaning. Use an
@@ -694,9 +702,42 @@ Touch context menus keep their bottom-sheet presentation.
   the narrow exception for a subordinate icon placed directly beside the text
   or value it acts on; do not use it for standalone or toolbar actions.
 
+## Input And Responsive Layout
+
+Input capability selects control behavior. Available space selects content layout.
+Use `touch-input` for targets and actions that must work whenever
+`any-pointer: coarse` matches, including hybrid devices. `compact-input` applies
+only when no coarse pointer is available. `hover-actions` permits mouse hover
+actions on hybrid devices, but essential controls must also remain accessible
+through touch and keyboard input.
+
+Use `mobile-presentation` for the app frame and task sheets. It requires both a
+viewport below 768 px and a coarse pointer. `desktop-presentation` is its inverse:
+narrow mouse windows and all wide windows retain the padded frame, rounded inset,
+and compact header. The header and drawer offsets share `--app-header-height`.
+Safe-area spacing stays separate from that height.
+In narrow mouse windows, drawers and their backdrop stay inside the rounded
+work plane, including during animation. Measure that plane for swipe distances.
+Narrow touch windows keep viewport-based drawers and device safe-area offsets.
+
+Use Svelte's `MediaQuery` with `NARROW_TOUCH_QUERY` from `inputMediaQueries.ts`
+when a component needs a reactive presentation decision. Keep this query and
+the CSS variants in sync. Do not select a layout from a device name or the last
+pointer event. Touch-safe menus can remain floating when hover is available;
+touch input still gets larger command targets and emoji targets at every width.
+Keep the existing primary-pointer checks for keyboard and autofocus defaults.
+Mouse-primary hybrid devices retain mouse keyboard behavior; use touch capability,
+not the primary-pointer preference, to select target sizes and frame presentation.
+
+Keep width or container queries for pane columns, navigation collapse, resize
+handles for docked panes, toolbar overflow, compact labels, header wrapping,
+autocomplete width, media viewers, and form/card grids. These rules prevent
+content from exceeding its available space. Timeline row spacing and rounded
+highlights follow presentation instead of width alone.
+
 Chatto deliberately uses browser/platform text rendering. Do not add global
 font smoothing. Keep the browser's default root text size on mobile as well as
-desktop. Below the `md` breakpoint, room and thread timelines add `px-1`
+desktop. In narrow touch-capable windows, room and thread timelines add `px-1`
 padding around their rows to give avatars and message content more space at
 the screen edges.
 
@@ -725,7 +766,7 @@ When a call is active, the collapsed header keeps the call button visible
 beside the three-dot button. It uses the same active-call colour and pulse as
 the expanded toolbar.
 
-The app header and room header hide below the `md` breakpoint while the shared
+The app header and room header hide in narrow touch-capable windows while the shared
 viewport detector reports an open software keyboard. They return when it
 closes. `PaneHeader` opts in with `hideOnKeyboard`; thread and settings headers
 stay visible. The `keyboard-hide-mobile` utility removes the complete header

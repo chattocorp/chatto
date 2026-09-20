@@ -6,7 +6,8 @@
   const componentDescription = `
     Use FormDialog for modal forms with a single submit action and cancel/close behavior. It owns
     the footer action pattern, loading state, disabled state, and top-level form error treatment.
-    Below 768 px it becomes a bottom sheet with full-width submit and Cancel actions automatically.
+    Below 768 px, touch-capable windows use a bottom sheet with full-width submit and Cancel actions.
+    Mouse windows retain the centred dialog.
   `.trim();
 
   const { Story } = defineMeta({

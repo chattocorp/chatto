@@ -46,7 +46,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
     <button
       type="button"
       onclick={onDismiss}
-      class="embed-control-button md:group-hover/preview:opacity-100"
+      class="embed-control-button"
       aria-label={m('preview.youtube_dismiss')}
     >
       <span class="iconify icon-[uil--times] text-sm"></span>
@@ -55,7 +55,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
     <button
       type="button"
       onclick={onDelete}
-      class="embed-control-button md:group-hover/preview:opacity-100"
+      class="embed-control-button"
       aria-label={m('preview.youtube_delete')}
     >
       <span class="iconify icon-[uil--times] text-sm"></span>

@@ -13,7 +13,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import { searchEmojis, EMOJI_BY_CATEGORY } from '$lib/emoji';
-  import { supportsHoverActions } from '$lib/utils/inputCapabilities';
+  import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { getRecentEmojis, MAX_RECENT_EMOJIS } from '$lib/state/recentEmojis.svelte';
 
   let {
@@ -27,7 +27,6 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
   } = $props();
 
   let query = $state('');
-  const canUseHoverActions = supportsHoverActions();
 
   const recentStore = $derived(getRecentEmojis(serverId));
   const recent = $derived(recentStore.recent.slice(0, MAX_RECENT_EMOJIS));
@@ -36,7 +35,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
   const isSearching = $derived(query.trim().length > 0);
 
   function focusSearchInput(node: HTMLInputElement) {
-    if (canUseHoverActions) queueMicrotask(() => node.focus());
+    if (shouldAutoFocus()) queueMicrotask(() => node.focus());
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -57,30 +56,30 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flex w-full flex-col gap-2 md:w-72 md:gap-1" onkeydown={handleKeydown}>
+<div class="flex w-88 max-w-full flex-col gap-2 compact-input:w-72 compact-input:gap-1" onkeydown={handleKeydown}>
   <!-- Search section -->
-  <div class="menu-section p-2 md:p-1">
+  <div class="menu-section p-2 compact-input:p-1">
     <input
       {@attach focusSearchInput}
       bind:value={query}
       type="text"
       placeholder={m('emoji.search_placeholder')}
-      class="w-full rounded bg-surface px-3 py-2.5 text-base outline-none placeholder:text-muted md:px-2.5 md:py-1.5 md:text-sm"
+      class="w-full rounded bg-surface px-3 py-2.5 text-base outline-none placeholder:text-muted compact-input:px-2.5 compact-input:py-1.5 compact-input:text-sm"
     />
   </div>
 
   <!-- Emoji grid section -->
-  <div class="menu-section p-2 md:p-1">
+  <div class="menu-section p-2 compact-input:p-1">
     <!-- Emoji grid -->
-    <div class="max-h-[50vh] overflow-y-auto md:max-h-72">
+    <div class="max-h-[min(50vh,18rem)] overflow-y-auto">
       {#if isSearching}
         {#if searchResults.length === 0}
           <div class="py-6 text-center text-sm text-muted">{m('emoji.no_results')}</div>
         {:else}
-          <div class="grid grid-cols-7 md:grid-cols-8">
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each searchResults as result (result.name)}
               <button
-                class="flex aspect-square cursor-pointer items-center justify-center rounded text-3xl hover:bg-surface active:bg-surface md:h-8 md:w-8 md:text-base"
+                class="flex min-h-11 cursor-pointer items-center justify-center rounded text-xl hover:bg-surface active:bg-surface compact-input:min-h-8 compact-input:text-base"
                 onclick={() => selectEmoji(result.emoji)}
                 title={result.name}
               >
@@ -92,14 +91,14 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
       {:else}
         {#if recent.length > 0}
           <div
-            class="mt-1 mb-1 px-1 text-sm font-medium text-muted md:mt-0 md:mb-0.5 md:px-0 md:text-xs"
+            class="mt-1 mb-1 px-1 text-sm font-medium text-muted compact-input:mt-0 compact-input:mb-0.5 compact-input:px-0 compact-input:text-xs"
           >
             Recently Used
           </div>
-          <div class="grid grid-cols-7 md:grid-cols-8">
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each recent as emoji (emoji)}
               <button
-                class="flex aspect-square cursor-pointer items-center justify-center rounded text-3xl hover:bg-surface active:bg-surface md:h-8 md:w-8 md:text-base"
+                class="flex min-h-11 cursor-pointer items-center justify-center rounded text-xl hover:bg-surface active:bg-surface compact-input:min-h-8 compact-input:text-base"
                 onclick={() => selectEmoji(emoji)}
               >
                 {emoji}
@@ -109,14 +108,14 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
         {/if}
         {#each EMOJI_BY_CATEGORY as cat (cat.name)}
           <div
-            class="mt-3 mb-1 px-1 text-sm font-medium text-muted md:mt-1 md:mb-0.5 md:px-0 md:text-xs"
+            class="mt-3 mb-1 px-1 text-sm font-medium text-muted compact-input:mt-1 compact-input:mb-0.5 compact-input:px-0 compact-input:text-xs"
           >
             {cat.name}
           </div>
-          <div class="grid grid-cols-7 md:grid-cols-8">
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] compact-input:grid-cols-8">
             {#each cat.emojis as entry (entry.name)}
               <button
-                class="flex aspect-square cursor-pointer items-center justify-center rounded text-3xl hover:bg-surface active:bg-surface md:h-8 md:w-8 md:text-base"
+                class="flex min-h-11 cursor-pointer items-center justify-center rounded text-xl hover:bg-surface active:bg-surface compact-input:min-h-8 compact-input:text-base"
                 onclick={() => selectEmoji(entry.emoji)}
                 title={entry.name}
               >

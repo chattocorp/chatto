@@ -457,7 +457,7 @@ unknown instance) the component renders nothing.
           e.stopPropagation();
           onDismiss?.();
         }}
-        class="embed-control-button md:group-hover/preview:opacity-100"
+        class="embed-control-button"
         aria-label={m('preview.dismiss')}
       >
         <span class="iconify icon-[uil--times] text-sm"></span>

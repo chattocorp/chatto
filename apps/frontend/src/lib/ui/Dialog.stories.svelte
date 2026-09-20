@@ -7,6 +7,8 @@
     Use Dialog for focused overlays that need custom body content. Use FormDialog for submit/cancel
     forms and ConfirmDialog for destructive or high-risk confirmations. The padded outer frame
     has subtle lighting; the solid content surface has a soft inset shadow to give it depth.
+    Narrow touch-capable windows use task sheets. Mouse windows and wide touch screens use
+    centred dialogs. Resize the viewport and emulate touch to compare both presentations.
   `.trim();
 
   const { Story } = defineMeta({
@@ -145,7 +147,7 @@
     docs: {
       description: {
         story:
-          'German action labels expand the desktop dialog. Below 768 px the same content becomes a sheet with full-width actions and complete, wrapping labels.'
+          'German action labels expand the desktop dialog. Below 768 px, touch-capable windows use a sheet with full-width actions and complete, wrapping labels. Mouse windows retain the centred dialog.'
       }
     }
   }}
