@@ -73,7 +73,12 @@ export class UserSummaryCache {
     const missing = this.missing(ids).filter((id) => !this.#pending.has(id));
     for (let offset = 0; offset < missing.length; offset += 100) {
       const batch = missing.slice(offset, offset + 100);
-      const request = Promise.resolve().then(() => read(batch, minimumCursor)).then((users) => {
+      const request = Promise.resolve().then(() => {
+        if (generation !== this.#generation || batch.some((id) =>
+          this.#pending.get(id)?.completion !== request && !this.#entries.has(id)
+        )) throw new StaleResponseError(false);
+        return read(batch, minimumCursor);
+      }).then((users) => {
         if (generation !== this.#generation) throw new StaleResponseError(false);
         const byId = new SvelteMap(users.map((user) => [user.id, user]));
         for (const id of batch) {

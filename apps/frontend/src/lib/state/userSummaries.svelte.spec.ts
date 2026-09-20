@@ -108,6 +108,15 @@ describe('user summary cache', () => {
     expect(await pending).toEqual([user('U1', 'new')]);
   });
 
+  it('does not start an obsolete user request after a synchronous reset', async () => {
+    const cache = getUserSummaryCache('server-a');
+    const read = vi.fn().mockResolvedValue([user('U1')]);
+    const pending = cache.resolve(['U1'], read);
+    cache.clear();
+    await expect(pending).rejects.toThrow('Response discarded');
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it('retries an omitted user when a shared read had a different cursor', async () => {
     const cache = getUserSummaryCache('server-a');
     const read = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([user('U1')]);
