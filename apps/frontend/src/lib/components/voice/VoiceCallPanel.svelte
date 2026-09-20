@@ -603,7 +603,7 @@ Room sidebar panel for voice/video calls.
         <div class={['col-start-1 row-start-1 w-full', isStageLayout && 'mx-auto max-w-sm']}>
           <button
             type="button"
-            class="btn-action min-h-12 w-full"
+            class="shell-action w-full"
             data-testid="call-join-button"
             onclick={handleJoin}
             disabled={!canEnterCall || isInAnotherCall || isConnecting}
@@ -613,6 +613,7 @@ Room sidebar panel for voice/video calls.
                 ? m('voice.already_in_another_call')
                 : joinLabel}
           >
+            <span class="icon-[uil--phone] text-lg" aria-hidden="true"></span>
             {joinLabel}
           </button>
         </div>

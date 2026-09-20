@@ -420,7 +420,14 @@
       <button type="button" class="pane-header-icon-button pane-header-icon-button-active" aria-label="Call sidebar" aria-pressed="true">
         <span class="iconify icon-[uil--phone]" aria-hidden="true"></span>
       </button>
-      <button type="button" class="btn-action">Start call</button>
+      <button type="button" class="shell-action">
+        <span class="icon-[uil--phone] text-lg" aria-hidden="true"></span>
+        Start call
+      </button>
+      <button type="button" class="shell-action" disabled>
+        <span class="icon-[uil--phone] text-lg" aria-hidden="true"></span>
+        Start call
+      </button>
     </div>
   </div>
 </Story>

@@ -1223,6 +1223,18 @@
   @apply shell-lighting rounded-xl bg-surface;
 }
 
+/* Standalone shell actions align with the composer and user card. */
+@utility shell-action {
+  @apply shell-surface inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-4 font-semibold text-text;
+  @apply transition-[background-color,color] feedback-quick enabled:hover:bg-surface-selected enabled:active:bg-surface-strong;
+  @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+  @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:inset-shadow-none;
+
+  &:disabled {
+    background-image: none;
+  }
+}
+
 /* Composer input and formatting surfaces share the app shell's compact radius. */
 @utility composer-surface {
   @apply shell-surface;

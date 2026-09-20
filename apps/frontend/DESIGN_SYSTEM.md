@@ -405,6 +405,7 @@ instead of adding local gradients or arbitrary inset shadows.
 | `control-well` | Empty checkbox and radio indicators. |
 | `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow. |
 | `shell-surface` | User card and call participant cards; soft rim with no button elevation or pressed finish. |
+| `shell-action` | Standalone native buttons in the bottom row, such as Start call. Uses the same surface and 48 px minimum height as the composer and user card, with hover, focus, pressed, and disabled states. |
 | `chat-input-surface` | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card. |
 | `shell-lighting` | The same quiet finish over server gutter artwork; does not change the image or intercept clicks. |
 | `floating-frame` | Lit panel, dialog, and menu frames. |
