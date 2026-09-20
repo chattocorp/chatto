@@ -79,11 +79,11 @@ URL when its source changes or leaves the DOM.
   }
 </script>
 
-{#snippet footer()}
+{#snippet dismissAction()}
   <Button variant="secondary" onclick={close}>{m('common.cancel')}</Button>
 {/snippet}
 
-<Dialog bind:visible title={m('voice.share_screen')} size="lg" onclose={handleClose} {footer}>
+<Dialog bind:visible title={m('voice.share_screen')} size="lg" onclose={handleClose} {dismissAction}>
   <div class="flex justify-center">
     <SegmentedControl
       label={m('voice.share_source')}

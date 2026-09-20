@@ -200,16 +200,27 @@ Use the standard dialog family for focused tasks:
 - Use `FormDialog` when a dialog collects input and submits one form.
 - Use `Dialog` for information, custom content, or two or more action paths.
 
-All three components use the same structure. A `surface` tray frames one
-inset `background` work plane. The header and footer stay visible. Only the
-body scrolls when the content is long. Do not add a `Panel`, another work
-plane, or a footer divider inside this structure.
+All three components own responsive presentation. Below `md` (768 px), task
+dialogs become full-width bottom sheets with a drag handle, `rounded-lg` top
+corners, and safe-area spacing. Both layouts keep a `surface` frame around one
+inset `background` work plane. `sheet-frame` owns the same 16 px side and bottom
+surround for task dialogs and context-menu sheets, including safe-area spacing.
+Do not add another outer inset in either component. Task work planes use 12 px
+inner padding; desktop retains its existing frame. Feature components must not
+select a mobile layout or render separate mobile content.
+
+The header and actions stay visible while long body content scrolls. When a
+short viewport or enlarged text leaves too little space, the sheet content
+can scroll to keep every control reachable. Sheets follow the visual viewport
+when a keyboard opens. Only the handle captures drag gestures. The body keeps
+native scrolling. Resizing keeps the dialog, body, and action controls mounted.
+Do not add a `Panel`, another work plane, or a footer divider inside this structure.
 
 Dialog trays and floating menu shells use `floating-frame` for a faint top
 highlight and lower shading across their padded frame. Content surfaces keep
 their solid `background` fill and use `floating-inset` for a soft inner shadow
-that makes them look recessed. Menu sections receive this shadow only inside
-a floating menu shell. The finish adds no backdrop blur or animation and retains
+that makes them look recessed. Menu sections receive this shadow inside their
+shared frame, including bottom sheets. The finish adds no backdrop blur or animation and retains
 the existing outer shadow. Full-screen mobile media dialogs have no exposed
 frame and do not use this finish. Standard panels share the frame highlight
 and recessed content treatment. Panel title bands stay transparent so the
@@ -218,24 +229,36 @@ frame gradient continues around the content without a seam. The shared
 dark mode retains the stronger depth treatment. Form input fields
 keep their existing finish.
 
-Pass footer buttons directly to the `Dialog` footer snippet. `Dialog` owns the
-horizontal, end-aligned layout. The actions always stay in one row. A button
-label can expand the dialog beyond its baseline size when the viewport has
-room. The label truncates only when the viewport cannot show the full action
-row. Put Cancel first. Use `secondary` for Cancel, `action` for the recommended
-path, and a semantic tone such as `danger` only when the action has that
-meaning. Use an action-specific icon on the committing action. Do not add an
-icon to Cancel by default.
+Declare task buttons in `Dialog` snippets: `primaryAction` for the main action,
+`secondaryActions` for alternatives, and `dismissAction` for Cancel or Close.
+Each snippet contains ordinary buttons; callers do not set responsive classes.
+`FormDialog` supplies submit and Cancel. `ConfirmDialog` inherits this behavior.
+
+Mobile actions fill the sheet width, have a minimum 48 px height, and wrap
+complete labels, including loading labels. The order is primary, alternatives,
+then dismissal. Desktop actions form an end-aligned row in the order dismissal,
+alternatives, then primary. DOM and keyboard order follow the visible order.
+Desktop labels can expand the dialog beyond its baseline width and truncate
+only at the viewport limit. Keep alternative actions in their intended order.
+
+Use `secondary` for Cancel, `action` for the recommended path, and a semantic
+tone such as `danger` only when the action has that meaning. Use an
+action-specific icon on the committing action. Do not add an icon to Cancel
+by default. The primary slot does not enable Enter activation: use a native
+submit button or `Button`'s `defaultAction` where appropriate. Reserve `footer`
+and `footerDetails` for specialized viewer controls. The prop types prevent
+combining a custom footer with semantic actions. `footerDetails` requires `footer`.
 
 Use the `sm` baseline size for short confirmations, `md` for ordinary custom
 dialogs, and `lg` for dense content such as screen selection. Footer actions
-can make each size wider. Keep the standard viewport gutter. Do not add a
+can make each size wider on desktop. Keep the desktop viewport gutter. Do not add a
 feature-specific width to a task dialog.
 
-`ImageModal`, fullscreen video, `QuickSwitcher`, popovers, and `BottomSheet`
-are specialized overlays. They can use their own geometry because they do not
-represent a standard task dialog. Keep each exception local and do not copy
-its layout into a task dialog.
+`ImageModal`, fullscreen video, `QuickSwitcher`, and popovers remain specialized
+overlays. Media viewers keep their full-screen mobile presentation. Context
+menus retain input-capability selection between floating menus and sheets.
+`Dialog` and `BottomSheet` share the internal `ModalSurface` for native modal
+lifecycle, focus restoration, backdrop handling, animation, and handle gestures.
 
 ## Standard Pane Pages
 
@@ -409,6 +432,7 @@ instead of adding local gradients or arbitrary inset shadows.
 | `shell-lighting` | The same quiet finish over server gutter artwork; does not change the image or intercept clicks. |
 | `floating-frame` | Lit panel, dialog, and menu frames. |
 | `floating-inset` | Recessed content inside those frames. |
+| `sheet-frame` | Touch dialog and menu frames; uses shared depth, shell radius, and safe-area spacing. |
 | `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no outer border or highlight in any depth mode. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
 | `accent-swatch` | Palette samples with their own colour gradient and shared lit edges. |
 
@@ -601,8 +625,9 @@ row actions, and icon feedback share this timing. Do not add local numeric
 durations for these interactions. Keep disabled/pending opacity at 150 ms;
 pane movement and toolbar entrance animations have separate timing.
 
-Modals and floating context menus fade in and zoom from 95% to full size.
-Context menus close immediately; modals keep their existing 100 ms exit.
+Centred dialogs and floating context menus fade in and zoom from 95% to full size.
+Floating context menus close immediately; centred dialogs use a 100 ms exit.
+Sheets slide in and out with `--motion-duration-pane`.
 Reduced motion skips surface animations. Floating placement uses the full
 layout size so the entrance zoom cannot move a menu beyond the viewport.
 Touch context menus keep their bottom-sheet presentation.

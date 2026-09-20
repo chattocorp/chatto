@@ -397,13 +397,17 @@
   >
     <p class="text-muted">{m('composer.recent_thread_confirm_body')}</p>
 
-    {#snippet footer()}
+    {#snippet dismissAction()}
       <Button variant="secondary" onclick={() => composer.cancelThreadDestinationConfirmation()}>
         {m('common.cancel')}
       </Button>
+    {/snippet}
+    {#snippet secondaryActions()}
       <Button variant="secondary" onclick={() => composer.postAsNewRoot()}>
         {m('composer.post_as_new_message')}
       </Button>
+    {/snippet}
+    {#snippet primaryAction()}
       <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
         <span class="iconify icon-[uil--comment-alt-lines]"></span>
         {m('composer.continue_in_thread')}

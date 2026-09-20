@@ -6,6 +6,7 @@
   const componentDescription = `
     Use FormDialog for modal forms with a single submit action and cancel/close behavior. It owns
     the footer action pattern, loading state, disabled state, and top-level form error treatment.
+    Below 768 px it becomes a bottom sheet with full-width submit and Cancel actions automatically.
   `.trim();
 
   const { Story } = defineMeta({
@@ -123,7 +124,7 @@
     docs: {
       description: {
         story:
-          'Resize the canvas to 375 pixels. The dialog keeps its viewport gutter and visible footer actions.'
+          'Resize the canvas to 375 pixels. The form becomes a full-width sheet with submit first and Cancel last. Long labels wrap.'
       }
     }
   }}

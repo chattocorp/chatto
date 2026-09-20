@@ -494,8 +494,8 @@ describe('ModalContainer sign out modal', () => {
       .toHaveTextContent('Sign out of only the selected server');
     expect(
       [...container.querySelectorAll('button')].map((button) => button.textContent?.trim())
-    ).toEqual(['Cancel', 'Current Server', 'All Servers']);
-    expect(findButton(container, 'All Servers').dataset.variant).toBe('danger');
+    ).toEqual(['Cancel', 'All Servers', 'Current Server']);
+    expect(findButton(container, 'All Servers').dataset.variant).toBe('danger-secondary');
   });
 
   it('signs out of only the active remote server', async () => {

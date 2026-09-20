@@ -23,7 +23,7 @@
       <p class="whitespace-pre-wrap">{motd}</p>
     {/await}
   </div>
-  {#snippet footer()}
+  {#snippet dismissAction()}
     <Button variant="secondary" defaultAction onclick={() => (visible = false)}>
       {m('ui.close')}
     </Button>

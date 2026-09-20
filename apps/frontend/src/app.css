@@ -513,9 +513,8 @@
   @apply max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
-/* Dialog actions form one stable row. Their natural width can expand the
- * dialog, while the viewport limit makes buttons surrender label width on a
- * narrow screen. Actions never wrap or force a second row. */
+/* Desktop actions form one row and can expand the dialog up to its viewport
+ * limit. Task sheets add dialog-actions-sheet for complete, stacked labels. */
 @utility dialog-actions {
   width: max-content;
   max-width: 100%;
@@ -535,6 +534,32 @@
    * actions surrender their longer labels first. */
   & > :is(button, a):first-child:not(:last-child) {
     flex-shrink: 0;
+  }
+}
+
+/* Task sheets own button geometry, including the Button label and loading wrapper. */
+@utility dialog-actions-sheet {
+  @apply w-full flex-col items-stretch;
+  align-self: stretch;
+
+  & > :is(button, a) {
+    width: 100%;
+    min-height: 3rem;
+    height: auto;
+    flex-shrink: 0;
+    padding-block: 0.75rem;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  & .button-content,
+  & .button-content > span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -1294,6 +1319,20 @@
   @apply surface-lowered;
   --lowered-shadow: var(--frame-inset-shadow);
   --lowered-edge: 0 0 0 1px var(--frame-inset-edge);
+}
+
+/* Touch overlays retain the same frame and recessed work planes as dialogs
+ * and menus. Only the outer edge meets the viewport; depth follows preferences. */
+@utility sheet-frame {
+  @apply floating-frame rounded-t-lg border border-border border-b-0 px-4 pt-1 pb-4;
+  max-height: var(--modal-available-height);
+  padding-inline-start: max(1rem, env(safe-area-inset-left));
+  padding-inline-end: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+
+  & :is(.menu-section, .menu-section-sm) {
+    @apply floating-inset;
+  }
 }
 
 /* The outer app frame meets the window edge without a border or highlight. */

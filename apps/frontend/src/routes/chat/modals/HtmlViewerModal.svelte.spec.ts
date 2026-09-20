@@ -197,7 +197,7 @@ describe('HTML viewer', () => {
       const view = mount(modalState(true));
       await view.getByRole('button', { name: 'Show preview' }).click();
       if (action === 'close') {
-        await view.getByRole('button', { name: 'Close', exact: true }).click();
+        await view.getByRole('banner').getByRole('button', { name: 'Close', exact: true }).click();
         await expect.poll(() => view.onclose.mock.calls.length).toBe(1);
       } else if (action === 'replace') mocks.page.state.modal = modalState();
       else await view.unmount();

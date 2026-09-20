@@ -81,8 +81,10 @@
 </script>
 
 <Dialog visible title={m('chat.sign_out.title')} size="md" {onclose}>
-  {#snippet footer()}
+  {#snippet dismissAction()}
     <Button variant="secondary" onclick={onclose}>{m('common.cancel')}</Button>
+  {/snippet}
+  {#snippet primaryAction()}
     <Button
       defaultAction
       variant="action"
@@ -93,8 +95,10 @@
       <span class="iconify icon-[uil--sign-out-alt]"></span>
       {m('chat.sign_out.current_server')}
     </Button>
+  {/snippet}
+  {#snippet secondaryActions()}
     <Button
-      variant="danger"
+      variant="danger-secondary"
       loading={signingOutAll}
       disabled={signingOutCurrent && canSignOutCurrentServer}
       onclick={handleSignOutAllServers}
@@ -104,7 +108,7 @@
     </Button>
   {/snippet}
 
-  <p class="text-muted">
+  <p class="text-pretty">
     {m('chat.sign_out.description')}
   </p>
 </Dialog>
