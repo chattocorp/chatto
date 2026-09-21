@@ -42,7 +42,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-030](FDR-030-inline-message-timestamps.md) | Inline Message Timestamps | Active | 2026-07-12 |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-08-30 |
 | [FDR-032](FDR-032-message-formatting.md) | Message Formatting | Active | 2026-09-20 |
-| [FDR-033](FDR-033-message-search.md) | Message Search | Experimental | 2026-09-15 |
+| [FDR-033](FDR-033-message-search.md) | Message Search | Experimental | 2026-09-21 |
 | [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-20 |
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-30 |
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
@@ -53,7 +53,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |
 | [FDR-042](FDR-042-chatto-neighbors.md) | Chatto Neighbors | Experimental | 2026-09-14 |
 | [FDR-043](FDR-043-model-context-protocol-integration.md) | Model Context Protocol Integration | Experimental | 2026-08-30 |
-| [FDR-044](FDR-044-my-threads.md) | My Threads | Active | 2026-09-04 |
+| [FDR-044](FDR-044-my-threads.md) | My Threads | Active | 2026-09-21 |
 | [FDR-045](FDR-045-realtime-event-stream.md) | Realtime Event Stream | Experimental | 2026-09-09 |
 | [FDR-046](FDR-046-privileged-mode.md) | Privileged Mode | Active | 2026-09-09 |
 | [FDR-047](FDR-047-first-run-setup.md) | First-Run Setup | Active | 2026-09-10 |

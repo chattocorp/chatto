@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Sök i mina trådar",
+    "no_threads": "Inga matchande trådar",
     "title": "Sök bland meddelanden",
     "open": "Sök bland meddelanden",
     "in_room": "Sök i det här rummet",

@@ -47,6 +47,13 @@ func validateQueryRequest(request *searchv1.QueryRequest) error {
 	if err := validateStrings("author IDs", request.GetAuthorIds(), maxFilterIDs, maxIDBytes); err != nil {
 		return err
 	}
+	// Both root sets are derived by Chatto, like the authorized room scope.
+	if err := validateStrings("thread root IDs", request.GetThreadRootIds(), 0, maxIDBytes); err != nil {
+		return err
+	}
+	if err := validateStrings("excluded thread root IDs", request.GetExcludedThreadRootIds(), 0, maxIDBytes); err != nil {
+		return err
+	}
 	if request.GetOrder() != searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE && request.GetOrder() != searchv1.SearchOrder_SEARCH_ORDER_NEWEST {
 		return fmt.Errorf("order is required")
 	}
@@ -76,6 +83,7 @@ func queryRequestHasCriterion(request *searchv1.QueryRequest) bool {
 	return len(request.GetRequiredTerms()) > 0 ||
 		len(request.GetRequiredPhrases()) > 0 ||
 		len(request.GetRoomIds()) > 0 ||
+		len(request.GetThreadRootIds()) > 0 ||
 		len(request.GetAuthorIds()) > 0 ||
 		request.GetCreatedAfter() != nil ||
 		request.GetCreatedBefore() != nil ||

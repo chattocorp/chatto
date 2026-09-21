@@ -126,6 +126,7 @@ func TestValidateQueryRequestAcceptsFilterOnlyQueries(t *testing.T) {
 	tests := map[string]*searchv1.QueryRequest{
 		"room":           {RoomIds: []string{"rm_one"}},
 		"author":         {AuthorIds: []string{"usr_one"}},
+		"thread":         {ThreadRootIds: []string{"thread_one"}},
 		"created after":  {CreatedAfter: timestamppb.New(time.Unix(100, 0))},
 		"created before": {CreatedBefore: timestamppb.New(time.Unix(200, 0))},
 		"attachments":    {HasAttachments: true},

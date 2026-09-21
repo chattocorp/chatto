@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Search my threads",
+    "no_threads": "No matching threads",
     "title": "Search messages",
     "open": "Search messages",
     "in_room": "Search in this room",

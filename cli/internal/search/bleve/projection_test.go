@@ -70,6 +70,63 @@ func TestProjectionSubjectsOnlyConsumeSearchFacts(t *testing.T) {
 	}, projection.Subjects())
 }
 
+func TestProjectionThreadScopeIncludesRootAndRepliesAcrossEditsAndRestore(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	directory := t.TempDir() + "/index"
+	projection, err := NewProjection(directory, nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	applyLegacyMessage(t, projection, key, "root", "body-root", "room", "user", "needle root", time.Unix(100, 0), 1)
+	applyLegacyMessage(t, projection, key, "other", "body-other", "room", "user", "needle other", time.Unix(110, 0), 3)
+	applyLegacyBody(t, projection, key, "reply", "body-reply", "room", "user", "needle reply", time.Unix(120, 0), nil, 5)
+	posted := messagePostedEvent("reply", "room", "user", time.Unix(120, 0))
+	posted.GetMessagePosted().InThread = "root"
+	require.NoError(t, projection.Apply(posted, 6))
+	applyLegacyBody(t, projection, key, "reply", "body-edit", "room", "user", "needle edited", time.Unix(120, 0), nil, 7)
+	request := &searchv1.QueryRequest{RequiredTerms: []string{"needle"}, ThreadRootIds: []string{"root"}, PageSize: 1, Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST}
+	response, err := projection.query(context.Background(), request)
+	require.NoError(t, err)
+	require.True(t, response.ThreadScopeApplied)
+	require.Equal(t, []string{"reply"}, hitIDs(response))
+	request.Cursor = response.NextCursor
+	response, err = projection.query(context.Background(), request)
+	require.NoError(t, err)
+	require.Equal(t, []string{"root"}, hitIDs(response))
+	require.Empty(t, response.NextCursor)
+	require.NoError(t, projection.Close())
+	projection, err = NewProjection(directory, nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	request.Cursor = nil
+	request.PageSize = 100
+	response, err = projection.query(context.Background(), request)
+	require.NoError(t, err)
+	require.Equal(t, []string{"reply", "root"}, hitIDs(response))
+	request.ThreadRootIds = []string{"missing"}
+	response, err = projection.query(context.Background(), request)
+	require.NoError(t, err)
+	require.Empty(t, response.Hits)
+	request.ThreadRootIds = nil
+	request.Order = searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE
+	all, err := projection.query(context.Background(), request)
+	require.NoError(t, err)
+	request.ExcludedThreadRootIds = []string{"root"}
+	excluded, err := projection.query(context.Background(), request)
+	require.NoError(t, err)
+	require.True(t, excluded.ThreadExclusionsApplied)
+	require.Equal(t, []string{"other"}, hitIDs(excluded))
+	request.ExcludedThreadRootIds = nil
+	request.ThreadRootIds = []string{"other"}
+	scoped, err := projection.query(context.Background(), request)
+	require.NoError(t, err)
+	for _, hit := range all.Hits {
+		if hit.MessageId == "other" {
+			require.InDelta(t, hit.RelevanceScore, excluded.Hits[0].RelevanceScore, 0.000001)
+			require.InDelta(t, hit.RelevanceScore, scoped.Hits[0].RelevanceScore, 0.000001)
+		}
+	}
+}
+
 func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
@@ -701,6 +758,9 @@ func TestProjectionDoesNotResetIncompatibleCheckpoint(t *testing.T) {
 
 	err = projection.ResetCheckpoint(context.Background(), events.ProjectionCheckpointRequest{ProjectionKey: "message_search"})
 	require.ErrorContains(t, err, "move or delete that directory")
+	require.ErrorContains(t, err, directory)
+	require.ErrorContains(t, err, "a full reindex is required")
+	require.ErrorContains(t, err, "#rebuild-the-search-index")
 	retained, readErr := os.ReadFile(sentinelPath)
 	require.NoError(t, readErr)
 	require.Equal(t, []byte("operator data"), retained)

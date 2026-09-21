@@ -300,7 +300,27 @@ current member-room set. It then uses
 `MessageSearchReadModel` and the normal timeline hydrator to recheck room
 membership, current body availability, and message/room identity before
 returning canonical `Message` resources. Public cursors encrypt and authenticate
-the provider cursor and bind it to the viewer and complete public request.
+the continuation and bind it to the viewer and complete public request.
+
+`MessageSearchService.SearchMessages` accepts independent `FOLLOWED_THREADS`
+scope and `THREAD` grouping. Message search retains its defaults. All modes
+share parsing, structured filters, availability, and cursor sealing.
+`MessageSearchReadModel` sends the complete followed-root set when requested.
+For groups it validates matching body revisions, excludes resolved roots on
+subsequent queries, and restarts the provider cursor when exclusions change.
+This avoids scanning every matching reply. Provider pages contain at most 100
+hits and the complete grouped operation has a 30-second deadline. Exact totals
+and activity sorting require enumeration of all matching groups.
+The model rechecks current follow state and access before group pagination.
+Relevance and newest order use the best valid matching message; activity order
+uses current thread metadata. Both modes return `MessageSearchResult`: a
+matching message and score, plus `ThreadSearchContext` for grouped results.
+The context reports actual viewer follow state. A root without replies is a group.
+The sealed group cursor carries a distinct-thread offset; message cursors carry
+the provider continuation. Neither pins a snapshot across pages.
+Providers must acknowledge applied thread inclusion and exclusion filters;
+older providers fail closed for unsupported filters. Thread filters do not
+contribute to relevance scores.
 
 The bundled provider runs under `chatto run` when
 `search_provider.enabled = true`; the same unit runs standalone through

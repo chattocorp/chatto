@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Rechercher dans mes fils",
+    "no_threads": "Aucun fil correspondant",
     "title": "Rechercher des messages",
     "open": "Rechercher des messages",
     "in_room": "Rechercher dans ce salon",

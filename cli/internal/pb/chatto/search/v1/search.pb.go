@@ -168,9 +168,15 @@ type QueryRequest struct {
 	// Maximum hits to return. Must be between 1 and 100.
 	PageSize uint32 `protobuf:"varint,9,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	// Provider-issued cursor from the preceding response. Empty starts a query.
-	Cursor        []byte `protobuf:"bytes,10,opt,name=cursor,proto3" json:"cursor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Cursor []byte `protobuf:"bytes,10,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// Optional thread-root scope. Includes the root itself and its replies.
+	// Empty means no thread restriction. Callers must verify thread_scope_applied.
+	ThreadRootIds []string `protobuf:"bytes,11,rep,name=thread_root_ids,json=threadRootIds,proto3" json:"thread_root_ids,omitempty"`
+	// Roots already resolved by grouped search. Exclude their roots and replies
+	// without changing relevance scores. Verify thread_exclusions_applied.
+	ExcludedThreadRootIds []string `protobuf:"bytes,12,rep,name=excluded_thread_root_ids,json=excludedThreadRootIds,proto3" json:"excluded_thread_root_ids,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *QueryRequest) Reset() {
@@ -273,6 +279,20 @@ func (x *QueryRequest) GetCursor() []byte {
 	return nil
 }
 
+func (x *QueryRequest) GetThreadRootIds() []string {
+	if x != nil {
+		return x.ThreadRootIds
+	}
+	return nil
+}
+
+func (x *QueryRequest) GetExcludedThreadRootIds() []string {
+	if x != nil {
+		return x.ExcludedThreadRootIds
+	}
+	return nil
+}
+
 // QueryHit identifies one ordered provider match. Chatto rehydrates and
 // authorizes the current message before exposing it through a public API.
 type QueryHit struct {
@@ -360,9 +380,14 @@ type QueryResponse struct {
 	// Ordered provider matches.
 	Hits []*QueryHit `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
 	// Cursor for the next provider page. Empty means there are no more hits.
-	NextCursor    []byte `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	NextCursor []byte `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	// True when this provider implements and applies thread_root_ids. Callers
+	// must reject scoped results from older providers that omit this field.
+	ThreadScopeApplied bool `protobuf:"varint,3,opt,name=thread_scope_applied,json=threadScopeApplied,proto3" json:"thread_scope_applied,omitempty"`
+	// True when excluded_thread_root_ids is implemented and applied.
+	ThreadExclusionsApplied bool `protobuf:"varint,4,opt,name=thread_exclusions_applied,json=threadExclusionsApplied,proto3" json:"thread_exclusions_applied,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *QueryResponse) Reset() {
@@ -407,6 +432,20 @@ func (x *QueryResponse) GetNextCursor() []byte {
 		return x.NextCursor
 	}
 	return nil
+}
+
+func (x *QueryResponse) GetThreadScopeApplied() bool {
+	if x != nil {
+		return x.ThreadScopeApplied
+	}
+	return false
+}
+
+func (x *QueryResponse) GetThreadExclusionsApplied() bool {
+	if x != nil {
+		return x.ThreadExclusionsApplied
+	}
+	return false
 }
 
 // GetStatusRequest asks for provider readiness.
@@ -525,7 +564,7 @@ var File_chatto_search_v1_search_proto protoreflect.FileDescriptor
 
 const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/search/v1/search.proto\x12\x10chatto.search.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb1\x03\n" +
+	"\x1dchatto/search/v1/search.proto\x12\x10chatto.search.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x92\x04\n" +
 	"\fQueryRequest\x12%\n" +
 	"\x0erequired_terms\x18\x01 \x03(\tR\rrequiredTerms\x12)\n" +
 	"\x10required_phrases\x18\x02 \x03(\tR\x0frequiredPhrases\x12\x19\n" +
@@ -538,17 +577,21 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\x05order\x18\b \x01(\x0e2\x1d.chatto.search.v1.SearchOrderR\x05order\x12\x1b\n" +
 	"\tpage_size\x18\t \x01(\rR\bpageSize\x12\x16\n" +
 	"\x06cursor\x18\n" +
-	" \x01(\fR\x06cursor\"\x8f\x01\n" +
+	" \x01(\fR\x06cursor\x12&\n" +
+	"\x0fthread_root_ids\x18\v \x03(\tR\rthreadRootIds\x127\n" +
+	"\x18excluded_thread_root_ids\x18\f \x03(\tR\x15excludedThreadRootIds\"\x8f\x01\n" +
 	"\bQueryHit\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\"\n" +
 	"\rbody_event_id\x18\x03 \x01(\tR\vbodyEventId\x12'\n" +
-	"\x0frelevance_score\x18\x04 \x01(\x01R\x0erelevanceScore\"`\n" +
+	"\x0frelevance_score\x18\x04 \x01(\x01R\x0erelevanceScore\"\xce\x01\n" +
 	"\rQueryResponse\x12.\n" +
 	"\x04hits\x18\x01 \x03(\v2\x1a.chatto.search.v1.QueryHitR\x04hits\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\fR\n" +
-	"nextCursor\"\x12\n" +
+	"nextCursor\x120\n" +
+	"\x14thread_scope_applied\x18\x03 \x01(\bR\x12threadScopeApplied\x12:\n" +
+	"\x19thread_exclusions_applied\x18\x04 \x01(\bR\x17threadExclusionsApplied\"\x12\n" +
 	"\x10GetStatusRequest\"\x9d\x02\n" +
 	"\x11GetStatusResponse\x125\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x1f.chatto.search.v1.ProviderStateR\x05state\x123\n" +

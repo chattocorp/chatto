@@ -1,0 +1,67 @@
+import { expect } from '@playwright/test';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { test } from './setup';
+import { MyThreadsPage } from './pages';
+import { TIMEOUTS, POLLING_INTERVALS } from './constants';
+
+test.use({ serverOptions: { searchProvider: true } });
+
+test('My Threads searches older replies, deduplicates threads, and clears the filter', async ({ page, chatPage, roomPage }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const user = await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+  const needle = `threadneedle${Date.now()}`;
+  const rootText = `First conversation ${Date.now()}`;
+  const root = await roomPage.sendMessage(rootText);
+  const otherText = `Second conversation ${Date.now()}`;
+  const other = await roomPage.sendMessage(otherText);
+  await root.openThread();
+  await roomPage.postThreadReply(`${needle} in an older reply`);
+  await roomPage.postThreadReply(`${needle} in another reply`);
+  await roomPage.postThreadReply('Latest reply without the search word');
+  await roomPage.closeThread();
+  await other.openThread();
+  await roomPage.postThreadReply('An unrelated conversation');
+  await roomPage.closeThread();
+  const myThreads = new MyThreadsPage(page);
+  await myThreads.goto();
+  await expect(myThreads.threadItems).toHaveCount(2);
+  const input = page.getByRole('searchbox', { name: 'Search my threads' });
+  await expect(input).toBeVisible();
+  await expect(input).toBeFocused();
+  // Typing submits automatically. Enter retries while the provider catches up.
+  await input.fill(needle);
+  await expect(async () => {
+    await input.press('Enter');
+    await expect(myThreads.threadItems).toHaveCount(1, { timeout: TIMEOUTS.UI_FAST });
+    await expect(myThreads.threadItems).toContainText(rootText);
+  }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
+  await expect(myThreads.threadItems).toContainText('Latest reply without the search word');
+  await page.getByRole('radio', { name: 'Unread', exact: true }).check();
+  await expect(page.getByText('All caught up', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: 'All', exact: true }).check();
+  await expect(myThreads.threadItems).toHaveCount(1);
+  await input.fill(user.login.toUpperCase());
+  await expect(page.getByText('No matching threads', { exact: true })).toBeVisible();
+  await input.fill(`"${user.displayName}"`);
+  await expect(page.getByText('No matching threads', { exact: true })).toBeVisible();
+  await input.fill(`from:${user.login}`);
+  await expect(myThreads.threadItems).toHaveCount(2);
+  await input.fill(`missing${needle}`);
+  await expect(page.getByText('No matching threads', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(input).toHaveValue('');
+  await expect(myThreads.threadItems).toHaveCount(2);
+  await input.fill(needle);
+  await expect(myThreads.threadItems).toHaveCount(1);
+  await myThreads.threadItems.hover();
+  await myThreads.threadItems.getByRole('button', { name: 'Unfollow thread', exact: true }).click();
+  await expect(page.getByText('No matching threads', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(myThreads.threadItems).toHaveCount(1);
+  await expect(myThreads.threadItems).toContainText(otherText);
+  expect(errors).toEqual([]);
+});

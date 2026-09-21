@@ -6,12 +6,15 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
+import { MessageSearchScope, MessageSearchGroupBy, MessageSearchOrder } from '@chatto/api-types/api/v1/message_search_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   listFollowedThreads: vi.fn(),
+  searchMessages: vi.fn(),
   followThread: vi.fn(),
   unfollowThread: vi.fn()
 }));
@@ -36,14 +39,35 @@ describe('createThreadAPI', () => {
 
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listFollowedThreads.mockReset();
+    mocks.searchMessages.mockReset();
     mocks.followThread.mockReset();
     mocks.unfollowThread.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       listFollowedThreads: mocks.listFollowedThreads,
+      searchMessages: mocks.searchMessages,
       followThread: mocks.followThread,
       unfollowThread: mocks.unfollowThread
     });
+  });
+
+  it('searches followed threads with normalized input, paging, and cancellation', async () => {
+    mocks.searchMessages.mockResolvedValue({ results: [], threadTotalCount: 25n, nextCursor: 'next-page' });
+    const signal = new AbortController().signal;
+    const api = createThreadAPI({ baseUrl: 'https://remote.example.test/api/connect', bearerToken: null });
+    const result = await api.listFollowedThreads({ limit: 20, offset: 0, cursor: 'previous-page', query: '  from:alice  ' }, { signal });
+    expect(mocks.createClient).toHaveBeenCalledWith(MessageSearchService, expect.anything());
+    expect(mocks.searchMessages).toHaveBeenCalledWith(
+      { query: 'from:alice', scope: MessageSearchScope.FOLLOWED_THREADS,
+        groupBy: MessageSearchGroupBy.THREAD, order: MessageSearchOrder.THREAD_ACTIVITY,
+        pageSize: 20, cursor: 'previous-page' },
+      { headers: undefined, signal }
+    );
+    expect(mocks.listFollowedThreads).not.toHaveBeenCalled();
+    expect(result).toEqual({ threads: [], totalCount: 25, hasMore: true, nextCursor: 'next-page' });
+    mocks.listFollowedThreads.mockResolvedValue({ threads: [], page: {} });
+    await api.listFollowedThreads({ limit: 20, offset: 0, query: '   ' });
+    expect(mocks.listFollowedThreads).toHaveBeenCalledOnce();
   });
 
   it('lists followed threads with bearer auth', async () => {
@@ -98,6 +122,31 @@ describe('createThreadAPI', () => {
       totalCount: 3,
       hasMore: true
     });
+  });
+
+  it('maps grouped search context while keeping the matching reply separate', async () => {
+    mocks.searchMessages.mockResolvedValue({
+      results: [{
+        message: { id: 'matching-reply' },
+        relevanceScore: 3,
+        threadContext: {
+          room: { id: 'room-1', name: 'general' },
+          thread: {
+            threadRootEventId: 'root-1', replyCount: 2,
+            viewerState: { isFollowing: true, hasUnreadReplies: true }
+          }
+        }
+      }],
+      threadTotalCount: 1n, nextCursor: '', includes: { users: {} }
+    });
+    const api = createThreadAPI({ baseUrl: 'https://remote.example.test/api/connect', bearerToken: null });
+    const page = await api.listFollowedThreads({ limit: 20, offset: 0, query: 'needle' });
+    expect(page.threads).toHaveLength(1);
+    expect(page.threads[0]).toMatchObject({
+      roomId: 'room-1', threadRootEventId: 'root-1', replyCount: 2,
+      rootMessage: null, hasUnreadReplies: true
+    });
+    expect(page.nextCursor).toBeNull();
   });
 
   it('passes cancellation through when listing followed threads', async () => {

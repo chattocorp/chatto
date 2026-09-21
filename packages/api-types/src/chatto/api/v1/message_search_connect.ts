@@ -28,6 +28,10 @@ export const MessageSearchService = {
     },
     /**
      * Searches current message bodies in rooms where the caller is a member.
+     * Scope and grouping are independent, including for direct messages. THREAD
+     * grouping returns one row per matching root and its replies. Scope, grouping,
+     * and ordering are part of the cursor scope. Unsupported combinations return
+     * INVALID_ARGUMENT. Existing requests return individual messages by default.
      * Results also require message.read or a matching thread relationship with
      * message.read-interactions. Results are authorized and hydrated from current Chatto state
      * after provider matching. Returns FAILED_PRECONDITION when Search is
