@@ -3,6 +3,51 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.6](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.5...v0.5.0-beta.6) (2026-09-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* **permissions:** add interaction-scoped message posting ([#2503](https://github.com/chattocorp/chatto/issues/2503))
+
+### Features
+
+* **client:** extract shared Chatto integration helpers ([#2518](https://github.com/chattocorp/chatto/issues/2518)) ([4cd7063](https://github.com/chattocorp/chatto/commit/4cd70636c1405c4f65ac2ff72a51641dee23e9f3))
+* **frontend:** show bot badges beside account names ([#2498](https://github.com/chattocorp/chatto/issues/2498)) ([c3eaf80](https://github.com/chattocorp/chatto/commit/c3eaf805abf55cdf43590fc0e0c9afe87a4fddcd))
+* **permissions:** add interaction-scoped message posting ([#2503](https://github.com/chattocorp/chatto/issues/2503)) ([008c695](https://github.com/chattocorp/chatto/commit/008c6955631725d5c265b6f84adb37e86a0338c7))
+* **runling:** integrate orchestrator into the monorepo ([#2502](https://github.com/chattocorp/chatto/issues/2502)) ([c72f588](https://github.com/chattocorp/chatto/commit/c72f58898958171fa6e7caf66d19c2c03cbe428e))
+* **search:** unify message and thread search with automatic reindexing ([#2519](https://github.com/chattocorp/chatto/issues/2519)) ([2bb38f5](https://github.com/chattocorp/chatto/commit/2bb38f51bcf6847c331e066fd7b0708b01a176a4))
+
+
+### Bug Fixes
+
+* **desktop:** combine macOS window controls with app header ([#2509](https://github.com/chattocorp/chatto/issues/2509)) ([c803f82](https://github.com/chattocorp/chatto/commit/c803f82aabe854c3a26ec9e94e024050ffc5a657))
+* **frontend:** add bottom spacing to rendered lists ([#2516](https://github.com/chattocorp/chatto/issues/2516)) ([878500a](https://github.com/chattocorp/chatto/commit/878500ae914c1b1b5a1ad0ca583f43871b4ffebf))
+* **frontend:** consolidate current-user microphone control ([#2506](https://github.com/chattocorp/chatto/issues/2506)) ([ee99caf](https://github.com/chattocorp/chatto/commit/ee99caffac2adb61f72c938d23a03e90167ac0de))
+* **frontend:** dismiss read notifications across all pages ([#2504](https://github.com/chattocorp/chatto/issues/2504)) ([dc53922](https://github.com/chattocorp/chatto/commit/dc53922e4601b588815c329b813a3129b4d30f79))
+* **frontend:** explain limited room permissions ([#2500](https://github.com/chattocorp/chatto/issues/2500)) ([c314679](https://github.com/chattocorp/chatto/commit/c314679fcd2d9af93c302cf281bc835146e5fe27))
+* **frontend:** invalidate snapshot queries during permission refreshes ([#2497](https://github.com/chattocorp/chatto/issues/2497)) ([2cb2171](https://github.com/chattocorp/chatto/commit/2cb21712abc6283a4096594550337977c38790b7))
+* **frontend:** keep composer attachment actions right-aligned ([#2492](https://github.com/chattocorp/chatto/issues/2492)) ([1bc9433](https://github.com/chattocorp/chatto/commit/1bc94331298540173716be5d9119a0f853b014c9))
+* **frontend:** keep pages interactive during permission refreshes ([#2490](https://github.com/chattocorp/chatto/issues/2490)) ([d7750b8](https://github.com/chattocorp/chatto/commit/d7750b83b8b3318cc4781935dfa27bea16602dea))
+* **frontend:** list US English first ([#2513](https://github.com/chattocorp/chatto/issues/2513)) ([72a2687](https://github.com/chattocorp/chatto/commit/72a268736ef6f782762e236e866f88c557d62d90))
+* **frontend:** make responsive presentation input-aware ([#2495](https://github.com/chattocorp/chatto/issues/2495)) ([3c9c9cb](https://github.com/chattocorp/chatto/commit/3c9c9cb46020d019aed28a9313cc071f04d564c1))
+* **frontend:** match Markdown list text to normal text ([#2488](https://github.com/chattocorp/chatto/issues/2488)) ([ded965c](https://github.com/chattocorp/chatto/commit/ded965c07a3ec865cab8e2701eaa9c7ddcd790c6))
+* **frontend:** preserve message previews during reaction updates ([#2493](https://github.com/chattocorp/chatto/issues/2493)) ([474b6e8](https://github.com/chattocorp/chatto/commit/474b6e88fb36a01eb31fdd9f0ca5c892ed29fc24))
+* **frontend:** preserve room state during snapshot recovery ([#2514](https://github.com/chattocorp/chatto/issues/2514)) ([5532342](https://github.com/chattocorp/chatto/commit/55323420270da859dd3509d8027af605ed8e28f0))
+* **frontend:** prevent accent selection from shifting the app frame ([#2512](https://github.com/chattocorp/chatto/issues/2512)) ([6fa8784](https://github.com/chattocorp/chatto/commit/6fa8784c9accf991dcef70f583aa064882697f55))
+* **frontend:** reduce API requests caused by message posts ([#2496](https://github.com/chattocorp/chatto/issues/2496)) ([7268534](https://github.com/chattocorp/chatto/commit/7268534f0cec93fcc572f99183a0589627a06f4b))
+* **frontend:** remove app frame from OAuth popup pages ([#2520](https://github.com/chattocorp/chatto/issues/2520)) ([b6c9033](https://github.com/chattocorp/chatto/commit/b6c90330eca104bd6ae26f686ad7586d61d45be4))
+* **frontend:** remove microphone silence warning ([#2508](https://github.com/chattocorp/chatto/issues/2508)) ([6b9a2ca](https://github.com/chattocorp/chatto/commit/6b9a2ca73e2f0b168896d0b9958a8abfb315ad64))
+* **frontend:** remove phone icon from call button ([#2507](https://github.com/chattocorp/chatto/issues/2507)) ([5ae8fa5](https://github.com/chattocorp/chatto/commit/5ae8fa589c702e51ba4e4c09b140b363867eade4))
+* **frontend:** remove redundant sidebar settings link ([#2517](https://github.com/chattocorp/chatto/issues/2517)) ([4f9b457](https://github.com/chattocorp/chatto/commit/4f9b457eb2e4a904f54382744422c186f57265b8))
+* **frontend:** share message reconciliation across chat views ([#2487](https://github.com/chattocorp/chatto/issues/2487)) ([7f7acd9](https://github.com/chattocorp/chatto/commit/7f7acd9ccbf8546120d580c7c7c13312d52745d8))
+* **frontend:** share user profiles for local quick finder ([#2510](https://github.com/chattocorp/chatto/issues/2510)) ([8d56aff](https://github.com/chattocorp/chatto/commit/8d56aff131616a320b4a7499cdadcf62316087c5))
+* **frontend:** skip unchanged attention reads after posting ([#2499](https://github.com/chattocorp/chatto/issues/2499)) ([943a2d1](https://github.com/chattocorp/chatto/commit/943a2d1e677c36a5677b88866cdb379b2e6e843f))
+* **frontend:** use session-scoped room sidebar defaults ([#2501](https://github.com/chattocorp/chatto/issues/2501)) ([8fb3074](https://github.com/chattocorp/chatto/commit/8fb3074a13893552df5d3a964c3268f3b0e0b88c))
+* **notifications:** badge app icons only for important activity ([#2494](https://github.com/chattocorp/chatto/issues/2494)) ([729ad17](https://github.com/chattocorp/chatto/commit/729ad1763593ae187688a1435c00c357801791cf))
+* **permissions:** hide archived channels from permission matrices ([#2489](https://github.com/chattocorp/chatto/issues/2489)) ([993f1c7](https://github.com/chattocorp/chatto/commit/993f1c7b69218f068c2683a315076c817cba5f35))
+* **permissions:** rename interaction posting permission ([#2511](https://github.com/chattocorp/chatto/issues/2511)) ([572666b](https://github.com/chattocorp/chatto/commit/572666b8d9e385e49f815eca50f042783edbec8f))
+
 ## [0.5.0-beta.5](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.4...v0.5.0-beta.5) (2026-09-20)
 
 
