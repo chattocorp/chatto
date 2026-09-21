@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
+import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('@connectrpc/connect-web', () => ({
 
 describe('createUserAPI', () => {
   beforeEach(() => {
+    resetUserStoresForTests();
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.batchGetUsers.mockReset();
@@ -33,6 +35,33 @@ describe('createUserAPI', () => {
       uploadAvatar: mocks.uploadAvatar,
       deleteAvatar: mocks.deleteAvatar
     });
+  });
+
+  it('acknowledges an avatar command when its profile event arrives before the response', async () => {
+    const store = getUserStore('server', 'session');
+    mocks.deleteAvatar.mockImplementation(async () => {
+      store.invalidate('U1');
+      return { user: new APIUser({ id: 'U1', login: 'alice' }) };
+    });
+    const api = createUserAPI({
+      serverId: 'server', queryScope: 'session', baseUrl: '/api/connect', bearerToken: null
+    });
+    await expect(api.deleteAvatar('U1')).resolves.toMatchObject({ id: 'U1', avatarUrl: null });
+    expect(store.has('U1')).toBe(false);
+  });
+
+  it.each(['delete', 'clear'])('rejects an avatar response after the profile privacy boundary %s', async (boundary) => {
+    const store = getUserStore('server', 'session');
+    mocks.deleteAvatar.mockImplementation(async () => {
+      if (boundary === 'delete') store.delete('U1');
+      else store.clear();
+      return { user: new APIUser({ id: 'U1', login: 'alice' }) };
+    });
+    const api = createUserAPI({
+      serverId: 'server', queryScope: 'session', baseUrl: '/api/connect', bearerToken: null
+    });
+    await expect(api.deleteAvatar('U1')).rejects.toThrow();
+    expect(store.has('U1')).toBe(false);
   });
 
   it('uploads and deletes an avatar for an explicit user', async () => {

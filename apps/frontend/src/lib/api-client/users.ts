@@ -2,6 +2,7 @@ import {
   authHeaders,
   createChattoClient,
   REALTIME_MINIMUM_CURSOR_HEADER,
+  StaleResponseError,
   type ConnectAPIConfig
 } from './connect.js';
 import { getUserStore } from '$lib/state/server/users.svelte';
@@ -22,11 +23,15 @@ export function createUserAPI(config: UserAPIConfig) {
   const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
   const updateProfile = async (read: () => Promise<User>): Promise<UserSummary> => {
     if (!store) return mapUserSummary(await read());
-    const members = await store.readSnapshot(async () => {
-      const user = await read();
-      return [new APIDirectoryMember({ ...store.get(user.id), user })];
+    let acknowledged!: User;
+    await store.readSnapshot(async () => {
+      acknowledged = await read();
+      return [new APIDirectoryMember({ ...store.get(acknowledged.id), user: acknowledged })];
     });
-    return mapUserSummary(requiredUser(members[0]?.user));
+    if (store.isDeleted(acknowledged.id)) throw new StaleResponseError(false);
+    // The command's own event can invalidate the profile before its response.
+    // That does not turn a successful command into a failed acknowledgement.
+    return mapUserSummary(store.get(acknowledged.id)?.user ?? acknowledged);
   };
 
   return {
