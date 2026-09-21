@@ -195,9 +195,16 @@
       window.open(anchor.href, '_blank', 'noopener,noreferrer');
     }
   }
+
+  function handleContentContextMenu(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (target.closest('a')) {
+      event.stopPropagation();
+    }
+  }
 </script>
 
-<div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick}>
+<div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick} oncontextmenu={handleContentContextMenu}>
   {#await render(
     body,
     members,
