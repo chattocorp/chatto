@@ -227,6 +227,7 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: (serverId: string) => ({
+      realtimeSync: { isRecoveringSnapshot: false },
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       serverInfo: {
         livekitUrl: mocks.livekitUrl,
