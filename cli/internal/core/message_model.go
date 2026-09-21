@@ -145,7 +145,7 @@ type MessageModel struct {
 
 // PostMessage posts a message as actorID and returns the committed event.
 // Authorization: actor must be a room member and must have message.post or
-// message.post-in-thread, or message.post-interactions with a relationship to
+// message.post-in-thread, or message.post-in-interactions with a relationship to
 // the target thread. Replies also require read access. Explicit thread creation
 // requires message.post. Echoing a thread reply additionally
 // requires message.echo and message.post.

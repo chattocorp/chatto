@@ -562,7 +562,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}
-	canPostInteractions, err := s.core.hasRoomPermission(ctx, kind, room.Id, actorID, PermMessagePostInteractions)
+	canPostInteractions, err := s.core.hasRoomPermission(ctx, kind, room.Id, actorID, PermMessagePostInInteractions)
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}

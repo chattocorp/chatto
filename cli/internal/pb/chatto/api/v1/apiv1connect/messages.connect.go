@@ -84,7 +84,7 @@ type MessageServiceClient interface {
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages. Thread replies require read
 	// access and either message.post, message.post-in-thread, or
-	// message.post-interactions with an existing interaction relationship.
+	// message.post-in-interactions with an existing interaction relationship.
 	// Echoing a thread reply also requires message.echo and
 	// message.post. The room's Threading Mode may automatically establish a root
 	// thread or reject a thread placement that the mode does not allow.
@@ -310,7 +310,7 @@ type MessageServiceHandler interface {
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages. Thread replies require read
 	// access and either message.post, message.post-in-thread, or
-	// message.post-interactions with an existing interaction relationship.
+	// message.post-in-interactions with an existing interaction relationship.
 	// Echoing a thread reply also requires message.echo and
 	// message.post. The room's Threading Mode may automatically establish a root
 	// thread or reject a thread placement that the mode does not allow.

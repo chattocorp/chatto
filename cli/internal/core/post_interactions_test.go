@@ -55,7 +55,7 @@ func TestMessagePostInteractions(t *testing.T) {
 				}
 				set(actor.Id, PermMessagePost, PermissionStateDeny)
 				set(actor.Id, PermMessagePostInThread, PermissionStateDeny)
-				set(actor.Id, PermMessagePostInteractions, PermissionStateAllow)
+				set(actor.Id, PermMessagePostInInteractions, PermissionStateAllow)
 				set(actor.Id, PermMessageRead, PermissionStateAllow)
 				root, err := c.PostMessage(ctx, kind, room.Id, author.Id, "context", nil, "", "", nil, false)
 				require.NoError(t, err)
@@ -89,12 +89,12 @@ func TestMessagePostInteractions(t *testing.T) {
 				require.NoError(t, post(root.Id))
 				if botAccount {
 					set(author.Id, PermMessagePost, PermissionStateDeny)
-					set(author.Id, PermMessagePostInteractions, PermissionStateDeny)
+					set(author.Id, PermMessagePostInInteractions, PermissionStateDeny)
 					require.ErrorIs(t, post(root.Id), ErrPermissionDenied, "owner ceiling is required")
-					set(author.Id, PermMessagePostInteractions, PermissionStateAllow)
+					set(author.Id, PermMessagePostInInteractions, PermissionStateAllow)
 					require.NoError(t, post(root.Id), "owner can delegate the narrow permission")
 				}
-				set(actor.Id, PermMessagePostInteractions, PermissionStateDeny)
+				set(actor.Id, PermMessagePostInInteractions, PermissionStateDeny)
 				require.ErrorIs(t, post(root.Id), ErrPermissionDenied, "revocation closes posting")
 				if botAccount {
 					set(author.Id, PermMessagePost, PermissionStateAllow)

@@ -471,7 +471,7 @@ func (c *ChattoCore) CanReplyInThread(ctx context.Context, userID string, kind R
 		if err != nil || broad {
 			return broad, err
 		}
-		narrow, err := c.hasRoomPermission(readCtx, kind, roomID, userID, PermMessagePostInteractions)
+		narrow, err := c.hasRoomPermission(readCtx, kind, roomID, userID, PermMessagePostInInteractions)
 		if err != nil || !narrow {
 			return false, err
 		}
