@@ -303,8 +303,17 @@
   // event ID and pixel offset. Restore only after the fresh authority is ready.
   $effect(() => {
     const position = messageStore.recoveryViewport;
-    if (!position || isLoading || stores.realtimeSync.isRecoveringSnapshot || !virtualizerHandle) return;
+    if (!position || isLoading || stores.realtimeSync.isRecoveringSnapshot) return;
     const items = virtualItems;
+    if (items.length === 0) {
+      untrack(() => {
+        messageStore.clearViewport();
+        composerContext.jumpState?.reset();
+        viewport.followBottom();
+      });
+      return;
+    }
+    if (!virtualizerHandle) return;
     const index = items.findIndex((item) =>
       item.type === 'event'
         ? item.event.id === position.eventId
@@ -350,6 +359,8 @@
     const token = viewport.beginBottomScroll(roomId);
     return convergeAtBottom({
       continueWhile: () =>
+        !stores.realtimeSync.isRecoveringSnapshot &&
+        !messageStore.recoveryViewport &&
         viewport.canContinueBottomScroll(token, roomId, isJumpedMode, alwaysScrollToBottom) &&
         Boolean(scrollContainer && virtualizerHandle),
       waitForFrame: async () => {

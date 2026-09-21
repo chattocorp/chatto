@@ -1110,6 +1110,49 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('discards the saved position when fresh timeline access is denied', async () => {
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getRoomEventsAround: vi.fn().mockRejectedValue(new ConnectError('denied', Code.PermissionDenied)) })
+    );
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('private-row'));
+    store.setViewport({ eventId: 'private-row', offset: 17 });
+    store.resetProjectionState();
+    expect(await store.hydrateRealtimeProjection('fresh-boundary', () => true)).toBe(false);
+    expect(store.events).toEqual([]);
+    expect(store.recoveryViewport).toBeNull();
+    store.dispose();
+  });
+
+  it('pages a restored thread forward and can return to its latest window', async () => {
+    const getThreadEvents = vi.fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('root')))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('new-reply', 'root')))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('latest-reply', 'root')));
+    const getThreadEventsAround = vi.fn<RoomTimelineAPI['getThreadEventsAround']>()
+      .mockResolvedValue({ ...pageFromEvent(threadMessageEvent('anchor', 'root')), endCursor: 'after-anchor', hasNewer: true });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getThreadEvents, getThreadEventsAround })
+    );
+    store.setThread('room-1', 'root');
+    await settle();
+    store.setViewport({ eventId: 'anchor', offset: 17 });
+    store.resetProjectionState();
+    await store.hydrateRealtimeProjection('fresh-boundary', () => true);
+    expect(getThreadEventsAround).toHaveBeenCalledWith(expect.objectContaining({ threadRootEventId: 'root', eventId: 'anchor', minimumCursor: 'fresh-boundary' }));
+    const jump = new JumpToMessageState();
+    jump.isJumpedMode = true;
+    await store.loadNewer(jump);
+    expect(getThreadEvents).toHaveBeenLastCalledWith(expect.objectContaining({ after: 'after-anchor', threadRootEventId: 'root' }));
+    expect(store.threadEvents.map((event) => event.id)).toContain('new-reply');
+    expect(jump.hasReachedEnd).toBe(true);
+    await store.jumpToPresent(jump);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['latest-reply']);
+    expect(jump.isJumpedMode).toBe(false);
+    store.dispose();
+  });
+
   it('lets a replacement refresh complete loading after a projection reset', async () => {
     type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
     const resetRead = deferred<RoomPage>();

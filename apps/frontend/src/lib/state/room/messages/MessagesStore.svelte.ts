@@ -910,6 +910,7 @@ export class MessagesStore {
 
   jumpToPresent(jumpState: JumpToMessageState): Promise<boolean> {
     if (!this.source) return Promise.resolve(false);
+    this.clearViewport();
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
@@ -1495,6 +1496,11 @@ export class MessagesStore {
       }
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
+      if (
+        isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)
+      ) {
+        this.clearViewport();
+      }
       if (
         minimumCursor &&
         !isConnectCode(error, Code.PermissionDenied) &&

@@ -1,7 +1,7 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-21
 
 ## Overview
 

@@ -93,7 +93,7 @@
   const messageStore = {
     get recoveryViewport() { return recoveryViewport; },
     set recoveryViewport(value) { recoveryViewport = value; },
-    clearViewport: () => {},
+    clearViewport: () => { recoveryViewport = null; },
     setViewport: () => {},
     refreshCurrentWindow: async () => ({
       hasOlder: false,
@@ -103,6 +103,8 @@
     })
   };
 </script>
+
+<output data-testid="recovery-anchor">{recoveryViewport?.eventId ?? ''}</output>
 
 <EventList
   {roomId}

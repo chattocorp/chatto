@@ -67,6 +67,15 @@ vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
 }));
 
 describe('EventList jump completion', () => {
+  it('releases the saved position when recovery produces an empty timeline', async () => {
+    render(EventListTestHarness, {
+      props: {
+        eventIds: [], scrollToEventId: null,
+        recoveryViewport: { eventId: 'removed', offset: 17 }
+      }
+    });
+    await vi.waitFor(() => expect(page.getByTestId('recovery-anchor').element().textContent).toBe(''));
+  });
   it('restores the saved event and pixel offset after a cleared timeline loads', async () => {
     const rendered = render(EventListTestHarness, {
       props: {

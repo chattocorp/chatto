@@ -6,6 +6,7 @@ import { postThreadReplyViaConnect, postMessagesViaConnect } from './fixtures/co
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import { RealtimeServerFrame, RealtimeSubscribe } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { GetRoomEventsAroundRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
 
 async function simulateBackgroundResumeAndReconnect(page: Page, hiddenMs = 31_000) {
   await page.evaluate((durationMs: number) => {
@@ -35,10 +36,16 @@ async function simulateBackgroundResumeAndReconnect(page: Page, hiddenMs = 31_00
   }, hiddenMs);
 }
 
-test.describe('WebSocket reconnect recovery', () => {
-  test('keeps room and thread instances through a replacement snapshot', async ({ page, chatPage, roomPage }) => {
+for (const mobile of [false, true]) {
+  test(`keeps room and thread instances through a replacement snapshot (${mobile ? 'mobile' : 'desktop'})`, async ({ page, chatPage, roomPage }) => {
     let forceSnapshot = false;
     let releaseCatchUp: (() => void) | undefined;
+    const restoredAnchorIds: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().endsWith('/GetRoomEventsAround')) {
+        restoredAnchorIds.push(GetRoomEventsAroundRequest.fromBinary(request.postDataBuffer()!).eventId);
+      }
+    });
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.routeWebSocket('**/api/realtime', (socket) => {
@@ -82,11 +89,16 @@ test.describe('WebSocket reconnect recovery', () => {
     await roomPage.typeInThreadInput('unsent reply');
     const roomId = new URL(page.url()).pathname.split('/')[3];
     await postMessagesViaConnect(page, roomId, Array.from({ length: 30 }, (_, index) => `snapshot-row-${index}`));
+    // Establish the conversation with the shared desktop navigation helper,
+    // then exercise the complete suspend/recovery cycle at phone width.
+    if (mobile) await page.setViewportSize({ width: 390, height: 844 });
     const scroller = page.getByTestId('room-main-pane').getByTestId('messages-container');
     await expect.poll(() => scroller.evaluate((element) => element.scrollHeight > element.clientHeight + 400)).toBe(true);
-    await scroller.evaluate((element) => {
+    await scroller.evaluate(async (element) => {
       element.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, bubbles: true }));
       element.scrollTop = element.scrollHeight - element.clientHeight - 200;
+      // Let the real scroll event and virtualizer measurements reach the store.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     });
     const visibleAnchor = () => scroller.evaluate((element) => {
       const top = element.getBoundingClientRect().top;
@@ -112,12 +124,15 @@ test.describe('WebSocket reconnect recovery', () => {
     expect(await room!.evaluate((element) => element.isConnected)).toBe(true);
     expect(await thread!.evaluate((element) => element.isConnected)).toBe(true);
     await expect(roomPage.threadReplyInput).toHaveText('unsent reply');
+    expect(restoredAnchorIds).toContain(anchor.id);
     await expect.poll(async () => (await visibleAnchor())?.id).toBe(anchor.id);
     await expect.poll(async () => Math.abs(((await visibleAnchor())?.offset ?? Infinity) - anchor.offset)).toBeLessThan(5);
     expect(page.url()).toBe(url);
     expect(errors).toEqual([]);
   });
+}
 
+test.describe('WebSocket reconnect recovery', () => {
   test('recovers messages posted while disconnected after reconnecting', async ({
     page,
     chatPage,
