@@ -82,7 +82,7 @@ Request to search current message bodies visible to the authenticated user.
 | `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
 | `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
 | `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
-| `order` | [`MessageSearchOrder`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchOrder) | Unspecified defaults to relevance for messages, or thread activity for thread groups. Thread groups currently support only thread activity order. |
+| `order` | [`MessageSearchOrder`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchOrder) | Defaults to relevance in both result modes. Thread activity order requires thread grouping; newest order uses matching-message creation time. |
 | `page_size` | `uint32` | Maximum results to return (messages or distinct threads). Zero uses 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
 | `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
 | `scope` | [`MessageSearchScope`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchScope) | Candidate scope. Followed threads are selected before result pagination. |

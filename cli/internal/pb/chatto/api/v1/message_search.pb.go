@@ -270,8 +270,8 @@ type SearchMessagesRequest struct {
 	CreatedBefore *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_before,json=createdBefore,proto3" json:"created_before,omitempty"`
 	// When true, return only messages that currently have attachments.
 	HasAttachments bool `protobuf:"varint,6,opt,name=has_attachments,json=hasAttachments,proto3" json:"has_attachments,omitempty"`
-	// Unspecified defaults to relevance for messages, or thread activity for
-	// thread groups. Thread groups currently support only thread activity order.
+	// Defaults to relevance in both result modes. Thread activity order requires
+	// thread grouping; newest order uses matching-message creation time.
 	Order MessageSearchOrder `protobuf:"varint,7,opt,name=order,proto3,enum=chatto.api.v1.MessageSearchOrder" json:"order,omitempty"`
 	// Maximum results to return (messages or distinct threads). Zero uses 50; the
 	// maximum is 100. Stale or no-longer-visible provider hits are omitted, so a

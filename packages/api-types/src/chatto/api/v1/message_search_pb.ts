@@ -225,8 +225,8 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
   hasAttachments = false;
 
   /**
-   * Unspecified defaults to relevance for messages, or thread activity for
-   * thread groups. Thread groups currently support only thread activity order.
+   * Defaults to relevance in both result modes. Thread activity order requires
+   * thread grouping; newest order uses matching-message creation time.
    *
    * @generated from field: chatto.api.v1.MessageSearchOrder order = 7;
    */

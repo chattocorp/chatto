@@ -85,8 +85,8 @@ message SearchMessagesRequest {
   google.protobuf.Timestamp created_before = 5;
   // When true, return only messages that currently have attachments.
   bool has_attachments = 6;
-  // Unspecified defaults to relevance for messages, or thread activity for
-  // thread groups. Thread groups currently support only thread activity order.
+  // Defaults to relevance in both result modes. Thread activity order requires
+  // thread grouping; newest order uses matching-message creation time.
   MessageSearchOrder order = 7 [(buf.validate.field).enum.defined_only = true];
   // Maximum results to return (messages or distinct threads). Zero uses 50; the
   // maximum is 100. Stale or no-longer-visible provider hits are omitted, so a
