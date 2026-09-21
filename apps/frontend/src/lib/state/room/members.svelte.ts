@@ -11,6 +11,8 @@ import {
 } from '$lib/api-client/memberDirectory';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
+import { getUserStore, type UserStore } from '$lib/state/server/users.svelte';
+import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
@@ -67,7 +69,21 @@ function mapPage(page: MemberDirectoryPage): RoomMembersPage {
  * Searches use a separate cache until their matching directory page enters canonical order.
  */
 export class RoomMembersStore {
-  members = $state.raw<RoomMember[]>([]);
+  #memberIds = $state.raw<string[]>([]);
+  #standaloneMembers = $state.raw<RoomMember[]>([]);
+  readonly #users?: UserStore;
+  readonly #resolvedMembers = $derived.by(() => this.#users
+    ? this.#memberIds.flatMap((id) => this.resolveProfile(id) ?? [])
+    : this.#standaloneMembers);
+  /** Membership retains IDs; current public profiles come from the connection owner.
+   * Standalone API fixtures can supply render rows without a connection. */
+  get members(): RoomMember[] {
+    return this.#resolvedMembers;
+  }
+  set members(members: RoomMember[]) {
+    this.#memberIds = members.map((member) => member.id);
+    if (!this.#users) this.#standaloneMembers = members;
+  }
   totalCount = $state(0);
   hasFirstPage = $state(false);
   hasLoadedAll = $state(false);
@@ -97,6 +113,7 @@ export class RoomMembersStore {
       this.api = source;
     } else {
       this.api = source.getAPI(createMemberDirectoryAPI);
+      if (source.serverId) this.#users = getUserStore(source.serverId, source.queryScope);
     }
   }
 
@@ -110,9 +127,25 @@ export class RoomMembersStore {
     const query = this.activeSearch.trim().toLowerCase();
     if (query && !this.hasLoadedAll) {
       const searched = this.#searchCache.get(query);
-      if (searched) return searched.members;
+      if (searched) return this.resolveProfiles(searched.members);
     }
     return this.filterLoadedMembers(this.activeSearch);
+  }
+
+  /** Cached searches retain membership results, but never override live identities. */
+  private resolveProfiles(members: RoomMember[]): RoomMember[] {
+    if (!this.#users) return members;
+    return members.flatMap((member) => this.resolveProfile(member.id) ?? []);
+  }
+
+  private resolveProfile(id: string): RoomMember | undefined {
+    const member = this.#users?.get(id);
+    // A profile invalidation must not erase membership when another page or
+    // profile update arrives before the replacement profile.
+    return member ? memberFromDirectory(mapDirectoryMember(member)) : {
+      id, login: '', displayName: '', deleted: this.#users?.isDeleted(id), avatarUrl: null,
+      presenceStatus: PresenceStatus.OFFLINE
+    };
   }
 
   /** Compatibility alias for consumers that only care whether hydration is complete. */
@@ -234,7 +267,7 @@ export class RoomMembersStore {
     const loadId = this.#loadId;
     const cached = this.#searchCache.get(normalizedSearch.toLowerCase());
     if (cached && (cached.complete || cached.members.length >= limit)) {
-      return cached.members.slice(0, limit);
+      return this.resolveProfiles(cached.members).slice(0, limit);
     }
     let page: RoomMembersPage;
     try {
@@ -248,7 +281,7 @@ export class RoomMembersStore {
       members: page.members,
       complete: !page.hasMore
     });
-    return page.members.slice(0, limit);
+    return this.resolveProfiles(page.members).slice(0, limit);
   }
 
   private async searchAllMembers(search: string): Promise<void> {
@@ -315,9 +348,10 @@ export class RoomMembersStore {
       await this.refresh();
       return;
     }
-    const exists = this.members.some((member) => member.id === userId);
+    const exists = this.#memberIds.includes(userId);
     if (!joined) {
-      this.members = this.members.filter((member) => member.id !== userId);
+      this.#memberIds = this.#memberIds.filter((id) => id !== userId);
+      if (!this.#users) this.#standaloneMembers = this.#standaloneMembers.filter((member) => member.id !== userId);
       if (exists) this.totalCount = Math.max(0, this.totalCount - 1);
       return;
     }

@@ -22,7 +22,7 @@
     viewerSettings?: ViewerTimeSettings | null;
   } = $props();
   const scope = useServerScope();
-  const cache = $derived(getUserSummaryCache(scope.serverId));
+  const cache = $derived(getUserSummaryCache(scope.serverId, scope.connection.queryScope));
   const query = createQuery(
     () => ({
       queryKey: [
@@ -35,7 +35,6 @@
       ],
       queryFn: async () => {
         const [owner] = await scope.connection.getAPI(createUserAPI).batchGetUsers([ownerId]);
-        if (owner && scope.isCurrent()) cache.prime([owner]);
         return owner ?? null;
       },
       staleTime: 30_000,
@@ -44,7 +43,7 @@
     }),
     () => queryClient
   );
-  const owner = $derived(query.data === undefined ? cache.get(ownerId) : query.data);
+  const owner = $derived(cache.get(ownerId));
   const identity = $derived(
     owner && !owner.deleted
       ? {
@@ -73,7 +72,7 @@
     <span class="text-muted" aria-busy={query.isPending}>
       {query.isPending
         ? m('common.loading')
-        : owner?.deleted
+        : cache.store.isDeleted(ownerId)
           ? m('common.deleted_user')
           : m('common.unknown_user')}
     </span>

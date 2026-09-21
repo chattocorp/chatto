@@ -1,13 +1,14 @@
 import { createContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
+import type { UserStore } from './server/users.svelte';
+import { mapUserSummary, mapUserPresenceView } from '$lib/api-client/userSummary';
+import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
+export { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 
 /**
- * Global cache for live user profile updates (display name, avatar URL, login,
- * custom status).
- *
- * This store centralizes subscription to profile update events, avoiding
- * duplicate subscriptions across components. Components use the getLive*()
- * helpers to get the most recent values.
+ * Context-bound profile views. Production contexts read the connection's shared
+ * user store. Standalone renderers and stories can install a local profile map.
+ * The getLive* helpers preserve render fallbacks for profiles not loaded yet.
  */
 
 export type CustomUserStatus = {
@@ -25,9 +26,22 @@ type ProfileUpdate = {
   timezone?: string | null;
 };
 
-const [getCache, setCache] = createContext<{ current: SvelteMap<string, ProfileUpdate> }>();
+const [getCache, setCache] = createContext<{
+  current: SvelteMap<string, ProfileUpdate>;
+  users?: () => UserStore | undefined;
+}>();
+
+/** Production contexts read the shared connection owner. The local map supports
+ * standalone renderers and stories that have no authenticated server scope. */
+function readProfile(userId: string): ProfileUpdate | undefined {
+  const cache = getCache();
+  if (!cache.users) return cache.current.get(userId);
+  const store = cache.users();
+  if (store?.isDeleted(userId)) return { displayName: '', login: '', avatarUrl: null, customStatus: null, bio: null, timezone: null };
+  const user = store?.get(userId)?.user;
+  return user ? { ...mapUserSummary(user), ...mapUserPresenceView(user) } : undefined;
+}
 const expiryCleanups = new SvelteMap<string, () => void>();
-const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
 export function isCustomStatusActive(
   status: CustomUserStatus | null | undefined
@@ -35,42 +49,6 @@ export function isCustomStatusActive(
   if (!status) return false;
   if (!status.expiresAt) return true;
   return Date.parse(status.expiresAt) > Date.now();
-}
-
-export function scheduleCustomStatusExpiry(
-  status: CustomUserStatus | null | undefined,
-  onExpire: () => void
-): () => void {
-  const expiresAt = status?.expiresAt;
-  if (!expiresAt) return () => {};
-
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  let cancelled = false;
-
-  const schedule = (fromTimer = false) => {
-    if (cancelled) return;
-    const expiresAtMs = Date.parse(expiresAt);
-    if (Number.isNaN(expiresAtMs)) return;
-    const delay = expiresAtMs - Date.now();
-    if (delay <= 0) {
-      if (fromTimer) {
-        onExpire();
-      } else {
-        timeout = setTimeout(() => {
-          if (!cancelled) onExpire();
-        }, 0);
-      }
-      return;
-    }
-    timeout = setTimeout(() => schedule(true), Math.min(delay, MAX_TIMEOUT_DELAY_MS));
-  };
-
-  schedule();
-
-  return () => {
-    cancelled = true;
-    if (timeout) clearTimeout(timeout);
-  };
 }
 
 function scheduleExpiry(
@@ -111,9 +89,9 @@ function mergeProfileUpdate(
  * Must be called synchronously during component initialization (chat layout).
  * Returns update functions that can be safely called from event handlers.
  */
-export function createUserProfileCache() {
-  const state = $state<{ current: SvelteMap<string, ProfileUpdate> }>({
-    current: new SvelteMap()
+export function createUserProfileCache(users?: () => UserStore | undefined) {
+  const state = $state<{ current: SvelteMap<string, ProfileUpdate>; users?: () => UserStore | undefined }>({
+    current: new SvelteMap(), users
   });
   setCache(state);
 
@@ -126,6 +104,7 @@ export function createUserProfileCache() {
       customStatus?: CustomUserStatus | null,
       extras?: { bio?: string | null; timezone?: string | null }
     ) => {
+      if (users) return; // The server reducer owns profile writes.
       const update: ProfileUpdate = { displayName, avatarUrl, login };
       if (customStatus !== undefined) update.customStatus = customStatus;
       if (extras) {
@@ -135,14 +114,17 @@ export function createUserProfileCache() {
       mergeProfileUpdate(state.current, userId, update);
     },
     updateStatus: (userId: string, customStatus: CustomUserStatus | null) => {
+      if (users) return;
       mergeProfileUpdate(state.current, userId, { customStatus });
     },
     remove: (userId: string) => {
+      if (users) return;
       expiryCleanups.get(userId)?.();
       expiryCleanups.delete(userId);
       state.current.delete(userId);
     },
     clear: () => {
+      if (users) return;
       for (const userId of state.current.keys()) {
         expiryCleanups.get(userId)?.();
         expiryCleanups.delete(userId);
@@ -156,8 +138,7 @@ export function createUserProfileCache() {
  * Get live display name if available, otherwise return fallback.
  */
 export function getLiveDisplayName(userId: string, fallback: string): string {
-  const cache = getCache();
-  const update = cache.current.get(userId);
+  const update = readProfile(userId);
   return update && 'displayName' in update ? (update.displayName ?? fallback) : fallback;
 }
 
@@ -165,8 +146,7 @@ export function getLiveDisplayName(userId: string, fallback: string): string {
  * Get live avatar URL if available, otherwise return fallback.
  */
 export function getLiveAvatarUrl(userId: string, fallback: string | null): string | null {
-  const cache = getCache();
-  const update = cache.current.get(userId);
+  const update = readProfile(userId);
   return update && 'avatarUrl' in update ? (update.avatarUrl ?? null) : fallback;
 }
 
@@ -174,8 +154,7 @@ export function getLiveAvatarUrl(userId: string, fallback: string | null): strin
  * Get live login if available, otherwise return fallback.
  */
 export function getLiveLogin(userId: string, fallback: string): string {
-  const cache = getCache();
-  const update = cache.current.get(userId);
+  const update = readProfile(userId);
   return update && 'login' in update ? (update.login ?? fallback) : fallback;
 }
 
@@ -186,8 +165,7 @@ export function getLiveCustomStatus(
   userId: string,
   fallback: CustomUserStatus | null | undefined
 ): CustomUserStatus | null {
-  const cache = getCache();
-  const update = cache.current.get(userId);
+  const update = readProfile(userId);
   const status = update && 'customStatus' in update ? update.customStatus : fallback;
   return isCustomStatusActive(status) ? status : null;
 }
@@ -196,8 +174,7 @@ export function getLiveCustomStatus(
  * Get the live public bio if available, otherwise return fallback.
  */
 export function getLiveBio(userId: string, fallback: string | null): string | null {
-  const cache = getCache();
-  const update = cache.current.get(userId);
+  const update = readProfile(userId);
   return update && 'bio' in update ? (update.bio ?? null) : fallback;
 }
 
@@ -205,7 +182,6 @@ export function getLiveBio(userId: string, fallback: string | null): string | nu
  * Get the live public time zone if available, otherwise return fallback.
  */
 export function getLiveTimezone(userId: string, fallback: string | null): string | null {
-  const cache = getCache();
-  const update = cache.current.get(userId);
+  const update = readProfile(userId);
   return update && 'timezone' in update ? (update.timezone ?? null) : fallback;
 }

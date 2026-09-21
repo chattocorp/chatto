@@ -10,6 +10,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
+import { getUserStore, memberFromSummary, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RoomKind as SearchRoomKind } from '$lib/api-client/roomDirectory';
 import {
@@ -197,7 +198,12 @@ vi.mock('$lib/api-client/attachments', async (importActual) => ({
 vi.mock('$lib/api-client/memberDirectory', async (importActual) => ({
   ...(await importActual<typeof import('$lib/api-client/memberDirectory')>()),
   createMemberDirectoryAPI: vi.fn(() => ({
-    listRoomMembers: memberDirectoryMocks.listRoomMembers
+    listRoomMembers: async (...args: unknown[]) => {
+      const result = await memberDirectoryMocks.listRoomMembers(...args);
+      const users = getUserStore('test-server');
+      for (const member of result.members) users.set(member.id, memberFromSummary(member));
+      return result;
+    }
   }))
 }));
 
@@ -403,6 +409,7 @@ function roomAudioFile(filename: string) {
 
 describe('RoomSidebar', () => {
   beforeEach(async () => {
+    resetUserStoresForTests();
     document.documentElement.dir = 'ltr';
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
@@ -700,6 +707,10 @@ describe('RoomSidebar', () => {
       props: { roomData: roomData([], 0, false) }
     });
 
+    await vi.waitFor(() => {
+      expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+    });
+    buttonByText(container, 'Offline (1)')!.click();
     await vi.waitFor(() => {
       expect(container.textContent).toContain('[deleted user]');
     });

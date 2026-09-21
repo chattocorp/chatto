@@ -66,10 +66,10 @@ incomplete catalogue until its normal navigation state converges.
 Known-user results are incomplete: they depend on what the client has loaded
 and can change after a reload. Profile updates, deletion, loss of DM-start
 permission, and session resets update these results through the existing state
-lifecycle. Known users include the realtime projection and public profiles already
-loaded by room member lists and timelines in the current connection's directory
-cache. Cache updates and removal markers also update the palette. Profiles from
-other connection sessions are excluded; searching does not fetch missing users.
+lifecycle. Rooms, DMs, and timelines share known user profiles within the current
+connection. Profile updates and removal markers also update the palette.
+Profiles from other connection sessions are excluded; searching does not fetch
+missing users. See ADR-100.
 
 ### 2. Fuzzy match with prefix-bias and recent-boost
 
@@ -114,5 +114,5 @@ availability and normal read boundary.
 
 ## Related
 
-- **ADRs:** ADR-025 (multi-instance client architecture)
+- **ADRs:** ADR-025 (multi-instance client architecture), ADR-100 (shared client user profiles)
 - **FDRs:** FDR-007 (Direct Messages), FDR-012 (Notifications)

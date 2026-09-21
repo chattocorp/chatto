@@ -10,6 +10,7 @@ import { q } from '$lib/test-utils';
 import { queryClient } from '$lib/query/client';
 import { primeDirectoryUsers, removeDirectoryUser } from '$lib/query/directoryUsers';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+import { clearUserStores, getUserStore, resetUserStoresForTests, type UserStore } from '$lib/state/server/users.svelte';
 
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
@@ -43,7 +44,7 @@ const mocks = vi.hoisted(() => ({
     isAuthenticated: true,
     realtimeSync: { hasUsableProjection: true },
     projection: {
-      users: new Map<string, DirectoryMember>(),
+      users: undefined as unknown as UserStore,
       rooms: new Map<string, RoomWithViewerState>()
     },
     serverInfo: {
@@ -316,12 +317,13 @@ beforeEach(() => {
   quickSwitcher.close();
   flushSync();
   queryClient.clear();
+  resetUserStoresForTests();
   stores.clear();
   mocks.store.navigation.isInitialLoading = false;
   mocks.store.permissions.canStartDMs = true;
   mocks.store.isAuthenticated = true;
   mocks.store.realtimeSync.hasUsableProjection = true;
-  mocks.store.projection.users = new SvelteMap();
+  mocks.store.projection.users = getUserStore('origin', 'test-session');
   mocks.store.projection.rooms = new SvelteMap();
   installQueryMocks();
   mocks.goto.mockReset();
@@ -602,7 +604,7 @@ describe('QuickSwitcher', () => {
     primeDirectoryUsers('origin', 'test-session', [mapDirectoryMember(profile)]);
     flushSync();
     expect(resultButtons(container)).toHaveLength(1);
-    queryClient.clear();
+    clearUserStores('origin');
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
   });

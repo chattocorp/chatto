@@ -73,6 +73,11 @@ move incrementally when doing so removes meaningful custom lifecycle code.
 The first follow-up applies it to paginated moderation bans and the bounded
 system-diagnostics snapshot.
 
+[ADR-100](ADR-100-shared-client-user-profiles.md) defines one connection-scoped
+owner for public user profiles shared by snapshot and realtime readers.
+Directory queries retain request and membership state; they do not own a second
+public-profile cache.
+
 ## Consequences
 
 - Admin snapshot screens share consistent loading, cancellation, retry,

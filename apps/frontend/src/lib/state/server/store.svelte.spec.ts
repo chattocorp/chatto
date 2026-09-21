@@ -236,8 +236,8 @@ vi.mock('$lib/api-client/roomDirectory', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/memberDirectory', () => ({
-  mapDirectoryMember: (member: unknown) => member,
+vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => ({
+  mapDirectoryMember: (await importOriginal<typeof import('$lib/api-client/memberDirectory')>()).mapDirectoryMember,
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: apiMocks.listRoomMembers
   }))
@@ -2242,7 +2242,7 @@ describe('ServerStateStore unified realtime resources', () => {
           })
         })
       );
-    expect(store.projection.users.has('cached-author')).toBe(false);
+    expect(store.projection.users.has('cached-author')).toBe(true);
     post();
     expect(ingest).toHaveBeenLastCalledWith(
       expect.objectContaining({

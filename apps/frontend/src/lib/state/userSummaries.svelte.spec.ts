@@ -8,7 +8,7 @@ import {
 } from './userSummaries.svelte';
 
 describe('user summary cache', () => {
-  const user = (id: string, displayName = id) => ({ id, login: id, displayName, deleted: false, avatarUrl: null });
+  const user = (id: string, displayName = id) => ({ id, login: id, displayName, deleted: false, avatarUrl: null, isBot: false, bio: null, timezone: null });
   beforeEach(() => {
     __resetUserSummaryCachesForTests();
   });

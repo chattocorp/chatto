@@ -17,6 +17,7 @@ import {
   MessageVideoVariant
 } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { disposeUserStore, getUserStore } from '$lib/state/server/users.svelte';
 import {
   __resetUserSummaryCachesForTests,
   primeUserSummaryCache
@@ -78,6 +79,26 @@ describe('createRoomTimelineAPI', () => {
         getThreadEventsAround: mocks.getThreadEventsAround
       };
     });
+  });
+
+  it.each(['reset', 'dispose'])('rejects timeline includes after a connection %s', async (boundary) => {
+    configureApiClientHooks({});
+    const store = getUserStore('remote', 'session');
+    let finish!: (response: { page: RoomTimelinePage }) => void;
+    mocks.getThreadEvents.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const api = createRoomTimelineAPI({
+      serverId: 'remote', queryScope: 'session',
+      baseUrl: 'https://remote.example.test/api/connect', bearerToken: null
+    });
+    const pending = api.getThreadEvents({ roomId: 'room', threadRootEventId: 'root', limit: 20 });
+    if (boundary === 'reset') store.clear();
+    else disposeUserStore('remote', 'session');
+    finish({ page: new RoomTimelinePage({ includes: { users: {
+      bot: new User({ id: 'bot', login: 'bot' })
+    } } }) });
+    await expect(pending).rejects.toThrow('Response discarded');
+    expect(store.size).toBe(0);
+    expect(getUserStore('remote', 'session').size).toBe(0);
   });
 
   it('sends thread page requests with bearer auth and opaque cursors', async () => {

@@ -101,7 +101,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('renders a cached profile while the fresh query is pending', () => {
-    getUserSummaryCache('origin').prime([user]);
+    getUserSummaryCache('origin', 'session-1').prime([user]);
     mocks.queryState.isPending = true;
 
     const { container } = renderProfile();
@@ -114,7 +114,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('collapses and expands the bio section', async () => {
-    getUserSummaryCache('origin').prime([user]);
+    getUserSummaryCache('origin', 'session-1').prime([user]);
     const { container } = renderProfile();
     await expect.poll(() => q(container, '[data-testid="profile-bio-heading"]')).not.toBeNull();
     const heading = q(container, '[data-testid="profile-bio-heading"]');
@@ -131,7 +131,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('omits the bio section when no bio is set', () => {
-    getUserSummaryCache('origin').prime([{ ...user, bio: null }]);
+    getUserSummaryCache('origin', 'session-1').prime([{ ...user, bio: null }]);
     const { container } = renderProfile();
     expect(q(container, '[data-testid="profile-bio-heading"]')).toBeNull();
   });
@@ -146,7 +146,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('uses the viewer preferred 12-hour time format', () => {
-    getUserSummaryCache('origin').prime([user]);
+    getUserSummaryCache('origin', 'session-1').prime([user]);
     mocks.queryState.isPending = true;
     mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_12_HOUR;
 
@@ -164,5 +164,17 @@ describe('RoomSidebarProfile', () => {
     await vi.waitFor(() => {
       expect(q(container, '[data-tone="danger"]') ?? container).toHaveTextContent('User not found');
     });
+  });
+
+  it('uses shared profile updates and deletion instead of retained query data', async () => {
+    const profiles = getUserSummaryCache('origin', 'session-1');
+    profiles.prime([user]);
+    mocks.queryState.data = user;
+    const { container } = renderProfile();
+    profiles.prime([{ ...user, displayName: 'Updated profile' }]);
+    await expect.element(container).toHaveTextContent('Updated profile');
+    profiles.store.delete(user.id);
+    await expect.element(container).toHaveTextContent('User not found');
+    expect(container.textContent).not.toContain('Alice Example');
   });
 });

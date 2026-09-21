@@ -31,7 +31,7 @@ message presentation. Each message row itself opens the original message.
   } = $props();
 
   const serverScope = useServerScope();
-  const userSummaries = getUserSummaryCache(serverScope.serverId);
+  const userSummaries = $derived(getUserSummaryCache(serverScope.serverId, serverScope.connection.queryScope));
   const members = $derived(getRoomMembers());
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)

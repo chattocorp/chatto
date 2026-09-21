@@ -114,3 +114,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-097](ADR-097-durable-outbound-bot-webhooks.md) | Deliver Best-Effort Outbound Bot Webhooks from EVT | Accepted | 2026-09-05 |
 | [ADR-098](ADR-098-retained-operational-log.md) | Retain Operational Diagnostics in LOG | Accepted | 2026-09-08 |
 | [ADR-099](ADR-099-capacitor-mobile-client.md) | Package Chatto Mobile with Capacitor | Accepted | 2026-09-19 |
+| [ADR-100](ADR-100-shared-client-user-profiles.md) | Share Public User Profiles Within Each Client Connection | Accepted | 2026-09-21 |

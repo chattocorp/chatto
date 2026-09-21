@@ -3,12 +3,20 @@ import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
 import { __resetUserSummaryCachesForTests } from '$lib/state/userSummaries.svelte';
+import { getUserStore, memberFromSummary } from '$lib/state/server/users.svelte';
 
 const mocks = vi.hoisted(() => ({ batchGetUsers: vi.fn() }));
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'owner-test',
-    connection: { queryScope: 'session', getAPI: () => mocks },
+    connection: { queryScope: 'session', getAPI: () => ({
+      batchGetUsers: async (ids: string[]) => {
+        const users = await mocks.batchGetUsers(ids);
+        const store = getUserStore('owner-test', 'session');
+        for (const user of users) store.set(user.id, memberFromSummary(user));
+        return users;
+      }
+    }) },
     isCurrent: () => true,
     store: { permissions: { loaded: false } }
   })

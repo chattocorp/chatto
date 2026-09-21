@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { queryClient, removeServerQueries } from './client';
+import { resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import {
   createDirectoryUserLoader,
   primeDirectoryUsers,
@@ -14,6 +15,9 @@ function user(id: string, displayName = id) {
     login: id,
     deleted: false,
     avatarUrl: null,
+    isBot: false,
+    bio: null,
+    timezone: null,
     roles: [],
     createdAt: null,
     customStatus: null,
@@ -21,7 +25,7 @@ function user(id: string, displayName = id) {
   };
 }
 
-afterEach(() => queryClient.clear());
+afterEach(() => { queryClient.clear(); resetUserStoresForTests(); });
 
 describe('directory user hydration', () => {
   it('coalesces concurrent rooms and fetches only unknown users in bounded batches', async () => {

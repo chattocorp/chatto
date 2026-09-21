@@ -3,6 +3,7 @@
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import ChatRoot from './ChatRoot.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
 
   let { data, children } = $props();
   let fullscreenVideoOverlayModule: Promise<
@@ -14,7 +15,10 @@
     return fullscreenVideoOverlayModule;
   }
 
-  const profileCache = createUserProfileCache();
+  const profileCache = createUserProfileCache(() => {
+    const id = serverRegistry.originServer?.id;
+    return id ? serverRegistry.tryGetStore(id)?.projection.users : undefined;
+  });
   const presenceCache = createPresenceCache();
 </script>
 
