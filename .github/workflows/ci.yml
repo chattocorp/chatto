@@ -59,6 +59,7 @@ jobs:
               - 'pkg/**'
             runling:
               - 'packages/runling/**'
+              - 'packages/chatto-client/**'
             docs:
               - 'apps/docs-website/**'
             desktop:

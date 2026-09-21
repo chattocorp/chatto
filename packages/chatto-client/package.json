@@ -1,0 +1,23 @@
+{
+  "name": "@chatto/client",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Framework-neutral Chatto client helpers for bots and integrations",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -8,7 +8,7 @@ test("sends thread-scoped typing through ConnectRPC", async () => {
   const fetcher = vi.fn().mockResolvedValue(new Response('{}'));
   vi.stubGlobal("fetch", fetcher);
   await createChattoTyping("https://chat.example", "key")(destination, new AbortController().signal);
-  expect(String(fetcher.mock.calls[0]![0])).toBe("https://chat.example/api/connect/chatto.api.v1.RoomService/UpdateTypingIndicator");
+  expect(String(fetcher.mock.calls[0]![0])).toBe("https://chat.example/api/connect/chatto.api.v1.RoomService/RefreshTypingIndicator");
   expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toEqual({ roomId: "dm", threadRootEventId: "thread" });
 });
 

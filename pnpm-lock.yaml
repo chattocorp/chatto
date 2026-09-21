@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@chatto/client':
+        specifier: workspace:*
+        version: link:packages/chatto-client
       knip:
         specifier: ^6.22.0
         version: 6.22.0
@@ -330,6 +333,18 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  packages/chatto-client:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.11(@types/node@22.20.1)(@vitest/browser-playwright@4.1.11)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+
   packages/lingua:
     devDependencies:
       '@types/node':
@@ -387,6 +402,9 @@ importers:
         specifier: ^7.29.1
         version: 7.29.1
     devDependencies:
+      '@chatto/client':
+        specifier: workspace:*
+        version: link:../chatto-client
       '@fontsource-variable/plus-jakarta-sans':
         specifier: ^5.3.0
         version: 5.3.0
