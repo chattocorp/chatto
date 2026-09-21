@@ -4,7 +4,7 @@
   "authling": "0.1.0-alpha.1",
   "packages/runling": "0.7.0",
   "pkg/appconfig": "0.0.0",
-  "pkg/datacrypto": "0.0.0",
+  "pkg/datacrypto": "0.1.0-alpha.1",
   "pkg/events": "0.0.0",
   "pkg/natsruntime": "0.0.0"
 }
