@@ -336,11 +336,11 @@ test.describe('Room-Level Permission Overrides', () => {
           'You can only reply in threads you can read.'
         );
         await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
-        await grantRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
+        await grantRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
         await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
           'You can only reply in threads you started or where someone mentioned you.'
         );
-        await denyRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
+        await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
         await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
           'You do not have permission to post messages in this room.'
         );
@@ -916,7 +916,7 @@ test.describe('Permission-only Resolution', () => {
       // Deny message.post-in-thread at room level for everyone
       await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
       await denyRoomPermission(page, roomId, 'everyone', 'message.post');
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);
@@ -947,7 +947,7 @@ test.describe('Permission-only Resolution', () => {
       // Deny message.post-in-thread at room level for everyone
       await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
       await denyRoomPermission(page, roomId, 'everyone', 'message.post');
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-interactions');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);

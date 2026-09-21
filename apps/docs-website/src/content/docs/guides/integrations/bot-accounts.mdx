@@ -110,11 +110,11 @@ group DMs and replies. Posting needs a separate permission:
 
 - `message.post` permits roots and thread replies. It includes both permissions below.
 - `message.post-in-thread` permits replies in any readable thread.
-- `message.post-interactions` permits replies only in readable threads that the
+- `message.post-in-interactions` permits replies only in readable threads that the
   bot started, where it was directly mentioned, or where it received a DM.
 
 For a bot that reads broadly but speaks only in related threads, grant
-`message.read` and `message.post-interactions`. Do not grant either broader
+`message.read` and `message.post-in-interactions`. Do not grant either broader
 posting permission. Membership and the owner's permission ceiling still apply.
 
 ## Post from an external webhook

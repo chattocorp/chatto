@@ -1,4 +1,4 @@
-import { Type, defineAgentExtension, type Runling } from "runling";
+import { Type, agent, log, defineAgentExtension, type WorkflowContext } from "runling";
 import type { ReplySender } from "./sender.ts";
 import webFetchExtension from "./web-fetch.ts";
 
@@ -28,10 +28,14 @@ export interface ReplyContext {
   readThread: () => Promise<Array<{ role: "bot" | "human"; body: string }>>;
 }
 
-/** Post only the validated final Runling report to the current thread. */
+/**
+ * Post only the validated final Runling report to the current thread.
+ * Tests can inject the agent factory without replacing the workflow context.
+ */
 export async function generateReply(
-  r: Runling,
+  r: WorkflowContext,
   context: ReplyContext,
+  createAgent: typeof agent = agent,
 ): Promise<void> {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error("Set OPENROUTER_API_KEY before starting Runling");
@@ -64,9 +68,10 @@ export async function generateReply(
 
   // Runling reports agent text to its logger by default. Keep chat content out
   // of process logs; the local Runling run history still contains workflow data.
-  return r.log.withDestination("silent", async () => {
+  return log.withDestination("silent", async () => {
     let reported = false;
-    const agent = await r.agent({
+    const agent = await createAgent({
+      cwd: process.cwd(),
       model: "openrouter/google/gemini-2.5-flash-lite",
       thinkingLevel: "off",
       tools: ["read_thread", "web_fetch"],
@@ -102,7 +107,7 @@ export async function generateReply(
 
       const signal = AbortSignal.timeout(120_000);
 
-      const result = await agent.runOutcome(prompt, { signal });
+      const result = await agent.runOutcome(r, prompt, { signal });
       if (!reported) throw new Error("The agent did not report an outcome");
 
       await context.sender.sendFinal(result.details?.trim() || result.summary);
@@ -110,7 +115,7 @@ export async function generateReply(
         throw new Error(`The agent reported ${result.outcome}`);
       }
     } finally {
-      agent.dispose();
+      await agent.dispose();
     }
   });
 }

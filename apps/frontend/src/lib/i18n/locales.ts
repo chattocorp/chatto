@@ -1,7 +1,7 @@
 /** Locales presented to users. */
 export const selectableLocales = [
-  'en-GB',
   'en-US',
+  'en-GB',
   'de-DE',
   'de-AT',
   'de-CH',

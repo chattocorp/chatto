@@ -1,0 +1,121 @@
+{
+  "name": "runling",
+  "version": "0.7.0",
+  "description": "TypeScript workflows for coding agents, with a CLI and live web console.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chattocorp/chatto.git",
+    "directory": "packages/runling"
+  },
+  "homepage": "https://github.com/chattocorp/chatto/tree/main/packages/runling#readme",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./dist/extensions/web-fetch.js"
+    ]
+  },
+  "types": "./dist/src/runtime/index.d.ts",
+  "exports": {
+    ".": {
+      "runling-source": "./src/runtime/index.ts",
+      "types": "./dist/src/runtime/index.d.ts",
+      "default": "./dist/src/runtime/index.js"
+    },
+    "./git": {
+      "runling-source": "./src/runtime/git.ts",
+      "types": "./dist/src/runtime/git.d.ts",
+      "default": "./dist/src/runtime/git.js"
+    },
+    "./web": {
+      "runling-source": "./src/runtime/web-config.ts",
+      "types": "./dist/src/runtime/web-config.d.ts",
+      "default": "./dist/src/runtime/web-config.js"
+    },
+    "./config-reloader": {
+      "runling-source": "./src/runtime/config-reloader.ts",
+      "types": "./dist/src/runtime/config-reloader.d.ts",
+      "default": "./dist/src/runtime/config-reloader.js"
+    },
+    "./agents": {
+      "runling-source": "./src/runtime/agents/index.ts",
+      "types": "./dist/src/runtime/agents/index.d.ts",
+      "default": "./dist/src/runtime/agents/index.js"
+    }
+  },
+  "imports": {
+    "#runner": {
+      "runling-source": "./src/runtime/runner.ts",
+      "default": "./dist/src/runtime/runner.js"
+    },
+    "#cli": {
+      "runling-source": "./src/runtime/cli.ts",
+      "default": "./dist/src/runtime/cli.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin/runling.js",
+    "bin/workflow-loader.js"
+  ],
+  "bin": {
+    "runling": "bin/runling.js"
+  },
+  "scripts": {
+    "prepare": "svelte-kit sync",
+    "runling": "node --conditions=runling-source bin/runling.js",
+    "dev": "tsx watch --conditions=runling-source src/bin/runling-web.ts",
+    "dev:web": "pnpm dev",
+    "build": "pnpm build:runtime && vite build",
+    "build:runtime": "tsc -p tsconfig.build.json",
+    "test": "pnpm build:runtime && svelte-kit sync && vitest run",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test:package": "node scripts/test-package.mjs",
+    "prepack": "node -e \"for (const file of ['dist/src/runtime/index.js', 'dist/src/runtime/index.d.ts', 'dist/web/handler.js']) { if (!require('node:fs').existsSync(file)) throw new Error('Run pnpm build before packing Runling'); }\""
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.4",
+    "@earendil-works/pi-tui": "0.84.4",
+    "@standard-schema/spec": "^1.1.0",
+    "ajv": "^8.20.0",
+    "chokidar": "^5.0.0",
+    "color-name": "^2.0.0",
+    "commander": "^15.0.0",
+    "execa": "^10.0.1",
+    "human-id": "4.2.1",
+    "jiti": "^2.7.0",
+    "tsx": "^4.20.0",
+    "typebox": "1.3.7",
+    "undici": "^7.29.1"
+  },
+  "devDependencies": {
+    "@chatto/client": "workspace:*",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.129",
+    "@iconify/tailwind4": "^1.2.3",
+    "@sveltejs/adapter-node": "^5",
+    "@sveltejs/kit": "^2",
+    "@sveltejs/vite-plugin-svelte": "^6",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/color-name": "^2.0.0",
+    "@types/node": "^22",
+    "@valibot/to-json-schema": "^1.7.1",
+    "ansi-sequence-parser": "^1.1.3",
+    "daisyui": "^5.7.28",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "valibot": "^1.4.2",
+    "vite": "^7",
+    "vitest": "^3.2.0",
+    "yaml": "^2.8.0",
+    "zod": "^4.5.4"
+  }
+}

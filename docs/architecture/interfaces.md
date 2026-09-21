@@ -1,5 +1,12 @@
 # Interface Inventory
 
+The internal [`@chatto/client`](../../packages/chatto-client/README.md) package
+owns HTTP requests, message splitting, thread history, reactions, and typing
+helpers for Chatto's local Runling bot and Runling's Chatto integrations. It
+does not add server endpoints or depend on Runling. Hosts retain credential
+loading, webhook handling, and conversation state; see
+[ADR-100](../adr/ADR-100-shared-chatto-integration-client.md).
+
 The official mobile client uses the built-in OAuth identity `eu.chattocorp.chatto.mobile`
 and exact callback `eu.chattocorp.chatto.mobile:/oauth/callback`. System authentication
 returns the callback to the client; token exchange and bearer-authenticated

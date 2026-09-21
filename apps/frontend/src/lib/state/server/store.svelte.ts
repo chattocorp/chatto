@@ -985,7 +985,7 @@ export class ServerStateStore {
       }
       const previous = this.projection.rooms.get(roomId);
       const messageAccess = (room: RoomWithViewerState | undefined) =>
-        ['message.read', 'message.read-interactions', 'message.post', 'message.post-in-thread', 'message.post-interactions'].map((permission) =>
+        ['message.read', 'message.read-interactions', 'message.post', 'message.post-in-thread', 'message.post-in-interactions'].map((permission) =>
           room?.viewerState?.permissions.some((grant) => grant.permission === permission && grant.granted) ?? false
         ).join(',');
       if (previous && messageAccess(previous) === messageAccess(next)) continue;

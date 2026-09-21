@@ -33,6 +33,7 @@ jobs:
       chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
       desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
       authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
+      runling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
     steps:
       - name: Select affected products
@@ -56,12 +57,16 @@ jobs:
               - 'cli/go.{mod,sum}'
               - 'authling/**'
               - 'pkg/**'
+            runling:
+              - 'packages/runling/**'
+              - 'packages/chatto-client/**'
             docs:
               - 'apps/docs-website/**'
             desktop:
               - 'apps/desktop/**'
               - 'apps/frontend/**'
               - 'packages/**'
+              - '!packages/runling/**'
               - 'proto/**'
               - 'tools/test-desktop-*'
             # Files outside product roots and repository documentation run all products.
@@ -72,6 +77,20 @@ jobs:
               - '!tools/test-desktop-*'
               - '!{docs,.agents,.claude,.conductor}/**'
               - '!*.md'
+
+  test-runling:
+    needs: changes
+    if: ${{ needs.changes.outputs.runling == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+      - run: mise check-runling
+      - run: mise test-runling
+      - run: mise test-runling-package
 
   build-main-image-contexts:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

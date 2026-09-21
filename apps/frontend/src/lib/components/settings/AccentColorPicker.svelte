@@ -22,16 +22,17 @@ The owner applies and saves changes. Samples retain their own palette colours.
     <legend class="sr-only">{m('settings.preferences.accent.title')}</legend>
     {#each accentColors as color (color)}
       <label
-        class="group/accent flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg"
+        class="group/accent relative flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg"
         data-accent={color}
       >
+        <!-- Keep the native focus target inside its swatch when the page scrolls. -->
         <input
           type="radio"
           name={groupName}
           value={color}
           checked={value === color}
           onchange={() => onchange(color)}
-          class="peer sr-only"
+          class="peer sr-only top-1 start-1"
         />
         <span
           class={[
