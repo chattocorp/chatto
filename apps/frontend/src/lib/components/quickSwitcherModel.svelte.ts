@@ -4,28 +4,25 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { onDestroy, untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
 import {
   createMessageSearchAPI,
   MessageSearchOrder,
   type MessageSearchResult
 } from '$lib/api-client/messageSearch';
-import { startDMWith } from '$lib/dm/startDM';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
-import { buildDirectMessagePresentation } from '$lib/render/users';
+import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { isNavigationVisibleRoom } from '$lib/state/server/rooms.svelte';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-import { toast } from '$lib/ui/toast';
 import { scoreItem } from './quickSwitcherSearch';
 
 export type QuickSwitcherAvatarUser = Pick<
-  DirectoryMember,
+  UserAvatarUserView,
   'id' | 'login' | 'displayName' | 'deleted' | 'isBot' | 'presenceStatus'
 > & {
   avatarUrl?: string | null;
@@ -34,7 +31,7 @@ export type QuickSwitcherAvatarUser = Pick<
 type ServerLogo = { name: string; logoUrl?: string | null };
 
 export type QuickSwitcherItem = {
-  kind: 'room' | 'dm' | 'destination' | 'server' | 'user' | 'message';
+  kind: 'room' | 'dm' | 'destination' | 'server' | 'message';
   id: string;
   label: string;
   detail: string;
@@ -43,7 +40,8 @@ export type QuickSwitcherItem = {
   serverLogo?: ServerLogo;
   participants?: QuickSwitcherAvatarUser[];
   currentUserId?: string;
-  targetUserId?: string;
+  /** Participant names and logins used for matching without changing the row label. */
+  searchTerms?: string[];
   href?: string;
   icon?: string;
   message?: MessageSearchResult;
@@ -51,7 +49,6 @@ export type QuickSwitcherItem = {
 };
 
 const SEARCH_DEBOUNCE_MS = 200;
-const USER_SEARCH_SERVER_TIMEOUT_MS = 3_000;
 const MESSAGE_SEARCH_SERVER_TIMEOUT_MS = 3_000;
 
 class SearchChannel<T> {
@@ -105,8 +102,7 @@ export class QuickSwitcherModel {
   selectedIndex = $state(0);
 
   #allItems = $state.raw<QuickSwitcherItem[]>([]);
-  #userSearch = new SearchChannel<QuickSwitcherItem>();
-  #userSearchController: AbortController | undefined;
+  #catalogLoading = $state(false);
   #messageSearch = new SearchChannel<QuickSwitcherItem>();
   #messageSearchServerKey = '';
 
@@ -119,7 +115,6 @@ export class QuickSwitcherModel {
     server: m('quick_switcher.kind.server'),
     room: m('quick_switcher.kind.room'),
     dm: m('quick_switcher.kind.dm'),
-    user: m('quick_switcher.kind.user'),
     message: m('quick_switcher.kind.message')
   });
 
@@ -127,10 +122,6 @@ export class QuickSwitcherModel {
     const raw = this.query.trim();
     const recentUrls = recentQuickSwitcher.urls;
     const recentSet = new SvelteSet(recentUrls);
-    const searchableItems = [
-      ...this.#allItems.filter((item) => item.kind !== 'dm'),
-      ...this.#userSearch.items
-    ];
 
     if (raw.startsWith('?')) return this.#messageSearch.items;
 
@@ -149,8 +140,7 @@ export class QuickSwitcherModel {
         server: 1,
         room: 2,
         dm: 3,
-        user: 4,
-        message: 5
+        message: 4
       };
       rest.sort((a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.label.localeCompare(b.label));
       return [...recent, ...rest];
@@ -160,7 +150,7 @@ export class QuickSwitcherModel {
     const query = isChannelFilter ? raw.slice(1) : raw;
     const pool = isChannelFilter
       ? this.#allItems.filter((item) => item.kind === 'room')
-      : searchableItems;
+      : this.#allItems;
     if (isChannelFilter && !query) {
       return [...pool].sort((a, b) => a.label.localeCompare(b.label));
     }
@@ -179,37 +169,25 @@ export class QuickSwitcherModel {
   });
 
   get loading(): boolean {
-    return this.#userSearch.loading || this.#messageSearch.loading;
+    return this.query.trim().startsWith('?') ? this.#messageSearch.loading : this.#catalogLoading;
   }
 
   activate(): void {
     this.query = '';
     this.selectedIndex = 0;
     this.#allItems = [];
-    this.#userSearch.fence();
+    this.#catalogLoading = false;
     this.#messageSearch.fence();
   }
 
   deactivate(): void {
-    this.#userSearchController?.abort();
-    this.#userSearchController = undefined;
-    this.#userSearch.fence();
+    this.#catalogLoading = false;
     this.#messageSearch.fence();
   }
 
   setQuery(raw: string): void {
-    this.#userSearchController?.abort();
-    this.#userSearchController = undefined;
     this.query = raw;
     this.selectedIndex = 0;
-
-    const userQuery = raw.trim();
-    this.#userSearch.schedule(
-      quickSwitcher.visible && userQuery && !userQuery.startsWith('#') && !userQuery.startsWith('?')
-        ? userQuery
-        : null,
-      (query, requestId) => void this.#loadUserResults(query, requestId)
-    );
 
     this.#scheduleMessageSearch(raw);
   }
@@ -232,16 +210,6 @@ export class QuickSwitcherModel {
 
   async select(item: QuickSwitcherItem): Promise<void> {
     quickSwitcher.close();
-
-    if (item.kind === 'user') {
-      try {
-        if (!item.targetUserId) throw new Error('Missing DM target');
-        await startDMWith(item.serverId, item.targetUserId);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to start DM');
-      }
-      return;
-    }
 
     const url = this.#itemUrl(item);
     if (!url) return;
@@ -269,6 +237,7 @@ export class QuickSwitcherModel {
     void serverRegistry.servers;
     for (const instance of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(instance.id);
+      void store?.isAuthenticated;
       void store?.navigation.rooms;
       void store?.navigation.isInitialLoading;
     }
@@ -321,6 +290,10 @@ export class QuickSwitcherModel {
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
     const items: QuickSwitcherItem[] = [];
+    this.#catalogLoading = instances.some((instance) => {
+      const store = serverRegistry.tryGetStore(instance.id);
+      return store?.isAuthenticated && store.navigation.isInitialLoading;
+    });
 
     for (const instance of instances) {
       const store = serverRegistry.tryGetStore(instance.id);
@@ -358,6 +331,10 @@ export class QuickSwitcherModel {
             serverId: instance.id,
             serverName,
             participants: presentation.visibleParticipants,
+            searchTerms: presentation.visibleParticipants.flatMap((user) => [
+              user.displayName,
+              user.login
+            ]),
             currentUserId,
             score: 0
           });
@@ -389,76 +366,18 @@ export class QuickSwitcherModel {
       icon: 'icon-[uil--bell]',
       score: 0
     });
+    // Catalogue updates must not move keyboard selection to a different destination.
+    const selected = this.filtered[this.selectedIndex];
     this.#allItems = items;
-    this.selectedIndex = 0;
-  }
-
-  async #loadUserResults(search: string, requestId: number): Promise<void> {
-    const instances = [...serverRegistry.servers];
-    const multiInstance = instances.length > 1;
-    const controller = new AbortController();
-    this.#userSearchController = controller;
-    const resultsByServer: Record<string, QuickSwitcherItem[]> = {};
-
-    await Promise.allSettled(
-      instances.map(async (instance) => {
-        const store = serverRegistry.tryGetStore(instance.id);
-        if (!store?.permissions.canStartDMs) return;
-
-        const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
-        const signal = AbortSignal.any([
-          controller.signal,
-          AbortSignal.timeout(USER_SEARCH_SERVER_TIMEOUT_MS)
-        ]);
-        const result = await resolveOnAbort(
-          serverConnectionManager
-            .getClient(instance.id)
-            .getAPI(createMemberDirectoryAPI)
-            .listUsers(search, 20, 0, { signal }),
-          signal
-        );
-        if (!result || signal.aborted || !this.#userSearch.isCurrent(requestId)) return;
-        if (!serverRegistry.servers.some((server) => server.id === instance.id)) return;
-
-        const items: QuickSwitcherItem[] = [];
-        for (const member of result.members) {
-          const user = avatarUser(member);
-          items.push({
-            kind: 'user',
-            id: user.id,
-            label: user.displayName || user.login,
-            detail: [user.login ? `@${user.login}` : '', multiInstance ? serverName : '']
-              .filter(Boolean)
-              .join(' · '),
-            serverId: instance.id,
-            serverName,
-            participants: [user],
-            currentUserId: store.currentUser.user?.id ?? undefined,
-            targetUserId: user.id,
-            score: 0
-          });
-        }
-        const selected = this.filtered[this.selectedIndex];
-        resultsByServer[instance.id] = items;
-        this.#userSearch.replace(requestId, Object.values(resultsByServer).flat());
-        // Keep keyboard selection on the same result when another server changes the ranking.
-        const selectedIndex = selected
-          ? this.filtered.findIndex(
-              (item) =>
-                item.serverId === selected.serverId &&
-                item.kind === selected.kind &&
-                item.id === selected.id
-            )
-          : -1;
-        this.selectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-      })
-    );
-
-    if (this.#userSearch.isCurrent(requestId) && Object.keys(resultsByServer).length === 0) {
-      this.#userSearch.replace(requestId, []);
-    }
-    if (this.#userSearchController === controller) this.#userSearchController = undefined;
-    this.#userSearch.finish(requestId);
+    const selectedIndex = selected
+      ? this.filtered.findIndex(
+          (item) =>
+            item.serverId === selected.serverId &&
+            item.kind === selected.kind &&
+            item.id === selected.id
+        )
+      : -1;
+    this.selectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
   }
 
   async #loadMessageResults(search: string, requestId: number): Promise<void> {
@@ -580,16 +499,6 @@ function getHostname(url: string): string {
   } catch {
     return url;
   }
-}
-
-/** Finish even if a transport ignores cancellation; late responses cannot publish results. */
-function resolveOnAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | undefined> {
-  return new Promise((resolve, reject) => {
-    const abort = () => resolve(undefined);
-    signal.addEventListener('abort', abort, { once: true });
-    if (signal.aborted) abort();
-    void promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
-  });
 }
 
 function resolveWithin<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {

@@ -4,6 +4,8 @@ export type Searchable = {
   label: string;
   detail: string;
   serverName: string;
+  /** Additional identity fields, such as DM participant names and logins. */
+  searchTerms?: readonly string[];
 };
 
 const DETAIL_WEIGHT = 0.5;
@@ -13,8 +15,8 @@ const INSTANCE_WEIGHT = 0.4;
  * Score a Quick Switcher item against a multi-token query.
  *
  * Whitespace-separated tokens are matched independently; each token must
- * match at least one of `label`, `detail`, or `serverName` (best-of-three,
- * weighted). All tokens must match for the item to be a candidate, and the
+ * match the label, an identity field, detail, or server name. Identity fields
+ * have label weight. All tokens must match for the item to be a candidate, and the
  * total score is the sum of per-token best matches.
  *
  * Returns `null` when the query is empty or any token fails to match.
@@ -28,7 +30,11 @@ export function scoreItem(query: string, item: Searchable): number | null {
     const labelScore = fuzzyMatch(token, item.label) ?? 0;
     const detailScore = (fuzzyMatch(token, item.detail) ?? 0) * DETAIL_WEIGHT;
     const serverScore = (fuzzyMatch(token, item.serverName) ?? 0) * INSTANCE_WEIGHT;
-    const tokenBest = Math.max(labelScore, detailScore, serverScore);
+    const identityScore = Math.max(
+      0,
+      ...(item.searchTerms ?? []).map((term) => fuzzyMatch(token, term) ?? 0)
+    );
+    const tokenBest = Math.max(labelScore, identityScore, detailScore, serverScore);
     if (tokenBest === 0) return null;
     total += tokenBest;
   }
