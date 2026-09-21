@@ -12,8 +12,8 @@ describe('selectable locales', () => {
 
   it('lists every supported regional content locale explicitly', () => {
     expect(selectableLocales).toEqual([
-      'en-GB',
       'en-US',
+      'en-GB',
       'de-DE',
       'de-AT',
       'de-CH',
