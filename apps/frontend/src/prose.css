@@ -60,6 +60,11 @@
   }
 
   /* Lists */
+  & > ul,
+  & > ol {
+    margin-bottom: 0.75em;
+  }
+
   & ul,
   & ol {
     padding-inline-start: 1.5em;
