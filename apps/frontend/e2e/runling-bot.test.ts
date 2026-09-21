@@ -42,7 +42,7 @@ test.describe('Runling webhook bot', () => {
     await writeFile(
       testConfig,
       `
-      import { defineWebConfig, startWorkflow } from ${JSON.stringify(path.join(root, 'node_modules/runling/dist/src/runtime/web-config.js'))};
+      import { defineWebConfig, startWorkflow } from ${JSON.stringify(path.join(root, 'packages/runling/dist/src/runtime/web-config.js'))};
       import { createReplyWorkflow } from ${JSON.stringify(path.join(root, 'examples/runling-bot/reply.ts'))};
       export default defineWebConfig({ webhooks: { chatto: startWorkflow(
         createReplyWorkflow(undefined, undefined, async (_r, context) => {
@@ -58,7 +58,7 @@ test.describe('Runling webhook bot', () => {
     const bot = spawn(
       process.execPath,
       [
-        path.join(root, 'node_modules/runling/bin/runling.js'),
+        path.join(root, 'packages/runling/bin/runling.js'),
         'serve',
         '--config',
         testConfig,

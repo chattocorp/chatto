@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && pnpm check:bundle && pnpm check:csp",
+    "build": "svelte-kit sync && vite build && pnpm check:bundle && pnpm check:csp",
     "check:bundle": "node scripts/check-bundle-size.mjs",
     "check:csp": "node scripts/check-csp.mjs",
     "preview": "vite preview",
@@ -24,7 +24,7 @@
     "test": "pnpm run test:unit:run",
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "pnpm --filter @chatto/api-types build && pnpm --filter @chatto/lingua build && storybook build"
+    "build-storybook": "storybook build"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

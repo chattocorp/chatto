@@ -36,6 +36,14 @@ It keeps its own version and MIT license. The Chatto bot uses this local package
 Use `mise check-runling`, `mise test-runling`, and `mise test-runling-package`
 to verify it without running the complete Chatto test suite.
 
+Root pnpm scripts use Turborepo to build workspace dependencies before their
+consumers. Prefer `mise` tasks or root scripts such as `mise x -- pnpm run
+check:frontend`; a command inside a package only runs that package's script.
+Library builds use a local `.turbo/cache`; app builds and verification tasks
+run without Turbo caching. Remote caching and telemetry are disabled by the
+repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
+for the task and cache boundaries.
+
 Run the local Chatto backend and Vite frontend, Authling, Mailpit, and LiveKit:
 
 ```sh

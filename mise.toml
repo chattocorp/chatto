@@ -193,21 +193,17 @@ run = "pnpm build:ios"
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
 depends = ["setup-frontend"]
-dir = "packages/api-types"
-run = "pnpm build"
-sources = ["package.json", "tsconfig.json", "src/**/*"]
+run = "pnpm run build:api-types"
 
 [tasks.build-lingua]
 description = "Build the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
-dir = "packages/lingua"
-run = "pnpm build"
-sources = ["package.json", "tsconfig.json", "src/**/*"]
+run = "pnpm run build:lingua"
 
 [tasks.test-runling-bot]
 description = "Test the Runling webhook bot example"
-depends = ["build-runling"]
-run = "node --test examples/runling-bot/*.test.ts"
+depends = ["setup-frontend"]
+run = "pnpm turbo run test --filter=@chatto/runling-bot"
 
 [tasks.build-runling]
 description = "Build the Runling runtime and web console"
@@ -222,7 +218,7 @@ run = "pnpm run build:chatto-client"
 [tasks.test-chatto-client]
 description = "Check and test the Chatto integration client"
 depends = ["setup-frontend"]
-run = ["pnpm --filter @chatto/client check", "pnpm --filter @chatto/client test"]
+run = "pnpm turbo run check test --filter=@chatto/client"
 
 [tasks.check-runling]
 description = "Check Runling types and Svelte components"
@@ -241,11 +237,10 @@ run = "pnpm --filter runling test:package"
 
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend"]
 dir = "apps/frontend"
 run = [
-    "pnpm svelte-kit sync",
-    "pnpm build",
+    "pnpm --dir ../.. run build:frontend",
     "touch build/.mise-build-stamp",
     "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
 ]
@@ -254,8 +249,14 @@ sources = [
     "../../package.json",
     "../../pnpm-lock.yaml",
     "../../pnpm-workspace.yaml",
-    "../../packages/api-types/dist/**/*",
-    "../../packages/lingua/dist/**/*",
+    "../../turbo.json",
+    "../../mise.toml",
+    "../../packages/api-types/package.json",
+    "../../packages/api-types/tsconfig.json",
+    "../../packages/api-types/src/**/*",
+    "../../packages/lingua/package.json",
+    "../../packages/lingua/tsconfig.json",
+    "../../packages/lingua/src/**/*",
     "package.json",
     "messages/**/*",
     "scripts/check-bundle-size.mjs",
@@ -562,7 +563,7 @@ export CHATTO_RUNLING_API_KEY_FILE="$data_root/bootstrap/test_bot.key"
 cd examples/runling-bot
 exec portless \
   "runling.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$CHATTO_RUNLING_PORT" -- \
-  node "$project_dir/node_modules/runling/bin/runling.js" serve --host 127.0.0.1 --port "$CHATTO_RUNLING_PORT"
+  node "$project_dir/packages/runling/bin/runling.js" serve --host 127.0.0.1 --port "$CHATTO_RUNLING_PORT"
 '''
 
 [tasks.dev-stack-frontend]
@@ -715,14 +716,13 @@ sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.knip]
 description = "Find unused frontend/docs files, dependencies, and exports"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend"]
 run = "pnpm knip"
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
-dir = "apps/frontend"
-run = ["pnpm check", "pnpm lint"]
+depends = ["setup-frontend"]
+run = ["pnpm run check:frontend", "pnpm run lint:frontend"]
 
 [tasks.lint-cli]
 description = "Vet the Chatto CLI module"
@@ -757,8 +757,7 @@ run = ["GOWORK=off go vet ./...", "go vet ./..."]
 [tasks.lint-lingua]
 description = "Type-check the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
-dir = "packages/lingua"
-run = "pnpm check"
+run = "pnpm turbo run check --filter=@chatto/lingua"
 
 [tasks.lint]
 description = "Run linters"
@@ -766,15 +765,13 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
-dir = "apps/frontend"
-run = "pnpm test:unit:run"
+depends = ["setup-frontend"]
+run = "pnpm run test:frontend"
 
 [tasks.test-lingua]
 description = "Test the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
-dir = "packages/lingua"
-run = "pnpm test"
+run = "pnpm run test:lingua"
 
 [tasks.test-workspace]
 description = "Run all pnpm workspace package tests"
