@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
+import { connectPost, postMessageViaConnect } from './fixtures/connectHelpers';
 import { TIMEOUTS } from './constants';
 
 /**
@@ -87,10 +88,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     });
   });
 
-  test('surfaces users without an existing DM', async ({ page, chatPage, browser, serverURL }) => {
-    // Two users on the same deployment. createAndLoginTestUser auto-joins
-    // the bootstrap primary server, so A and B share a server — pre-fix,
-    // this is exactly what made B show up in QuickSwitcherSpaceMembersSearch.
+  test('searches existing DMs only after their first message', async ({ page, chatPage, browser, serverURL }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -103,14 +101,35 @@ test.describe('Quick Switcher (Cmd-K)', () => {
         timeout: TIMEOUTS.UI_STANDARD
       });
 
-      // userB.login is unique enough not to fuzzy-match any server, room, or
-      // destination label. With no DM open with userB, this proves Cmd-K is
-      // searching the server member directory rather than just existing DMs.
-      await input.fill(userB.login);
-
-      await expect(switcherResults(dialog).filter({ hasText: userB.login })).toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
+      const memberSearches: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().endsWith('/chatto.api.v1.UserService/ListUsers')) memberSearches.push(request.url());
       });
+      await input.fill(userB.login);
+      await expect(dialog.getByText('No results', { exact: true })).toBeVisible();
+
+      const dm = await connectPost<{ room?: { id?: string } }>(
+        page, 'chatto.api.v1.RoomService/StartDM', { participantIds: [userB.id] }
+      );
+      const roomId = dm.room?.id;
+      if (!roomId) throw new Error('DM fixture did not return a room');
+      await expect(dialog.getByText('No results', { exact: true })).toBeVisible();
+
+      const body = 'First message in quick finder conversation';
+      await postMessageViaConnect(page, roomId, body);
+      const result = switcherResults(dialog).filter({ hasText: userB.displayName });
+      await expect(result).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      const startedDMs: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().endsWith('/chatto.api.v1.RoomService/StartDM')) startedDMs.push(request.url());
+      });
+      await result.click();
+      await expect(page).toHaveURL(new RegExp(`/chat/-/${roomId}$`));
+      await expect(page.getByText(body, { exact: true })).toBeVisible();
+
+      expect(memberSearches).toEqual([]);
+      expect(startedDMs).toEqual([]);
     });
   });
 });
