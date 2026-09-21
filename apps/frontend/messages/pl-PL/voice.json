@@ -1,8 +1,6 @@
 {
   "voice": {
     "connection_lost": "Utracono połączenie",
-    "microphone_silence_explanation": "Sprawdź przełącznik wyciszenia mikrofonu lub wybierz inne wejście.",
-    "microphone_silent_hint": "Brak dźwięku z mikrofonu",
     "connecting": "Łączę...",
     "joining": "Dołączam...",
     "starting": "Rozpoczęcie...",

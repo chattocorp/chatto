@@ -291,16 +291,7 @@ export class VoiceCallState {
   /** Pre-gate level for the settings meter; zero while muted. */
   microphoneLevel = $state(0);
   microphoneGateUnavailable = $state(false);
-  private microphoneSilenceDetected = $state(false);
   private changingMicrophoneDevice = false;
-  /** Sustained near-silent raw input; hidden while muted or disconnected. */
-  microphoneSilent = $derived(this.connected && !this.isMuted && this.microphoneSilenceDetected);
-  private microphoneSilenceCandidate: { track: MediaStreamTrack; since: number } | null = null;
-
-  private clearMicrophoneSilence(): void {
-    this.microphoneSilenceCandidate = null;
-    this.microphoneSilenceDetected = false;
-  }
 
   /** The call owns this context; LiveKit uses its gain nodes for received audio. */
   private playbackContext: (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | null =
@@ -836,7 +827,6 @@ export class VoiceCallState {
     }
 
     this.isMuted = newMuted;
-    this.clearMicrophoneSilence();
 
     if (!newMuted) {
       await this.setupMicrophoneProcessor();
@@ -1192,7 +1182,6 @@ export class VoiceCallState {
   async setAudioDevice(deviceId: string): Promise<void> {
     const room = this.room;
     if (!room) return;
-    this.clearMicrophoneSilence();
     this.changingMicrophoneDevice = true;
 
     try {
@@ -1362,10 +1351,6 @@ export class VoiceCallState {
     });
 
     this.room.on(RoomEvent.LocalTrackUnpublished, () => {
-      const { Track } = getLoadedLiveKit();
-      if (!room.localParticipant.getTrackPublication(Track.Source.Microphone)) {
-        this.clearMicrophoneSilence();
-      }
       this.updateParticipants();
     });
 
@@ -1503,7 +1488,7 @@ export class VoiceCallState {
     if (this.preferences) this.microphoneProcessor?.setEffects(this.preferences.effects);
     if (this.microphoneProcessor)
       this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
-    this.updateMicrophoneSilence();
+    this.updateMicrophoneAudioLevels();
     const inputLevel = this.isMuted
       ? 0
       : this.microphoneAudioLevels.has('microphone')
@@ -1530,8 +1515,8 @@ export class VoiceCallState {
     }
   }
 
-  /** Monitor the capture before effects; SDK publication events and processing are optional. */
-  private updateMicrophoneSilence(): void {
+  /** Sample capture before Chatto effects for the settings meter and participant glow. */
+  private updateMicrophoneAudioLevels(): void {
     const { Track } = getLoadedLiveKit();
     const publication = this.room?.localParticipant.getTrackPublication(Track.Source.Microphone);
     // LocalTrack.mediaStream retains the original capture, unlike mediaStreamTrack,
@@ -1552,21 +1537,6 @@ export class VoiceCallState {
       canMeasure ? [['microphone', track]] : []
     );
     this.microphoneAudioLevels.sample();
-    // -70 dBFS tolerates a tiny noise floor. Ten seconds avoids short speech pauses.
-    if (
-      !canMeasure ||
-      !this.microphoneAudioLevels.has('microphone') ||
-      this.microphoneAudioLevels.get('microphone') > 0.000316
-    ) {
-      this.clearMicrophoneSilence();
-      return;
-    }
-    if (this.microphoneSilenceCandidate?.track !== track) {
-      this.clearMicrophoneSilence();
-      this.microphoneSilenceCandidate = { track, since: performance.now() };
-    }
-    this.microphoneSilenceDetected =
-      performance.now() - this.microphoneSilenceCandidate.since >= 10000;
   }
 
   /**
@@ -1597,7 +1567,6 @@ export class VoiceCallState {
     this.microphoneProcessor?.dispose();
     this.microphoneProcessor = null;
     this.microphoneLevel = 0;
-    this.clearMicrophoneSilence();
     this.microphoneGateUnavailable = false;
     const disconnectedRoomId = this.roomId;
     const disconnectedCallId = this.activeCallId;

@@ -558,16 +558,14 @@ describe('VoiceCallState', () => {
   );
 
   it.each([false, true])(
-    'monitors sustained raw silence without SDK events (processor failed: %s)',
+    'meters microphone capture before processing (processor failed: %s)',
     async (failed) => {
       processorConstructionFails = failed;
-      let input = 0.0001; // Tiny hardware noise must not suppress the hint.
+      let input = 0;
       const track = { enabled: true, readyState: 'live' } as MediaStreamTrack;
       const sync = vi.spyOn(TrackAudioLevels.prototype, 'sync').mockImplementation(() => {});
       const has = vi.spyOn(TrackAudioLevels.prototype, 'has').mockReturnValue(true);
       const level = vi.spyOn(TrackAudioLevels.prototype, 'get').mockImplementation(() => input);
-      let now = 100;
-      const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
       mockMicrophonePublication = {
         source: 'microphone',
         isMuted: false,
@@ -586,58 +584,42 @@ describe('VoiceCallState', () => {
         };
         await sample();
         expect(sync).toHaveBeenCalledWith(expect.anything(), [['microphone', track]]);
-        now += 3000;
-        await sample();
-        expect(state.microphoneSilent).toBe(false);
-        now += 7100;
-        await expect.poll(() => state.microphoneSilent).toBe(true);
-        input = 0.001; // Pre-gate audio clears even when below the configured speech threshold.
-        await expect.poll(() => state.microphoneSilent).toBe(false);
-        expect(state.getAudioLevel('local-user')).toEqual({ isSpeaking: true, audioLevel: 0.001 });
+        input = 0.001; // Capture activity remains visible below the configured gate threshold.
+        await expect.poll(() => state.getAudioLevel('local-user')).toEqual({
+          isSpeaking: true,
+          audioLevel: 0.001
+        });
         input = 0;
         await sample();
-        now += 10100;
-        await expect.poll(() => state.microphoneSilent).toBe(true);
+        expect(state.getAudioLevel('local-user')).toEqual({ isSpeaking: false, audioLevel: 0 });
+        input = 0.001;
         await state.toggleMute();
-        expect(state.microphoneSilent).toBe(false);
-        now += 20000;
-        expect(state.microphoneSilent).toBe(false);
-        await state.toggleMute();
-        expect(state.microphoneSilent).toBe(false);
         await sample();
-        now += 10100;
-        await expect.poll(() => state.microphoneSilent).toBe(true);
+        expect(state.getAudioLevel('local-user')).toEqual({ isSpeaking: false, audioLevel: 0 });
+        await state.toggleMute();
+        await expect.poll(() => state.getAudioLevel('local-user').audioLevel).toBe(0.001);
         await state.setAudioDevice('audio-input-2');
-        expect(state.microphoneSilent).toBe(false);
-        await sample();
-        now += 10100;
-        await expect.poll(() => state.microphoneSilent).toBe(true);
+        await expect.poll(() => state.getAudioLevel('local-user').audioLevel).toBe(0.001);
         has.mockReturnValue(false);
-        await expect.poll(() => state.microphoneSilent).toBe(false);
+        await expect.poll(() => state.getAudioLevel('local-user').audioLevel).toBe(0);
         await state.leave();
-        expect(state.microphoneSilent).toBe(false);
+        expect(state.microphoneLevel).toBe(0);
       } finally {
         await state.leave();
         level.mockRestore();
         sync.mockRestore();
         has.mockRestore();
         processorConstructionFails = false;
-        clock.mockRestore();
       }
     }
   );
 
-  it('does not diagnose silence when there is no microphone capture', async () => {
+  it('shows no microphone level when there is no capture', async () => {
     const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     try {
-      expect(state.microphoneSilent).toBe(false);
-      // An absent meter is not a silent microphone.
-      const clock = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 10000);
       state.microphoneLevel = 0.5;
       await expect.poll(() => state.microphoneLevel).toBe(0);
-      expect(state.microphoneSilent).toBe(false);
-      clock.mockRestore();
     } finally {
       await state.leave();
     }

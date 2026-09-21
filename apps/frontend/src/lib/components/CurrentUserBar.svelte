@@ -6,7 +6,6 @@ sidebar. Shows the avatar with presence and the live display name.
 -->
 <script lang="ts">
   import UserCard from '$lib/ui/UserCard.svelte';
-  import MicrophoneSilenceHint from './voice/MicrophoneSilenceHint.svelte';
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
   import FadeScale from '$lib/ui/FadeScale.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
@@ -337,7 +336,6 @@ sidebar. Shows the avatar with presence and the live display name.
             quality={voiceCallState.participants.find((p) => p.isLocal)?.connectionQuality}
           />
         {/if}
-        <MicrophoneSilenceHint />
         {#if privilegedMode?.available}
           <button
             type="button"

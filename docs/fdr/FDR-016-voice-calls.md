@@ -31,16 +31,10 @@ Rooms support real-time voice conversations with optional camera video and scree
   Sliders move in 5% steps and mark 100% as the original level.
   Boost needs Web Audio; if it is unavailable, playback is limited to 100%
   and the controls explain the limit. Saved boosted levels are retained.
-- A local microphone with raw input at or below -70 dBFS for ten seconds shows
-  a quiet warning action on both the current-user card and the local call
-  participant card. The meter is independent of optional voice processing and
-  SDK silence events. The action opens an explanation dialog with a preferences
-  shortcut and a Close button. The call toolbar's
-  gear opens Voice & video preferences. Pre-gate input activity,
-  intentional mute, an input-device change, and leaving the call clear the hint.
-  Short pauses and screen audio cannot trigger the microphone warning. A long
-  pause in a very quiet room can trigger it; this is a check-input hint, not a
-  diagnosis of a hardware fault. Missing meters do not count as silence.
+- Microphone activity appears as a glow on the participant card. Quiet input
+  does not show a warning because normal pauses do not indicate a microphone
+  fault. The call toolbar's gear opens Voice & video preferences for an input
+  level check and a microphone test.
 - Calls use the system output when the browser cannot select a Web Audio
   output device. If the browser blocks playback, **Enable call audio** resumes it.
 
