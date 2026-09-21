@@ -287,13 +287,6 @@
           </a>
         {/if}
         <MyThreadsNavItem active={isMyThreadsActive} />
-        <a
-          href={resolve(SERVER_SETTINGS_ROOT_ROUTE, { serverId: serverSegment })}
-          class="sidebar-item"
-        >
-          <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
-          {m('settings.nav.title')}
-        </a>
       </nav>
 
       <hr class="border-border" />
