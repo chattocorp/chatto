@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import {
     TimelineEventKind,
@@ -7,7 +8,8 @@
   import {
     createComposerContext,
     createRoomPermissions,
-    DEFAULT_ROOM_PERMISSIONS
+    DEFAULT_ROOM_PERMISSIONS,
+    type ComposerContext
   } from '$lib/state/room';
   import EventList from './EventList.svelte';
 
@@ -23,7 +25,8 @@
     updateCounter = 0,
     pendingHighlightId = null,
     hasReachedStart = false,
-    recoveryViewport = null
+    recoveryViewport = null,
+    onComposerReady
   }: {
     eventIds: string[];
     roomId?: string;
@@ -37,9 +40,11 @@
     pendingHighlightId?: string | null;
     hasReachedStart?: boolean;
     recoveryViewport?: { eventId: string; offset: number; hasNewer?: boolean } | null;
+    onComposerReady?: (context: ComposerContext) => void;
   } = $props();
 
-  createComposerContext({ scroll: true });
+  const composerContext = createComposerContext({ scroll: true });
+  onMount(() => onComposerReady?.(composerContext));
   createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
 
   const events = $derived(

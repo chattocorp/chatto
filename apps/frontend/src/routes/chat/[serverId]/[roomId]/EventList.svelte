@@ -322,6 +322,8 @@
         if (index >= 0) {
           viewport.beginJump();
           if (composerContext.jumpState) {
+            // Requests for the discarded window cannot release this flag.
+            composerContext.jumpState.isLoadingNewer = false;
             composerContext.jumpState.isJumpedMode = position.hasNewer ?? false;
             composerContext.jumpState.hasReachedEnd = !position.hasNewer;
           }
