@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Meklēt manos pavedienos",
+    "no_threads": "Nav atbilstošu pavedienu",
     "title": "Meklēt ziņas",
     "open": "Meklēt ziņas",
     "in_room": "Meklēt šajā telpā",

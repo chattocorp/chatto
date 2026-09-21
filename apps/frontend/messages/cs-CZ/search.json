@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Hledat v mých vláknech",
+    "no_threads": "Žádná odpovídající vlákna",
     "title": "Hledat zprávy",
     "open": "Hledat zprávy",
     "in_room": "Hledejte v této místnosti",

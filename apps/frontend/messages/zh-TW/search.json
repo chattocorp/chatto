@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "搜尋我的討論串",
+    "no_threads": "沒有符合的討論串",
     "title": "搜尋訊息",
     "open": "搜尋訊息",
     "in_room": "在此聊天室中搜尋",

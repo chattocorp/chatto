@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Cerca nelle mie discussioni",
+    "no_threads": "Nessuna discussione corrispondente",
     "title": "Cerca messaggi",
     "open": "Cerca messaggi",
     "in_room": "Cerca in questa stanza",

@@ -55,6 +55,10 @@ Current message-search availability.
 ### SearchMessages
 
 Searches current message bodies in rooms where the caller is a member.
+Scope and grouping are independent, including for direct messages. THREAD
+grouping returns one row per matching root and its replies. Scope, grouping,
+and ordering are part of the cursor scope. Unsupported combinations return
+INVALID_ARGUMENT. Existing requests return individual messages by default.
 Results also require message.read or a matching thread relationship with
 message.read-interactions. Results are authorized and hydrated from current Chatto state
 after provider matching. Returns FAILED_PRECONDITION when Search is
@@ -78,20 +82,25 @@ Request to search current message bodies visible to the authenticated user.
 | `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
 | `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
 | `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
-| `order` | [`MessageSearchOrder`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
-| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
+| `order` | [`MessageSearchOrder`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchOrder) | Unspecified defaults to relevance for messages, or thread activity for thread groups. Thread groups currently support only thread activity order. |
+| `page_size` | `uint32` | Maximum results to return (messages or distinct threads). Zero uses 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
 | `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
+| `scope` | [`MessageSearchScope`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchScope) | Candidate scope. Followed threads are selected before result pagination. |
+| `group_by` | [`MessageSearchGroupBy`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchGroupBy) | Result grouping. The server deduplicates threads before pagination. |
 
 
 <a id="chatto-api-v1-SearchMessagesResponse"></a>
 
 #### Result: SearchMessagesResponse
 
-One ordered page of current, authorized message results. Pagination reads a live
+One ordered page of current, authorized message or thread results. Pagination reads a live
 search index rather than a pinned snapshot, so results may move, repeat, or
 disappear between page requests while the index advances.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `results` | repeated [`MessageSearchResult`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
-| `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |
+| `results` | repeated [`MessageSearchResult`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchResult) | Matching messages when group_by is unspecified. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
+| `next_cursor` | `string` | Opaque cursor for the next page in the selected result mode. Empty means no more matches. Live activity can reorder thread pages. |
+| `thread_results` | repeated [`ThreadSearchResult`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadSearchResult) | Distinct thread rows when group_by is THREAD. Message results are empty in this mode; a matching reply does not imply that its root text matched. |
+| `thread_total_count` | `optional uint64` | Total distinct matching threads. Present only when group_by is THREAD. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render thread_results without per-row reads. |

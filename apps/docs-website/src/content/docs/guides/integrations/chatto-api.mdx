@@ -142,6 +142,43 @@ and makes Alice its owner. Release builds ignore the bootstrap configuration.
 | Manage roles or permissions    | `chatto.admin.v1` role and permission services                                  |
 | Inspect operational health     | `AdminDiagnosticsService`, metrics, and exporter                                |
 
+## Search Messages or Threads
+
+Use `MessageSearchService.SearchMessages` for both message search and My
+Threads search. Existing requests return individual messages, with relevance
+ordering by default. To return one row per followed thread, send:
+
+```json
+{
+  "query": "from:alice",
+  "scope": "MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS",
+  "groupBy": "MESSAGE_SEARCH_GROUP_BY_THREAD",
+  "order": "MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY",
+  "pageSize": 20
+}
+```
+
+This mode includes accessible direct-message threads. Read `threadResults`,
+`threadTotalCount`, and `includes`; the ordinary `results` array is empty.
+Pass `nextCursor` as `cursor` with the same query and options for the next page.
+Scope and grouping are independent. Omit `scope` to group all accessible
+threads, or omit `groupBy` to get individual matches within followed threads.
+Each thread result contains a `matchingMessage` and its `relevanceScore`, plus
+current thread and viewer state. A root with no replies is also a thread.
+
+Relevance is the default order and uses the highest-scoring matching message
+in each thread. `NEWEST` uses the newest matching message. `THREAD_ACTIVITY`
+uses the latest thread activity, even when that reply does not match, and
+requires thread grouping. Room, author, date, and attachment filters apply
+in every mode.
+Results are live, so restart pagination after activity or follow state changes.
+
+Existing message-search clients require no migration. Clients that use thread
+grouping require server version `0.5.0-beta.6` or newer. Check the version before
+sending these options: older servers can ignore unknown fields. See the
+[search API reference](/reference/connectrpc-api/message-search/) for fields and
+availability states.
+
 ## Message Body Tokens
 
 Message bodies are plain text with Chatto's supported Markdown subset: headings,

@@ -500,6 +500,10 @@ fill and border, with space around every option. `segmented-selection` uses quie
 shared shell lighting to lift the selected pill above its track. Buttons do
 not use `control-frame`.
 
+Page searches use the standard bordered input treatment. Use `TextInput` or
+the `bordered` appearance of `ChatSearchInput` when a clear action is needed.
+The composer surface remains specific to chat rails.
+
 Surfaces form a small semantic ladder:
 
 ### Surface Escalation Rule — Mandatory

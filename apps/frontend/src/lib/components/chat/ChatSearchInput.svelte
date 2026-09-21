@@ -3,6 +3,7 @@
 
 A compact search field for chat surfaces. It shares the message composer's
 height, radius, background, and spacing while keeping native form behaviour.
+Use the bordered appearance for page searches, matching standard form inputs.
 -->
 <script lang="ts">
   import type { Attachment } from 'svelte/attachments';
@@ -16,6 +17,7 @@ height, radius, background, and spacing while keeping native form behaviour.
     value = $bindable(''),
     disabled = false,
     focusOnMount = false,
+    appearance = 'chat',
     clearLabel,
     oninput,
     onsubmit,
@@ -28,6 +30,8 @@ height, radius, background, and spacing while keeping native form behaviour.
     value?: string;
     disabled?: boolean;
     focusOnMount?: boolean;
+    /** Page searches use the standard bordered input; chat rails use the shell surface. */
+    appearance?: 'chat' | 'bordered';
     clearLabel?: string;
     oninput?: (event: Event) => void;
     onsubmit?: () => void;
@@ -62,7 +66,10 @@ height, radius, background, and spacing while keeping native form behaviour.
 
 <form
   class={[
-    'relative flex h-12 min-w-0 items-center gap-1 chat-input-surface px-2.5 py-1.5 transition-opacity duration-100',
+    'relative flex min-w-0 items-center gap-1 px-2.5 transition-opacity duration-100',
+    appearance === 'bordered'
+      ? 'h-10 control-frame bg-input focus-within:border-action'
+      : 'h-12 chat-input-surface py-1.5',
     disabled && 'opacity-50'
   ]}
   onsubmit={submit}

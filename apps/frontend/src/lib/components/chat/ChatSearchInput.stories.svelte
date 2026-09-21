@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'Search input for fixed chat action rails. It shares the message composer surface and height.'
+            'Search input with a chat-rail surface and a standard bordered appearance for page searches.'
         }
       }
     }
@@ -22,6 +22,7 @@
   let populatedValue = $state('roadmap');
   let narrowValue = $state('');
   let disabledValue = $state('Search is unavailable');
+  let pageValue = $state('from:alice');
 </script>
 
 <Story name="Empty" asChild>
@@ -30,6 +31,18 @@
       label="Search messages"
       placeholder="Words, phrases, or filters..."
       bind:value={emptyValue}
+    />
+  </div>
+</Story>
+
+<Story name="Bordered page search" asChild>
+  <div class="w-96 max-w-full bg-background p-2">
+    <ChatSearchInput
+      appearance="bordered"
+      label="Search my threads"
+      placeholder="Words, phrases, or filters..."
+      clearLabel="Clear search"
+      bind:value={pageValue}
     />
   </div>
 </Story>

@@ -169,12 +169,13 @@ generation, and user key shredding event families, and uses projector key
 During captured startup replay it commits up to 256 ordered events and the
 final checkpoint in one Bleve transaction, including a smaller final batch;
 once current, each relevant live event is committed immediately.
-Its checkpoint contract starts with `bleve-message-index-v10-` and includes a
+Its checkpoint contract starts with `bleve-message-index-v11-` and includes a
 stable fingerprint of the configured language analyzer set, so changing that
 set forces a cold EVT replay.
 
 The index stores current decrypted message text plus its body-event revision and
-message/room/author/filter metadata. The state needed to apply a later edit or
+message/room/author/filter metadata. Each message also indexes its thread root
+ID; a root uses its own message ID. The state needed to apply a later edit or
 posting event is a stored, non-indexed field in that same Bleve document; it is
 not duplicated as one internal Bolt key per message. Candidate revisions must
 match current core state before hydration, fencing provider catch-up races.
@@ -192,10 +193,15 @@ manual `ForceMerge` operation as part of projection correctness or startup
 readiness.
 
 The directory is a privileged, disposable local cache excluded from Chatto
-backups. Chatto creates it only when the configured path does not exist and
-never recursively deletes an unreadable or incompatible disk index. Those
-conditions fail provider startup; an operator must move or delete the dedicated
-directory explicitly before restarting it for a cold EVT replay.
+backups. A recognized Chatto checkpoint contract change for the same EVT
+incarnation triggers automatic index replacement and cold replay. Unknown
+contracts, corrupt checkpoints, invalid replay bounds, and unrelated directory
+entries fail startup with an operator recovery link. The provider holds an
+OS-backed Bolt lock in `.chatto-search.lock` across open, replacement, and close.
+It syncs a `.chatto-search-rebuild` intent marker before deleting only Bleve's
+`index_meta.json` and `store` entries. The next startup retries interrupted
+replacement before opening the index. The configured directory and mount stay
+in place. Unreadable indexes without a rebuild marker are never deleted.
 
 ## Snapshot support
 
@@ -414,6 +420,6 @@ is omitted for the affected echo; storage errors still fail the read. Historical
 echo metadata is never used as a fallback. Projections do not retain decrypted
 content.
 
-The Bleve search checkpoint contract is `bleve-message-index-v10`. Echo posts
+The Bleve search checkpoint contract is `bleve-message-index-v11`. Echo posts
 are not searchable contributions. Historical echo bodies cannot replace the
 original search document or create a second result.

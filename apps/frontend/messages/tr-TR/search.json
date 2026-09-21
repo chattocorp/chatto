@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Konularımda ara",
+    "no_threads": "Eşleşen konu yok",
     "title": "Mesajlarda ara",
     "open": "Mesajlarda ara",
     "in_room": "Bu odada ara",

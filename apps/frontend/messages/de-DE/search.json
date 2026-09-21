@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Deine Threads durchsuchen",
+    "no_threads": "Keine passenden Threads",
     "title": "Nachrichten durchsuchen",
     "open": "Nachrichten durchsuchen",
     "in_room": "In diesem Raum suchen",

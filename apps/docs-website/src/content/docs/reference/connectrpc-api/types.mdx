@@ -1047,6 +1047,23 @@ One current, authorized message search result.
 | `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
 | `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
 
+<a id="chatto-api-v1-ThreadSearchResult"></a>
+
+### ThreadSearchResult
+
+A thread with search evidence. Unlike a followed-thread feed row, this result
+can be unfollowed and identifies the current message that matched the query.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when still visible. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing this thread. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Current thread metadata and viewer follow/read state. |
+| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when present; it need not match the query. |
+| `direct_message_participant_user_ids` | `repeated string` | Conversation-label participants for direct messages; empty for channels. |
+| `matching_message` | [`Message`](#chatto-api-v1-Message) | Best current match in the selected order. Activity order uses the newest match. |
+| `relevance_score` | `double` | Relevance score of matching_message. |
+
 <a id="chatto-api-v1-MessageAttachmentDescriptionInput"></a>
 
 ### MessageAttachmentDescriptionInput
@@ -2028,17 +2045,40 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
 
+<a id="chatto-api-v1-MessageSearchGroupBy"></a>
+
+### MessageSearchGroupBy
+
+Determines the result type and pagination unit.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_GROUP_BY_UNSPECIFIED` | `0` | Return individual matching messages. |
+| `MESSAGE_SEARCH_GROUP_BY_THREAD` | `1` | Return distinct thread rows. A root without replies is also a thread. |
+
 <a id="chatto-api-v1-MessageSearchOrder"></a>
 
 ### MessageSearchOrder
 
-Ordering for message-search results.
+Ordering for message or grouped-thread search results.
 
 | Name | Number | Description |
 | --- | --- | --- |
 | `MESSAGE_SEARCH_ORDER_UNSPECIFIED` | `0` | Use relevance order. |
-| `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Return the most relevant messages first. |
-| `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Return the most recently created messages first. |
+| `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Highest message score first; grouped results use their best matching message. |
+| `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Newest matching message first, also when results are grouped. |
+| `MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY` | `3` | Return threads with the most recent activity first. Requires thread grouping. |
+
+<a id="chatto-api-v1-MessageSearchScope"></a>
+
+### MessageSearchScope
+
+Candidate scope, intersected with the caller's current access and query filters.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_SCOPE_UNSPECIFIED` | `0` | Search all accessible messages. This is the existing default. |
+| `MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS` | `1` | Search roots and replies in followed threads, including direct messages. |
 
 <a id="chatto-api-v1-MessageSearchState"></a>
 

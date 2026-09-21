@@ -2328,6 +2328,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const edited = message.clone();
     edited.body = 'edited';
     edited.attachments = [];
+    cacheMocks.refreshFollowedThreads.mockClear();
     apiMocks.readMessages.mockResolvedValue([resource(edited)]);
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
       cursor: 'edit', event: new RealtimeEvent({ event: {
@@ -2337,6 +2338,7 @@ describe('ServerStateStore unified realtime resources', () => {
     await store.waitForRealtimeReconciliation();
     expect(files.items).toEqual([]);
     expect(pins.items[0].message?.body).toBe('edited');
+    expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledOnce();
     expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
     expect(apiMocks.listPins).toHaveBeenCalledOnce();
   });

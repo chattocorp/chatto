@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Szukaj w moich wątkach",
+    "no_threads": "Brak pasujących wątków",
     "title": "Szukaj wiadomości",
     "open": "Szukaj wiadomości",
     "in_room": "Szukaj w tym pokoju",

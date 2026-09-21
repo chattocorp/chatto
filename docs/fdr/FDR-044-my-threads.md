@@ -1,7 +1,7 @@
 # FDR-044: My Threads
 
 **Status:** Active
-**Last reviewed:** 2026-09-04
+**Last reviewed:** 2026-09-21
 
 ## Overview
 
@@ -19,6 +19,13 @@ find replies that they have not read.
   does not show a `#` channel prefix.
 - The Unread filter includes only threads with replies after the user's thread
   read cursor.
+- When server search is enabled, a search input filters followed threads by
+  their root messages and all replies, including replies outside the current
+  list preview. Each matching thread appears once in activity order.
+- Search uses the message-search syntax, including `from:username`. Plain words
+  search message text. All/Unread still applies to
+  the matching threads. Clearing the input restores the ordinary list.
+- The search input receives focus when My Threads opens.
 - A row with a matching unread notification uses notification orange for
   Important attention and a neutral marker for Ambient attention. The client
   reads this decoration from its current Notifications view.
@@ -66,7 +73,9 @@ sections distinguish this newest-first activity list from a room timeline,
 where newer messages appear at the bottom.
 **Tradeoff:** My Threads and room timelines use different reading directions.
 The list response must also hydrate more message and user data. API clients
-must restart offset pagination after activity changes the live order.
+must restart pagination after activity changes the live order. The ordinary
+list uses offsets. Search uses opaque cursors through the shared search API;
+each search page counts distinct threads.
 
 ### 4. The navigation indicator covers followed threads
 
@@ -89,6 +98,10 @@ second unread model that this feature removes.
 persisted follow, read, and notification data still upgrades without changes.
 
 ## Permissions
+
+Search requires the optional message-search provider. If the provider is not
+ready, the page shows its status and a retry control. The ordinary thread list
+remains available after the search input is cleared.
 
 - `message.read` — read room and thread messages.
 - `message.read-interactions` — read an accessible interaction thread when the

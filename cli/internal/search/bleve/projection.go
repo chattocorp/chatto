@@ -17,6 +17,7 @@ import (
 	blevesearch "github.com/blevesearch/bleve/v2"
 	bleveindex "github.com/blevesearch/bleve_index_api"
 	"github.com/charmbracelet/log"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/dekstore"
@@ -28,7 +29,7 @@ import (
 )
 
 const (
-	checkpointContractBaseID = "bleve-message-index-v10"
+	checkpointContractBaseID = "bleve-message-index-v11"
 	checkpointInternalKey    = "chatto/search/checkpoint"
 	dekInternalKey           = "chatto/search/deks"
 	startupReplayBatchSize   = 256
@@ -44,8 +45,10 @@ type checkpointRecord struct {
 }
 
 type messageDocument struct {
-	MessageID      string    `json:"message_id"`
-	RoomID         string    `json:"room_id"`
+	MessageID string `json:"message_id"`
+	RoomID    string `json:"room_id"`
+	// ThreadRootID is the root's own ID for roots, and the parent root for replies.
+	ThreadRootID   string    `json:"thread_root_id"`
 	AuthorID       string    `json:"author_id"`
 	Body           string    `json:"body"`
 	BodyEventID    string    `json:"body_event_id"`
@@ -91,17 +94,19 @@ func (b *projectionBatch) makeDEKsMutable() {
 // Projection materializes searchable plaintext into a disposable local Bleve
 // index. Bleve batch commits bind every mutation to its EVT cutoff.
 type Projection struct {
-	mu         sync.RWMutex
-	directory  string
-	index      blevesearch.Index
-	logger     *log.Logger
-	keyWrapper kms.KeyWrapper
-	legacyKeys kms.LegacyKeyProvider
-	dekStore   dekstore.Reader
-	deks       map[string]*evtv1.UserDEKGeneratedEvent
-	checkpoint checkpointRecord
-	languages  []languageAnalyzer
-	contractID string
+	mu        sync.RWMutex
+	directory string
+	index     blevesearch.Index
+	// directoryLock survives index replacement and excludes another provider.
+	directoryLock *bolt.DB
+	logger        *log.Logger
+	keyWrapper    kms.KeyWrapper
+	legacyKeys    kms.LegacyKeyProvider
+	dekStore      dekstore.Reader
+	deks          map[string]*evtv1.UserDEKGeneratedEvent
+	checkpoint    checkpointRecord
+	languages     []languageAnalyzer
+	contractID    string
 	// commitBatch is an optional test seam; production commits through index.Batch.
 	commitBatch func(*blevesearch.Batch) error
 }
@@ -129,8 +134,18 @@ func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyW
 		languages:  languages,
 		contractID: languageCheckpointContractID(languages),
 	}
-	if err := p.open(); err != nil {
+	if err := p.lockDirectory(); err != nil {
 		return nil, err
+	}
+	if err := p.resumeIndexRebuild(); err != nil {
+		_ = p.Close()
+		return nil, err
+	}
+	if p.index == nil {
+		if err := p.open(); err != nil {
+			_ = p.Close()
+			return nil, err
+		}
 	}
 	return p, nil
 }
@@ -297,6 +312,10 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *evtv1.Event, seq 
 		if seq > state.PostedSequence {
 			state.MessageID = event.GetId()
 			state.RoomID = posted.GetRoomId()
+			state.ThreadRootID = posted.GetInThread()
+			if state.ThreadRootID == "" {
+				state.ThreadRootID = event.GetId()
+			}
 			state.AuthorID = event.GetActorId()
 			// Echoes are timeline references, not separate searchable contributions.
 			state.Visible = posted.GetEchoOfEventId() == ""
@@ -381,9 +400,28 @@ func (p *Projection) RestoreCheckpoint(_ context.Context, request events.Project
 	return events.ProjectionCheckpoint{CutoffSequence: record.CutoffSequence}, nil
 }
 
-func (p *Projection) ResetCheckpoint(_ context.Context, request events.ProjectionCheckpointRequest) error {
+func (p *Projection) ResetCheckpoint(ctx context.Context, request events.ProjectionCheckpointRequest) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	data, err := p.index.GetInternal([]byte(checkpointInternalKey))
+	if err != nil {
+		return err
+	}
+	var record checkpointRecord
+	if json.Unmarshal(data, &record) == nil &&
+		record.ProjectionKey == "message_search" && record.ProjectionKey == request.ProjectionKey &&
+		record.StreamName == request.StreamName && record.StreamIdentity == request.StreamIdentity &&
+		record.StreamIdentity != "" && record.ContractID != request.ContractID &&
+		request.ContractID == p.contractID && knownIndexContract(record.ContractID) &&
+		(record.CutoffSequence == 0 || request.FirstSequence <= record.CutoffSequence+1) &&
+		record.CutoffSequence <= request.LastSequence {
+		return p.rebuildIndex(request)
+	}
 	return fmt.Errorf(
-		"search index %q is incompatible with projection %q; stop the provider, move or delete that directory, and restart to rebuild it",
+		"search index %q is incompatible with projection %q; a full reindex is required: stop every process using this index (chatto run for a bundled provider), move or delete that directory only, then restart; do not remove the NATS data directory; instructions: https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index",
 		p.directory,
 		request.ProjectionKey,
 	)
@@ -392,11 +430,15 @@ func (p *Projection) ResetCheckpoint(_ context.Context, request events.Projectio
 func (p *Projection) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.index == nil {
-		return nil
+	var err error
+	if p.index != nil {
+		err = p.index.Close()
+		p.index = nil
 	}
-	err := p.index.Close()
-	p.index = nil
+	if p.directoryLock != nil {
+		err = errors.Join(err, p.directoryLock.Close())
+		p.directoryLock = nil
+	}
 	return err
 }
 
@@ -419,11 +461,11 @@ func (p *Projection) open() error {
 		if readErr != nil {
 			return fmt.Errorf("inspect search index directory %q: %w", p.directory, readErr)
 		}
-		create = len(entries) == 0
+		create = len(entries) == 1 && entries[0].Name() == directoryLockName
 	}
 	if !create {
 		return fmt.Errorf(
-			"open search index %q: %w; Chatto will not modify an unreadable index, so move or delete that directory explicitly before restarting the provider",
+			"open search index %q: %w; Chatto will not modify an unreadable index; stop every process using this index, then follow https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index to move or delete that directory and rebuild",
 			p.directory,
 			err,
 		)

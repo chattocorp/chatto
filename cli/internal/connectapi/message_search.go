@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,21 +76,33 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if scope.NoMatches || len(scope.RoomIDs) == 0 {
-		return connect.NewResponse(&apiv1.SearchMessagesResponse{}), nil
-	}
-
 	providerRequest, err := providerSearchRequest(req.Msg, parsed, scope)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	providerRequest.Cursor = providerCursor
+	followedOnly := req.Msg.GetScope() == apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS
+	if followedOnly {
+		providerRequest.ThreadRootIds = s.api.core.MessageSearchReads().FollowedSearchRoots(scope, caller.UserID)
+		if len(providerRequest.ThreadRootIds) == 0 {
+			scope.NoMatches = true
+		}
+	}
+	if req.Msg.GetGroupBy() == apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD {
+		return s.searchThreadGroups(ctx, caller.UserID, req.Msg, scope, providerRequest, providerCursor)
+	}
+	if scope.NoMatches || len(scope.RoomIDs) == 0 {
+		return connect.NewResponse(&apiv1.SearchMessagesResponse{}), nil
+	}
 	if err := searchsvc.ValidateQueryRequest(providerRequest); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	providerResponse, err := s.api.searchProvider.Query(ctx, providerRequest)
 	if err != nil {
 		return nil, messageSearchProviderError(err)
+	}
+	if followedOnly && !providerResponse.GetThreadScopeApplied() {
+		return nil, messageSearchProviderError(searchsvc.ErrUnavailable)
 	}
 
 	hits := make([]core.MessageSearchHit, 0, len(providerResponse.GetHits()))
@@ -107,7 +120,13 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	messages, err := s.api.hydrateMessageSearchResults(ctx, caller.UserID, current)
+	if followedOnly {
+		current, err = s.api.core.MessageSearchReads().FilterFollowedSearchResults(ctx, caller.UserID, current)
+		if err != nil {
+			return nil, connectError(err)
+		}
+	}
+	messages, err := s.api.hydrateMessageSearchResults(ctx, caller.UserID, current, nil)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -123,6 +142,13 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 }
 
 func providerSearchRequest(request *apiv1.SearchMessagesRequest, parsed searchsvc.ParsedQuery, scope *core.MessageSearchScope) (*searchv1.QueryRequest, error) {
+	threadGroups := request.GetGroupBy() == apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD
+	if request.GetScope() != apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_UNSPECIFIED && request.GetScope() != apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS {
+		return nil, fmt.Errorf("unsupported search scope")
+	}
+	if request.GetGroupBy() != apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_UNSPECIFIED && !threadGroups {
+		return nil, fmt.Errorf("unsupported search grouping")
+	}
 	if request.GetPageSize() > 100 {
 		return nil, fmt.Errorf("page_size must not exceed 100")
 	}
@@ -150,6 +176,11 @@ func providerSearchRequest(request *apiv1.SearchMessagesRequest, parsed searchsv
 	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_UNSPECIFIED, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_RELEVANCE:
 	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST:
 		order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
+	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY:
+		if !threadGroups {
+			return nil, fmt.Errorf("thread activity order requires thread grouping")
+		}
+		order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
 	default:
 		return nil, fmt.Errorf("unsupported message search order")
 	}
@@ -169,6 +200,73 @@ func providerSearchRequest(request *apiv1.SearchMessagesRequest, parsed searchsv
 		provider.CreatedBefore = timestamppb.New(*createdBefore)
 	}
 	return provider, nil
+}
+
+// searchThreadGroups uses the same filters and sealed cursor envelope as message
+// search. Its cursor carries a distinct-thread offset, never a provider cursor.
+func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID string, request *apiv1.SearchMessagesRequest, scope *core.MessageSearchScope, normalized *searchv1.QueryRequest, cursor []byte) (*connect.Response[apiv1.SearchMessagesResponse], error) {
+	offset := 0
+	if len(cursor) > 0 {
+		value, ok := strings.CutPrefix(string(cursor), "threads:v1:")
+		var err error
+		offset, err = strconv.Atoi(value)
+		if !ok || err != nil || offset < 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid thread search cursor"))
+		}
+	}
+	page, err := s.api.core.MessageSearchReads().SearchThreadGroups(ctx, viewerID, int(normalized.PageSize), offset, scope, normalized,
+		request.GetScope() == apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS,
+		request.GetOrder() == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY, s.api.searchProvider.Query)
+	if err != nil {
+		var providerError *searchsvc.ServiceError
+		if errors.Is(err, searchsvc.ErrUnavailable) || errors.Is(err, searchsvc.ErrProviderNotReady) || errors.Is(err, searchsvc.ErrInvalidResponse) || errors.As(err, &providerError) {
+			return nil, messageSearchProviderError(err)
+		}
+		return nil, connectError(err)
+	}
+	displayPage := &core.FollowedThreadsPage{TotalCount: page.TotalCount, HasMore: page.HasMore}
+	matches := make([]core.MessageSearchResult, 0, len(page.Threads))
+	byRoot := make(map[string]core.ThreadSearchResult, len(page.Threads))
+	for _, result := range page.Threads {
+		displayPage.Threads = append(displayPage.Threads, result.Metadata)
+		matches = append(matches, result.Match)
+		byRoot[result.Metadata.ThreadRootEventID] = result
+	}
+	rows, err := followedThreadsResponse(ctx, s.api, viewerID, displayPage)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	evidence, err := s.api.hydrateMessageSearchResults(ctx, viewerID, matches, rows.Includes)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	byMessage := make(map[string]*apiv1.MessageSearchResult, len(evidence))
+	for _, match := range evidence {
+		byMessage[match.Message.Id] = match
+	}
+	response := &apiv1.SearchMessagesResponse{
+		Includes: rows.Includes, ThreadTotalCount: proto.Uint64(uint64(page.TotalCount)),
+	}
+	for _, row := range rows.Threads {
+		result := byRoot[row.Thread.ThreadRootEventId]
+		match := byMessage[result.Match.Event.GetId()]
+		if match == nil {
+			continue
+		}
+		row.Thread.ViewerState = apiThreadViewerState(result.Following, result.Metadata.HasUnreadReplies)
+		response.ThreadResults = append(response.ThreadResults, &apiv1.ThreadSearchResult{
+			RootMessage: row.RootMessage, Room: row.Room, Thread: row.Thread, LatestReply: row.LatestReply,
+			DirectMessageParticipantUserIds: row.DirectMessageParticipantUserIds,
+			MatchingMessage:                 match.Message, RelevanceScore: match.RelevanceScore,
+		})
+	}
+	if page.HasMore {
+		response.NextCursor, err = s.api.sealMessageSearchCursor(viewerID, request, []byte("threads:v1:"+strconv.Itoa(offset+len(page.Threads))))
+		if err != nil {
+			return nil, connectInternalError(err)
+		}
+	}
+	return connect.NewResponse(response), nil
 }
 
 func publicMessageSearchStatus(status *searchv1.GetStatusResponse) *apiv1.GetStatusResponse {
@@ -203,7 +301,7 @@ func messageSearchProviderError(err error) error {
 	return connectInternalError(fmt.Errorf("query message search provider: %w", err))
 }
 
-func (a *API) hydrateMessageSearchResults(ctx context.Context, viewerID string, results []core.MessageSearchResult) ([]*apiv1.MessageSearchResult, error) {
+func (a *API) hydrateMessageSearchResults(ctx context.Context, viewerID string, results []core.MessageSearchResult, includes *apiv1.RoomTimelineIncludes) ([]*apiv1.MessageSearchResult, error) {
 	byKind := make(map[core.RoomKind][]*core.RoomEvent)
 	for _, result := range results {
 		if result.Event != nil {
@@ -212,9 +310,21 @@ func (a *API) hydrateMessageSearchResults(ctx context.Context, viewerID string, 
 	}
 	hydrated := make(map[string]*apiv1.Message, len(results))
 	for kind, events := range byKind {
-		apiEvents, _, err := newRoomTimelineAssembler(a).hydrateEvents(ctx, viewerID, kind, events)
+		apiEvents, hydrator, err := newRoomTimelineAssembler(a).hydrateEvents(ctx, viewerID, kind, events)
 		if err != nil {
 			return nil, err
+		}
+		if includes != nil {
+			users, err := hydrator.users()
+			if err != nil {
+				return nil, err
+			}
+			if includes.Users == nil {
+				includes.Users = make(map[string]*apiv1.User)
+			}
+			for id, user := range users {
+				includes.Users[id] = user
+			}
 		}
 		for _, event := range apiEvents {
 			if message := messageFromTimelineEvent(event); message != nil {

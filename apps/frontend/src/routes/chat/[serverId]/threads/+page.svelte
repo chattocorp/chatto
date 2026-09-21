@@ -1,5 +1,9 @@
 <script lang="ts">
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
+  import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
+  import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
+  import { MessageSearchState } from '$lib/api-client/messageSearch';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { formatAccountName } from '$lib/render/accountName';
   import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { goto, replaceState } from '$app/navigation';
@@ -50,27 +54,77 @@
   const PAGE_SIZE = 20;
 
   let actionThreadId = $state<string | null>(null);
+  const debounce = useDebounce();
+  // Tag transient input with the connection so switching servers or sessions
+  // cannot submit a query from the previous viewer.
+  let searchInput = $state({ scope: '', raw: '', submitted: '' });
+  const inputScope = $derived(`${serverScope.serverId}:${serverScope.connection.queryScope}`);
+  const rawQuery = $derived(searchInput.scope === inputScope ? searchInput.raw : '');
+  const searchStatus = $derived(serverStore.messageSearch);
+  const supportsSearch = $derived(serverStore.serverInfo.supportsFeature('followedThreadSearch'));
+  const searchEnabled = $derived(
+    supportsSearch && (searchStatus.statusError ||
+      (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED))
+  );
+  const searchQuery = $derived(
+    searchEnabled && searchInput.scope === inputScope ? searchInput.submitted : ''
+  );
+  const waitingForSearch = $derived(searchEnabled && rawQuery.trim() !== searchQuery);
+
+  $effect(() => {
+    if (supportsSearch) void searchStatus.ensureStatus();
+  });
+
+  function scheduleSearch(raw: string): void {
+    const scope = inputScope;
+    searchInput = { scope, raw, submitted: searchQuery };
+    debounce.cancel();
+    if (!raw.trim()) {
+      searchInput.submitted = '';
+      return;
+    }
+    debounce.run(() => {
+      if (inputScope === scope) searchInput.submitted = raw.trim();
+    }, 300);
+  }
+
+  function submitSearch(): void {
+    debounce.cancel();
+    const unchanged = searchQuery === rawQuery.trim();
+    searchInput = { scope: inputScope, raw: rawQuery, submitted: rawQuery.trim() };
+    if (unchanged && searchStatus.available) void threadsQuery.refetch();
+  }
 
   const threadsQuery = createInfiniteQuery(
     () => {
       const serverId = serverScope.serverId;
       const connection = serverScope.connection;
+      const query = searchQuery;
       return {
-        queryKey: threadQueryKeys.followed(serverId, connection),
+        queryKey: threadQueryKeys.followed(serverId, connection, query),
+        enabled: !query || searchStatus.available,
         queryFn: async ({ pageParam, signal }) => {
           const result = await connection
             .getAPI(createThreadAPI)
-            .listFollowedThreads({ limit: PAGE_SIZE, offset: pageParam }, { signal });
+            .listFollowedThreads({
+              limit: PAGE_SIZE,
+              offset: typeof pageParam === 'number' ? pageParam : 0,
+              cursor: typeof pageParam === 'string' ? pageParam : undefined,
+              query
+            }, { signal });
           const pageData = {
             ...result,
-            nextOffset: pageParam + result.threads.length
+            nextOffset: (typeof pageParam === 'number' ? pageParam : 0) + result.threads.length
           };
           if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
           return pageData;
         },
-        initialPageParam: 0,
+        initialPageParam: query ? '' : 0,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined
+          query
+            ? lastPage.nextCursor || undefined
+            : lastPage.hasMore && typeof lastPageParam === 'number' && lastPage.nextOffset > lastPageParam
+              ? lastPage.nextOffset : undefined
       };
     },
     () => queryClient
@@ -145,7 +199,7 @@
         upToEventId
       });
       const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
-      queryClient.setQueryData<FollowedThreadsData>(queryKey, (current) =>
+      queryClient.setQueriesData<FollowedThreadsData>({ queryKey }, (current) =>
         updateFollowedThreadSummary(current, {
           roomId: thread.roomId,
           threadRootEventId: thread.threadRootEventId,
@@ -171,7 +225,7 @@
       });
       await queryClient.invalidateQueries({
         queryKey: threadQueryKeys.followed(serverScope.serverId, serverScope.connection),
-        exact: true
+        exact: false
       });
     } catch {
       toast.error(m('common.error.generic'));
@@ -263,13 +317,47 @@
     {/snippet}
   </PaneHeader>
 
+  {#if searchEnabled}
+    <div class="shrink-0 p-3">
+      <ChatSearchInput
+        appearance="bordered"
+        label={m('search.in_threads')}
+        placeholder={m('search.query.placeholder')}
+        testid="my-threads-search"
+        focusOnMount
+        value={rawQuery}
+        clearLabel={m('common.clear')}
+        oninput={(event) => scheduleSearch((event.currentTarget as HTMLInputElement).value)}
+        onclear={() => scheduleSearch('')}
+        onsubmit={submitSearch}
+      />
+      {#if searchStatus.status.state === MessageSearchState.DEGRADED}
+        <Hint tone="warning">{m('search.degraded')}</Hint>
+      {/if}
+    </div>
+  {/if}
+
   <div class="flex flex-1 flex-col overflow-y-auto">
-    {#if loading && threads.length === 0}
+    {#if searchQuery && !searchStatus.available}
+      <SearchAvailability
+        state={searchStatus.status.state}
+        checking={searchStatus.statusLoading && !searchStatus.statusLoaded}
+        error={searchStatus.statusError}
+        onRetry={() => void searchStatus.refreshStatus()}
+        checkingClass="p-6 text-muted"
+      >
+        <div class="p-6 text-muted">{m('search.checking')}</div>
+      </SearchAvailability>
+    {:else if waitingForSearch || (loading && threads.length === 0)}
       <div class="p-6 text-muted">{m('common.loading')}</div>
     {:else if error}
       <div class="m-6">
         <Hint tone="danger">{error}</Hint>
       </div>
+    {:else if searchQuery && threads.length === 0}
+      <EmptyState icon="icon-[uil--search]" title={m('search.no_threads')}>
+        {m('search.no_results.description')}
+      </EmptyState>
     {:else if threads.length === 0}
       <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
         {m('chat.threads.empty_body')}

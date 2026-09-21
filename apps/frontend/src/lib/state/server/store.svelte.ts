@@ -1278,7 +1278,7 @@ export class ServerStateStore {
           if (payload.value.threadRootEventId)
             refreshRegisteredFollowedThreadQueries(this.serverId);
         }
-        if (payload.case === 'messageRetracted') {
+        if (payload.case === 'messageEdited' || payload.case === 'messageRetracted') {
           refreshRegisteredFollowedThreadQueries(this.serverId);
         }
         return;

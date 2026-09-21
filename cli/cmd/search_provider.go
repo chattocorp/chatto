@@ -18,6 +18,15 @@ var searchProviderConfigFile string
 var searchProviderCmd = &cobra.Command{
 	Use:   "search-provider",
 	Short: "Run the bundled Bleve message search provider",
+	Long: `Run the bundled Bleve message search provider.
+
+Known index-format and language changes trigger an automatic rebuild from EVT.
+For manual recovery, stop every process using its configured
+search_provider.directory, move that directory aside, then restart the provider.
+For a bundled provider, stop and restart chatto run instead.
+Never remove the NATS data directory. A missing search index is rebuilt from EVT.
+
+Instructions: https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index`,
 	Run: func(cmd *cobra.Command, args []string) {
 		runSearchProvider(searchProviderConfigFile)
 	},

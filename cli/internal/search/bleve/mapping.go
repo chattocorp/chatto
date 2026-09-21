@@ -124,6 +124,7 @@ func newIndexMapping(languages []languageAnalyzer) mapping.IndexMapping {
 
 	document.AddFieldMappingsAt("message_id", keyword(false))
 	document.AddFieldMappingsAt("room_id", keyword(true))
+	document.AddFieldMappingsAt("thread_root_id", keyword(false))
 	document.AddFieldMappingsAt("author_id", keyword(false))
 	document.AddFieldMappingsAt("body_event_id", keyword(true))
 	document.AddFieldMappingsAt("body", searchBodyFields(languages)...)
