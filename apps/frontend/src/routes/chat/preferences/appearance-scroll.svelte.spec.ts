@@ -69,4 +69,3 @@ it('keeps focus inside visible accent swatches after scrolling', async () => {
     for (const geometry of samples) expect(geometry, color).toEqual([headingTop, frameTop, ...offsets]);
   }
 });
-
