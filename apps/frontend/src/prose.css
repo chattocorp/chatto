@@ -303,3 +303,30 @@
     }
   }
 }
+
+/* Spoilers: `||text||` renders as a concealed, explicitly revealable region.
+   Concealed bodies are excluded from selection and assistive tech via the
+   reveal-control attributes set in MessageContent; paint only here. */
+.prose .spoiler {
+  border-radius: 0.25em;
+}
+
+.prose .spoiler:not(.spoiler-revealed) {
+  @apply cursor-pointer bg-surface-emphasized;
+}
+
+.prose .spoiler:not(.spoiler-revealed) .spoiler-body {
+  /* Keep layout stable: glyphs keep occupying space but cannot be read,
+     selected, or interacted with until the reader reveals them. */
+  @apply text-transparent select-none pointer-events-none;
+  text-shadow: none;
+}
+
+.prose .spoiler .spoiler-hint {
+  display: none;
+  vertical-align: middle;
+}
+
+.prose .spoiler:not(.spoiler-revealed) .spoiler-hint {
+  @apply inline-flex items-center px-1 text-muted text-[0.875em];
+}
