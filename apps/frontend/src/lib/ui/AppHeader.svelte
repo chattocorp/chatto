@@ -164,8 +164,16 @@
 </header>
 
 <style>
-  /* Tauri window dragging - header is draggable, interactive elements are not */
+  /* Keep the surface full-width while content stays clear of native window buttons.
+     Overlay coordinates use the viewport, not the padded shell width.
+     The custom properties also let stories model the host-provided safe area. */
   .app-header {
+    padding-left: calc(0.5rem + var(--app-header-titlebar-x, env(titlebar-area-x, 0px)));
+    padding-right: calc(
+      0.5rem + 100vw - var(--app-header-titlebar-x, env(titlebar-area-x, 0px)) -
+        var(--app-header-titlebar-width, env(titlebar-area-width, 100vw))
+    );
+    /* Electron window dragging excludes the interactive elements below. */
     -webkit-app-region: drag;
   }
   .app-header :global(a),
