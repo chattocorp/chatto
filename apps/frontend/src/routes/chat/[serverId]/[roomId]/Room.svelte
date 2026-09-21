@@ -149,7 +149,9 @@
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
   const room = useRoomData(() => ({ roomId }));
   const canReadMessages = $derived(room.roomData?.canReadMessages !== false);
-  const shouldHydrateRoom = $derived(Boolean(room.roomData) && canReadMessages);
+  const shouldHydrateRoom = $derived(
+    stores.realtimeSync.isRecoveringSnapshot || (Boolean(room.roomData) && canReadMessages)
+  );
 
   $effect(() => {
     const mountedStores = stores;
@@ -866,7 +868,7 @@
         />
       </div>
 
-      {#if threadId && room.roomData && canReadMessages}
+      {#if threadId && (room.roomData || stores.realtimeSync.isRecoveringSnapshot) && canReadMessages}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
             class={[
@@ -884,19 +886,19 @@
         {:then { default: ThreadPane }}
           <ThreadPane
             {roomId}
-            roomName={room.isDM ? presentation.title : room.roomData.room.name}
+            roomName={room.isDM ? presentation.title : (room.roomData?.room.name ?? '')}
             isDirectMessage={room.isDM}
             threadRootEventId={threadId}
             onClose={closeThread}
-            canPostInThread={room.roomData.canPostInThread &&
+            canPostInThread={!!room.roomData?.canPostInThread &&
               threadingMode !== RoomThreadingMode.DISABLED}
-            canAttach={room.roomData.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
-            canEchoMessage={room.roomData.canEchoMessage &&
-              room.roomData.canPostMessage &&
+            canAttach={!!room.roomData?.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
+            canEchoMessage={!!room.roomData?.canEchoMessage &&
+              !!room.roomData?.canPostMessage &&
               threadingMode !== RoomThreadingMode.DISABLED}
-            slowModeSeconds={room.roomData.room.slowModeSeconds}
-            slowModeNextPostAt={room.roomData.slowModeNextPostAt}
-            slowModeBypassed={room.roomData.canManageRoom || room.roomData.canManageOthersMessage}
+            slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
+            slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
+            slowModeBypassed={!!room.roomData?.canManageRoom || !!room.roomData?.canManageOthersMessage}
             highlightEventId={navigation.pendingThreadHighlight}
             pendingQuote={navigation.pendingThreadQuote}
             pendingReply={navigation.pendingThreadReply}

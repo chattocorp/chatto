@@ -85,6 +85,28 @@ beforeEach(() => {
 });
 
 describe('server route authentication privacy', () => {
+  it('retains route state but hides and disables it throughout warm snapshot recovery', async () => {
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<input data-testid="retained-filter" />') }
+    });
+    const input = container.querySelector<HTMLInputElement>('input')!;
+    input.value = 'retained filter';
+    mocks.store.realtimeSync!.acceptProjectionEvent(undefined, true);
+    await tick();
+    expect(container.querySelector('input')).toBe(input);
+    expect(getComputedStyle(input).visibility).toBe('hidden');
+    expect(input.closest('[inert]')).not.toBeNull();
+    mocks.store.realtimeSync!.markStale();
+    mocks.store.realtimeSync!.acceptProjectionEvent(undefined, true);
+    await tick();
+    expect(getComputedStyle(input).visibility).toBe('hidden');
+    mocks.store.realtimeSync!.markCaughtUp('replacement');
+    await tick();
+    expect(container.querySelector('input')).toBe(input);
+    expect(input.value).toBe('retained filter');
+    expect(getComputedStyle(input).visibility).toBe('visible');
+    expect(input.closest('[inert]')).toBeNull();
+  });
   it('keeps the page mounted, focused, and interactive during an authority check', async () => {
     const { container } = render(Layout, {
       props: { children: testSnippet('<input data-testid="filter" />') }

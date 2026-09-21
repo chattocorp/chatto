@@ -293,6 +293,52 @@
   // Scroll container and virtualizer handle
   let scrollContainer = $state<HTMLDivElement>();
   let virtualizerHandle = $state<VirtualizerHandle>();
+
+  // Build a DOM command only after fresh authority and the virtualizer are ready.
+  const recoveryTarget = $derived.by(() => {
+    const position = messageStore.recoveryViewport;
+    if (!position || isLoading || stores.realtimeSync.isRecoveringSnapshot) return null;
+    const items = virtualItems;
+    if (items.length > 0 && !virtualizerHandle) return null;
+    const index = items.findIndex((item) =>
+      item.type === 'event'
+        ? item.event.id === position.eventId
+        : item.type === 'system-group' && item.events.some((event) => event.id === position.eventId)
+    );
+    return { position, index, store: messageStore };
+  });
+
+  /** Coordinates belong to this mounted timeline, not to its cached store. */
+  function ownViewport(store: MessagesStore) {
+    return () => () => store.clearViewport();
+  }
+
+  /** Apply the derived scroll command after layout; detach cancels pending work. */
+  function restoreViewport(target: typeof recoveryTarget) {
+    return () => {
+      if (!target) return;
+      const frame = requestAnimationFrame(() => {
+        const { position, index, store } = target;
+        if (index >= 0) {
+          viewport.beginJump();
+          if (composerContext.jumpState) {
+            // Requests for the discarded window cannot release this flag.
+            composerContext.jumpState.isLoadingNewer = false;
+            composerContext.jumpState.isJumpedMode = position.hasNewer ?? false;
+            composerContext.jumpState.hasReachedEnd = !position.hasNewer;
+          }
+          safeScrollToIndex(index, { align: 'start', offset: position.offset });
+          store.recoveryViewport = null;
+        } else {
+          store.clearViewport();
+          composerContext.jumpState?.reset();
+          viewport.followBottom();
+          void requestBottomScroll();
+        }
+      });
+      return () => cancelAnimationFrame(frame);
+    };
+  }
   let scrollFader = $state<{ refresh: () => void }>();
 
   // Safely call scrollToIndex on the virtualizer. After a {#key roomId} transition,
@@ -309,11 +355,14 @@
   }
 
   function requestBottomScroll(): Promise<boolean> | undefined {
+    if (stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return undefined;
     if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return undefined;
 
     const token = viewport.beginBottomScroll(roomId);
     return convergeAtBottom({
       continueWhile: () =>
+        !stores.realtimeSync.isRecoveringSnapshot &&
+        !messageStore.recoveryViewport &&
         viewport.canContinueBottomScroll(token, roomId, isJumpedMode, alwaysScrollToBottom) &&
         Boolean(scrollContainer && virtualizerHandle),
       waitForFrame: async () => {
@@ -485,6 +534,7 @@
   }
 
   async function loadOlderIfTimelineNeedsBackfill(): Promise<void> {
+    if (stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return;
     if (
       !enablePagination ||
       !onLoadMore ||
@@ -553,7 +603,7 @@
   // virtua's shift=true handles scroll restoration during pagination automatically,
   // eliminating the need for manual scrollHeight capture/restore and overflow-anchor toggling.
   function handleVirtuaScroll(offset: number) {
-    if (!virtualizerHandle) return;
+    if (!virtualizerHandle || isLoading || stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return;
 
     const scrollSize = virtualizerHandle.getScrollSize();
     const viewportSize = virtualizerHandle.getViewportSize();
@@ -575,6 +625,20 @@
       now: Date.now()
     });
     const { distanceFromBottom } = scrollResult;
+    // A separator can be the first visible item. Anchor to the next event so
+    // dates and unread markers do not discard the reading position.
+    let anchorIndex = idx;
+    while (anchorIndex < virtualItems.length &&
+      virtualItems[anchorIndex].type !== 'event' && virtualItems[anchorIndex].type !== 'system-group') anchorIndex++;
+    const anchor = virtualItems[anchorIndex];
+    const anchorEvent = anchor?.type === 'event'
+      ? anchor.event
+      : anchor?.type === 'system-group' ? anchor.events[0] : undefined;
+    messageStore.setViewport(
+      !viewport.shouldScrollToBottom && anchorEvent
+        ? { eventId: anchorEvent.id, offset: offset - virtualizerHandle.getItemOffset(anchorIndex) }
+        : null
+    );
     if (scrollResult.reachedBottom) onReachedBottom?.();
 
     // Trigger pagination when scrolled near the top.
@@ -635,7 +699,7 @@
 
 <svelte:window onkeydown={markKeyboardScrollIntent} />
 
-<div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2">
+<div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2" {@attach ownViewport(messageStore)}>
   <ScrollFader
     top
     bottom
@@ -647,7 +711,7 @@
     ontouchmove={markUserScrollIntent}
     onpointerdown={markUserScrollIntent}
   >
-    <div class="mt-auto mobile-presentation:px-1">
+    <div class="mt-auto mobile-presentation:px-1" {@attach restoreViewport(recoveryTarget)}>
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>

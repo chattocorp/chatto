@@ -348,6 +348,12 @@
     hasReachedStart={store.hasReachedStart}
     showStartMarker={false}
     onLoadMore={() => store.loadMore()}
+    isJumpedMode={jumpState.isJumpedMode}
+    isLoadingNewer={jumpState.isLoadingNewer}
+    hasReachedEnd={jumpState.hasReachedEnd}
+    onLoadNewer={() => store.loadNewer(jumpState)}
+    onJumpToPresent={() => store.jumpToPresent(jumpState)}
+    onReachedPresent={() => jumpState.reset()}
     filterThreadReplies={false}
     {updateCounter}
     enableLastEditableFinder={true}
