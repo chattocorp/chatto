@@ -10,7 +10,8 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
-import { getUserStore, memberFromSummary, resetUserStoresForTests } from '$lib/state/server/users.svelte';
+import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
+import { userProfileFixture } from '$lib/test-utils/userProfile';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RoomKind as SearchRoomKind } from '$lib/api-client/roomDirectory';
 import {
@@ -201,7 +202,7 @@ vi.mock('$lib/api-client/memberDirectory', async (importActual) => ({
     listRoomMembers: async (...args: unknown[]) => {
       const result = await memberDirectoryMocks.listRoomMembers(...args);
       const users = getUserStore('test-server');
-      for (const member of result.members) users.set(member.id, memberFromSummary(member));
+      for (const member of result.members) users.set(member.id, userProfileFixture(member));
       return result;
     }
   }))

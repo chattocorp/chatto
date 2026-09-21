@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import ChatRoot from './ChatRoot.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
 
@@ -15,7 +15,7 @@
     return fullscreenVideoOverlayModule;
   }
 
-  const profileCache = createUserProfileCache(() => {
+  provideUserProfiles(() => {
     const id = serverRegistry.originServer?.id;
     return id ? serverRegistry.tryGetStore(id)?.projection.users : undefined;
   });
@@ -25,7 +25,7 @@
 <!-- Origin login/logout changes replace the origin-scoped effects while the
      chat-wide coordinator remains available to remote-only sessions. -->
 {#key data.user?.id}
-  <ChatRoot user={data.user} {profileCache} {presenceCache}>
+  <ChatRoot user={data.user} {presenceCache}>
     {@render children?.()}
   </ChatRoot>
 {/key}

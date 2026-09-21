@@ -8,8 +8,6 @@ import { flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { queryClient } from '$lib/query/client';
-import { primeDirectoryUsers, removeDirectoryUser } from '$lib/query/directoryUsers';
-import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { clearUserStores, getUserStore, resetUserStoresForTests, type UserStore } from '$lib/state/server/users.svelte';
 
 import { quickSwitcher } from '$lib/state/globals.svelte';
@@ -563,16 +561,16 @@ describe('QuickSwitcher', () => {
   });
 
   it('finds a bot loaded only by the room directory and opens its DM', async () => {
-    const bot = mapDirectoryMember(new DirectoryMember({
+    const bot = new DirectoryMember({
       user: { id: 'test-bot', login: 'test_bot', displayName: 'TestBot', bot: { ownerUserId: 'owner' } }
-    }));
-    primeDirectoryUsers('origin', 'old-session', [bot]);
-    primeDirectoryUsers('other-server', 'test-session', [bot]);
+    });
+    getUserStore('origin', 'old-session').set('test-bot', bot);
+    getUserStore('other-server', 'test-session').set('test-bot', bot);
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'test');
     expect(resultButtons(container)).toHaveLength(0);
-    // This is the cache populated by ListMembers/BatchGetUsers, without a realtime profile.
-    primeDirectoryUsers('origin', 'test-session', [bot]);
+    // Directory reads populate the same owner as realtime updates.
+    getUserStore('origin', 'test-session').set('test-bot', bot);
     flushSync();
     expect(resultButtons(container)).toHaveLength(1);
     expect(container.textContent).toContain('TestBot');
@@ -588,20 +586,20 @@ describe('QuickSwitcher', () => {
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'cedar');
     expect(resultButtons(container)).toHaveLength(1);
-    primeDirectoryUsers('origin', 'test-session', [mapDirectoryMember(new DirectoryMember({
+    getUserStore('origin', 'test-session').set('known', new DirectoryMember({
       user: { id: 'known', login: 'maple', displayName: 'Maple' }
-    }))]);
+    }));
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
     setSearch(container, 'maple');
     expect(resultButtons(container)).toHaveLength(1);
-    removeDirectoryUser('origin', 'test-session', 'known');
+    getUserStore('origin', 'test-session').delete('known');
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
     setSearch(container, 'cedar');
     expect(resultButtons(container)).toHaveLength(0);
     mocks.store.projection.users.clear();
-    primeDirectoryUsers('origin', 'test-session', [mapDirectoryMember(profile)]);
+    getUserStore('origin', 'test-session').set('known', profile);
     flushSync();
     expect(resultButtons(container)).toHaveLength(1);
     clearUserStores('origin');
@@ -610,9 +608,9 @@ describe('QuickSwitcher', () => {
   });
 
   it('rejects a cached user selection after access is lost before the row updates', async () => {
-    primeDirectoryUsers('origin', 'test-session', [mapDirectoryMember(new DirectoryMember({
+    getUserStore('origin', 'test-session').set('known', new DirectoryMember({
       user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
-    }))]);
+    }));
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'cedar');
     const row = resultButtons(container)[0];

@@ -3,7 +3,7 @@
   import type { ServerConnection } from './serverConnection.svelte';
   import { provideServerScope } from './scope.svelte';
   import type { ServerStateStore } from './store.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 
   let {
     serverId,
@@ -26,7 +26,7 @@
   // pending work from an old subtree attached to its original server, while
   // isCurrent() lets continuations suppress UI effects after that teardown.
   const snapshot = untrack(() => ({ serverId, connection, store }));
-  createUserProfileCache(() => snapshot.store.projection.users);
+  provideUserProfiles(() => snapshot.store.projection.users);
   provideServerScope({
     ...snapshot,
     isCurrent: () => current

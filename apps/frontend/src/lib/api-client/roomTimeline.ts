@@ -1,12 +1,10 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { notifyUserSummaries, resolveUserSummaries } from './hooks.js';
 import {
   authHeaders,
   createChattoClient,
   handleAuthError,
   REALTIME_MINIMUM_CURSOR_HEADER
 } from './connect.js';
-import type { UserSummaryForCache } from './hooks.js';
 import {
   TimelineEventKind,
   type MessagePostedPayload,
@@ -19,7 +17,6 @@ import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import { createUserAPI } from './users.js';
-import { mapUserSummary } from './userSummary.js';
 import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import { MessageVideoProcessingStatus } from '@chatto/api-types/api/v1/message_types_pb';
@@ -39,7 +36,6 @@ export type RoomTimelineAPIConfig = {
   baseUrl: string;
   bearerToken: string | null;
   onAuthenticationRequired?: (serverId: string) => void;
-  onUserSummaries?: (serverId: string | undefined, users: UserSummaryForCache[]) => void;
 };
 
 export type EventConnectionPage = {
@@ -110,7 +106,6 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
     };
     if (userStore) await userStore.readSnapshot(readProfiles, true);
     else await readProfiles();
-    primeTimelineUserIncludes(config, response.page?.includes?.users ?? {});
     return response;
   };
   const messages = createChattoClient(MessageService, config);
@@ -238,13 +233,10 @@ async function batchTimelineUsers(
 
   try {
     const api = createUserAPI(config);
-    const summaries = await resolveUserSummaries(config.serverId, userIds, async (ids, cursor) => {
-      const result: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
-      for (let offset = 0; offset < ids.length; offset += 100) {
-        result.push(...await api.batchGetUsers(ids.slice(offset, offset + 100), cursor));
-      }
-      return result;
-    }, minimumCursor, config.onUserSummaries);
+    const summaries: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
+    for (let offset = 0; offset < userIds.length; offset += 100) {
+      summaries.push(...await api.batchGetUsers(userIds.slice(offset, offset + 100), minimumCursor));
+    }
     const users: Record<string, User> = {};
     for (const summary of summaries) {
       // The view helpers read generated `User` values; the only difference
@@ -288,14 +280,6 @@ function messageUserIds(messages: Message[]): string[] {
     }
   }
   return [...ids];
-}
-
-function primeTimelineUserIncludes(config: RoomTimelineAPIConfig, users: Record<string, User>) {
-  notifyUserSummaries(
-    config.serverId,
-    Object.values(users).map(mapUserSummary),
-    config.onUserSummaries
-  );
 }
 
 function emptyEventConnectionPage(): EventConnectionPage {

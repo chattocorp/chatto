@@ -17,11 +17,7 @@ import {
   MessageVideoVariant
 } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
-import { disposeUserStore, getUserStore } from '$lib/state/server/users.svelte';
-import {
-  __resetUserSummaryCachesForTests,
-  primeUserSummaryCache
-} from '$lib/state/userSummaries.svelte';
+import { disposeUserStore, getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import {
   createRoomTimelineAPI,
   roomTimelinePageToEventConnectionPage
@@ -59,12 +55,10 @@ describe('createRoomTimelineAPI', () => {
     mocks.batchGetUsers.mockResolvedValue({ users: [] });
     mocks.getThreadEvents.mockReset();
     mocks.getThreadEventsAround.mockReset();
-    __resetUserSummaryCachesForTests();
+    resetUserStoresForTests();
 
     configureApiClientHooks({
-      onAuthenticationRequired: mocks.handleAuthenticationRequired,
-
-      onUserSummaries: primeUserSummaryCache
+      onAuthenticationRequired: mocks.handleAuthenticationRequired
     });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockImplementation((service) => {

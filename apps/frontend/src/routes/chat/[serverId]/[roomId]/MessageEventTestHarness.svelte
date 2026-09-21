@@ -11,7 +11,7 @@
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import MessageEvent from './MessageEvent.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { RoomThreadingMode } from '$lib/roomThreading';
@@ -85,7 +85,7 @@
     canPinMessages
   }));
   createPresenceCache();
-  createUserProfileCache();
+  provideUserProfiles();
 
   const messageStore = {
     ensureEvent: () => undefined,

@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
+import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +23,20 @@ vi.mock('@connectrpc/connect-web', () => ({
 }));
 
 describe('createUserAPI', () => {
+  it('shares a pending profile read with the room directory adapter', async () => {
+    const config = { serverId: 'server', queryScope: 'session', baseUrl: '/api/connect', bearerToken: null };
+    const userAPI = createUserAPI(config);
+    const directoryAPI = createMemberDirectoryAPI(config);
+    mocks.batchGetUsers.mockResolvedValue({ users: [new APIDirectoryMember({
+      user: { id: 'bot', login: 'bot', bot: { ownerUserId: 'owner' } }
+    })] });
+    const [summaries, members] = await Promise.all([
+      userAPI.batchGetUsers(['bot']), directoryAPI.batchGetUsers(['bot'])
+    ]);
+    expect(summaries[0].bot?.ownerUserId).toBe('owner');
+    expect(members[0].isBot).toBe(true);
+    expect(mocks.batchGetUsers).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     resetUserStoresForTests();
     mocks.createClient.mockReset();

@@ -21,7 +21,7 @@ realtime changes arrive.
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
+  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import {
     getLiveBio,
     getLiveCustomStatus,
@@ -46,8 +46,6 @@ realtime changes arrive.
   const viewerTimeSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
-  const summaryCache = $derived(getUserSummaryCache(serverScope.serverId, serverScope.connection.queryScope));
-  const cached = $derived(summaryCache.get(userId));
   let localTimeNow = $state(Date.now());
 
   const userQuery = createQuery(
@@ -67,7 +65,7 @@ realtime changes arrive.
     () => queryClient
   );
 
-  const baseUser = $derived(cached);
+  const baseUser = $derived(mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user));
   const loading = $derived(!baseUser && userQuery.isPending);
   const notFound = $derived(!!userId && !loading && !baseUser);
   const displayName = $derived(

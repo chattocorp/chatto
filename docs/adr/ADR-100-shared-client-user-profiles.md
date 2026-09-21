@@ -22,6 +22,9 @@ their existing owners. Timeline rows can contain render snapshots, but they do
 not form another profile cache. Server-scoped profile views resolve current
 fields from the shared store. Private admin fields are outside this store.
 
+Profile contexts are read-only views of that owner. API adapters write directly
+to it; there are no separate summary caches or profile-priming hooks.
+
 The shared owner enforces these rules:
 
 - Concurrent missing-user reads share requests with at most 100 IDs per batch.

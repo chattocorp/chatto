@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
-import { __resetUserSummaryCachesForTests } from '$lib/state/userSummaries.svelte';
-import { getUserStore, memberFromSummary } from '$lib/state/server/users.svelte';
+import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
+import { userProfileFixture } from '$lib/test-utils/userProfile';
 
 const mocks = vi.hoisted(() => ({ batchGetUsers: vi.fn() }));
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -13,12 +13,15 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       batchGetUsers: async (ids: string[]) => {
         const users = await mocks.batchGetUsers(ids);
         const store = getUserStore('owner-test', 'session');
-        for (const user of users) store.set(user.id, memberFromSummary(user));
+        for (const user of users) store.set(user.id, userProfileFixture(user));
         return users;
       }
     }) },
     isCurrent: () => true,
-    store: { permissions: { loaded: false } }
+    store: {
+      permissions: { loaded: false },
+      get projection() { return { users: getUserStore('owner-test', 'session') }; }
+    }
   })
 }));
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -41,7 +44,7 @@ let view: ReturnType<typeof render> | undefined;
 beforeEach(() => {
   vi.resetAllMocks();
   queryClient.clear();
-  __resetUserSummaryCachesForTests();
+  resetUserStoresForTests();
   queryClient.setQueryDefaults(['server', 'owner-test'], { retry: false });
 });
 afterEach(() => {

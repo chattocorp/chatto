@@ -2,7 +2,7 @@
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import UserAvatar from './UserAvatar.svelte';
 
   type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
@@ -36,7 +36,7 @@
     }
   } satisfies UserAvatarUserView);
 
-  createUserProfileCache();
+  provideUserProfiles();
   createPresenceCache();
 </script>
 

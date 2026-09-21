@@ -1,9 +1,6 @@
-import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { Timestamp } from '@bufbuild/protobuf';
 import { StaleResponseError } from '$lib/api-client/connect';
-import type { UserSummary } from '$lib/api-client/userSummary';
-import type { DirectoryMember as MemberView } from '$lib/api-client/memberDirectory';
 import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 
 export type UserReader = (ids: string[], minimumCursor?: string) => Promise<DirectoryMember[]>;
@@ -183,30 +180,4 @@ export function resetUserStoresForTests(): void {
     for (const store of Object.values(sessions)) store.dispose();
     delete stores[serverId];
   }
-}
-
-/** Adapt legacy render summaries at an ingestion boundary, preserving optional metadata. */
-export function memberFromSummary(summary: UserSummary | MemberView, previous?: DirectoryMember): DirectoryMember {
-  const member = previous?.clone() ?? new DirectoryMember();
-  const user = member.user?.clone();
-  member.user = new DirectoryMember({ user: {
-    ...user,
-    id: summary.id, login: summary.login, displayName: summary.displayName,
-    deleted: summary.deleted, avatarUrl: summary.avatarUrl ?? '',
-    bot: summary.bot ?? (summary.isBot ? { ownerUserId: '' } : undefined),
-    ...('bio' in summary ? { bio: summary.bio ?? '' } : {}),
-    ...('timezone' in summary ? { timezone: summary.timezone ?? '' } : {})
-  } }).user;
-  if ('roles' in summary) {
-    member.roles = [...summary.roles];
-    member.createdAt = summary.createdAt ? Timestamp.fromDate(new SvelteDate(summary.createdAt)) : undefined;
-    if (member.user) {
-      member.user.presenceStatus = summary.presenceStatus;
-      member.user.customStatus = summary.customStatus ? new DirectoryMember({ user: { customStatus: {
-        ...summary.customStatus,
-        expiresAt: summary.customStatus.expiresAt ? Timestamp.fromDate(new SvelteDate(summary.customStatus.expiresAt)) : undefined
-      } } }).user?.customStatus : undefined;
-    }
-  }
-  return member;
 }

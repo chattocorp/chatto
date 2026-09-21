@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { UserStore, getUserStore, disposeUserStore, resetUserStoresForTests } from './users.svelte';
 import { ServerProjectionStore } from './projection.svelte';
-import { UserSummaryCache } from '../userSummaries.svelte';
-import { createDirectoryUserLoader } from '$lib/query/directoryUsers';
 import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
 import { Timestamp } from '@bufbuild/protobuf';
 import { RoomMembersStore } from '../room/members.svelte';
@@ -35,22 +33,19 @@ describe('connection user store', () => {
   it('shares one profile and one pending read across room, timeline, and projection consumers', async () => {
     const store = getUserStore('server', 'session');
     const projection = new ServerProjectionStore(store);
-    const summaries = new UserSummaryCache('server', 'session');
-    let finish!: (users: ReturnType<typeof mapDirectoryMember>[]) => void;
-    const read = vi.fn(() => new Promise<ReturnType<typeof mapDirectoryMember>[]>((resolve) => { finish = resolve; }));
-    const rooms = createDirectoryUserLoader('server', 'session', read);
-    const roomRead = rooms(['bot']);
+    let finish!: (users: DirectoryMember[]) => void;
+    const read = vi.fn(() => new Promise<DirectoryMember[]>((resolve) => { finish = resolve; }));
+    const roomRead = store.resolve(['bot'], read);
     const timelineRead = vi.fn();
-    const authorRead = summaries.resolve(['bot'], timelineRead);
+    const authorRead = store.resolve(['bot'], timelineRead);
     await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
-    finish([mapDirectoryMember(member('bot'))]);
-    expect((await roomRead)[0].isBot).toBe(true);
-    expect((await authorRead)[0].bot?.ownerUserId).toBe('owner');
+    finish([member('bot')]);
+    expect((await roomRead)[0].user?.bot).toBeDefined();
+    expect((await authorRead)[0].user?.bot?.ownerUserId).toBe('owner');
     expect(timelineRead).not.toHaveBeenCalled();
     expect(projection.users).toBe(store);
     projection.users.set('bot', member('bot', 'Renamed'));
-    expect(summaries.get('bot')?.displayName).toBe('Renamed');
-    expect((await rooms(['bot']))[0].displayName).toBe('Renamed');
+    expect((await store.resolve(['bot'], read))[0].user?.displayName).toBe('Renamed');
     expect(read).toHaveBeenCalledOnce();
   });
 
@@ -87,12 +82,11 @@ describe('connection user store', () => {
 
   it('permanently fences readers retained after connection disposal', async () => {
     const store = getUserStore('server', 'old');
-    const adapter = new UserSummaryCache('server', 'old');
     disposeUserStore('server', 'old');
     const read = vi.fn();
     await expect(store.resolve(['id'], read)).rejects.toThrow('Response discarded');
-    adapter.prime([mapDirectoryMember(member('id'))]);
-    expect(adapter.get('id')).toBeNull();
+    store.set('id', member('id'));
+    expect(store.get('id')).toBeUndefined();
     expect(getUserStore('server', 'new').size).toBe(0);
     expect(read).not.toHaveBeenCalled();
   });
