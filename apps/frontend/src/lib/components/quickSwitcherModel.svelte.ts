@@ -3,7 +3,7 @@ import { formatAccountName } from '$lib/render/accountName';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { onDestroy, untrack } from 'svelte';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import {
   createMessageSearchAPI,
   MessageSearchOrder,
@@ -11,6 +11,7 @@ import {
 } from '$lib/api-client/messageSearch';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+import { readCachedDirectoryUsers } from '$lib/query/directoryUsers';
 import { startDMWith } from '$lib/dm/startDM';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
@@ -222,15 +223,15 @@ export class QuickSwitcherModel {
   async select(item: QuickSwitcherItem): Promise<void> {
     if (item.kind === 'user') {
       const store = serverRegistry.tryGetStore(item.serverId);
-      const member = item.targetUserId ? store?.projection.users.get(item.targetUserId) : undefined;
+      const user = item.targetUserId ? this.#knownUsers(item.serverId).get(item.targetUserId) : undefined;
       // Recheck the live scope before an action from a row that may have become stale.
       if (
         !store?.isAuthenticated || !store.realtimeSync.hasUsableProjection ||
-        !store.permissions.canStartDMs || !member?.user || member.user.deleted
+        !store.permissions.canStartDMs || !user || user.deleted
       ) return;
       quickSwitcher.close();
       try {
-        await startDMWith(item.serverId, member.user.id);
+        await startDMWith(item.serverId, user.id);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to start DM');
       }
@@ -270,6 +271,7 @@ export class QuickSwitcherModel {
       void store?.realtimeSync.hasUsableProjection;
       void store?.permissions.canStartDMs;
       if (store) for (const member of store.projection.users.values()) void member;
+      readCachedDirectoryUsers(instance.id, serverConnectionManager.getClient(instance.id).queryScope);
       void store?.navigation.rooms;
       void store?.navigation.isInitialLoading;
     }
@@ -316,6 +318,19 @@ export class QuickSwitcherModel {
       quickSwitcher.visible && query ? query : null,
       (search, requestId) => void this.#loadMessageResults(search, requestId)
     );
+  }
+
+  /** Merge realtime profiles with session-scoped profiles loaded by rooms and timelines.
+   * The shared cache receives realtime replacements and removal markers as well. */
+  #knownUsers(serverId: string): SvelteMap<string, QuickSwitcherAvatarUser | null> {
+    const users = new SvelteMap<string, QuickSwitcherAvatarUser | null>();
+    for (const member of serverRegistry.tryGetStore(serverId)?.projection.users.values() ?? []) {
+      if (member.user?.id) users.set(member.user.id, mapDirectoryMember(member));
+    }
+    for (const [id, user] of readCachedDirectoryUsers(
+      serverId, serverConnectionManager.getClient(serverId).queryScope
+    )) users.set(id, user);
+    return users;
   }
 
   #loadCatalog(): void {
@@ -396,9 +411,9 @@ export class QuickSwitcherModel {
       }
 
       if (store?.isAuthenticated && store.realtimeSync.hasUsableProjection && store.permissions.canStartDMs) {
-        for (const member of store.projection.users.values()) {
-          if (!member.user?.id || member.user.deleted || directMessageUserIds.has(member.user.id)) continue;
-          const user = avatarUser(mapDirectoryMember(member));
+        for (const member of this.#knownUsers(instance.id).values()) {
+          if (!member?.id || member.deleted || directMessageUserIds.has(member.id)) continue;
+          const user = avatarUser(member);
           items.push({
             kind: 'user',
             id: user.id,

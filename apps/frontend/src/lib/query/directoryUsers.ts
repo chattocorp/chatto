@@ -1,6 +1,29 @@
 import type { DirectoryMember } from '$lib/api-client/memberDirectory';
 import { queryClient } from './client';
 import { registerDirectoryUserCache } from './cacheRegistry';
+import { createSubscriber } from 'svelte/reactivity';
+
+const trackCachedUsers = createSubscriber((update) =>
+  queryClient.getQueryCache().subscribe((event) => {
+    if (event.query.queryKey[4] === 'directory-user') update();
+  })
+);
+
+/** Read already-loaded public profiles for one connection session without fetching.
+ * Null entries preserve removal markers; callers must not revive them from older state.
+ * Reactive consumers also observe profile replacements and session cache removal. */
+export function readCachedDirectoryUsers(
+  serverId: string,
+  scope: string
+): Array<[string, DirectoryMember | null]> {
+  trackCachedUsers();
+  return queryClient.getQueryCache().findAll({
+    queryKey: ['server', serverId, 'session', scope, 'directory-user']
+  }).flatMap((query) => {
+    const user = query.state.data as DirectoryMember | null | undefined;
+    return user === undefined ? [] : [[String(query.queryKey[5]), user] as [string, DirectoryMember | null]];
+  });
+}
 
 /** Session-scoped profiles shared by room directories. Realtime reads replace
  * these entries; navigation and window focus do not refetch them. */

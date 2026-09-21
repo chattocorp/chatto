@@ -7,6 +7,9 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
+import { queryClient } from '$lib/query/client';
+import { primeDirectoryUsers, removeDirectoryUser } from '$lib/query/directoryUsers';
+import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
@@ -112,6 +115,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
     getClient: () => ({
       connectBaseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token-1',
+      queryScope: 'test-session',
       getAPI: (factory: (config: never) => unknown) => factory({} as never),
       client: {
         query: mocks.query,
@@ -311,6 +315,7 @@ beforeAll(() => {
 beforeEach(() => {
   quickSwitcher.close();
   flushSync();
+  queryClient.clear();
   stores.clear();
   mocks.store.navigation.isInitialLoading = false;
   mocks.store.permissions.canStartDMs = true;
@@ -553,6 +558,53 @@ describe('QuickSwitcher', () => {
     expect(mocks.listUsers).not.toHaveBeenCalled();
     resultButtons(container)[0].click();
     await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/known'));
+  });
+
+  it('finds a bot loaded only by the room directory and opens its DM', async () => {
+    const bot = mapDirectoryMember(new DirectoryMember({
+      user: { id: 'test-bot', login: 'test_bot', displayName: 'TestBot', bot: { ownerUserId: 'owner' } }
+    }));
+    primeDirectoryUsers('origin', 'old-session', [bot]);
+    primeDirectoryUsers('other-server', 'test-session', [bot]);
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'test');
+    expect(resultButtons(container)).toHaveLength(0);
+    // This is the cache populated by ListMembers/BatchGetUsers, without a realtime profile.
+    primeDirectoryUsers('origin', 'test-session', [bot]);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.textContent).toContain('TestBot');
+    expect(container.textContent).toContain('BOT');
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+    resultButtons(container)[0].click();
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/test-bot'));
+  });
+
+  it('updates cached profiles and respects removal markers and session cleanup', async () => {
+    const profile = new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } });
+    mocks.store.projection.users.set('known', profile);
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(1);
+    primeDirectoryUsers('origin', 'test-session', [mapDirectoryMember(new DirectoryMember({
+      user: { id: 'known', login: 'maple', displayName: 'Maple' }
+    }))]);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    setSearch(container, 'maple');
+    expect(resultButtons(container)).toHaveLength(1);
+    removeDirectoryUser('origin', 'test-session', 'known');
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(0);
+    mocks.store.projection.users.clear();
+    primeDirectoryUsers('origin', 'test-session', [mapDirectoryMember(profile)]);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(1);
+    queryClient.clear();
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
   });
 
   it('deduplicates one-to-one and self-DMs but retains group participants as known users', async () => {

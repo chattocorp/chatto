@@ -66,7 +66,10 @@ incomplete catalogue until its normal navigation state converges.
 Known-user results are incomplete: they depend on what the client has loaded
 and can change after a reload. Profile updates, deletion, loss of DM-start
 permission, and session resets update these results through the existing state
-lifecycle. The palette does not collect profiles from other caches.
+lifecycle. Known users include the realtime projection and public profiles already
+loaded by room member lists and timelines in the current connection's directory
+cache. Cache updates and removal markers also update the palette. Profiles from
+other connection sessions are excluded; searching does not fetch missing users.
 
 ### 2. Fuzzy match with prefix-bias and recent-boost
 
