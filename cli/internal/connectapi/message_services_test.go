@@ -40,7 +40,7 @@ func TestMessageServiceInteractionPostingCapability(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInteractions); err != nil {
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInInteractions); err != nil {
 		t.Fatal(err)
 	}
 	root := env.post(room.Id, author.Id, "context", "")
@@ -68,7 +68,7 @@ func TestMessageServiceInteractionPostingCapability(t *testing.T) {
 	check(false, false)
 	env.post(room.Id, author.Id, "@"+env.viewer.Login, root.Id)
 	check(true, true)
-	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInteractions); err != nil {
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInInteractions); err != nil {
 		t.Fatal(err)
 	}
 	check(false, true)

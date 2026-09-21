@@ -1015,7 +1015,7 @@ describe('ServerStateStore unified realtime resources', () => {
       store.projection.rooms.set('R1', new RoomWithViewerState({
         room: { id: 'R1' }, viewerState: { isMember: true, permissions: [
           { permission: 'message.read', granted: true },
-          { permission: 'message.post-interactions', granted: change === 'posting revoked' }
+          { permission: 'message.post-in-interactions', granted: change === 'posting revoked' }
         ] }
       }));
       store.realtimeSync.markCaughtUp('retained');
@@ -1035,7 +1035,7 @@ describe('ServerStateStore unified realtime resources', () => {
           new RoomWithViewerState({ room: { id: 'R1' }, viewerState: { isMember: true,
             permissions: [
               { permission: 'message.read', granted: change !== 'read narrowed' },
-              { permission: 'message.post-interactions', granted: change === 'posting granted' }
+              { permission: 'message.post-in-interactions', granted: change === 'posting granted' }
             ]
           } })
         ])];

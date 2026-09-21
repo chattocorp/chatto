@@ -112,7 +112,7 @@ Here are three common examples:
 
 `message.post` permits roots and thread replies. It includes
 `message.post-in-thread` (reply in any readable thread) and
-`message.post-interactions` (reply only in readable threads with an interaction
+`message.post-in-interactions` (reply only in readable threads with an interaction
 relationship). An authored root, a direct mention from another account, or a
 received DM creates that relationship. All three grants remain subject to room
 membership and Threading Mode. Read permission is separate.
@@ -158,7 +158,7 @@ also includes `server.manage-neighbors` through the same explicit metadata.
 | `message.read-interactions` | Read a complete thread when the account authored its root, another account directly mentioned it there, or it received a DM there. Current room membership is also required. |
 | `message.post`            | Post roots and thread replies. Includes both narrower posting grants. A human with this permission at DM scope can also start DMs. A bot cannot start a DM. |
 | `message.post-in-thread`  | Reply in any readable channel-room or DM thread. |
-| `message.post-interactions` | Reply only in readable threads with an interaction relationship. |
+| `message.post-in-interactions` | Reply only in readable threads with an interaction relationship. |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
 | `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
 | `message.react`           | Add or remove reactions.                                                                                                                                                        |
@@ -214,7 +214,7 @@ Fresh servers make announcement rooms read-only for normal members. At the room 
 Normal members, moderators, and roles with only server-level posting access cannot post there. Owners and admins can post. You can let another role post by giving it a room-level `message.post` allow.
 
 To prevent thread replies in announcements, also deny `message.post-in-thread`
-and `message.post-interactions` for `everyone` in that room. An effective broad
+and `message.post-in-interactions` for `everyone` in that room. An effective broad
 posting allow still permits replies. Deny `message.attach` to prevent file uploads.
 
 ### Only one role can see and join a room
@@ -237,7 +237,7 @@ To temporarily stop normal members from posting in a room:
 
 1. Open the room's permissions.
 2. Deny `message.post` for `everyone`.
-3. Deny `message.post-in-thread` and `message.post-interactions` to prevent replies. Optionally deny `message.attach` and `message.react` as well.
+3. Deny `message.post-in-thread` and `message.post-in-interactions` to prevent replies. Optionally deny `message.attach` and `message.react` as well.
 
 Remove the room-level denies to restore the server defaults. A room-level allow on a user or role can still permit posting. If you must block those users too, deny the permission directly on the user or on a restriction role such as `suspended`.
 
@@ -248,7 +248,7 @@ To stop one non-owner user from posting without changing their roles:
 1. Open the user's member details in the admin UI.
 2. Remove any room or room-group allows set directly on the user. A more specific allow would replace the server-level deny you add next.
 3. Under permission overrides, deny `message.post` at server scope.
-4. Deny `message.post-in-thread` and `message.post-interactions` to prevent replies. Optionally deny `message.attach`, `message.react`, and `message.echo`.
+4. Deny `message.post-in-thread` and `message.post-in-interactions` to prevent replies. Optionally deny `message.attach`, `message.react`, and `message.echo`.
 
 For non-owners, a deny set directly on the user wins over their role allows. Owner permissions cannot be restricted.
 

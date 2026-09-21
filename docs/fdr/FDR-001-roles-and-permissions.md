@@ -205,14 +205,14 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   this permission. Fresh servers store only the `message.read` grant for
   `everyone`. Existing servers are not backfilled or reconciled.
 - `message.post` — post root messages and thread replies, and let human users start DMs.
-  Includes `message.post-in-thread` and `message.post-interactions`. A narrow
+  Includes `message.post-in-thread` and `message.post-in-interactions`. A narrow
   deny cannot restrict an effective broad allow.
   Bot accounts cannot start DMs. Fresh servers grant this permission to
   `everyone` at server scope. Fresh announcement rooms replace that baseline
   with a room-level `everyone` deny and a room-level `admin` allow. Moderators
   and other named roles need their own room-level posting grant.
 - `message.post-in-thread` — reply in any readable thread where room policy permits it.
-- `message.post-interactions` — reply only in readable threads with an interaction relationship.
+- `message.post-in-interactions` — reply only in readable threads with an interaction relationship.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.

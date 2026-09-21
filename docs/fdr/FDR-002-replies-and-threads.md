@@ -79,7 +79,7 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 
 ### 2. Posting permissions distinguish broad, thread, and interaction access
 
-**Decision:** `message.post` permits roots and replies and includes `message.post-in-thread` and `message.post-interactions`. The first narrow permission permits replies in any readable thread; the second requires an existing interaction relationship. Reply attribution (`inReplyTo`) has no separate permission.
+**Decision:** `message.post` permits roots and replies and includes `message.post-in-thread` and `message.post-in-interactions`. The first narrow permission permits replies in any readable thread; the second requires an existing interaction relationship. Reply attribution (`inReplyTo`) has no separate permission.
 **Why:** Operators can permit replies without root posting, or restrict replies to related conversations while allowing broad reads. Reply attribution controls presentation and notifications, not write authority. A reply can create its own notification occurrence independently of a direct mention; the recipient controls that cause through notification policy.
 **Tradeoff:** Operators who genuinely want to disable reply attribution as a UI affordance cannot do so through permissions. Recipients can suppress reply notifications without disabling the reply feature itself.
 
@@ -146,7 +146,7 @@ thread projection data require explicit client opt-ins.
   thread. Room membership is also required.
 - `message.post` — post roots and thread replies, including explicit thread creation.
 - `message.post-in-thread` — reply in readable channel-room and DM threads.
-- `message.post-interactions` — reply in readable threads with an interaction
+- `message.post-in-interactions` — reply in readable threads with an interaction
   relationship. Neither narrow permission permits new root messages.
 
 ## Related

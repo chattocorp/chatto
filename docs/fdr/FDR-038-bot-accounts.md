@@ -451,7 +451,7 @@ edit. Retracted or inaccessible messages are not sent.
   where it received a DM, subject to membership and the owner's effective broad or
   narrow read authority.
 - `message.post` — post roots and thread replies at configured scopes. Includes
-  `message.post-in-thread` and `message.post-interactions`. A bot can
+  `message.post-in-thread` and `message.post-in-interactions`. A bot can
   receive this permission only at Direct messages scope when it must not post
   in channels.
 - `message.post-in-thread` — post replies, including the first reply to a root,
@@ -459,7 +459,7 @@ edit. Retracted or inaccessible messages are not sent.
   A bot that responds only in private-conversation threads can combine this
   DM-scoped allow with DM-scoped `message.read`. It does not need
   `message.post`.
-- `message.post-interactions` — reply only in related threads, with separate
+- `message.post-in-interactions` — reply only in related threads, with separate
   read access. A broad reader can use this grant to speak only in conversations
   involving it. The owner's effective authority must also include this grant.
 
