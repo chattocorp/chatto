@@ -481,6 +481,14 @@ not one refresh per event.
 If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
 
+A replacement snapshot clears private rows and invalidates pending reads, but
+does not unmount an already open route. The route stays hidden and inert until
+catch-up completes. Room and thread timelines retain only a viewport event ID
+and pixel offset across this boundary. Fresh cursor-bounded reads restore that
+window; a missing event falls back to the latest window. Access revocation
+clears the saved position. Session and explicit resync resets still unmount
+private routes. No cached plaintext is used to restore a snapshot.
+
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for
 10 milliseconds before a ConnectRPC read starts. Adjacent events for the same

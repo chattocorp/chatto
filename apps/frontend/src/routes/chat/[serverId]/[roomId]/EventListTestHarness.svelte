@@ -22,7 +22,8 @@
     onJumpToPresent,
     updateCounter = 0,
     pendingHighlightId = null,
-    hasReachedStart = false
+    hasReachedStart = false,
+    recoveryViewport = null
   }: {
     eventIds: string[];
     roomId?: string;
@@ -35,6 +36,7 @@
     updateCounter?: number;
     pendingHighlightId?: string | null;
     hasReachedStart?: boolean;
+    recoveryViewport?: { eventId: string; offset: number; hasNewer?: boolean } | null;
   } = $props();
 
   createComposerContext({ scroll: true });
@@ -89,6 +91,10 @@
   );
 
   const messageStore = {
+    get recoveryViewport() { return recoveryViewport; },
+    set recoveryViewport(value) { recoveryViewport = value; },
+    clearViewport: () => {},
+    setViewport: () => {},
     refreshCurrentWindow: async () => ({
       hasOlder: false,
       hasNewer: false,

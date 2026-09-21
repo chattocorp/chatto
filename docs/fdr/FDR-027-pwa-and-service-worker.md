@@ -9,7 +9,7 @@ Chatto ships a service worker so the installed web app can handle push notificat
 
 Offline launches are not supported. The PWA expects a network connection for normal use.
 
-Reconnect catch-up is owned by the foreground web app, not the service worker. When a controlled PWA tab wakes or reconnects, server-scoped stores refetch projected ConnectRPC state and the room UI refetches the currently viewed room/thread window. The worker must not cache or replay messages, API responses, or live-event traffic.
+Reconnect catch-up is owned by the foreground web app, not the service worker. When a controlled PWA tab wakes or reconnects, server-scoped stores refresh current state. A replacement snapshot preserves the open room and thread UI and restores the reading position from fresh data. Private route content stays hidden and disabled until recovery completes. If the saved message no longer exists, the timeline returns to the latest window. The worker must not cache or replay messages, API responses, or live-event traffic.
 
 ## Behavior
 

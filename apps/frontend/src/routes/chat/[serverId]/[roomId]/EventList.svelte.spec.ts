@@ -29,6 +29,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
       currentUser: { user: { id: 'test-user' } },
+      realtimeSync: { isRecoveringSnapshot: false },
       serverInfo: { messageEditWindowSeconds: 300 }
     })
   }
@@ -66,6 +67,22 @@ vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
 }));
 
 describe('EventList jump completion', () => {
+  it('restores the saved event and pixel offset after a cleared timeline loads', async () => {
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: [], scrollToEventId: null, isLoading: true,
+        recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true }
+      }
+    });
+    await rendered.rerender({
+      eventIds: ['msg-before', 'msg-anchor', 'msg-after'],
+      scrollToEventId: null, isLoading: false,
+      recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true }
+    });
+    await expect.element(page.getByText('msg-anchor', { exact: true })).toBeVisible();
+    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('start');
+    await expect.element(page.getByTestId('virtualizer-scroll-offset')).toHaveTextContent('17');
+  });
   it('signals completion after highlighting a rendered target', async () => {
     const onComplete = vi.fn();
     render(EventListTestHarness, {

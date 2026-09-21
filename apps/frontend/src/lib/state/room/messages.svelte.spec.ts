@@ -1069,6 +1069,47 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('purges plaintext but restores a fresh window around the viewport after a reset', async () => {
+    const getRoomEventsAround = vi.fn<RoomTimelineAPI['getRoomEventsAround']>()
+      .mockResolvedValue({ ...pageFromEvent(threadMessageEvent('anchor')), hasNewer: true });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getRoomEventsAround })
+    );
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('old-private-row'));
+    store.setViewport({ eventId: 'anchor', offset: 17 });
+    store.resetProjectionState();
+    expect(store.events).toEqual([]);
+    expect(store.recoveryViewport).toEqual({ eventId: 'anchor', offset: 17 });
+    store.resetProjectionState();
+    await store.hydrateRealtimeProjection('fresh-boundary', () => true);
+    expect(getRoomEventsAround).toHaveBeenCalledWith(expect.objectContaining({
+      roomId: 'room-1', eventId: 'anchor', minimumCursor: 'fresh-boundary'
+    }));
+    expect(store.events.map((event) => event.id)).toEqual(['anchor']);
+    expect(store.recoveryViewport?.hasNewer).toBe(true);
+    store.clearForAccessRevocation();
+    expect(store.recoveryViewport).toBeNull();
+    expect(store.events).toEqual([]);
+    store.dispose();
+  });
+
+  it('falls back to a fresh latest window when the saved viewport event no longer exists', async () => {
+    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValue(pageFromEvent(threadMessageEvent('fresh')));
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getRoomEvents, getRoomEventsAround: vi.fn().mockRejectedValue(new ConnectError('gone', Code.NotFound)) })
+    );
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('old-private-row'));
+    store.setViewport({ eventId: 'gone', offset: 17 });
+    store.resetProjectionState();
+    await store.hydrateRealtimeProjection('fresh-boundary', () => true);
+    expect(store.events.map((event) => event.id)).toEqual(['fresh']);
+    expect(getRoomEvents).toHaveBeenCalledWith(expect.objectContaining({ minimumCursor: 'fresh-boundary' }));
+    store.dispose();
+  });
+
   it('lets a replacement refresh complete loading after a projection reset', async () => {
     type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
     const resetRead = deferred<RoomPage>();

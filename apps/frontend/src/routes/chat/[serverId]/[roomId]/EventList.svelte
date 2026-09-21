@@ -293,6 +293,41 @@
   // Scroll container and virtualizer handle
   let scrollContainer = $state<HTMLDivElement>();
   let virtualizerHandle = $state<VirtualizerHandle>();
+
+  $effect(() => {
+    const mountedStore = messageStore;
+    return () => mountedStore.clearViewport();
+  });
+
+  // A snapshot removes all plaintext rows, but the mounted timeline keeps its
+  // event ID and pixel offset. Restore only after the fresh authority is ready.
+  $effect(() => {
+    const position = messageStore.recoveryViewport;
+    if (!position || isLoading || stores.realtimeSync.isRecoveringSnapshot || !virtualizerHandle) return;
+    const items = virtualItems;
+    const index = items.findIndex((item) =>
+      item.type === 'event'
+        ? item.event.id === position.eventId
+        : item.type === 'system-group' && item.events.some((event) => event.id === position.eventId)
+    );
+    let cancelled = false;
+    untrack(() => {
+      viewport.beginJump();
+      if (composerContext.jumpState) {
+        composerContext.jumpState.isJumpedMode = position.hasNewer ?? false;
+        composerContext.jumpState.hasReachedEnd = !position.hasNewer;
+      }
+    });
+    void tick().then(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (cancelled) return;
+      if (index >= 0) safeScrollToIndex(index, { align: 'start', offset: position.offset });
+      else viewport.followBottom();
+      messageStore.recoveryViewport = null;
+      if (index < 0) void requestBottomScroll();
+    });
+    return () => { cancelled = true; };
+  });
   let scrollFader = $state<{ refresh: () => void }>();
 
   // Safely call scrollToIndex on the virtualizer. After a {#key roomId} transition,
@@ -309,6 +344,7 @@
   }
 
   function requestBottomScroll(): Promise<boolean> | undefined {
+    if (stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return undefined;
     if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return undefined;
 
     const token = viewport.beginBottomScroll(roomId);
@@ -485,6 +521,7 @@
   }
 
   async function loadOlderIfTimelineNeedsBackfill(): Promise<void> {
+    if (stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return;
     if (
       !enablePagination ||
       !onLoadMore ||
@@ -553,7 +590,7 @@
   // virtua's shift=true handles scroll restoration during pagination automatically,
   // eliminating the need for manual scrollHeight capture/restore and overflow-anchor toggling.
   function handleVirtuaScroll(offset: number) {
-    if (!virtualizerHandle) return;
+    if (!virtualizerHandle || isLoading || stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return;
 
     const scrollSize = virtualizerHandle.getScrollSize();
     const viewportSize = virtualizerHandle.getViewportSize();
@@ -575,6 +612,20 @@
       now: Date.now()
     });
     const { distanceFromBottom } = scrollResult;
+    // A separator can be the first visible item. Anchor to the next event so
+    // dates and unread markers do not discard the reading position.
+    let anchorIndex = idx;
+    while (anchorIndex < virtualItems.length &&
+      virtualItems[anchorIndex].type !== 'event' && virtualItems[anchorIndex].type !== 'system-group') anchorIndex++;
+    const anchor = virtualItems[anchorIndex];
+    const anchorEvent = anchor?.type === 'event'
+      ? anchor.event
+      : anchor?.type === 'system-group' ? anchor.events[0] : undefined;
+    messageStore.setViewport(
+      !viewport.shouldScrollToBottom && anchorEvent
+        ? { eventId: anchorEvent.id, offset: offset - virtualizerHandle.getItemOffset(anchorIndex) }
+        : null
+    );
     if (scrollResult.reachedBottom) onReachedBottom?.();
 
     // Trigger pagination when scrolled near the top.
