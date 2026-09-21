@@ -14,7 +14,7 @@ message presentation. Each message row itself opens the original message.
   import { getLocale } from '$lib/i18n/runtime';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { getRoomMembers, type RoomMember, type RoomPinsStore } from '$lib/state/room';
-  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
+  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import type { UserSummary } from '$lib/api-client/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -31,7 +31,6 @@ message presentation. Each message row itself opens the original message.
   } = $props();
 
   const serverScope = useServerScope();
-  const userSummaries = getUserSummaryCache(serverScope.serverId);
   const members = $derived(getRoomMembers());
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
@@ -39,7 +38,8 @@ message presentation. Each message row itself opens the original message.
   const activeLocale = $derived(getLocale());
 
   function user(userId: string): RoomMember | UserSummary | null {
-    return members.find((member) => member.id === userId) ?? userSummaries.get(userId);
+    return members.find((member) => member.id === userId) ??
+      mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user);
   }
 
   function messageActor(message: Message): UserAvatarUserView | null {

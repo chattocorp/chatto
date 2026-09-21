@@ -1,9 +1,14 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { MessageSearchOrder } from '$lib/api-client/messageSearch';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
+import { queryClient } from '$lib/query/client';
+import { clearUserStores, getUserStore, resetUserStoresForTests, type UserStore } from '$lib/state/server/users.svelte';
 
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
@@ -34,6 +39,12 @@ const mocks = vi.hoisted(() => ({
     }
   ],
   store: {
+    isAuthenticated: true,
+    realtimeSync: { hasUsableProjection: true },
+    projection: {
+      users: undefined as unknown as UserStore,
+      rooms: new Map<string, RoomWithViewerState>()
+    },
     serverInfo: {
       name: 'Workspace Server',
       iconUrl: null,
@@ -94,7 +105,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     get servers() {
       return mocks.servers;
     },
-    tryGetStore: vi.fn(() => mocks.store)
+    tryGetStore: vi.fn((id: string) => stores.get(id) ?? mocks.store)
   }
 }));
 
@@ -103,6 +114,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
     getClient: () => ({
       connectBaseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token-1',
+      queryScope: 'test-session',
       getAPI: (factory: (config: never) => unknown) => factory({} as never),
       client: {
         query: mocks.query,
@@ -174,6 +186,13 @@ vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
 
 import QuickSwitcher from './QuickSwitcher.svelte';
 
+const stores = new SvelteMap<string, typeof mocks.store>();
+
+function publishNavigation(serverId = 'origin', navigation = mocks.store.navigation) {
+  stores.set(serverId, { ...mocks.store, navigation: { ...navigation } });
+  flushSync();
+}
+
 type User = {
   id: string;
   login: string;
@@ -238,12 +257,6 @@ function installQueryMocks() {
       members: [currentUser, user('user-empty', 'empty', 'Empty Conversation')]
     }
   ];
-  mocks.listUsers.mockImplementation(async (search: string) => ({
-    members:
-      search === 'river-login' ? [user('user-river-login', 'river-login', 'River Login')] : [],
-    totalCount: search === 'river-login' ? 1 : 0,
-    hasMore: false
-  }));
 }
 
 async function renderOpenSwitcher() {
@@ -287,15 +300,6 @@ function resultButtons(container: HTMLElement): HTMLButtonElement[] {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button[data-index]'));
 }
 
-async function waitForDebouncedUserSearch(search = 'river-login') {
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  await vi.waitFor(() => {
-    expect(mocks.listUsers).toHaveBeenCalledWith(search, 20, 0, {
-      signal: expect.any(AbortSignal)
-    });
-  });
-}
-
 beforeAll(() => {
   originalShowModal = HTMLDialogElement.prototype.showModal;
   originalClose = HTMLDialogElement.prototype.close;
@@ -310,6 +314,15 @@ beforeAll(() => {
 beforeEach(() => {
   quickSwitcher.close();
   flushSync();
+  queryClient.clear();
+  resetUserStoresForTests();
+  stores.clear();
+  mocks.store.navigation.isInitialLoading = false;
+  mocks.store.permissions.canStartDMs = true;
+  mocks.store.isAuthenticated = true;
+  mocks.store.realtimeSync.hasUsableProjection = true;
+  mocks.store.projection.users = getUserStore('origin', 'test-session');
+  mocks.store.projection.rooms = new SvelteMap();
   installQueryMocks();
   mocks.goto.mockReset();
   mocks.toastError.mockReset();
@@ -418,97 +431,49 @@ describe('QuickSwitcher', () => {
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/overview');
   });
 
-  it('loads searchable server members and starts a DM for user results', async () => {
+  it('finds existing conversations locally and opens the room without starting a DM', async () => {
+    mocks.store.permissions.canStartDMs = false;
     const { container } = await renderOpenSwitcher();
-
-    setSearch(container, 'river-login');
-    await waitForDebouncedUserSearch();
+    setSearch(container, 'river');
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.textContent).toContain('River Teammate');
+    expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
+    input(container).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await vi.waitFor(() => {
-      expect(container.textContent).toContain('River Login');
-    });
-
-    resultButtons(container)
-      .find((button) => button.textContent?.includes('River Login'))!
-      .click();
-
-    await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/user-river-login');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-existing');
     });
     expect(mocks.startDM).not.toHaveBeenCalled();
-    expect(mocks.recents.record).not.toHaveBeenCalled();
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+    expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-existing');
   });
 
-  it('shows user results before a stalled server finishes and aborts it at the deadline', async () => {
+  it('shows local conversations while another server loads and preserves selection on arrival', async () => {
     mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
-    let resolveSlow!: (page: unknown) => void;
-    mocks.listUsers
-      .mockReturnValueOnce(new Promise((resolve) => { resolveSlow = resolve; }))
-      .mockResolvedValueOnce({ members: [user('fast', 'river-fast', 'River Fast')] });
+    publishNavigation('second', { rooms: [], isInitialLoading: true });
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'river');
-    await vi.waitFor(() => expect(container.textContent).toContain('River Fast'));
-    const signal = mocks.listUsers.mock.calls[0][3].signal as AbortSignal;
-    expect(signal.aborted).toBe(false);
-    await vi.waitFor(() => {
-      expect(signal.aborted).toBe(true);
-      expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
-    }, { timeout: 4_000 });
-    resolveSlow({ members: [user('late', 'river-late', 'River Late')] });
-    await Promise.resolve();
-    flushSync();
-    expect(container.textContent).toContain('River Fast');
-    expect(container.textContent).not.toContain('River Late');
-  });
-
-  it.each(['query', 'channel', 'message', 'close', 'unmount'])('cancels obsolete user searches on %s', async (change) => {
-    let resolveOld!: (page: unknown) => void;
-    mocks.listUsers.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }));
-    const rendered = await renderOpenSwitcher();
-    const { container } = rendered;
-    setSearch(container, 'river');
-    await vi.waitFor(() => expect(mocks.listUsers).toHaveBeenCalledOnce());
-    const signal = mocks.listUsers.mock.calls[0][3].signal as AbortSignal;
-    if (change === 'close') {
-      quickSwitcher.close();
-      flushSync();
-    } else if (change === 'unmount') {
-      await rendered.unmount();
-      currentRender = undefined;
-    } else {
-      setSearch(container, change === 'query' ? 'river-new' : change === 'channel' ? '#river' : '?river');
-    }
-    expect(signal.aborted).toBe(true);
-    resolveOld({ members: [user('old', 'river-new-old', 'River Old')] });
-    await Promise.resolve();
-    flushSync();
-    expect(container.textContent).not.toContain('River Old');
-  });
-
-  it('preserves user selection when a slower server adds a higher ranked result', async () => {
-    mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
-    let resolveSlow!: (page: unknown) => void;
-    mocks.listUsers
-      .mockResolvedValueOnce({ members: [user('fast', 'river-friend', 'River Friend')] })
-      .mockReturnValueOnce(new Promise((resolve) => { resolveSlow = resolve; }));
-    const { container } = await renderOpenSwitcher();
-    setSearch(container, 'river');
-    await vi.waitFor(() => expect(container.textContent).toContain('River Friend'));
-    resolveSlow({ members: [user('slow', 'river', 'River')] });
-    await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(2));
-    expect(resultButtons(container)[0].textContent).not.toContain('River Friend');
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).not.toBeNull();
+    publishNavigation('second', {
+      isInitialLoading: false,
+      rooms: [{ id: 'dm-second', name: '', type: RoomKind.DM, viewerIsMember: true,
+        hasMessageHistory: true, members: [currentUser, user('other', 'river', 'River')] }]
+    });
+    expect(resultButtons(container)).toHaveLength(2);
+    expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
     input(container).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/fast'));
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-existing'));
+    expect(mocks.listUsers).not.toHaveBeenCalled();
   });
 
-  it('finishes user search when all servers fail', async () => {
-    mocks.listUsers.mockRejectedValue(new Error('Unavailable'));
+  it('distinguishes incomplete catalogues from an empty local search', async () => {
+    mocks.store.navigation.isInitialLoading = true;
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'missing');
-    await vi.waitFor(() => expect(mocks.listUsers).toHaveBeenCalledOnce());
-    await vi.waitFor(() => {
-      expect(resultButtons(container)).toHaveLength(0);
-      expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
-    });
+    expect(container.textContent).not.toContain('No results');
+    publishNavigation('origin', { ...mocks.store.navigation, isInitialLoading: false });
+    expect(container.textContent).toContain('No results');
+    expect(mocks.listUsers).not.toHaveBeenCalled();
   });
 
   it('limits group DM avatars while marking bots after the first two participants', async () => {
@@ -529,16 +494,205 @@ describe('QuickSwitcher', () => {
     expect(row.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Group Helper');
   });
 
-  it('marks bot user results beside their names', async () => {
-    mocks.listUsers.mockResolvedValue({
-      members: [user('user-helper', 'helper_bot', 'Helper', true)],
-      totalCount: 1,
-      hasMore: false
+  it('matches group participants and self-DMs by login and display name', async () => {
+    mocks.store.navigation.rooms.push(
+      { id: 'dm-group', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true,
+        members: [currentUser, user('one', 'uniquehandle', 'Cedar'), user('two', 'anotherhandle', 'Maple')] },
+      { id: 'dm-self', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true,
+        members: [currentUser] }
+    );
+    const { container } = await renderOpenSwitcher();
+    for (const query of ['uniquehandle', 'Cedar', 'anotherhandle', 'Maple', 'uniquehandle Maple']) {
+      setSearch(container, query);
+      expect(resultButtons(container)).toHaveLength(1);
+      expect(resultButtons(container)[0].textContent).toContain('Cedar');
+    }
+    for (const query of ['alice', 'Alice Current', 'You']) {
+      setSearch(container, query);
+      expect(resultButtons(container)).toHaveLength(1);
+      expect(resultButtons(container)[0].textContent).toContain('You');
+    }
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+  });
+
+  it('updates searchable conversations after first messages, profile changes, and removal', async () => {
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'empty');
+    expect(resultButtons(container)).toHaveLength(0);
+    const rooms = mocks.store.navigation.rooms.map((room) => room.id === 'dm-empty'
+      ? { ...room, hasMessageHistory: true } : room);
+    publishNavigation('origin', { rooms, isInitialLoading: false });
+    expect(resultButtons(container)).toHaveLength(1);
+
+    const renamed = rooms.map((room) => room.id === 'dm-empty'
+      ? { ...room, members: [currentUser, user('user-empty', 'newhandle', 'Renamed Conversation')] } : room);
+    publishNavigation('origin', { rooms: renamed, isInitialLoading: false });
+    expect(resultButtons(container)).toHaveLength(0);
+    setSearch(container, 'newhandle');
+    expect(resultButtons(container)[0].textContent).toContain('Renamed Conversation');
+    publishNavigation('origin', { rooms: renamed.filter((room) => room.id !== 'dm-empty'), isInitialLoading: false });
+    expect(resultButtons(container)).toHaveLength(0);
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+  });
+
+  it('ignores unauthenticated server loading and keeps message mode independent of catalogue loading', async () => {
+    const { container } = await renderOpenSwitcher();
+    stores.set('origin', { ...mocks.store, isAuthenticated: false,
+      navigation: { ...mocks.store.navigation, isInitialLoading: true } });
+    setSearch(container, 'missing');
+    expect(container.textContent).toContain('No results');
+    publishNavigation('origin', { ...mocks.store.navigation, isInitialLoading: true });
+    setSearch(container, '?');
+    expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
+  });
+
+  it('searches known users locally only while typing and starts their DM destination', async () => {
+    mocks.store.projection.users.set('known', new DirectoryMember({
+      user: { id: 'known', login: 'cedar_handle', displayName: 'Cedar Person' }
+    }));
+    const { container } = await renderOpenSwitcher();
+    expect(container.textContent).not.toContain('Cedar Person');
+    setSearch(container, 'cedar_handle');
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.textContent).toContain('Cedar Person');
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+    resultButtons(container)[0].click();
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/known'));
+  });
+
+  it('finds a bot loaded only by the room directory and opens its DM', async () => {
+    const bot = new DirectoryMember({
+      user: { id: 'test-bot', login: 'test_bot', displayName: 'TestBot', bot: { ownerUserId: 'owner' } }
     });
+    getUserStore('origin', 'old-session').set('test-bot', bot);
+    getUserStore('other-server', 'test-session').set('test-bot', bot);
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'test');
+    expect(resultButtons(container)).toHaveLength(0);
+    // Directory reads populate the same owner as realtime updates.
+    getUserStore('origin', 'test-session').set('test-bot', bot);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.textContent).toContain('TestBot');
+    expect(container.textContent).toContain('BOT');
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+    resultButtons(container)[0].click();
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/test-bot'));
+  });
+
+  it('updates cached profiles and respects removal markers and session cleanup', async () => {
+    const profile = new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } });
+    mocks.store.projection.users.set('known', profile);
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(1);
+    getUserStore('origin', 'test-session').set('known', new DirectoryMember({
+      user: { id: 'known', login: 'maple', displayName: 'Maple' }
+    }));
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    setSearch(container, 'maple');
+    expect(resultButtons(container)).toHaveLength(1);
+    getUserStore('origin', 'test-session').delete('known');
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(0);
+    mocks.store.projection.users.clear();
+    getUserStore('origin', 'test-session').set('known', profile);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(1);
+    clearUserStores('origin');
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+  });
+
+  it('rejects a cached user selection after access is lost before the row updates', async () => {
+    getUserStore('origin', 'test-session').set('known', new DirectoryMember({
+      user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
+    }));
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    const row = resultButtons(container)[0];
+    stores.set('origin', { ...mocks.store, isAuthenticated: false });
+    row.click();
+    flushSync();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.startDM).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates one-to-one and self-DMs but retains group participants as known users', async () => {
+    for (const member of [currentUser, teammate, user('group-peer', 'rivergroup', 'River Group')]) {
+      mocks.store.projection.users.set(member.id, new DirectoryMember({
+        user: { id: member.id, login: member.login, displayName: member.displayName }
+      }));
+    }
+    mocks.store.navigation.rooms.push(
+      { id: 'self', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true, members: [currentUser] },
+      { id: 'group', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true,
+        members: [currentUser, user('group-peer', 'rivergroup', 'River Group')] }
+    );
+    // One group participant has not loaded; membership must still identify a group.
+    mocks.store.projection.rooms.set('group', new RoomWithViewerState({ memberUserIds: ['user-current', 'group-peer', 'unloaded'] }));
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'river');
+    expect(resultButtons(container)).toHaveLength(3);
+    expect(resultButtons(container).at(-1)?.textContent).toContain('@rivergroup');
+    expect(resultButtons(container).filter((button) => button.textContent?.includes('@river ·'))).toHaveLength(0);
+    setSearch(container, 'alice');
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.textContent).toContain('You');
+  });
+
+  it('refreshes known profiles and removes them after deletion, reset, or loss of access', async () => {
+    const member = new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } });
+    mocks.store.projection.users.set('known', member);
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(1);
+    mocks.store.projection.users.set('known', new DirectoryMember({ user: { id: 'known', login: 'maple', displayName: 'Maple' } }));
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    setSearch(container, 'maple');
+    expect(resultButtons(container)).toHaveLength(1);
+    mocks.store.projection.users.clear();
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    mocks.store.projection.users.set('known', member);
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(1);
+    mocks.store.projection.users.set('known', new DirectoryMember({ user: { ...member.user, deleted: true } }));
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    mocks.store.projection.users.set('known', member);
+    for (const override of [
+      { permissions: { canStartDMs: false } },
+      { isAuthenticated: false },
+      { realtimeSync: { hasUsableProjection: false } }
+    ]) {
+      stores.set('origin', { ...mocks.store, ...override });
+      flushSync();
+      expect(resultButtons(container)).toHaveLength(0);
+    }
+  });
+
+  it('keeps the same known user ID separate across servers and opens the selected server', async () => {
+    mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
+    mocks.store.projection.users.set('known', new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } }));
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(2);
+    resultButtons(container)[1].click();
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/second/dm/known'));
+  });
+
+  it('matches bot conversations by login and marks their names', async () => {
+    mocks.store.navigation.rooms.push({ id: 'dm-bot', name: '', type: RoomKind.DM,
+      viewerIsMember: true, hasMessageHistory: true,
+      members: [currentUser, user('user-helper', 'helper_bot', 'Helper', true)] });
     const { container } = await renderOpenSwitcher();
 
-    setSearch(container, 'helper');
-    await waitForDebouncedUserSearch('helper');
+    setSearch(container, 'helper_bot');
     await vi.waitFor(() => {
       expect(container.querySelector('[aria-label="helper_bot"]')).not.toBeNull();
       expect(container.querySelector('[data-testid="bot-badge"]')?.textContent).toBe('BOT');

@@ -115,3 +115,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-098](ADR-098-retained-operational-log.md) | Retain Operational Diagnostics in LOG | Accepted | 2026-09-08 |
 | [ADR-099](ADR-099-capacitor-mobile-client.md) | Package Chatto Mobile with Capacitor | Accepted | 2026-09-19 |
 | [ADR-100](ADR-100-shared-chatto-integration-client.md) | Share Chatto Integration Client Helpers | Accepted | 2026-09-21 |
+| [ADR-101](ADR-101-shared-client-user-profiles.md) | Share Public User Profiles Within Each Client Connection | Accepted | 2026-09-21 |

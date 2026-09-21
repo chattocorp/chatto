@@ -1,12 +1,10 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { notifyUserSummaries, resolveUserSummaries } from './hooks.js';
 import {
   authHeaders,
   createChattoClient,
   handleAuthError,
   REALTIME_MINIMUM_CURSOR_HEADER
 } from './connect.js';
-import type { UserSummaryForCache } from './hooks.js';
 import {
   TimelineEventKind,
   type MessagePostedPayload,
@@ -19,7 +17,6 @@ import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import { createUserAPI } from './users.js';
-import { mapUserSummary } from './userSummary.js';
 import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import { MessageVideoProcessingStatus } from '@chatto/api-types/api/v1/message_types_pb';
@@ -30,13 +27,15 @@ import type {
 } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { getUserStore } from '$lib/state/server/users.svelte';
 
 export type RoomTimelineAPIConfig = {
   serverId?: string;
+  queryScope?: string;
   baseUrl: string;
   bearerToken: string | null;
   onAuthenticationRequired?: (serverId: string) => void;
-  onUserSummaries?: (serverId: string | undefined, users: UserSummaryForCache[]) => void;
 };
 
 export type EventConnectionPage = {
@@ -96,6 +95,19 @@ export type RoomTimelineAPI = {
 };
 
 export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimelineAPI {
+  const userStore = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
+  // Capture the owner and its generation before the request. Late includes must
+  // neither recreate a disposed owner nor refill a reset snapshot.
+  const readPage = async (read: () => Promise<{ page?: RoomTimelinePage }>) => {
+    let response!: { page?: RoomTimelinePage };
+    const readProfiles = async () => {
+      response = await read();
+      return Object.values(response.page?.includes?.users ?? {}).map((user) => new DirectoryMember({ user }));
+    };
+    if (userStore) await userStore.readSnapshot(readProfiles, true);
+    else await readProfiles();
+    return response;
+  };
   const messages = createChattoClient(MessageService, config);
   const rooms = createChattoClient(RoomService, config);
   const threads = createChattoClient(ThreadService, config);
@@ -113,7 +125,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
   return {
     async getRoomEvents({ roomId, limit, before, after, minimumCursor }) {
       try {
-        const response = await rooms.getRoomEvents(
+        const response = await readPage(() => rooms.getRoomEvents(
           {
             roomId,
             limit,
@@ -124,8 +136,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
                 : { case: undefined }
           },
           options(minimumCursor)
-        );
-        primeTimelineUserIncludes(config, response.page?.includes?.users ?? {});
+        ));
         return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
       } catch (err) {
         return handleAuthError(config, err);
@@ -133,12 +144,11 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
     },
     async getRoomEventsAround({ roomId, eventId, limit, minimumCursor }) {
       try {
-        const response = await rooms.getRoomEventsAround(
+        const response = await readPage(() => rooms.getRoomEventsAround(
           { roomId, eventId, limit },
           options(minimumCursor)
-        );
+        ));
         if (!response.page) return emptyEventConnectionPage();
-        primeTimelineUserIncludes(config, response.page.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page);
       } catch (err) {
         return handleAuthError(config, err);
@@ -162,7 +172,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
     },
     async getThreadEvents({ roomId, threadRootEventId, limit, before, after, minimumCursor }) {
       try {
-        const response = await threads.getThreadEvents(
+        const response = await readPage(() => threads.getThreadEvents(
           {
             roomId,
             threadRootEventId,
@@ -174,8 +184,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
                 : { case: undefined }
           },
           options(minimumCursor)
-        );
-        primeTimelineUserIncludes(config, response.page?.includes?.users ?? {});
+        ));
         return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
       } catch (err) {
         return handleAuthError(config, err);
@@ -183,12 +192,11 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
     },
     async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit, minimumCursor }) {
       try {
-        const response = await threads.getThreadEventsAround(
+        const response = await readPage(() => threads.getThreadEventsAround(
           { roomId, threadRootEventId, eventId, limit },
           options(minimumCursor)
-        );
+        ));
         if (!response.page) return emptyEventConnectionPage();
-        primeTimelineUserIncludes(config, response.page.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page);
       } catch (err) {
         return handleAuthError(config, err);
@@ -225,13 +233,10 @@ async function batchTimelineUsers(
 
   try {
     const api = createUserAPI(config);
-    const summaries = await resolveUserSummaries(config.serverId, userIds, async (ids, cursor) => {
-      const result: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
-      for (let offset = 0; offset < ids.length; offset += 100) {
-        result.push(...await api.batchGetUsers(ids.slice(offset, offset + 100), cursor));
-      }
-      return result;
-    }, minimumCursor, config.onUserSummaries);
+    const summaries: Awaited<ReturnType<typeof api.batchGetUsers>> = [];
+    for (let offset = 0; offset < userIds.length; offset += 100) {
+      summaries.push(...await api.batchGetUsers(userIds.slice(offset, offset + 100), minimumCursor));
+    }
     const users: Record<string, User> = {};
     for (const summary of summaries) {
       // The view helpers read generated `User` values; the only difference
@@ -275,14 +280,6 @@ function messageUserIds(messages: Message[]): string[] {
     }
   }
   return [...ids];
-}
-
-function primeTimelineUserIncludes(config: RoomTimelineAPIConfig, users: Record<string, User>) {
-  notifyUserSummaries(
-    config.serverId,
-    Object.values(users).map(mapUserSummary),
-    config.onUserSummaries
-  );
 }
 
 function emptyEventConnectionPage(): EventConnectionPage {

@@ -1,12 +1,12 @@
 # FDR-015: Quick Switcher (Cmd-K)
 
 **Status:** Active
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-21
 
 ## Overview
 
 A keyboard-driven palette for moving between registered servers, joined rooms,
-visible DMs, and Notifications. It also searches server members and messages.
+visible DMs, and Notifications. It also searches messages.
 Users open it with `Cmd+K` on macOS or `Ctrl+K` on other platforms. It supports
 fuzzy matching and remembers recent destinations on the device.
 
@@ -16,12 +16,16 @@ fuzzy matching and remembers recent destinations on the device.
 - On open, the palette reads each registered server's current projected
   navigation state. The empty catalogue contains every registered server,
   joined channel room, visible DM, and Notifications.
-- A non-`#` and non-`?` query also searches the member directory on each
-  registered server where the viewer can start DMs.
-- Member results appear as each server responds. Each server has three seconds
-  to respond; a slow server does not delay results from other servers. A query
-  change or closing the palette cancels pending member searches. Late responses
-  cannot restore old results. New results preserve the selected destination.
+- Ordinary queries search the loaded navigation catalogue and users already
+  known to each authenticated server's live client state. They do not request
+  server member directories.
+- Known users appear in a separate section after matching destinations, only
+  while typing and where the viewer can start DMs. Selecting a user opens the
+  DM-start destination. A visible one-to-one or self-DM replaces the duplicate
+  user result; a group DM does not. Identities remain separate across servers.
+- Results appear immediately from available catalogues. A loading indicator
+  remains while an authenticated server's initial catalogue is incomplete.
+  Catalogue updates preserve the selected destination when it is still present.
 - Typing filters results with a fuzzy matcher. Items match on both label and
   detail, such as the server name. Label matches score higher.
 - Typing `#` as the first character restricts results to rooms only. The `#` is stripped before matching the rest.
@@ -30,8 +34,11 @@ fuzzy matching and remembers recent destinations on the device.
 - When the search field is empty, results group as: a "Recent" section first
   when it has entries, then by kind: destination, server, room, and DM. Each
   non-recent section is alphabetical.
-- Server member results are search-only; they do not appear in the empty palette. Selecting a member starts or reuses a 1:1 DM with that user and navigates to the resulting DM room. Selecting the current user starts or reuses their self-DM.
-- Existing DM rooms appear in the empty palette but are not included in typed search results; typed user lookup is handled through the server member results instead.
+- Existing DMs appear in both the empty palette and typed search results.
+  DMs without message history are omitted under the normal navigation rules.
+  Participant display names and logins match one-to-one, group, and self-DMs.
+  Selecting a DM opens that conversation. Known-user results can start or reuse
+  a DM even when that conversation has no messages yet.
 - Notifications is the only well-known destination. Servers link to their
   Overview page.
 - DMs show participant avatars and display names. Servers and channel rooms
@@ -43,20 +50,26 @@ fuzzy matching and remembers recent destinations on the device.
 
 ## Design Decisions
 
-### 1. Projected navigation catalogue with parallel searches
+### 1. Local conversation catalogue with parallel message searches
 
 **Decision:** Opening the palette composes the current navigation projections
 from every registered server. It does not fetch a second room catalogue.
-Member and message searches run in parallel against eligible registered
-servers. One server's search failure does not block results from another.
-Member searches publish results independently and cancel pending requests when
-the query changes, the palette closes, or the three-second server deadline expires.
+Ordinary queries filter this catalogue and known users locally. Message searches run in parallel
+against eligible registered servers. One server's message-search failure does
+not block results from another.
 **Why:** The per-server projections already own room and DM convergence. Reusing
-them makes opening immediate and avoids a duplicate cache lifecycle. Parallel
-search still gives users one cross-server result set. See ADR-025.
+them makes navigation search immediate and avoids downloading full member
+directories or decrypting them for each query. Parallel message search still
+gives users one cross-server result set. See ADR-025.
 **Tradeoff:** A server that has not finished its projection catch-up can have an
 incomplete catalogue until its normal navigation state converges.
-Member results from a server that exceeds the deadline are omitted from that search.
+Known-user results are incomplete: they depend on what the client has loaded
+and can change after a reload. Profile updates, deletion, loss of DM-start
+permission, and session resets update these results through the existing state
+lifecycle. Rooms, DMs, and timelines share known user profiles within the current
+connection. Profile updates and removal markers also update the palette.
+Profiles from other connection sessions are excluded; searching does not fetch
+missing users. See ADR-101.
 
 ### 2. Fuzzy match with prefix-bias and recent-boost
 
@@ -85,8 +98,7 @@ Member results from a server that exceeds the deadline are omitted from that sea
 ### 6. Keep the well-known destination list small
 
 **Decision:** Notifications is the only well-known destination. Server entries
-open server Overview pages. Visible DMs appear as their rooms, and member search
-starts new DMs when the viewer has permission.
+open server Overview pages. Visible DMs appear as their rooms.
 **Why:** Each current destination has a concrete target. Separate browsing and
 DM landing pages no longer exist.
 **Tradeoff:** Users discover new rooms through server navigation rather than a
@@ -95,10 +107,12 @@ dedicated switcher destination.
 ## Permissions
 
 No dedicated permission. The palette uses each server's projected navigation
-visibility. Member search runs only where the viewer can start a DM, and
-message search uses the server's Search availability and normal read boundary.
+visibility. Opening an existing DM does not require permission to start a new
+DM. Known-user actions require an authenticated session, usable server state,
+and permission to start DMs. Message search uses the server's Search
+availability and normal read boundary.
 
 ## Related
 
-- **ADRs:** ADR-025 (multi-instance client architecture)
+- **ADRs:** ADR-025 (multi-instance client architecture), ADR-101 (shared client user profiles)
 - **FDRs:** FDR-007 (Direct Messages), FDR-012 (Notifications)

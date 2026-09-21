@@ -17,10 +17,7 @@ import {
   MessageVideoVariant
 } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
-import {
-  __resetUserSummaryCachesForTests,
-  primeUserSummaryCache
-} from '$lib/state/userSummaries.svelte';
+import { disposeUserStore, getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import {
   createRoomTimelineAPI,
   roomTimelinePageToEventConnectionPage
@@ -58,12 +55,10 @@ describe('createRoomTimelineAPI', () => {
     mocks.batchGetUsers.mockResolvedValue({ users: [] });
     mocks.getThreadEvents.mockReset();
     mocks.getThreadEventsAround.mockReset();
-    __resetUserSummaryCachesForTests();
+    resetUserStoresForTests();
 
     configureApiClientHooks({
-      onAuthenticationRequired: mocks.handleAuthenticationRequired,
-
-      onUserSummaries: primeUserSummaryCache
+      onAuthenticationRequired: mocks.handleAuthenticationRequired
     });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockImplementation((service) => {
@@ -78,6 +73,26 @@ describe('createRoomTimelineAPI', () => {
         getThreadEventsAround: mocks.getThreadEventsAround
       };
     });
+  });
+
+  it.each(['reset', 'dispose'])('rejects timeline includes after a connection %s', async (boundary) => {
+    configureApiClientHooks({});
+    const store = getUserStore('remote', 'session');
+    let finish!: (response: { page: RoomTimelinePage }) => void;
+    mocks.getThreadEvents.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const api = createRoomTimelineAPI({
+      serverId: 'remote', queryScope: 'session',
+      baseUrl: 'https://remote.example.test/api/connect', bearerToken: null
+    });
+    const pending = api.getThreadEvents({ roomId: 'room', threadRootEventId: 'root', limit: 20 });
+    if (boundary === 'reset') store.clear();
+    else disposeUserStore('remote', 'session');
+    finish({ page: new RoomTimelinePage({ includes: { users: {
+      bot: new User({ id: 'bot', login: 'bot' })
+    } } }) });
+    await expect(pending).rejects.toThrow('Response discarded');
+    expect(store.size).toBe(0);
+    expect(getUserStore('remote', 'session').size).toBe(0);
   });
 
   it('sends thread page requests with bearer auth and opaque cursors', async () => {

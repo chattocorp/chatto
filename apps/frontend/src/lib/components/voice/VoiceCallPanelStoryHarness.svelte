@@ -6,7 +6,7 @@
 	import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
 	import type { ServerPermissions } from '$lib/state/server/permissions';
 	import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-	import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+	import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 	import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
 	import { provideServerScope } from '$lib/state/server/scope.svelte';
 	import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -32,7 +32,7 @@
 	const roomId = 'storybook-call-room';
 	const storybookServerId = 'storybook-call-server';
 	createPresenceCache();
-	createUserProfileCache();
+	provideUserProfiles();
 	const getScopedServerId = () => serverRegistry.originServer?.id ?? storybookServerId;
 	provideServerScope({
 		get serverId() {

@@ -5,7 +5,7 @@
   import { provideServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerStateStore } from '$lib/state/server/store.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import type { UserAvatarUserView } from '$lib/render/users';
   import type { MessageActionModel } from './messageActionModel';
@@ -37,7 +37,7 @@
     isCurrent: () => true
   });
   createPresenceCache();
-  createUserProfileCache();
+  provideUserProfiles();
 
   const roomId = 'room-design';
   const serverSegment = '-';

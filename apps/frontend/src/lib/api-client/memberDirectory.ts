@@ -9,23 +9,13 @@ import {
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import {
-  mapUserPresenceView,
-  mapUserSummary,
-  type UserPresenceView,
-  type UserSummary
-} from './userSummary.js';
-import { createDirectoryUserLoader } from '$lib/query/directoryUsers';
+import { mapDirectoryMember, type DirectoryMember } from './directoryMemberView';
+export { mapDirectoryMember, type DirectoryMember } from './directoryMemberView';
+import { getUserStore } from '$lib/state/server/users.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
 
 export type MemberDirectoryAPIConfig = ConnectAPIConfig;
-
-export type DirectoryMember = UserSummary &
-  UserPresenceView & {
-    roles: string[];
-    createdAt: string | null;
-  };
 
 export type MemberDirectoryPage = {
   members: DirectoryMember[];
@@ -39,17 +29,20 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
   const users = createChattoClient(UserService, config);
   const rooms = createChattoClient(RoomService, config);
   const headers = () => authHeaders(config);
-  const batchUsers = async (userIds: string[]): Promise<DirectoryMember[]> => {
+  const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
+  const readProfiles = async (read: () => Promise<APIDirectoryMember[]>) =>
+    (store ? await store.readSnapshot(read) : await read()).map(mapDirectoryMember);
+  const batchUsers = async (userIds: string[]): Promise<APIDirectoryMember[]> => {
     const response = await users.batchGetUsers({ userIds }, { headers: headers() });
-    return response.users.map(mapDirectoryMember);
+    return response.users;
   };
   const loadUsers =
-    config.serverId && config.queryScope
-      ? createDirectoryUserLoader(config.serverId, config.queryScope, batchUsers)
+    store
+      ? async (ids: string[]) => (await store.resolve(ids, batchUsers)).map(mapDirectoryMember)
       : async (ids: string[]) => {
           const members: DirectoryMember[] = [];
           for (let offset = 0; offset < ids.length; offset += 100) {
-            members.push(...(await batchUsers(ids.slice(offset, offset + 100))));
+            members.push(...(await batchUsers(ids.slice(offset, offset + 100))).map(mapDirectoryMember));
           }
           return members;
         };
@@ -61,15 +54,19 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       offset = 0,
       options: { signal?: AbortSignal } = {}
     ): Promise<MemberDirectoryPage> {
-      const response = await users.listUsers(
-        { search, page: { limit, offset } },
-        {
-          headers: headers(),
-          ...(options.signal ? { signal: options.signal } : {})
-        }
-      );
+      let response!: Awaited<ReturnType<typeof users.listUsers>>;
+      const members = await readProfiles(async () => {
+        response = await users.listUsers(
+          { search, page: { limit, offset } },
+          {
+            headers: headers(),
+            ...(options.signal ? { signal: options.signal } : {})
+          }
+        );
+        return response.users;
+      });
       return {
-        members: response.users.map(mapDirectoryMember),
+        members,
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };
@@ -77,11 +74,14 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
 
     async getUser(userId: string): Promise<DirectoryMember | null> {
       try {
-        const response = await users.getUser(
-          { target: { case: 'userId', value: userId } },
-          { headers: headers() }
-        );
-        return response.user ? mapDirectoryMember(response.user) : null;
+        const members = await readProfiles(async () => {
+          const response = await users.getUser(
+            { target: { case: 'userId', value: userId } },
+            { headers: headers() }
+          );
+          return response.user ? [response.user] : [];
+        });
+        return members[0] ?? null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
@@ -92,11 +92,14 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
 
     async getUserByLogin(login: string): Promise<DirectoryMember | null> {
       try {
-        const response = await users.getUser(
-          { target: { case: 'login', value: login } },
-          { headers: headers() }
-        );
-        return response.user ? mapDirectoryMember(response.user) : null;
+        const members = await readProfiles(async () => {
+          const response = await users.getUser(
+            { target: { case: 'login', value: login } },
+            { headers: headers() }
+          );
+          return response.user ? [response.user] : [];
+        });
+        return members[0] ?? null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
@@ -164,8 +167,11 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
 
     async getRoomMember(roomId: string, userId: string): Promise<DirectoryMember | null> {
       try {
-        const response = await rooms.getMember({ roomId, userId }, { headers: headers() });
-        return response.member ? mapDirectoryMember(response.member) : null;
+        const members = await readProfiles(async () => {
+          const response = await rooms.getMember({ roomId, userId }, { headers: headers() });
+          return response.member ? [response.member] : [];
+        });
+        return members[0] ?? null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
@@ -179,32 +185,18 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       userIds: string[],
       options: { signal?: AbortSignal } = {}
     ): Promise<DirectoryMember[]> {
-      const response = await rooms.batchGetMembers(
-        { roomId, userIds },
-        {
-          headers: headers(),
-          ...(options.signal ? { signal: options.signal } : {})
-        }
-      );
-      return response.members.map(mapDirectoryMember);
+      return readProfiles(async () => {
+        const response = await rooms.batchGetMembers(
+          { roomId, userIds },
+          {
+            headers: headers(),
+            ...(options.signal ? { signal: options.signal } : {})
+          }
+        );
+        return response.members;
+      });
     }
   };
 }
 
 export type MemberDirectoryAPI = ReturnType<typeof createMemberDirectoryAPI>;
-
-export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember {
-  const user = member.user;
-  // The directory contract renders a blank, offline member when the response
-  // omits the user instead of dropping the row, and never leaves `isBot`
-  // unset.
-  const summary: UserSummary = user
-    ? { ...mapUserSummary(user), isBot: !!user.bot }
-    : { id: '', login: '', displayName: '', deleted: false, isBot: false, avatarUrl: null };
-  return {
-    ...summary,
-    ...mapUserPresenceView(user),
-    roles: [...member.roles],
-    createdAt: member.createdAt?.toDate().toISOString() ?? null
-  };
-}

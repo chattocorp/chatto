@@ -2,6 +2,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
 import type { RoomBanList } from '$lib/api-client/rooms';
 import { registerServerQueryCache } from './cacheRegistry';
+import { clearUserStores } from '$lib/state/server/users.svelte';
 
 const SERVER_QUERY_STALE_TIME_MS = 30_000;
 const SERVER_QUERY_GC_TIME_MS = 5 * 60_000;
@@ -59,6 +60,7 @@ export function serverQueryRoot(serverId: string): QueryKey {
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {
+  clearUserStores(serverId);
   permissionRefreshes.delete(serverId);
   for (const query of queryClient.getQueryCache().findAll({ queryKey: serverQueryRoot(serverId) }))
     query.reset();

@@ -2,12 +2,13 @@ import {
   authHeaders,
   createChattoClient,
   REALTIME_MINIMUM_CURSOR_HEADER,
+  StaleResponseError,
   type ConnectAPIConfig
 } from './connect.js';
-import { mapDirectoryMember } from './memberDirectory';
-import { primeRegisteredDirectoryUsers } from '$lib/query/cacheRegistry';
+import { getUserStore } from '$lib/state/server/users.svelte';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
-import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import type { User } from '@chatto/api-types/api/v1/users_pb';
 
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 
@@ -19,6 +20,19 @@ export type UserAPIConfig = ConnectAPIConfig;
 export function createUserAPI(config: UserAPIConfig) {
   const client = createChattoClient(UserService, config);
   const headers = () => authHeaders(config);
+  const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
+  const updateProfile = async (read: () => Promise<User>): Promise<UserSummary> => {
+    if (!store) return mapUserSummary(await read());
+    let acknowledged!: User;
+    await store.readSnapshot(async () => {
+      acknowledged = await read();
+      return [new APIDirectoryMember({ ...store.get(acknowledged.id), user: acknowledged })];
+    });
+    if (store.isDeleted(acknowledged.id)) throw new StaleResponseError(false);
+    // The command's own event can invalidate the profile before its response.
+    // That does not turn a successful command into a failed acknowledgement.
+    return mapUserSummary(store.get(acknowledged.id)?.user ?? acknowledged);
+  };
 
   return {
     async batchGetUsers(userIds: string[], minimumCursor?: string): Promise<UserSummary[]> {
@@ -28,28 +42,22 @@ export function createUserAPI(config: UserAPIConfig) {
         boundedHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
         requestHeaders = boundedHeaders;
       }
-      const response = await client.batchGetUsers(
-        { userIds },
+      const read = async (ids: string[]) => (await client.batchGetUsers(
+        { userIds: ids },
         {
           headers: requestHeaders,
           ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
         }
-      );
-      if (config.serverId && config.queryScope) {
-        primeRegisteredDirectoryUsers(
-          config.serverId,
-          config.queryScope,
-          response.users.map(mapDirectoryMember),
-          false
-        );
-      }
-      return response.users.flatMap((member) => {
+      )).users;
+      const members = store ? await store.resolve(userIds, read, minimumCursor) : await read(userIds);
+      return members.flatMap((member) => {
         const summary = member.user;
         return summary ? [mapUserSummary(summary)] : [];
       });
     },
     async uploadAvatar(userId: string, file: File): Promise<UserSummary> {
-      const response = await client.uploadAvatar(
+      return updateProfile(async () => {
+        const response = await client.uploadAvatar(
         {
           userId,
           image: {
@@ -60,11 +68,14 @@ export function createUserAPI(config: UserAPIConfig) {
         },
         { headers: headers() }
       );
-      return mapUserSummary(requiredUser(response.user));
+        return requiredUser(response.user);
+      });
     },
     async deleteAvatar(userId: string): Promise<UserSummary> {
-      const response = await client.deleteAvatar({ userId }, { headers: headers() });
-      return mapUserSummary(requiredUser(response.user));
+      return updateProfile(async () => {
+        const response = await client.deleteAvatar({ userId }, { headers: headers() });
+        return requiredUser(response.user);
+      });
     }
   };
 }
