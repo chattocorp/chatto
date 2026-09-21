@@ -1,8 +1,6 @@
 {
   "voice": {
     "connection_lost": "З’єднання втрачено",
-    "microphone_silence_explanation": "Перевір перемикач вимкнення звуку на мікрофоні або вибери інший вхід.",
-    "microphone_silent_hint": "Немає звуку з мікрофона",
     "connecting": "Підключення...",
     "joining": "Приєднання...",
     "starting": "Початок...",

@@ -53,27 +53,6 @@ it('opens voice preferences from the toolbar gear', async () => {
   );
 });
 
-it('shows the microphone warning only on the local participant card', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
-  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
-  flushSync(() => {
-    call.microphoneSilent = true;
-  });
-  await expect.element(screen.getByTestId('microphone-silence-hint')).toBeInTheDocument();
-  expect(
-    screen.container.querySelector('[title="Alice"] [data-testid="microphone-silence-hint"]')
-  ).not.toBeNull();
-  expect(
-    screen.container.querySelector('[title="Bob"] [data-testid="microphone-silence-hint"]')
-  ).toBeNull();
-  flushSync(() => {
-    call.microphoneSilent = false;
-  });
-  await expect.element(screen.getByTestId('microphone-silence-hint')).not.toBeInTheDocument();
-});
-
 it('removes voice activity and participant controls when a call becomes observed', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'sidebar', scenario: 'voice' }

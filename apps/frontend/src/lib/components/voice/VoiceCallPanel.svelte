@@ -32,7 +32,6 @@ Room sidebar panel for voice/video calls.
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
-  import MicrophoneSilenceHint from './MicrophoneSilenceHint.svelte';
   import ConnectionQualityHint from './ConnectionQualityHint.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -395,9 +394,6 @@ Room sidebar panel for voice/video calls.
     {#snippet actions()}
       {#if isInThisCall && !screen}
         <ConnectionQualityHint quality={participant.connectionQuality} />
-      {/if}
-      {#if isInThisCall && participant.isLocal && !screen}
-        <MicrophoneSilenceHint />
       {/if}
       {#if headerActions === 'media'}
         {@render mediaTileActions()}
