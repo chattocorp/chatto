@@ -223,12 +223,13 @@ export class QuickSwitcherModel {
   async select(item: QuickSwitcherItem): Promise<void> {
     if (item.kind === 'user') {
       const store = serverRegistry.tryGetStore(item.serverId);
-      const user = item.targetUserId ? this.#knownUsers(item.serverId).get(item.targetUserId) : undefined;
       // Recheck the live scope before an action from a row that may have become stale.
       if (
         !store?.isAuthenticated || !store.realtimeSync.hasUsableProjection ||
-        !store.permissions.canStartDMs || !user || user.deleted
+        !store.permissions.canStartDMs
       ) return;
+      const user = item.targetUserId ? this.#knownUsers(item.serverId).get(item.targetUserId) : undefined;
+      if (!user || user.deleted) return;
       quickSwitcher.close();
       try {
         await startDMWith(item.serverId, user.id);

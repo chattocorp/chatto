@@ -607,6 +607,20 @@ describe('QuickSwitcher', () => {
     expect(resultButtons(container)).toHaveLength(0);
   });
 
+  it('rejects a cached user selection after access is lost before the row updates', async () => {
+    primeDirectoryUsers('origin', 'test-session', [mapDirectoryMember(new DirectoryMember({
+      user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
+    }))]);
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    const row = resultButtons(container)[0];
+    stores.set('origin', { ...mocks.store, isAuthenticated: false });
+    row.click();
+    flushSync();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.startDM).not.toHaveBeenCalled();
+  });
+
   it('deduplicates one-to-one and self-DMs but retains group participants as known users', async () => {
     for (const member of [currentUser, teammate, user('group-peer', 'rivergroup', 'River Group')]) {
       mocks.store.projection.users.set(member.id, new DirectoryMember({
