@@ -1,4 +1,5 @@
 node_modules
+.turbo/
 .vscode/settings.json
 *.code-workspace
 .DS_Store

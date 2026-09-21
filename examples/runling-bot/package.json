@@ -1,0 +1,14 @@
+{
+  "name": "@chatto/runling-bot",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test *.test.ts"
+  },
+  "dependencies": {
+    "@chatto/client": "workspace:*",
+    "runling": "workspace:*",
+    "undici": "7.29.0"
+  }
+}

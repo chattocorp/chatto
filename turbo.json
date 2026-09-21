@@ -1,0 +1,22 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "cacheDir": ".turbo/cache",
+  "remoteCache": { "enabled": false },
+  "envMode": "loose",
+  "globalDependencies": ["mise.toml", ".npmrc"],
+  "globalEnv": ["NODE_OPTIONS"],
+  "tasks": {
+    "build": { "dependsOn": ["^build"], "cache": false },
+    "@chatto/api-types#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
+    "@chatto/lingua#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
+    "@chatto/client#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
+    "check": { "dependsOn": ["^build"], "cache": false },
+    "@chatto/runling-bot#check": { "dependsOn": [], "cache": false },
+    "lint": { "dependsOn": ["^build"], "cache": false },
+    "@chatto/runling-bot#lint": { "dependsOn": [], "cache": false },
+    "test": { "dependsOn": ["^build"], "cache": false },
+    "prepare": { "dependsOn": ["^build"], "cache": false },
+    "build-storybook": { "dependsOn": ["^build"], "cache": false },
+    "dev": { "dependsOn": ["^build"], "cache": false, "persistent": true }
+  }
+}
