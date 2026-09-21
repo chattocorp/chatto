@@ -151,6 +151,14 @@ func (p *Projection) resumeIndexRebuild() error {
 		return err
 	}
 	p.index = index
+	// Bleve syncs its store data, but only writes/closes index_meta.json.
+	// Persist that file and the store directory entry before removing intent.
+	// Syncing only the parent directory does not make either durable.
+	for _, name := range []string{"index_meta.json", "store"} {
+		if err := p.syncPath(filepath.Join(p.directory, name)); err != nil {
+			return err
+		}
+	}
 	if err := p.syncDirectory(); err != nil {
 		return err
 	}
@@ -161,9 +169,16 @@ func (p *Projection) resumeIndexRebuild() error {
 }
 
 func (p *Projection) syncDirectory() error {
-	directory, err := os.Open(p.directory)
+	return p.syncPath(p.directory)
+}
+
+func (p *Projection) syncPath(path string) error {
+	if p.syncPathOverride != nil {
+		return p.syncPathOverride(path)
+	}
+	entry, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	return errors.Join(directory.Sync(), directory.Close())
+	return errors.Join(entry.Sync(), entry.Close())
 }

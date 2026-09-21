@@ -109,6 +109,8 @@ type Projection struct {
 	contractID    string
 	// commitBatch is an optional test seam; production commits through index.Batch.
 	commitBatch func(*blevesearch.Batch) error
+	// syncPathOverride injects filesystem sync failures in rebuild tests.
+	syncPathOverride func(string) error
 }
 
 func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyWrapper, legacyKeys kms.LegacyKeyProvider, dekStore dekstore.Reader, logger *log.Logger) (*Projection, error) {

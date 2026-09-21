@@ -3,6 +3,7 @@ package bleve
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,6 +16,41 @@ import (
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/pkg/events"
 )
+
+func TestProjectionRebuildRetainsIntentUntilReplacementIsDurable(t *testing.T) {
+	for _, failedEntry := range []string{"index_meta.json", "store"} {
+		t.Run(failedEntry, func(t *testing.T) {
+			directory := filepath.Join(t.TempDir(), "index")
+			p, err := NewProjection(directory, []string{}, nil, nil, nil, log.New(nil))
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = p.Close() })
+			request := events.ProjectionCheckpointRequest{ProjectionKey: "message_search", ContractID: p.contractID, StreamName: "EVT", StreamIdentity: "same", FirstSequence: 1, LastSequence: 1}
+			failure := errors.New("injected sync failure")
+			p.syncPathOverride = func(path string) error {
+				if filepath.Base(path) == failedEntry {
+					return failure
+				}
+				entry, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				return errors.Join(entry.Sync(), entry.Close())
+			}
+			require.ErrorIs(t, p.rebuildIndex(request), failure)
+			marker, err := os.ReadFile(filepath.Join(directory, rebuildMarkerName))
+			require.NoError(t, err)
+			require.Equal(t, rebuildMarker, string(marker))
+			require.NoError(t, p.Close())
+			// Model lost metadata after an unsuccessful sync. The retained marker
+			// must repair it automatically, without operator intervention.
+			require.NoError(t, os.WriteFile(filepath.Join(directory, "index_meta.json"), []byte("partial"), 0o600))
+			p, err = NewProjection(directory, []string{}, nil, nil, nil, log.New(nil))
+			require.NoError(t, err)
+			_, err = os.Stat(filepath.Join(directory, rebuildMarkerName))
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	}
+}
 
 func TestProjectionRebuildsKnownContractChanges(t *testing.T) {
 	for _, base := range []string{"bleve-message-index-v10", checkpointContractBaseID} {
