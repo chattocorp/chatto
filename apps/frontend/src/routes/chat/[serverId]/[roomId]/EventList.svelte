@@ -294,49 +294,49 @@
   let scrollContainer = $state<HTMLDivElement>();
   let virtualizerHandle = $state<VirtualizerHandle>();
 
-  $effect(() => {
-    const mountedStore = messageStore;
-    return () => mountedStore.clearViewport();
-  });
-
-  // A snapshot removes all plaintext rows, but the mounted timeline keeps its
-  // event ID and pixel offset. Restore only after the fresh authority is ready.
-  $effect(() => {
+  // Build a DOM command only after fresh authority and the virtualizer are ready.
+  const recoveryTarget = $derived.by(() => {
     const position = messageStore.recoveryViewport;
-    if (!position || isLoading || stores.realtimeSync.isRecoveringSnapshot) return;
+    if (!position || isLoading || stores.realtimeSync.isRecoveringSnapshot) return null;
     const items = virtualItems;
-    if (items.length === 0) {
-      untrack(() => {
-        messageStore.clearViewport();
-        composerContext.jumpState?.reset();
-        viewport.followBottom();
-      });
-      return;
-    }
-    if (!virtualizerHandle) return;
+    if (items.length > 0 && !virtualizerHandle) return null;
     const index = items.findIndex((item) =>
       item.type === 'event'
         ? item.event.id === position.eventId
         : item.type === 'system-group' && item.events.some((event) => event.id === position.eventId)
     );
-    let cancelled = false;
-    untrack(() => {
-      viewport.beginJump();
-      if (composerContext.jumpState) {
-        composerContext.jumpState.isJumpedMode = position.hasNewer ?? false;
-        composerContext.jumpState.hasReachedEnd = !position.hasNewer;
-      }
-    });
-    void tick().then(async () => {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      if (cancelled) return;
-      if (index >= 0) safeScrollToIndex(index, { align: 'start', offset: position.offset });
-      else viewport.followBottom();
-      messageStore.recoveryViewport = null;
-      if (index < 0) void requestBottomScroll();
-    });
-    return () => { cancelled = true; };
+    return { position, index, store: messageStore };
   });
+
+  /** Coordinates belong to this mounted timeline, not to its cached store. */
+  function ownViewport(store: MessagesStore) {
+    return () => () => store.clearViewport();
+  }
+
+  /** Apply the derived scroll command after layout; detach cancels pending work. */
+  function restoreViewport(target: typeof recoveryTarget) {
+    return () => {
+      if (!target) return;
+      const frame = requestAnimationFrame(() => {
+        const { position, index, store } = target;
+        if (index >= 0) {
+          viewport.beginJump();
+          if (composerContext.jumpState) {
+            composerContext.jumpState.isJumpedMode = position.hasNewer ?? false;
+            composerContext.jumpState.hasReachedEnd = !position.hasNewer;
+          }
+          safeScrollToIndex(index, { align: 'start', offset: position.offset });
+          store.recoveryViewport = null;
+        } else {
+          store.clearViewport();
+          composerContext.jumpState?.reset();
+          viewport.followBottom();
+          void requestBottomScroll();
+        }
+      });
+      return () => cancelAnimationFrame(frame);
+    };
+  }
   let scrollFader = $state<{ refresh: () => void }>();
 
   // Safely call scrollToIndex on the virtualizer. After a {#key roomId} transition,
@@ -697,7 +697,7 @@
 
 <svelte:window onkeydown={markKeyboardScrollIntent} />
 
-<div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2">
+<div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2" {@attach ownViewport(messageStore)}>
   <ScrollFader
     top
     bottom
@@ -709,7 +709,7 @@
     ontouchmove={markUserScrollIntent}
     onpointerdown={markUserScrollIntent}
   >
-    <div class="mt-auto mobile-presentation:px-1">
+    <div class="mt-auto mobile-presentation:px-1" {@attach restoreViewport(recoveryTarget)}>
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>
