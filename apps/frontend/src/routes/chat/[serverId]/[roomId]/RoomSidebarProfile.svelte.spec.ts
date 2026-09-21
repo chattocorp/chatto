@@ -3,10 +3,8 @@ import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import {
-  __resetUserSummaryCachesForTests,
-  getUserSummaryCache
-} from '$lib/state/userSummaries.svelte';
+import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
+import { userProfileFixture } from '$lib/test-utils/userProfile';
 import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -45,7 +43,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       queryScope: 'session-1',
       getAPI: () => ({ batchGetUsers: mocks.batchGetUsers })
     },
-    store: { currentUser: { user: { settings: mocks.viewerSettings } } },
+    store: {
+      currentUser: { user: { settings: mocks.viewerSettings } },
+      get projection() { return { users: getUserStore('origin', 'session-1') }; }
+    },
     isCurrent: () => true
   })
 }));
@@ -86,7 +87,7 @@ function renderProfile() {
 describe('RoomSidebarProfile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    __resetUserSummaryCachesForTests();
+    resetUserStoresForTests();
     mocks.queryState = { data: undefined, isPending: false };
     mocks.queryOptions = null;
     mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_24_HOUR;
@@ -101,7 +102,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('renders a cached profile while the fresh query is pending', () => {
-    getUserSummaryCache('origin').prime([user]);
+    getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
     mocks.queryState.isPending = true;
 
     const { container } = renderProfile();
@@ -114,7 +115,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('collapses and expands the bio section', async () => {
-    getUserSummaryCache('origin').prime([user]);
+    getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
     await expect.poll(() => q(container, '[data-testid="profile-bio-heading"]')).not.toBeNull();
     const heading = q(container, '[data-testid="profile-bio-heading"]');
@@ -131,7 +132,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('omits the bio section when no bio is set', () => {
-    getUserSummaryCache('origin').prime([{ ...user, bio: null }]);
+    getUserStore('origin', 'session-1').set(user.id, userProfileFixture({ ...user, bio: null }));
     const { container } = renderProfile();
     expect(q(container, '[data-testid="profile-bio-heading"]')).toBeNull();
   });
@@ -146,7 +147,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('uses the viewer preferred 12-hour time format', () => {
-    getUserSummaryCache('origin').prime([user]);
+    getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
     mocks.queryState.isPending = true;
     mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_12_HOUR;
 
@@ -164,5 +165,17 @@ describe('RoomSidebarProfile', () => {
     await vi.waitFor(() => {
       expect(q(container, '[data-tone="danger"]') ?? container).toHaveTextContent('User not found');
     });
+  });
+
+  it('uses shared profile updates and deletion instead of retained query data', async () => {
+    const profiles = getUserStore('origin', 'session-1');
+    profiles.set(user.id, userProfileFixture(user));
+    mocks.queryState.data = user;
+    const { container } = renderProfile();
+    profiles.set(user.id, userProfileFixture({ ...user, displayName: 'Updated profile' }));
+    await expect.element(container).toHaveTextContent('Updated profile');
+    profiles.delete(user.id);
+    await expect.element(container).toHaveTextContent('User not found');
+    expect(container.textContent).not.toContain('Alice Example');
   });
 });

@@ -46,7 +46,6 @@ const mocks = vi.hoisted(() => {
     initSessionChannel: vi.fn(),
     stopSessionChannel: vi.fn(),
     presenceStatuses: { origin: 1, remote: 4 },
-    useProjectionEvent: vi.fn(),
     useSessionTerminated: vi.fn(),
     firstAuthenticatedServerId: vi.fn(() => 'remote'),
     clearServerAuthentication: vi.fn(),
@@ -115,10 +114,6 @@ vi.mock('$lib/navigation', () => ({
 }));
 
 vi.mock('$lib/hooks/useEvent.svelte', () => ({
-  useProjectionEvent: (...args: unknown[]) => {
-    mocks.lifecycle.push('projection');
-    mocks.useProjectionEvent(...args);
-  },
   useSessionTerminated: (...args: unknown[]) => {
     mocks.lifecycle.push('session');
     mocks.useSessionTerminated(...args);
@@ -251,17 +246,10 @@ describe('ChatRoot', () => {
     const presenceCache = {
       update: mocks.presenceCacheUpdate
     } as unknown as PresenceCache;
-    const profileCache = {
-      update: vi.fn(),
-      updateStatus: vi.fn(),
-      remove: vi.fn(),
-      clear: vi.fn()
-    };
 
     const { container, unmount } = render(ChatRoot, {
       props: {
         user: originUser,
-        profileCache,
         presenceCache,
         children
       }
@@ -269,7 +257,7 @@ describe('ChatRoot', () => {
 
     expect(mocks.originCurrentUser.user).toBe(originUser);
     expect(mocks.originCurrentUser.loading).toBe(false);
-    expect(mocks.lifecycle.slice(0, 2)).toEqual(['projection', 'session']);
+    expect(mocks.lifecycle[0]).toBe('session');
     expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
     expect(mocks.presenceCacheUpdate).toHaveBeenCalledWith(
       { serverId: 'origin', userId: 'origin-user' },
@@ -304,17 +292,10 @@ describe('ChatRoot', () => {
     const presenceCache = {
       update: mocks.presenceCacheUpdate
     } as unknown as PresenceCache;
-    const profileCache = {
-      update: vi.fn(),
-      updateStatus: vi.fn(),
-      remove: vi.fn(),
-      clear: vi.fn()
-    };
 
     const { container, unmount } = render(ChatRoot, {
       props: {
         user: null,
-        profileCache,
         presenceCache,
         children
       }
@@ -323,7 +304,6 @@ describe('ChatRoot', () => {
     expect(mocks.originCurrentUser.user).toBeUndefined();
     expect(mocks.originCurrentUser.loading).toBe(true);
     expect(mocks.lifecycle).not.toContain('synchronize');
-    expect(mocks.lifecycle).not.toContain('projection');
     expect(mocks.lifecycle).not.toContain('session');
     expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
     expect(mocks.resumeReturnNavigation).not.toHaveBeenCalled();
@@ -365,15 +345,9 @@ describe('ChatRoot', () => {
     };
     mocks.remoteCurrentUser.user = remoteUser;
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
-    const profileCache = {
-      update: vi.fn(),
-      updateStatus: vi.fn(),
-      remove: vi.fn(),
-      clear: vi.fn()
-    };
 
     render(ChatRoot, {
-      props: { user: null, profileCache, presenceCache, children }
+      props: { user: null, presenceCache, children }
     });
 
     await expect.poll(() => mocks.remoteCurrentUser.user?.settings?.timezone).toBe('Europe/Berlin');
@@ -394,15 +368,9 @@ describe('ChatRoot', () => {
         }
       };
       const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
-      const profileCache = {
-        update: vi.fn(),
-        updateStatus: vi.fn(),
-        remove: vi.fn(),
-        clear: vi.fn()
-      };
 
       render(ChatRoot, {
-        props: { user: null, profileCache, presenceCache, children }
+        props: { user: null, presenceCache, children }
       });
 
       await Promise.resolve();
@@ -423,15 +391,9 @@ describe('ChatRoot', () => {
       }
     };
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
-    const profileCache = {
-      update: vi.fn(),
-      updateStatus: vi.fn(),
-      remove: vi.fn(),
-      clear: vi.fn()
-    };
 
     render(ChatRoot, {
-      props: { user: null, profileCache, presenceCache, children }
+      props: { user: null, presenceCache, children }
     });
 
     await vi.waitFor(() => expect(mocks.updateSettings).toHaveBeenCalledOnce());
@@ -448,15 +410,9 @@ describe('ChatRoot', () => {
       settings: { timezone: null, timeFormat: TimeFormat.TIME_FORMAT_AUTO }
     };
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
-    const profileCache = {
-      update: vi.fn(),
-      updateStatus: vi.fn(),
-      remove: vi.fn(),
-      clear: vi.fn()
-    };
 
     render(ChatRoot, {
-      props: { user: null, profileCache, presenceCache, children }
+      props: { user: null, presenceCache, children }
     });
 
     await Promise.resolve();

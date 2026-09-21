@@ -27,9 +27,9 @@
 
 <script lang="ts">
 	import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-	import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+	import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 	createPresenceCache();
-	createUserProfileCache();
+	provideUserProfiles();
 </script>
 
 <Story name="Bot" args={{ name: 'ChattoBot', identity: bot }} />

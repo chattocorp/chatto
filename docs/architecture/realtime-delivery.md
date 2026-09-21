@@ -123,8 +123,8 @@ After a successful thread-read acknowledgement, the root message also uses
 this queue. Acknowledgements that arrive during an active read can require a
 follow-up batch; they do not refresh the timeline window.
 
-The temporary row uses the projected user directory, then the per-server user
-summary cache, to resolve its author. If neither has the author, the row keeps
+The temporary row uses the connection-scoped user store to resolve its author.
+If that store has no profile, the row keeps
 its body visible and shows a neutral avatar and a name skeleton. A failed
 message read fails reconciliation. An omitted message is removed or tombstoned
 through the existing message-deletion rules. Neither case marks the account
@@ -133,8 +133,8 @@ change occurred during the read. Account deletion clears
 copied author data and the loading state. Deletion fences also apply to late
 responses and cached-author fallback.
 
-Message command responses and shared message reads also use the per-server
-user summary cache. They fetch only missing users and share concurrent reads
+Message command responses and shared message reads use the same user store as
+room directories and the realtime projection. They fetch only missing users and share concurrent reads
 for the same user. A profile-change event invalidates that user's summary;
 account deletion, projection reset, and store disposal fence pending cache
 loads. A missing result from a shared read at a different cursor is retried at
@@ -376,12 +376,18 @@ the membership read with the event's minimum cursor. Recovery resets and room
 access loss clear retained membership. Universal-room eligibility changes require
 a new authoritative read rather than client-side permission calculations.
 
-TanStack Query stores directory users by server, connection scope, and user ID.
-Concurrent cache misses share reads in batches of at most 100 IDs. Canonical
-profile updates cancel older reads before replacing entries; deletion records
-prevent an old batch from restoring a removed user. Session disposal removes
-these queries. A room's first page and full background load remain separate so
+[UserStore](../../apps/frontend/src/lib/state/server/users.svelte.ts) stores
+public profiles by server, connection scope, and user ID. Directory and timeline
+hydration share reads in batches of at most 100 IDs. Realtime updates supersede
+pending reads; per-user revisions fence list/detail responses. Deletion markers
+prevent old responses from restoring a removed user. Reset rejects pending reads,
+and disposal permanently fences the retired owner. Profile expiry timers have
+the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
+A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
+Room member state retains membership IDs and resolves profiles from the shared
+owner. The quick finder reads that owner directly without starting profile
+requests. Server-scoped name and avatar views read the same current profiles.
 Three independent presence-filtered scans publish connected members while the
 full directory loads. Each status filter also supplies presence for cached
 profiles. Per-user change versions prevent these previews from replacing newer
@@ -480,6 +486,14 @@ auxiliary refresh. Thus a replay runs one auxiliary refresh at `caught_up`,
 not one refresh per event.
 If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
+
+A replacement snapshot clears private rows and invalidates pending reads, but
+does not unmount an already open route. The route stays hidden and inert until
+catch-up completes. Room and thread timelines retain only a viewport event ID
+and pixel offset across this boundary. Fresh cursor-bounded reads restore that
+window; a missing event falls back to the latest window. Access revocation
+clears the saved position. Session and explicit resync resets still unmount
+private routes. No cached plaintext is used to restore a snapshot.
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for

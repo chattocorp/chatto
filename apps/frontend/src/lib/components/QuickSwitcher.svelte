@@ -136,15 +136,8 @@
                   </span>
                 {:else if item.kind === 'destination' && item.icon}
                   <span class="command-palette-leading"><span class="iconify sidebar-icon {item.icon}" aria-hidden="true"></span></span>
-                {:else if item.kind === 'user'}
-                  {@const user = item.participants?.[0] ?? null}
-                  <span class="command-palette-leading">
-                    {#if user}
-                      {@render avatar(user)}
-                    {:else}
-                      <span class="iconify sidebar-icon icon-[uil--user] text-muted"></span>
-                    {/if}
-                  </span>
+                {:else if item.kind === 'user' && item.participants?.[0]}
+                  <span class="command-palette-leading">{@render avatar(item.participants[0])}</span>
                 {:else if item.kind === 'dm' && item.participants}
                   <span class="command-palette-leading">
                     <span class="flex -space-x-2">

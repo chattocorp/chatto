@@ -25,15 +25,17 @@
   let renderedIndex = $state<number | null>(forcedRenderedIndex);
   let scrollCalls = $state(0);
   let lastAlignment = $state('');
+  let lastOffset = $state(0);
   let renderedItem = $derived(renderedIndex === null ? undefined : data[renderedIndex]);
   let renderedKey = $derived(
     (renderedItem as { key?: string } | undefined)?.key ?? renderedIndex ?? 'empty'
   );
 
-  export function scrollToIndex(index: number, options?: { align?: string }) {
+  export function scrollToIndex(index: number, options?: { align?: string; offset?: number }) {
     renderedIndex = forcedRenderedIndex ?? index;
     scrollCalls += 1;
     lastAlignment = options?.align ?? '';
+    lastOffset = options?.offset ?? 0;
   }
 
   export function getScrollSize() {
@@ -51,11 +53,14 @@
   export function findItemIndex() {
     return 0;
   }
+
+  export function getItemOffset(index: number) { return index * 50; }
 </script>
 
 <output data-testid="virtualizer-scroll-index">{renderedIndex ?? ''}</output>
 <output data-testid="virtualizer-scroll-calls">{scrollCalls}</output>
 <output data-testid="virtualizer-scroll-alignment">{lastAlignment}</output>
+<output data-testid="virtualizer-scroll-offset">{lastOffset}</output>
 <output data-testid="virtualizer-rendered-key" data-rendered-key={renderedKey}></output>
 {#if renderedItem !== undefined}
   {#key renderedKey}

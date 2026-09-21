@@ -1,7 +1,5 @@
-import {
-  getUserSummaryCache,
-  __resetUserSummaryCachesForTests
-} from '$lib/state/userSummaries.svelte';
+import { resetUserStoresForTests } from './users.svelte';
+import { userProfileFixture } from '$lib/test-utils/userProfile';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -236,8 +234,8 @@ vi.mock('$lib/api-client/roomDirectory', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/memberDirectory', () => ({
-  mapDirectoryMember: (member: unknown) => member,
+vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => ({
+  mapDirectoryMember: (await importOriginal<typeof import('$lib/api-client/memberDirectory')>()).mapDirectoryMember,
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: apiMocks.listRoomMembers
   }))
@@ -487,7 +485,7 @@ function userLeftRoom(roomId: string, actorId: string, eventId = ''): RealtimePr
 beforeEach(() => {
   apiMocks.listPins.mockReset().mockResolvedValue({ items: [], totalCount: 0, hasMore: false, latestPinMarker: '' });
   apiMocks.readMessages.mockReset().mockResolvedValue([]);
-  __resetUserSummaryCachesForTests();
+  resetUserStoresForTests();
   registerServerQueryCache({
     server: cacheMocks.removeRegisteredServerQueries,
     refreshServer: cacheMocks.refreshRegisteredServerQueries,
@@ -1423,23 +1421,23 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('invalidates a cached author as soon as a profile change arrives', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    getUserSummaryCache(store.serverId).prime([
+    store.projection.users.set('U2', userProfileFixture(
       { id: 'U2', login: 'old', displayName: 'old', deleted: false, avatarUrl: null }
-    ]);
+    ));
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
       event: new RealtimeEvent({ event: { case: 'userProfileChanged', value: { userId: 'U2' } } })
     }));
-    expect(getUserSummaryCache(store.serverId).get('U2')).toBeNull();
+    expect(store.projection.users.has('U2')).toBe(false);
     await store.waitForRealtimeReconciliation();
   });
 
   it('clears cached authors when the server store is disposed', () => {
     const store = makeStore(new FakeServerConnection([]));
-    getUserSummaryCache(store.serverId).prime([
+    store.projection.users.set('U2', userProfileFixture(
       { id: 'U2', login: 'cached', displayName: 'cached', deleted: false, avatarUrl: null }
-    ]);
+    ));
     store.dispose();
-    expect(getUserSummaryCache(store.serverId).get('U2')).toBeNull();
+    expect(store.projection.users.has('U2')).toBe(false);
   });
 
   it.each(['reset', 'dispose'])('does not send queued resource reads after %s', async (boundary) => {
@@ -2225,7 +2223,7 @@ describe('ServerStateStore unified realtime resources', () => {
     vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(false);
     await flushPromises();
     const ingest = vi.spyOn(messages, 'ingestEvent');
-    getUserSummaryCache(store.serverId).prime([
+    store.projection.users.set('cached-author', userProfileFixture(
       {
         id: 'cached-author',
         login: 'cached',
@@ -2234,7 +2232,7 @@ describe('ServerStateStore unified realtime resources', () => {
         deleted: false,
         isBot
       }
-    ]);
+    ));
     const post = () =>
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
@@ -2248,7 +2246,7 @@ describe('ServerStateStore unified realtime resources', () => {
           })
         })
       );
-    expect(store.projection.users.has('cached-author')).toBe(false);
+    expect(store.projection.users.has('cached-author')).toBe(true);
     post();
     expect(ingest).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -2262,7 +2260,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     store.realtimeProjectionHandler(userDeleted('cached-author'));
     // Even a late cache response must not restore a deleted account.
-    getUserSummaryCache(store.serverId).prime([
+    store.projection.users.seed(userProfileFixture(
       {
         id: 'cached-author',
         login: 'stale',
@@ -2271,7 +2269,7 @@ describe('ServerStateStore unified realtime resources', () => {
         deleted: false,
         isBot
       }
-    ]);
+    ));
     post();
     expect(ingest).toHaveBeenLastCalledWith(
       expect.objectContaining({

@@ -32,8 +32,18 @@
       store={serverStore}
     >
       <Chrome>
-        {#if !reauthRequired && serverStore.realtimeSync.hasUsableProjection}
-          {@render children?.()}
+        {#if !reauthRequired && (serverStore.realtimeSync.hasUsableProjection || serverStore.realtimeSync.isRecoveringSnapshot)}
+          <!-- Retain route-local UI state, but expose no private content until
+               the replacement snapshot and its permission checks complete. -->
+          <div
+            class="contents"
+            style:visibility={serverStore.realtimeSync.isRecoveringSnapshot ? 'hidden' : undefined}
+            inert={serverStore.realtimeSync.isRecoveringSnapshot}
+            aria-hidden={serverStore.realtimeSync.isRecoveringSnapshot}
+            aria-busy={serverStore.realtimeSync.isRecoveringSnapshot}
+          >
+            {@render children?.()}
+          </div>
         {/if}
       </Chrome>
     </ServerScopeProvider>

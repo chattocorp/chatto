@@ -10,9 +10,11 @@ export class ServerAdminPage {
 
   // --- Locators ---
 
-  /** The Settings link in the top section of the server sidebar. */
+  /** Settings gear in the app frame. */
   get settingsLink(): Locator {
-    return this.page.getByRole('link', { name: 'Settings', exact: true });
+    return this.page
+      .getByRole('banner')
+      .getByRole('link', { name: 'App Preferences', exact: true });
   }
 
   /** Unified Settings sidebar link container. */

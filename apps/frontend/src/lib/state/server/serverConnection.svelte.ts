@@ -3,6 +3,7 @@ import { csrfFetch } from '$lib/auth/csrf';
 import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { serverRegistry } from './registry.svelte';
+import { disposeUserStore, getUserStore } from './users.svelte';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
 
@@ -82,6 +83,7 @@ export class ServerConnection {
   /** Reject all older API responses before they reach caches or API side effects. */
   invalidatePrivateData(): void {
     this.#dataGeneration++;
+    if (this.#serverId) getUserStore(this.#serverId, this.queryScope).clear();
   }
 
   get isConnected() {
@@ -421,6 +423,7 @@ export class ServerConnection {
 
   /** Clean up event listeners owned by the connection state object. */
   dispose() {
+    if (this.#serverId) disposeUserStore(this.#serverId, this.queryScope);
     this.#apis = new WeakMap();
     this.#pendingForcedReconnectReason = null;
     if (this.#visibilityHandler && typeof document !== 'undefined') {

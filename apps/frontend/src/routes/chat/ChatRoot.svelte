@@ -1,10 +1,8 @@
 <script lang="ts">
   import { onDestroy, untrack, type Snippet } from 'svelte';
   import { resolve } from '$app/paths';
-  import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
   import { createPresenceAPI } from '$lib/api-client/presence';
   import { createAccountAPI } from '$lib/api-client/account';
-  import { viewerResponseToState } from '$lib/api-client/viewer';
   import { clearCachedUser, type CurrentUser } from '$lib/auth/loadAuth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
   import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
@@ -13,7 +11,7 @@
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
-  import { useProjectionEvent, useSessionTerminated } from '$lib/hooks/useEvent.svelte';
+  import { useSessionTerminated } from '$lib/hooks/useEvent.svelte';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
@@ -22,19 +20,14 @@
   import { idleState } from '$lib/state/idle.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import {
-    scheduleCustomStatusExpiry,
-    type createUserProfileCache
-  } from '$lib/state/userProfiles.svelte';
+  import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 
   let {
     user,
-    profileCache,
     presenceCache,
     children
   }: {
     user?: CurrentUser | null;
-    profileCache: ReturnType<typeof createUserProfileCache>;
     presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
@@ -43,7 +36,6 @@
   // application-root runtime coordinator has already installed this viewer
   // and created its event bus before the chat subtree initializes.
   const originUser = untrack(() => user);
-  const rootProfileCache = untrack(() => profileCache);
   const rootPresenceCache = untrack(() => presenceCache);
   const originServer = serverRegistry.originServer;
   const originServerId = originServer?.id ?? null;
@@ -76,7 +68,6 @@
             ...session.currentUser.user,
             customStatus: null
           };
-          rootProfileCache.updateStatus(currentUserId, null);
         }
       });
     });
@@ -91,44 +82,6 @@
           : '/'
       );
     }
-
-    // Keep origin-global profile caches synchronized with the same projection
-    // operations that own each server-scoped store.
-    useProjectionEvent(
-      (event) => {
-        if (event.reset) rootProfileCache.clear();
-        if (event.resource?.case === 'users') {
-          for (const entry of event.resource.value.users) {
-            const member = mapDirectoryMember(entry);
-            if (!member.id) continue;
-            rootProfileCache.update(
-              member.id,
-              member.displayName,
-              member.avatarUrl,
-              member.login,
-              member.customStatus,
-              { bio: member.bio ?? null, timezone: member.timezone ?? null }
-            );
-          }
-        } else if (event.resource?.case === 'viewer') {
-          const viewer = viewerResponseToState(event.resource.value);
-          session.currentUser.user = viewer.user;
-          rootProfileCache.update(
-            viewer.user.id,
-            viewer.user.displayName,
-            viewer.user.avatarUrl ?? null,
-            viewer.user.login,
-            viewer.user.customStatus ?? null,
-            { bio: viewer.user.bio ?? null, timezone: viewer.user.publicTimezone ?? null }
-          );
-        }
-        const semantic = event.event?.event;
-        if (semantic?.case === 'userAccountDeleted') {
-          rootProfileCache.remove(semantic.value.userId);
-        }
-      },
-      () => session.serverId
-    );
 
     // Handle session terminated events from server (logout from another tab/device, admin boot).
     useSessionTerminated(

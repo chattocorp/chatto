@@ -44,9 +44,9 @@
 
 <script lang="ts">
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 
-  createUserProfileCache();
+  provideUserProfiles();
   createPresenceCache();
 </script>
 

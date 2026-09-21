@@ -41,7 +41,7 @@ consumers. Prefer `mise` tasks or root scripts such as `mise x -- pnpm run
 check:frontend`; a command inside a package only runs that package's script.
 Library builds use a local `.turbo/cache`; app builds and verification tasks
 run without Turbo caching. Remote caching and telemetry are disabled by the
-repository configuration and scripts. See [ADR-101](docs/adr/ADR-101-turborepo-workspace-tasks.md)
+repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
 for the task and cache boundaries.
 
 Run the local Chatto backend and Vite frontend, Authling, Mailpit, and LiveKit:

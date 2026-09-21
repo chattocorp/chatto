@@ -43,6 +43,7 @@ import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
+import { getUserStore } from './users.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
@@ -56,12 +57,6 @@ import {
   viewerResponseToState,
   type PrivilegedModeAPI
 } from '$lib/api-client/viewer';
-import { notifyUserSummaries } from '$lib/api-client/hooks';
-import {
-  clearUserSummaryCache,
-  getUserSummaryCache,
-  removeUserSummaryCacheEntry
-} from '$lib/state/userSummaries.svelte';
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
@@ -72,9 +67,6 @@ import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
-  primeRegisteredDirectoryUsers,
-  removeRegisteredDirectoryUser,
-  resetRegisteredDirectoryUsers,
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
   refreshRegisteredAdminProfileQueries,
@@ -162,7 +154,7 @@ export class ServerStateStore {
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly messageSearch: MessageSearchStore;
   readonly mentionRoles: MentionRolesStore;
-  readonly projection = new ServerProjectionStore();
+  readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
   #privacyCleanupFailed = false;
@@ -261,6 +253,7 @@ export class ServerStateStore {
     this.#getSession = getSession;
     this.#originServer = originServer;
     this.#serverConnection = serverConnection;
+    this.projection = new ServerProjectionStore(getUserStore(this.serverId, serverConnection.queryScope));
     const cookieAuth = this.#cookieAuth;
 
     const connectAPIConfig = {
@@ -841,9 +834,7 @@ export class ServerStateStore {
         case 'users': {
           const members = resource.value.users.map(mapDirectoryMember);
           for (const member of members) this.updateMemberPresence(member.id, member.presenceStatus);
-          primeRegisteredDirectoryUsers(this.serverId, this.#serverConnection.queryScope, members);
           for (const store of Object.values(this.#roomMembers)) store.updateUsers(members);
-          notifyUserSummaries(this.serverId, members);
           for (const userId of previousUserIds) {
             if (!this.projection.users.has(userId)) this.scrubRemovedUser(userId);
           }
@@ -1028,14 +1019,13 @@ export class ServerStateStore {
     }
   }
   private scrubRemovedUser(userId: string): void {
-    removeRegisteredDirectoryUser(this.serverId, this.#serverConnection.queryScope, userId);
+    this.projection.users.delete(userId);
     for (const roomId of Object.keys(this.#roomMembers))
       this.updateRoomMembership(roomId, userId, false);
     scrubRegisteredFollowedThreadUser(this.serverId);
     scrubRegisteredRoomMemberUser(this.serverId, userId);
     removeRegisteredAdminUserQueries(this.serverId, userId);
     this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
-    removeUserSummaryCacheEntry(this.serverId, userId);
     this.notifications.scrubUser(userId);
     this.activeCallRooms.scrubUser(userId);
     for (const store of Object.values(this.#roomMessages)) store.scrubUserReferences(userId);
@@ -1377,7 +1367,7 @@ export class ServerStateStore {
         return;
       case 'userProfileChanged':
       case 'userAccountCreated':
-        if (rawValue?.userId) removeUserSummaryCacheEntry(this.serverId, rawValue.userId);
+        if (rawValue?.userId) this.projection.users.invalidate(rawValue.userId);
         if (payload.case === 'userAccountCreated' && rawValue?.userId) {
           this.invalidateUniversalMembership();
         }
@@ -1422,15 +1412,11 @@ export class ServerStateStore {
     if (!posted || posted.bodyPlaintext === undefined || !event.id) return;
     const actorMember = event.actorId ? this.projection.users.get(event.actorId) : null;
     const actorDeleted = !!event.actorId && this.#deletedRealtimeUserIds.has(event.actorId);
-    const cachedActor =
-      !actorDeleted && event.actorId ? getUserSummaryCache(this.serverId).get(event.actorId) : null;
     const actor = actorDeleted
       ? null
       : actorMember
         ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember))
-        : cachedActor
-          ? { ...cachedActor, presenceStatus: PresenceStatus.OFFLINE }
-          : null;
+        : null;
     const timelineEvent: TimelineEventView = {
       id: event.id,
       createdAt: event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString(),
@@ -1668,8 +1654,7 @@ export class ServerStateStore {
   private resetProjectionMirrors(): boolean {
     const complete = runResetHandlers([
       () => refreshRegisteredAdminQueries(this.serverId),
-      () => clearUserSummaryCache(this.serverId),
-      () => resetRegisteredDirectoryUsers(this.serverId),
+      () => this.projection.users.clear(),
       () => this.#memberPresence.clear(),
       ...Object.values(this.#roomMembers).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#roomMessages).map((store) => () => store.resetProjectionState()),
@@ -1832,7 +1817,7 @@ export class ServerStateStore {
   /** Clean up resources. */
   dispose(): void {
     this.#messageReconciler.reset();
-    clearUserSummaryCache(this.serverId);
+    this.projection.users.clear();
     this.readViews.clear();
     // In-flight destination and realtime reads must not revive a retired store.
     this.#realtimeProjectionGeneration++;
