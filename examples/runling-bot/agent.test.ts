@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  createRunling,
+  createWorkflowContext,
   type AgentExtensionAPI,
   type RunlingAgent,
-  type Runling,
+  type AgentOptions,
+  type agent,
 } from "runling";
 import { createReplySender } from "./sender.ts";
 import { generateReply } from "./agent.ts";
 
-type Options = Parameters<Runling["agent"]>[0];
+type Options = AgentOptions;
 type Event = Parameters<NonNullable<Options["onEvent"]>>[0];
 
 /** Exercise the event boundary without a model request or credentials. */
@@ -28,10 +29,8 @@ async function fixture(
     posted.push(text);
     return post(text);
   });
-  const r = {
-    ...createRunling({ cwd: process.cwd(), prompt: "", verbose: false }),
-  };
-  r.agent = async (options) => {
+  const r = createWorkflowContext();
+  const createAgent: typeof agent = async (options) => {
     assert.equal(options.model, "openrouter/google/gemini-2.5-flash-lite");
     assert.equal(options.thinkingLevel, "off");
     assert.deepEqual(options.tools, ["read_thread", "web_fetch"]);
@@ -81,7 +80,7 @@ async function fixture(
       message: "Hello",
       readThread: async () => [],
       sender,
-    });
+    }, createAgent);
   } catch (caught) {
     error = caught;
   } finally {

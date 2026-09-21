@@ -7,6 +7,9 @@
   "scripts": {
     "build:api-types": "pnpm --filter @chatto/api-types build",
     "build:lingua": "pnpm --filter @chatto/lingua build",
+    "build:runling": "pnpm --filter runling build",
+    "check:runling": "pnpm --filter runling check",
+    "test:runling": "pnpm --filter runling test",
     "build:docs": "pnpm --filter docs-website build",
     "build:frontend": "pnpm run build:api-types && pnpm run build:lingua && pnpm --filter chatto-frontend build",
     "build:storybook": "pnpm run build:lingua && pnpm --filter chatto-frontend build-storybook",
@@ -24,7 +27,7 @@
   },
   "devDependencies": {
     "knip": "^6.22.0",
-    "runling": "^0.6.0",
+    "runling": "workspace:*",
     "undici": "7.29.0"
   }
 }

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { Type, workflow } from "runling";
+import { Type, task, step } from "runling";
 import { generateReply } from "./agent.ts";
 import { createReplySender } from "./sender.ts";
 import { startTyping } from "./typing.ts";
@@ -52,7 +52,7 @@ export function createReplyWorkflow(
   request: typeof fetch = globalThis.fetch,
   answer: typeof generateReply = generateReply,
 ) {
-  return workflow(
+  return task(
     {
       name: "Reply to Chatto",
       input: webhookInput,
@@ -107,7 +107,7 @@ export function createReplyWorkflow(
       }
 
       // Confirm the configured credentials belong to the intended bot.
-      const viewer = await r.step("Check bot identity", () =>
+      const viewer = await step("Check bot identity", () =>
         rpc<{ user?: { profile?: { id?: string } } }>(
           "ViewerService/GetViewer",
           {},
@@ -122,7 +122,7 @@ export function createReplyWorkflow(
         return { deliveryId: input.id, status: "skipped" as const };
       }
 
-      const author = await r.step("Check message author", () =>
+      const author = await step("Check message author", () =>
         rpc<{ user?: { user?: { bot?: { ownerUserId: string } } } }>("UserService/GetUser", {
           userId: input.message.author_id,
         }),
@@ -200,7 +200,7 @@ export function createReplyWorkflow(
       }
 
       // Start typing before loading context, and keep it active during composition.
-      const stopTyping = await r.step("Start typing", () =>
+      const stopTyping = await step("Start typing", () =>
         startTyping(() =>
           rpc("RoomService/RefreshTypingIndicator", {
             roomId: input.room_id,
@@ -211,7 +211,7 @@ export function createReplyWorkflow(
 
       // Each run owns one final-answer or error-notification attempt.
       const sender = createReplySender((text, stepName) =>
-        r.step(stepName, async () => {
+        step(stepName, async () => {
           const result = await rpc<{ message?: { id?: string } }>(
             "MessageService/CreateMessage",
             {
@@ -230,9 +230,9 @@ export function createReplyWorkflow(
       );
 
       try {
-        const thread = await r.step("Load complete thread", readThread);
+        const thread = await step("Load complete thread", readThread);
 
-        await r.step("Compose reply", () =>
+        await step("Compose reply", () =>
           answer(r, {
             message: input.message.body,
             thread,

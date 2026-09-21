@@ -1,0 +1,8 @@
+{
+  "name": "@chattocorp/chattobot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx --conditions=runling-source ../../src/bin/runling-web.ts"
+  }
+}
