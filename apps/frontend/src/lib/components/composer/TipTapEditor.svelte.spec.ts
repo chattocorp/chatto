@@ -115,6 +115,7 @@ describe('TipTapEditor wrapping', () => {
 
     api.setContent('moo');
     api.focus('end');
+    await expect.element(editor).toHaveFocus();
     selectEditorContents(editor);
     editor.dispatchEvent(
       new KeyboardEvent('keydown', { key: '`', bubbles: true, cancelable: true })
@@ -124,6 +125,7 @@ describe('TipTapEditor wrapping', () => {
 
     api.setContent('moo');
     api.focus('end');
+    await expect.element(editor).toHaveFocus();
     await userEvent.keyboard('`');
     await vi.waitFor(() => expect(editor.textContent).toBe('moo`'));
     expect(container.querySelector('code')).toBeNull();

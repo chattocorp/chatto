@@ -26,9 +26,11 @@ export class AdminPage {
     return this.page.locator('div.flex-1.flex-col').first();
   }
 
-  /** Settings entry point in the server sidebar. */
+  /** Settings gear in the app frame. */
   get settingsLink(): Locator {
-    return this.page.getByRole('link', { name: 'Settings', exact: true });
+    return this.page
+      .getByRole('banner')
+      .getByRole('link', { name: 'App Preferences', exact: true });
   }
 
   /** General settings link inside the dedicated admin sidebar. */

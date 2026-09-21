@@ -264,12 +264,18 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
-  test('sidebar Settings entry opens Appearance', async ({ page, adminPage }) => {
+  test('app-frame Settings gear opens Appearance without a sidebar Settings link', async ({
+    page,
+    adminPage
+  }) => {
     await createAndLoginAdminUser(page);
 
     await page.goto(routes.chat);
 
     await adminPage.expectSettingsLinkVisible();
+    await expect(
+      page.getByTestId('server-sidebar').getByRole('link', { name: 'Settings', exact: true })
+    ).toHaveCount(0);
     await expect(adminPage.settingsLink).toHaveAttribute('href', routes.settingsRoot);
     await adminPage.navigateToSettings();
     await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();

@@ -1218,7 +1218,10 @@ test.describe('Server Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('Settings only exposes Bots when user lacks room.manage permission', async ({ page }) => {
+    test('Settings only exposes Bots when user lacks room.manage permission', async ({
+      page,
+      serverAdminPage
+    }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
@@ -1237,14 +1240,17 @@ test.describe('Server Permission Enforcement', () => {
 
       // Fresh servers grant bot.create to everyone, so the administration
       // entry remains available for Bots while room management stays hidden.
-      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await serverAdminPage.settingsLink.click();
       await page.waitForURL(routes.settingsAppearance);
       await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
 
-    test('Settings exposes Rooms when user has room.manage permission', async ({ page }) => {
+    test('Settings exposes Rooms when user has room.manage permission', async ({
+      page,
+      serverAdminPage
+    }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
@@ -1265,7 +1271,7 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await serverAdminPage.settingsLink.click();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).toBeVisible();
     });
   });
