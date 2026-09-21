@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.25.0",
   "scripts": {
-    "turbo": "TURBO_TELEMETRY_DISABLED=1 turbo",
+    "turbo": "node tools/turbo.mjs",
     "build:api-types": "pnpm turbo run build --filter=@chatto/api-types",
     "build:lingua": "pnpm turbo run build --filter=@chatto/lingua",
     "build:chatto-client": "pnpm turbo run build --filter=@chatto/client",
