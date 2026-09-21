@@ -93,7 +93,7 @@ func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "thread reply", InReplyTo: root.Event.Id, ThreadRootEventID: root.Event.Id,
 	})
-	require.ErrorIs(t, err, ErrPermissionDenied, "actual replies still require message.post-in-thread")
+	require.NoError(t, err, "broad posting includes replies despite a narrow deny")
 
 	require.NoError(t, chatto.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, user.Id, PermMessagePostInThread))
 	reply, err := chatto.Messages().PostMessage(ctx, MessagePostInput{

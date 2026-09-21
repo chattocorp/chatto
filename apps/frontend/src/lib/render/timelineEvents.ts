@@ -40,6 +40,8 @@ export type MessagePostedPayload = {
   deletedAt?: string | null;
   pinned?: boolean;
   threadExists?: boolean;
+  /** Server-resolved reply authority for this message's canonical thread. */
+  canReplyInThread?: boolean;
   replyCount: number;
   lastReplyAt?: string | null;
   threadParticipantCount?: number;

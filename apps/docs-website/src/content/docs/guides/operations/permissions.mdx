@@ -108,6 +108,22 @@ Here are three common examples:
   deny and avoid adding a nearer allow to that same subject.
 </Aside>
 
+## Posting permissions
+
+`message.post` permits roots and thread replies. It includes
+`message.post-in-thread` (reply in any readable thread) and
+`message.post-interactions` (reply only in readable threads with an interaction
+relationship). An authored root, a direct mention from another account, or a
+received DM creates that relationship. All three grants remain subject to room
+membership and Threading Mode. Read permission is separate.
+
+Existing `message.post` allows now include thread replies. A deny of a narrower
+permission cannot restrict an effective broad allow. Review existing grants:
+remove broad posting before granting reply-only access. Root-only posting is
+no longer a separate permission. To prevent all posting, deny all three posting
+permissions and check for effective allows. Complete the server rollout before
+you rely on interaction posting; older replicas do not support it.
+
 ## Scopes
 
 Permissions can be configured at different scopes:
@@ -140,8 +156,9 @@ also includes `server.manage-neighbors` through the same explicit metadata.
 | `server.manage-neighbors` | Create, read, update, and delete servers in the public Neighbor directory. `server.manage` includes this permission. |
 | `message.read`            | Read room and thread content, attachments, search results, typing indicators, and message-derived activity. It includes `message.read-interactions`. Room membership is also required. |
 | `message.read-interactions` | Read a complete thread when the account authored its root, another account directly mentioned it there, or it received a DM there. Current room membership is also required. |
-| `message.post`            | Post root messages. A human with this permission at DM scope can also start DMs. A bot cannot start a DM. Explicit thread creation also requires `message.post-in-thread`. |
-| `message.post-in-thread`  | Post messages inside channel-room or DM threads and, together with `message.post`, explicitly establish a root as a thread. |
+| `message.post`            | Post roots and thread replies. Includes both narrower posting grants. A human with this permission at DM scope can also start DMs. A bot cannot start a DM. |
+| `message.post-in-thread`  | Reply in any readable channel-room or DM thread. |
+| `message.post-interactions` | Reply only in readable threads with an interaction relationship. |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
 | `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
 | `message.react`           | Add or remove reactions.                                                                                                                                                        |
@@ -196,7 +213,9 @@ Fresh servers make announcement rooms read-only for normal members. At the room 
 
 Normal members, moderators, and roles with only server-level posting access cannot post there. Owners and admins can post. You can let another role post by giving it a room-level `message.post` allow.
 
-If you also want to prevent thread replies or file uploads in announcements, deny `message.post-in-thread` or `message.attach` for `everyone` in that room.
+To prevent thread replies in announcements, also deny `message.post-in-thread`
+and `message.post-interactions` for `everyone` in that room. An effective broad
+posting allow still permits replies. Deny `message.attach` to prevent file uploads.
 
 ### Only one role can see and join a room
 
@@ -218,7 +237,7 @@ To temporarily stop normal members from posting in a room:
 
 1. Open the room's permissions.
 2. Deny `message.post` for `everyone`.
-3. Optionally deny `message.post-in-thread`, `message.attach`, and `message.react` as well.
+3. Deny `message.post-in-thread` and `message.post-interactions` to prevent replies. Optionally deny `message.attach` and `message.react` as well.
 
 Remove the room-level denies to restore the server defaults. A room-level allow on a user or role can still permit posting. If you must block those users too, deny the permission directly on the user or on a restriction role such as `suspended`.
 
@@ -229,7 +248,7 @@ To stop one non-owner user from posting without changing their roles:
 1. Open the user's member details in the admin UI.
 2. Remove any room or room-group allows set directly on the user. A more specific allow would replace the server-level deny you add next.
 3. Under permission overrides, deny `message.post` at server scope.
-4. Optionally deny `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo`.
+4. Deny `message.post-in-thread` and `message.post-interactions` to prevent replies. Optionally deny `message.attach`, `message.react`, and `message.echo`.
 
 For non-owners, a deny set directly on the user wins over their role allows. Owner permissions cannot be restricted.
 

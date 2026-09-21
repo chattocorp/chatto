@@ -24,6 +24,7 @@ describe('PERMISSION_METADATA', () => {
       'message.manage',
       'message.post',
       'message.post-in-thread',
+      'message.post-interactions',
       'message.react',
       'message.read',
       'message.read-interactions',
@@ -56,6 +57,9 @@ describe('PERMISSION_METADATA', () => {
     expect(getIncludedByPermission(permissions, 'message.read-interactions')).toBe('message.read');
     expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
     expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
+    for (const permission of ['message.post-in-thread', 'message.post-interactions']) {
+      expect(getIncludedByPermission(['message.post', permission], permission)).toBe('message.post');
+    }
     expect(
       getIncludedByPermission(
         ['server.manage', 'server.manage-neighbors'],

@@ -257,6 +257,9 @@
     isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
   );
   const isInThreadPane = $derived(!!permalinkThreadRootEventId);
+  const canReplyInThread = $derived(
+    messageEvent?.canReplyInThread ?? roomPermissions.canPostInThread
+  );
   const isEchoedToChannel = $derived(
     isInThreadPane && !isEcho && !!messageEvent?.channelEchoEventId
   );
@@ -273,17 +276,17 @@
     if (isEcho) {
       return (
         threadingMode !== RoomThreadingMode.DISABLED &&
-        roomPermissions.canPostInThread &&
+        canReplyInThread &&
         !!onOpenThread &&
         !!messageEvent?.echoFromThreadRootEventId
       );
     }
-    if (isInThreadPane) return roomPermissions.canPostInThread;
+    if (isInThreadPane) return canReplyInThread;
     if (isRootMessage && threadingMode === RoomThreadingMode.REQUIRED) {
-      return roomPermissions.canPostInThread && !!onOpenThread;
+      return canReplyInThread && !!onOpenThread;
     }
     if (isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED) {
-      return (roomPermissions.canPostInThread && !!onOpenThread) || roomPermissions.canPostMessage;
+      return (canReplyInThread && !!onOpenThread) || roomPermissions.canPostMessage;
     }
     return roomPermissions.canPostMessage;
   });
@@ -291,7 +294,7 @@
     isRootMessage &&
       !isInThreadPane &&
       threadingMode === RoomThreadingMode.ENCOURAGED &&
-      roomPermissions.canPostInThread &&
+      canReplyInThread &&
       !!onOpenThread &&
       roomPermissions.canPostMessage
   );
@@ -300,7 +303,7 @@
       ? !!onOpenThread && !!messageEvent?.echoFromThreadRootEventId
       : threadingMode === RoomThreadingMode.DISABLED
         ? !permalinkThreadRootEventId && isRootMessage && hasThread && !!onOpenThread
-        : roomPermissions.canPostInThread && !!onOpenThread
+        : canReplyInThread && !!onOpenThread
   );
   const actionModel = $derived(
     buildMessageActionModel({
@@ -514,7 +517,7 @@
       isRootMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
         (threadingMode === RoomThreadingMode.ENCOURAGED &&
-          roomPermissions.canPostInThread &&
+          canReplyInThread &&
           !!onOpenThread))
     ) {
       onOpenThread?.(event.id, {

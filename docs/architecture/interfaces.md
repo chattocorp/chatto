@@ -98,6 +98,12 @@ server's configured transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.
+Hydrated messages include optional `viewer_state.can_reply_in_thread` authority
+for their canonical thread, including roots without an established thread.
+The shared posting check combines membership, room policy,
+read access, and broad or interaction-scoped write authority. The write model
+repeats this check inside the room aggregate's OCC attempt. Interaction posting
+uses the existing thread projection; it adds no durable events or runtime keys.
 `MessageService.CreateMessage` accepts attachment descriptions keyed by an asset
 ID in the same request. `MessageService.SetAttachmentDescription` replaces or
 clears one current description with message-edit authorization. Hydrated message

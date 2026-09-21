@@ -24,6 +24,56 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
+func TestMessageServiceInteractionPostingCapability(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("interaction-posting")
+	ctx := withCaller(env.ctx, env.viewer)
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "interaction-author", "Author", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.AddMember(env.ctx, core.SystemActorID, core.KindChannel, room.Id, author.Id); err != nil {
+		t.Fatal(err)
+	}
+	for _, permission := range []core.Permission{core.PermMessagePost, core.PermMessagePostInThread} {
+		if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, permission); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInteractions); err != nil {
+		t.Fatal(err)
+	}
+	root := env.post(room.Id, author.Id, "context", "")
+	check := func(want, threadExists bool) {
+		t.Helper()
+		message, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{RoomId: room.Id, EventId: root.Id}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (message.Msg.Message.Thread != nil) != threadExists {
+			t.Fatalf("thread presence = %v, want %v", message.Msg.Message.Thread != nil, threadExists)
+		}
+		viewerState := message.Msg.Message.GetViewerState()
+		if viewerState == nil || viewerState.CanReplyInThread == nil || viewerState.GetCanReplyInThread() != want {
+			t.Fatalf("viewer state = %v, want reply capability %v", viewerState, want)
+		}
+		_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{RoomId: room.Id, Body: "response", ThreadRootEventId: root.Id}))
+		if want && err != nil {
+			t.Fatal(err)
+		}
+		if !want && connect.CodeOf(err) != connect.CodePermissionDenied {
+			t.Fatalf("reply error = %v", err)
+		}
+	}
+	check(false, false)
+	env.post(room.Id, author.Id, "@"+env.viewer.Login, root.Id)
+	check(true, true)
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessagePostInteractions); err != nil {
+		t.Fatal(err)
+	}
+	check(false, true)
+}
+
 func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
@@ -724,7 +774,7 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 	}
 }
 
-func TestMessageServiceCreateMessageRequiresThreadPostPermissionToCreateThread(t *testing.T) {
+func TestMessageServiceCreateMessageBroadPostIncludesThreadCreation(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("thread-root-permission")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -742,11 +792,11 @@ func TestMessageServiceCreateMessageRequiresThreadPostPermissionToCreateThread(t
 
 	_, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:       room.Id,
-		Body:         "thread creation must be denied",
+		Body:         "broad posting permits thread creation",
 		CreateThread: true,
 	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("CreateMessage explicit thread code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if err != nil {
+		t.Fatalf("CreateMessage explicit thread with broad posting: %v", err)
 	}
 }
 
@@ -1115,6 +1165,9 @@ func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	content := []byte("thread attachment")
 	sum := sha256.Sum256(content)
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
 		t.Fatalf("DenyRoomPermission thread post: %v", err)

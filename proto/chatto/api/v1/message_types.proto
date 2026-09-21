@@ -147,6 +147,15 @@ message ThreadSummary {
   ThreadViewerState viewer_state = 6;
 }
 
+// Viewer-specific capabilities for one message, independent of whether its
+// canonical thread has been established.
+message MessageViewerState {
+  // Whether the viewer can reply in this message's canonical thread, including
+  // starting the first reply to a root. Includes read access, room policy, and
+  // broad or interaction-scoped posting authority. Absent when not resolved.
+  optional bool can_reply_in_thread = 1;
+}
+
 // Renderable message data.
 //
 // The same shape is used for top-level room messages, thread replies, and
@@ -196,4 +205,7 @@ message Message {
   // True when this message's canonical message is currently pinned in its
   // channel room. Always false for direct-message rooms.
   bool pinned = 22;
+  // State resolved for the current viewer. Available even before a durable
+  // thread exists. Absent when viewer state has not been resolved.
+  MessageViewerState viewer_state = 23;
 }

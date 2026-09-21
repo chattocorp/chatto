@@ -332,6 +332,18 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(memberPage.getByText('No conversations you can read yet.')).toBeVisible();
         await denyRoomPermission(page, roomId, 'everyone', 'message.post');
         await expect(memberPage.getByTestId('room-post-denied')).toBeVisible();
+        await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
+          'You can only reply in threads you can read.'
+        );
+        await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
+        await grantRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
+        await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
+          'You can only reply in threads you started or where someone mentioned you.'
+        );
+        await denyRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
+        await expect(memberPage.getByTestId('room-post-denied')).toHaveText(
+          'You do not have permission to post messages in this room.'
+        );
         await expect(memberPage.getByTestId('limited-message-access')).toBeVisible();
         await grantRoomPermission(page, roomId, 'everyone', 'message.post');
         await expect(memberPage.getByTestId('room-post-denied')).toHaveCount(0);
@@ -903,6 +915,8 @@ test.describe('Permission-only Resolution', () => {
 
       // Deny message.post-in-thread at room level for everyone
       await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);
@@ -932,6 +946,8 @@ test.describe('Permission-only Resolution', () => {
 
       // Deny message.post-in-thread at room level for everyone
       await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post-interactions');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);
@@ -944,7 +960,7 @@ test.describe('Permission-only Resolution', () => {
       expect(replied).toBeNull();
     });
 
-    test('message.post-in-thread denied permits ordinary roots but blocks explicit thread creation', async ({
+    test('message.post includes explicit thread creation despite a narrower denial', async ({
       page
     }) => {
       // Admin creates server and room
@@ -964,17 +980,17 @@ test.describe('Permission-only Resolution', () => {
 
       await page.goto(routes.room(roomId));
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
-      await expect(page.getByRole('button', { name: 'Post as thread' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Post as thread' })).toBeVisible();
 
       // Root posting should still work
       const posted = await postMessageViaAPI(page, roomId, 'Member can still post root');
       expect(posted).not.toBeNull();
 
-      // Explicit thread creation requires both root and thread posting permissions.
-      const thread = await postMessageViaAPI(page, roomId, 'Member cannot create a thread', {
+      // Broad posting includes explicit thread creation.
+      const thread = await postMessageViaAPI(page, roomId, 'Member can create a thread', {
         createThread: true
       });
-      expect(thread).toBeNull();
+      expect(thread).not.toBeNull();
     });
   });
 

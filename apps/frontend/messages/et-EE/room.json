@@ -70,6 +70,9 @@
       "remove_account_suffix": " selle serveri jaoks enne selle eemaldamist."
     },
     "timeline": {
+      "post_interactions_only_channel": "Saad vastata ainult lõimedes, mille alustasid või kus keegi sind mainis.",
+      "post_threads_only": "Saad vastata ainult lõimedes, mida saad lugeda.",
+      "post_interactions_only": "Saad vastata ainult lõimedes, mille alustasid, kus keegi sind mainis või kus said privaatsõnumi.",
       "post_denied": "Sul pole õigust selles toas sõnumeid saata.",
       "beginning": "See on selle vestluse algus.",
       "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
