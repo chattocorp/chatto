@@ -744,14 +744,14 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\x13MessageSearchResult\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\x12'\n" +
 	"\x0frelevance_score\x18\x02 \x01(\x01R\x0erelevanceScore\x12I\n" +
-	"\x0ethread_context\x18\x03 \x01(\v2\".chatto.api.v1.ThreadSearchContextR\rthreadContext\"\x98\x02\n" +
+	"\x0ethread_context\x18\x03 \x01(\v2\".chatto.api.v1.ThreadSearchContextR\rthreadContext\"\x82\x02\n" +
 	"\x16SearchMessagesResponse\x12<\n" +
 	"\aresults\x18\x01 \x03(\v2\".chatto.api.v1.MessageSearchResultR\aresults\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\x121\n" +
 	"\x12thread_total_count\x18\x04 \x01(\x04H\x00R\x10threadTotalCount\x88\x01\x01\x12?\n" +
 	"\bincludes\x18\x05 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludesB\x15\n" +
-	"\x13_thread_total_countJ\x04\b\x03\x10\x04R\x0ethread_results\"\xbf\x02\n" +
+	"\x13_thread_total_count\"\xbf\x02\n" +
 	"\x13ThreadSearchContext\x129\n" +
 	"\froot_message\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\vrootMessage\x12.\n" +
 	"\x04room\x18\x02 \x01(\v2\x1a.chatto.api.v1.RoomSummaryR\x04room\x124\n" +

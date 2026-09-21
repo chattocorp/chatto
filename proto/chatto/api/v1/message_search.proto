@@ -120,9 +120,6 @@ message MessageSearchResult {
 // search index rather than a pinned snapshot, so results may move, repeat, or
 // disappear between page requests while the index advances.
 message SearchMessagesResponse {
-  reserved 3;
-  reserved "thread_results";
-
   // Ordered matches. With THREAD grouping, one result per matching thread.
   // Otherwise each result is one message, without thread_context.
   repeated MessageSearchResult results = 1;

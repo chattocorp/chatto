@@ -31,6 +31,7 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public documentation!) Find the canonical vocabulary in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is more specific.
+- Do not reserve protobuf field numbers or names for fields introduced and removed within the same unmerged branch or PR. Remove those fields without reservations. Compare with the target branch to distinguish these fields from existing fields, which remain subject to the normal compatibility rules.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior. Future maintainers must not have to infer this information from call sites.
 - Keep relevant tests and internal documentation current. Change public documentation only when readers must learn or do something differently. For API changes, document the required client migration; keep implementation details and unchanged behavior out. Apply the release-note scope below.
 - Run verification that can find regressions in the changed area.
