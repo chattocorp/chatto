@@ -88,7 +88,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     });
   });
 
-  test('searches existing DMs only after their first message', async ({ page, chatPage, browser, serverURL }) => {
+  test('uses a known user until their DM has message history', async ({ page, chatPage, browser, serverURL }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -105,20 +105,26 @@ test.describe('Quick Switcher (Cmd-K)', () => {
       page.on('request', (request) => {
         if (request.url().endsWith('/chatto.api.v1.UserService/ListUsers')) memberSearches.push(request.url());
       });
-      await input.fill(userB.login);
-      await expect(dialog.getByText('No results', { exact: true })).toBeVisible();
-
       const dm = await connectPost<{ room?: { id?: string } }>(
         page, 'chatto.api.v1.RoomService/StartDM', { participantIds: [userB.id] }
       );
       const roomId = dm.room?.id;
       if (!roomId) throw new Error('DM fixture did not return a room');
-      await expect(dialog.getByText('No results', { exact: true })).toBeVisible();
+      await input.fill(userB.login);
+      const knownUser = switcherResults(dialog).filter({ hasText: `@${userB.login}` });
+      await expect(knownUser).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(switcherResults(dialog)).toHaveCount(1);
+      await knownUser.click();
+      await expect(page).toHaveURL(new RegExp(`/chat/-/${roomId}$`));
+      const reopened = await openSwitcher(page);
+      await switcherInput(reopened).fill(userB.login);
 
       const body = 'First message in quick finder conversation';
       await postMessageViaConnect(page, roomId, body);
       const result = switcherResults(dialog).filter({ hasText: userB.displayName });
       await expect(result).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(result).not.toContainText(`@${userB.login}`);
+      await expect(switcherResults(dialog)).toHaveCount(1);
 
       const startedDMs: string[] = [];
       page.on('request', (request) => {

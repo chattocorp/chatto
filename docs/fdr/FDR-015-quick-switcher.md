@@ -16,8 +16,13 @@ fuzzy matching and remembers recent destinations on the device.
 - On open, the palette reads each registered server's current projected
   navigation state. The empty catalogue contains every registered server,
   joined channel room, visible DM, and Notifications.
-- Ordinary queries search the loaded navigation catalogue. They do not search
-  server member directories or start new conversations.
+- Ordinary queries search the loaded navigation catalogue and users already
+  known to each authenticated server's live client state. They do not request
+  server member directories.
+- Known users appear in a separate section after matching destinations, only
+  while typing and where the viewer can start DMs. Selecting a user opens the
+  DM-start destination. A visible one-to-one or self-DM replaces the duplicate
+  user result; a group DM does not. Identities remain separate across servers.
 - Results appear immediately from available catalogues. A loading indicator
   remains while an authenticated server's initial catalogue is incomplete.
   Catalogue updates preserve the selected destination when it is still present.
@@ -32,8 +37,8 @@ fuzzy matching and remembers recent destinations on the device.
 - Existing DMs appear in both the empty palette and typed search results.
   DMs without message history are omitted under the normal navigation rules.
   Participant display names and logins match one-to-one, group, and self-DMs.
-  Selecting a DM opens that conversation. Use the new-conversation UI to contact
-  someone without an existing conversation.
+  Selecting a DM opens that conversation. Known-user results can start or reuse
+  a DM even when that conversation has no messages yet.
 - Notifications is the only well-known destination. Servers link to their
   Overview page.
 - DMs show participant avatars and display names. Servers and channel rooms
@@ -49,7 +54,7 @@ fuzzy matching and remembers recent destinations on the device.
 
 **Decision:** Opening the palette composes the current navigation projections
 from every registered server. It does not fetch a second room catalogue.
-Ordinary queries filter this catalogue locally. Message searches run in parallel
+Ordinary queries filter this catalogue and known users locally. Message searches run in parallel
 against eligible registered servers. One server's message-search failure does
 not block results from another.
 **Why:** The per-server projections already own room and DM convergence. Reusing
@@ -58,7 +63,10 @@ directories or decrypting them for each query. Parallel message search still
 gives users one cross-server result set. See ADR-025.
 **Tradeoff:** A server that has not finished its projection catch-up can have an
 incomplete catalogue until its normal navigation state converges.
-The palette cannot find members without an existing visible conversation.
+Known-user results are incomplete: they depend on what the client has loaded
+and can change after a reload. Profile updates, deletion, loss of DM-start
+permission, and session resets update these results through the existing state
+lifecycle. The palette does not collect profiles from other caches.
 
 ### 2. Fuzzy match with prefix-bias and recent-boost
 
@@ -97,7 +105,9 @@ dedicated switcher destination.
 
 No dedicated permission. The palette uses each server's projected navigation
 visibility. Opening an existing DM does not require permission to start a new
-DM. Message search uses the server's Search availability and normal read boundary.
+DM. Known-user actions require an authenticated session, usable server state,
+and permission to start DMs. Message search uses the server's Search
+availability and normal read boundary.
 
 ## Related
 

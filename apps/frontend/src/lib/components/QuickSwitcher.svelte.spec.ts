@@ -1,4 +1,6 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { MessageSearchOrder } from '$lib/api-client/messageSearch';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -36,6 +38,11 @@ const mocks = vi.hoisted(() => ({
   ],
   store: {
     isAuthenticated: true,
+    realtimeSync: { hasUsableProjection: true },
+    projection: {
+      users: new Map<string, DirectoryMember>(),
+      rooms: new Map<string, RoomWithViewerState>()
+    },
     serverInfo: {
       name: 'Workspace Server',
       iconUrl: null,
@@ -307,6 +314,10 @@ beforeEach(() => {
   stores.clear();
   mocks.store.navigation.isInitialLoading = false;
   mocks.store.permissions.canStartDMs = true;
+  mocks.store.isAuthenticated = true;
+  mocks.store.realtimeSync.hasUsableProjection = true;
+  mocks.store.projection.users = new SvelteMap();
+  mocks.store.projection.rooms = new SvelteMap();
   installQueryMocks();
   mocks.goto.mockReset();
   mocks.toastError.mockReset();
@@ -528,6 +539,85 @@ describe('QuickSwitcher', () => {
     publishNavigation('origin', { ...mocks.store.navigation, isInitialLoading: true });
     setSearch(container, '?');
     expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
+  });
+
+  it('searches known users locally only while typing and starts their DM destination', async () => {
+    mocks.store.projection.users.set('known', new DirectoryMember({
+      user: { id: 'known', login: 'cedar_handle', displayName: 'Cedar Person' }
+    }));
+    const { container } = await renderOpenSwitcher();
+    expect(container.textContent).not.toContain('Cedar Person');
+    setSearch(container, 'cedar_handle');
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.textContent).toContain('Cedar Person');
+    expect(mocks.listUsers).not.toHaveBeenCalled();
+    resultButtons(container)[0].click();
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/known'));
+  });
+
+  it('deduplicates one-to-one and self-DMs but retains group participants as known users', async () => {
+    for (const member of [currentUser, teammate, user('group-peer', 'rivergroup', 'River Group')]) {
+      mocks.store.projection.users.set(member.id, new DirectoryMember({
+        user: { id: member.id, login: member.login, displayName: member.displayName }
+      }));
+    }
+    mocks.store.navigation.rooms.push(
+      { id: 'self', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true, members: [currentUser] },
+      { id: 'group', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true,
+        members: [currentUser, user('group-peer', 'rivergroup', 'River Group')] }
+    );
+    // One group participant has not loaded; membership must still identify a group.
+    mocks.store.projection.rooms.set('group', new RoomWithViewerState({ memberUserIds: ['user-current', 'group-peer', 'unloaded'] }));
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'river');
+    expect(resultButtons(container)).toHaveLength(3);
+    expect(resultButtons(container).at(-1)?.textContent).toContain('@rivergroup');
+    expect(resultButtons(container).filter((button) => button.textContent?.includes('@river ·'))).toHaveLength(0);
+    setSearch(container, 'alice');
+    expect(resultButtons(container)).toHaveLength(1);
+    expect(container.textContent).toContain('You');
+  });
+
+  it('refreshes known profiles and removes them after deletion, reset, or loss of access', async () => {
+    const member = new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } });
+    mocks.store.projection.users.set('known', member);
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(1);
+    mocks.store.projection.users.set('known', new DirectoryMember({ user: { id: 'known', login: 'maple', displayName: 'Maple' } }));
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    setSearch(container, 'maple');
+    expect(resultButtons(container)).toHaveLength(1);
+    mocks.store.projection.users.clear();
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    mocks.store.projection.users.set('known', member);
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(1);
+    mocks.store.projection.users.set('known', new DirectoryMember({ user: { ...member.user, deleted: true } }));
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    mocks.store.projection.users.set('known', member);
+    for (const override of [
+      { permissions: { canStartDMs: false } },
+      { isAuthenticated: false },
+      { realtimeSync: { hasUsableProjection: false } }
+    ]) {
+      stores.set('origin', { ...mocks.store, ...override });
+      flushSync();
+      expect(resultButtons(container)).toHaveLength(0);
+    }
+  });
+
+  it('keeps the same known user ID separate across servers and opens the selected server', async () => {
+    mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
+    mocks.store.projection.users.set('known', new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } }));
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'cedar');
+    expect(resultButtons(container)).toHaveLength(2);
+    resultButtons(container)[1].click();
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/second/dm/known'));
   });
 
   it('matches bot conversations by login and marks their names', async () => {
