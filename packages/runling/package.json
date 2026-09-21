@@ -95,6 +95,7 @@
     "undici": "^7.29.1"
   },
   "devDependencies": {
+    "@chatto/client": "workspace:*",
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@iconify-json/lucide": "^1.2.129",
     "@iconify/tailwind4": "^1.2.3",

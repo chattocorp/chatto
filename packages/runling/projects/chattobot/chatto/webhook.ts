@@ -1,3 +1,5 @@
+import { createChattoClient, type ChattoPost, type Destination } from "@chatto/client";
+export type { ChattoPost, Destination } from "@chatto/client";
 import type { WebhookRouter } from "runling/web";
 import { task, Type, TimeoutError, type WorkflowContext, type TSchema, type Static } from "runling";
 
@@ -13,12 +15,6 @@ export const deliverySchema = Type.Object({
   message: Type.Object({ id: Type.String(), author_id: Type.String(), body: Type.String() }),
 });
 
-export interface Destination {
-  roomId: string;
-  threadRootId: string;
-}
-
-export type ChattoPost = (destination: Destination, body: string, signal: AbortSignal) => Promise<void>;
 export type Delivery = Static<typeof deliverySchema>;
 
 /** Unsolicited messages, consumed explicitly by the workflow or its tasks. */
@@ -155,27 +151,9 @@ export function createChattoWebhook<Output extends TSchema>({ name, output, post
   return Object.assign(workflow, { route });
 }
 
-/** ConnectRPC's JSON transport needs no generated client for this single call. */
+/** Bind message delivery to the shared client. */
 export function createChattoPoster(serverUrl: string, apiKey: string, request = fetch): ChattoPost {
-  const url = new URL("/api/connect/chatto.api.v1.MessageService/CreateMessage", serverUrl);
-  return async ({ roomId, threadRootId }, body, signal) => {
-    // Keep long plans readable and within message limits; preserve Unicode characters.
-    const characters = Array.from(body);
-    for (let offset = 0; offset < Math.max(1, characters.length); offset += 8000) {
-      const response = await request(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "Connect-Protocol-Version": "1",
-        },
-        body: JSON.stringify({ roomId, body: characters.slice(offset, offset + 8000).join(""), threadRootEventId: threadRootId }),
-        signal,
-        redirect: "error",
-      });
-      if (!response.ok) throw new Error(`Chatto message request failed (${response.status})`);
-    }
-  };
+  return createChattoClient({ serverUrl, apiKey, fetch: request }).postMessage;
 }
 
 export const isDirectMessage = (delivery: Delivery) => delivery.triggers.includes("direct_message");

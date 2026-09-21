@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-21
 
 ## Overview
 
@@ -529,7 +529,7 @@ service, and send the target user ID.
 
 ## Related
 
-- **ADRs:** ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-100 (shared integration client), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

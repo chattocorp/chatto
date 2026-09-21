@@ -3,7 +3,7 @@ import { createWorkflowContext, input, Type } from "runling";
 import { createChattoPoster, createChattoWebhook } from "./webhook.ts";
 
 test("splits long plans into thread messages without splitting Unicode characters", async () => {
-  const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+  const fetcher = vi.fn().mockImplementation(async () => Response.json({}));
   vi.stubGlobal("fetch", fetcher);
   try {
     const body = "a".repeat(7999) + "😀" + "b".repeat(100);

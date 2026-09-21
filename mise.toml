@@ -214,6 +214,16 @@ description = "Build the Runling runtime and web console"
 depends = ["setup-frontend"]
 run = "pnpm run build:runling"
 
+[tasks.build-chatto-client]
+description = "Build the framework-neutral Chatto integration client"
+depends = ["setup-frontend"]
+run = "pnpm run build:chatto-client"
+
+[tasks.test-chatto-client]
+description = "Check and test the Chatto integration client"
+depends = ["setup-frontend"]
+run = ["pnpm --filter @chatto/client check", "pnpm --filter @chatto/client test"]
+
 [tasks.check-runling]
 description = "Check Runling types and Svelte components"
 depends = ["setup-frontend"]
