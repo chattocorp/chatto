@@ -396,7 +396,8 @@ func (x *SearchMessagesRequest) GetGroupBy() MessageSearchGroupBy {
 	return MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_UNSPECIFIED
 }
 
-// One current, authorized message search result.
+// One current, authorized match. With thread grouping, each result represents
+// one thread and message is its best match in the selected order.
 type MessageSearchResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current renderable message that matched the query.
@@ -405,8 +406,11 @@ type MessageSearchResult struct {
 	// same query. Clients may merge results from servers using compatible
 	// search implementations by this value.
 	RelevanceScore float64 `protobuf:"fixed64,2,opt,name=relevance_score,json=relevanceScore,proto3" json:"relevance_score,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Present only with THREAD grouping. The matching message can be a reply;
+	// the root and latest reply in this context need not match the query.
+	ThreadContext *ThreadSearchContext `protobuf:"bytes,3,opt,name=thread_context,json=threadContext,proto3" json:"thread_context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MessageSearchResult) Reset() {
@@ -453,23 +457,27 @@ func (x *MessageSearchResult) GetRelevanceScore() float64 {
 	return 0
 }
 
+func (x *MessageSearchResult) GetThreadContext() *ThreadSearchContext {
+	if x != nil {
+		return x.ThreadContext
+	}
+	return nil
+}
+
 // One ordered page of current, authorized message or thread results. Pagination reads a live
 // search index rather than a pinned snapshot, so results may move, repeat, or
 // disappear between page requests while the index advances.
 type SearchMessagesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Matching messages when group_by is unspecified. Clients can batch hydrate
-	// referenced room and actor IDs through the existing APIs.
+	// Ordered matches. With THREAD grouping, one result per matching thread.
+	// Otherwise each result is one message, without thread_context.
 	Results []*MessageSearchResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
 	// Opaque cursor for the next page in the selected result mode.
 	// Empty means no more matches. Live activity can reorder thread pages.
 	NextCursor string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
-	// Distinct thread rows when group_by is THREAD. Message results are empty
-	// in this mode; a matching reply does not imply that its root text matched.
-	ThreadResults []*ThreadSearchResult `protobuf:"bytes,3,rep,name=thread_results,json=threadResults,proto3" json:"thread_results,omitempty"`
 	// Total distinct matching threads. Present only when group_by is THREAD.
 	ThreadTotalCount *uint64 `protobuf:"varint,4,opt,name=thread_total_count,json=threadTotalCount,proto3,oneof" json:"thread_total_count,omitempty"`
-	// Related entities needed to render thread_results without per-row reads.
+	// Related entities for grouped results, avoiding per-row reads.
 	Includes      *RoomTimelineIncludes `protobuf:"bytes,5,opt,name=includes,proto3" json:"includes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -519,13 +527,6 @@ func (x *SearchMessagesResponse) GetNextCursor() string {
 	return ""
 }
 
-func (x *SearchMessagesResponse) GetThreadResults() []*ThreadSearchResult {
-	if x != nil {
-		return x.ThreadResults
-	}
-	return nil
-}
-
 func (x *SearchMessagesResponse) GetThreadTotalCount() uint64 {
 	if x != nil && x.ThreadTotalCount != nil {
 		return *x.ThreadTotalCount
@@ -540,9 +541,9 @@ func (x *SearchMessagesResponse) GetIncludes() *RoomTimelineIncludes {
 	return nil
 }
 
-// A thread with search evidence. Unlike a followed-thread feed row, this result
-// can be unfollowed and identifies the current message that matched the query.
-type ThreadSearchResult struct {
+// Current context for a grouped match. The viewer need not follow this thread.
+// Search evidence stays on the containing MessageSearchResult.
+type ThreadSearchContext struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Renderable root message, when still visible.
 	RootMessage *Message `protobuf:"bytes,1,opt,name=root_message,json=rootMessage,proto3" json:"root_message,omitempty"`
@@ -554,28 +555,24 @@ type ThreadSearchResult struct {
 	LatestReply *Message `protobuf:"bytes,4,opt,name=latest_reply,json=latestReply,proto3" json:"latest_reply,omitempty"`
 	// Conversation-label participants for direct messages; empty for channels.
 	DirectMessageParticipantUserIds []string `protobuf:"bytes,5,rep,name=direct_message_participant_user_ids,json=directMessageParticipantUserIds,proto3" json:"direct_message_participant_user_ids,omitempty"`
-	// Best current match in the selected order. Activity order uses the newest match.
-	MatchingMessage *Message `protobuf:"bytes,6,opt,name=matching_message,json=matchingMessage,proto3" json:"matching_message,omitempty"`
-	// Relevance score of matching_message.
-	RelevanceScore float64 `protobuf:"fixed64,7,opt,name=relevance_score,json=relevanceScore,proto3" json:"relevance_score,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
-func (x *ThreadSearchResult) Reset() {
-	*x = ThreadSearchResult{}
+func (x *ThreadSearchContext) Reset() {
+	*x = ThreadSearchContext{}
 	mi := &file_chatto_api_v1_message_search_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ThreadSearchResult) String() string {
+func (x *ThreadSearchContext) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ThreadSearchResult) ProtoMessage() {}
+func (*ThreadSearchContext) ProtoMessage() {}
 
-func (x *ThreadSearchResult) ProtoReflect() protoreflect.Message {
+func (x *ThreadSearchContext) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_message_search_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -587,58 +584,44 @@ func (x *ThreadSearchResult) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ThreadSearchResult.ProtoReflect.Descriptor instead.
-func (*ThreadSearchResult) Descriptor() ([]byte, []int) {
+// Deprecated: Use ThreadSearchContext.ProtoReflect.Descriptor instead.
+func (*ThreadSearchContext) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ThreadSearchResult) GetRootMessage() *Message {
+func (x *ThreadSearchContext) GetRootMessage() *Message {
 	if x != nil {
 		return x.RootMessage
 	}
 	return nil
 }
 
-func (x *ThreadSearchResult) GetRoom() *RoomSummary {
+func (x *ThreadSearchContext) GetRoom() *RoomSummary {
 	if x != nil {
 		return x.Room
 	}
 	return nil
 }
 
-func (x *ThreadSearchResult) GetThread() *ThreadSummary {
+func (x *ThreadSearchContext) GetThread() *ThreadSummary {
 	if x != nil {
 		return x.Thread
 	}
 	return nil
 }
 
-func (x *ThreadSearchResult) GetLatestReply() *Message {
+func (x *ThreadSearchContext) GetLatestReply() *Message {
 	if x != nil {
 		return x.LatestReply
 	}
 	return nil
 }
 
-func (x *ThreadSearchResult) GetDirectMessageParticipantUserIds() []string {
+func (x *ThreadSearchContext) GetDirectMessageParticipantUserIds() []string {
 	if x != nil {
 		return x.DirectMessageParticipantUserIds
 	}
 	return nil
-}
-
-func (x *ThreadSearchResult) GetMatchingMessage() *Message {
-	if x != nil {
-		return x.MatchingMessage
-	}
-	return nil
-}
-
-func (x *ThreadSearchResult) GetRelevanceScore() float64 {
-	if x != nil {
-		return x.RelevanceScore
-	}
-	return 0
 }
 
 // Request for current message-search availability.
@@ -757,26 +740,24 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\n" +
 	"\b_room_idB\f\n" +
 	"\n" +
-	"_author_id\"p\n" +
+	"_author_id\"\xbb\x01\n" +
 	"\x13MessageSearchResult\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\x12'\n" +
-	"\x0frelevance_score\x18\x02 \x01(\x01R\x0erelevanceScore\"\xcc\x02\n" +
+	"\x0frelevance_score\x18\x02 \x01(\x01R\x0erelevanceScore\x12I\n" +
+	"\x0ethread_context\x18\x03 \x01(\v2\".chatto.api.v1.ThreadSearchContextR\rthreadContext\"\x98\x02\n" +
 	"\x16SearchMessagesResponse\x12<\n" +
 	"\aresults\x18\x01 \x03(\v2\".chatto.api.v1.MessageSearchResultR\aresults\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor\x12H\n" +
-	"\x0ethread_results\x18\x03 \x03(\v2!.chatto.api.v1.ThreadSearchResultR\rthreadResults\x121\n" +
+	"nextCursor\x121\n" +
 	"\x12thread_total_count\x18\x04 \x01(\x04H\x00R\x10threadTotalCount\x88\x01\x01\x12?\n" +
 	"\bincludes\x18\x05 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludesB\x15\n" +
-	"\x13_thread_total_count\"\xaa\x03\n" +
-	"\x12ThreadSearchResult\x129\n" +
+	"\x13_thread_total_countJ\x04\b\x03\x10\x04R\x0ethread_results\"\xbf\x02\n" +
+	"\x13ThreadSearchContext\x129\n" +
 	"\froot_message\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\vrootMessage\x12.\n" +
 	"\x04room\x18\x02 \x01(\v2\x1a.chatto.api.v1.RoomSummaryR\x04room\x124\n" +
 	"\x06thread\x18\x03 \x01(\v2\x1c.chatto.api.v1.ThreadSummaryR\x06thread\x129\n" +
 	"\flatest_reply\x18\x04 \x01(\v2\x16.chatto.api.v1.MessageR\vlatestReply\x12L\n" +
-	"#direct_message_participant_user_ids\x18\x05 \x03(\tR\x1fdirectMessageParticipantUserIds\x12A\n" +
-	"\x10matching_message\x18\x06 \x01(\v2\x16.chatto.api.v1.MessageR\x0fmatchingMessage\x12'\n" +
-	"\x0frelevance_score\x18\a \x01(\x01R\x0erelevanceScore\"\x12\n" +
+	"#direct_message_participant_user_ids\x18\x05 \x03(\tR\x1fdirectMessageParticipantUserIds\"\x12\n" +
 	"\x10GetStatusRequest\"\xbd\x01\n" +
 	"\x11GetStatusResponse\x127\n" +
 	"\x05state\x18\x01 \x01(\x0e2!.chatto.api.v1.MessageSearchStateR\x05state\x12:\n" +
@@ -828,7 +809,7 @@ var file_chatto_api_v1_message_search_proto_goTypes = []any{
 	(*SearchMessagesRequest)(nil),  // 4: chatto.api.v1.SearchMessagesRequest
 	(*MessageSearchResult)(nil),    // 5: chatto.api.v1.MessageSearchResult
 	(*SearchMessagesResponse)(nil), // 6: chatto.api.v1.SearchMessagesResponse
-	(*ThreadSearchResult)(nil),     // 7: chatto.api.v1.ThreadSearchResult
+	(*ThreadSearchContext)(nil),    // 7: chatto.api.v1.ThreadSearchContext
 	(*GetStatusRequest)(nil),       // 8: chatto.api.v1.GetStatusRequest
 	(*GetStatusResponse)(nil),      // 9: chatto.api.v1.GetStatusResponse
 	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
@@ -845,25 +826,24 @@ var file_chatto_api_v1_message_search_proto_depIdxs = []int32{
 	1,  // 3: chatto.api.v1.SearchMessagesRequest.scope:type_name -> chatto.api.v1.MessageSearchScope
 	2,  // 4: chatto.api.v1.SearchMessagesRequest.group_by:type_name -> chatto.api.v1.MessageSearchGroupBy
 	11, // 5: chatto.api.v1.MessageSearchResult.message:type_name -> chatto.api.v1.Message
-	5,  // 6: chatto.api.v1.SearchMessagesResponse.results:type_name -> chatto.api.v1.MessageSearchResult
-	7,  // 7: chatto.api.v1.SearchMessagesResponse.thread_results:type_name -> chatto.api.v1.ThreadSearchResult
+	7,  // 6: chatto.api.v1.MessageSearchResult.thread_context:type_name -> chatto.api.v1.ThreadSearchContext
+	5,  // 7: chatto.api.v1.SearchMessagesResponse.results:type_name -> chatto.api.v1.MessageSearchResult
 	12, // 8: chatto.api.v1.SearchMessagesResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	11, // 9: chatto.api.v1.ThreadSearchResult.root_message:type_name -> chatto.api.v1.Message
-	13, // 10: chatto.api.v1.ThreadSearchResult.room:type_name -> chatto.api.v1.RoomSummary
-	14, // 11: chatto.api.v1.ThreadSearchResult.thread:type_name -> chatto.api.v1.ThreadSummary
-	11, // 12: chatto.api.v1.ThreadSearchResult.latest_reply:type_name -> chatto.api.v1.Message
-	11, // 13: chatto.api.v1.ThreadSearchResult.matching_message:type_name -> chatto.api.v1.Message
-	3,  // 14: chatto.api.v1.GetStatusResponse.state:type_name -> chatto.api.v1.MessageSearchState
-	15, // 15: chatto.api.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
-	8,  // 16: chatto.api.v1.MessageSearchService.GetStatus:input_type -> chatto.api.v1.GetStatusRequest
-	4,  // 17: chatto.api.v1.MessageSearchService.SearchMessages:input_type -> chatto.api.v1.SearchMessagesRequest
-	9,  // 18: chatto.api.v1.MessageSearchService.GetStatus:output_type -> chatto.api.v1.GetStatusResponse
-	6,  // 19: chatto.api.v1.MessageSearchService.SearchMessages:output_type -> chatto.api.v1.SearchMessagesResponse
-	18, // [18:20] is the sub-list for method output_type
-	16, // [16:18] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	11, // 9: chatto.api.v1.ThreadSearchContext.root_message:type_name -> chatto.api.v1.Message
+	13, // 10: chatto.api.v1.ThreadSearchContext.room:type_name -> chatto.api.v1.RoomSummary
+	14, // 11: chatto.api.v1.ThreadSearchContext.thread:type_name -> chatto.api.v1.ThreadSummary
+	11, // 12: chatto.api.v1.ThreadSearchContext.latest_reply:type_name -> chatto.api.v1.Message
+	3,  // 13: chatto.api.v1.GetStatusResponse.state:type_name -> chatto.api.v1.MessageSearchState
+	15, // 14: chatto.api.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
+	8,  // 15: chatto.api.v1.MessageSearchService.GetStatus:input_type -> chatto.api.v1.GetStatusRequest
+	4,  // 16: chatto.api.v1.MessageSearchService.SearchMessages:input_type -> chatto.api.v1.SearchMessagesRequest
+	9,  // 17: chatto.api.v1.MessageSearchService.GetStatus:output_type -> chatto.api.v1.GetStatusResponse
+	6,  // 18: chatto.api.v1.MessageSearchService.SearchMessages:output_type -> chatto.api.v1.SearchMessagesResponse
+	17, // [17:19] is the sub-list for method output_type
+	15, // [15:17] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_message_search_proto_init() }

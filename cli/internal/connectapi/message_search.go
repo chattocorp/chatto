@@ -254,11 +254,11 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 			continue
 		}
 		row.Thread.ViewerState = apiThreadViewerState(result.Following, result.Metadata.HasUnreadReplies)
-		response.ThreadResults = append(response.ThreadResults, &apiv1.ThreadSearchResult{
+		match.ThreadContext = &apiv1.ThreadSearchContext{
 			RootMessage: row.RootMessage, Room: row.Room, Thread: row.Thread, LatestReply: row.LatestReply,
 			DirectMessageParticipantUserIds: row.DirectMessageParticipantUserIds,
-			MatchingMessage:                 match.Message, RelevanceScore: match.RelevanceScore,
-		})
+		}
+		response.Results = append(response.Results, match)
 	}
 	if page.HasMore {
 		response.NextCursor, err = s.api.sealMessageSearchCursor(viewerID, request, []byte("threads:v1:"+strconv.Itoa(offset+len(page.Threads))))

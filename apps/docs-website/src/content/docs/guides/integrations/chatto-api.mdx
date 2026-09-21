@@ -158,13 +158,14 @@ ordering by default. To return one row per followed thread, send:
 }
 ```
 
-This mode includes accessible direct-message threads. Read `threadResults`,
-`threadTotalCount`, and `includes`; the ordinary `results` array is empty.
+This mode includes accessible direct-message threads. Read `results`,
+`threadTotalCount`, and `includes`. Each result has the same `message` and
+`relevanceScore` fields as ordinary search, plus `threadContext` for the group.
 Pass `nextCursor` as `cursor` with the same query and options for the next page.
 Scope and grouping are independent. Omit `scope` to group all accessible
 threads, or omit `groupBy` to get individual matches within followed threads.
-Each thread result contains a `matchingMessage` and its `relevanceScore`, plus
-current thread and viewer state. A root with no replies is also a thread.
+The context contains the root, latest reply, room, and current thread and
+viewer state. A root with no replies is also a thread.
 
 Relevance is the default order and uses the highest-scoring matching message
 in each thread. `NEWEST` uses the newest matching message. `THREAD_ACTIVITY`

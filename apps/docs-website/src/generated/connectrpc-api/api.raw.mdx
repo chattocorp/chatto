@@ -2958,11 +2958,10 @@ disappear between page requests while the index advances.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Matching messages when group_by is unspecified. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
+| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Ordered matches. With THREAD grouping, one result per matching thread. Otherwise each result is one message, without thread_context. |
 | `next_cursor` | `string` | Opaque cursor for the next page in the selected result mode. Empty means no more matches. Live activity can reorder thread pages. |
-| `thread_results` | repeated [`ThreadSearchResult`](#chatto-api-v1-ThreadSearchResult) | Distinct thread rows when group_by is THREAD. Message results are empty in this mode; a matching reply does not imply that its root text matched. |
 | `thread_total_count` | `optional uint64` | Total distinct matching threads. Present only when group_by is THREAD. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render thread_results without per-row reads. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities for grouped results, avoiding per-row reads. |
 
 
 <a id="chatto-api-v1-MessageService"></a>
@@ -5966,21 +5965,23 @@ Safe summary of one recorded outbound webhook failure.
 
 ### MessageSearchResult
 
-One current, authorized message search result.
+One current, authorized match. With thread grouping, each result represents
+one thread and message is its best match in the selected order.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
 | `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
+| `thread_context` | [`ThreadSearchContext`](#chatto-api-v1-ThreadSearchContext) | Present only with THREAD grouping. The matching message can be a reply; the root and latest reply in this context need not match the query. |
 
 
 
-<a id="chatto-api-v1-ThreadSearchResult"></a>
+<a id="chatto-api-v1-ThreadSearchContext"></a>
 
-### ThreadSearchResult
+### ThreadSearchContext
 
-A thread with search evidence. Unlike a followed-thread feed row, this result
-can be unfollowed and identifies the current message that matched the query.
+Current context for a grouped match. The viewer need not follow this thread.
+Search evidence stays on the containing MessageSearchResult.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -5989,8 +5990,6 @@ can be unfollowed and identifies the current message that matched the query.
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Current thread metadata and viewer follow/read state. |
 | `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when present; it need not match the query. |
 | `direct_message_participant_user_ids` | `repeated string` | Conversation-label participants for direct messages; empty for channels. |
-| `matching_message` | [`Message`](#chatto-api-v1-Message) | Best current match in the selected order. Activity order uses the newest match. |
-| `relevance_score` | `double` | Relevance score of matching_message. |
 
 
 

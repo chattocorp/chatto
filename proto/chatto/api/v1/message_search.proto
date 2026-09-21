@@ -102,7 +102,8 @@ message SearchMessagesRequest {
   MessageSearchGroupBy group_by = 11 [(buf.validate.field).enum.defined_only = true];
 }
 
-// One current, authorized message search result.
+// One current, authorized match. With thread grouping, each result represents
+// one thread and message is its best match in the selected order.
 message MessageSearchResult {
   // Current renderable message that matched the query.
   Message message = 1;
@@ -110,30 +111,33 @@ message MessageSearchResult {
   // same query. Clients may merge results from servers using compatible
   // search implementations by this value.
   double relevance_score = 2;
+  // Present only with THREAD grouping. The matching message can be a reply;
+  // the root and latest reply in this context need not match the query.
+  ThreadSearchContext thread_context = 3;
 }
 
 // One ordered page of current, authorized message or thread results. Pagination reads a live
 // search index rather than a pinned snapshot, so results may move, repeat, or
 // disappear between page requests while the index advances.
 message SearchMessagesResponse {
-  // Matching messages when group_by is unspecified. Clients can batch hydrate
-  // referenced room and actor IDs through the existing APIs.
+  reserved 3;
+  reserved "thread_results";
+
+  // Ordered matches. With THREAD grouping, one result per matching thread.
+  // Otherwise each result is one message, without thread_context.
   repeated MessageSearchResult results = 1;
   // Opaque cursor for the next page in the selected result mode.
   // Empty means no more matches. Live activity can reorder thread pages.
   string next_cursor = 2;
-  // Distinct thread rows when group_by is THREAD. Message results are empty
-  // in this mode; a matching reply does not imply that its root text matched.
-  repeated ThreadSearchResult thread_results = 3;
   // Total distinct matching threads. Present only when group_by is THREAD.
   optional uint64 thread_total_count = 4;
-  // Related entities needed to render thread_results without per-row reads.
+  // Related entities for grouped results, avoiding per-row reads.
   RoomTimelineIncludes includes = 5;
 }
 
-// A thread with search evidence. Unlike a followed-thread feed row, this result
-// can be unfollowed and identifies the current message that matched the query.
-message ThreadSearchResult {
+// Current context for a grouped match. The viewer need not follow this thread.
+// Search evidence stays on the containing MessageSearchResult.
+message ThreadSearchContext {
   // Renderable root message, when still visible.
   Message root_message = 1;
   // Room containing this thread.
@@ -144,10 +148,6 @@ message ThreadSearchResult {
   Message latest_reply = 4;
   // Conversation-label participants for direct messages; empty for channels.
   repeated string direct_message_participant_user_ids = 5;
-  // Best current match in the selected order. Activity order uses the newest match.
-  Message matching_message = 6;
-  // Relevance score of matching_message.
-  double relevance_score = 7;
 }
 
 // Request for current message-search availability.

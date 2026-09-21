@@ -82,7 +82,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
               pageSize: input.limit,
               cursor: input.cursor ?? ''
             }, requestOptions).then((result) => ({
-              threads: result.threadResults,
+              threads: result.results.flatMap((match) => match.threadContext ? [match.threadContext] : []),
               includes: result.includes,
               page: { totalCount: result.threadTotalCount ?? 0n, hasMore: !!result.nextCursor },
               nextCursor: result.nextCursor || null

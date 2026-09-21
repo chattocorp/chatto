@@ -99,8 +99,7 @@ disappear between page requests while the index advances.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `results` | repeated [`MessageSearchResult`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchResult) | Matching messages when group_by is unspecified. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
+| `results` | repeated [`MessageSearchResult`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchResult) | Ordered matches. With THREAD grouping, one result per matching thread. Otherwise each result is one message, without thread_context. |
 | `next_cursor` | `string` | Opaque cursor for the next page in the selected result mode. Empty means no more matches. Live activity can reorder thread pages. |
-| `thread_results` | repeated [`ThreadSearchResult`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadSearchResult) | Distinct thread rows when group_by is THREAD. Message results are empty in this mode; a matching reply does not imply that its root text matched. |
 | `thread_total_count` | `optional uint64` | Total distinct matching threads. Present only when group_by is THREAD. |
-| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render thread_results without per-row reads. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities for grouped results, avoiding per-row reads. |

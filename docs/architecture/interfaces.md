@@ -313,8 +313,9 @@ hits and the complete grouped operation has a 30-second deadline. Exact totals
 and activity sorting require enumeration of all matching groups.
 The model rechecks current follow state and access before group pagination.
 Relevance and newest order use the best valid matching message; activity order
-uses current thread metadata. The neutral `ThreadSearchResult` includes matching
-evidence and actual viewer follow state. A root without replies is a group.
+uses current thread metadata. Both modes return `MessageSearchResult`: a
+matching message and score, plus `ThreadSearchContext` for grouped results.
+The context reports actual viewer follow state. A root without replies is a group.
 The sealed group cursor carries a distinct-thread offset; message cursors carry
 the provider continuation. Neither pins a snapshot across pages.
 Providers must acknowledge applied thread inclusion and exclusion filters;

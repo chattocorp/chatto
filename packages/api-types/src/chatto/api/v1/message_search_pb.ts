@@ -303,7 +303,8 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
 }
 
 /**
- * One current, authorized message search result.
+ * One current, authorized match. With thread grouping, each result represents
+ * one thread and message is its best match in the selected order.
  *
  * @generated from message chatto.api.v1.MessageSearchResult
  */
@@ -324,6 +325,14 @@ export class MessageSearchResult extends Message<MessageSearchResult> {
    */
   relevanceScore = 0;
 
+  /**
+   * Present only with THREAD grouping. The matching message can be a reply;
+   * the root and latest reply in this context need not match the query.
+   *
+   * @generated from field: chatto.api.v1.ThreadSearchContext thread_context = 3;
+   */
+  threadContext?: ThreadSearchContext;
+
   constructor(data?: PartialMessage<MessageSearchResult>) {
     super();
     proto3.util.initPartial(data, this);
@@ -334,6 +343,7 @@ export class MessageSearchResult extends Message<MessageSearchResult> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message", kind: "message", T: Message$1 },
     { no: 2, name: "relevance_score", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "thread_context", kind: "message", T: ThreadSearchContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageSearchResult {
@@ -362,8 +372,8 @@ export class MessageSearchResult extends Message<MessageSearchResult> {
  */
 export class SearchMessagesResponse extends Message<SearchMessagesResponse> {
   /**
-   * Matching messages when group_by is unspecified. Clients can batch hydrate
-   * referenced room and actor IDs through the existing APIs.
+   * Ordered matches. With THREAD grouping, one result per matching thread.
+   * Otherwise each result is one message, without thread_context.
    *
    * @generated from field: repeated chatto.api.v1.MessageSearchResult results = 1;
    */
@@ -378,14 +388,6 @@ export class SearchMessagesResponse extends Message<SearchMessagesResponse> {
   nextCursor = "";
 
   /**
-   * Distinct thread rows when group_by is THREAD. Message results are empty
-   * in this mode; a matching reply does not imply that its root text matched.
-   *
-   * @generated from field: repeated chatto.api.v1.ThreadSearchResult thread_results = 3;
-   */
-  threadResults: ThreadSearchResult[] = [];
-
-  /**
    * Total distinct matching threads. Present only when group_by is THREAD.
    *
    * @generated from field: optional uint64 thread_total_count = 4;
@@ -393,7 +395,7 @@ export class SearchMessagesResponse extends Message<SearchMessagesResponse> {
   threadTotalCount?: bigint;
 
   /**
-   * Related entities needed to render thread_results without per-row reads.
+   * Related entities for grouped results, avoiding per-row reads.
    *
    * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 5;
    */
@@ -409,7 +411,6 @@ export class SearchMessagesResponse extends Message<SearchMessagesResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "results", kind: "message", T: MessageSearchResult, repeated: true },
     { no: 2, name: "next_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thread_results", kind: "message", T: ThreadSearchResult, repeated: true },
     { no: 4, name: "thread_total_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
     { no: 5, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
@@ -432,12 +433,12 @@ export class SearchMessagesResponse extends Message<SearchMessagesResponse> {
 }
 
 /**
- * A thread with search evidence. Unlike a followed-thread feed row, this result
- * can be unfollowed and identifies the current message that matched the query.
+ * Current context for a grouped match. The viewer need not follow this thread.
+ * Search evidence stays on the containing MessageSearchResult.
  *
- * @generated from message chatto.api.v1.ThreadSearchResult
+ * @generated from message chatto.api.v1.ThreadSearchContext
  */
-export class ThreadSearchResult extends Message<ThreadSearchResult> {
+export class ThreadSearchContext extends Message<ThreadSearchContext> {
   /**
    * Renderable root message, when still visible.
    *
@@ -473,51 +474,35 @@ export class ThreadSearchResult extends Message<ThreadSearchResult> {
    */
   directMessageParticipantUserIds: string[] = [];
 
-  /**
-   * Best current match in the selected order. Activity order uses the newest match.
-   *
-   * @generated from field: chatto.api.v1.Message matching_message = 6;
-   */
-  matchingMessage?: Message$1;
-
-  /**
-   * Relevance score of matching_message.
-   *
-   * @generated from field: double relevance_score = 7;
-   */
-  relevanceScore = 0;
-
-  constructor(data?: PartialMessage<ThreadSearchResult>) {
+  constructor(data?: PartialMessage<ThreadSearchContext>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ThreadSearchResult";
+  static readonly typeName = "chatto.api.v1.ThreadSearchContext";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "root_message", kind: "message", T: Message$1 },
     { no: 2, name: "room", kind: "message", T: RoomSummary },
     { no: 3, name: "thread", kind: "message", T: ThreadSummary },
     { no: 4, name: "latest_reply", kind: "message", T: Message$1 },
     { no: 5, name: "direct_message_participant_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 6, name: "matching_message", kind: "message", T: Message$1 },
-    { no: 7, name: "relevance_score", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadSearchResult {
-    return new ThreadSearchResult().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadSearchContext {
+    return new ThreadSearchContext().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadSearchResult {
-    return new ThreadSearchResult().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadSearchContext {
+    return new ThreadSearchContext().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadSearchResult {
-    return new ThreadSearchResult().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadSearchContext {
+    return new ThreadSearchContext().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ThreadSearchResult | PlainMessage<ThreadSearchResult> | undefined, b: ThreadSearchResult | PlainMessage<ThreadSearchResult> | undefined): boolean {
-    return proto3.util.equals(ThreadSearchResult, a, b);
+  static equals(a: ThreadSearchContext | PlainMessage<ThreadSearchContext> | undefined, b: ThreadSearchContext | PlainMessage<ThreadSearchContext> | undefined): boolean {
+    return proto3.util.equals(ThreadSearchContext, a, b);
   }
 }
 

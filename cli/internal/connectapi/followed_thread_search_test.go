@@ -61,7 +61,7 @@ func TestSearchFollowedThreadsRequiresFromFilterForAuthors(t *testing.T) {
 			}}
 			response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: tc.query}))
 			require.NoError(t, err)
-			require.Len(t, response.Msg.ThreadResults, tc.count)
+			require.Len(t, response.Msg.Results, tc.count)
 		})
 	}
 }
@@ -92,8 +92,8 @@ func TestSearchFollowedThreadsFindsMatchesBeyondFirstCandidateBatch(t *testing.T
 	}}
 	response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "root"}))
 	require.NoError(t, err)
-	require.Len(t, response.Msg.ThreadResults, 1)
-	require.Equal(t, oldest, response.Msg.ThreadResults[0].Thread.ThreadRootEventId)
+	require.Len(t, response.Msg.Results, 1)
+	require.Equal(t, oldest, response.Msg.Results[0].ThreadContext.Thread.ThreadRootEventId)
 	require.EqualValues(t, 1, response.Msg.GetThreadTotalCount())
 	require.Equal(t, 1, calls)
 	response, err = (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{
@@ -146,24 +146,26 @@ func TestThreadSearchIndependentScopeGroupingAndOrder(t *testing.T) {
 					}
 					if grouping == 0 {
 						require.Len(t, response.Msg.Results, count)
-						require.Empty(t, response.Msg.ThreadResults)
+						for _, result := range response.Msg.Results {
+							require.Nil(t, result.ThreadContext)
+						}
 						return
 					}
-					require.Len(t, response.Msg.ThreadResults, count)
+					require.Len(t, response.Msg.Results, count)
 					require.EqualValues(t, count, response.Msg.GetThreadTotalCount())
 					expected := second.Id
 					if scope != 0 || order == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST {
 						expected = first.Id
 					}
-					require.Equal(t, expected, response.Msg.ThreadResults[0].Thread.ThreadRootEventId)
-					for _, result := range response.Msg.ThreadResults {
-						if result.Thread.ThreadRootEventId == first.Id {
-							require.Equal(t, match.Id, result.MatchingMessage.Id)
-							require.True(t, result.Thread.ViewerState.GetIsFollowing())
+					require.Equal(t, expected, response.Msg.Results[0].ThreadContext.Thread.ThreadRootEventId)
+					for _, result := range response.Msg.Results {
+						if result.ThreadContext.Thread.ThreadRootEventId == first.Id {
+							require.Equal(t, match.Id, result.Message.Id)
+							require.True(t, result.ThreadContext.Thread.ViewerState.GetIsFollowing())
 						} else {
-							require.Equal(t, second.Id, result.MatchingMessage.Id)
-							require.Equal(t, latest.Id, result.LatestReply.Id)
-							require.False(t, result.Thread.ViewerState.GetIsFollowing())
+							require.Equal(t, second.Id, result.Message.Id)
+							require.Equal(t, latest.Id, result.ThreadContext.LatestReply.Id)
+							require.False(t, result.ThreadContext.Thread.ViewerState.GetIsFollowing())
 						}
 					}
 				})
@@ -203,9 +205,9 @@ func TestThreadSearchExcludesResolvedGroupsAndRejectsUnsupportedProviders(t *tes
 				return
 			}
 			require.NoError(t, err)
-			require.Len(t, response.Msg.ThreadResults, 1)
-			require.Zero(t, response.Msg.ThreadResults[0].Thread.ReplyCount)
-			require.Equal(t, root.Id, response.Msg.ThreadResults[0].MatchingMessage.Id)
+			require.Len(t, response.Msg.Results, 1)
+			require.Zero(t, response.Msg.Results[0].ThreadContext.Thread.ReplyCount)
+			require.Equal(t, root.Id, response.Msg.Results[0].Message.Id)
 		})
 	}
 }
@@ -229,7 +231,7 @@ func TestThreadSearchRechecksAcceptedBodyAfterEnumeration(t *testing.T) {
 	}}
 	response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Query: "needle", GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD}))
 	require.NoError(t, err)
-	require.Empty(t, response.Msg.ThreadResults)
+	require.Empty(t, response.Msg.Results)
 	require.Zero(t, response.Msg.GetThreadTotalCount())
 }
 
@@ -249,7 +251,7 @@ func TestSearchFollowedThreadsRejectsRoomAccessLostDuringSearch(t *testing.T) {
 	for range 2 {
 		response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "needle"}))
 		require.NoError(t, err)
-		require.Empty(t, response.Msg.ThreadResults)
+		require.Empty(t, response.Msg.Results)
 	}
 	require.Len(t, provider.capturedQueries(), 1, "lost rooms must be excluded before subsequent provider queries")
 }
@@ -286,11 +288,11 @@ func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T)
 		}
 		response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(request))
 		require.NoError(t, err)
-		require.Len(t, response.Msg.ThreadResults, 1)
-		require.Equal(t, expected, response.Msg.ThreadResults[0].Thread.ThreadRootEventId)
+		require.Len(t, response.Msg.Results, 1)
+		require.Equal(t, expected, response.Msg.Results[0].ThreadContext.Thread.ThreadRootEventId)
 		require.EqualValues(t, 2, response.Msg.GetThreadTotalCount())
 		require.Equal(t, offset == 0, response.Msg.NextCursor != "")
-		require.Empty(t, response.Msg.Results)
+		require.NotNil(t, response.Msg.Results[0].ThreadContext)
 		cursor = response.Msg.NextCursor
 		if offset == 0 {
 			for _, mutate := range []func(*apiv1.SearchMessagesRequest){
@@ -397,7 +399,7 @@ func TestSearchFollowedThreadsSkipsStalePagesAndStopsSearchingMatchedThreads(t *
 	}}
 	response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "needle"}))
 	require.NoError(t, err)
-	require.Len(t, response.Msg.ThreadResults, 2)
+	require.Len(t, response.Msg.Results, 2)
 	require.Equal(t, 3, calls)
 }
 
@@ -425,11 +427,11 @@ func TestSearchFollowedThreadsIncludesDMAndRechecksUnfollow(t *testing.T) {
 	request := &apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "needle"}
 	response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(request))
 	require.NoError(t, err)
-	require.Len(t, response.Msg.ThreadResults, 1)
+	require.Len(t, response.Msg.Results, 1)
 	unfollow = true
 	response, err = (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(request))
 	require.NoError(t, err)
-	require.Empty(t, response.Msg.ThreadResults)
+	require.Empty(t, response.Msg.Results)
 }
 
 func TestSearchFollowedThreadsAvailabilityAndAuthorFilter(t *testing.T) {
