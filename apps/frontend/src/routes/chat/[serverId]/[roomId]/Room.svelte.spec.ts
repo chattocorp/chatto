@@ -65,6 +65,7 @@ const { mocks } = vi.hoisted(() => {
       canPostMessage: true,
       hasLimitedMessageAccess: false,
       canPostInThread: true,
+      canPostInteractions: false,
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
@@ -136,6 +137,7 @@ vi.mock('$lib/hooks', () => ({
       canPostMessage: mocks.canPostMessage,
       hasLimitedMessageAccess: mocks.hasLimitedMessageAccess,
       canPostInThread: mocks.canPostInThread,
+      canPostInteractions: mocks.canPostInteractions,
       canAttach: false,
       canReact: true,
       canManageOthersMessage: false,
@@ -225,6 +227,7 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: (serverId: string) => ({
+      realtimeSync: { isRecoveringSnapshot: false },
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       serverInfo: {
         livekitUrl: mocks.livekitUrl,
@@ -482,6 +485,7 @@ beforeEach(() => {
   mocks.canPostMessage = true;
   mocks.hasLimitedMessageAccess = false;
   mocks.canPostInThread = true;
+  mocks.canPostInteractions = false;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
   mocks.markOccurrenceRead.mockReset();
@@ -564,6 +568,7 @@ describe('Room interaction bundles', () => {
 
   it.each([true, false])('explains posting denial with read access %s', async (canRead) => {
     mocks.canPostMessage = false;
+    mocks.canPostInThread = false;
     mocks.canReadMessages = canRead;
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     await expect
@@ -586,6 +591,40 @@ describe('Room interaction bundles', () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     await tick();
     expect(container.querySelector('[data-testid="room-post-denied"]')).toBeNull();
+  });
+
+  it.each([
+    [true, true, 'You can only reply in threads you can read.'],
+    [false, true, 'You can only reply in threads you started or where someone mentioned you.']
+  ] as const)('explains reply-only posting with thread grant %s and interaction grant %s', async (threads, interactions, notice) => {
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = threads;
+    mocks.canPostInteractions = interactions;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(notice);
+  });
+
+  it('explains received messages as an interaction in DMs', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = false;
+    mocks.canPostInteractions = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(
+      'You can only reply in threads you started, where someone mentioned you, or where you received a DM.'
+    );
+  });
+
+  it.each([RoomThreadingMode.DISABLED, RoomThreadingMode.ENABLED])('does not promise interaction replies without room access in threading mode %s', async (mode) => {
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = false;
+    mocks.canPostInteractions = true;
+    mocks.threadingMode = mode;
+    mocks.canReadMessages = mode === RoomThreadingMode.DISABLED;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(
+      'You do not have permission to post messages in this room.'
+    );
   });
 
   it('explains when the viewer cannot read messages and keeps the composer available', async () => {

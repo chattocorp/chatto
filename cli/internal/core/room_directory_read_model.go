@@ -66,6 +66,7 @@ type DirectoryRoomViewerState struct {
 	CanReadInteractions    bool
 	CanPostMessage         bool
 	CanPostInThread        bool
+	CanPostInteractions    bool // RBAC gate only; each reply also needs a thread relationship.
 	CanAttach              bool
 	CanReact               bool
 	CanEchoMessage         bool
@@ -561,6 +562,10 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}
+	canPostInteractions, err := s.core.hasRoomPermission(ctx, kind, room.Id, actorID, PermMessagePostInInteractions)
+	if err != nil {
+		return DirectoryRoomViewerState{}, err
+	}
 	canAttach, err := s.core.CanAttachFiles(ctx, actorID, kind, room.Id)
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
@@ -621,6 +626,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		CanReadInteractions:    isMember && canReadInteractions,
 		CanPostMessage:         canPostMessage,
 		CanPostInThread:        canPostInThread,
+		CanPostInteractions:    canPostInteractions && messageActionsEnabled,
 		CanAttach:              canAttach,
 		CanReact:               canReact,
 		CanEchoMessage:         canEcho,

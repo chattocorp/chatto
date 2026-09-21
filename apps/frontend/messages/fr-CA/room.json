@@ -70,6 +70,9 @@
       "remove_account_suffix": " de ce serveur avant de le retirer."
     },
     "timeline": {
+      "post_interactions_only_channel": "Vous pouvez uniquement répondre dans les fils que vous avez créés ou où quelqu’un vous a mentionné.",
+      "post_threads_only": "Vous pouvez uniquement répondre dans les fils que vous pouvez lire.",
+      "post_interactions_only": "Vous pouvez uniquement répondre dans les fils que vous avez créés, où quelqu’un vous a mentionné ou où vous avez reçu un message privé.",
       "post_denied": "Tu n’as pas la permission d’envoyer des messages dans ce salon.",
       "beginning": "Voici le début de cette conversation.",
       "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon.",

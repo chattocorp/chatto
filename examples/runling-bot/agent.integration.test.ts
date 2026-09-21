@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { createRunling } from "runling";
+import { createWorkflowContext } from "runling";
 import { generateReply } from "./agent.ts";
 import { createReplySender } from "./sender.ts";
 
@@ -134,7 +134,7 @@ for (const recover of [false, true]) {
       },
     );
     try {
-      const r = createRunling({ cwd, prompt: "", verbose: false });
+      const r = createWorkflowContext();
       const sender = createReplySender(async (text) => {
         posts.push(text);
         return `message-${posts.length}`;

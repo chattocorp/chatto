@@ -69,7 +69,7 @@ permission, and session resets update these results through the existing state
 lifecycle. Rooms, DMs, and timelines share known user profiles within the current
 connection. Profile updates and removal markers also update the palette.
 Profiles from other connection sessions are excluded; searching does not fetch
-missing users. See ADR-100.
+missing users. See ADR-101.
 
 ### 2. Fuzzy match with prefix-bias and recent-boost
 
@@ -114,5 +114,5 @@ availability and normal read boundary.
 
 ## Related
 
-- **ADRs:** ADR-025 (multi-instance client architecture), ADR-100 (shared client user profiles)
+- **ADRs:** ADR-025 (multi-instance client architecture), ADR-101 (shared client user profiles)
 - **FDRs:** FDR-007 (Direct Messages), FDR-012 (Notifications)

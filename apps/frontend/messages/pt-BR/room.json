@@ -70,6 +70,9 @@
       "remove_account_suffix": " deste servidor antes de removê-lo."
     },
     "timeline": {
+      "post_interactions_only_channel": "Você só pode responder em tópicos que iniciou ou onde alguém mencionou você.",
+      "post_threads_only": "Você só pode responder em tópicos que pode ler.",
+      "post_interactions_only": "Você só pode responder em tópicos que iniciou, onde alguém mencionou você ou onde recebeu uma mensagem direta.",
       "post_denied": "Você não tem permissão para enviar mensagens nesta sala.",
       "beginning": "Este é o início desta conversa.",
       "read_denied": "Você não tem permissão para ler mensagens nesta sala.",

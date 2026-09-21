@@ -32,7 +32,6 @@ Room sidebar panel for voice/video calls.
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
-  import MicrophoneSilenceHint from './MicrophoneSilenceHint.svelte';
   import ConnectionQualityHint from './ConnectionQualityHint.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -293,13 +292,17 @@ Room sidebar panel for voice/video calls.
       voiceCallState.toggleParticipantLocalMute(participant.key);
     }
   }
+
+  function canShowMuteButton(participant: DisplayParticipant): boolean {
+    return !participant.isLocal || !voiceCallState.isMuted || voiceCallState.canUseVoice;
+  }
 </script>
 
 {#snippet localMuteButton(participant: DisplayParticipant)}
   {@const isMutedForViewer = participant.isLocal
     ? voiceCallState.isMuted
     : participant.isLocallyMuted}
-  {#if !participant.isLocal || !isMutedForViewer || voiceCallState.canUseVoice}
+  {#if canShowMuteButton(participant)}
     <CompactActionButton
       class={isMutedForViewer ? 'bg-surface-emphasized text-text' : undefined}
       label={participant.isLocal
@@ -313,7 +316,16 @@ Room sidebar panel for voice/video calls.
       onclick={(event) => toggleFeedMute(participant, event)}
     >
       <span
-        class={['iconify', isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]']}
+        class={[
+          'iconify',
+          participant.isLocal
+            ? isMutedForViewer
+              ? 'icon-[uil--microphone-slash] text-danger'
+              : 'icon-[uil--microphone]'
+            : isMutedForViewer
+              ? 'icon-[uil--volume-mute]'
+              : 'icon-[uil--volume-up]'
+        ]}
         aria-hidden="true"
       ></span>
     </CompactActionButton>
@@ -331,7 +343,8 @@ Room sidebar panel for voice/video calls.
 {/snippet}
 
 {#snippet participantIndicators(participant: DisplayParticipant)}
-  {#if participant.isMuted}
+  {@const isMuted = participant.isLocal ? voiceCallState.isMuted : participant.isMuted}
+  {#if isMuted && !(participant.isLocal && isInThisCall && canShowMuteButton(participant))}
     <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
       <span
         class="iconify icon-[uil--microphone-slash] text-danger"
@@ -381,9 +394,6 @@ Room sidebar panel for voice/video calls.
     {#snippet actions()}
       {#if isInThisCall && !screen}
         <ConnectionQualityHint quality={participant.connectionQuality} />
-      {/if}
-      {#if isInThisCall && participant.isLocal && !screen}
-        <MicrophoneSilenceHint />
       {/if}
       {#if headerActions === 'media'}
         {@render mediaTileActions()}
@@ -626,7 +636,6 @@ Room sidebar panel for voice/video calls.
                 ? m('voice.already_in_another_call')
                 : joinLabel}
           >
-            <span class="icon-[uil--phone] text-lg" aria-hidden="true"></span>
             {joinLabel}
           </button>
         </div>

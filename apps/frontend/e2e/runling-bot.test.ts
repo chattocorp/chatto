@@ -42,9 +42,9 @@ test.describe('Runling webhook bot', () => {
     await writeFile(
       testConfig,
       `
-      import { defineWebConfig } from ${JSON.stringify(path.join(root, 'node_modules/runling/dist/src/web-config.js'))};
+      import { defineWebConfig, startWorkflow } from ${JSON.stringify(path.join(root, 'node_modules/runling/dist/src/runtime/web-config.js'))};
       import { createReplyWorkflow } from ${JSON.stringify(path.join(root, 'examples/runling-bot/reply.ts'))};
-      export default defineWebConfig({ webhooks: { chatto: { workflow:
+      export default defineWebConfig({ webhooks: { chatto: startWorkflow(
         createReplyWorkflow(undefined, undefined, async (_r, context) => {
           if (context.message === "Trigger test model failure") throw new Error("Synthetic model failure");
           if (!context.thread?.some(message => message.body === context.message)) {
@@ -52,13 +52,14 @@ test.describe('Runling webhook bot', () => {
           }
           await context.sender.sendFinal(${JSON.stringify(replyBody)});
         })
-      } } });
+      ) } });
     `
     );
     const bot = spawn(
       process.execPath,
       [
         path.join(root, 'node_modules/runling/bin/runling.js'),
+        'serve',
         '--config',
         testConfig,
         '--host',

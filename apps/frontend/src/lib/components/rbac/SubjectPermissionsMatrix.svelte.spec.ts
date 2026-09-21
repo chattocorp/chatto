@@ -343,7 +343,7 @@ it('localizes binary cell labels, state details, and owner ceilings', async () =
   const button = container.querySelector('button[aria-label^="message.post"]') as HTMLButtonElement;
   const permissionName = container.querySelector('[data-testid="permission-name"]') as HTMLElement;
 
-  expect(permissionName.title).toBe('Root-Nachrichten in Räumen posten und DMs starten');
+  expect(permissionName.title).toBe('Nachrichten und Thread-Antworten posten und DMs starten');
   expect(button.ariaLabel).toBe('message.post ist für Bot in Server aktiviert');
   expect(button.title).toContain('Derzeit nicht verfügbar');
   expect(button.title).toContain('Du kannst message.post in Server nicht vergeben');

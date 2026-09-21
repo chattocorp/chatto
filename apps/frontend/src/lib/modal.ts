@@ -21,7 +21,6 @@ export type ChatModal =
   | { type: 'logout' }
   | { type: 'aboutChatto' }
   | { type: 'motd'; motd: string }
-  | { type: 'microphoneSilence'; serverId: string }
   | (RoomModalTarget & { type: 'leaveRoom'; roomName: string })
   | { type: 'removeServer'; serverId: string; spaceName: string }
   | (RoomModalTarget & { type: 'deleteMessage'; eventId: string })

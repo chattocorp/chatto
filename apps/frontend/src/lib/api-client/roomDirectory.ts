@@ -43,6 +43,8 @@ export type DirectoryRoomDetails = DirectoryRoomSummary & {
   hasLimitedMessageAccess: boolean;
   canPostMessage: boolean;
   canPostInThread: boolean;
+  /** Permission gate only; the server checks the relationship for each thread. */
+  canPostInteractions: boolean;
   canAttach: boolean;
   canReact: boolean;
   canEchoMessage: boolean;
@@ -92,6 +94,7 @@ const RoomPermission = {
   ReadInteractions: 'message.read-interactions',
   ReadMessages: 'message.read',
   PostInThread: 'message.post-in-thread',
+  PostInteractions: 'message.post-in-interactions',
   PostMessage: 'message.post',
   React: 'message.react'
 } as const;
@@ -195,6 +198,7 @@ export function mapDirectoryRoomDetails(
       hasRoomPermission(entry.viewerState, RoomPermission.ReadInteractions),
     canPostMessage: hasRoomPermission(entry.viewerState, RoomPermission.PostMessage),
     canPostInThread: hasRoomPermission(entry.viewerState, RoomPermission.PostInThread),
+    canPostInteractions: hasRoomPermission(entry.viewerState, RoomPermission.PostInteractions),
     canAttach: hasRoomPermission(entry.viewerState, RoomPermission.Attach),
     canReact: hasRoomPermission(entry.viewerState, RoomPermission.React),
     canEchoMessage: hasRoomPermission(entry.viewerState, RoomPermission.EchoMessage),

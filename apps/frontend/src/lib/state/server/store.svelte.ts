@@ -962,7 +962,7 @@ export class ServerStateStore {
     this.#projectionReconciliations.add(refresh);
   }
 
-  /** Message-read changes affect plaintext even if room membership is unchanged. */
+  /** Read and posting changes require fresh message content and reply capabilities. */
   private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
     const nextRooms = new SvelteMap(rooms.map((room) => [room.room?.id, room]));
     const ids = new SvelteSet([...Object.keys(this.#roomMessages), ...Object.keys(this.#roomFiles),
@@ -975,11 +975,11 @@ export class ServerStateStore {
         continue;
       }
       const previous = this.projection.rooms.get(roomId);
-      const readAccess = (room: RoomWithViewerState | undefined) =>
-        ['message.read', 'message.read-interactions'].map((permission) =>
+      const messageAccess = (room: RoomWithViewerState | undefined) =>
+        ['message.read', 'message.read-interactions', 'message.post', 'message.post-in-thread', 'message.post-in-interactions'].map((permission) =>
           room?.viewerState?.permissions.some((grant) => grant.permission === permission && grant.granted) ?? false
         ).join(',');
-      if (previous && readAccess(previous) === readAccess(next)) continue;
+      if (previous && messageAccess(previous) === messageAccess(next)) continue;
       // Rebuild only affected plaintext stores. Their owners and surrounding
       // page stay mounted, and their request generations fence old responses.
       this.clearRoomMessageAccess(roomId);

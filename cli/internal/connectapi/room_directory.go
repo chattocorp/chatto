@@ -169,6 +169,7 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 			permissionGrant(core.PermMessageReadInteractions, state.CanReadInteractions),
 			permissionGrant(core.PermMessagePost, state.CanPostMessage),
 			permissionGrant(core.PermMessagePostInThread, state.CanPostInThread),
+			permissionGrant(core.PermMessagePostInInteractions, state.CanPostInteractions),
 			permissionGrant(core.PermMessageAttach, state.CanAttach),
 			permissionGrant(core.PermMessageReact, state.CanReact),
 			permissionGrant(core.PermMessageEcho, state.CanEchoMessage),

@@ -149,7 +149,9 @@
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
   const room = useRoomData(() => ({ roomId }));
   const canReadMessages = $derived(room.roomData?.canReadMessages !== false);
-  const shouldHydrateRoom = $derived(Boolean(room.roomData) && canReadMessages);
+  const shouldHydrateRoom = $derived(
+    stores.realtimeSync.isRecoveringSnapshot || (Boolean(room.roomData) && canReadMessages)
+  );
 
   $effect(() => {
     const mountedStores = stores;
@@ -213,6 +215,18 @@
   });
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);
+  const postingNotice = $derived.by(() => {
+    if (room.roomData?.canPostMessage !== false) return null;
+    if (canReadMessages && !room.roomData.room.archived && threadingMode !== RoomThreadingMode.DISABLED) {
+      if (room.roomData.canPostInThread) return m('room.timeline.post_threads_only');
+      if (room.roomData.canPostInteractions) {
+        return m(room.isDM
+          ? 'room.timeline.post_interactions_only'
+          : 'room.timeline.post_interactions_only_channel');
+      }
+    }
+    return m('room.timeline.post_denied');
+  });
   let composerCanCreateThread = $derived(
     permissions.canPostMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
@@ -778,11 +792,11 @@
           {/snippet}
         </PaneHeader>
 
-        {#if room.roomData?.canPostMessage === false || room.roomData?.hasLimitedMessageAccess}
+        {#if postingNotice || room.roomData?.hasLimitedMessageAccess}
           <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
-            {#if room.roomData?.canPostMessage === false}
+            {#if postingNotice}
               <div data-testid="room-post-denied">
-                <Hint>{m('room.timeline.post_denied')}</Hint>
+                <Hint>{postingNotice}</Hint>
               </div>
             {/if}
             {#if room.roomData?.hasLimitedMessageAccess}
@@ -854,7 +868,7 @@
         />
       </div>
 
-      {#if threadId && room.roomData && canReadMessages}
+      {#if threadId && (room.roomData || stores.realtimeSync.isRecoveringSnapshot) && canReadMessages}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
             class={[
@@ -872,19 +886,19 @@
         {:then { default: ThreadPane }}
           <ThreadPane
             {roomId}
-            roomName={room.isDM ? presentation.title : room.roomData.room.name}
+            roomName={room.isDM ? presentation.title : (room.roomData?.room.name ?? '')}
             isDirectMessage={room.isDM}
             threadRootEventId={threadId}
             onClose={closeThread}
-            canPostInThread={room.roomData.canPostInThread &&
+            canPostInThread={!!room.roomData?.canPostInThread &&
               threadingMode !== RoomThreadingMode.DISABLED}
-            canAttach={room.roomData.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
-            canEchoMessage={room.roomData.canEchoMessage &&
-              room.roomData.canPostMessage &&
+            canAttach={!!room.roomData?.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
+            canEchoMessage={!!room.roomData?.canEchoMessage &&
+              !!room.roomData?.canPostMessage &&
               threadingMode !== RoomThreadingMode.DISABLED}
-            slowModeSeconds={room.roomData.room.slowModeSeconds}
-            slowModeNextPostAt={room.roomData.slowModeNextPostAt}
-            slowModeBypassed={room.roomData.canManageRoom || room.roomData.canManageOthersMessage}
+            slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
+            slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
+            slowModeBypassed={!!room.roomData?.canManageRoom || !!room.roomData?.canManageOthersMessage}
             highlightEventId={navigation.pendingThreadHighlight}
             pendingQuote={navigation.pendingThreadQuote}
             pendingReply={navigation.pendingThreadReply}

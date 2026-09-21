@@ -33,7 +33,7 @@
     });
   });
   const canRenderRoom = $derived(
-    ready &&
+    (ready || serverStore.realtimeSync.isRecoveringSnapshot) &&
       roomId &&
       (roomAccess.kind === 'member' || (roomAccess.kind === 'unknown' && !isMessageLinkMode))
   );

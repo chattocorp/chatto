@@ -1,0 +1,79 @@
+name: publish-runling
+
+on:
+  push:
+    tags:
+      - 'runling/v*'
+  # Manual runs verify and save a package without publishing it.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-runling-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+      - name: Check release version
+        working-directory: packages/runling
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
+        run: |
+          # shellcheck disable=SC2016
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const { name, version } = JSON.parse(readFileSync("package.json"));
+            if (name !== "runling" || !/^\d+\.\d+\.\d+$/.test(version)) throw Error("Expected a stable Runling release version");
+            const tag = process.env.RELEASE_TAG;
+            if (tag && tag !== `runling/v${version}`) throw Error("Tag must match package version");
+          '
+      - name: Reject previously published versions
+        if: github.event_name == 'push'
+        run: mise x -- node packages/runling/scripts/check-release.mjs
+      - run: mise check-runling
+      - run: mise test-runling
+      - name: Build and test the release tarball
+        run: mise test-runling-package
+        env:
+          RUNLING_RELEASE_DIR: ${{ runner.temp }}/runling-release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: runling-package
+          path: ${{ runner.temp }}/runling-release/*.tgz
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push'
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm install --global npm@11.19.0
+      - uses: actions/download-artifact@v8
+        with:
+          name: runling-package
+          path: release
+      - name: Publish the tested tarball with trusted publishing
+        run: |
+          shopt -s nullglob
+          packages=(./release/*.tgz)
+          test "${#packages[@]}" -eq 1
+          npm publish "${packages[0]}" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org

@@ -99,11 +99,16 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
   'message.post': {
     category: 'message',
-    description: () => m('rbac.permission_descriptions.message_post')
+    description: () => m('rbac.permission_descriptions.message_post'),
+    includes: ['message.post-in-thread', 'message.post-in-interactions']
   },
   'message.post-in-thread': {
     category: 'message',
     description: () => m('rbac.permission_descriptions.message_post_in_thread')
+  },
+  'message.post-in-interactions': {
+    category: 'message',
+    description: () => m('rbac.permission_descriptions.message_post_interactions')
   },
   'message.attach': {
     category: 'message',

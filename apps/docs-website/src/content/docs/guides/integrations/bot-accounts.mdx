@@ -106,8 +106,16 @@ not grant broad access. A DM also needs membership and the matching DM-scoped
 read permission. Receiving a DM creates an interaction just as a direct
 mention does in a channel. A DM-scoped `message.read-interactions` grant is
 enough to read those messages and receive their outbound webhooks, including
-group DMs and replies. Posting remains a separate `message.post` or
-`message.post-in-thread` decision.
+group DMs and replies. Posting needs a separate permission:
+
+- `message.post` permits roots and thread replies. It includes both permissions below.
+- `message.post-in-thread` permits replies in any readable thread.
+- `message.post-in-interactions` permits replies only in readable threads that the
+  bot started, where it was directly mentioned, or where it received a DM.
+
+For a bot that reads broadly but speaks only in related threads, grant
+`message.read` and `message.post-in-interactions`. Do not grant either broader
+posting permission. Membership and the owner's permission ceiling still apply.
 
 ## Post from an external webhook
 
@@ -164,9 +172,9 @@ Replace the placeholders with your webhook credential and room ID. If you send
 more than one non-empty message field, their values must match. All non-empty
 room IDs in the URL and JSON body must also match. Use a stable room ID, not a
 room name. Set `"create_thread": true` to start a
-thread in a channel room that supports threads. The bot needs `message.post`
-and `message.post-in-thread` for explicit thread creation. A room that requires
-threads creates one automatically. Direct messages do not support threads.
+thread in a channel room that supports threads. The bot needs `message.post`,
+which includes thread posting. A room that requires threads creates one
+automatically.
 
 The bot must already be a room member and have `message.post`. A webhook can
 post to a DM only after a human starts that DM with the bot. It cannot start or
@@ -251,7 +259,7 @@ A bot cannot start a DM. This rule also prevents a bot from using
 cannot change the rule.
 
 A human can start a DM that includes the bot. Membership remains necessary.
-Grant `message.read`, `message.post`, and `message.post-in-thread` at the
+Grant `message.read` and `message.post` at the
 **Direct messages** scope when the bot must run a threaded private
 conversation without channel access. The owner must also have each effective
 permission at that scope. Messages from another participant create normal

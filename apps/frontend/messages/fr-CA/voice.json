@@ -1,8 +1,6 @@
 {
   "voice": {
     "connection_lost": "Connexion perdue",
-    "microphone_silence_explanation": "Vérifie le bouton de sourdine de ton microphone ou choisis une autre entrée.",
-    "microphone_silent_hint": "Aucun son du microphone",
     "connecting": "Connexion...",
     "joining": "Rejoindre...",
     "starting": "Démarrage...",

@@ -316,6 +316,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     hasLimitedMessageAccess: false,
     canPostMessage: true,
     canPostInThread: true,
+    canPostInteractions: false,
     canAttach: true,
     canReact: true,
     canManageOthersMessage: false,

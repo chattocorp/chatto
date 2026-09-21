@@ -51,7 +51,8 @@ request bodies.
 File attachments require:
 
 - room membership
-- `message.post` or `message.post-in-thread`
+- `message.post`, `message.post-in-thread`, or `message.post-in-interactions`
+  with a relationship to the target thread; thread replies also need read access
 - `message.attach`
 
 Attachment URLs are signed per user and still check that the signed user can access the room. If a user leaves, is removed, or loses room access, new asset fetches fail even if an old message still contains the URL.

@@ -382,7 +382,7 @@ hydration share reads in batches of at most 100 IDs. Realtime updates supersede
 pending reads; per-user revisions fence list/detail responses. Deletion markers
 prevent old responses from restoring a removed user. Reset rejects pending reads,
 and disposal permanently fences the retired owner. Profile expiry timers have
-the same lifetime. See [ADR-100](../adr/ADR-100-shared-client-user-profiles.md).
+the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
 Room member state retains membership IDs and resolves profiles from the shared
@@ -486,6 +486,14 @@ auxiliary refresh. Thus a replay runs one auxiliary refresh at `caught_up`,
 not one refresh per event.
 If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
+
+A replacement snapshot clears private rows and invalidates pending reads, but
+does not unmount an already open route. The route stays hidden and inert until
+catch-up completes. Room and thread timelines retain only a viewport event ID
+and pixel offset across this boundary. Fresh cursor-bounded reads restore that
+window; a missing event falls back to the latest window. Access revocation
+clears the saved position. Session and explicit resync resets still unmount
+private routes. No cached plaintext is used to restore a snapshot.
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for

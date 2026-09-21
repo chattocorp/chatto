@@ -228,6 +228,7 @@ describe('createRoomDirectoryAPI', () => {
       canJoinRoom: false,
       canPostMessage: true,
       canPostInThread: true,
+      canPostInteractions: false,
       canAttach: false,
       canReact: true,
       canEchoMessage: true,

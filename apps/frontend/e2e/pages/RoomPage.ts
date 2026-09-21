@@ -120,11 +120,17 @@ export class RoomPage {
     if (await this.memberList.isVisible()) return;
 
     const actions = this.page.getByRole('button', { name: /^Actions for #/ });
+    const membersToggle = this.page.getByRole('button', { name: /^(Show|Hide) members$/ });
+    await expect(membersToggle.or(actions).first()).toBeVisible();
     if ((await actions.isVisible()) && (await actions.getAttribute('aria-expanded')) === 'false') {
       await actions.click();
     }
 
-    await this.page.getByRole('button', { name: 'Show members' }).click();
+    // The persisted panel can open before its member list has finished loading.
+    await expect(membersToggle).toBeVisible();
+    if ((await membersToggle.getAttribute('aria-pressed')) !== 'true') {
+      await membersToggle.click();
+    }
     await expect(this.memberList).toBeVisible();
   }
 

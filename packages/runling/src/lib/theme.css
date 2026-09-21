@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@plugin "@iconify/tailwind4";
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+@plugin "daisyui" {
+  themes:
+    light --default,
+    dark;
+  logs: false;
+}
+
+@layer base {
+  :where(button, select, summary, a[href], [role="button"]):not(:disabled):not(
+      [aria-disabled="true"]
+    ) {
+    @apply cursor-pointer;
+  }
+}
+
+@layer utilities {
+  :is(button, select, [role="button"]):is(:disabled, [aria-disabled="true"]) {
+    @apply cursor-not-allowed;
+  }
+}
+
+/* Neutral surfaces for the dark theme; no app-specific color tokens. */
+@plugin "daisyui/theme" {
+  name: "dark";
+  color-scheme: dark;
+  --color-base-100: #111111;
+  --color-base-200: #191919;
+  --color-base-300: #2a2a2a;
+  --color-base-content: #ededed;
+  --color-primary: #507dc6;
+  --color-primary-content: #ffffff;
+  --color-secondary: #8864bb;
+  --color-secondary-content: #ffffff;
+  --color-accent: #338c86;
+  --color-accent-content: #ffffff;
+  --color-neutral: #242424;
+  --color-neutral-content: #ededed;
+}
+
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, monospace;
+  --animate-braille-spinner: braille-spinner 0.8s steps(10) infinite;
+
+  @keyframes braille-spinner {
+    to {
+      transform: translateY(-100%);
+    }
+  }
+}

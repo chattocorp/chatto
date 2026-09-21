@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-21
 
 ## Overview
 
@@ -450,13 +450,18 @@ edit. Retracted or inaccessible messages are not sent.
   thread that it started, where another account directly mentioned it, or
   where it received a DM, subject to membership and the owner's effective broad or
   narrow read authority.
-- `message.post` — post room-timeline messages at configured scopes. A bot can
+- `message.post` — post roots and thread replies at configured scopes. Includes
+  `message.post-in-thread` and `message.post-in-interactions`. A bot can
   receive this permission only at Direct messages scope when it must not post
   in channels.
-- `message.post-in-thread` — create and reply in threads at configured scopes.
+- `message.post-in-thread` — post replies, including the first reply to a root,
+  in readable threads at configured scopes.
   A bot that responds only in private-conversation threads can combine this
   DM-scoped allow with DM-scoped `message.read`. It does not need
   `message.post`.
+- `message.post-in-interactions` — reply only in related threads, with separate
+  read access. A broad reader can use this grant to speak only in conversations
+  involving it. The owner's effective authority must also include this grant.
 
 Notification delivery modes are user preferences, not permissions. A bot can
 change its own notification policy through the normal notification policy API
@@ -524,7 +529,7 @@ service, and send the target user ID.
 
 ## Related
 
-- **ADRs:** ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-100 (shared integration client), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

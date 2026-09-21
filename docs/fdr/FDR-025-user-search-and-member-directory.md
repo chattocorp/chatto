@@ -112,5 +112,5 @@ DM member lists require participation in that DM.
 
 ## Related
 
-- **ADRs:** ADR-027 (instance/space consolidation), ADR-100 (shared client user profiles)
+- **ADRs:** ADR-027 (instance/space consolidation), ADR-101 (shared client user profiles)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-006 (@Mentions), FDR-021 (Admin Dashboard & System Monitoring), FDR-022 (User Profile), FDR-038 (Bot Accounts)

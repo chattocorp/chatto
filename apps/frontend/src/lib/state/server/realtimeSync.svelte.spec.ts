@@ -2,6 +2,28 @@ import { describe, expect, it, vi } from 'vitest';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 describe('RealtimeProjectionSyncState', () => {
+  it('retains only mount readiness across warm snapshot retries until catch-up', () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.acceptProjectionEvent(undefined, true);
+    expect(sync.isRecoveringSnapshot).toBe(false);
+    sync.markCaughtUp('before');
+    sync.markStale();
+    sync.acceptProjectionEvent(undefined, true);
+    expect(sync.isRecoveringSnapshot).toBe(true);
+    expect(sync.hasUsableProjection).toBe(false);
+    expect(sync.resumeCursor).toBeNull();
+    sync.markStale();
+    sync.beginCatchUp();
+    sync.acceptProjectionEvent(undefined, true);
+    expect(sync.isRecoveringSnapshot).toBe(true);
+    sync.markCaughtUp('after');
+    expect(sync.isRecoveringSnapshot).toBe(false);
+    expect(sync.hasUsableProjection).toBe(true);
+    sync.acceptProjectionEvent(undefined, true);
+    sync.reset();
+    expect(sync.isRecoveringSnapshot).toBe(false);
+    expect(sync.hasUsableProjection).toBe(false);
+  });
   it('resolves a refresh waiter only after a later caught-up boundary', async () => {
     const state = new RealtimeProjectionSyncState();
     state.markCaughtUp('cursor-before');
