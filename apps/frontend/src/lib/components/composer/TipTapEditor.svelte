@@ -706,7 +706,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   :global(.tiptap-editor .ProseMirror ul),

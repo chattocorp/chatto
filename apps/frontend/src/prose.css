@@ -52,7 +52,7 @@
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 
     &:hover {
       color: var(--color-link-hover);
@@ -265,6 +265,7 @@
   & th,
   & td {
     unicode-bidi: plaintext;
+    text-wrap: pretty;
   }
 
   & th {

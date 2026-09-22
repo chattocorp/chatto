@@ -552,7 +552,7 @@
     & > :is(button, a),
     & .button-content {
       white-space: normal;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
   }
 }
@@ -570,7 +570,7 @@
     padding-block: 0.75rem;
     white-space: normal;
     overflow: visible;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   & .button-content,
@@ -579,7 +579,7 @@
     overflow: visible;
     text-overflow: clip;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 }
 
@@ -785,7 +785,7 @@
     & option {
       @apply flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-text;
       white-space: normal;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     & option:checked {
