@@ -19,7 +19,7 @@ export default defineConfig({
   timeout: 30_000,
   // Hosted runners have enough idle time between browser interactions to
   // support more workers than local development without adding CI shards.
-  workers: process.env.CI ? 6 : 4,
+  workers: process.env.CI ? 5 : 4,
   expect: {
     timeout: 15_000
   },
