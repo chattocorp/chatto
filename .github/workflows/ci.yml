@@ -422,7 +422,7 @@ jobs:
       - name: Run workspace unit tests
         run: pnpm test
 
-  test-cli:
+  test-cli-shared:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -435,6 +435,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
+          go-build-cache-scope: test-cli-shared
           # PR caches are isolated from main and cannot accelerate a merge run.
           save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
@@ -455,17 +456,47 @@ jobs:
       - name: Run embedded NATS runtime tests
         run: mise test-natsruntime
 
+  test-cli-chatto:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-cli-chatto
+          # PR caches are isolated from main and cannot accelerate a merge run.
+          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
       - name: Build frontend
-        if: needs.changes.outputs.chatto == 'true'
         run: mise build-frontend
 
       - name: Verify development data seeding
-        if: needs.changes.outputs.chatto == 'true'
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        if: needs.changes.outputs.chatto == 'true'
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
+
+  test-cli:
+    needs: [changes, test-cli-shared, test-cli-chatto]
+    if: ${{ always() && (needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CLI test jobs
+        env:
+          CHATTO_CHANGED: ${{ needs.changes.outputs.chatto }}
+          SHARED_RESULT: ${{ needs.test-cli-shared.result }}
+          CHATTO_RESULT: ${{ needs.test-cli-chatto.result }}
+        run: |
+          test "$SHARED_RESULT" = success
+          if [[ "$CHATTO_CHANGED" == true ]]; then
+            test "$CHATTO_RESULT" = success
+          fi
 
   test-authling-e2e:
     needs: changes
