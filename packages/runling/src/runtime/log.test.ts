@@ -1,4 +1,4 @@
-import { ansiColor } from "./ansi.ts";
+import { ansiColor, terminalColors } from "./ansi.ts";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { log } from "./log.ts";
 import { step } from "./step.ts";
@@ -6,6 +6,7 @@ import { step } from "./step.ts";
 describe("log", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     log.level = "info";
   });
 
@@ -55,12 +56,34 @@ describe("log", () => {
   });
 
   test("highlights text in a bold, bright color", () => {
+    vi.stubEnv("NO_COLOR", undefined);
+    vi.stubEnv("FORCE_COLOR", "1");
     const highlighted = log.highlight("Reading", "#40c057");
 
     expect(highlighted.startsWith("\x1b[1m")).toBe(true);
     expect(highlighted).toContain(ansiColor("#40c057") ?? "");
     expect(highlighted).toContain("Reading");
     expect(highlighted.endsWith("\x1b[0m")).toBe(true);
+  });
+
+  test.each(["NO_COLOR", "FORCE_COLOR"])("disables workflow colors with %s", flag => {
+    vi.stubEnv("NO_COLOR", undefined);
+    vi.stubEnv("FORCE_COLOR", "1");
+    vi.stubEnv(flag, flag === "NO_COLOR" ? "1" : "0");
+    const print = vi.spyOn(console, "log").mockImplementation(() => {});
+    const printError = vi.spyOn(console, "error").mockImplementation(() => {});
+    log.success(log.highlight("ready"));
+    log.error("failed");
+    expect(print.mock.calls[0]?.[0]).toBe("✓ ready");
+    expect(printError.mock.calls[0]?.[0]).toBe("✗ failed");
+    expect(log.withColor("red", () => log.colorize("plain"))).toBe("plain");
+  });
+
+  test("uses the destination stream for terminal detection", () => {
+    vi.stubEnv("NO_COLOR", undefined);
+    vi.stubEnv("FORCE_COLOR", undefined);
+    expect(terminalColors({ isTTY: false })).toBe(false);
+    expect(terminalColors({ isTTY: true })).toBe(true);
   });
 
   test("can route informational output to stderr", async () => {

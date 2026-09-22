@@ -294,7 +294,7 @@
       <ul
         class="menu menu-sm w-full gap-1 py-1 max-md:flex-row max-md:flex-wrap"
       >
-        {#each data.webhooks as webhook}
+        {#each data.webhooks as webhook (webhook.name)}
           <li class="min-w-0 max-md:flex-1">
             <div class="flex items-center gap-0.5 p-0 hover:bg-transparent">
               <button
@@ -404,6 +404,7 @@
                     })}
                   </time>
                 </span>
+                {#if run.reference}<span class="mb-1 block truncate text-xs text-base-content/50">{run.reference}</span>{/if}
                 {#if run.status === "running"}
                   <RunActivityPreview activity={run.activity} />
                 {/if}

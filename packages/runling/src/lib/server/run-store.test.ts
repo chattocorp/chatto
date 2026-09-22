@@ -1,5 +1,7 @@
 import { log } from "runling";
-import { afterEach, expect, test } from "vitest";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { afterEach, expect, test, vi } from "vitest";
 import {
   mkdir,
   mkdtemp,
@@ -10,7 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { task, Type } from "runling";
+import { task, Type, step } from "runling";
 import { historyDirectory, RunStore } from "./run-store.ts";
 import { buildTimeline } from "../timeline.ts";
 import type { RunRecord } from "../runs.ts";
@@ -27,6 +29,80 @@ async function store() {
   await store.init();
   return store;
 }
+
+test("live activity logs include run and task prefixes and cancellation matches history", async () => {
+  const info = vi.spyOn(console, "info").mockImplementation(() => {});
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const history = await store();
+    const entered = Promise.withResolvers<void>();
+    const run = await history.start("test", task(async ctx => {
+      await step("sensitive dynamic label", async () => {
+        entered.resolve();
+        await new Promise<void>(resolve => ctx.signal.addEventListener("abort", () => resolve(), { once: true }));
+      });
+    }), undefined, "web");
+    await entered.promise;
+    const reference = (await history.get(run.id))!.reference;
+    expect(info.mock.calls.some(([line]) => String(line).includes(`[${reference} / task-2]`))).toBe(true);
+    history.cancel(run.id);
+    await run.completion;
+    expect(warn.mock.calls.some(([line]) => String(line).includes("Run cancelled"))).toBe(true);
+    expect((await history.get(run.id))?.status).toBe("cancelled");
+    expect(JSON.stringify([...info.mock.calls, ...warn.mock.calls, ...errors.mock.calls])).not.toContain("sensitive dynamic label");
+  } finally { info.mockRestore(); warn.mockRestore(); errors.mockRestore(); }
+});
+
+test("run references survive restart and avoid collisions across concurrent starts", async () => {
+  const original = await store();
+  const names = vi.fn().mockReturnValueOnce("brave-otters-4821").mockReturnValueOnce("brave-otters-4821").mockReturnValue("calm-badgers-7392");
+  const history = new RunStore(original.directory, names);
+  await history.init();
+  const runs = await Promise.all([history.start("test", task(() => "done"), undefined, "web"), history.start("test", task(() => "done"), undefined, "web")]);
+  await Promise.all(runs.map(run => run.completion));
+  expect(new Set(history.list().map(run => run.reference))).toEqual(new Set(["brave-otters-4821", "calm-badgers-7392"]));
+  const restored = new RunStore(original.directory, vi.fn().mockReturnValueOnce("brave-otters-4821").mockReturnValue("bright-foxes-2846"));
+  await restored.init();
+  for (const run of runs) expect((await restored.get(run.id))?.reference).toBe((await history.get(run.id))?.reference);
+  const next = await restored.start("test", task(() => "done"), undefined, "web");
+  await next.completion;
+  expect((await restored.get(next.id))?.reference).toBe("bright-foxes-2846");
+});
+
+test("shutdown keeps Node alive until cooperative cleanup and journal flush finish", async () => {
+  const original = await store();
+  await promisify(execFile)(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `
+    import { RunStore } from ${JSON.stringify(new URL("./run-store.ts", import.meta.url).href)};
+    import { setTimeout as delay } from "node:timers/promises";
+    const store = new RunStore(process.argv[1]);
+    await store.init();
+    await store.start("cleanup", async ctx => {
+      await new Promise(resolve => ctx.signal.addEventListener("abort", resolve, { once: true }));
+      await delay(50, undefined, { ref: false });
+    }, undefined, "source");
+    await store.close();
+  `, original.directory], { timeout: 10_000 });
+  const [file] = await readdir(original.directory);
+  const records = (await readFile(resolve(original.directory, file!), "utf8")).trim().split("\n").map(line => JSON.parse(line));
+  expect(records.at(-1)).toMatchObject({ type: "finished", status: "cancelled" });
+});
+
+test("shutdown cancels active source runs and flushes source metadata to history", async () => {
+  const original = await store();
+  const workflow = task(async ctx => {
+    await new Promise<void>(resolve => {
+      if (ctx.signal.aborted) resolve();
+      else ctx.signal.addEventListener("abort", () => resolve(), { once: true });
+    });
+  });
+  const run = await original.start("chatto", workflow, undefined, "source");
+  await original.close();
+  expect((await original.get(run.id))?.status).toBe("cancelled");
+  const restored = new RunStore(original.directory);
+  await restored.init();
+  expect(await restored.get(run.id)).toMatchObject({ source: "source", sourceName: "chatto", status: "cancelled" });
+});
 
 test("uses Runling history for new projects and preserves existing Factory history", async () => {
   const cwd = await mkdtemp(resolve(tmpdir(), "runling-history-test-"));

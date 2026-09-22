@@ -4,6 +4,41 @@ import { runAgentConversation } from "./conversation.ts";
 
 const result = (summary = "Hello") => ({ outcome: "completed" as const, summary, usage: emptyTokenUsage() });
 
+test("preserves trusted input origin and prepares unsteered messages only once", async () => {
+  const f = fixture();
+  const notices = createChannel<string>();
+  const prepareMessage = vi.fn((text: string, origin: "user" | "notification") => JSON.stringify({ text, origin }));
+  const busy = vi.fn();
+  const running = runAgentConversation(f.ctx, f.agent, "Hello in English", {
+    timeout: 0.1, notifications: notices, prepareMessage, onBusy: busy,
+  });
+  await vi.waitFor(() => expect(busy).toHaveBeenCalledWith(false), { interval: 1 });
+  await notices.send("后台通知");
+  await f.inbox.send('{"type":"task.completed"}');
+  await running;
+  expect(prepareMessage.mock.calls).toEqual([
+    ["Hello in English", "user"], ["后台通知", "notification"], ['{"type":"task.completed"}', "user"],
+  ]);
+  expect(f.agent.runOutcome.mock.calls.map(call => JSON.parse(call[1]).origin)).toEqual(["user", "notification", "user"]);
+});
+
+test("background notifications wake an idle owner and keep it alive while a child works", async () => {
+  const f = fixture();
+  const notices = createChannel<string>();
+  let active = true;
+  const busy = vi.fn();
+  const running = runAgentConversation(f.ctx, f.agent, "Investigate", {
+    timeout: 0.02, notifications: notices, keepAlive: () => active, onBusy: busy,
+  });
+  await vi.waitFor(() => expect(busy).toHaveBeenCalledWith(false), { interval: 1 });
+  await new Promise(resolve => setTimeout(resolve, 40));
+  expect(f.agent.runOutcome).toHaveBeenCalledOnce();
+  active = false;
+  await notices.send("Task finished: evidence");
+  await running;
+  expect(f.agent.runOutcome.mock.calls.map(call => call[1])).toEqual(["Investigate", "Task finished: evidence"]);
+});
+
 function fixture() {
   const root = createWorkflowContext();
   const inbox = createChannel<string>({ signal: root.signal });

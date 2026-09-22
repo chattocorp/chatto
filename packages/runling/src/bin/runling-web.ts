@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { serverLog, serverLogPath } from "../runtime/server-log.ts";
+import { installShutdown } from "../runtime/shutdown.ts";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -33,10 +34,25 @@ export async function runRunlingWeb(options: ServeOptions): Promise<void> {
     },
   });
 
-  await server.listen();
+  const sourceHost = await server.ssrLoadModule("/src/lib/server/source-host.ts") as {
+    startSourceHost(): Promise<unknown>;
+    stopSourceHost(): Promise<void>;
+  };
+  try {
+    await sourceHost.startSourceHost();
+    await server.listen();
+  } catch (error) {
+    await sourceHost.stopSourceHost();
+    await server.close();
+    throw error;
+  }
   server.printUrls();
   serverLog("info", "server.listening", { host: options.host, port: options.port });
   server.httpServer?.once("close", () => serverLog("info", "server.stopped"));
+  installShutdown(async () => {
+    await sourceHost.stopSourceHost();
+    await server.close();
+  });
 }
 
 if (

@@ -25,3 +25,6 @@ original copyright and license are in [packages/runling/LICENSE](packages/runlin
 
 The internal `packages/chatto-client/` package preserves the MIT license of
 the client helpers extracted from Runling.
+
+The private ChattoBot package under `packages/chattobot/` also retains its MIT
+license. See [packages/chattobot/LICENSE](packages/chattobot/LICENSE).

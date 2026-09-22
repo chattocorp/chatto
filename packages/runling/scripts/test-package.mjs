@@ -12,7 +12,7 @@ import { resolve, dirname, delimiter } from "node:path";
 import { createServer } from "node:net";
 import { promisify } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
-import { cleanupConsumer } from "./cleanup-consumer.mjs";
+import { cleanupConsumer, stopConsumer } from "./cleanup-consumer.mjs";
 
 const exec = promisify(execFile);
 // Keep npm and its child executables on the runtime used to launch this test.
@@ -59,10 +59,26 @@ try {
   await writeFile(resolve(project, "channels.mjs"), `
 import assert from "node:assert/strict";
 import { createWorkflowContext, createChannel, spawn, task, Type, agent as rootAgent } from "runling";
-import { connectAgent, agent, taskTool, runAgentConversation } from "runling/agents";
+import { connectAgent, agent, taskTool, runAgentConversation, observeAgentTasks, createAgentTasks, agentTasksExtension } from "runling/agents";
 assert.equal(agent, rootAgent);
 const echo = task({ name: "Echo", input: Type.String(), output: Type.String() }, (_ctx, input) => input);
 assert.equal(typeof runAgentConversation, "function");
+assert.equal(createAgentTasks, observeAgentTasks);
+const context = createWorkflowContext();
+const delegated = observeAgentTasks(context);
+assert.equal(typeof agentTasksExtension(delegated), "function");
+const notifications = delegated.notifications[Symbol.asyncIterator]();
+const run = context.spawn(ctx => echo(ctx, "background"));
+const handle = delegated.observe("Echo", run);
+assert.equal(handle.id, run.id);
+assert.equal(handle.status, "running");
+assert.equal(JSON.parse((await notifications.next()).value).type, "task.completed");
+assert.equal(delegated.get(handle.id).result, "background");
+assert.equal(await run.result, "background");
+assert.equal(run.status, "completed");
+assert.equal(run.output, run.updates);
+await run[Symbol.asyncDispose]();
+await delegated.dispose();
 const echoTool = taskTool(createWorkflowContext(), {
   name: "echo", label: "Echo", description: "Echo input", parameters: echo.input,
 }, echo);
@@ -137,8 +153,18 @@ export default task({ name: "CLI echo", input: Type.String(), output: Type.Strin
   await writeFile(
     resolve(project, "runling.config.ts"),
     `import { defineWebConfig, startWorkflow } from "runling/web";
+import { appendFile } from "node:fs/promises";
 import echo from "./workflow.ts";
-export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
+export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, sources: {
+  startup: async ctx => {
+    const count = Number(ctx.state.get("count") ?? 0) + 1;
+    ctx.state.set("count", count);
+    await ctx.dispatch(startWorkflow(echo), { topic: "source", directory: process.cwd() });
+    await appendFile("source-lifecycle.txt", "start:" + count + "\\n");
+    if (!ctx.signal.aborted) await new Promise(resolve => ctx.signal.addEventListener("abort", resolve, { once: true }));
+    await appendFile("source-lifecycle.txt", "stop:" + count + "\\n");
+  }
+} });
 `,
   );
   const cli = await exec(
@@ -220,6 +246,15 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
   server.stderr.on("data", (chunk) => {
     serverOutput += chunk;
   });
+  // A source must run before the first HTTP request, including in an installed package.
+  let lifecycle = "";
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (server.exitCode !== null) throw new Error(serverOutput);
+    try { lifecycle = await readFile(resolve(project, "source-lifecycle.txt"), "utf8"); } catch {}
+    if (lifecycle.includes("start:1")) break;
+    await delay(100);
+  }
+  assert.equal(lifecycle, "start:1\n", `Source did not start eagerly:\n${serverOutput}`);
   let response;
   for (let attempt = 0; attempt < 100; attempt++) {
     if (server.exitCode !== null) throw new Error(serverOutput);
@@ -231,6 +266,8 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
     }
   }
   assert(response, `Server did not start:\n${serverOutput}`);
+  assert(serverOutput.includes(`Runling ready → ${origin}`),
+    "Startup prints a welcome message with the configured console URL");
   const html = await response.text();
   assert.equal(response.status, 200, html + serverOutput);
   assert(html.includes("Consumer echo"));
@@ -331,6 +368,7 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
     }
   };
   const originalConfig = await readFile(configPath, "utf8");
+  const beforeInvalid = await readFile(resolve(project, "source-lifecycle.txt"), "utf8");
   await writeFile(configPath, "export default { broken: true };\n");
   for (
     let attempt = 0;
@@ -343,6 +381,8 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
     "Invalid reload is reported",
   );
   assert((await configState()).error, "Browser clients receive reload errors");
+  assert.equal(await readFile(resolve(project, "source-lifecycle.txt"), "utf8"), beforeInvalid,
+    "Invalid config must not replace active sources");
   assert.equal(
     (await post("/api/webhooks/echo", { topic: "retained" })).status,
     202,
@@ -399,6 +439,18 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
   assert(serverLog.some((record) => record.event === "http.response" && record.status === 200));
   assert(serverLog.some((record) => record.event === "run.finished" && record.runId === id));
   assert(serverLog.some((record) => record.event === "config.reload_failed"));
+  assert(serverLog.some((record) => record.event === "run.started" && record.source === "source"));
+
+  await stopConsumer(server);
+  server = undefined;
+  const sourceLifecycle = (await readFile(resolve(project, "source-lifecycle.txt"), "utf8")).trim().split("\n");
+  assert(sourceLifecycle.length >= 4, "Sources reload with configuration");
+  assert.equal(sourceLifecycle.length % 2, 0, "Shutdown releases the final source");
+  for (let index = 0; index < sourceLifecycle.length; index += 2) {
+    const generation = index / 2 + 1;
+    assert.equal(sourceLifecycle[index], `start:${generation}`);
+    assert.equal(sourceLifecycle[index + 1], `stop:${generation}`, "Old source must stop before replacement starts");
+  }
 
   if (process.env.RUNLING_RELEASE_DIR) {
     const destination = resolve(process.env.RUNLING_RELEASE_DIR);
@@ -409,7 +461,7 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
     );
   }
   console.log(
-    "Packed npm consumer passed: CLI, UI/assets, TS config, webhook, live events, and history.",
+    "Packed npm consumer passed: CLI, UI/assets, config reload, source lifecycle, webhooks, live events, and history.",
   );
 } catch (error) {
   console.error(serverOutput);

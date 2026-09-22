@@ -1,4 +1,4 @@
-import { log, spawn, task, Type, type WorkflowContext } from "runling";
+import { log, task, Type, type WorkflowContext } from "runling";
 
 type Command =
   | { type: "add"; amount: number }
@@ -41,30 +41,31 @@ export default task(
     }),
   },
   async (ctx, { initial = 0 }) => {
-    const child = spawn(ctx, accumulate, initial);
+    const run = ctx.spawn((ctx: WorkflowContext<Command, Update>) =>
+      accumulate(ctx, initial));
     const updates: Update[] = [];
 
     try {
-      await child.send({ type: "add", amount: 1 });
+      await run.send({ type: "add", amount: 1 });
 
-      for await (const update of child.updates) {
+      for await (const update of run.output) {
         updates.push(update);
         log.info(`${update.label}: ${update.total}`);
 
         if (updates.length === 1) {
           // The child is still running. Change its instructions from the parent.
-          await child.send({ type: "label", label: "Updated by parent" });
-          await child.send({ type: "add", amount: 10 });
+          await run.send({ type: "label", label: "Updated by parent" });
+          await run.send({ type: "add", amount: 10 });
 
           // No more commands are needed; the child can now finish.
-          child.closeInput();
+          run.closeInput();
         }
       }
 
-      return { ...(await child.result), updates };
+      return { ...(await run.result), updates };
     } finally {
       // Also clean up if sending or consuming an update fails.
-      child.cancel();
+      await run[Symbol.asyncDispose]();
     }
   },
 );

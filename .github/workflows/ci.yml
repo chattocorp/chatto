@@ -34,6 +34,7 @@ jobs:
       desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
       authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
       runling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
+      chattobot: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chattobot == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
     steps:
       - name: Select affected products
@@ -60,6 +61,12 @@ jobs:
             runling:
               - 'packages/runling/**'
               - 'packages/chatto-client/**'
+            chattobot:
+              - 'packages/chattobot/**'
+              - 'packages/runling/**'
+              - 'packages/chatto-client/**'
+              - 'packages/api-types/**'
+              - 'proto/**'
             docs:
               - 'apps/docs-website/**'
             desktop:
@@ -91,6 +98,19 @@ jobs:
       - run: mise check-runling
       - run: mise test-runling
       - run: mise test-runling-package
+
+  test-chattobot:
+    needs: changes
+    if: ${{ needs.changes.outputs.chattobot == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+      - run: mise check-chattobot
+      - run: mise test-chattobot
 
   build-main-image-contexts:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

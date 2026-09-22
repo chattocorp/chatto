@@ -1,8 +1,9 @@
 # Interface Inventory
 
 The internal [`@chatto/client`](../../packages/chatto-client/README.md) package
-owns HTTP requests, message splitting, thread history, reactions, and typing
-helpers for Chatto's local Runling bot and Runling's Chatto integrations. It
+owns HTTP requests, realtime consumption, message splitting, thread history, reactions, and typing
+helpers for Chatto's local Runling bot, the ChattoBot package, and Runling's
+Chatto examples. It
 does not add server endpoints or depend on Runling. Hosts retain credential
 loading, webhook handling, and conversation state; see
 [ADR-100](../adr/ADR-100-shared-chatto-integration-client.md).

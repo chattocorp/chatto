@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync, truncateSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serverLog, serverLogPath } from "./server-log.ts";
+import { stripVTControlCharacters } from "node:util";
 
 const directories: string[] = [];
 afterEach(() => {
@@ -18,13 +19,20 @@ function setup() {
 }
 
 describe("server logging", () => {
-  it("writes matching console and private file records beside the config", () => {
+  it("shows the readable reference while retaining the UUID in structured logs", () => {
+    setup();
+    const output = vi.spyOn(console, "info").mockImplementation(() => {});
+    serverLog("info", "run.started", { workflow: "ChattoBot", runId: "uuid", runReference: "brave-otters-4821" });
+    expect(stripVTControlCharacters(output.mock.calls[0]![0])).toContain("[brave-otters-4821] ● Started ChattoBot");
+    expect(JSON.parse(readFileSync(serverLogPath(), "utf8"))).toMatchObject({ runId: "uuid", runReference: "brave-otters-4821" });
+  });
+  it("prints readable diagnostics and writes structured private file records beside the config", () => {
     const directory = setup();
     const consoleLog = vi.spyOn(console, "error").mockImplementation(() => {});
     serverLog("error", "run.error", { runId: "test", error: new Error("broken") });
     expect(serverLogPath()).toBe(join(directory, ".runling/logs/server.jsonl"));
     const line = readFileSync(serverLogPath(), "utf8").trim();
-    expect(consoleLog).toHaveBeenCalledWith(line);
+    expect(stripVTControlCharacters(consoleLog.mock.calls[0]![0])).toMatch(/^\d{2}:\d{2}:\d{2} \[test\] ✗ run error · broken$/);
     expect(JSON.parse(line)).toMatchObject({ level: "error", event: "run.error", runId: "test", error: { message: "broken" } });
     expect(statSync(serverLogPath()).mode & 0o777).toBe(0o600);
   });
@@ -45,8 +53,30 @@ describe("server logging", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => serverLog("info", "test")).not.toThrow();
     expect(info).toHaveBeenCalledOnce();
-    expect(error).toHaveBeenCalledWith("Cannot write Runling server log:", expect.any(Error));
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("Cannot write Runling server log"));
   });
+});
+
+it("prints the ready URL once on one colored line and honors NO_COLOR", () => {
+  setup();
+  vi.stubEnv("NO_COLOR", undefined);
+  vi.stubEnv("FORCE_COLOR", "1");
+  const output = vi.spyOn(console, "info").mockImplementation(() => {});
+  serverLog("info", "server.listening", { url: "http://localhost:5173" });
+  const colored = output.mock.calls[0]![0] as string;
+  expect(colored).toContain("\x1b[");
+  expect(stripVTControlCharacters(colored)).toMatch(/^\d{2}:\d{2}:\d{2} ✓ Runling ready → http:\/\/localhost:5173$/);
+  vi.stubEnv("NO_COLOR", "1");
+  serverLog("info", "server.listening", { url: "http://localhost:5173" });
+  expect(output.mock.calls[1]![0]).not.toContain("\x1b[");
+});
+
+it("keeps multiline errors and control sequences out of terminal output", () => {
+  setup();
+  const output = vi.spyOn(console, "error").mockImplementation(() => {});
+  serverLog("error", "run.error", { error: new Error("first\n\x1b[31msecond\rthird") });
+  expect(stripVTControlCharacters(output.mock.calls[0]![0])).toMatch(/first second third$/);
+  expect(output.mock.calls[0]![0]).not.toContain("\n");
 });
 
 it("does not replace the original server failure when error details are circular", () => {

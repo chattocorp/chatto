@@ -10,6 +10,9 @@
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
   },
   "files": ["dist", "README.md", "LICENSE"],
+  "dependencies": {
+    "@chatto/api-types": "workspace:*"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",

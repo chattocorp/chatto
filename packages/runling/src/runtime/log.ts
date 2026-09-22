@@ -1,14 +1,17 @@
 import { executionServices } from "./execution.ts";
-import { ansiColor } from "./ansi.ts";
+import { ansiColor, terminalColors } from "./ansi.ts";
+import { stripVTControlCharacters } from "node:util";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { emitRunlingEvent } from "./events.ts";
 
 function paint(color: string, text: string) {
+  if (!terminalColors(destinationStorage.getStore() === "stderr" ? process.stderr : process.stdout)) return text;
   const ansi = ansiColor(color);
   return ansi ? `${ansi}${text}\x1b[0m` : text;
 }
 
 function highlight(text: string, color = "white") {
+  if (!terminalColors(destinationStorage.getStore() === "stderr" ? process.stderr : process.stdout)) return text;
   const ansi = ansiColor(color) ?? "";
   return `\x1b[1m${ansi}${text}\x1b[0m`;
 }
@@ -66,8 +69,12 @@ function write(
         : level === "debug"
           ? "·"
           : "●";
-  const line = `${indent()}${paint(color, symbol)} ${message}`;
-  if (level === "error" || destination === "stderr") {
+  const stderr = level === "error" || destination === "stderr";
+  const colored = terminalColors(stderr ? process.stderr : process.stdout);
+  const ansi = ansiColor(color);
+  const marker = colored && ansi ? `${ansi}${symbol}\x1b[0m` : symbol;
+  const line = `${indent()}${marker} ${colored ? message : stripVTControlCharacters(message)}`;
+  if (stderr) {
     console.error(line);
   } else {
     console.log(line);

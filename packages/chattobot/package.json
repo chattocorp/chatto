@@ -1,0 +1,27 @@
+{
+  "name": "@chattocorp/chattobot",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A realtime Chatto bot powered by Runling",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "dev": "runling serve",
+    "start": "runling serve",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@chatto/client": "workspace:*",
+    "linkedom": "^0.18.13",
+    "runling": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.0"
+  }
+}
