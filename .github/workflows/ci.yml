@@ -537,9 +537,11 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Build E2E server
+      - name: Build E2E dependencies
         if: needs.changes.outputs.chatto == 'true'
-        run: mise build-e2e-server
+        run: |
+          mise build-e2e-server
+          mise build-runling
 
       - name: Run E2E tests
         if: needs.changes.outputs.chatto == 'true'
