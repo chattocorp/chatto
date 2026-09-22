@@ -1,4 +1,5 @@
 import type { InputHandler } from "./input.ts";
+import { spawn, type Run } from "./spawn.ts";
 import {
   accumulateTokenUsage,
   emptyTokenUsage,
@@ -18,6 +19,13 @@ export class WorkflowAbortError extends Error {
 export type TextHandler = (text: string) => void | Promise<void>;
 
 export interface WorkflowContext<Incoming = never, Update = unknown> {
+  /** Run a function concurrently with its own inbox, output, and cancellation.
+   * Capture task input in the callback: ctx.spawn(ctx => work(ctx, input)).
+   * Additional arguments remain supported for compatibility. */
+  spawn<ChildIncoming, ChildUpdate, Args extends unknown[], Result>(
+    run: (ctx: WorkflowContext<ChildIncoming, ChildUpdate>, ...args: Args) => Result,
+    ...args: Args
+  ): Run<ChildIncoming, ChildUpdate, Awaited<Result>>;
   /** Incoming values for a spawned task; empty for a normal context. */
   readonly inbox: AsyncIterable<Incoming>;
 
@@ -81,6 +89,8 @@ export function createObservedWorkflowContext(
   });
 
   return {
+    // Use the receiving context so context overrides and nested children keep their signal.
+    spawn(run, ...args) { return spawn(this, run, ...args); },
     // Direct calls do not allocate channels or retain emitted updates.
     inbox: { async *[Symbol.asyncIterator]() {} },
     async emit() {},

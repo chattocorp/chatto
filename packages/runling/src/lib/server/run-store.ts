@@ -1,5 +1,6 @@
 import type { WebhookTask } from "runling/web";
 import { serverLog } from "../../runtime/server-log.ts";
+import { createServerActivityLog } from "../../runtime/server-activity.ts";
 import {
   mkdir,
   readdir,
@@ -11,6 +12,7 @@ import {
 import { createReadStream } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
+import { randomId } from "../../runtime/id.ts";
 import {
   emptyTokenUsage,
   runWorkflow,
@@ -64,9 +66,11 @@ export class RunStore {
   private details = new Map<string, RunDetail>();
   private pending = new Map<string, Promise<void>>();
   private controllers = new Map<string, AbortController>();
+  private executions = new Set<Promise<WorkflowExecution>>();
   private listeners = new Set<Listener>();
+  private references = new Set<string>();
 
-  constructor(readonly directory: string) {}
+  constructor(readonly directory: string, private readonly createReference = randomId) {}
 
   async init(): Promise<void> {
     await mkdir(this.directory, { recursive: true });
@@ -77,6 +81,7 @@ export class RunStore {
       try {
         const { run, end, lastTimestamp } = await this.read(id, false);
         if (!run) continue;
+        if (run.reference) this.references.add(run.reference);
         if (run.status === "running") {
           // A crash can leave the final JSON line incomplete.
           await truncate(path, end);
@@ -91,7 +96,7 @@ export class RunStore {
           };
           await appendFile(path, `${JSON.stringify(record)}\n`);
           applyStoredRecord(run, record, false);
-          serverLog("warn", "run.interrupted", { runId: id });
+          serverLog("warn", "run.interrupted", { runId: id, runReference: run.reference });
         }
         this.runs.set(id, summary(run));
       } catch (cause) {
@@ -120,6 +125,19 @@ export class RunStore {
     if (!controller) return false;
     controller.abort(new Error("Workflow cancelled by user."));
     return true;
+  }
+
+  /** Cancel active workflows and flush their final records during server shutdown. */
+  async close(): Promise<void> {
+    // After HTTP and watchers close, cleanup can depend only on unref'ed
+    // deadlines. A promise alone does not keep Node alive to flush the journal.
+    const keepAlive = setInterval(() => {}, 1000);
+    try {
+      for (const controller of this.controllers.values()) controller.abort(new Error("Runling server stopped."));
+      await Promise.allSettled(this.executions);
+    } finally {
+      clearInterval(keepAlive);
+    }
   }
 
   private async read(id: string, includeDetails: boolean) {
@@ -174,7 +192,7 @@ export class RunStore {
     webhook: string,
     workflow: WebhookTask<Input, Output>,
     input: Input,
-    source: "webhook" | "web",
+    source: "webhook" | "web" | "source",
   ) {
     const id = randomUUID();
     const run: RunDetail = {
@@ -182,6 +200,7 @@ export class RunStore {
       webhook,
       workflow: workflow.name,
       source,
+      ...(source === "source" ? { sourceName: webhook } : {}),
       input: input === undefined ? null : JSON.parse(JSON.stringify(input)),
       status: "running",
       startedAt: Date.now(),
@@ -191,20 +210,36 @@ export class RunStore {
       usage: emptyTokenUsage(),
     };
     const started: RunRecord = { type: "started", run };
-    await writeFile(
-      resolve(this.directory, `${id}.jsonl`),
-      `${JSON.stringify(started)}\n`,
-      { flag: "wx", mode: 0o600 },
-    );
+    // Reserve before the first await so concurrent starts cannot share a reference.
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const reference = this.createReference();
+      if (this.references.has(reference)) continue;
+      run.reference = reference;
+      this.references.add(reference);
+      break;
+    }
+    if (!run.reference) throw new Error("Cannot allocate a unique run reference");
+    try {
+      await writeFile(
+        resolve(this.directory, `${id}.jsonl`),
+        `${JSON.stringify(started)}\n`,
+        { flag: "wx", mode: 0o600 },
+      );
+    } catch (error) {
+      this.references.delete(run.reference);
+      throw error;
+    }
     this.runs.set(id, summary(run));
     this.details.set(id, run);
     const controller = new AbortController();
     this.controllers.set(id, controller);
     this.publish(id, started);
-    serverLog("info", "run.started", { runId: id, webhook, workflow: workflow.name, source });
+    serverLog("info", "run.started", { runId: id, runReference: run.reference, webhook, workflow: workflow.name, source });
     const completion = this.execute(id, workflow, input, controller.signal);
+    this.executions.add(completion);
+    void completion.then(() => this.executions.delete(completion), () => this.executions.delete(completion));
     // Background runs must always have a rejection handler, even after the HTTP client leaves.
-    void completion.catch((cause) => serverLog("error", "run.error", { runId: id, error: cause }));
+    void completion.catch((cause) => serverLog("error", "run.error", { runId: id, runReference: run.reference, error: cause }));
     return { id, completion };
   }
 
@@ -215,10 +250,12 @@ export class RunStore {
     signal: AbortSignal,
   ): Promise<WorkflowExecution> {
     const base = performance.now();
+    const activityLog = createServerActivityLog(id, this.runs.get(id)?.reference);
     const execution = await runWorkflow(workflow, {
       input,
       signal,
       onEvent: (event) => {
+        activityLog(event);
         void this.append(id, {
           type: "event",
           event: { ...event, timestamp: Math.max(0, event.timestamp - base) },
@@ -254,9 +291,10 @@ export class RunStore {
     } finally {
       this.pending.delete(id);
     }
-    serverLog(execution.ok ? "info" : "error", "run.finished", {
-      runId: id, status: execution.ok ? "completed" : "failed",
-      durationMs: execution.durationMs, usage: execution.usage, error: execution.error,
+    const status = signal.aborted ? "cancelled" : execution.ok ? "completed" : "failed";
+    serverLog(status === "failed" ? "error" : status === "cancelled" ? "warn" : "info", "run.finished", {
+      runId: id, runReference: this.runs.get(id)?.reference, status,
+      durationMs: execution.durationMs, usage: execution.usage,
     });
     return execution;
   }

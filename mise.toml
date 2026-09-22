@@ -225,6 +225,21 @@ description = "Check Runling types and Svelte components"
 depends = ["setup-frontend"]
 run = "pnpm run check:runling"
 
+[tasks.dev-chattobot]
+description = "Run ChattoBot with its Runling console"
+depends = ["setup-frontend"]
+run = "pnpm run dev:chattobot"
+
+[tasks.check-chattobot]
+description = "Check the ChattoBot package types"
+depends = ["setup-frontend"]
+run = "pnpm run check:chattobot"
+
+[tasks.test-chattobot]
+description = "Test the ChattoBot package"
+depends = ["setup-frontend"]
+run = "pnpm run test:chattobot"
+
 [tasks.test-runling]
 description = "Run Runling unit and integration tests"
 depends = ["setup-frontend"]

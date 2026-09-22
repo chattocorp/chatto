@@ -1,9 +1,9 @@
 import { ConfigReloader } from "runling/config-reloader";
-let reloader: ConfigReloader | undefined;
+// The source host and HTTP routes must share configuration across Vite reloads.
+const state = globalThis as typeof globalThis & { __runlingConfigReloader?: ConfigReloader };
 export function getConfigReloader(): ConfigReloader {
   const path = process.env.RUNLING_WEB_CONFIG;
   if (!path) throw new Error("RUNLING_WEB_CONFIG is not set");
-  return (reloader ??= new ConfigReloader(path));
+  return (state.__runlingConfigReloader ??= new ConfigReloader(path));
 }
 export const loadWebConfig = () => getConfigReloader().load();
-if (import.meta.hot) import.meta.hot.dispose(() => reloader?.close());

@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { expect, expectTypeOf, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { createWorkflowContext, type WorkflowContext } from "./context.ts";
-import { spawn } from "./spawn.ts";
+import { spawn, type Run } from "./spawn.ts";
 import { ChannelClosedError, ChannelFullError } from "./channel.ts";
 import { task } from "./workflow.ts";
 import { runWorkflow } from "./runner.ts";
@@ -9,6 +9,84 @@ import { Type } from "typebox";
 
 type Command = { add: number };
 type Update = { total: number };
+
+test("context spawning preserves typed messages and results for ordinary functions", async () => {
+  const ctx = createWorkflowContext();
+  const initial = 10;
+  const child = ctx.spawn(async (ctx: WorkflowContext<number, string>) => {
+    for await (const value of ctx.inbox) await ctx.emit(String(initial + value));
+    return initial;
+  });
+  expectTypeOf(child).toEqualTypeOf<Run<number, string, number>>();
+  expect(child.id).toEqual(expect.any(String));
+  expect(child.status).toBe("running");
+  expect(child.output).toBe(child.updates);
+  await child.send(2);
+  child.closeInput();
+  const output: string[] = [];
+  for await (const value of child.output) output.push(value);
+  expect(output).toEqual(["12"]);
+  expect(await child.result).toBe(10);
+  expect(child.status).toBe("completed");
+  await child.settled;
+  await child[Symbol.asyncDispose]();
+  expect(child.status).toBe("completed");
+});
+
+test("nested context spawning inherits the child signal, including context overrides", async () => {
+  const controller = new AbortController();
+  const root = { ...createWorkflowContext(), signal: controller.signal };
+  const grandchild = Promise.withResolvers<Run<never, unknown, void>>();
+  const child = root.spawn(async ctx => {
+    const nested = ctx.spawn(async ctx => {
+      await new Promise<void>(resolve => ctx.signal.addEventListener("abort", () => resolve(), { once: true }));
+    });
+    grandchild.resolve(nested);
+    await nested.result;
+  });
+  const sibling = root.spawn(async ctx => {
+    await new Promise<void>(resolve => ctx.signal.addEventListener("abort", () => resolve(), { once: true }));
+  });
+  const nested = await grandchild.promise;
+  child.cancel(new Error("child stopped"));
+  await expect(nested.result).rejects.toThrow("child stopped");
+  await expect(child.result).rejects.toThrow("child stopped");
+  expect(sibling.status).toBe("running");
+  controller.abort(new Error("parent stopped"));
+  await expect(sibling.result).rejects.toThrow("parent stopped");
+  await Promise.all([child.settled, nested.settled, sibling.settled]);
+});
+
+test("run disposal waits for cleanup while cancelled results settle immediately", async () => {
+  const cleanup = Promise.withResolvers<void>();
+  const aborted = Promise.withResolvers<void>();
+  const child = createWorkflowContext().spawn(async ctx => {
+    await new Promise<void>(resolve => ctx.signal.addEventListener("abort", () => {
+      aborted.resolve(); resolve();
+    }, { once: true }));
+    await cleanup.promise;
+    return "late";
+  });
+  const disposed = vi.fn();
+  const closing = child[Symbol.asyncDispose]().then(disposed);
+  await aborted.promise;
+  await expect(child.result).rejects.toThrow("Task cancelled");
+  expect(child.status).toBe("cancelled");
+  expect(disposed).not.toHaveBeenCalled();
+  cleanup.resolve();
+  await closing;
+  expect(disposed).toHaveBeenCalledOnce();
+});
+
+test("run failure settles cleanup and keeps the original error", async () => {
+  const error = new Error("failed");
+  const child = createWorkflowContext().spawn(() => { throw error; });
+  await expect(child.result).rejects.toBe(error);
+  await child.settled;
+  expect(child.status).toBe("failed");
+  child.cancel();
+  expect(child.status).toBe("failed");
+});
 
 const accumulator = task(
   async (ctx: WorkflowContext<Command, Update>, initial: number) => {

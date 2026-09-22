@@ -1,6 +1,38 @@
 # Runling
 
-Run and orchestrate TypeScript-based worklows of any size and kind.
+Run and orchestrate TypeScript workflows of any size and kind.
+
+See the [documentation index](docs/README.md) for API guides, architecture
+decisions (ADRs), and feature records (FDRs).
+
+## Tasks, runs, and messages
+
+A **task** is a function that takes a context and input and returns a result.
+It can exchange messages while it runs. A workflow is a task that coordinates
+other tasks; an agent is one way to implement a task.
+
+Call a task directly when you want to await its result. Use `ctx.spawn(ctx => work(ctx, input))`
+for concurrent work. The returned **run** has `send()`, `output`, `result`, and
+`cancel()`. Inside the child, use `ctx.inbox`, `ctx.emit()`, and `ctx.signal`.
+
+```ts
+const run = ctx.spawn((ctx: WorkflowContext<string, string>) =>
+  investigate(ctx, { question }));
+try {
+  await run.send("Also check private rooms");
+  for await (const message of run.output) {
+    // Handle progress or findings while the child works.
+  }
+  return await run.result;
+} finally {
+  await run[Symbol.asyncDispose]();
+}
+```
+
+Messages are buffered and ordered. Sending accepts a message into the inbox;
+it does not confirm that the child acted on it. Disposal cancels unfinished work
+and awaits cooperative cleanup. See [task channels](docs/task-channels.md) for
+limits, ownership, and compatibility with the standalone `spawn` function.
 
 ## Features
 
@@ -9,6 +41,20 @@ Run and orchestrate TypeScript-based worklows of any size and kind.
 - Workflows are simple functions, optionally decorated with input/output schemas
 - Embeds the Pi SDK for easy peasy agent/LLM integration
 - Automatic monitoring of token usage and cost
+
+## Run references
+
+Each run started by `runling serve` has a readable reference such as
+`brave-otters-4821`. The console shows it in the run list and provides a copy
+button in the run details. Use it when discussing a run or searching its logs:
+
+```sh
+rg -l '"reference":"brave-otters-4821"' .runling/runs
+```
+
+References are unique within one journal directory and survive server restarts.
+Journal filenames and run URLs still use UUIDs. Older runs without a reference
+show their UUID in the details instead.
 
 ## Non-Features
 
@@ -60,6 +106,10 @@ export default defineWebConfig({
 
 Run `pnpm runling serve`, then open `http://localhost:5173`.
 
+The terminal shows compact, colored diagnostics and a single ready line with
+the console URL. Set `NO_COLOR` to disable colors in server and workflow logs. Structured server
+records remain in `.runling/logs/server.jsonl` beside the configuration file.
+
 Use the console to start a run or send a request:
 
 ```sh
@@ -68,6 +118,11 @@ curl http://localhost:5173/api/webhooks/echo \
 ```
 
 And off it goes!
+
+Webhooks are optional. For outbound connections and other long-running inputs,
+configure named `sources`. Each source receives cancellation, retained
+process-local state, and `dispatch(router, input)`. Sources start before any
+HTTP request. See [event sources](docs/event-sources.md) for lifecycle rules.
 
 Run `pnpm runling --help` to list commands. Use `run --help` or
 `serve --help` to see command options, and `--version` to print the version.

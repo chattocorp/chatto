@@ -1,11 +1,11 @@
 # Task channels
 
-Use `spawn` when a parent must exchange data with a running child. Tasks remain
+Use `ctx.spawn()` when a parent must exchange data with a running child. Tasks remain
 ordinary functions. The context type declares incoming messages and outgoing
 updates:
 
 ```ts
-import { spawn, task, type WorkflowContext } from "runling";
+import { task, type WorkflowContext } from "runling";
 
 const sum = task(async (ctx: WorkflowContext<number, { total: number }>) => {
   let total = 0;
@@ -16,29 +16,50 @@ const sum = task(async (ctx: WorkflowContext<number, { total: number }>) => {
   return total;
 });
 
-const child = spawn(ctx, sum);
-await child.send(2);
-await child.send(3);
-child.closeInput();
+await using run = ctx.spawn((ctx: WorkflowContext<number, { total: number }>) =>
+  sum(ctx));
+await run.send(2);
+await run.send(3);
+run.closeInput();
 
-for await (const update of child.updates) {
+for await (const update of run.output) {
   console.log(update.total);
 }
-const total = await child.result; // 5
+const total = await run.result; // 5
 ```
 
-`spawn(ctx, task, ...args)` starts the task immediately and returns a handle:
+`ctx.spawn(ctx => work(ctx, input))` calls the function immediately and returns a
+`Run<Incoming, Update, Result>`:
 
+- `id` identifies this child run and its recorded message channel. It is separate
+  from the top-level server run's readable reference and journal ID.
+- `status` is `running`, `completed`, `failed`, or `cancelled`.
 - `send(value)` queues input. It does not acknowledge processing.
-- `updates` is a single-consumer `AsyncIterable` of emitted values.
+- `output` is a single-consumer `AsyncIterable` of emitted values.
 - `result` resolves with the task's return value, or rejects with its error.
+- `settled` resolves after the underlying work and cooperative cleanup finish,
+  even when `result` rejected earlier on cancellation. It never rejects.
 - `closeInput()` stops new input and lets the child drain pending messages.
 - `cancel(reason?)` cancels the child without cancelling its parent or siblings.
+- Async disposal cancels unfinished work and awaits `settled`. Use `await using`,
+  or `await run[Symbol.asyncDispose]()` in `finally`.
+
+Capture task arguments in the callback. Its `ctx` belongs to the new run and
+shadows the outer context. Pass that `ctx` into the task so it uses the new run's
+channels and cancellation.
+Annotate the callback context when typed messages are needed; TypeScript cannot
+infer its message types from calls inside the callback body.
+
+Argument forwarding with `ctx.spawn(task, ...args)`, the standalone
+`spawn(ctx, task, ...args)`, `TaskHandle` type, and `updates`
+property remain compatible aliases. `output` and `updates` share one consumer;
+do not iterate both. Custom context implementations must provide `spawn`; prefer
+creating a context with `createWorkflowContext()` and overriding host callbacks.
 
 Each channel holds up to 64 queued values. Sending to a full channel rejects
 with `ChannelFullError`; sending to a closed channel rejects with
 `ChannelClosedError`. No send waits for free space or silently drops a value.
-Consume updates while work runs if the child can emit more than the buffer holds.
+Consume output while work runs if the child can emit more than the buffer holds.
 
 Successful completion closes both channels. Buffered updates remain readable.
 Failure or cancellation discards values in open channels and rejects pending
@@ -50,14 +71,14 @@ pending `next()` call.
 Parent cancellation reaches the child through `ctx.signal`. Cancellation settles
 the handle even if the task ignores that signal, but JavaScript cannot stop that
 task's code or undo its side effects. Task code must cooperate. The parent must
-await its child handles and cancel unfinished children in `finally` as needed;
+await its child runs and dispose unfinished children in `finally` as needed;
 parent return does not automatically join spawned work. `ctx.abort()` retains
 its existing whole-workflow meaning.
 
 A normal context from `createWorkflowContext` or `runWorkflow` has an empty inbox
 and a no-op `emit`. Direct calls retain their synchronous or asynchronous return
 behavior. Passing a spawned context directly to another task shares its inbox and
-emitter; use another `spawn` to give that child separate channels. Usage accounting
+emitter; use `ctx.spawn()` to give that child separate channels. Usage accounting
 and existing context callbacks are shared with the parent.
 
 For standalone use, `createChannel<T>({ capacity, signal })` exposes `send`,

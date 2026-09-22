@@ -510,10 +510,13 @@
               {#if bar}
                 <button
                   class={[
-                    "absolute min-w-1.5 flex items-center gap-2 overflow-hidden rounded-field border text-left inset-shadow-2xs inset-shadow-white/10 bg-linear-to-b from-white/5 to-black/5 hover:brightness-105",
+                    "absolute min-w-1.5 flex items-center gap-2 overflow-hidden rounded-field border text-left hover:brightness-105",
+                    !node.segments && "inset-shadow-2xs inset-shadow-white/10 bg-linear-to-b from-white/5 to-black/5",
                     "inset-y-2",
                     dragging ? "cursor-grabbing" : "cursor-pointer",
-                    node.status === "failed" || node.status === "blocked"
+                    node.segments
+                      ? "bg-base-200 border-base-300 text-base-content"
+                      : node.status === "failed" || node.status === "blocked"
                       ? "bg-error border-error text-error-content light:bg-rose-100 light:border-rose-200 light:text-rose-950"
                       : node.status === "interrupted"
                         ? "bg-neutral border-neutral text-neutral-content border-dashed light:bg-slate-100 light:border-slate-300 light:text-slate-800"

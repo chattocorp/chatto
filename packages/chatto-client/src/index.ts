@@ -1,4 +1,10 @@
 export { startTyping, withTyping, type TypingUpdate } from "./typing.js";
+import { messageHelpers } from "./messages.js";
+export type { ChattoMessage, AddressedMessage, AddressingReason } from "./messages.js";
+import { consumeRealtime, type ConsumeRealtimeOptions, type WebSocketFactory } from "./realtime.js";
+export type { ConsumeRealtimeOptions, RealtimeCheckpoint, RealtimeStatus, WebSocketFactory } from "./realtime.js";
+export { RealtimeEvent } from "@chatto/api-types/realtime/v1/realtime_pb";
+export { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
 
 /** Connection settings supplied by the host; this package never reads environment files. */
 export interface ChattoClientOptions {
@@ -6,12 +12,16 @@ export interface ChattoClientOptions {
   apiKey: string;
   /** Optional transport for tests or host-specific networking. */
   fetch?: typeof fetch;
+  /** Must connect directly, without following redirects. Defaults to the host WebSocket. */
+  webSocket?: WebSocketFactory;
 }
 
 /** A thread destination, independent of the workflow that sends the message. */
 export interface Destination {
   roomId: string;
   threadRootId: string;
+  /** Message that prompted this reply, within the destination thread. */
+  inReplyTo?: string;
 }
 
 /** Send ordered thread messages; workflow adapters supply their cancellation signal. */
@@ -89,7 +99,7 @@ export function createChattoClient(options: ChattoClientOptions) {
   function createMessage(destination: Destination, body: string, signal?: AbortSignal, inReplyTo?: string) {
     return rpc<{ message?: { id?: string } }>("MessageService/CreateMessage", {
       roomId: destination.roomId, body, threadRootEventId: destination.threadRootId,
-      ...(inReplyTo ? { inReplyTo } : {}),
+      ...((inReplyTo ?? destination.inReplyTo) ? { inReplyTo: inReplyTo ?? destination.inReplyTo } : {}),
     }, signal);
   }
 
@@ -152,7 +162,12 @@ export function createChattoClient(options: ChattoClientOptions) {
     });
   }
 
-  return { rpc, createMessage, postMessage, refreshTyping, addReaction, readThread };
+  return {
+    ...messageHelpers(rpc),
+    rpc, createMessage, postMessage, refreshTyping, addReaction, readThread,
+    /** Consume ordered events until cancellation or a terminal failure. */
+    consumeRealtime: (settings: ConsumeRealtimeOptions) => consumeRealtime(base, options.apiKey, options.webSocket, settings),
+  };
 }
 
 /** The small integration client, with no Runling or UI-framework dependency. */

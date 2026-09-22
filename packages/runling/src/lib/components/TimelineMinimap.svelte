@@ -177,7 +177,9 @@
       {#each rows as { node, top, height } (node.id)}
         <rect
           class={[
-            node.status === "failed" || node.status === "blocked"
+            node.segments
+              ? "fill-base-200"
+              : node.status === "failed" || node.status === "blocked"
               ? "fill-error light:fill-rose-300"
               : node.status === "interrupted"
                 ? "fill-neutral light:fill-slate-300"
@@ -202,7 +204,7 @@
           height={height * 0.6}
           data-kind={node.kind}
         />
-        {#each node.segments ?? [] as segment}
+        {#each node.segments ?? [] as segment (segment.id)}
           <rect
             class={segment.kind === "input" ? "fill-warning" : "fill-secondary"}
             x={(segment.startedAt / total) * 1000}

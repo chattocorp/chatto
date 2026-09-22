@@ -80,6 +80,13 @@ export type RunlingEventPayload =
       text: string;
     }
   | {
+      /** Safe tool lifecycle metadata; excludes arguments, paths, and output. */
+      type: "agent.tool";
+      agentId: string;
+      operation: "read" | "search" | "edit" | "command" | "other";
+      phase: "started" | "succeeded" | "failed";
+    }
+  | {
       type: "agent.action";
       agentId: string;
       action: string;

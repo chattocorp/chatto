@@ -36,6 +36,10 @@ It keeps its own version and MIT license. The Chatto bot uses this local package
 Use `mise check-runling`, `mise test-runling`, and `mise test-runling-package`
 to verify it without running the complete Chatto test suite.
 
+[ChattoBot](packages/chattobot/README.md) is a separate private workspace
+package. Run `mise dev-chattobot` to start its realtime bot and Runling console.
+Use `mise check-chattobot` and `mise test-chattobot` to verify it.
+
 Root pnpm scripts use Turborepo to build workspace dependencies before their
 consumers. Prefer `mise` tasks or root scripts such as `mise x -- pnpm run
 check:frontend`; a command inside a package only runs that package's script.

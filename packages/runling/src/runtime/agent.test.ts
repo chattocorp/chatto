@@ -99,8 +99,21 @@ vi.doMock("@earendil-works/pi-coding-agent", async () => {
   };
 });
 
-const { agent, AgentOutcomeError, describeTool, runAgent } =
+const { agent, AgentOutcomeError, describeTool, runAgent, toolFailureCategory } =
   await import("./agent.ts");
+
+test.each([
+  ["ENOENT: private path", "not_found"], ["permission denied: secret", "permission_denied"],
+  ["ETIMEDOUT: secret URL", "timeout"], ["invalid arguments: secret", "invalid_arguments"],
+  ["Something else containing private data", "unknown"],
+])("categorizes tool failures without forwarding output", (text, expected) => {
+  expect(toolFailureCategory({ content: [{ type: "text", text }] })).toBe(expected);
+});
+
+test("malformed failure details do not break activity reporting", () => {
+  expect(toolFailureCategory({ content: [null, { type: "text", text: 42 }] })).toBe("unknown");
+  expect(toolFailureCategory(undefined)).toBe("unknown");
+});
 
 const { log } = await import("./log.ts");
 
@@ -290,6 +303,8 @@ describe("runAgent", () => {
   });
 
   test("prefixes every log line with one human-friendly agent ID", async () => {
+    vi.stubEnv("NO_COLOR", undefined);
+    vi.stubEnv("FORCE_COLOR", "1");
     const logs: string[] = [];
     const errors: string[] = [];
     const originalLog = console.log;
@@ -318,6 +333,7 @@ describe("runAgent", () => {
     } finally {
       console.log = originalLog;
       console.error = originalError;
+      vi.unstubAllEnvs();
     }
 
     const plainLogs = logs.map(stripAnsi);
@@ -570,6 +586,7 @@ describe("runAgent", () => {
     ).resolves.toEqual({
       outcome: "failed",
       summary: "Agent finished without a valid outcome report",
+      failureReason: "missing_outcome",
       usage: emptyUsage,
     });
     expect(promptCalls).toBe(2);
@@ -736,6 +753,7 @@ describe("runAgent", () => {
     ).resolves.toEqual({
       outcome: "failed",
       summary: "Agent finished without a valid outcome report",
+      failureReason: "missing_outcome",
       usage: {
         input: 7,
         output: 3,
@@ -1384,6 +1402,28 @@ test("retains earlier findings when a later report refers back to them, without 
   expect(next.details).toBeUndefined();
 });
 
+test("custom system prompt replaces the coding persona and retains workflow instructions", async () => {
+  await using instance = await agent({ cwd: "/project", model: "anthropic/claude-opus-4-5",
+    systemPrompt: "You are a chat assistant.", instructions: ["Keep replies brief."],
+  });
+  expect(resourceOptions.systemPromptOverride("Coding instructions")).toBe("You are a chat assistant.");
+  const appended = resourceOptions.appendSystemPromptOverride([]).join("\n");
+  expect(appended).toContain("Keep replies brief.");
+  expect(appended).toContain("non-interactive software factory");
+});
+
+test("expired provider login returns a safe actionable failure without report retries", async () => {
+  promptImplementation = async () => {
+    eventHandler?.({ type: "message_end", message: { role: "assistant", content: [], stopReason: "error",
+      errorMessage: "OAuth refresh failed: refresh_token_expired private credential text", usage: emptyUsage } });
+  };
+  await using instance = await agent({ cwd: "/project", model: "anthropic/claude-opus-4-5" });
+  const result = await instance.runOutcome(createWorkflowContext(), "Work");
+  expect(result).toMatchObject({ outcome: "failed", failureReason: "provider_error", summary: "The model provider login has expired. Sign in again on the agent host before retrying." });
+  expect(promptCalls).toBe(1);
+  expect(JSON.stringify(result)).not.toContain("private credential");
+});
+
 test("text mode delivers a natural response once without report tools or retries", async () => {
   const text = vi.fn();
   promptImplementation = async () => {
@@ -1416,6 +1456,56 @@ test("text mode keeps progress delivery but returns only the final response", as
   } finally {
     bot.dispose();
   }
+});
+
+test.each(["initial", "report-repair"])("provider exhaustion in %s does not trigger another report request", async phase => {
+  const statuses: unknown[] = [];
+  promptImplementation = async () => {
+    if (phase === "report-repair" && promptCalls === 1) return;
+    eventHandler?.({ type: "auto_retry_start", attempt: 2, maxAttempts: 2, delayMs: 4000, errorMessage: "secret upstream request" });
+    eventHandler?.({ type: "auto_retry_end", success: false, attempt: 2, finalError: "secret upstream request" });
+  };
+  const result = await runAgent(createWorkflowContext(), "Investigate", {
+    cwd: "/project", model: "anthropic/claude-opus-4-5", onStatus: status => statuses.push(status),
+  });
+  expect(result.outcome).toBe("failed");
+  expect(result.failureReason).toBe("provider_error");
+  expect(promptCalls).toBe(phase === "initial" ? 1 : 2);
+  expect(statuses).toEqual([
+    { type: "retrying", attempt: 2, maxAttempts: 2, delayMs: 4000 },
+    { type: "blocked", reason: "provider_error" },
+  ]);
+  expect(JSON.stringify({ statuses, result })).not.toContain("secret");
+});
+
+test("tool activity excludes raw arguments and results and counts failures until success", async () => {
+  const onActivity = vi.fn();
+  promptImplementation = async () => {
+    for (const isError of [true, true, false, true]) {
+      eventHandler?.({ type: "tool_execution_start", toolCallId: "edit", toolName: "edit", args: { path: "private/path" } });
+      eventHandler?.({ type: "tool_execution_end", toolCallId: "edit", toolName: "edit", isError, result: { content: [{ type: "text", text: "secret output" }] } });
+    }
+    await reportOutcome({ outcome: "completed", summary: "Done" });
+  };
+  await runAgent(createWorkflowContext(), "Investigate", { cwd: "/project", model: "anthropic/claude-opus-4-5", onActivity });
+  expect(onActivity.mock.calls.filter(([event]) => event.phase !== "started").map(([event]) => event.failures)).toEqual([1, 2, 0, 1]);
+  expect(onActivity).toHaveBeenCalledWith({ type: "tool", operation: "edit", phase: "failed", failures: 2, error: "unknown" });
+  expect(JSON.stringify(onActivity.mock.calls)).not.toMatch(/private|secret/);
+});
+
+test("a successful provider retry can still produce a valid report", async () => {
+  const onStatus = vi.fn();
+  promptImplementation = async () => {
+    eventHandler?.({ type: "message_end", message: { role: "assistant", content: [], stopReason: "error", errorMessage: "temporary" } });
+    eventHandler?.({ type: "auto_retry_start", attempt: 1, maxAttempts: 2, delayMs: 2000, errorMessage: "temporary" });
+    await reportOutcome({ outcome: "completed", summary: "Recovered" });
+    eventHandler?.({ type: "auto_retry_end", success: true, attempt: 1 });
+  };
+  expect((await runAgent(createWorkflowContext(), "Investigate", {
+    cwd: "/project", model: "anthropic/claude-opus-4-5", onStatus,
+  })).outcome).toBe("completed");
+  expect(promptCalls).toBe(1);
+  expect(onStatus).toHaveBeenLastCalledWith({ type: "working" });
 });
 
 test.each(["error", "aborted", "empty"])("text mode does not report success after %s", async reason => {
@@ -1460,4 +1550,53 @@ test("text mode retains usage accounting and resets response state between turns
   } finally {
     bot.dispose();
   }
+});
+
+test.each(["stop", "error", "aborted", "length", "missing"])("optional silent turns preserve provider outcome: %s", async reason => {
+  const text = vi.fn();
+  promptImplementation = async () => {
+    if (reason === "missing") return;
+    eventHandler?.({ type: "message_end", message: {
+      role: "assistant", content: [], stopReason: reason,
+      errorMessage: reason === "error" || reason === "aborted" ? "Provider failed" : undefined,
+    } });
+  };
+  const bot = await agent({ cwd: "/project", model: "anthropic/claude-opus-4-5", output: "text", allowEmptyResponse: true });
+  try {
+    const result = await bot.runOutcome(createWorkflowContext(), "Wait for background work", { onText: text });
+    expect(result.outcome).toBe(reason === "stop" ? "completed" : "failed");
+    if (reason === "stop") expect(result.summary).toBe("");
+    expect(text).not.toHaveBeenCalled();
+  } finally { bot.dispose(); }
+});
+
+test("a silent delegation turn keeps its child alive and reports its eventual completion", async () => {
+  const { createAgentTasks } = await import("./agents/tasks.ts");
+  const { runAgentConversation } = await import("./agents/conversation.ts");
+  const { createChannel } = await import("./channel.ts");
+  const ctx = { ...createWorkflowContext(), inbox: createChannel<string>(), emit: vi.fn(async (_text: string) => {}) };
+  const tasks = createAgentTasks(ctx);
+  const finish = Promise.withResolvers<string>();
+  let childSignal: AbortSignal | undefined;
+  let turns = 0;
+  promptImplementation = async () => {
+    if (++turns === 1) {
+      tasks.start("Investigation", async child => { childSignal = child.signal; return finish.promise; }, undefined);
+      eventHandler?.({ type: "message_end", message: { role: "assistant", content: [], stopReason: "stop" } });
+    } else emitAssistantText("Investigation complete.");
+  };
+  const bot = await agent({ cwd: "/project", model: "anthropic/claude-opus-4-5", output: "text", allowEmptyResponse: true });
+  const busy = vi.fn();
+  const running = runAgentConversation(ctx, bot, "Investigate", {
+    notifications: tasks.notifications, keepAlive: () => tasks.active, timeout: 0.02, onBusy: busy,
+  });
+  try {
+    await vi.waitFor(() => expect(busy).toHaveBeenCalledWith(false));
+    expect(childSignal?.aborted).toBe(false);
+    expect(ctx.emit).not.toHaveBeenCalled();
+    finish.resolve("Evidence found");
+    await expect(running).resolves.toBe("Investigation complete.");
+    expect(ctx.emit).toHaveBeenCalledExactlyOnceWith("Investigation complete.");
+    expect(turns).toBe(2);
+  } finally { finish.resolve("done"); await tasks.dispose(); bot.dispose(); await running.catch(() => {}); }
 });

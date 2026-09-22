@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ServeOptions } from "./cli.ts";
 import { createServer, type RequestListener } from "node:http";
+import { installShutdown } from "./shutdown.ts";
 
 export async function runRunlingWeb(options: ServeOptions) {
   const configPath = resolve(options.config);
@@ -29,24 +30,20 @@ export async function runRunlingWeb(options: ServeOptions) {
       });
     });
     const host = options.host.includes(":") ? `[${options.host}]` : options.host;
-    serverLog("info", "server.listening", { url: `http://${host}:${options.port}` });
-    const shutdown = () => {
+    const url = `http://${host}:${options.port}`;
+    serverLog("info", "server.listening", { url });
+    installShutdown(async () => {
       serverLog("info", "server.stopping");
-      server.close(() => {
+      const closed = new Promise<void>(resolve => server.close(() => resolve()));
+      const deadline = setTimeout(() => server.closeAllConnections(), 5000);
+      try {
+        await (globalThis as typeof globalThis & { __runlingStopSources?: () => Promise<void> }).__runlingStopSources?.();
+        await closed;
         serverLog("info", "server.stopped");
-        process.off("SIGINT", shutdown);
-        process.off("SIGTERM", shutdown);
-      });
-      setTimeout(() => server.closeAllConnections(), 5000).unref();
-    };
-    process.once("SIGINT", shutdown);
-    process.once("SIGTERM", shutdown);
+      } finally { clearTimeout(deadline); }
+    });
     if (options.open) {
       const { spawn } = await import("node:child_process");
-      const host = options.host.includes(":")
-        ? `[${options.host}]`
-        : options.host;
-      const url = `http://${host}:${options.port}`;
       const child =
         process.platform === "darwin"
           ? spawn("open", [url])
@@ -57,6 +54,7 @@ export async function runRunlingWeb(options: ServeOptions) {
       child.unref();
     }
   } catch (error) {
+    await (globalThis as typeof globalThis & { __runlingStopSources?: () => Promise<void> }).__runlingStopSources?.();
     serverLog("error", "server.start_failed", { error });
     throw error;
   }

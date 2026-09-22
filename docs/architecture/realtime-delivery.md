@@ -18,6 +18,14 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 
 ## Public protocol
 
+The integration client [`@chatto/client`](../../packages/chatto-client/README.md)
+also consumes this protocol. It uses bearer authentication, live-only fallback,
+ordered async event acceptance, bounded buffering, and process-local resume
+cursors. Terminal errors stop consumption; unavailable replay reports a gap.
+The [ChattoBot package](../../packages/chattobot/README.md) routes accepted
+message events into new or active Runling conversations. Runling itself has
+no Chatto runtime dependency.
+
 The public API is a binary protobuf WebSocket at `GET /api/realtime`. The
 server accepts behavioral protocol version 4. The `chatto.realtime.v1` suffix
 is the protobuf package name. It is not the behavioral protocol version.

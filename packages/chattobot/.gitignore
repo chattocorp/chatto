@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.runling/
+.factory/
+coverage/
+*.tsbuildinfo

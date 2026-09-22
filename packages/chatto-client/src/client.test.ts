@@ -8,6 +8,16 @@ const event = (id: string, body: string, actorId = "human") => ({
 });
 afterEach(() => vi.useRealTimers());
 
+test("thread posts preserve the reply target on every chunk", async () => {
+  const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({}));
+  const client = createChattoClient({ serverUrl: "https://chat.example", apiKey: "key", fetch: request });
+  await client.postMessage({ ...destination, inReplyTo: "prompt" }, "x".repeat(8001));
+  expect(request).toHaveBeenCalledTimes(2);
+  for (const [, init] of request.mock.calls) {
+    expect(JSON.parse(init!.body as string)).toMatchObject({ threadRootEventId: "root", inReplyTo: "prompt" });
+  }
+});
+
 test("pins RPCs to the configured server with bearer auth and no redirects", async () => {
   const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({}));
   const client = createChattoClient({ serverUrl: "https://chat.example/prefix", apiKey: "secret", fetch: request });

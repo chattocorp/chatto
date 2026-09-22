@@ -9,6 +9,10 @@ Dependency manifests and lockfiles in this repository remain the authoritative
 set of third-party packages, including transitive dependencies, used to build
 each artifact.
 
+ChattoBot:
+
+- LinkeDOM (https://github.com/WebReflection/linkedom) - ISC License
+
 Server and CLI Go Components:
 
 - age (https://filippo.io/age) - BSD 3-Clause License

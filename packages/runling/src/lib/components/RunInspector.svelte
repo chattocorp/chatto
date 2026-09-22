@@ -13,6 +13,20 @@
   let { run, connection }: { run: RunDetail; connection: string } = $props();
   let cancelling = $state(false);
   let cancelError = $state("");
+  let reference = $derived(run.reference ?? run.id);
+  let copiedReference = $state("");
+  let failedReference = $state("");
+
+  async function copyReference() {
+    const value = reference;
+    try {
+      await navigator.clipboard.writeText(value);
+      copiedReference = value;
+      failedReference = "";
+    } catch {
+      failedReference = value;
+    }
+  }
 
   async function cancelRun() {
     if (cancelling) return;
@@ -54,6 +68,8 @@
       <span class="min-w-0 wrap-anywhere text-base-content/60 text-xs"
         >{run.source === "web"
           ? "Started from web"
+          : run.source === "source"
+            ? `Source ${run.sourceName ?? run.webhook}`
           : `Webhook /${run.webhook}`}</span
       >
       <div class="flex shrink-0 items-center gap-2">
@@ -91,11 +107,19 @@
       <p class="mt-3 text-sm text-error" role="alert">{cancelError}</p>
     {/if}
     <Usage usage={run.usage} detail />
-    <p
-      class="text-base-content/60 text-xs flex justify-between mt-5 mr-0 mb-0 ml-0"
+    <div
+      class="text-base-content/60 text-xs flex flex-wrap items-center justify-between gap-2 mt-5"
     >
-      Run {run.id.slice(0, 8)} <span>{connection}</span>
-    </p>
+      <span class="inline-flex min-w-0 items-center gap-2">
+        <span class="select-text wrap-anywhere">{reference}</span>
+        <button class="btn btn-ghost btn-xs shrink-0" onclick={copyReference} aria-label="Copy run reference" title="Copy run reference">
+          <span class={copiedReference === reference ? "icon-[lucide--check] size-3.5" : "icon-[lucide--copy] size-3.5"} aria-hidden="true"></span>
+        </button>
+      </span>
+      <span>{connection}</span>
+    </div>
+    <p class="sr-only" role="status">{copiedReference === reference ? "Run reference copied." : ""}</p>
+    {#if failedReference === reference}<p class="text-xs text-error" role="alert">Could not copy. Select the reference and copy it manually.</p>{/if}
   </header>
   {#if run.status === "cancelled"}
     <p class="mx-8 mb-2.5 flex items-center gap-2 text-sm text-base-content/60 max-sm:mx-5" role="status">

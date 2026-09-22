@@ -53,7 +53,7 @@ SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc."
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
-path = "packages/runling/**"
+path = ["packages/runling/**", "packages/chattobot/**"]
 SPDX-FileCopyrightText = "2026 Hendrik Mans and contributors"
 SPDX-License-Identifier = "MIT"
 

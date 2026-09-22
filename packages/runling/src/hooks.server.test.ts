@@ -4,6 +4,8 @@ import { handle, handleError } from "./hooks.server.ts";
 import { serverLog } from "./runtime/server-log.ts";
 
 vi.mock("./runtime/server-log.ts", () => ({ serverLog: vi.fn() }));
+vi.mock("$app/environment", () => ({ building: false }));
+vi.mock("./lib/server/source-host.ts", () => ({ startSourceHost: vi.fn(), stopSourceHost: vi.fn() }));
 
 it("logs response metadata without reading bodies or exposing URLs and headers", async () => {
   vi.mocked(serverLog).mockClear();

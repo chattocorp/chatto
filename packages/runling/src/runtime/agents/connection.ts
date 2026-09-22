@@ -5,10 +5,14 @@ import type { WorkflowContext } from "../context.ts";
 export interface AgentConnectionOptions {
   /** One consumer for this connection's lifetime. The caller retains missed messages. */
   inbox?: AsyncIterable<string>;
+  /** Background task messages. Receipts and user input remain independent. */
+  notifications?: AsyncIterable<string>;
   /** Ordered delivery of completed assistant text, awaited before a turn returns. */
   onText?: (text: string) => void | Promise<void>;
   /** True means the agent consumed the message, not merely that it was queued. */
   onDelivery?: (text: string, consumed: boolean) => void | Promise<void>;
+  /** Prepare trusted source metadata before steering; never infer origin from message text. */
+  prepareMessage?: (text: string, origin: "user" | "notification") => string | Promise<string>;
 }
 
 export interface AgentConnection extends AsyncDisposable {
@@ -36,7 +40,8 @@ export function connectAgent(
 ): AgentConnection {
   const controller = new AbortController();
   const signal = AbortSignal.any([ctx.signal, controller.signal]);
-  const inbox = options.inbox?.[Symbol.asyncIterator]();
+  const inboxes = ([{ source: options.inbox, origin: "user" }, { source: options.notifications, origin: "notification" }] as const)
+    .flatMap(({ source, origin }) => source ? [{ reader: source[Symbol.asyncIterator](), origin }] : []);
   let active = false;
   let disposed = false;
   let disposal: Promise<void> | undefined;
@@ -68,19 +73,21 @@ export function connectAgent(
     }
   }
 
-  async function receive() {
-    if (!inbox) return;
+  async function receive(inbox: AsyncIterator<string>, origin: "user" | "notification") {
 
     while (!disposed && !signal.aborted) {
       const message = await interruptible(Promise.resolve(inbox.next()));
       if (message.done || disposed || signal.aborted) return;
+      const text = options.prepareMessage
+        ? await interruptible(Promise.resolve(options.prepareMessage(message.value, origin)))
+        : message.value;
 
       // Queue steering immediately. A receipt may wait for the next agent turn;
       // it must not prevent later user messages from reaching that same turn.
       const consumed =
         active && agent.steer
           ? Promise.resolve()
-              .then(() => agent.steer!(message.value))
+              .then(() => agent.steer!(text))
               .catch(() => false)
           : Promise.resolve(false);
 
@@ -89,15 +96,15 @@ export function connectAgent(
         const delivered = await interruptible(consumed);
         signal.throwIfAborted();
         reportMessageReceipt(message, delivered);
-        await options.onDelivery?.(message.value, delivered);
+        await options.onDelivery?.(text, delivered);
       });
       void delivery.catch((reason) => controller.abort(reason));
     }
   }
 
   function startReceiving() {
-    if (receiving || !inbox) return;
-    receiving = receive();
+    if (receiving || !inboxes.length) return;
+    receiving = Promise.all(inboxes.map(({ reader, origin }) => receive(reader, origin))).then(() => {});
     void receiving.catch((reason) => controller.abort(reason));
   }
 
@@ -153,7 +160,7 @@ export function connectAgent(
     disposal = (async () => {
       // Observe return() even if an arbitrary iterable cannot finish its pending
       // read. Cancellation has already released our own receiver.
-      if (inbox?.return) {
+      for (const { reader: inbox } of inboxes) if (inbox.return) {
         await interruptible(
           Promise.resolve().then(() => inbox.return!()),
         ).catch(() => {});

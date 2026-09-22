@@ -45,13 +45,35 @@ export interface WebConfig<
   Webhooks extends Record<string, WebhookRouter<any>> = Record<string, WebhookRouter<any>>,
 > {
   webhooks: Webhooks;
+  sources?: Record<string, EventSource>;
 }
 
+/** Host services for a source generation. State survives reloads of the same source name. */
+export interface EventSourceContext {
+  signal: AbortSignal;
+  /** Process-local adapter state. Removed when the source is removed. Never serialized. */
+  state: Map<string, unknown>;
+  /** Route one delivery and wait for all initiated registrations. Throws on routing failure. */
+  dispatch<Input>(router: WebhookRouter<Input>, input: Input): Promise<StartedRun[]>;
+}
+
+/** Run until aborted; settle only after releasing sockets, timers, and pending deliveries. */
+export type EventSource = (ctx: EventSourceContext) => Promise<void>;
+
 /** Preserve names and concrete router types in configuration. */
-export function defineWebConfig<const Webhooks extends Record<string, WebhookRouter<any>>>(
-  config: WebConfig<Webhooks>,
+export function defineWebConfig<const Webhooks extends Record<string, WebhookRouter<any>> = Record<string, WebhookRouter<any>>>(
+  config: { webhooks?: Webhooks; sources?: Record<string, EventSource> },
 ): WebConfig<Webhooks> {
-  for (const [name, route] of Object.entries(config.webhooks)) {
+  if (config.sources !== undefined && (typeof config.sources !== "object" || config.sources === null || Array.isArray(config.sources))) {
+    throw new TypeError("sources must be a map of source functions");
+  }
+  for (const source of Object.values(config.sources ?? {})) {
+    if (typeof source !== "function") throw new TypeError("source must be a function");
+  }
+  if (config.webhooks !== undefined && (typeof config.webhooks !== "object" || config.webhooks === null || Array.isArray(config.webhooks))) {
+    throw new TypeError("webhooks must be a map of routing functions");
+  }
+  for (const [name, route] of Object.entries(config.webhooks ?? {})) {
     try {
       if (typeof route !== "function") {
         throw new TypeError("webhook must be a routing function");
@@ -63,7 +85,7 @@ export function defineWebConfig<const Webhooks extends Record<string, WebhookRou
       throw new TypeError(`Webhook ${JSON.stringify(name)} is invalid: ${message}`, { cause });
     }
   }
-  return config;
+  return { ...config, webhooks: config.webhooks ?? {} as Webhooks };
 }
 
 export function describeRouterSchemas(route: WebhookRouter<any>) {

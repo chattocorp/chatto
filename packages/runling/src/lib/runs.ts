@@ -12,9 +12,13 @@ export interface RunActivity {
 export interface RunSummary {
   activity?: RunActivity | null;
   id: string;
+  /** Human-readable, journal-local reference. Older journals use their UUID. */
+  reference?: string;
   webhook: string;
   workflow: string;
-  source: "webhook" | "web";
+  source: "webhook" | "web" | "source";
+  /** Named event source; absent in older journals and HTTP-started runs. */
+  sourceName?: string;
   status: RunStatus;
   startedAt: number;
   finishedAt?: number;

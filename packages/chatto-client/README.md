@@ -2,8 +2,8 @@
 
 `@chatto/client` is an internal workspace package for Chatto 0.5 bots and
 integrations. It supplies authenticated ConnectRPC JSON requests, message
-delivery, complete thread reads, reactions, and typing refresh helpers.
-It is not published to npm and has no runtime dependencies.
+delivery, complete thread reads, reactions, typing refresh helpers, and realtime events.
+It is not published to npm. Realtime uses `@chatto/api-types` and its protobuf runtime.
 The host must provide Fetch and `AbortSignal.any`/`AbortSignal.timeout`.
 
 ```ts
@@ -21,6 +21,20 @@ credentials, and URLs. The package does not log requests or responses.
 
 ## Behavior
 
+- `getViewer({ signal })` returns `{ id }` for the authenticated viewer. Missing
+  identity is an error. The helper does not cache identity across credential changes.
+- `getMessage({ roomId, messageId, signal })` returns a normalized message with
+  `id`, `roomId`, `authorId`, and optional `body`, `threadRootId`, and `inReplyTo`.
+  It is a projection for integrations, not a complete renderable message.
+  Missing or mismatched message identity returns `undefined`; RPC failures reject.
+- `addressedMessage(event, { viewerId, signal })` recognizes textual DMs, viewer
+  mentions, and verified replies to the viewer. Obtain `viewerId` from this
+  connection's `getViewer()`. It returns an `AddressedMessage` with addressing
+  `reasons`, or `undefined` for unrelated, self-authored, or non-text events.
+  Unmentioned replies require a message lookup to verify author, room, and thread.
+  DMs and mentions need no lookup; their reasons do not include a verified reply.
+  Errors and cancellation propagate. Hosts decide whether a lookup failure is
+  retryable or can be ignored; the client does not log or advance checkpoints.
 - `rpc<T>` calls a resource service such as `ViewerService/GetViewer` with
   protobuf JSON. `T` is the caller's response type, not runtime validation.
   Use `@chatto/api-types` for generated protocol definitions.
@@ -28,7 +42,10 @@ credentials, and URLs. The package does not log requests or responses.
   `inReplyTo` separately from the thread root.
 - `postMessage` splits text at 8000 Unicode code points and sends chunks in
   order. A failed chunk stops delivery. Earlier chunks can already have been
-  delivered; the helper does not roll them back.
+  delivered; the helper does not roll them back. Set `destination.inReplyTo` to
+  associate every chunk with its prompting message. The thread root stays separate.
+  `createMessage` also accepts this destination field; its explicit reply argument
+  takes precedence. Existing destinations need no changes.
 - `readThread` reads all history pages, puts the root first, and removes page
   overlap. It returns textual messages with IDs, authors, and bot/human roles.
   It rejects missing pages and repeated or missing pagination cursors.
@@ -44,8 +61,56 @@ Requests have a ten-second timeout. A complete thread read has a thirty-second
 total timeout. Caller cancellation also reaches the transport. The client never
 retries requests: a failed connection can leave delivery uncertain.
 
-OAuth login, realtime connections, webhook authentication, deduplication,
+The addressing helper returns Chatto message data, not webhook deliveries or
+workflow inputs. Sender restrictions, conversation keys, deduplication, replies,
+and workflow registration remain host responsibilities. Apply sender restrictions
+before calling the helper to avoid unnecessary lookups. These helpers are additive;
+existing RPC and realtime callers need no migration.
+
+OAuth login, webhook authentication, deduplication,
 conversation routing, and agent behavior remain the host's responsibility.
+
+## Realtime events
+
+The host must supply WebSocket support. Node 22.19 and later provide it. Tests
+can pass `webSocket` to `createChattoClient`; this factory must reject redirects.
+
+```ts
+const checkpoint = {}; // Keep only in memory, for this server and API key.
+await client.consumeRealtime({
+  signal,
+  checkpoint,
+  async onEvent(event) {
+    if (event.event.case === "messagePosted") await acceptMessage(event);
+  },
+  onStatus(status) {
+    if (status.state === "ready" && status.gap) reportMissedMessages();
+  },
+});
+```
+
+`acceptMessage` and `reportMissedMessages` represent host functions. The client
+connects to `/api/realtime` with protocol v4 and sends the API key in the first
+binary frame. Only the configured server receives the caller's IP address and key.
+
+Events arrive in order. Resolve `onEvent` after accepting the delivery, for
+example after registering a run or inserting a message into an inbox. The
+client then advances the checkpoint. It does not wait for downstream work.
+Unknown semantic events can be skipped. Invalid or unknown top-level frames
+stop consumption without advancing past them.
+
+Transient failures reconnect with backoff and the last accepted cursor.
+Server retry delays are respected. The queue is limited to 256 pending frames
+and 8 MiB; overflow reconnects after the current handler settles. Set
+`maxPendingFrames` to change the frame limit. Handlers must settle promptly.
+Cancellation closes the transport and waits for any current handler.
+
+A new process starts live. An expired cursor or unavailable replay also starts
+live. A `ready` status with `gap: true` reports possible missed messages after
+a prior connection or resume attempt. Cursors expire after 15 minutes. There
+is no automatic history fetch, durable inbox, or exactly-once delivery.
+Handler failures and terminal protocol errors reject consumption with a safe
+error. Resolve the cause before restarting. Failed handlers retain the prior cursor.
 
 ## Development
 

@@ -7,31 +7,48 @@ import { observeMessageReceipt } from "./message-observation.ts";
 import { createChannel } from "./channel.ts";
 import type { WorkflowContext } from "./context.ts";
 
-export interface TaskHandle<Incoming, Update, Result> {
+/** One task execution. Messages are buffered; result and cleanup have separate lifetimes. */
+export interface Run<Incoming, Update, Result> {
+  /** Identity shared by the run and its recorded message channel. */
+  readonly id: string;
+  readonly status: "running" | "completed" | "failed" | "cancelled";
   /** Queue input without waiting for the child to process it. */
   send(value: Incoming): Promise<void>;
 
+  /** Single-consumer stream of messages emitted by the child. */
+  readonly output: AsyncIterable<Update>;
+  /** Compatibility alias for output; both names share the same consumer. */
   readonly updates: AsyncIterable<Update>;
   readonly result: Promise<Result>;
+  /** Resolves after underlying work settles, including cooperative cleanup. Never rejects. */
+  readonly settled: Promise<void>;
 
   /** Let the child finish reading its buffered input. */
   closeInput(): void;
 
   /** Cancel this child without cancelling its parent or siblings. */
   cancel(reason?: unknown): void;
+
+  /** Cancel unfinished work and await cleanup. Uncooperative work can delay disposal. */
+  [Symbol.asyncDispose](): Promise<void>;
 }
 
-/** Start a child with its own bounded input/output channels and cancellation. */
+/** Compatibility name for a child run. */
+export type TaskHandle<Incoming, Update, Result> = Run<Incoming, Update, Result>;
+
+/** Run a callback with its own bounded input/output channels and cancellation.
+ * Prefer ctx.spawn(ctx => work(ctx, input)); argument forwarding remains supported. */
 export function spawn<Incoming, Update, Args extends unknown[], Result>(
   parent: WorkflowContext<any, any>,
   run: (ctx: WorkflowContext<Incoming, Update>, ...args: Args) => Result,
   ...args: Args
-): TaskHandle<Incoming, Update, Awaited<Result>> {
+): Run<Incoming, Update, Awaited<Result>> {
   // Parent cancellation flows down; cancellation through this handle stays local.
   const controller = new AbortController();
   const signal = AbortSignal.any([parent.signal, controller.signal]);
 
   const channelId = crypto.randomUUID();
+  let status: Run<Incoming, Update, Awaited<Result>>["status"] = "running";
   const record = bindRunlingContext(emitRunlingEvent);
 
   function messages<T>(direction: "input" | "update") {
@@ -136,10 +153,12 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
         signal.throwIfAborted();
         incoming.close();
         outgoing.close();
+        status = "completed";
 
         return value;
       },
       (error) => {
+        status = signal.aborted ? "cancelled" : "failed";
         incoming.fail(error);
         outgoing.fail(error);
 
@@ -151,14 +170,23 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
   // Observe rejection now: the parent may read updates before awaiting result.
   void result.catch(() => {});
 
+  const settled = work.then(() => {}, () => {}).then(async () => {
+    await result.catch(() => {});
+  });
+  const cancel = (reason: unknown = new Error("Task cancelled")) => {
+    if (status === "running") controller.abort(reason);
+  };
+
   return {
+    id: channelId,
+    get status() { return status === "running" && signal.aborted ? "cancelled" : status; },
     send: incoming.send,
+    output: outgoing,
     updates: outgoing,
     result,
+    settled,
     closeInput: incoming.close,
-
-    cancel(reason = new Error("Task cancelled")) {
-      controller.abort(reason);
-    },
+    cancel,
+    async [Symbol.asyncDispose]() { cancel(); await settled; },
   };
 }

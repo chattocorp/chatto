@@ -1,5 +1,6 @@
 import { serverLog } from "../../runtime/server-log.ts";
 import { validateSchema } from "runling";
+import { dispatchRoute, RoutingError } from "../../runtime/routing.ts";
 import {
   describeRouterSchemas,
   type StartedRun,
@@ -60,49 +61,12 @@ export async function handleWebhook(
   const prepared = await prepareWebhook(name, request, config);
   if (prepared instanceof Response) return prepared;
 
-  const pending: Promise<StartedRun>[] = [];
-  let accepting = true;
-  let failure: unknown;
-  let failed = false;
-  const ctx: WebhookContext = {
-    start(task, options) {
-      if (!accepting) {
-        const rejection = Promise.reject<StartedRun>(new Error("Webhook routing has finished"));
-        // A detached callback must not create an unhandled rejection in the host.
-        void rejection.catch(() => {});
-        return rejection;
-      }
-
-
-      const registration = Promise.resolve().then(() => start(task, options));
-      pending.push(registration);
-      // Observe failures even when the routing function forgets to await a start.
-      void registration.catch(() => {});
-      return registration;
-    },
-  };
-
+  let runs: StartedRun[];
   try {
-    await prepared.route(ctx, prepared.input);
+    runs = await dispatchRoute(prepared.route, prepared.input, start);
   } catch (error) {
-    failed = true;
-    failure = error;
-  } finally {
-    accepting = false;
-  }
-
-  const registrations = await Promise.allSettled(pending);
-  const runs: StartedRun[] = [];
-  for (const registration of registrations) {
-    if (registration.status === "fulfilled") {
-      runs.push({ id: registration.value.id });
-    } else if (!failed) {
-      failed = true;
-      failure = registration.reason;
-    }
-  }
-
-  if (failed) {
+    runs = error instanceof RoutingError ? error.runs : [];
+    const failure = error instanceof RoutingError ? error.cause : error;
     serverLog("error", "webhook.route_failed", { webhook: name, runs, error: failure });
     return Response.json({
       error: failure instanceof Error ? failure.message : "Webhook routing failed.",

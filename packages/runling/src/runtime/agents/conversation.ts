@@ -4,7 +4,7 @@ import { TimeoutError, validateTimeout } from "../timeout.ts";
 import { emitRunlingEvent } from "../events.ts";
 import type { WorkflowContext } from "../context.ts";
 import type { RunlingAgent } from "../agent.ts";
-import { connectAgent } from "./connection.ts";
+import { connectAgent, type AgentConnectionOptions } from "./connection.ts";
 
 /**
  * Keep an agent conversation open until its idle timeout expires.
@@ -15,9 +15,15 @@ export async function runAgentConversation(
   ctx: WorkflowContext<string, string>,
   agent: Pick<RunlingAgent, "runOutcome" | "steer">,
   prompt: string,
-  { timeout = 900, onBusy }: {
+  { timeout = 900, onBusy, notifications, keepAlive, prepareMessage }: {
     timeout?: number;
     onBusy?: (busy: boolean) => void;
+    /** Background messages can steer an active turn or wake an idle agent. */
+    notifications?: AsyncIterable<string>;
+    /** Omit the idle deadline while work is active; its completion must send a notification. */
+    keepAlive?: () => boolean;
+    /** Prepare each input once with its trusted origin, including the initial user prompt. */
+    prepareMessage?: AgentConnectionOptions["prepareMessage"];
   } = {},
 ): Promise<string> {
   validateTimeout(timeout);
@@ -42,6 +48,8 @@ export async function runAgentConversation(
 
   const connection = connectAgent(ctx, agent, {
     inbox: ctx.inbox,
+    notifications,
+    prepareMessage,
     onText: text => ctx.emit(text),
     onDelivery: async (text, consumed) => {
       if (consumed) {
@@ -54,6 +62,7 @@ export async function runAgentConversation(
   });
 
   try {
+    if (prepareMessage) prompt = await prepareMessage(prompt, "user");
     while (true) {
       onBusy?.(true);
       const result = await connection.runOutcome(prompt);
@@ -77,7 +86,7 @@ export async function runAgentConversation(
         prompt = await input(
           { ...ctx, signal: connection.signal, onInput: readNextMessage },
           "Waiting for a message",
-          { timeout },
+          { timeout: keepAlive?.() ? undefined : timeout },
         );
       } catch (error) {
         // Idle expiry is normal completion. Cancellation and transport errors

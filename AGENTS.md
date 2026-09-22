@@ -54,6 +54,8 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 - [README.md](README.md) — general project overview.
 - [packages/runling/README.md](packages/runling/README.md) — Runling APIs,
   development commands, and release setup.
+- [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
+  ADRs, FDRs, and API guides. Runling records have their own numbering.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,
@@ -103,6 +105,17 @@ When an agent needs the long-running development stack, launch `mise dev`; the
 task runs the child processes through `tools/dev-supervisor.sh` so lifecycle
 signals reach them directly. Stop it before handing control back to the user.
 Never leave a dev stack running in a detached or yielded terminal session.
+
+## Runling Documentation Updates
+
+- Read [Runling's documentation index](packages/runling/docs/README.md) when
+  changing Runling. Use its ADRs for architecture decisions and its FDRs for
+  feature behavior and rationale. Keep the relevant records and API guides current.
+- Keep Runling records in `packages/runling/docs/adr/` and
+  `packages/runling/docs/fdr/`. Do not add them to Chatto or Authling numbering.
+  Root ADRs apply only when they explicitly describe a repository-wide decision.
+- Keep application-specific bot behavior outside Runling's framework records.
+  Record proposals and unresolved limits as open questions, not implemented behavior.
 
 ## Chatto Documentation Updates
 
