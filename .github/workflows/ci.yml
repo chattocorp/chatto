@@ -97,6 +97,7 @@ jobs:
           install-cli-deps: "false"
       - run: mise check-runling
       - run: mise test-runling
+      - run: mise test-runling-bot
       - run: mise test-runling-package
 
   test-chattobot:
@@ -124,6 +125,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        with:
+          save-go-build-cache: "true"
 
       - name: Derive main image version
         id: image-version
@@ -523,17 +526,20 @@ jobs:
       - name: Setup environment
         if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-e2e
+          # Only one matrix job writes the cache. All E2E jobs can restore it
+          # on the next run without concurrent cache-save attempts.
+          save-go-build-cache: ${{ matrix.shard == 1 && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Setup Playwright
         if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Build E2E server and test Runling bot
+      - name: Build E2E server
         if: needs.changes.outputs.chatto == 'true'
-        run: |
-          mise build-e2e-server
-          mise test-runling-bot
+        run: mise build-e2e-server
 
       - name: Run E2E tests
         if: needs.changes.outputs.chatto == 'true'
@@ -575,6 +581,7 @@ jobs:
         uses: ./.github/actions/setup
         timeout-minutes: 15
         with:
+          go-build-cache-scope: test-e2e
           install-ffmpeg: "true"
 
       - name: Setup Playwright
@@ -608,6 +615,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-e2e
 
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
