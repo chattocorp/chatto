@@ -14,9 +14,13 @@ inputs:
     required: false
     default: "true"
   save-go-build-cache:
-    description: "Save the shared Go build cache when the job completes"
+    description: "Save the workload-specific Go build cache when the job completes"
     required: false
     default: "false"
+  go-build-cache-scope:
+    description: "Cache scope for jobs that compile the same Go workload"
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -34,22 +38,23 @@ runs:
       uses: actions/cache/restore@v5
       with:
         path: ~/.cache/go-build
-        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
+        key: go-build-v2-${{ inputs.go-build-cache-scope || github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
         restore-keys: |
-          go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
-          go-build-${{ runner.os }}-${{ runner.arch }}-
+          go-build-v2-${{ inputs.go-build-cache-scope || github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
+          go-build-v2-${{ inputs.go-build-cache-scope || github.job }}-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Restore and save Go build artifacts
       if: inputs.install-cli-deps == 'true' && inputs.save-go-build-cache == 'true'
       uses: actions/cache@v5
       with:
         path: ~/.cache/go-build
-        # Go's build cache is content-addressed. Restore the newest compatible
-        # cache, then save this commit's compiled source state for the next run.
-        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
+        # Keep workloads separate so unrelated build modes do not make every
+        # job restore one large cache. The version also leaves the old shared
+        # cache lineage behind.
+        key: go-build-v2-${{ inputs.go-build-cache-scope || github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
         restore-keys: |
-          go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
-          go-build-${{ runner.os }}-${{ runner.arch }}-
+          go-build-v2-${{ inputs.go-build-cache-scope || github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
+          go-build-v2-${{ inputs.go-build-cache-scope || github.job }}-${{ runner.os }}-${{ runner.arch }}-
 
     # mise-action installs mise and the tools defined in mise.toml (Go, Node)
     # with automatic caching of the tool installations
