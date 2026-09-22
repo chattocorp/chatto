@@ -437,7 +437,7 @@ jobs:
         with:
           go-build-cache-scope: test-cli-shared
           # PR caches are isolated from main and cannot accelerate a merge run.
-          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          save-go-build-cache: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.pull_request.number == 2528 }}
 
       - name: Run Authling tests
         if: needs.changes.outputs.authling == 'true'
@@ -471,7 +471,7 @@ jobs:
         with:
           go-build-cache-scope: test-cli-chatto
           # PR caches are isolated from main and cannot accelerate a merge run.
-          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          save-go-build-cache: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.pull_request.number == 2528 }}
 
       - name: Build frontend
         run: mise build-frontend
@@ -561,7 +561,7 @@ jobs:
           go-build-cache-scope: test-e2e
           # Only one matrix job writes the cache. All E2E jobs can restore it
           # on the next run without concurrent cache-save attempts.
-          save-go-build-cache: ${{ matrix.shard == 1 && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          save-go-build-cache: ${{ matrix.shard == 1 && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.pull_request.number == 2528) }}
 
       - name: Setup Playwright
         if: needs.changes.outputs.chatto == 'true'

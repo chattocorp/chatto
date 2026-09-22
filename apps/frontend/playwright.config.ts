@@ -17,9 +17,7 @@ export default defineConfig({
   reporter,
   maxFailures: 5,
   timeout: 30_000,
-  // Hosted runners have enough idle time between browser interactions to
-  // support more workers than local development without adding CI shards.
-  workers: process.env.CI ? 5 : 4,
+  workers: 4,
   expect: {
     timeout: 15_000
   },
