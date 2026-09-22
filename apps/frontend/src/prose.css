@@ -265,6 +265,7 @@
   & th,
   & td {
     unicode-bidi: plaintext;
+    overflow-wrap: anywhere;
   }
 
   & th {
