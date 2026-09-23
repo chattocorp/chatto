@@ -92,6 +92,14 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		if added.Msg.GetRoomId() != created.Msg.GetRoom().GetId() || added.Msg.GetMember().GetUser().GetId() != user.GetId() {
 			t.Fatalf("OperatorRoomService.AddMember response = %+v", added.Msg)
 		}
+		for _, request := range []*operatorv1.AddMemberRequest{
+			{UserId: user.GetId()},
+			{RoomId: created.Msg.GetRoom().GetId()},
+		} {
+			if _, err := roomClient.AddMember(ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("OperatorRoomService.AddMember empty ID error = %v, want invalid argument", err)
+			}
+		}
 
 		adminClient := adminv1connect.NewAdminUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
 		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
