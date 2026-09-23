@@ -39,6 +39,7 @@ The submit button's color follows `submitTone` (`action` by default; use
     description,
     visible = $bindable(false),
     title,
+    titleContent,
     size = 'md',
     submitLabel = m('common.save'),
     submitTone = 'action',
@@ -57,6 +58,8 @@ The submit button's color follows `submitTone` (`action` by default; use
     description?: Snippet;
     visible?: boolean;
     title: string;
+    /** Rich visual title; title remains the plain-text fallback. */
+    titleContent?: Snippet;
     size?: 'sm' | 'md' | 'lg';
     submitLabel?: string;
     /** Visual weight of the submit button. */
@@ -100,7 +103,7 @@ The submit button's color follows `submitTone` (`action` by default; use
   const descriptionId = `${formDialogId}-description`;
 </script>
 
-<Dialog bind:visible {title} {size} describedBy={description ? descriptionId : undefined} {onclose}>
+<Dialog bind:visible {title} {titleContent} {size} describedBy={description ? descriptionId : undefined} {onclose}>
   <form id={formId} onsubmit={handleSubmit} class="flex flex-col gap-5">
     {#if description}
       <div id={descriptionId} class="text-muted">

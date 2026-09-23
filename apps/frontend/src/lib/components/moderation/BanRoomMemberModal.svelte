@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { accountNameToken } from '$lib/render/accountName';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
@@ -49,9 +50,15 @@
   }
 </script>
 
+{#snippet banTitle()}<AccountNameTokens
+  text={m('admin.moderation.ban_title', { user: accountNameToken(0) })}
+  accounts={[{ name: displayName, identity: user }]}
+/>{/snippet}
+
 <FormDialog
   bind:visible
-  title={m('admin.moderation.ban_title', { user: formatAccountName(displayName, user) })}
+  title={m('admin.moderation.ban_title', { user: displayName })}
+  titleContent={banTitle}
   size="sm"
   submitLabel={m('admin.moderation.ban_action')}
   submitTone="danger"

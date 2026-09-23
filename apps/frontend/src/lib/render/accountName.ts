@@ -13,3 +13,8 @@ export function isBotAccount(identity?: AccountNameIdentity | null): boolean {
 export function formatAccountName(name: string, identity?: AccountNameIdentity | null): string {
   return isBotAccount(identity) ? `${name} (${BOT_ACCOUNT_LABEL})` : name;
 }
+
+/** Placeholder for a rich account name in a localized sentence. */
+export function accountNameToken(index: number): string {
+  return `\uFFF0${index}\uFFF1`;
+}

@@ -45,6 +45,7 @@
   };
 
   const members = [alice, bob, carol, dave];
+  const helper = { ...bob, id: 'helper', displayName: 'Helper', isBot: true };
 </script>
 
 <script lang="ts">
@@ -69,6 +70,12 @@
 <Story name="Two typers" asChild>
   <div class="relative h-24 w-96 overflow-hidden rounded-lg border border-border bg-background p-2">
     <TypingIndicator typingUserIds={['alice', 'bob']} {members} />
+  </div>
+</Story>
+
+<Story name="Bot typing" asChild>
+  <div class="relative h-24 w-96 overflow-hidden rounded-lg border border-border bg-background p-2">
+    <TypingIndicator typingUserIds={['helper', 'alice']} members={[helper, alice]} />
   </div>
 </Story>
 

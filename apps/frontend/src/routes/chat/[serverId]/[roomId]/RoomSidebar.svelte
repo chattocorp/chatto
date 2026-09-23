@@ -14,7 +14,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { accountNameToken, formatAccountName } from '$lib/render/accountName';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
@@ -332,7 +332,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
     banningMemberId = member.id;
     banError = null;
-    const displayName = formatAccountName(member.displayName || member.login, member);
     try {
       const api = connection().getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
@@ -347,7 +346,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
     if (!serverScope.isCurrent()) return;
     banningMemberId = null;
 
-    toast.success(m('room.sidebar.ban_success', { name: displayName }));
+    toast.success({
+      text: m('room.sidebar.ban_success', { name: accountNameToken(0) }),
+      accounts: [{
+        name: member.displayName || member.login,
+        identity: { isBot: member.isBot, deleted: member.deleted }
+      }]
+    });
     banDialogMember = null;
   }
 

@@ -459,6 +459,22 @@ describe('notifications page', () => {
     expect(row.textContent).not.toMatch(/·\s*1\s*·/);
   });
 
+  it('shows the shared badge for a bot in a notification summary', async () => {
+    retainProjection([{ ...mocks.occurrence, actor: {
+      id: 'helper', login: 'helper', displayName: 'Helper', isBot: true,
+      deleted: false, avatarUrl: null, presenceStatus: 1, customStatus: null
+    }, signalKind: NotificationSignalKind.FOLLOWED_THREAD }]);
+
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const element = q(container, '[data-testid="notification-group"]');
+      expect(element).not.toBeNull();
+      return element as HTMLElement;
+    });
+    expect(q(row, '[data-testid="notification-content"] [data-testid="bot-badge"]')).not.toBeNull();
+    expect(row.textContent).not.toContain('(BOT)');
+  });
+
   it('consolidates reactions to one target while showing their emoji and actors', async () => {
     const alice = {
       id: 'alice',

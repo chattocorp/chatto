@@ -147,6 +147,12 @@ describe('UserCombobox', () => {
 
     expect(view.container.querySelector('[aria-label="helper_bot"]')).not.toBeNull();
     expect(view.container.querySelector('[data-testid="bot-badge"]')?.textContent).toBe('BOT');
+    (view.container.querySelector('[role="option"]') as HTMLButtonElement).click();
+    await settle();
+    const input = view.container.querySelector<HTMLInputElement>('#actor')!;
+    expect(input.value).toBe('Helper @helper_bot');
+    expect(input.parentElement?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    expect(input.getAttribute('aria-describedby')).toContain('actor-selection-description');
   });
 
   it('omits bot accounts when restricted to human users', async () => {

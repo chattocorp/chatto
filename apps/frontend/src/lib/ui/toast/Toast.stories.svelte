@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import Toast from './Toast.svelte';
+  import { accountNameToken } from '$lib/render/accountName';
 
   const componentDescription = `
     Transient toast notifications use the same compact menu shell as context menus and popups,
@@ -31,6 +32,17 @@
     <Toast tone="info" message="Connecting to the server..." onDismiss={dismiss} />
     <Toast tone="warning" message="Some changes could not be applied" onDismiss={dismiss} />
     <Toast tone="error" message="Failed to send message" onDismiss={dismiss} />
+  </div>
+</Story>
+
+<Story name="Bot account" asChild>
+  <div class="flex min-h-40 items-end justify-end rounded-lg border border-border bg-background p-6">
+    <Toast
+      tone="success"
+      message={`${accountNameToken(0)} was added to the room`}
+      accounts={[{ name: 'Helper', identity: { isBot: true } }]}
+      onDismiss={dismiss}
+    />
   </div>
 </Story>
 

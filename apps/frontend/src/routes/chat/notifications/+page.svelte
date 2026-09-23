@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { accountNameToken } from '$lib/render/accountName';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -302,15 +303,12 @@
     const occurrence = group.openTarget;
     if (!occurrence) return m('chat.notifications.activity');
     const signalKind = occurrence.signalKind;
-    const actor = occurrence.actor
-      ? formatAccountName(occurrence.actor.displayName, occurrence.actor)
-      : undefined;
+    const actor = occurrence.actor ? accountNameToken(0) : undefined;
     if (signalKind === NotificationSignalKind.REACTION) {
       const reactionOccurrence = group.occurrences.find((item) => item.actor) ?? occurrence;
-      const reactionActor = formatAccountName(
-        reactionOccurrence.actor?.displayName ?? m('common.deleted_user'),
-        reactionOccurrence.actor
-      );
+      const reactionActor = reactionOccurrence.actor
+        ? accountNameToken(0)
+        : m('common.deleted_user');
       const emojis = [
         ...new Set(
           group.occurrences
@@ -357,6 +355,15 @@
       return m('chat.notifications.summary.new_message', { actor });
     }
     return m('chat.notifications.summary.activity', { actor });
+  }
+
+  function summaryAccounts(group: NotificationGroupItem) {
+    const occurrence = group.openTarget;
+    const actor =
+      occurrence?.signalKind === NotificationSignalKind.REACTION
+        ? (group.occurrences.find((item) => item.actor)?.actor ?? occurrence.actor)
+        : occurrence?.actor;
+    return actor ? [{ name: actor.displayName, identity: actor }] : [];
   }
 
   function notificationActors(group: NotificationGroupItem): NotificationActor[] {
@@ -574,7 +581,10 @@
                 {/if}
                 <span class="min-w-0 flex-1" data-testid="notification-content">
                   <bdi class="block truncate font-medium" dir="auto">
-                    {occurrenceSummary(item.group)}
+                    <AccountNameTokens
+                      text={occurrenceSummary(item.group)}
+                      accounts={summaryAccounts(item.group)}
+                    />
                   </bdi>
                   <span class="block truncate text-sm text-muted">
                     {#if showServerHostname}{item.serverHostname}<span

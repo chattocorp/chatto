@@ -23,13 +23,14 @@ message list layout, and it announces changes politely to screen readers via a
 </script>
 
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { accountNameToken } from '$lib/render/accountName';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { prefersReducedMotion } from 'svelte/motion';
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
 
   let {
     typingUserIds,
@@ -58,14 +59,9 @@ message list layout, and it announces changes politely to screen readers via a
   let label = $derived.by(() => {
     if (activeUserIds.length === 0) return '';
 
-    const names = activeUserIds.slice(0, MAX_LABEL_NAMES).map((id) => {
-      const member = members.find((member) => member.id === id);
-      const name = formatAccountName(
-        member?.displayName || member?.login || m('common.unknown_user'),
-        member
-      );
-      return String.fromCodePoint(0x2068) + name + String.fromCodePoint(0x2069);
-    });
+    const names = activeUserIds
+      .slice(0, MAX_LABEL_NAMES)
+      .map((_, index) => accountNameToken(index));
 
     if (names.length === 1) {
       return m('room.typing.one', { name: names[0] });
@@ -78,6 +74,15 @@ message list layout, and it announces changes politely to screen readers via a
     const otherCount = activeUserIds.length - MAX_LABEL_NAMES;
     return m('room.typing.many_count', { count: otherCount, names: names.join(', ') });
   });
+  let labelAccounts = $derived(
+    activeUserIds.slice(0, MAX_LABEL_NAMES).map((id) => {
+      const member = members.find((candidate) => candidate.id === id);
+      return {
+        name: member?.displayName || member?.login || m('common.unknown_user'),
+        identity: member
+      };
+    })
+  );
 </script>
 
 <!-- Keep the live region mounted before text arrives so updates can be announced. -->
@@ -104,7 +109,9 @@ message list layout, and it announces changes politely to screen readers via a
         </span>
       {/each}
       {#if label}
-        <span class="typing-label ms-0.5 max-w-64 min-w-0 truncate text-muted">{label}</span>
+        <span class="typing-label ms-0.5 max-w-64 min-w-0 truncate text-muted">
+          <AccountNameTokens text={label} accounts={labelAccounts} />
+        </span>
       {/if}
       <span class="typing-dots grid shrink-0 grid-cols-3 gap-0.5 text-muted" aria-hidden="true">
         <!-- Clockwise perimeter chase; negative delays start with a complete fading trail. -->

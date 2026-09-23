@@ -1,15 +1,19 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
+  import type { AccountNameIdentity } from '$lib/render/accountName';
   import type { ToastAction, ToastTone } from './toastState.svelte';
 
   let {
     tone,
     message,
+    accounts,
     action,
     onDismiss
   }: {
     tone: ToastTone;
     message: string;
+    accounts?: readonly { name: string; identity?: AccountNameIdentity | null }[];
     action?: ToastAction;
     onDismiss: () => void;
   } = $props();
@@ -38,7 +42,9 @@
   <div class="flex min-h-10 items-center gap-3 menu-section px-3 py-2">
     <span class={['iconify size-5 shrink-0', icons[tone], iconColors[tone]]} aria-hidden="true"
     ></span>
-    <span class="min-w-0 flex-1 leading-snug break-words">{message}</span>
+    <span class="min-w-0 flex-1 leading-snug break-words">
+      {#if accounts}<AccountNameTokens text={message} {accounts} />{:else}{message}{/if}
+    </span>
     {#if action}
       <button type="button" class="btn-secondary btn-xs shrink-0" onclick={handleActionClick}>
         {action.label}

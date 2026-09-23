@@ -7,6 +7,7 @@
  *   toast.success("Message sent");
  *   toast.info("New version available", 0, { label: "Reload", onClick: () => location.reload() });
  */
+import type { AccountNameIdentity } from '$lib/render/accountName';
 
 export type ToastTone = 'error' | 'success' | 'info' | 'warning';
 
@@ -19,8 +20,17 @@ export interface ToastData {
   id: string;
   tone: ToastTone;
   message: string;
+  accounts?: readonly { name: string; identity?: AccountNameIdentity | null }[];
   action?: ToastAction;
 }
+
+/** A localized sentence can carry account identities for visual bot badges. */
+export type ToastMessage =
+  | string
+  | {
+      text: string;
+      accounts: readonly { name: string; identity?: AccountNameIdentity | null }[];
+    };
 
 const DEFAULT_DURATION = 5000;
 
@@ -32,12 +42,16 @@ function generateId(): string {
 
 function add(
   tone: ToastTone,
-  message: string,
+  message: ToastMessage,
   duration = DEFAULT_DURATION,
   action?: ToastAction
 ): string {
   const id = generateId();
-  toasts.push({ id, tone, message, action });
+  toasts.push(
+    typeof message === 'string'
+      ? { id, tone, message, action }
+      : { id, tone, message: message.text, accounts: message.accounts, action }
+  );
 
   if (duration > 0) {
     setTimeout(() => remove(id), duration);
@@ -58,13 +72,13 @@ function clear(): void {
 }
 
 export const toast = {
-  error: (message: string, duration?: number, action?: ToastAction) =>
+  error: (message: ToastMessage, duration?: number, action?: ToastAction) =>
     add('error', message, duration, action),
-  success: (message: string, duration?: number, action?: ToastAction) =>
+  success: (message: ToastMessage, duration?: number, action?: ToastAction) =>
     add('success', message, duration, action),
-  info: (message: string, duration?: number, action?: ToastAction) =>
+  info: (message: ToastMessage, duration?: number, action?: ToastAction) =>
     add('info', message, duration, action),
-  warning: (message: string, duration?: number, action?: ToastAction) =>
+  warning: (message: ToastMessage, duration?: number, action?: ToastAction) =>
     add('warning', message, duration, action),
   remove,
   clear
