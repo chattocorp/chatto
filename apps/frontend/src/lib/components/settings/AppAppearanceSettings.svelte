@@ -9,6 +9,25 @@
   } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import AccentColorPicker from './AccentColorPicker.svelte';
+  import RangeField from '$lib/ui/form/RangeField.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+
+  const contrastDisplayValue = $derived(`${Math.round((userPreferences.contrastAge - 20) * 5)}%`);
+  const contrastValueText = $derived(
+    `${contrastDisplayValue}, ${m(
+      userPreferences.contrastAge < 30
+        ? 'settings.preferences.contrast.softer'
+        : userPreferences.contrastAge > 30
+          ? 'settings.preferences.contrast.stronger'
+          : 'settings.preferences.contrast.current'
+    )}`
+  );
+  let cacheCleared = $state(false);
+
+  async function clearDeviceCache() {
+    await serverRegistry.clearDeviceSavedViews();
+    cacheCleared = true;
+  }
 
   const themeOptions = $derived([
     {
@@ -91,14 +110,30 @@
     </Panel>
 
     <Panel title={m('settings.preferences.depth.title')} icon="iconify icon-[uil--layer-group]">
-      <div class="flex max-w-md flex-col gap-2" role="radiogroup" aria-label={m('settings.preferences.depth.title')}>
-        {#each depthOptions as option (option.value)}
-          <ChoiceRow
-            label={option.label}
-            selected={userPreferences.surfaceDepth === option.value}
-            onclick={() => (userPreferences.surfaceDepth = option.value)}
-          />
-        {/each}
+      <div class="flex flex-col gap-6">
+        <div class="flex max-w-md flex-col gap-2" role="radiogroup" aria-label={m('settings.preferences.depth.title')}>
+          {#each depthOptions as option (option.value)}
+            <ChoiceRow
+              label={option.label}
+              selected={userPreferences.surfaceDepth === option.value}
+              onclick={() => (userPreferences.surfaceDepth = option.value)}
+            />
+          {/each}
+        </div>
+        <RangeField
+          id="ui-contrast"
+          label={m('settings.preferences.contrast.label')}
+          min={20}
+          max={40}
+          step={0.5}
+          ticks={[20, 30, 40]}
+          value={userPreferences.contrastAge}
+          displayValue={contrastDisplayValue}
+          ariaValueText={contrastValueText}
+          prominent
+          oninput={(event) =>
+            (userPreferences.contrastAge = (event.currentTarget as HTMLInputElement).valueAsNumber)}
+        />
       </div>
     </Panel>
 
@@ -122,6 +157,13 @@
           {/each}
         </div>
       </div>
+    </Panel>
+    <Panel title={m('ui.saved_view.cache_title')} icon="iconify icon-[uil--database]">
+      <p class="mb-3 text-muted">{m('ui.saved_view.cache_description')}</p>
+      <button class="button" type="button" onclick={clearDeviceCache}>
+        {m('ui.saved_view.clear_cache')}
+      </button>
+      {#if cacheCleared}<p role="status">{m('ui.saved_view.cache_cleared')}</p>{/if}
     </Panel>
   </div>
 </PaneContent>

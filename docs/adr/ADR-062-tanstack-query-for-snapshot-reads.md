@@ -36,9 +36,10 @@ The cache has the following boundaries:
   scope even when the server and user IDs are unchanged.
 - The query cache is memory-only. Disposing a server store removes every query
   under that server's key prefix during logout, credential replacement, and
-  server removal. Authentication failure purges the same prefix immediately
-  and unmounts private route content so active observers cannot retain a
-  visible copy.
+  server removal. Authentication failure purges the same prefix immediately.
+  A warm chat keeps its normal projection visible while the user reconnects.
+  Bounded saved text populates the normal chat view on a cold offline launch.
+  It does not restore query results or grant actions.
 - Query functions pass TanStack's `AbortSignal` to ConnectRPC so superseded or
   unmounted reads can be cancelled.
 - Mutations update or invalidate only explicitly related keys. Mutation
@@ -72,6 +73,11 @@ permission matrices, and event-log lists and details. Other snapshot reads can
 move incrementally when doing so removes meaningful custom lifecycle code.
 The first follow-up applies it to paginated moderation bans and the bounded
 system-diagnostics snapshot.
+
+[ADR-101](ADR-101-shared-client-user-profiles.md) defines one connection-scoped
+owner for public user profiles shared by snapshot and realtime readers.
+Directory queries retain request and membership state; they do not own a second
+public-profile cache.
 
 ## Consequences
 

@@ -230,6 +230,12 @@
         "grey": "灰色",
         "preview": "預覽"
       },
+      "contrast": {
+        "label": "對比度",
+        "softer": "較柔和的對比度",
+        "current": "目前的對比度",
+        "stronger": "更強的對比度"
+      },
       "depth": {
         "title": "介面風格",
         "flat": "平面",
@@ -492,7 +498,6 @@
       "create_failed": "創建機器人失敗",
       "created": "機器人已建立",
       "username": "使用者名稱",
-      "username_hint": "機器人使用者名稱必須以 _bot 結尾。",
       "display_name": "顯示名稱",
       "owner": "擁有者",
       "reassign_owner": "重新指派擁有者",

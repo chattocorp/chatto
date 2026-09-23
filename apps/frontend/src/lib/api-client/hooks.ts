@@ -1,11 +1,5 @@
-import type { UserSummary } from './userSummary.js';
-
-/** Cache-priming user snapshot; structurally the shared `UserSummary`. */
-export type UserSummaryForCache = UserSummary;
-
 export type ApiClientHooks = {
   onAuthenticationRequired?: (serverId: string) => void;
-  onUserSummaries?: (serverId: string | undefined, users: UserSummaryForCache[]) => void;
 };
 
 let configuredHooks: ApiClientHooks = {};
@@ -21,13 +15,4 @@ export function notifyAuthenticationRequired(
   if (!serverId) return;
   localHook?.(serverId);
   configuredHooks.onAuthenticationRequired?.(serverId);
-}
-
-export function notifyUserSummaries(
-  serverId: string | undefined,
-  users: UserSummaryForCache[],
-  localHook?: (serverId: string | undefined, users: UserSummaryForCache[]) => void
-): void {
-  localHook?.(serverId, users);
-  configuredHooks.onUserSummaries?.(serverId, users);
 }

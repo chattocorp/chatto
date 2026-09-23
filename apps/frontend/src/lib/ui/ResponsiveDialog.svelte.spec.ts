@@ -1,19 +1,58 @@
 import '../../app.css';
-import { page, userEvent } from 'vitest/browser';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cdp, page, userEvent } from 'vitest/browser';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import ResponsiveDialogHarness from './ResponsiveDialogHarness.svelte';
 import BottomSheet from './BottomSheet.svelte';
 import { testSnippet } from '$lib/test-utils';
 
-afterEach(() => {
+beforeEach(async () => {
+	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
+});
+
+afterEach(async () => {
+	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
 	vi.restoreAllMocks();
 	document.documentElement.style.fontSize = '';
 	document.documentElement.dir = '';
 });
 
 describe('responsive task dialogs', () => {
+	it.each([320, 390, 767, 768])('keeps a centred dialog usable with a mouse at %i px', async (width) => {
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+		await page.viewport(width, 844);
+		const { container } = render(ResponsiveDialogHarness, { longBody: true });
+		const dialog = container.querySelector('dialog')!;
+		expect(dialog.classList.contains('bottom-sheet')).toBe(false);
+		const frame = dialog.querySelector('.dialog-frame')!;
+		expect(getComputedStyle(frame).borderRadius).not.toBe('0px');
+		expect(dialog.getBoundingClientRect().width).toBeLessThanOrEqual(width - 32);
+		expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth);
+		await expect.element(container.querySelector<HTMLButtonElement>('footer button')!).toBeVisible();
+		for (const label of dialog.querySelectorAll<HTMLElement>('footer .button-content')) {
+			expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+		}
+	});
+
+	it('preserves the draft and focus when touch capability changes', async () => {
+		await page.viewport(390, 844);
+		const { container } = render(ResponsiveDialogHarness);
+		const dialog = container.querySelector('dialog')!;
+		const field = dialog.querySelector('textarea')!;
+		field.value = 'Keep this draft';
+		field.focus();
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+		await expect.poll(() => dialog.classList.contains('bottom-sheet')).toBe(false);
+		expect(dialog.querySelector('textarea')).toBe(field);
+		expect(field.value).toBe('Keep this draft');
+		expect(document.activeElement).toBe(field);
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
+		await expect.poll(() => dialog.classList.contains('bottom-sheet')).toBe(true);
+		expect(field.value).toBe('Keep this draft');
+		expect(document.activeElement).toBe(field);
+	});
+
 	it('uses the same frame surround as context-menu sheets', async () => {
 		await page.viewport(390, 844);
 		function surround(frame: Element, content: Element) {
@@ -181,10 +220,6 @@ describe('responsive task dialogs', () => {
 
 	it('ignores mobile keyboard cancel while editing, but explicit Close still works without animation', async () => {
 		await page.viewport(390, 844);
-		const matchMedia = window.matchMedia.bind(window);
-		vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
-			query === '(pointer: coarse)' ? ({ matches: true } as MediaQueryList) : matchMedia(query)
-		);
 		const onclose = vi.fn();
 		const { container } = render(ResponsiveDialogHarness, { onclose });
 		const dialog = container.querySelector('dialog')!;

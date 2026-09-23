@@ -17,6 +17,7 @@ describe('App Preferences appearance page', () => {
     userPreferences.displayTheme = 'system';
     userPreferences.accentColor = 'cyan';
     userPreferences.surfaceDepth = '3d';
+    userPreferences.contrastAge = 30;
     userPreferences.threadPanePresentation = 'overlay';
   });
 
@@ -39,13 +40,48 @@ describe('App Preferences appearance page', () => {
     const { container } = render(AppearancePage);
     await settle();
 
-    expect(container.querySelectorAll('.panel-shell')).toHaveLength(4);
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(5);
     expect(container.textContent).toContain('Appearance');
     expect(container.textContent).toContain(
       'Choices for this app that apply across all your registered servers'
     );
     expect(container.textContent).not.toContain('Timezone');
     expect(container.textContent).toContain('Thread pane');
+  });
+
+  it('applies and saves contrast while the slider moves with the keyboard', async () => {
+    const screen = render(AppearancePage);
+    await settle();
+    const stylePanel = [...screen.container.querySelectorAll('.panel-shell')].find((panel) =>
+      panel.querySelector('h2')?.textContent?.includes('UI Style')
+    );
+    expect(stylePanel?.querySelector('#ui-contrast')).not.toBeNull();
+    const slider = screen.getByRole('slider', { name: /^Contrast/ });
+    await expect.element(slider).toHaveValue('30');
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '50%, current contrast');
+    expect(screen.container.textContent).not.toContain('Very Low');
+    expect(screen.container.textContent).not.toContain('Very High');
+    const input = slider.element() as HTMLInputElement;
+    await slider.click();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(userPreferences.contrastAge).toBe(30.5);
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '53%, stronger contrast');
+    expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('5%');
+    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+      contrastAge: 30.5
+    });
+
+    input.value = '40';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    expect(userPreferences.contrastAge).toBe(40);
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '100%, stronger contrast');
+    await expect.element(slider).not.toHaveAttribute('aria-describedby');
+
+    input.value = '20';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '0%, softer contrast');
   });
 
   it('persists the theme choice immediately for this app', async () => {

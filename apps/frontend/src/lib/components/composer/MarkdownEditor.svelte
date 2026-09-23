@@ -89,7 +89,8 @@ the same API as the visual editor while keeping the stored Markdown visible.
     { tag: tags.strong, fontWeight: '700' },
     { tag: tags.emphasis, fontStyle: 'italic' },
     { tag: [tags.link, tags.url], color: 'var(--color-link)', textDecoration: 'underline' },
-    { tag: [tags.list, tags.quote], color: 'var(--color-muted)' },
+    { tag: tags.list, color: 'var(--color-text)' },
+    { tag: tags.quote, color: 'var(--color-muted)' },
     {
       tag: tags.monospace,
       color: 'var(--color-text)',

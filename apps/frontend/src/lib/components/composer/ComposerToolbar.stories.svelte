@@ -9,8 +9,8 @@
   let createThread = $state(false);
 </script>
 
-<Story name="Compact glossy actions" asChild>
-  <div class="@container flex w-80 justify-end chat-input-surface p-2">
+<Story name="Narrow actions" asChild>
+  <div class="@container/composer w-80 chat-input-surface p-2">
     <ComposerToolbar
       editorApi={null}
       inputDisabled={false}
@@ -25,8 +25,23 @@
   </div>
 </Story>
 
+<Story name="Very narrow thread reply" asChild>
+  <div class="@container/composer w-[180px] chat-input-surface p-2">
+    <ComposerToolbar
+      editorApi={null}
+      inputDisabled={false}
+      canAttach
+      isEditing={false}
+      canSubmit={false}
+      showAlsoSendToChannel
+      alsoSendToChannel
+      onsubmit={() => {}}
+    />
+  </div>
+</Story>
+
 <Story name="With labels" asChild>
-  <div class="@container flex w-[640px] justify-end chat-input-surface p-2">
+  <div class="@container/composer flex w-[640px] justify-end chat-input-surface p-2">
     <ComposerToolbar
       editorApi={null}
       inputDisabled={false}
@@ -36,6 +51,20 @@
       showCreateThread
       {createThread}
       onToggleCreateThread={() => (createThread = !createThread)}
+      onsubmit={() => {}}
+    />
+  </div>
+</Story>
+
+<Story name="Expanded draft actions" asChild>
+  <div class="@container/composer w-[640px] chat-input-surface p-2">
+    <ComposerToolbar
+      editorApi={null}
+      inputDisabled={false}
+      canAttach
+      isEditing={false}
+      canSubmit
+      showAlsoSendToChannel
       onsubmit={() => {}}
     />
   </div>

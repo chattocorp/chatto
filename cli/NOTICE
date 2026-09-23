@@ -9,6 +9,10 @@ Dependency manifests and lockfiles in this repository remain the authoritative
 set of third-party packages, including transitive dependencies, used to build
 each artifact.
 
+ChattoBot:
+
+- LinkeDOM (https://github.com/WebReflection/linkedom) - ISC License
+
 Server and CLI Go Components:
 
 - age (https://filippo.io/age) - BSD 3-Clause License
@@ -74,6 +78,9 @@ Frontend, Examples, and Documentation Components:
 - Fontsource IBM Plex Sans and IBM Plex Mono
   (https://fontsource.org/fonts/ibm-plex-sans,
   https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
+- Plus Jakarta Sans, bundled by Runling through Fontsource
+  (https://fontsource.org/fonts/plus-jakarta-sans) - SIL Open Font License 1.1
+- daisyUI, used by the Runling console (https://daisyui.com/) - MIT License
 - gemoji (https://github.com/github/gemoji) - MIT License
 - heic2any (https://github.com/alexcorvi/heic2any) - MIT License
 - highlight.js (https://highlightjs.org/) - BSD 3-Clause License
@@ -89,7 +96,7 @@ Frontend, Examples, and Documentation Components:
 - node-semver (https://github.com/npm/node-semver) - ISC License
 - Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
 - Undici, used by the Runling bot for address-pinned web requests (https://github.com/nodejs/undici) - MIT License
-- Runling workflow runner (https://github.com/chattocorp/runling) - MIT License
+- Runling workflow runner (packages/runling, originally https://github.com/chattocorp/runling) - MIT License; Copyright (c) 2026 Hendrik Mans and contributors
 - Pi coding agent, AI SDK, and terminal UI, used by Runling (https://github.com/earendil-works/pi) - MIT License
 - Playwright (https://playwright.dev/) - Apache License 2.0
 - Prettier and plugins (https://prettier.io/) - MIT License

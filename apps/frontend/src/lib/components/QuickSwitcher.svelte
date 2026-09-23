@@ -1,4 +1,7 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
@@ -134,19 +137,12 @@
                   </span>
                 {:else if item.kind === 'destination' && item.icon}
                   <span class="command-palette-leading"><span class="iconify sidebar-icon {item.icon}" aria-hidden="true"></span></span>
-                {:else if item.kind === 'user'}
-                  {@const user = item.participants?.[0] ?? null}
-                  <span class="command-palette-leading">
-                    {#if user}
-                      {@render avatar(user)}
-                    {:else}
-                      <span class="iconify sidebar-icon icon-[uil--user] text-muted"></span>
-                    {/if}
-                  </span>
+                {:else if item.kind === 'user' && item.participants?.[0]}
+                  <span class="command-palette-leading">{@render avatar(item.participants[0])}</span>
                 {:else if item.kind === 'dm' && item.participants}
                   <span class="command-palette-leading">
                     <span class="flex -space-x-2">
-                      {#each item.participants as participant (participant.id)}
+                      {#each item.participants.slice(0, 2) as participant (participant.id)}
                         {@render avatar(participant)}
                       {/each}
                     </span>
@@ -182,15 +178,25 @@
                       <span
                         data-testid="message-search-provenance"
                         dir="auto"
-                        class="mt-0.5 block truncate text-muted">{item.detail}</span
+                        class="mt-0.5 block truncate text-muted"><AccountNameTokens
+                          text={item.detail}
+                          accounts={item.message?.actor
+                            ? [{ name: item.message.actor.displayName || item.message.actor.login, identity: item.message.actor }]
+                            : []}
+                        /></span
                       >
                     {/if}
                   </span>
                 {:else}
                   <span class="min-w-0 flex-1 truncate">
-                    {#if item.kind === 'room'}<span class="text-muted">#</span>{/if}<bdi
-                      >{item.label}</bdi
-                    >{#if item.detail}<span class="text-muted"
+                    {#if item.kind === 'room'}<span class="text-muted">#</span
+                      >{/if}{#if item.kind === 'dm'}<DirectMessageName
+                        participants={item.participants ?? []}
+                        currentUserId={item.currentUserId}
+                      />{:else}<AccountName
+                        name={item.label}
+                        identity={item.kind === 'user' ? item.participants?.[0] : undefined}
+                      />{/if}{#if item.detail}<span class="text-muted"
                         >&nbsp;· <bdi>{item.detail}</bdi></span
                       >{/if}
                   </span>

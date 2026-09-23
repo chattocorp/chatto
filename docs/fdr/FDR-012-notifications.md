@@ -29,6 +29,11 @@ targets, unread counts, read state, or deletion semantics.
   unread dot to the applicable room. A thread-scoped Badge contributes to its
   parent room. An orange notification indicator takes priority when both types
   of attention apply.
+- The application icon shows an unnumbered badge when unread Important
+  notifications need attention on any signed-in server. The window title
+  shows their total count. Ambient notifications do not contribute to either
+  indicator. Reading the last Important notification clears both indicators,
+  even if Ambient notifications remain unread.
 - The list is divided into Today, Yesterday, This Week, and month sections
   using the preferred time zone of the account on each server.
 - Rows use concise, full localized sentences without message previews.
@@ -47,9 +52,10 @@ targets, unread counts, read state, or deletion semantics.
 - The Delete action deletes the exact visible occurrences in the current row.
   On devices that support hover, this action appears when the row has hover or
   keyboard focus. It remains visible on touch devices.
-- Dismiss read deletes only the loaded occurrences that were Read when the user
-  selected the action. It does not delete Unread occurrences that arrived
-  before or during the action. Both deletion actions update the UI
+- Dismiss read loads all remaining pages across signed-in servers, then deletes
+  the Read occurrences. It does not delete Unread occurrences that arrived
+  before or during the action. If a page fails to load, the action reports an
+  error and does not start deletion. Both deletion actions update the UI
   optimistically and then reconcile with the server.
 - Every occurrence leaves application-visible state exactly 90 days after its
   source activity. Reading or deleting it does not extend that lifetime.

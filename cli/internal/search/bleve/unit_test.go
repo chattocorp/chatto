@@ -3,6 +3,7 @@ package bleve
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
@@ -215,6 +216,32 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return strings.Contains(unitLogs.String(), "Projection checkpoint restored")
 	}, time.Second, 10*time.Millisecond)
+
+	// Upgrade an on-disk v10 checkpoint through the real startup/replay path.
+	// Remove its message to prove the new result comes from EVT, not old state.
+	stopActiveUnit()
+	legacyProjection, err = NewProjection(indexDirectory, unitConfig.SearchProvider.LanguagesOrDefault(), keyStore, keyStore, dekstore.New(runtimeState, unitLogger), unitLogger)
+	require.NoError(t, err)
+	data, err := legacyProjection.index.GetInternal([]byte(checkpointInternalKey))
+	require.NoError(t, err)
+	var oldCheckpoint checkpointRecord
+	require.NoError(t, json.Unmarshal(data, &oldCheckpoint))
+	oldCheckpoint.ContractID = languageCheckpointContractIDForBase("bleve-message-index-v10", legacyProjection.languages)
+	data, err = json.Marshal(oldCheckpoint)
+	require.NoError(t, err)
+	require.NoError(t, legacyProjection.index.SetInternal([]byte(checkpointInternalKey), data))
+	require.NoError(t, legacyProjection.index.Delete(messageDocumentID("M1")))
+	require.NoError(t, legacyProjection.Close())
+	startUnit()
+	require.Eventually(t, func() bool {
+		response, err = client.Query(ctx, &searchv1.QueryRequest{
+			RequiredTerms: []string{"integration"}, ThreadRootIds: []string{"M1"},
+			Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+		})
+		return err == nil && len(response.Hits) == 1
+	}, 5*time.Second, 10*time.Millisecond)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
+	require.Contains(t, unitLogs.String(), "Search index format changed; rebuilding from EVT")
 }
 
 func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {

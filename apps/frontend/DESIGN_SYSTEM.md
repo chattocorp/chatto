@@ -84,10 +84,11 @@ Do not add a separate speaking border or pulse to the card.
 
 ### Sidebar links
 
-Below the `md` breakpoint, the mobile drawer fills the viewport width. The
+Below the `md` breakpoint, the drawer fills the available frame width. The
 server gutter keeps its width and the navigation pane fills the remaining
-space. Both panes use the viewport width for their shared slide and swipe
-distance. Select a destination, use the app-header toggle, or swipe towards
+space. Both panes inherit one animation state through `sidebar-drawer`.
+Mouse drawers use the thread overlay's 300 px slide and fade. Touch drawers
+move the full frame width to follow a finger. Select a destination, use the app-header toggle, or swipe towards
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
 
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
@@ -188,9 +189,26 @@ formats, and lists with indentation. Only the groups have gaps between them. For
 shared active fill. Keep an intrinsic-width group inside a horizontal scroller
 when the controls must stay on one row in a narrow pane.
 
-Below 320 px of composer content width, message actions move below the editor.
-The editor keeps the remaining width beside the formatting toggle instead of
-competing with every action button. Wider composers keep the single input row.
+Below 560 px of composer content width, the editor uses the full inner width.
+The formatting toggle sits below it at the start of the surface. Attachment,
+timestamp, thread options, and Send stay together at the end. Groups wrap in very narrow
+panes. Wider composers keep inline actions. Layout and labels use the named
+`composer` container.
+
+In wider panes, a draft that grows beyond one text line also moves the actions
+below the editor. Keep this layout until the draft is cleared or sent, or its
+destination or edit mode changes. The extra text width can remove a line wrap;
+keeping the expanded layout prevents repeated layout changes while typing.
+
+Both composer toolbars use 44 px targets and 20 px icons in narrow touch
+windows, including hybrid devices. Wide windows and mouse-only devices keep
+28 px controls and 15 px icons. Composer controls opt in through
+`mobile-presentation:pill-button-group-touch`. This is a composer-specific
+exception to touch target sizing at every viewport width.
+The formatting shelf scrolls horizontally when its controls do not fit.
+In a wide, single-line composer, centre the editor and touch controls vertically.
+The compact desktop controls retain their bottom offset; do not apply that offset
+to the taller touch controls.
 
 ## Standard Dialogs
 
@@ -200,8 +218,9 @@ Use the standard dialog family for focused tasks:
 - Use `FormDialog` when a dialog collects input and submits one form.
 - Use `Dialog` for information, custom content, or two or more action paths.
 
-All three components own responsive presentation. Below `md` (768 px), task
-dialogs become full-width bottom sheets with a drag handle, `rounded-lg` top
+All three components own responsive presentation. Below 768 px, task
+dialogs become full-width bottom sheets only when a coarse pointer is available.
+Mouse windows retain centred dialogs that fit the viewport. Sheets have a drag handle, `rounded-lg` top
 corners, and safe-area spacing. Both layouts keep a `surface` frame around one
 inset `background` work plane. `sheet-frame` owns the same 16 px side and bottom
 surround for task dialogs and context-menu sheets, including safe-area spacing.
@@ -239,7 +258,9 @@ complete labels, including loading labels. The order is primary, alternatives,
 then dismissal. Desktop actions form an end-aligned row in the order dismissal,
 alternatives, then primary. DOM and keyboard order follow the visible order.
 Desktop labels can expand the dialog beyond its baseline width and truncate
-only at the viewport limit. Keep alternative actions in their intended order.
+only at the viewport limit on wide screens. Below 768 px, centred dialogs wrap
+actions and complete labels to keep them readable. Keep alternative actions in
+their intended order.
 
 Use `secondary` for Cancel, `action` for the recommended path, and a semantic
 tone such as `danger` only when the action has that meaning. Use an
@@ -433,7 +454,7 @@ instead of adding local gradients or arbitrary inset shadows.
 | `floating-frame` | Lit panel, dialog, and menu frames. |
 | `floating-inset` | Recessed content inside those frames. |
 | `sheet-frame` | Touch dialog and menu frames; uses shared depth, shell radius, and safe-area spacing. |
-| `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no outer border or highlight in any depth mode. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
+| `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no depth highlight on its outer edge. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. Higher contrast settings strengthen the edge in both themes. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
 | `accent-swatch` | Palette samples with their own colour gradient and shared lit edges. |
 
 The shared `--shell-*` theme tokens soften shell bevels in light mode with a
@@ -478,6 +499,10 @@ segmented tracks read as recessed surfaces. `segmented-track` softens the track
 fill and border, with space around every option. `segmented-selection` uses quiet
 shared shell lighting to lift the selected pill above its track. Buttons do
 not use `control-frame`.
+
+Page searches use the standard bordered input treatment. Use `TextInput` or
+the `bordered` appearance of `ChatSearchInput` when a clear action is needed.
+The composer surface remains specific to chat rails.
 
 Surfaces form a small semantic ladder:
 
@@ -556,6 +581,21 @@ adjust the owning component when the hierarchy itself is wrong.
 
 For text, use `text-text` for normal copy, `text-text-top` for the strongest
 heading contrast, and `text-muted` for metadata. Use `link` for inline links.
+
+The **Contrast** slider in Appearance's UI Style panel runs from 0% to 100%.
+At 50%, the semantic palette keeps its original colours. Lower values soften
+text and surface separation; higher values strengthen them. Keep text,
+backgrounds, surfaces, and borders on semantic tokens so they respond together.
+Accent, status, focus, and depth treatments stay independent of this control.
+At 0%, headings, body text, and muted text become deliberately softer in both
+themes. Action colours keep their separate contrast.
+At 100%, light uses black text on a white background with dark boundaries.
+Dark uses white text on a black background with light boundaries. The app frame
+and recessed panel edges use the same clear boundary. The prominent
+range field gains a visible boundary as contrast increases.
+The control fills the UI Style panel width and uses the prominent `RangeField`
+variant, with a larger track, thumb, and pointer target. Other range settings
+keep the standard size.
 
 ## Components, Utilities, And Tailwind
 
@@ -650,7 +690,11 @@ Touch context menus keep their bottom-sheet presentation.
   for softer product-specific objects, such as server tiles.
 - Nested rounded surfaces should be concentric when their padding is small.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
-  metadata, timestamps, and terse labels.
+  metadata, timestamps, and terse labels. When any touch pointer is available
+  (`any-pointer: coarse`), these sizes are 17, 15, and 13 px at the browser
+  default, including on hybrid devices. Mouse-only devices keep 16, 14, and
+  12 px at every viewport width. These text tokens do not change spacing or
+  heading sizes.
 - A compact surface uses one text size throughout. Menus, popovers, controls,
   and nested rows must not mix smaller metadata text with base-sized actions;
   express hierarchy with color, weight, spacing, and icons instead.
@@ -677,9 +721,42 @@ Touch context menus keep their bottom-sheet presentation.
   the narrow exception for a subordinate icon placed directly beside the text
   or value it acts on; do not use it for standalone or toolbar actions.
 
+## Input And Responsive Layout
+
+Input capability selects control behavior. Available space selects content layout.
+Use `touch-input` for targets and actions that must work whenever
+`any-pointer: coarse` matches, including hybrid devices. `compact-input` applies
+only when no coarse pointer is available. `hover-actions` permits mouse hover
+actions on hybrid devices, but essential controls must also remain accessible
+through touch and keyboard input.
+
+Use `mobile-presentation` for the app frame and task sheets. It requires both a
+viewport below 768 px and a coarse pointer. `desktop-presentation` is its inverse:
+narrow mouse windows and all wide windows retain the padded frame, rounded inset,
+and compact header. The header and drawer offsets share `--app-header-height`.
+Safe-area spacing stays separate from that height.
+In narrow mouse windows, drawers and their backdrop stay inside the rounded
+work plane, including during animation. Measure that plane for swipe distances.
+Narrow touch windows keep viewport-based drawers and device safe-area offsets.
+
+Use Svelte's `MediaQuery` with `NARROW_TOUCH_QUERY` from `inputMediaQueries.ts`
+when a component needs a reactive presentation decision. Keep this query and
+the CSS variants in sync. Do not select a layout from a device name or the last
+pointer event. Touch-safe menus can remain floating when hover is available;
+touch input still gets larger command targets and emoji targets at every width.
+Keep the existing primary-pointer checks for keyboard and autofocus defaults.
+Mouse-primary hybrid devices retain mouse keyboard behavior; use touch capability,
+not the primary-pointer preference, to select target sizes and frame presentation.
+
+Keep width or container queries for pane columns, navigation collapse, resize
+handles for docked panes, toolbar overflow, compact labels, header wrapping,
+autocomplete width, media viewers, and form/card grids. These rules prevent
+content from exceeding its available space. Timeline row spacing and rounded
+highlights follow presentation instead of width alone.
+
 Chatto deliberately uses browser/platform text rendering. Do not add global
 font smoothing. Keep the browser's default root text size on mobile as well as
-desktop. Below the `md` breakpoint, room and thread timelines add `px-1`
+desktop. In narrow touch-capable windows, room and thread timelines add `px-1`
 padding around their rows to give avatars and message content more space at
 the screen edges.
 
@@ -708,7 +785,7 @@ When a call is active, the collapsed header keeps the call button visible
 beside the three-dot button. It uses the same active-call colour and pulse as
 the expanded toolbar.
 
-The app header and room header hide below the `md` breakpoint while the shared
+The app header and room header hide in narrow touch-capable windows while the shared
 viewport detector reports an open software keyboard. They return when it
 closes. `PaneHeader` opts in with `hideOnKeyboard`; thread and settings headers
 stay visible. The `keyboard-hide-mobile` utility removes the complete header

@@ -230,6 +230,12 @@
         "grey": "Griza",
         "preview": "Antaŭrigardo"
       },
+      "contrast": {
+        "label": "Kontrasto",
+        "softer": "pli milda kontrasto",
+        "current": "nuna kontrasto",
+        "stronger": "pli forta kontrasto"
+      },
       "depth": {
         "title": "Interfaca stilo",
         "flat": "Plata",
@@ -492,7 +498,6 @@
       "create_failed": "Malsukcesis krei bot",
       "created": "Bot kreita",
       "username": "Uzantnomo",
-      "username_hint": "Bot uzantnomoj devas finiĝi per _bot.",
       "display_name": "Montra nomo",
       "owner": "Posedanto",
       "reassign_owner": "Reasigni posedanton",

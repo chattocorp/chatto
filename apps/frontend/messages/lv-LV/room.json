@@ -70,8 +70,15 @@
       "remove_account_suffix": " šim serverim pirms tā noņemšanas."
     },
     "timeline": {
+      "post_interactions_only_channel": "Vari atbildēt tikai pavedienos, kurus sāki vai kuros kāds tevi pieminēja.",
+      "post_threads_only": "Vari atbildēt tikai pavedienos, kurus vari lasīt.",
+      "post_interactions_only": "Vari atbildēt tikai pavedienos, kurus sāki, kuros kāds tevi pieminēja vai kuros saņēmi privātu ziņojumu.",
+      "post_denied": "Tev nav atļaujas sūtīt ziņas šajā istabā.",
       "beginning": "Tas ir šīs sarunas sākums.",
-      "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā."
+      "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā.",
+      "limited_access": "Vari redzēt tikai sarunas, kuras sāki vai kurās kāds tevi pieminēja.",
+      "limited_access_dm": "Vari redzēt tikai sarunas, kuras sāki, saņēmi vai kurās kāds tevi pieminēja.",
+      "limited_empty": "Vēl nav sarunu, kuras vari lasīt."
     },
     "message": {
       "empty": "Vēl nav ziņojumu",
@@ -188,6 +195,7 @@
       "delete_failed": "Neizdevās izdzēst saites priekšskatījumu"
     },
     "sidebar": {
+      "go_to_message": "Pāriet uz ziņojumu",
       "extras": "Istabas ekstras",
       "resize": "Mainiet telpas papildu rūts izmērus",
       "hide": "Paslēpt telpas ekstras",
@@ -200,6 +208,7 @@
       "clear_member_search": "Notīrīt dalībnieku meklēšanu",
       "no_members": "Nav atrasts neviens dalībnieks.",
       "online": "Tiešsaistē ({count})",
+      "bots": "Bots ({count})",
       "offline": "Bezsaistē ({count})",
       "no_files": "Šajā telpā vēl nav neviena faila.",
       "files": "Faili",

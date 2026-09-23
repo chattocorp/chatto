@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import PaneHeader from './PaneHeader.svelte';
   import HeaderIconButton from './HeaderIconButton.svelte';
@@ -20,6 +21,12 @@
     }
   });
 </script>
+
+<Story name="Account title" asChild>
+  <PaneHeader title="Assistant (BOT)">
+    {#snippet titleContent()}<AccountName name="Assistant" identity={{ isBot: true }} />{/snippet}
+  </PaneHeader>
+</Story>
 
 <Story name="Plain" asChild>
   <div class="w-[480px] rounded-md border border-border">

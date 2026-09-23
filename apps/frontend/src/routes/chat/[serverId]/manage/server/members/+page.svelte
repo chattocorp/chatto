@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -172,7 +173,7 @@
                     user={{ ...user, presenceStatus: PresenceStatus.OFFLINE }}
                     size="sm"
                   />
-                  <span>{user.displayName}</span>
+                  <AccountName name={user.displayName} identity={user} />
                 </div>
               </td>
               <td class="px-4 py-3 text-muted">@{user.login}</td>

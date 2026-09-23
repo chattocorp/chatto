@@ -14,6 +14,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <script lang="ts">
+  import { accountNameToken, formatAccountName } from '$lib/render/accountName';
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
@@ -69,11 +71,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
     currentUserId = null,
     membersStore,
     searchStore,
+    focusSearchOnMount = false,
+    onSearchFocused,
     filesStore,
     pinsStore,
     livekitUrl,
     fileGroupingNow,
-    onOpenFile,
+    onOpenFileMessage,
     onOpenSearchResult,
     onOpenPin,
     onToggleMaximized,
@@ -92,11 +96,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
     currentUserId?: string | null;
     membersStore: RoomMembersStore;
     searchStore?: MessageSearchStore;
+    /** Focus Search after an explicit open, once its input mounts. */
+    focusSearchOnMount?: boolean;
+    onSearchFocused?: () => void;
     filesStore?: RoomFilesStore;
     pinsStore?: RoomPinsStore;
     livekitUrl?: string;
     fileGroupingNow?: Date;
-    onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onOpenFileMessage?: (messageEventId: string, threadRootEventId: string | null) => void;
     onOpenSearchResult?: (messageEventId: string, threadRootEventId: string | null) => void;
     onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
@@ -201,7 +208,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const sortedMembers = $derived(sortByName(members));
 
   function readOnlineState(list: RoomMember[]): Map<string, boolean> {
-    return new Map(list.map((member) => [member.id, isOnlineStatus(getPresence(member))]));
+    return new Map(
+      list
+        .filter((member) => !member.isBot)
+        .map((member) => [member.id, isOnlineStatus(getPresence(member))])
+    );
   }
 
   function onlineStatesEqual(
@@ -261,15 +272,21 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const groupedMembers = $derived.by(() => {
     const online: RoomMember[] = [];
+    const bots: RoomMember[] = [];
     const offline: RoomMember[] = [];
     for (const member of sortedMembers) {
+      if (member.isBot) {
+        bots.push(member);
+        continue;
+      }
       const groupedOnline =
         groupedOnlineState.get(member.id) ?? isOnlineStatus(member.presenceStatus);
       (groupedOnline ? online : offline).push(member);
     }
-    return { online, offline };
+    return { online, bots, offline };
   });
   const onlineMembers = $derived(groupedMembers.online);
+  const botMembers = $derived(groupedMembers.bots);
   const offlineMembers = $derived(groupedMembers.offline);
   const memberGroups = $derived.by(() => {
     const groups: Array<{
@@ -287,6 +304,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
         label: m('room.sidebar.online', { count: onlineMembers.length }),
         items: onlineMembers,
         persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:online'),
+        testid: 'room-member-group-heading'
+      });
+    }
+    if (botMembers.length > 0) {
+      groups.push({
+        id: 'bots',
+        label: m('room.sidebar.bots', { count: botMembers.length }),
+        items: botMembers,
+        persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:bots'),
         testid: 'room-member-group-heading'
       });
     }
@@ -330,7 +356,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
     banningMemberId = member.id;
     banError = null;
-    const displayName = member.displayName || member.login;
     try {
       const api = connection().getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
@@ -345,7 +370,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
     if (!serverScope.isCurrent()) return;
     banningMemberId = null;
 
-    toast.success(m('room.sidebar.ban_success', { name: displayName }));
+    toast.success({
+      text: m('room.sidebar.ban_success', { name: accountNameToken(0) }),
+      accounts: [
+        {
+          name: member.displayName || member.login,
+          identity: { isBot: member.isBot, deleted: member.deleted }
+        }
+      ]
+    });
     banDialogMember = null;
   }
 
@@ -503,7 +536,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
     </div>
   {:else if activePanel === 'search'}
     {#if searchStore}
-      <RoomSearchPanel store={searchStore} {roomId} onOpenResult={onOpenSearchResult} />
+      <RoomSearchPanel
+        store={searchStore}
+        {roomId}
+        {focusSearchOnMount}
+        {onSearchFocused}
+        onOpenResult={onOpenSearchResult}
+      />
     {/if}
   {:else if activePanel === 'files'}
     {#if filesStore}
@@ -512,7 +551,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         serverId={activeServerId}
         {roomId}
         {fileGroupingNow}
-        {onOpenFile}
+        {onOpenFileMessage}
       />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
@@ -573,14 +612,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
   <UserCard
     variant="row"
     username={getLiveLogin(member.id, member.login)}
-    class={!isOnline ? 'opacity-50' : undefined}
+    class={!member.isBot && !isOnline ? 'opacity-50' : undefined}
     secondaryTestId="room-member-login"
     testId="room-member-card"
     menu={member.deleted
       ? undefined
       : {
           label: m('room.sidebar.view_profile', {
-            name: getLiveDisplayName(member.id, member.displayName)
+            name: formatAccountName(getLiveDisplayName(member.id, member.displayName), member)
           }),
           onclick: (event) => togglePopover(member.id, event),
           revealOnHover: true,
@@ -598,7 +637,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {#if member.deleted}
         <DeletedUserLabel />
       {:else}
-        <bdi>{getLiveDisplayName(member.id, member.displayName)}</bdi>
+        <AccountName name={getLiveDisplayName(member.id, member.displayName)} identity={member} />
       {/if}
     {/snippet}
     {#snippet badges()}

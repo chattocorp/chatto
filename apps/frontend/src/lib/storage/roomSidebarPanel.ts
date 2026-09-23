@@ -1,4 +1,5 @@
-import { serverSlot, type Codec } from './slot';
+import type { Codec } from './slot';
+import { serverStorageKey } from './serverStorage';
 
 export const ROOM_SIDEBAR_PANELS = ['members', 'search', 'files', 'pins', 'call'] as const;
 
@@ -44,16 +45,31 @@ export function roomSidebarPanelStorageSuffix(roomId: string): string {
   return `room:${roomId}:sidebarPanel`;
 }
 
-/** Read a desktop preference without applying a room-specific default. */
+/** Read a page-session desktop choice without applying a room-specific default. */
 export function getRoomSidebarPanelState(serverId: string, roomId: string): RoomSidebarPreference {
-  return serverSlot(serverId, roomSidebarPanelStorageSuffix(roomId), undefined, codec).get();
+  try {
+    const raw = sessionStorage.getItem(
+      serverStorageKey(serverId, roomSidebarPanelStorageSuffix(roomId))
+    );
+    return raw === null ? undefined : codec.parse(raw);
+  } catch {
+    // Use the room default when storage is unavailable, including during SSR.
+    return undefined;
+  }
 }
 
-/** Save an explicit desktop choice, including closed state. */
+/** Save an explicit desktop choice for this page session, including closed state. */
 export function setRoomSidebarPanelState(
   serverId: string,
   roomId: string,
   panel: Exclude<RoomSidebarPreference, undefined>
 ): void {
-  serverSlot(serverId, roomSidebarPanelStorageSuffix(roomId), null, codec).set(panel);
+  try {
+    sessionStorage.setItem(
+      serverStorageKey(serverId, roomSidebarPanelStorageSuffix(roomId)),
+      codec.serialize(panel)
+    );
+  } catch {
+    // The app UI retains the choice in memory when storage is unavailable or full.
+  }
 }

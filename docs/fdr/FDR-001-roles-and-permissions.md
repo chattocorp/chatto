@@ -22,6 +22,11 @@ changed session. This separates privacy cleanup from request completion
 
 ## Account Room Membership
 
+Role and account permission matrices show only channels that are not archived.
+Server, DM, and group columns remain available, including empty groups.
+Archiving preserves permissions and membership. Unarchiving restores the channel
+column with its existing permissions on the next matrix fetch.
+
 The account permission matrix has a **Joined** row for human and bot accounts.
 A confirmation dialog explains that the membership change takes effect
 immediately after confirmation. Cancel leaves membership unchanged.
@@ -29,7 +34,7 @@ Configured permission grants stay unchanged.
 `user.manage-accounts` or `room.manage` for the room can add an account without
 its `room.join` permission. This lets a room manager invite a user who cannot
 join independently. These permissions also authorize removal after join
-permission is lost, including from archived rooms.
+permission is lost. Archived channels have no column in this matrix.
 
 Bot owners and human bot managers can manage their bots without `room.manage`.
 Without an account or room management override, adding a bot requires its
@@ -199,11 +204,15 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   access to the complete thread. An effective `message.read` allow includes
   this permission. Fresh servers store only the `message.read` grant for
   `everyone`. Existing servers are not backfilled or reconciled.
-- `message.post` — post root messages in rooms and let human users start DMs.
+- `message.post` — post root messages and thread replies, and let human users start DMs.
+  Includes `message.post-in-thread` and `message.post-in-interactions`. A narrow
+  deny cannot restrict an effective broad allow.
   Bot accounts cannot start DMs. Fresh servers grant this permission to
   `everyone` at server scope. Fresh announcement rooms replace that baseline
   with a room-level `everyone` deny and a room-level `admin` allow. Moderators
   and other named roles need their own room-level posting grant.
+- `message.post-in-thread` — reply in any readable thread where room policy permits it.
+- `message.post-in-interactions` — reply only in readable threads with an interaction relationship.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.

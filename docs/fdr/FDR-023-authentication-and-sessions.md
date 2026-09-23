@@ -1,7 +1,7 @@
 # FDR-023: Authentication & Sessions
 
 **Status:** Active
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -31,6 +31,7 @@ providers, and a bootstrap path for first-boot operator setup.
   Chatto ignores these keys and verifies signatures with supported keys. A set
   without a usable signing key still fails verification. The official suite
   checks this behavior and selected positive and negative client flows in CI.
+- **Remote reconnection** — the bundled client gives every remote API read, including the first viewer read, the active connection's bearer-renewal hook. A temporary network failure leaves renewal retryable and keeps the normal chat view visible. A confirmed authentication rejection asks the user to sign in to reconnect; a cold offline launch restores matching saved text in the normal chat view. Explicit sign-out or verified account deletion clears that saved text. Refresh rejection logs contain only a fixed reason code; they contain no credential or user identifier.
 
 - **Consent identity display** — the consent page shows the host for a URL-based
   client ID and the exact ID for an opaque native client identity. The server

@@ -33,6 +33,8 @@ jobs:
       chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
       desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
       authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
+      runling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
+      chattobot: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chattobot == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
     steps:
       - name: Select affected products
@@ -56,12 +58,23 @@ jobs:
               - 'cli/go.{mod,sum}'
               - 'authling/**'
               - 'pkg/**'
+            runling:
+              - 'packages/runling/**'
+              - 'packages/chatto-client/**'
+            chattobot:
+              - 'packages/chatto-bot-client/**'
+              - 'packages/chattobot/**'
+              - 'packages/runling/**'
+              - 'packages/chatto-client/**'
+              - 'packages/api-types/**'
+              - 'proto/**'
             docs:
               - 'apps/docs-website/**'
             desktop:
               - 'apps/desktop/**'
               - 'apps/frontend/**'
               - 'packages/**'
+              - '!packages/runling/**'
               - 'proto/**'
               - 'tools/test-desktop-*'
             # Files outside product roots and repository documentation run all products.
@@ -72,6 +85,36 @@ jobs:
               - '!tools/test-desktop-*'
               - '!{docs,.agents,.claude,.conductor}/**'
               - '!*.md'
+
+  test-runling:
+    needs: changes
+    if: ${{ needs.changes.outputs.runling == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+      - run: mise check-runling
+      - run: mise test-runling
+      - run: mise test-runling-bot
+      - run: mise test-runling-package
+
+  test-chattobot:
+    needs: changes
+    if: ${{ needs.changes.outputs.chattobot == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+      - run: mise check-chattobot
+      - run: mise test-chatto-client
+      - run: mise test-chatto-bot-client
+      - run: mise test-chattobot
 
   build-main-image-contexts:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -85,6 +128,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        with:
+          save-go-build-cache: "true"
 
       - name: Derive main image version
         id: image-version
@@ -380,7 +425,7 @@ jobs:
       - name: Run workspace unit tests
         run: pnpm test
 
-  test-cli:
+  test-cli-shared:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -393,6 +438,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
+          go-build-cache-scope: test-cli-shared
           # PR caches are isolated from main and cannot accelerate a merge run.
           save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
@@ -413,16 +459,30 @@ jobs:
       - name: Run embedded NATS runtime tests
         run: mise test-natsruntime
 
+  test-cli-chatto:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-cli-chatto
+          # PR caches are isolated from main and cannot accelerate a merge run.
+          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
       - name: Build frontend
-        if: needs.changes.outputs.chatto == 'true'
         run: mise build-frontend
 
       - name: Verify development data seeding
-        if: needs.changes.outputs.chatto == 'true'
         run: mise x -- node tools/dev-seed-smoke.mjs
 
       - name: Run Go tests
-        if: needs.changes.outputs.chatto == 'true'
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
   test-oidc-conformance:
@@ -450,6 +510,22 @@ jobs:
           name: oidc-conformance-results
           path: authling/conformance-results.json
           retention-days: 14
+
+  test-cli:
+    needs: [changes, test-cli-shared, test-cli-chatto]
+    if: ${{ always() && (needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CLI test jobs
+        env:
+          CHATTO_CHANGED: ${{ needs.changes.outputs.chatto }}
+          SHARED_RESULT: ${{ needs.test-cli-shared.result }}
+          CHATTO_RESULT: ${{ needs.test-cli-chatto.result }}
+        run: |
+          test "$SHARED_RESULT" = success
+          if [[ "$CHATTO_CHANGED" == true ]]; then
+            test "$CHATTO_RESULT" = success
+          fi
 
   test-authling-e2e:
     needs: changes
@@ -510,17 +586,22 @@ jobs:
       - name: Setup environment
         if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-e2e
+          # Only one matrix job writes the cache. All E2E jobs can restore it
+          # on the next run without concurrent cache-save attempts.
+          save-go-build-cache: ${{ matrix.shard == 1 && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Setup Playwright
         if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Build E2E server and test Runling bot
+      - name: Build E2E dependencies
         if: needs.changes.outputs.chatto == 'true'
         run: |
           mise build-e2e-server
-          mise test-runling-bot
+          mise build-runling
 
       - name: Run E2E tests
         if: needs.changes.outputs.chatto == 'true'
@@ -562,6 +643,7 @@ jobs:
         uses: ./.github/actions/setup
         timeout-minutes: 15
         with:
+          go-build-cache-scope: test-e2e
           install-ffmpeg: "true"
 
       - name: Setup Playwright
@@ -595,6 +677,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        with:
+          go-build-cache-scope: test-e2e
 
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright

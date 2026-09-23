@@ -53,27 +53,6 @@ it('opens voice preferences from the toolbar gear', async () => {
   );
 });
 
-it('shows the microphone warning only on the local participant card', async () => {
-  const screen = render(VoiceCallPanelStoryHarness, {
-    props: { layout: 'sidebar', scenario: 'voice' }
-  });
-  const call = serverRegistry.getStore(serverRegistry.originServer!.id).voiceCall;
-  flushSync(() => {
-    call.microphoneSilent = true;
-  });
-  await expect.element(screen.getByTestId('microphone-silence-hint')).toBeInTheDocument();
-  expect(
-    screen.container.querySelector('[title="Alice"] [data-testid="microphone-silence-hint"]')
-  ).not.toBeNull();
-  expect(
-    screen.container.querySelector('[title="Bob"] [data-testid="microphone-silence-hint"]')
-  ).toBeNull();
-  flushSync(() => {
-    call.microphoneSilent = false;
-  });
-  await expect.element(screen.getByTestId('microphone-silence-hint')).not.toBeInTheDocument();
-});
-
 it('removes voice activity and participant controls when a call becomes observed', async () => {
   const screen = render(VoiceCallPanelStoryHarness, {
     props: { layout: 'sidebar', scenario: 'voice' }
@@ -144,6 +123,9 @@ it('gates entry and media controls from the current room permissions', async () 
   await expect.element(screen.getByTestId('call-camera-toggle')).toBeDisabled();
   await expect.element(screen.getByTestId('call-screen-share-toggle')).toBeDisabled();
   await expect.element(screen.getByTestId('call-leave-button')).toBeEnabled();
+  const selfCard = screen.container.querySelector<HTMLElement>('[title="Alice"]')!;
+  expect(selfCard.querySelector('[data-testid="call-feed-local-mute-button"]')).toBeNull();
+  expect(selfCard.querySelector('[data-testid="call-muted-indicator"]')).not.toBeNull();
   flushSync(() => {
     store.voiceCall.connected = false;
   });
@@ -279,8 +261,36 @@ it('keeps voice cards equal in height with compact direct mute controls', async 
   bob.querySelector<HTMLButtonElement>('[data-testid="call-feed-local-mute-button"]')!.click();
   expect(muteRemote).toHaveBeenCalledWith('bob');
   const alice = screen.container.querySelector<HTMLElement>('[title="Alice"]')!;
-  alice.querySelector<HTMLButtonElement>('[data-testid="call-feed-local-mute-button"]')!.click();
+  const selfMuteButton = alice.querySelector<HTMLButtonElement>(
+    '[data-testid="call-feed-local-mute-button"]'
+  )!;
+  expect(selfMuteButton.getAttribute('aria-label')).toBe('Mute');
+  expect(
+    selfMuteButton.querySelector('.iconify')?.classList.contains('icon-[uil--microphone]')
+  ).toBe(true);
+  selfMuteButton.click();
   expect(muteSelf).toHaveBeenCalledOnce();
+  flushSync(() => {
+    store.voiceCall.isMuted = true;
+    store.voiceCall.participants = store.voiceCall.participants.map((participant) => ({
+      ...participant,
+      isMuted: true
+    }));
+  });
+  expect(selfMuteButton.getAttribute('aria-label')).toBe('Unmute');
+  expect(
+    selfMuteButton.querySelector('.iconify')?.classList.contains('icon-[uil--microphone-slash]')
+  ).toBe(true);
+  expect(selfMuteButton.querySelector('.iconify')?.classList.contains('text-danger')).toBe(true);
+  expect(alice.querySelector('[data-testid="call-muted-indicator"]')).toBeNull();
+  expect(bob.querySelector('[data-testid="call-muted-indicator"]')).not.toBeNull();
+  expect(
+    bob
+      .querySelector('[data-testid="call-feed-local-mute-button"] .iconify')
+      ?.classList.contains('icon-[uil--volume-mute]')
+  ).toBe(true);
+  selfMuteButton.click();
+  expect(muteSelf).toHaveBeenCalledTimes(2);
 });
 
 it('keeps voice columns equal below a single screen share and stacks in a narrow pane', async () => {

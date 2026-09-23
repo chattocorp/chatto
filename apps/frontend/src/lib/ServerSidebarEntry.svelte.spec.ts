@@ -1,10 +1,13 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { SvelteSet } from 'svelte/reactivity';
 
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
 import { page } from '$app/state';
+
+const connectionLostServers = new SvelteSet<string>();
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -41,6 +44,8 @@ const { mocks } = vi.hoisted(() => {
         addedAt: 0
       },
       store: {
+        savedView: null,
+        restoreSavedView: vi.fn(),
         isAuthenticated: true,
         projection: { viewer: {} as object | null },
         notifications: {
@@ -122,7 +127,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     getClient: vi.fn(() => ({
       get showConnectionLostIcon() {
-        return mocks.showConnectionLostIcon;
+        return connectionLostServers.has('remote') || mocks.showConnectionLostIcon;
       },
       connectBaseUrl: 'https://remote.example.com/api/connect',
       bearerToken: 'token'
@@ -217,6 +222,7 @@ describe('ServerSidebarEntry', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.showConnectionLostIcon = false;
+    connectionLostServers.clear();
     mocks.getAuthenticatedServerState.mockReset();
     mocks.getViewerStateViaConnect.mockReset();
     mocks.createRoomDirectoryAPI.mockReset();
@@ -299,6 +305,9 @@ describe('ServerSidebarEntry', () => {
     expect(q(document.body, '[data-testid="server-hostname"]')?.textContent?.trim()).toBe(
       'remote.example.com'
     );
+    expect(q(document.body, '[data-testid="server-sign-in-message"]')).toBeNull();
+    expect(q(document.body, '[data-testid="server-compatibility-message"]')).toBeNull();
+    expect(q(document.body, '[data-testid="server-connection-message"]')).toBeNull();
 
     const markRead = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Mark as read'
@@ -503,6 +512,7 @@ describe('ServerSidebarEntry', () => {
 
     await vi.waitFor(() => expect(document.body.textContent).toContain('Server unreachable'));
     expect(document.body.textContent).not.toContain('Version unknown');
+    expect(q(document.body, '[data-testid="server-connection-message"]')).toBeNull();
     expect(document.body.textContent).not.toContain('Mark as read');
     expect(q(document.body, '[role="separator"]')).toBeNull();
   });
@@ -532,6 +542,7 @@ describe('ServerSidebarEntry', () => {
   it('marks an unauthenticated synchronized server and starts sign-in when clicked', async () => {
     mocks.server.token = null;
     mocks.store.isAuthenticated = false;
+    mocks.store.projection.viewer = null;
 
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote' }
@@ -539,7 +550,7 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
 
     await expect.element(icon).toHaveClass('opacity-40');
-    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
+    await expect.element(icon).toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
     await expect
       .element(q(container, '[data-testid="server-sign-in-required"]'))
       .toBeInTheDocument();
@@ -554,6 +565,7 @@ describe('ServerSidebarEntry', () => {
   it('marks a server that requires reauthentication and prioritises it over compatibility', async () => {
     mocks.server.reauthRequiredAt = 123;
     mocks.store.isAuthenticated = false;
+    mocks.showConnectionLostIcon = true;
     mocks.store.serverInfo.compatibility = {
       status: 'unsupported',
       reason: 'server-too-old'
@@ -564,8 +576,8 @@ describe('ServerSidebarEntry', () => {
     });
     const icon = q(container, '[data-testid="server-icon"]');
 
-    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
-    await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
+    await expect.element(icon).toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
+    await expect.element(icon).toHaveAttribute('aria-label', 'Sign in to reconnect to Loaded Remote');
     const reauthMarker = q(container, '[data-testid="server-sign-in-required"]');
     await expect.element(reauthMarker).toBeInTheDocument();
     expect(
@@ -574,6 +586,30 @@ describe('ServerSidebarEntry', () => {
     await expect
       .element(q(container, '[data-testid="server-compatibility-warning"]'))
       .not.toBeInTheDocument();
+
+    icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-sign-in-message"]')).not.toBeNull()
+    );
+    await expect
+      .element(q(document.body, '[data-testid="server-sign-in-message"]'))
+      .toHaveTextContent('Sign in to reconnect to Loaded Remote');
+    await expect
+      .element(q(document.body, '[data-testid="server-compatibility-message"]'))
+      .toHaveTextContent('This server must be upgraded to Chatto 0.5 or newer');
+    await expect
+      .element(q(document.body, '[data-testid="server-connection-message"]'))
+      .toHaveTextContent('Connection unavailable');
+  });
+
+  it('keeps a temporarily unreachable bearer server retryable without a sign-in marker', async () => {
+    mocks.store.isAuthenticated = false;
+    mocks.server.reauthRequiredAt = null;
+
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]');
+    await expect.element(icon).not.toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
+    await expect.element(q(container, '[data-testid="server-sign-in-required"]')).not.toBeInTheDocument();
   });
 
   it('links the pending origin to setup without a sign-in marker', async () => {
@@ -668,8 +704,81 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).toHaveClass('opacity-40');
-    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote (connection unavailable)');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
+    await expect.element(q(container, '[data-testid="server-compatibility-warning"]')).toBeInTheDocument();
     expect(container.textContent).toContain('L');
+  });
+
+  it('keeps a server with a retained projection fully visible during a disconnect', async () => {
+    mocks.showConnectionLostIcon = true;
+
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]');
+
+    await expect.element(icon).not.toHaveClass('opacity-40');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
+    await expect.element(q(container, '[data-testid="server-compatibility-warning"]')).toBeInTheDocument();
+
+    icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-connection-message"]')).not.toBeNull()
+    );
+    await expect
+      .element(q(document.body, '[data-testid="server-connection-message"]'))
+      .toHaveTextContent('Connection unavailable');
+  });
+
+  it('updates an open menu when the connection fails and recovers', async () => {
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]');
+
+    icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-name"]')).not.toBeNull());
+    expect(q(document.body, '[data-testid="server-connection-message"]')).toBeNull();
+
+    connectionLostServers.add('remote');
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-connection-message"]')).not.toBeNull()
+    );
+    await expect
+      .element(q(document.body, '[data-testid="server-connection-message"]'))
+      .toHaveTextContent('Connection unavailable');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
+
+    connectionLostServers.delete('remote');
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-connection-message"]')).toBeNull()
+    );
+    await expect.element(q(container, '[data-testid="server-compatibility-warning"]')).not.toBeInTheDocument();
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
+  });
+
+  it('shows the connection warning in the touch sheet', async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.showConnectionLostIcon = true;
+      const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+      const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+      icon.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          pointerId: 1,
+          pointerType: 'touch',
+          isPrimary: true,
+          clientX: 20,
+          clientY: 30
+        })
+      );
+      await vi.advanceTimersByTimeAsync(500);
+
+      await expect.element(q(document.body, 'dialog.bottom-sheet')).toBeInTheDocument();
+      await expect
+        .element(q(document.body, '[data-testid="server-connection-message"]'))
+        .toHaveTextContent('Connection unavailable');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('renders projected private server branding without sidebar bootstrap reads', async () => {

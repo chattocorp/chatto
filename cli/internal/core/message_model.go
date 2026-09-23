@@ -145,9 +145,9 @@ type MessageModel struct {
 
 // PostMessage posts a message as actorID and returns the committed event.
 // Authorization: actor must be a room member and must have message.post or
-// message.post-in-thread. Explicit thread creation requires both posting
-// permissions, except that a REQUIRED room establishes a root thread as an
-// automatic consequence of message.post. Echoing a thread reply additionally
+// message.post-in-thread, or message.post-in-interactions with a relationship to
+// the target thread. Replies also require read access. Explicit thread creation
+// requires message.post. Echoing a thread reply additionally
 // requires message.echo and message.post.
 func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
 	preparedInput, err := s.applyAutomaticThreadCreation(ctx, input)
@@ -338,12 +338,26 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	if !isMember {
 		return nil, ErrNotRoomMember
 	}
+	// Match the commit path's inference for replies to a thread reply or echo.
+	// Attribution to a room root remains a room post unless a thread is explicit.
+	if input.ThreadRootEventID == "" && input.InReplyTo != "" {
+		target, err := s.core.GetRoomEventByEventID(ctx, kind, room.Id, input.InReplyTo)
+		if err != nil {
+			return nil, err
+		}
+		if posted := target.GetMessagePosted(); posted != nil {
+			input.ThreadRootEventID = posted.GetInThread()
+			if input.ThreadRootEventID == "" && posted.GetEchoOfEventId() != "" {
+				input.ThreadRootEventID = posted.GetEchoFromThreadRootEventId()
+			}
+		}
+	}
 	if err := s.validateRoomThreadingPolicy(ctx, room, input); err != nil {
 		return nil, err
 	}
 
 	if input.ThreadRootEventID != "" {
-		can, err := s.core.CanPostInThread(ctx, input.ActorID, kind, room.Id)
+		can, err := s.core.CanReplyInThread(ctx, input.ActorID, kind, room.Id, input.ThreadRootEventID)
 		if err != nil {
 			return nil, err
 		}
@@ -357,15 +371,6 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 		}
 		if !can {
 			return nil, ErrPermissionDenied
-		}
-		if input.CreateThread && !input.automaticThreadCreation {
-			can, err := s.core.CanPostInThread(ctx, input.ActorID, kind, room.Id)
-			if err != nil {
-				return nil, err
-			}
-			if !can {
-				return nil, ErrPermissionDenied
-			}
 		}
 	}
 
@@ -593,7 +598,7 @@ func (s *MessageModel) DeleteMessage(ctx context.Context, input MessageDeleteInp
 		return err
 	}
 
-	authorID := event.GetActorId()
+	authorID := messageAuthorID(event)
 	if authorID != "" && authorID != input.ActorID {
 		can, err := s.core.CanManageOthersMessage(ctx, input.ActorID, kind, room.Id)
 		if err != nil {

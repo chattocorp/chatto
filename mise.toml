@@ -29,6 +29,7 @@ run = [
     { task = "setup-frontend" },
     { task = "build-api-types" },
     { task = "build-lingua" },
+    { task = "build-runling" },
 ]
 
 # =============================================================================
@@ -192,29 +193,79 @@ run = "pnpm build:ios"
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
 depends = ["setup-frontend"]
-dir = "packages/api-types"
-run = "pnpm build"
-sources = ["package.json", "tsconfig.json", "src/**/*"]
+run = "pnpm run build:api-types"
 
 [tasks.build-lingua]
 description = "Build the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
-dir = "packages/lingua"
-run = "pnpm build"
-sources = ["package.json", "tsconfig.json", "src/**/*"]
+run = "pnpm run build:lingua"
 
 [tasks.test-runling-bot]
 description = "Test the Runling webhook bot example"
 depends = ["setup-frontend"]
-run = "node --test examples/runling-bot/*.test.ts"
+run = "pnpm turbo run test --filter=@chatto/runling-bot"
+
+[tasks.build-runling]
+description = "Build the Runling runtime and web console"
+depends = ["setup-frontend"]
+run = "pnpm run build:runling"
+
+[tasks.build-chatto-client]
+description = "Build the framework-neutral Chatto integration client"
+depends = ["setup-frontend"]
+run = "pnpm run build:chatto-client"
+
+[tasks.test-chatto-client]
+description = "Check and test the Chatto integration client"
+depends = ["setup-frontend"]
+run = "pnpm turbo run check test --filter=@chatto/client"
+
+[tasks.build-chatto-bot-client]
+description = "Build the framework-neutral Chatto bot helpers"
+depends = ["setup-frontend"]
+run = "pnpm turbo run build --filter=@chatto/bot-client"
+
+[tasks.test-chatto-bot-client]
+description = "Check and test the Chatto bot helpers"
+depends = ["setup-frontend"]
+run = "pnpm turbo run check test --filter=@chatto/bot-client"
+
+[tasks.check-runling]
+description = "Check Runling types and Svelte components"
+depends = ["setup-frontend"]
+run = "pnpm run check:runling"
+
+[tasks.dev-chattobot]
+description = "Run ChattoBot with its Runling console"
+depends = ["setup-frontend"]
+run = "pnpm run dev:chattobot"
+
+[tasks.check-chattobot]
+description = "Check the ChattoBot package types"
+depends = ["setup-frontend"]
+run = "pnpm run check:chattobot"
+
+[tasks.test-chattobot]
+description = "Test the ChattoBot package"
+depends = ["setup-frontend"]
+run = "pnpm run test:chattobot"
+
+[tasks.test-runling]
+description = "Run Runling unit and integration tests"
+depends = ["setup-frontend"]
+run = "pnpm run test:runling"
+
+[tasks.test-runling-package]
+description = "Build Runling and test its installed npm package"
+depends = ["build-runling"]
+run = "pnpm --filter runling test:package"
 
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend"]
 dir = "apps/frontend"
 run = [
-    "pnpm svelte-kit sync",
-    "pnpm build",
+    "pnpm --dir ../.. run build:frontend",
     "touch build/.mise-build-stamp",
     "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
 ]
@@ -223,8 +274,14 @@ sources = [
     "../../package.json",
     "../../pnpm-lock.yaml",
     "../../pnpm-workspace.yaml",
-    "../../packages/api-types/dist/**/*",
-    "../../packages/lingua/dist/**/*",
+    "../../turbo.json",
+    "../../mise.toml",
+    "../../packages/api-types/package.json",
+    "../../packages/api-types/tsconfig.json",
+    "../../packages/api-types/src/**/*",
+    "../../packages/lingua/package.json",
+    "../../packages/lingua/tsconfig.json",
+    "../../packages/lingua/src/**/*",
     "package.json",
     "messages/**/*",
     "scripts/check-bundle-size.mjs",
@@ -338,7 +395,7 @@ run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen 
 
 [tasks.dev]
 description = "Run the regular local development services with Portless"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend", "build-api-types", "build-lingua", "build-runling"]
 env = {
   PORTLESS_PORT = "{{env.CHATTO_DEV_PROXY_PORT | default(value='42444')}}",
   PORTLESS_HTTPS = "1",
@@ -530,7 +587,7 @@ export CHATTO_RUNLING_API_KEY_FILE="$data_root/bootstrap/test_bot.key"
 cd examples/runling-bot
 exec portless \
   "runling.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$CHATTO_RUNLING_PORT" -- \
-  node "$project_dir/node_modules/runling/bin/runling.js" --host 127.0.0.1 --port "$CHATTO_RUNLING_PORT"
+  node "$project_dir/packages/runling/bin/runling.js" serve --host 127.0.0.1 --port "$CHATTO_RUNLING_PORT"
 '''
 
 [tasks.dev-stack-frontend]
@@ -683,14 +740,13 @@ sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.knip]
 description = "Find unused frontend/docs files, dependencies, and exports"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend"]
 run = "pnpm knip"
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
-dir = "apps/frontend"
-run = ["pnpm check", "pnpm lint"]
+depends = ["setup-frontend"]
+run = ["pnpm run check:frontend", "pnpm run lint:frontend"]
 
 [tasks.lint-cli]
 description = "Vet the Chatto CLI module"
@@ -725,8 +781,7 @@ run = ["GOWORK=off go vet ./...", "go vet ./..."]
 [tasks.lint-lingua]
 description = "Type-check the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
-dir = "packages/lingua"
-run = "pnpm check"
+run = "pnpm turbo run check --filter=@chatto/lingua"
 
 [tasks.lint]
 description = "Run linters"
@@ -734,15 +789,13 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
-dir = "apps/frontend"
-run = "pnpm test:unit:run"
+depends = ["setup-frontend"]
+run = "pnpm run test:frontend"
 
 [tasks.test-lingua]
 description = "Test the JSON internationalisation runtime package"
 depends = ["setup-frontend"]
-dir = "packages/lingua"
-run = "pnpm test"
+run = "pnpm run test:lingua"
 
 [tasks.test-workspace]
 description = "Run all pnpm workspace package tests"
@@ -761,7 +814,7 @@ run = "tools/test-desktop-macos-capture.sh"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
-depends = ["setup-frontend", "build-e2e-server"]
+depends = ["setup-frontend", "build-e2e-server", "build-runling"]
 dir = "apps/frontend"
 run = "pnpm exec playwright test"
 

@@ -485,6 +485,7 @@ func writeOAuthCodeExchangeError(c *gin.Context, err error) {
 
 func writeOAuthRefreshError(c *gin.Context, err error) {
 	if errors.Is(err, core.ErrRefreshRequestIDInvalid) {
+		log.Warn("OAuth token refresh rejected", "reason", "invalid_request_id")
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":             "invalid_request",
 			"error_description": "refresh_request_id is invalid",
@@ -495,6 +496,16 @@ func writeOAuthRefreshError(c *gin.Context, err error) {
 		errors.Is(err, core.ErrRefreshTokenReused) ||
 		errors.Is(err, core.ErrRefreshTokenClientMismatch) ||
 		errors.Is(err, core.ErrOAuthClientBlocked) {
+		reason := "token_not_found"
+		switch {
+		case errors.Is(err, core.ErrRefreshTokenReused):
+			reason = "token_reuse"
+		case errors.Is(err, core.ErrRefreshTokenClientMismatch):
+			reason = "client_mismatch"
+		case errors.Is(err, core.ErrOAuthClientBlocked):
+			reason = "client_blocked"
+		}
+		log.Warn("OAuth token refresh rejected", "reason", reason)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":             "invalid_grant",
 			"error_description": "Refresh token is invalid, expired, or revoked",

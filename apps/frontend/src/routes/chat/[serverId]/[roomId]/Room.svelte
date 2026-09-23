@@ -1,8 +1,9 @@
 <script lang="ts">
+  import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery } from 'svelte/reactivity';
-  import { goto, pushState, replaceState } from '$app/navigation';
+  import { beforeNavigate, goto, pushState, replaceState } from '$app/navigation';
   import { page } from '$app/state';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
@@ -26,7 +27,11 @@
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
   import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
-  import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
+  import {
+    getAppUiState,
+    getRoomSidebarPresentation,
+    type RoomSidebarPresentation
+  } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
@@ -37,7 +42,7 @@
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, Hint } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
@@ -146,9 +151,20 @@
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
+
+  // Save only settled, authorized text windows for this device's read-only view.
+  $effect(() => {
+    void roomMessageStore.events;
+    const caughtUpAt = stores.realtimeSync.lastCaughtUpAt;
+    if (!caughtUpAt) return;
+    const timer = setTimeout(() => untrack(() => stores.noteViewedRoom(roomId)), 2_000);
+    return () => clearTimeout(timer);
+  });
   const room = useRoomData(() => ({ roomId }));
   const canReadMessages = $derived(room.roomData?.canReadMessages !== false);
-  const shouldHydrateRoom = $derived(Boolean(room.roomData) && canReadMessages);
+  const shouldHydrateRoom = $derived(
+    stores.realtimeSync.isRecoveringSnapshot || (Boolean(room.roomData) && canReadMessages)
+  );
 
   $effect(() => {
     const mountedStores = stores;
@@ -212,6 +228,18 @@
   });
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);
+  const postingNotice = $derived.by(() => {
+    if (room.roomData?.canPostMessage !== false) return null;
+    if (canReadMessages && !room.roomData.room.archived && threadingMode !== RoomThreadingMode.DISABLED) {
+      if (room.roomData.canPostInThread) return m('room.timeline.post_threads_only');
+      if (room.roomData.canPostInteractions) {
+        return m(room.isDM
+          ? 'room.timeline.post_interactions_only'
+          : 'room.timeline.post_interactions_only_channel');
+      }
+    }
+    return m('room.timeline.post_denied');
+  });
   let composerCanCreateThread = $derived(
     permissions.canPostMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
@@ -368,10 +396,11 @@
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
+  const defaultDesktopRoomSidebarPanel = $derived(room.roomData && !room.isDM ? 'members' : null);
   const activeRoomSidebarPanel = $derived(
     roomSidebarPanelForRoom(
       room.isDM,
-      appUi.activeDesktopRoomSidebarPanel,
+      appUi.desktopRoomSidebarPanel(defaultDesktopRoomSidebarPanel),
       showVoiceCall,
       messageSearchAvailable,
       supportsPinnedMessages
@@ -498,9 +527,29 @@
   };
 
   let leavingRoom = $state(false);
+  // Only an explicit open requests focus. Saved panels have no pending request.
+  let focusSearchOnOpen = $state<RoomSidebarPresentation | null>(null);
+
+  beforeNavigate(() => {
+    focusSearchOnOpen = null;
+  });
+
+  function searchFocused(presentation: RoomSidebarPresentation): void {
+    if (focusSearchOnOpen === presentation) focusSearchOnOpen = null;
+  }
 
   function toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    appUi.toggleDesktopRoomSidebarPanel(panel);
+    const wasSearchOpen =
+      activeRoomSidebarPanel === 'search' && !activeDesktopRoomSidebarProfileUserId;
+    focusSearchOnOpen = panel === 'search' && !wasSearchOpen ? 'desktop' : null;
+    appUi.toggleDesktopRoomSidebarPanel(panel, defaultDesktopRoomSidebarPanel);
+  }
+
+  function toggleMobileRoomSidebarPanel(panel: RoomSidebarPanel): void {
+    const wasSearchOpen =
+      mobileRoomSidebarPanel === 'search' && !activeMobileRoomSidebarProfileUserId;
+    focusSearchOnOpen = panel === 'search' && !wasSearchOpen ? 'mobile' : null;
+    appUi.toggleMobileRoomSidebarPanel(panel);
   }
 
   function openDirectMessageProfile(userId: string): void {
@@ -512,6 +561,7 @@
   }
 
   function closeDesktopRoomSidebarPanel(): void {
+    focusSearchOnOpen = null;
     appUi.closeDesktopRoomSidebarPanel();
   }
 
@@ -525,6 +575,7 @@
   }
 
   function closeMobileRoomSidebar(): void {
+    focusSearchOnOpen = null;
     const wasMemberProfile = appUi.isMemberProfileOpen;
     if (activeRoomSidebarProfileUserId) {
       appUi.closeRoomSidebarProfile('mobile');
@@ -547,8 +598,14 @@
 
     event.preventDefault();
     if (desktopRoomLayout.current) {
+      if (activeRoomSidebarPanel !== 'search' || activeDesktopRoomSidebarProfileUserId) {
+        focusSearchOnOpen = 'desktop';
+      }
       appUi.openDesktopRoomSidebarPanel('search');
     } else {
+      if (mobileRoomSidebarPanel !== 'search' || activeMobileRoomSidebarProfileUserId) {
+        focusSearchOnOpen = 'mobile';
+      }
       appUi.openMobileRoomSidebarPanel('search');
     }
   }
@@ -618,6 +675,8 @@
 
 <svelte:window
   onkeydown={(e) => {
+    // The modal owns keyboard actions while the room remains visible behind it.
+    if (page.state.modal) return;
     handleWindowKeydown(e);
     if (e.defaultPrevented) return;
 
@@ -710,7 +769,7 @@
             {panels}
             hasActiveCall={hasActiveRoomCall}
             hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
-            onToggle={(panel) => appUi.toggleMobileRoomSidebarPanel(panel)}
+            onToggle={toggleMobileRoomSidebarPanel}
           />
           <RoomSidebarToggle
             mode="desktop"
@@ -722,8 +781,18 @@
           />
         {/snippet}
 
+        {#snippet directMessageTitle()}
+          {#if room.dmData}<DirectMessageName
+              participants={room.dmData.participants}
+              currentUserId={room.dmData.currentUserId}
+              getDisplayName={getLiveDisplayName}
+            />{/if}
+        {/snippet}
         <PaneHeader
           title={presentation.title}
+          titleContent={room.isDM && room.dmData?.participants.length
+            ? directMessageTitle
+            : undefined}
           subtitle={presentation.description}
           loading={!room.roomData}
           collapseActions
@@ -764,8 +833,26 @@
           {/snippet}
         </PaneHeader>
 
+        {#if postingNotice || room.roomData?.hasLimitedMessageAccess}
+          <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
+            {#if postingNotice}
+              <div data-testid="room-post-denied">
+                <Hint>{postingNotice}</Hint>
+              </div>
+            {/if}
+            {#if room.roomData?.hasLimitedMessageAccess}
+              <div data-testid="limited-message-access">
+                <Hint>
+                  {m(room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access')}
+                </Hint>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
         {#if canReadMessages}
           <RoomEventsPane
+            hasLimitedMessageAccess={room.roomData?.hasLimitedMessageAccess ?? false}
             {roomId}
             messageStore={roomMessageStore}
             unreadMarkerEventId={unread.unreadMarkerEventId}
@@ -800,6 +887,7 @@
           {getRecentThreadRootCandidate}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
+          replyIdentity={replyState.actorIdentity}
           replyExcerpt={replyState.excerpt || undefined}
           onCancelReply={() => replyState.cancelReply()}
           autoFocus={!threadId && !hasMobileRoomSidebar}
@@ -821,7 +909,7 @@
         />
       </div>
 
-      {#if threadId && room.roomData && canReadMessages}
+      {#if threadId && (room.roomData || stores.realtimeSync.isRecoveringSnapshot) && canReadMessages}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
             class={[
@@ -839,19 +927,19 @@
         {:then { default: ThreadPane }}
           <ThreadPane
             {roomId}
-            roomName={room.isDM ? presentation.title : room.roomData.room.name}
+            roomName={room.isDM ? presentation.title : (room.roomData?.room.name ?? '')}
             isDirectMessage={room.isDM}
             threadRootEventId={threadId}
             onClose={closeThread}
-            canPostInThread={room.roomData.canPostInThread &&
+            canPostInThread={!!room.roomData?.canPostInThread &&
               threadingMode !== RoomThreadingMode.DISABLED}
-            canAttach={room.roomData.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
-            canEchoMessage={room.roomData.canEchoMessage &&
-              room.roomData.canPostMessage &&
+            canAttach={!!room.roomData?.canAttach && threadingMode !== RoomThreadingMode.DISABLED}
+            canEchoMessage={!!room.roomData?.canEchoMessage &&
+              !!room.roomData?.canPostMessage &&
               threadingMode !== RoomThreadingMode.DISABLED}
-            slowModeSeconds={room.roomData.room.slowModeSeconds}
-            slowModeNextPostAt={room.roomData.slowModeNextPostAt}
-            slowModeBypassed={room.roomData.canManageRoom || room.roomData.canManageOthersMessage}
+            slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
+            slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
+            slowModeBypassed={!!room.roomData?.canManageRoom || !!room.roomData?.canManageOthersMessage}
             highlightEventId={navigation.pendingThreadHighlight}
             pendingQuote={navigation.pendingThreadQuote}
             pendingReply={navigation.pendingThreadReply}
@@ -896,8 +984,10 @@
           ? {
               ...sharedRoomSidebarProps,
               activePanel: mobileRoomSidebarPanel ?? 'members',
+              focusSearchOnMount: focusSearchOnOpen === 'mobile',
+              onSearchFocused: () => searchFocused('mobile'),
               activeProfileUserId: activeMobileRoomSidebarProfileUserId,
-              onOpenFile: (messageEventId, threadRootEventId) =>
+              onOpenFileMessage: (messageEventId, threadRootEventId) =>
                 openFileMessage(messageEventId, threadRootEventId, true),
               onOpenSearchResult: (messageEventId, threadRootEventId) =>
                 openSearchResult(messageEventId, threadRootEventId, true),
@@ -915,9 +1005,11 @@
         sidebarProps={{
           ...sharedRoomSidebarProps,
           activePanel: activeRoomSidebarPanel ?? 'members',
+          focusSearchOnMount: focusSearchOnOpen === 'desktop',
+          onSearchFocused: () => searchFocused('desktop'),
           activeProfileUserId: activeDesktopRoomSidebarProfileUserId,
           maximized: isDesktopCallMaximized,
-          onOpenFile: openFileMessage,
+          onOpenFileMessage: openFileMessage,
           onOpenSearchResult: openSearchResult,
           onOpenPin: openPinnedMessage,
           onToggleMaximized: toggleDesktopCallWide,

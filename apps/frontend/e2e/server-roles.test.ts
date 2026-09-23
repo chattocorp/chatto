@@ -181,7 +181,7 @@ test.describe('Server Roles Management', () => {
     }
   });
 
-  test('permission refresh keeps matrix rows visible and preserves scroll', async ({
+  test('permission refresh keeps the matrix interactive and preserves scroll', async ({
     serverRolesPage
   }) => {
     const { page } = serverRolesPage;
@@ -207,28 +207,34 @@ test.describe('Server Roles Management', () => {
       top: element.scrollTop,
       height: element.scrollHeight
     }));
+    const cellBounds = await cell.boundingBox();
+    expect(cellBounds).not.toBeNull();
     let releaseRefresh!: () => void;
     const refreshGate = new Promise<void>((resolve) => {
       releaseRefresh = resolve;
     });
-    let heldReads = 0;
+    let heldViewerReads = 0;
     await page.route('**/chatto.api.v1.ViewerService/GetViewer', async (route) => {
-      heldReads++;
+      heldViewerReads++;
       await refreshGate;
       await route.continue();
     });
     await page.route(
       '**/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix',
       async (route) => {
-        heldReads++;
         await refreshGate;
         await route.continue();
       }
     );
     try {
-      await cell.click();
-      await expect.poll(() => heldReads).toBeGreaterThan(0);
-      await expect(page.locator('[inert][aria-busy="true"]')).toHaveCount(1);
+      // Click at the measured position so Playwright does not scroll the cell
+      // again after the baseline measurement.
+      await page.mouse.click(
+        cellBounds!.x + cellBounds!.width / 2,
+        cellBounds!.y + cellBounds!.height / 2
+      );
+      await expect.poll(() => heldViewerReads).toBeGreaterThan(0);
+      await expect(page.locator('[inert][aria-busy="true"]')).toHaveCount(0);
       await expect(cell).toBeVisible();
       // Wait for real layout: a same-tick assertion misses native scroll clamping.
       await page.evaluate(
@@ -239,10 +245,18 @@ test.describe('Server Roles Management', () => {
       expect(await scroller.evaluate((element) => element.scrollTop)).toBeCloseTo(before.top, 0);
       expect(await scroller.evaluate((element) => element.scrollHeight)).toBeGreaterThanOrEqual(before.height);
       await expect(cell.locator('..')).toHaveClass(/bg-action\/15/);
+      const filter = page.getByTestId('permission-filter');
+      await filter.evaluate((element) => element.focus({ preventScroll: true }));
+      await expect(filter).toBeFocused();
+      // Whitespace leaves all rows visible, so the same test can still check
+      // scroll retention while verifying keyboard input during the refresh.
+      await page.keyboard.type(' ');
+      await expect(filter).toHaveValue(' ');
     } finally {
       releaseRefresh();
     }
     await expect(cell).toBeVisible();
+    await expect(page.getByTestId('permission-filter')).toBeFocused();
     await expect(cell.locator('..')).toHaveClass(/bg-action\/15/);
     await expect
       .poll(() => scroller.evaluate((element) => element.scrollTop))
@@ -1204,7 +1218,10 @@ test.describe('Server Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('Settings only exposes Bots when user lacks room.manage permission', async ({ page }) => {
+    test('Settings only exposes Bots when user lacks room.manage permission', async ({
+      page,
+      serverAdminPage
+    }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
@@ -1223,14 +1240,17 @@ test.describe('Server Permission Enforcement', () => {
 
       // Fresh servers grant bot.create to everyone, so the administration
       // entry remains available for Bots while room management stays hidden.
-      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await serverAdminPage.settingsLink.click();
       await page.waitForURL(routes.settingsAppearance);
       await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
 
-    test('Settings exposes Rooms when user has room.manage permission', async ({ page }) => {
+    test('Settings exposes Rooms when user has room.manage permission', async ({
+      page,
+      serverAdminPage
+    }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
@@ -1251,7 +1271,7 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await serverAdminPage.settingsLink.click();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).toBeVisible();
     });
   });

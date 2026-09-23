@@ -70,8 +70,15 @@
       "remove_account_suffix": "を開いてください。"
     },
     "timeline": {
+      "post_interactions_only_channel": "自分が開始したスレッド、または誰かにメンションされたスレッドにのみ返信できます。",
+      "post_threads_only": "読むことができるスレッドにのみ返信できます。",
+      "post_interactions_only": "自分が開始したスレッド、誰かにメンションされたスレッド、またはDMを受信したスレッドにのみ返信できます。",
+      "post_denied": "このルームでメッセージを投稿する権限がありません。",
       "beginning": "ここから会話が始まります。",
-      "read_denied": "このルームのメッセージを読む権限がありません。"
+      "read_denied": "このルームのメッセージを読む権限がありません。",
+      "limited_access": "自分が始めた会話、または誰かがあなたをメンションした会話のみ表示できます。",
+      "limited_access_dm": "自分が始めた会話、受信した会話、または誰かがあなたをメンションした会話のみ表示できます。",
+      "limited_empty": "読める会話はまだありません。"
     },
     "message": {
       "empty": "まだメッセージはありません",
@@ -188,6 +195,7 @@
       "delete_failed": "リンクのプレビューを削除できませんでした"
     },
     "sidebar": {
+      "go_to_message": "メッセージへ移動",
       "extras": "部屋の特典",
       "resize": "部屋の追加ペインのサイズを変更する",
       "hide": "ルームの追加機能を非表示にする",
@@ -200,6 +208,7 @@
       "clear_member_search": "メンバー検索をクリア",
       "no_members": "メンバーが見つかりませんでした。",
       "online": "オンライン ({count})",
+      "bots": "ボット ({count})",
       "offline": "オフライン ({count})",
       "no_files": "このルームにはまだファイルがありません。",
       "files": "ファイル",

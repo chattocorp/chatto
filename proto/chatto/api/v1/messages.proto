@@ -63,7 +63,7 @@ message CreateMessageRequest {
   // server resolves the token to cached, server-fetched metadata during post.
   string link_preview_token = 10;
   // True to establish the new root message as a thread immediately. Requires
-  // both message.post and message.post-in-thread. Cannot be combined with
+  // message.post (which includes thread posting). Cannot be combined with
   // thread_root_event_id.
   bool create_thread = 11;
   // Optional descriptions for assets in attachment_asset_ids. Asset IDs must
@@ -255,8 +255,10 @@ service MessageService {
   // Successful responses include a short-lived token accepted by CreateMessage.
   rpc FetchLinkPreview(FetchLinkPreviewRequest) returns (FetchLinkPreviewResponse);
   // Creates a message for the current user. The user must be a room member and
-  // must have message.post for room messages or message.post-in-thread for
-  // thread replies. Echoing a thread reply also requires message.echo and
+  // must have message.post for room messages. Thread replies require read
+  // access and either message.post, message.post-in-thread, or
+  // message.post-in-interactions with an existing interaction relationship.
+  // Echoing a thread reply also requires message.echo and
   // message.post. The room's Threading Mode may automatically establish a root
   // thread or reject a thread placement that the mode does not allow.
   rpc CreateMessage(CreateMessageRequest) returns (CreateMessageResponse);

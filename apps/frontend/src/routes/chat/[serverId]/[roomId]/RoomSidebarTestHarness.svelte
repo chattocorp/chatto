@@ -31,7 +31,7 @@ can exercise pagination wiring without mounting the full chat room.
     livekitUrl,
     fileGroupingNow,
     onPresenceCacheReady,
-    onOpenFile,
+    onOpenFileMessage,
     onOpenSearchResult,
     onToggleMaximized,
     onClose
@@ -48,7 +48,7 @@ can exercise pagination wiring without mounting the full chat room.
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onPresenceCacheReady?: (cache: PresenceCache) => void;
-    onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onOpenFileMessage?: (messageEventId: string, threadRootEventId: string | null) => void;
     onOpenSearchResult?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
     onClose?: () => void;
@@ -92,7 +92,7 @@ can exercise pagination wiring without mounting the full chat room.
     filesStore={roomFilesStore}
     {livekitUrl}
     {fileGroupingNow}
-    {onOpenFile}
+    {onOpenFileMessage}
     {onOpenSearchResult}
     {onToggleMaximized}
     {onClose}

@@ -38,6 +38,12 @@ func (c *Client) Query(ctx context.Context, request *searchv1.QueryRequest) (*se
 	if err := validateQueryResponse(response, request.GetPageSize()); err != nil {
 		return nil, err
 	}
+	if len(request.GetThreadRootIds()) > 0 && !response.GetThreadScopeApplied() {
+		return nil, fmt.Errorf("%w: provider does not support thread scope", ErrUnavailable)
+	}
+	if len(request.GetExcludedThreadRootIds()) > 0 && !response.GetThreadExclusionsApplied() {
+		return nil, fmt.Errorf("%w: provider does not support thread exclusions", ErrUnavailable)
+	}
 	return response, nil
 }
 

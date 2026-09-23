@@ -4,6 +4,8 @@
  */
 
 import { CallPreferencesState } from './callPreferences.svelte';
+import { MessageReconciler } from './messageReconciler';
+import { createMessageResourcesAPI } from '$lib/api-client/messageResources';
 import { refreshPresencePreference } from '$lib/presenceTracking';
 import { affectsViewerPermissions } from './permissionEvents';
 import { runResetHandlers } from './resetHandlers';
@@ -41,10 +43,17 @@ import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
+import { getUserStore } from './users.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
-import type { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { User } from '@chatto/api-types/api/v1/users_pb';
+import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import { RoomTimelineEvent, RoomTimelinePage, RoomMessagePosted } from '@chatto/api-types/api/v1/room_timeline_pb';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
@@ -54,25 +63,16 @@ import {
   viewerResponseToState,
   type PrivilegedModeAPI
 } from '$lib/api-client/viewer';
-import { notifyUserSummaries } from '$lib/api-client/hooks';
-import {
-  clearUserSummaryCache,
-  getUserSummaryCache,
-  removeUserSummaryCacheEntry
-} from '$lib/state/userSummaries.svelte';
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
-import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { clearSavedView, invalidateSavedViewWrites, saveView, type SavedView } from '$lib/storage/savedViews';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
-  primeRegisteredDirectoryUsers,
-  removeRegisteredDirectoryUser,
-  resetRegisteredDirectoryUsers,
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
   refreshRegisteredAdminProfileQueries,
@@ -160,9 +160,12 @@ export class ServerStateStore {
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly messageSearch: MessageSearchStore;
   readonly mentionRoles: MentionRolesStore;
-  readonly projection = new ServerProjectionStore();
+  readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
+  /** Last authorized text view for read-only reconnect and offline presentation. */
+  savedView = $state.raw<SavedView | null>(null);
+  #recentSavedRoomIds: string[] = [];
   #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (event) =>
@@ -211,6 +214,8 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
+  /** Catch-up reads can replace retained state while live hints arrive. */
+  #catchUpResourceReads = 0;
   #permissionCheckGeneration = 0;
   /** Block edits while authoritative permission reads are pending; retain the visible view. */
   checkingPermissions = $state(false);
@@ -231,6 +236,19 @@ export class ServerStateStore {
   readonly #messageWindowRefreshes = new SvelteMap<MessagesStore, Promise<void>>();
   readonly #pendingMessageWindowRefreshes = new WeakMap<MessagesStore, MessageWindowRefresh[]>();
   readonly #projectionReconciliations = new SvelteSet<Promise<void>>();
+  readonly #messageReconciler = new MessageReconciler(
+    (roomId, ids, cursor) => this.#serverConnection.getAPI(createMessageResourcesAPI).read(roomId, ids, cursor),
+    (roomId, cursor) => {
+      const timelines = this.loadedMessageStores(roomId).map((store) => store.captureMessageReconciliation());
+      const files = this.#roomFiles[roomId];
+      const pins = this.#roomPins[roomId];
+      return (id, resource, insert) => {
+        for (const apply of timelines) apply(id, resource?.timeline ?? null, insert);
+        files?.applyMessageUpdate(id, resource?.message ?? null, insert, cursor);
+        pins?.applyMessageUpdate(id, resource?.message ?? null, cursor);
+      };
+    }
+  );
 
   constructor(
     registration: ServerRegistration,
@@ -244,13 +262,9 @@ export class ServerStateStore {
     this.#getSession = getSession;
     this.#originServer = originServer;
     this.#serverConnection = serverConnection;
+    this.projection = new ServerProjectionStore(getUserStore(this.serverId, serverConnection.queryScope));
     const cookieAuth = this.#cookieAuth;
 
-    const connectAPIConfig = {
-      serverId: serverConnection.serverId ?? registration.id,
-      baseUrl: serverConnection.connectBaseUrl,
-      bearerToken: serverConnection.bearerToken
-    };
     const notificationAPI = serverConnection.getAPI(createNotificationAPI);
     const voiceCallAPI = serverConnection.getAPI(createVoiceCallAPI);
     const adminRoomLayoutAPI = serverConnection.getAPI(createAdminRoomLayoutAPI);
@@ -262,7 +276,7 @@ export class ServerStateStore {
     this.#privilegedModeAPI = serverConnection.getAPI(createPrivilegedModeAPI);
     this.currentUser = new CurrentUserState(
       cookieAuth,
-      connectAPIConfig,
+      serverConnection.apiConfig,
       undefined,
       onAuthenticationRequired
     );
@@ -401,6 +415,7 @@ export class ServerStateStore {
   async completeRealtimeCatchUp(cursor: string): Promise<void> {
     if (this.#privacyCleanupFailed) throw new Error('Private data cleanup did not complete');
     const generation = this.#realtimeProjectionGeneration;
+    this.#catchUpResourceReads++;
     const batches = await Promise.all(
       (
         [
@@ -411,7 +426,7 @@ export class ServerStateStore {
           'notifications'
         ] as RealtimeResourceFamily[]
       ).map((family) => this.#realtimeResources.read(family, cursor))
-    );
+    ).finally(() => { this.#catchUpResourceReads--; });
     this.requireCurrentRealtimeProjection(generation);
     for (const resource of batches.flat()) {
       this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
@@ -441,7 +456,8 @@ export class ServerStateStore {
           (store) =>
             store.hydrateRealtimeProjection(
               cursor,
-              () => generation === this.#realtimeProjectionGeneration
+              () => generation === this.#realtimeProjectionGeneration,
+              true
             )
         )
       );
@@ -540,10 +556,25 @@ export class ServerStateStore {
   /** Reconcile a successful thread read even when its realtime hint is absent or a no-op. */
   reconcileThreadRead(roomId: string, threadRootEventId: string): void {
     const roomStore = this.#roomMessages[roomId];
-    if (roomStore) this.scheduleMessageWindowRefresh(roomStore, threadRootEventId);
+    if (roomStore) this.scheduleMessageReconciliation(roomId, threadRootEventId);
     refreshRegisteredFollowedThreadQueries(this.serverId);
-    this.refreshRealtimeResource('notifications');
-    this.refreshRealtimeResource('rooms');
+    if (!this.notifications.hasLoaded || this.notifications.loading || this.notifications.error ||
+      (this.notifications.roomUnreadCounts[roomId] ?? 0) > 0 || this.resourceReadMayChange('notifications')) {
+      this.refreshRealtimeResource('notifications');
+    }
+    if (this.roomAttentionMayChange(roomId)) this.refreshRealtimeResource('rooms');
+  }
+
+  /** Do not skip a read based on state that an outstanding response can replace. */
+  private resourceReadMayChange(family: RealtimeResourceFamily): boolean {
+    return this.#resourceRefreshes.has(family) || this.#catchUpResourceReads > 0 ||
+      this.#realtimeSnapshotPending || this.checkingPermissions || this.#reconciliationError !== null;
+  }
+
+  /** Reading an already-read room cannot clear more Badge attention. Unknown state must be read. */
+  private roomAttentionMayChange(roomId: string): boolean {
+    return this.projection.rooms.get(roomId)?.viewerState?.hasUnread !== false ||
+      this.resourceReadMayChange('rooms');
   }
 
   /** Stable lazy file-list owner for one room on this server. */
@@ -638,6 +669,7 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
+    this.scrubSavedRoom(roomId);
     this.#roomMembers[roomId]?.resetProjectionState();
     this.voiceCall.handleRoomAccessRevoked(roomId);
     this.activeCallRooms.clearRoom(roomId);
@@ -645,8 +677,142 @@ export class ServerStateStore {
     this.clearRoomMessageAccess(roomId, forgetStores);
   }
 
+  /** Restore a device snapshot only for the same local viewer. */
+  restoreSavedView(view: SavedView | null): void {
+    if (!view || view.serverId !== this.serverId || view.userId !== this.#getSession().userId) return;
+    if (!this.savedView || view.savedAt > this.savedView.savedAt) this.savedView = view;
+    this.#recentSavedRoomIds = view.rooms.filter((room) => room.messages.length > 0).map((room) => room.id);
+    if (this.realtimeSync.phase === 'empty' && !this.currentUser.loading && !this.currentUser.user)
+      this.restoreSavedProjection(view);
+  }
+
+  /** Remove saved device content, including a normal view restored from that content. */
+  clearSavedPresentation(): void {
+    this.savedView = null;
+    this.#recentSavedRoomIds = [];
+    if (!this.realtimeSync.restoredFromDisk) return;
+    this.#realtimeProjectionGeneration++;
+    this.#permissionCheckGeneration++;
+    this.#messageReconciler.reset();
+    this.#serverConnection.invalidatePrivateData();
+    this.currentUser.user = undefined;
+    this.permissions = EMPTY_PERMISSIONS;
+    this.projection.reset();
+    this.resetProjectionMirrors();
+    this.realtimeSync.reset();
+  }
+
+  /** Populate the normal chat selectors with presentation-only disk data. */
+  private restoreSavedProjection(view: SavedView): void {
+    const viewer = new GetViewerResponse({
+      user: { profile: new User({ id: view.userId, displayName: view.viewerName ?? '' }) }
+    });
+    this.projection.viewer = viewer;
+    const viewerState = viewerResponseToState(viewer);
+    this.currentUser.user = viewerState.user;
+    this.currentUser.loading = false;
+    this.setPermissions(viewerState);
+    this.serverInfo.name = view.serverName;
+    for (const room of view.rooms) {
+      this.projection.rooms.set(room.id, new RoomWithViewerState({
+        room: new Room({
+          id: room.id,
+          name: room.name,
+          kind: room.kind ?? RoomKind.CHANNEL,
+          universal: room.universal ?? false
+        }),
+        viewerState: {
+          isMember: true,
+          permissions: [{ permission: 'message.read', granted: true }]
+        }
+      }));
+      const users: Record<string, User> = {};
+      const events = room.messages.map((saved) => {
+        const actorId = saved.authorId ?? `saved:${saved.id}`;
+        users[actorId] ??= new User({ id: actorId, displayName: saved.author });
+        const date = new SvelteDate(saved.createdAt);
+        const createdAt = Timestamp.fromDate(Number.isNaN(date.getTime()) ? new SvelteDate(view.savedAt) : date);
+        return new RoomTimelineEvent({
+          id: saved.id,
+          actorId,
+          createdAt,
+          event: { case: 'messagePosted', value: new RoomMessagePosted({
+            message: new Message({
+              id: saved.id, roomId: room.id, actorId, createdAt, body: saved.body
+            })
+          }) }
+        });
+      });
+      this.messagesForRoom(room.id).replaceRoomProjectionPage(room.id, new RoomTimelinePage({
+        events,
+        includes: { users }
+      }));
+    }
+    this.realtimeSync.restoreSavedProjection();
+  }
+
+  /** Keep the latest viewed room first in the bounded offline text cache. */
+  noteViewedRoom(roomId: string): void {
+    this.#recentSavedRoomIds = [roomId, ...this.#recentSavedRoomIds.filter((id) => id !== roomId)].slice(0, 10);
+    if (this.realtimeSync.lastCaughtUpAt) this.saveCurrentView(this.realtimeSync.lastCaughtUpAt);
+  }
+
+  /** Capture current authorized data without making the saved copy authoritative. */
+  saveCurrentView(savedAt: number): void {
+    if (this.realtimeSync.phase !== 'ready' || this.realtimeSync.lastCaughtUpAt !== savedAt) return;
+    const userId = this.currentUser.user?.id ?? this.#getSession().userId;
+    if (!userId || this.#deletedRealtimeUserIds.has(userId) ||
+      !this.projection.viewer || this.projection.viewer.user?.profile?.id !== userId) return;
+    const rooms = [...this.projection.rooms.values()].flatMap((entry) => {
+      const room = entry.room ? mapDirectoryRoom(entry) : null;
+      if (!room || room.archived || !room.isMember || room.canReadMessages !== true) return [];
+      const messages = this.#recentSavedRoomIds.includes(room.id)
+        ? (this.#roomMessages[room.id]?.rootEvents ?? [])
+            .filter((event) => event.event.kind === TimelineEventKind.MessagePosted &&
+              !event.event.deletedAt && typeof event.event.body === 'string' &&
+              !this.#deletedRealtimeUserIds.has(event.actorId ?? ''))
+            .slice(-50)
+            .map((event) => ({
+              id: event.id,
+              createdAt: event.createdAt,
+              author: event.actor?.displayName ?? event.actor?.login ?? '',
+              authorId: event.actorId ?? undefined,
+              body: (event.event as Extract<TimelineEventView['event'], { kind: 'messagePosted' }>).body ?? ''
+            }))
+        : [];
+      return [{ id: room.id, name: room.name, kind: room.kind, universal: room.isUniversal, messages }];
+    });
+    const view: SavedView = {
+      version: 1,
+      serverId: this.serverId,
+      userId,
+      viewerName: this.currentUser.user?.displayName ?? '',
+      serverName: this.serverInfo.name,
+      savedAt,
+      rooms
+    };
+    this.savedView = view;
+    void saveView(view);
+  }
+
+  /** Remove a room as soon as access loss is verified. */
+  private scrubSavedRoom(roomId: string): void {
+    if (!this.savedView) {
+      const userId = this.currentUser.user?.id ?? this.#getSession().userId;
+      if (userId) void clearSavedView(this.serverId, userId);
+      return;
+    }
+    if (!this.savedView.rooms.some((room) => room.id === roomId)) return;
+    invalidateSavedViewWrites();
+    const view = { ...this.savedView, rooms: this.savedView.rooms.filter((room) => room.id !== roomId) };
+    this.savedView = view;
+    this.#recentSavedRoomIds = this.#recentSavedRoomIds.filter((id) => id !== roomId);
+    void saveView(view);
+  }
+
   /** Message-read loss does not imply loss of voice or room membership. */
   private clearRoomMessageAccess(roomId: string, forgetStores = false): void {
+    this.#messageReconciler.invalidateRoom(roomId);
     clearRoomPinsSeenMarker(
       this.serverId,
       this.currentUser.user?.id ?? this.#getSession().userId ?? '',
@@ -741,6 +907,7 @@ export class ServerStateStore {
     let adminRoomLayoutChanged = update.reset;
 
     if (update.reset) {
+      this.#messageReconciler.reset();
       this.#permissionCheckGeneration++;
       this.checkingPermissions = false;
       if (update.privacyReset) {
@@ -751,7 +918,7 @@ export class ServerStateStore {
       }
       const generation = ++this.#realtimeProjectionGeneration;
       this.#realtimeSnapshotPending = true;
-      this.#deletedRealtimeUserIds.clear();
+      if (!update.retainView) this.#deletedRealtimeUserIds.clear();
       this.#reconciliationError = null;
       this.#pendingResourceRefreshes.clear();
       this.#pendingUserRefreshIds.clear();
@@ -765,17 +932,18 @@ export class ServerStateStore {
           )
             throw new Error('Query cleanup incomplete');
         },
-        () => resetRegisteredFollowedThreadQueries(this.serverId),
+        () => { if (!update.retainView) resetRegisteredFollowedThreadQueries(this.serverId); },
         () => {
-          if (!this.resetProjectionMirrors()) throw new Error('Mirror cleanup incomplete');
+          if (!update.retainView && !this.resetProjectionMirrors())
+            throw new Error('Mirror cleanup incomplete');
         },
         ...[this.messageSearch, ...Object.values(this.#roomMessageSearch)].map(
-          (store) => () => store.clearResults()
+          (store) => () => { if (!update.retainView) store.clearResults(); }
         )
       ]);
     }
 
-    if (update.resource?.case === 'rooms' && !this.#realtimeSnapshotPending) {
+    if (update.resource?.case === 'rooms') {
       this.reconcileRoomPermissions(update.resource.value.rooms, update.cursor ?? undefined);
     }
     this.projection.apply(update);
@@ -806,9 +974,7 @@ export class ServerStateStore {
         case 'users': {
           const members = resource.value.users.map(mapDirectoryMember);
           for (const member of members) this.updateMemberPresence(member.id, member.presenceStatus);
-          primeRegisteredDirectoryUsers(this.serverId, this.#serverConnection.queryScope, members);
           for (const store of Object.values(this.#roomMembers)) store.updateUsers(members);
-          notifyUserSummaries(this.serverId, members);
           for (const userId of previousUserIds) {
             if (!this.projection.users.has(userId)) this.scrubRemovedUser(userId);
           }
@@ -936,7 +1102,7 @@ export class ServerStateStore {
     this.#projectionReconciliations.add(refresh);
   }
 
-  /** Message-read changes affect plaintext even if room membership is unchanged. */
+  /** Read and posting changes require fresh message content and reply capabilities. */
   private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
     const nextRooms = new SvelteMap(rooms.map((room) => [room.room?.id, room]));
     const ids = new SvelteSet([...Object.keys(this.#roomMessages), ...Object.keys(this.#roomFiles),
@@ -949,11 +1115,12 @@ export class ServerStateStore {
         continue;
       }
       const previous = this.projection.rooms.get(roomId);
-      const readAccess = (room: RoomWithViewerState | undefined) =>
-        ['message.read', 'message.read-interactions'].map((permission) =>
+      const messageAccess = (room: RoomWithViewerState | undefined) =>
+        ['message.read', 'message.read-interactions', 'message.post', 'message.post-in-thread', 'message.post-in-interactions'].map((permission) =>
           room?.viewerState?.permissions.some((grant) => grant.permission === permission && grant.granted) ?? false
         ).join(',');
-      if (previous && readAccess(previous) === readAccess(next)) continue;
+      if (mapDirectoryRoom(next)?.canReadMessages !== true) this.scrubSavedRoom(roomId);
+      if (previous && messageAccess(previous) === messageAccess(next)) continue;
       // Rebuild only affected plaintext stores. Their owners and surrounding
       // page stay mounted, and their request generations fence old responses.
       this.clearRoomMessageAccess(roomId);
@@ -963,7 +1130,7 @@ export class ServerStateStore {
         .filter(([key]) => key.startsWith(`${roomId}\u0000`)).map(([, store]) => store)]) {
         if (store) this.trackProjectionReconciliation(
           store.hydrateRealtimeProjection(cursor ?? '', () => generation === this.#realtimeProjectionGeneration),
-          cursor, generation
+          generation
         );
       }
     }
@@ -993,14 +1160,13 @@ export class ServerStateStore {
     }
   }
   private scrubRemovedUser(userId: string): void {
-    removeRegisteredDirectoryUser(this.serverId, this.#serverConnection.queryScope, userId);
+    this.projection.users.delete(userId);
     for (const roomId of Object.keys(this.#roomMembers))
       this.updateRoomMembership(roomId, userId, false);
     scrubRegisteredFollowedThreadUser(this.serverId);
     scrubRegisteredRoomMemberUser(this.serverId, userId);
     removeRegisteredAdminUserQueries(this.serverId, userId);
     this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
-    removeUserSummaryCacheEntry(this.serverId, userId);
     this.notifications.scrubUser(userId);
     this.activeCallRooms.scrubUser(userId);
     for (const store of Object.values(this.#roomMessages)) store.scrubUserReferences(userId);
@@ -1018,17 +1184,22 @@ export class ServerStateStore {
   private refreshRealtimeResource(family: RealtimeResourceFamily, minimumCursor?: string): void {
     minimumCursor ??= this.#currentEventMinimumCursor;
     const generation = this.#realtimeProjectionGeneration;
-    if (this.#resourceRefreshes.has(family)) {
-      const pending = this.#pendingResourceRefreshes.get(family);
-      this.#pendingResourceRefreshes.set(family, {
-        minimumCursor:
-          minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
-        generation
-      });
-      return;
-    }
-    const refresh = this.#realtimeResources
-      .read(family, minimumCursor)
+    const pending = this.#pendingResourceRefreshes.get(family);
+    this.#pendingResourceRefreshes.set(family, {
+      minimumCursor:
+        minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
+      generation
+    });
+    if (this.#resourceRefreshes.has(family)) return;
+    // Collect adjacent event frames before reading. Once a read starts, later
+    // hints stay pending for a follow-up read at their own minimum boundary.
+    const refresh = new Promise<void>((resolve) => setTimeout(resolve, 10))
+      .then(() => {
+        this.requireCurrentRealtimeProjection(generation);
+        minimumCursor = this.#pendingResourceRefreshes.get(family)?.minimumCursor;
+        this.#pendingResourceRefreshes.delete(family);
+        return this.#realtimeResources.read(family, minimumCursor);
+      })
       .then(async (resources) => {
         this.requireCurrentRealtimeProjection(generation);
         for (const resource of resources) {
@@ -1183,6 +1354,9 @@ export class ServerStateStore {
         return;
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
+        const viewerId = this.currentUser.user?.id ?? this.#getSession().userId;
+        this.savedView = null;
+        if (viewerId) void clearSavedView(this.serverId, viewerId);
         this.#deletedRealtimeUserIds.add(userId);
         this.#pendingUserRefreshIds.delete(userId);
         this.projection.removeUser(userId);
@@ -1211,21 +1385,15 @@ export class ServerStateStore {
       case 'messageRetracted':
       case 'reactionAdded':
       case 'reactionRemoved':
+      case 'messagePinned':
+      case 'messageUnpinned':
       case 'assetDeleted': {
         const anchorEventId =
           rawValue?.messageEventId ?? (payload.case === 'messagePosted' ? event.id : null);
-        const roomAnchorEventId =
-          payload.case === 'messagePosted' && payload.value.threadRootEventId
-            ? payload.value.threadRootEventId
-            : anchorEventId;
         if (payload.case === 'messagePosted') this.ingestRealtimeMessagePost(event);
-        this.refreshLoadedMessageWindows(
-          roomId,
-          anchorEventId,
-          roomAnchorEventId,
-          payload.case === 'messagePosted' && !payload.value.threadRootEventId,
-          payload.case === 'messagePosted' && !!payload.value.threadRootEventId,
-          payload.case === 'messagePosted'
+        if (anchorEventId) this.scheduleMessageReconciliation(
+          roomId, anchorEventId, payload.case === 'messagePosted',
+          payload.case === 'messagePosted' ? payload.value.threadRootEventId : undefined
         );
         if (payload.case === 'messageRetracted') {
           this.applyLoadedMessageRetraction(
@@ -1234,18 +1402,17 @@ export class ServerStateStore {
             event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString()
           );
         }
-        this.refreshLoadedTimelineResources(roomId, {
-          files: payload.case !== 'reactionAdded' && payload.case !== 'reactionRemoved',
-          pins: payload.case !== 'messagePosted'
-        });
         if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
         else this.forEachMessageSearch((store) => store.clearResults());
         if (payload.case === 'messagePosted') {
-          this.refreshRealtimeResource('rooms');
+          // Posts do not establish viewer attention. Its user-scoped hints arrive
+          // after the server applies Badge decisions and the poster's read state.
+          // Known DM activity is already applied by the room projection.
+          if (!this.projection.rooms.has(roomId)) this.refreshRealtimeResource('rooms');
           if (payload.value.threadRootEventId)
             refreshRegisteredFollowedThreadQueries(this.serverId);
         }
-        if (payload.case === 'messageRetracted') {
+        if (payload.case === 'messageEdited' || payload.case === 'messageRetracted') {
           refreshRegisteredFollowedThreadQueries(this.serverId);
         }
         return;
@@ -1253,8 +1420,7 @@ export class ServerStateStore {
       case 'assetProcessingStarted':
       case 'assetProcessingSucceeded':
       case 'assetProcessingFailed':
-        this.refreshLoadedMessageWindows(roomId, rawValue?.messageEventId ?? null);
-        this.refreshLoadedTimelineResources(roomId, { files: true, pins: true });
+        if (rawValue?.messageEventId) this.scheduleMessageReconciliation(roomId, rawValue.messageEventId);
         return;
       case 'voiceCallParticipantJoined':
         this.playCallTransitionSound(
@@ -1305,8 +1471,14 @@ export class ServerStateStore {
         this.refreshRealtimeResource('notifications');
         return;
       case 'notificationUnreadStateChanged':
-        this.refreshRealtimeResource('notifications');
-        this.refreshRealtimeResource('rooms');
+        // A self-authored hint can clear existing attention but cannot create it.
+        // Post-commit hints also carry the invalidation for Slow Mode deadlines.
+        // Occurrence changes have their own hint and must not be inferred here.
+        if (!event.actorId || event.actorId !== this.currentUserId() ||
+          this.roomAttentionMayChange(payload.value.roomId) ||
+          (this.projection.rooms.get(payload.value.roomId)?.room?.slowModeSeconds ?? 0) > 0) {
+          this.refreshRealtimeResource('rooms');
+        }
         return;
       case 'roomCreated':
       case 'roomUpdated':
@@ -1319,7 +1491,10 @@ export class ServerStateStore {
         if (payload.case === 'roomUniversalChanged' && roomId)
           this.#roomMembers[roomId]?.resetProjectionState();
         if (payload.case === 'userJoinedRoom') {
-          if (roomId && event.actorId) this.updateRoomMembership(roomId, event.actorId, true);
+          if (roomId && event.actorId) {
+            this.updateRoomMembership(roomId, event.actorId, true);
+            this.refreshRealtimeUsers([event.actorId]);
+          }
           this.refreshLoadedMessageWindows(roomId, event.id || null);
         }
         if (payload.case === 'roomThreadingModeChanged') {
@@ -1339,6 +1514,7 @@ export class ServerStateStore {
         return;
       case 'userProfileChanged':
       case 'userAccountCreated':
+        if (rawValue?.userId) this.projection.users.invalidate(rawValue.userId);
         if (payload.case === 'userAccountCreated' && rawValue?.userId) {
           this.invalidateUniversalMembership();
         }
@@ -1358,7 +1534,10 @@ export class ServerStateStore {
         if (this.currentUser.user?.id) this.refreshRealtimeUsers([this.currentUser.user.id]);
         return;
       case 'roomReadStateChanged':
-        this.refreshRealtimeResource('rooms');
+        if (this.roomAttentionMayChange(payload.value.roomId)) this.refreshRealtimeResource('rooms');
+        return;
+      case 'threadCreated':
+        this.scheduleMessageReconciliation(roomId, payload.value.threadRootEventId);
         return;
       case 'threadViewerStateChanged': {
         this.applyThreadFollowChange(
@@ -1380,15 +1559,11 @@ export class ServerStateStore {
     if (!posted || posted.bodyPlaintext === undefined || !event.id) return;
     const actorMember = event.actorId ? this.projection.users.get(event.actorId) : null;
     const actorDeleted = !!event.actorId && this.#deletedRealtimeUserIds.has(event.actorId);
-    const cachedActor =
-      !actorDeleted && event.actorId ? getUserSummaryCache(this.serverId).get(event.actorId) : null;
     const actor = actorDeleted
       ? null
       : actorMember
         ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember))
-        : cachedActor
-          ? { ...cachedActor, presenceStatus: PresenceStatus.OFFLINE }
-          : null;
+        : null;
     const timelineEvent: TimelineEventView = {
       id: event.id,
       createdAt: event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString(),
@@ -1433,7 +1608,6 @@ export class ServerStateStore {
     roomAnchorEventId: string | null = anchorEventId,
     roomForward = false,
     threadForward = false,
-    hydratePostedMessage = false,
     minimumCursor = this.#currentEventMinimumCursor
   ): void {
     for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
@@ -1441,48 +1615,40 @@ export class ServerStateStore {
       const visibleAnchor = roomAnchorEventId
         ? (store.refreshAnchorForMessageMutation(roomAnchorEventId) ?? roomAnchorEventId)
         : null;
-      if (hydratePostedMessage && roomForward) {
-        this.schedulePostedMessageRefresh(store, visibleAnchor, minimumCursor);
-      } else {
-        this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward, minimumCursor);
-      }
+      this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward, minimumCursor);
     }
     for (const [key, store] of Object.entries(this.#threadMessages)) {
       if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
       const visibleAnchor = anchorEventId
         ? (store.refreshAnchorForMessageMutation(anchorEventId) ?? anchorEventId)
         : null;
-      if (hydratePostedMessage && threadForward) {
-        this.schedulePostedMessageRefresh(store, visibleAnchor, minimumCursor);
-      } else {
-        this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward, minimumCursor);
-      }
+      this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward, minimumCursor);
     }
   }
 
-  /** Hydrate a new post first, then advance its retained timeline window. */
-  private schedulePostedMessageRefresh(
-    store: MessagesStore,
-    anchorEventId: string | null,
-    minimumCursor?: string
+  private loadedMessageStores(roomId: string): MessagesStore[] {
+    return [
+      ...(this.#roomMessages[roomId] ? [this.#roomMessages[roomId]] : []),
+      ...Object.entries(this.#threadMessages)
+        .filter(([key]) => key.startsWith(`${roomId}\u0000`)).map(([, store]) => store)
+    ];
+  }
+
+  /** One authoritative read serves every loaded view, including closed-thread files. */
+  private scheduleMessageReconciliation(
+    roomId: string, id: string, insert = false, threadRootEventId?: string
   ): void {
-    if (!anchorEventId) {
-      this.scheduleMessageWindowRefresh(store, anchorEventId, true, minimumCursor);
-      return;
-    }
+    if (!roomId || !id) return;
+    const stores = this.loadedMessageStores(roomId);
+    if (!stores.length && !this.#roomFiles[roomId] && !this.#roomPins[roomId]) return;
+    const ids = new SvelteSet([id, ...stores.flatMap((store) => store.relatedMessageIds(id))]);
+    for (const related of this.#roomFiles[roomId]?.relatedMessageIds(id) ?? []) ids.add(related);
+    if (threadRootEventId) ids.add(threadRootEventId);
     const generation = this.#realtimeProjectionGeneration;
-    const refresh = store
-      .refreshPostedMessage(
-        anchorEventId,
-        minimumCursor,
-        () => generation === this.#realtimeProjectionGeneration
-      )
-      .then((timelineIsCurrent) => {
-        if (timelineIsCurrent && generation === this.#realtimeProjectionGeneration) {
-          this.scheduleMessageWindowRefresh(store, anchorEventId, true, minimumCursor);
-        }
-      });
-    this.trackProjectionReconciliation(refresh, minimumCursor, generation);
+    const cursor = this.#currentEventMinimumCursor;
+    let refresh: Promise<void> | undefined;
+    for (const target of ids) refresh = this.#messageReconciler.enqueue(roomId, target, target === id && insert, cursor);
+    if (refresh) this.trackProjectionReconciliation(refresh, generation);
   }
 
   private applyLoadedMessageRetraction(
@@ -1491,6 +1657,8 @@ export class ServerStateStore {
     retractedAt: string
   ): void {
     if (!messageEventId) return;
+    this.#roomFiles[roomId]?.applyMessageUpdate(messageEventId, null, false);
+    this.#roomPins[roomId]?.applyMessageRetraction(messageEventId);
     for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
       if (roomId && candidateRoomId !== roomId) continue;
       store.applyMessageRetraction(messageEventId, retractedAt);
@@ -1556,16 +1724,14 @@ export class ServerStateStore {
         );
       });
     this.#messageWindowRefreshes.set(store, refresh);
-    this.trackProjectionReconciliation(refresh, minimumCursor, generation);
+    this.trackProjectionReconciliation(refresh, generation);
   }
 
   /** Keep the durable cursor behind every ConnectRPC read caused by its event. */
   private trackProjectionReconciliation(
     refresh: Promise<unknown>,
-    minimumCursor: string | undefined,
     generation: number
   ): void {
-    if (!minimumCursor) return;
     const tracked = refresh
       .then(() => undefined)
       .catch((error) => {
@@ -1587,30 +1753,11 @@ export class ServerStateStore {
     if (!roomId || !threadRootEventId) return;
     const roomStore = this.#roomMessages[roomId];
     roomStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
-    if (roomStore) this.scheduleMessageWindowRefresh(roomStore, threadRootEventId);
+    if (roomStore) this.scheduleMessageReconciliation(roomId, threadRootEventId);
 
     const threadStore = this.#threadMessages[`${roomId}\u0000${threadRootEventId}`];
     threadStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
   }
-
-  private refreshLoadedTimelineResources(
-    roomId: string,
-    resources: { files: boolean; pins: boolean }
-  ): void {
-    if (resources.files) {
-      for (const [candidateRoomId, store] of Object.entries(this.#roomFiles)) {
-        if (roomId && candidateRoomId !== roomId) continue;
-        store.refreshRetained();
-      }
-    }
-    if (resources.pins) {
-      for (const [candidateRoomId, store] of Object.entries(this.#roomPins)) {
-        if (roomId && candidateRoomId !== roomId) continue;
-        store.retry();
-      }
-    }
-  }
-
   get #adminRoomLayoutActive(): boolean {
     return this.#adminRoomLayoutSubscriptions > 0;
   }
@@ -1654,8 +1801,7 @@ export class ServerStateStore {
   private resetProjectionMirrors(): boolean {
     const complete = runResetHandlers([
       () => refreshRegisteredAdminQueries(this.serverId),
-      () => clearUserSummaryCache(this.serverId),
-      () => resetRegisteredDirectoryUsers(this.serverId),
+      () => this.projection.users.clear(),
       () => this.#memberPresence.clear(),
       ...Object.values(this.#roomMembers).map((store) => () => store.resetProjectionState()),
       ...Object.values(this.#roomMessages).map((store) => () => store.resetProjectionState()),
@@ -1817,6 +1963,8 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.#messageReconciler.reset();
+    this.projection.users.clear();
     this.readViews.clear();
     // In-flight destination and realtime reads must not revive a retired store.
     this.#realtimeProjectionGeneration++;

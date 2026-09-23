@@ -1,12 +1,12 @@
 {
   "name": "chatto-frontend",
   "private": true,
-  "version": "0.5.0-beta.4",
+  "version": "0.5.0-beta.6",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && pnpm check:bundle && pnpm check:csp",
+    "build": "svelte-kit sync && vite build && pnpm check:bundle && pnpm check:csp",
     "check:bundle": "node scripts/check-bundle-size.mjs",
     "check:csp": "node scripts/check-csp.mjs",
     "preview": "vite preview",
@@ -24,7 +24,7 @@
     "test": "pnpm run test:unit:run",
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "pnpm --filter @chatto/api-types build && pnpm --filter @chatto/lingua build && storybook build"
+    "build-storybook": "storybook build"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -85,7 +85,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0",
-    "virtua": "^0.48.8",
+    "virtua": "^0.52.1",
     "vite": "^8.2.2",
     "vite-plugin-devtools-json": "^1.1.0",
     "vitest": "^4.1.11",

@@ -1,30 +1,31 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { accountNameToken } from '$lib/render/accountName';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { onDestroy, untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
 import {
   createMessageSearchAPI,
   MessageSearchOrder,
   type MessageSearchResult
 } from '$lib/api-client/messageSearch';
-import { startDMWith } from '$lib/dm/startDM';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
+import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+import { startDMWith } from '$lib/dm/startDM';
+import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
-import { buildDirectMessagePresentation } from '$lib/render/users';
+import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { isNavigationVisibleRoom } from '$lib/state/server/rooms.svelte';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-import { toast } from '$lib/ui/toast';
 import { scoreItem } from './quickSwitcherSearch';
 
 export type QuickSwitcherAvatarUser = Pick<
-  DirectoryMember,
+  UserAvatarUserView,
   'id' | 'login' | 'displayName' | 'deleted' | 'isBot' | 'presenceStatus'
 > & {
   avatarUrl?: string | null;
@@ -43,6 +44,8 @@ export type QuickSwitcherItem = {
   participants?: QuickSwitcherAvatarUser[];
   currentUserId?: string;
   targetUserId?: string;
+  /** Participant names and logins used for matching without changing the row label. */
+  searchTerms?: string[];
   href?: string;
   icon?: string;
   message?: MessageSearchResult;
@@ -50,7 +53,6 @@ export type QuickSwitcherItem = {
 };
 
 const SEARCH_DEBOUNCE_MS = 200;
-const USER_SEARCH_SERVER_TIMEOUT_MS = 3_000;
 const MESSAGE_SEARCH_SERVER_TIMEOUT_MS = 3_000;
 
 class SearchChannel<T> {
@@ -104,8 +106,7 @@ export class QuickSwitcherModel {
   selectedIndex = $state(0);
 
   #allItems = $state.raw<QuickSwitcherItem[]>([]);
-  #userSearch = new SearchChannel<QuickSwitcherItem>();
-  #userSearchController: AbortController | undefined;
+  #catalogLoading = $state(false);
   #messageSearch = new SearchChannel<QuickSwitcherItem>();
   #messageSearchServerKey = '';
 
@@ -126,10 +127,6 @@ export class QuickSwitcherModel {
     const raw = this.query.trim();
     const recentUrls = recentQuickSwitcher.urls;
     const recentSet = new SvelteSet(recentUrls);
-    const searchableItems = [
-      ...this.#allItems.filter((item) => item.kind !== 'dm'),
-      ...this.#userSearch.items
-    ];
 
     if (raw.startsWith('?')) return this.#messageSearch.items;
 
@@ -137,6 +134,7 @@ export class QuickSwitcherModel {
       const recent: QuickSwitcherItem[] = [];
       const rest: QuickSwitcherItem[] = [];
       for (const item of this.#allItems) {
+        if (item.kind === 'user') continue;
         const url = this.#itemUrl(item);
         (url && recentSet.has(url) ? recent : rest).push(item);
       }
@@ -159,7 +157,7 @@ export class QuickSwitcherModel {
     const query = isChannelFilter ? raw.slice(1) : raw;
     const pool = isChannelFilter
       ? this.#allItems.filter((item) => item.kind === 'room')
-      : searchableItems;
+      : this.#allItems;
     if (isChannelFilter && !query) {
       return [...pool].sort((a, b) => a.label.localeCompare(b.label));
     }
@@ -174,41 +172,33 @@ export class QuickSwitcherModel {
         score: matchScore + (recentIndex === -1 ? 0 : 300 - recentIndex * 20)
       });
     }
-    return scored.sort((a, b) => b.score - a.score);
+    // Known users supplement navigation; even an exact user match follows conversations.
+    return scored.sort(
+      (a, b) => Number(a.kind === 'user') - Number(b.kind === 'user') || b.score - a.score
+    );
   });
 
   get loading(): boolean {
-    return this.#userSearch.loading || this.#messageSearch.loading;
+    return this.query.trim().startsWith('?') ? this.#messageSearch.loading : this.#catalogLoading;
   }
 
   activate(): void {
     this.query = '';
     this.selectedIndex = 0;
     this.#allItems = [];
-    this.#userSearch.fence();
+    this.#catalogLoading = false;
     this.#messageSearch.fence();
   }
 
   deactivate(): void {
-    this.#userSearchController?.abort();
-    this.#userSearchController = undefined;
-    this.#userSearch.fence();
+    this.#allItems = [];
+    this.#catalogLoading = false;
     this.#messageSearch.fence();
   }
 
   setQuery(raw: string): void {
-    this.#userSearchController?.abort();
-    this.#userSearchController = undefined;
     this.query = raw;
     this.selectedIndex = 0;
-
-    const userQuery = raw.trim();
-    this.#userSearch.schedule(
-      quickSwitcher.visible && userQuery && !userQuery.startsWith('#') && !userQuery.startsWith('?')
-        ? userQuery
-        : null,
-      (query, requestId) => void this.#loadUserResults(query, requestId)
-    );
 
     this.#scheduleMessageSearch(raw);
   }
@@ -230,17 +220,24 @@ export class QuickSwitcherModel {
   }
 
   async select(item: QuickSwitcherItem): Promise<void> {
-    quickSwitcher.close();
-
     if (item.kind === 'user') {
+      const store = serverRegistry.tryGetStore(item.serverId);
+      // Recheck the live scope before an action from a row that may have become stale.
+      if (
+        !store?.isAuthenticated || !store.realtimeSync.hasUsableProjection ||
+        !store.permissions.canStartDMs
+      ) return;
+      const user = item.targetUserId ? store.projection.users.get(item.targetUserId)?.user : undefined;
+      if (!user || user.deleted) return;
+      quickSwitcher.close();
       try {
-        if (!item.targetUserId) throw new Error('Missing DM target');
-        await startDMWith(item.serverId, item.targetUserId);
+        await startDMWith(item.serverId, user.id);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to start DM');
       }
       return;
     }
+    quickSwitcher.close();
 
     const url = this.#itemUrl(item);
     if (!url) return;
@@ -249,10 +246,12 @@ export class QuickSwitcherModel {
   }
 
   groupHeader(index: number): string | null {
-    if (this.query.trim()) return null;
     const item = this.filtered[index];
     if (!item) return null;
     const previous = index > 0 ? this.filtered[index - 1] : null;
+    if (this.query.trim()) {
+      return item.kind === 'user' && previous?.kind !== 'user' ? this.kindLabels.user : null;
+    }
     const recent = this.#isRecent(item);
     const previousRecent = previous ? this.#isRecent(previous) : false;
 
@@ -268,6 +267,10 @@ export class QuickSwitcherModel {
     void serverRegistry.servers;
     for (const instance of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(instance.id);
+      void store?.isAuthenticated;
+      void store?.realtimeSync.hasUsableProjection;
+      void store?.permissions.canStartDMs;
+      if (store) for (const member of store.projection.users.values()) void member;
       void store?.navigation.rooms;
       void store?.navigation.isInitialLoading;
     }
@@ -320,6 +323,10 @@ export class QuickSwitcherModel {
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
     const items: QuickSwitcherItem[] = [];
+    this.#catalogLoading = instances.some((instance) => {
+      const store = serverRegistry.tryGetStore(instance.id);
+      return store?.isAuthenticated && store.navigation.isInitialLoading;
+    });
 
     for (const instance of instances) {
       const store = serverRegistry.tryGetStore(instance.id);
@@ -327,6 +334,7 @@ export class QuickSwitcherModel {
       const serverLabel = multiInstance ? serverName : '';
       const currentUserId = store?.currentUser.user?.id ?? undefined;
       const logo: ServerLogo = { name: serverName, logoUrl: store?.serverInfo.iconUrl ?? null };
+      const directMessageUserIds = new SvelteSet<string>();
 
       items.push({
         kind: 'server',
@@ -349,6 +357,14 @@ export class QuickSwitcherModel {
             currentUserId,
             m('common.you')
           );
+          // Count full membership, not visible avatars: a group can lose profile data.
+          const memberIds = store?.projection.rooms.get(room.id)?.memberUserIds ??
+            room.members.map((user) => user.id);
+          if (currentUserId && memberIds.includes(currentUserId) && memberIds.length <= 2) {
+            for (const userId of memberIds) {
+              if (userId !== currentUserId || memberIds.length === 1) directMessageUserIds.add(userId);
+            }
+          }
           items.push({
             kind: 'dm',
             id: room.id,
@@ -356,7 +372,12 @@ export class QuickSwitcherModel {
             detail: serverLabel,
             serverId: instance.id,
             serverName,
-            participants: presentation.visibleParticipants.slice(0, 2),
+            participants: presentation.visibleParticipants,
+            searchTerms: presentation.visibleParticipants.flatMap((user) => [
+              user.displayName,
+              user.login
+            ]),
+            currentUserId,
             score: 0
           });
           continue;
@@ -374,6 +395,25 @@ export class QuickSwitcherModel {
           score: 0
         });
       }
+
+      if (store?.isAuthenticated && store.realtimeSync.hasUsableProjection && store.permissions.canStartDMs) {
+        for (const member of store.projection.users.values()) {
+          if (!member.user?.id || member.user.deleted || directMessageUserIds.has(member.user.id)) continue;
+          const user = avatarUser(mapDirectoryMember(member));
+          items.push({
+            kind: 'user',
+            id: user.id,
+            targetUserId: user.id,
+            label: user.displayName || user.login,
+            detail: [user.login ? `@${user.login}` : '', serverLabel].filter(Boolean).join(' · '),
+            serverId: instance.id,
+            serverName,
+            participants: [user],
+            searchTerms: [user.displayName, user.login],
+            score: 0
+          });
+        }
+      }
     }
 
     items.push({
@@ -387,76 +427,18 @@ export class QuickSwitcherModel {
       icon: 'icon-[uil--bell]',
       score: 0
     });
+    // Catalogue updates must not move keyboard selection to a different destination.
+    const selected = this.filtered[this.selectedIndex];
     this.#allItems = items;
-    this.selectedIndex = 0;
-  }
-
-  async #loadUserResults(search: string, requestId: number): Promise<void> {
-    const instances = [...serverRegistry.servers];
-    const multiInstance = instances.length > 1;
-    const controller = new AbortController();
-    this.#userSearchController = controller;
-    const resultsByServer: Record<string, QuickSwitcherItem[]> = {};
-
-    await Promise.allSettled(
-      instances.map(async (instance) => {
-        const store = serverRegistry.tryGetStore(instance.id);
-        if (!store?.permissions.canStartDMs) return;
-
-        const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
-        const signal = AbortSignal.any([
-          controller.signal,
-          AbortSignal.timeout(USER_SEARCH_SERVER_TIMEOUT_MS)
-        ]);
-        const result = await resolveOnAbort(
-          serverConnectionManager
-            .getClient(instance.id)
-            .getAPI(createMemberDirectoryAPI)
-            .listUsers(search, 20, 0, { signal }),
-          signal
-        );
-        if (!result || signal.aborted || !this.#userSearch.isCurrent(requestId)) return;
-        if (!serverRegistry.servers.some((server) => server.id === instance.id)) return;
-
-        const items: QuickSwitcherItem[] = [];
-        for (const member of result.members) {
-          const user = avatarUser(member);
-          items.push({
-            kind: 'user',
-            id: user.id,
-            label: user.displayName || user.login,
-            detail: [user.login ? `@${user.login}` : '', multiInstance ? serverName : '']
-              .filter(Boolean)
-              .join(' · '),
-            serverId: instance.id,
-            serverName,
-            participants: [user],
-            currentUserId: store.currentUser.user?.id ?? undefined,
-            targetUserId: user.id,
-            score: 0
-          });
-        }
-        const selected = this.filtered[this.selectedIndex];
-        resultsByServer[instance.id] = items;
-        this.#userSearch.replace(requestId, Object.values(resultsByServer).flat());
-        // Keep keyboard selection on the same result when another server changes the ranking.
-        const selectedIndex = selected
-          ? this.filtered.findIndex(
-              (item) =>
-                item.serverId === selected.serverId &&
-                item.kind === selected.kind &&
-                item.id === selected.id
-            )
-          : -1;
-        this.selectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
-      })
-    );
-
-    if (this.#userSearch.isCurrent(requestId) && Object.keys(resultsByServer).length === 0) {
-      this.#userSearch.replace(requestId, []);
-    }
-    if (this.#userSearchController === controller) this.#userSearchController = undefined;
-    this.#userSearch.finish(requestId);
+    const selectedIndex = selected
+      ? this.filtered.findIndex(
+          (item) =>
+            item.serverId === selected.serverId &&
+            item.kind === selected.kind &&
+            item.id === selected.id
+        )
+      : -1;
+    this.selectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
   }
 
   async #loadMessageResults(search: string, requestId: number): Promise<void> {
@@ -505,7 +487,9 @@ export class QuickSwitcherModel {
           id: message.id,
           label: message.body,
           detail: [
-            message.actor?.displayName || message.actor?.login,
+            message.actor
+              ? accountNameToken(0)
+              : undefined,
             message.roomName ? `#${message.roomName}` : null,
             serverName
           ]
@@ -576,16 +560,6 @@ function getHostname(url: string): string {
   } catch {
     return url;
   }
-}
-
-/** Finish even if a transport ignores cancellation; late responses cannot publish results. */
-function resolveOnAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | undefined> {
-  return new Promise((resolve, reject) => {
-    const abort = () => resolve(undefined);
-    signal.addEventListener('abort', abort, { once: true });
-    if (signal.aborted) abort();
-    void promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
-  });
 }
 
 function resolveWithin<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {

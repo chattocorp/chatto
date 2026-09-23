@@ -1,5 +1,19 @@
 # Interface Inventory
 
+The internal [`@chatto/client`](../../packages/chatto-client/README.md) package
+owns HTTP requests, realtime consumption, message splitting, thread history, reactions, and typing
+helpers for Chatto's local Runling bot, the ChattoBot package, and Runling's
+Chatto examples. It
+does not add server endpoints or depend on Runling. Hosts retain credential
+loading, webhook handling, and conversation state; see
+[ADR-100](../adr/ADR-100-shared-chatto-integration-client.md).
+
+The internal [`@chatto/bot-client`](../../packages/chatto-bot-client/README.md)
+package composes that client. It owns bot addressing conventions, reply context,
+bot-relative thread roles, conversation keys, and accepted-delivery tracking.
+It has no Runling dependency or connection lifecycle. ChattoBot retains routing,
+inboxes, cancellation, and configuration reload state.
+
 The official mobile client uses the built-in OAuth identity `eu.chattocorp.chatto.mobile`
 and exact callback `eu.chattocorp.chatto.mobile:/oauth/callback`. System authentication
 returns the callback to the client; token exchange and bearer-authenticated
@@ -98,6 +112,12 @@ server's configured transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.
+Hydrated messages include optional `viewer_state.can_reply_in_thread` authority
+for their canonical thread, including roots without an established thread.
+The shared posting check combines membership, room policy,
+read access, and broad or interaction-scoped write authority. The write model
+repeats this check inside the room aggregate's OCC attempt. Interaction posting
+uses the existing thread projection; it adds no durable events or runtime keys.
 `MessageService.CreateMessage` accepts attachment descriptions keyed by an asset
 ID in the same request. `MessageService.SetAttachmentDescription` replaces or
 clears one current description with message-edit authorization. Hydrated message
@@ -257,6 +277,9 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 | Package | Service | Access policy |
 | ------- | ------- | ------------- |
 | `chatto.operator.v1` | `OperatorUserService` | Root-equivalent access over the private Unix socket |
+| `chatto.operator.v1` | `OperatorRoomService` | Root-equivalent channel lookup, creation, and explicit membership add over the private Unix socket |
+| `chatto.operator.v1` | `OperatorAssetService` | Root-equivalent attachment upload for a mapped author over the private Unix socket |
+| `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message import over the private Unix socket |
 | `chatto.operator.v1` | `OperatorSeedService` | Private Unix socket; compiled only with `bootstrap` or `test_endpoints` |
 
 The [synthetic data generator](../../cli/internal/core/seed_development.go) uses
@@ -287,7 +310,27 @@ current member-room set. It then uses
 `MessageSearchReadModel` and the normal timeline hydrator to recheck room
 membership, current body availability, and message/room identity before
 returning canonical `Message` resources. Public cursors encrypt and authenticate
-the provider cursor and bind it to the viewer and complete public request.
+the continuation and bind it to the viewer and complete public request.
+
+`MessageSearchService.SearchMessages` accepts independent `FOLLOWED_THREADS`
+scope and `THREAD` grouping. Message search retains its defaults. All modes
+share parsing, structured filters, availability, and cursor sealing.
+`MessageSearchReadModel` sends the complete followed-root set when requested.
+For groups it validates matching body revisions, excludes resolved roots on
+subsequent queries, and restarts the provider cursor when exclusions change.
+This avoids scanning every matching reply. Provider pages contain at most 100
+hits and the complete grouped operation has a 30-second deadline. Exact totals
+and activity sorting require enumeration of all matching groups.
+The model rechecks current follow state and access before group pagination.
+Relevance and newest order use the best valid matching message; activity order
+uses current thread metadata. Both modes return `MessageSearchResult`: a
+matching message and score, plus `ThreadSearchContext` for grouped results.
+The context reports actual viewer follow state. A root without replies is a group.
+The sealed group cursor carries a distinct-thread offset; message cursors carry
+the provider continuation. Neither pins a snapshot across pages.
+Providers must acknowledge applied thread inclusion and exclusion filters;
+older providers fail closed for unsupported filters. Thread filters do not
+contribute to relevance scores.
 
 The bundled provider runs under `chatto run` when
 `search_provider.enabled = true`; the same unit runs standalone through

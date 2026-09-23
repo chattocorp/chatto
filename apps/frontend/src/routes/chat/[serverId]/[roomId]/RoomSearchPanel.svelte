@@ -5,6 +5,7 @@ Room-scoped message search for the room sidebar. Its store is retained per room
 so switching rooms cannot leak a query or plaintext results into another room.
 -->
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import SearchResult from '$lib/components/search/SearchResult.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { m } from '$lib/i18n/messages';
@@ -25,11 +26,15 @@ so switching rooms cannot leak a query or plaintext results into another room.
   let {
     roomId,
     store,
-    onOpenResult
+    onOpenResult,
+    focusSearchOnMount = false,
+    onSearchFocused
   }: {
     roomId: string;
     store: MessageSearchStore;
     onOpenResult?: (messageEventId: string, threadRootEventId: string | null) => void;
+    focusSearchOnMount?: boolean;
+    onSearchFocused?: () => void;
   } = $props();
 
   const serverScope = useServerScope();
@@ -57,7 +62,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
 
 <SearchAvailability
   state={store.status.state}
-  checking={store.statusLoading && !store.statusLoaded}
+  checking={!store.statusLoaded && !store.statusError}
   error={store.statusError}
   onRetry={() => void store.refreshStatus()}
   checkingClass="flex min-h-32 flex-1 items-center justify-center p-4 text-center text-sm text-muted"
@@ -75,7 +80,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
         {#snippet children(result)}
           <SearchResult
             {result}
-            aria-label={`${result.actor?.displayName || result.actor?.login || m('common.unknown')}: ${result.body}`}
+            aria-label={`${formatAccountName(result.actor?.displayName || result.actor?.login || m('common.unknown'), result.actor)}: ${result.body}`}
             data-room-search-result-id={result.id}
             class="group/search-result"
             viewerLogin={serverScope.store.currentUser.user?.login}
@@ -112,6 +117,8 @@ so switching rooms cannot leak a query or plaintext results into another room.
         testid="room-search-query"
         bind:value={store.query}
         placeholder={m('search.query.placeholder')}
+        focusOnMount={focusSearchOnMount}
+        onMountFocus={onSearchFocused}
         oninput={scheduleSearch}
         onsubmit={() => search.submitNow()}
       />

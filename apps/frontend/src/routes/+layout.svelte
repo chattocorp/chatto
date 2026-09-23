@@ -4,6 +4,7 @@
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { onMount } from 'svelte';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
@@ -16,6 +17,7 @@
   import { sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
+  import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
@@ -27,6 +29,16 @@
 
   let { data, children } = $props();
   let modalContainerModule: Promise<typeof import('./chat/ModalContainer.svelte')> | null = null;
+
+  // Shell precaching fetches the full compiled build. Delay registration so
+  // those requests do not contend with the page's initial navigation.
+  onMount(() => {
+    if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+    const timer = setTimeout(() => {
+      void navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }, 7_000);
+    return () => clearTimeout(timer);
+  });
 
   function loadModalContainer() {
     modalContainerModule ??= import('./chat/ModalContainer.svelte');
@@ -41,6 +53,19 @@
 
   const activeServerId = $derived(getActiveServer());
   const activeRoomId = $derived(chatRoomIdFromRoute(page.route.id, page.params.roomId));
+
+  // OAuth windows keep their page content and branding without app navigation.
+  const standaloneOAuth = $derived.by(() => {
+    if (page.route.id === '/oauth/consent') return true;
+    if (page.route.id === '/servers/callback') {
+      return ['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '');
+    }
+    if (page.route.id !== '/login') return false;
+    const redirect = page.url.searchParams.get('redirect');
+    if (!isSafeInternalPath(redirect)) return false;
+    const target = new URL(redirect, page.url).pathname;
+    return target === '/oauth/authorize' || target === '/oauth/consent';
+  });
 
   $effect(() => {
     if (typeof activeRoomId === 'string' && activeRoomId) {
@@ -74,7 +99,9 @@
   const fullTitle = $derived(getFullTitle());
 </script>
 
-<GlobalKeyboardShortcuts />
+{#if !standaloneOAuth}
+  <GlobalKeyboardShortcuts />
+{/if}
 {#key data.user?.id}
   <ServerRuntimeCoordinator user={data.user} />
 {/key}
@@ -85,19 +112,28 @@
   <title>{fullTitle}</title>
 </svelte:head>
 
-<div
-  {@attach initialPageReveal}
-  use:sidebarSwipe
-  class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:app-frame-shell md:p-3 md:pt-0"
->
-  <AppHeader />
+{#if standaloneOAuth}
+  <div
+    {@attach initialPageReveal}
+    class="flex h-full w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+  >
+    {@render children?.()}
+  </div>
+{:else}
+  <div
+    {@attach initialPageReveal}
+    use:sidebarSwipe
+    class="flex h-full w-full flex-col overscroll-y-contain bg-surface desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3 pt-[env(safe-area-inset-top,0px)]"
+  >
+    <AppHeader />
 
-  <Frame class="relative flex-col">
-    <MobileSidebarChrome>
-      {@render children?.()}
-    </MobileSidebarChrome>
-  </Frame>
-</div>
+    <Frame class="relative flex-col">
+      <MobileSidebarChrome>
+        {@render children?.()}
+      </MobileSidebarChrome>
+    </Frame>
+  </div>
+{/if}
 
 <!-- Give WebKit a fixed, opaque bottom edge to extend behind Safari's toolbar.
      The native iOS shell hides it because it paints its own keyboard backdrop.
@@ -105,7 +141,10 @@
 <div
   data-safari-bottom-edge
   aria-hidden="true"
-  class="pointer-events-none fixed inset-x-0 bottom-0 h-px bg-surface md:hidden"
+  class={[
+    'pointer-events-none fixed inset-x-0 bottom-0 hidden h-px mobile-presentation:block',
+    standaloneOAuth ? 'bg-background' : 'bg-surface'
+  ]}
 ></div>
 
 {#if page.state.modal}

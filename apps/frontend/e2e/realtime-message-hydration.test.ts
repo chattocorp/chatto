@@ -23,7 +23,7 @@ test('renders canonical message plaintext before resource hydration completes', 
     reportHydrationStarted = resolve;
   });
   let hydrationRequests = 0;
-  const getMessageRoute = '**/api/connect/chatto.api.v1.MessageService/GetMessage';
+  const getMessageRoute = '**/api/connect/chatto.api.v1.MessageService/BatchGetMessages';
   await page.route(getMessageRoute, async (route) => {
     hydrationRequests += 1;
     reportHydrationStarted();

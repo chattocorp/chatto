@@ -1,9 +1,8 @@
 <!--
 @component
 
-Compact message-level actions for the composer input row. Formatting commands
-live in `ComposerFormattingToolbar` so this row can stay aligned with the
-48-pixel app-shell controls.
+Message-level actions that wrap below the editor in narrow composer containers.
+Formatting commands live in `ComposerFormattingToolbar`.
 -->
 <script lang="ts">
   import CompactActionButton from '$lib/ui/CompactActionButton.svelte';
@@ -49,12 +48,13 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
 </script>
 
 <div
-  class="col-span-2 mb-1 flex shrink-0 items-center gap-1 justify-self-end"
+  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:desktop-presentation:mb-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap"
   data-testid="composer-action-toolbar"
 >
   <div class="flex items-center gap-0.5">
     {#if !isEditing && canAttach}
       <CompactActionButton
+        wrapperClass="mobile-presentation:pill-button-group-touch"
         label={m('composer.attach_file')}
         type="button"
         onclick={() => fileInputElement?.click()}
@@ -68,9 +68,10 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
     <ComposerTimestampPicker disabled={inputDisabled} {editorApi} {effectiveTimezone} />
   </div>
 
-  <div class="flex items-center gap-0.5">
+  <div class="flex max-w-full flex-wrap items-center justify-end gap-0.5 @min-[560px]/composer:flex-nowrap">
     {#if showCreateThread}
       <CompactActionButton
+        wrapperClass="mobile-presentation:pill-button-group-touch"
         label={m('composer.post_as_thread')}
         type="button"
         onpointerdown={(event) => event.preventDefault()}
@@ -79,18 +80,19 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
         aria-pressed={createThread}
         title={m('composer.post_as_thread')}
         class={[
-          '@min-[560px]:gap-1',
+          '@min-[560px]/composer:gap-1',
           inputDisabled && 'opacity-50',
           createThread ? 'bg-action/10 text-action' : 'text-muted'
         ]}
       >
         <span class="iconify icon-[uil--comment-alt-lines] text-[15px]"></span>
-        <span class="hidden @min-[560px]:inline">{m('composer.thread_label')}</span>
+        <span class="hidden @min-[560px]/composer:inline">{m('composer.thread_label')}</span>
       </CompactActionButton>
     {/if}
 
     {#if showAlsoSendToChannel}
       <CompactActionButton
+        wrapperClass="mobile-presentation:pill-button-group-touch"
         label={m(
           echoToConversation
             ? 'composer.also_send_to_conversation'
@@ -107,26 +109,26 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
             : 'composer.also_send_to_channel'
         )}
         class={[
-          '@min-[560px]:gap-1',
+          '@min-[560px]/composer:gap-1',
           alsoSendToChannel ? 'bg-action/10 text-action' : 'text-muted'
         ]}
       >
         <span class="iconify icon-[uil--megaphone] text-[15px]"></span>
-        <span class="hidden @min-[560px]:inline">{m('composer.echo_label')}</span>
+        <span class="hidden @min-[560px]/composer:inline">{m('composer.echo_label')}</span>
       </CompactActionButton>
     {/if}
+    <CompactActionButton
+      wrapperClass="mobile-presentation:pill-button-group-touch"
+      label={m('composer.send')}
+      type="button"
+      onpointerdown={(event) => event.preventDefault()}
+      onclick={onsubmit}
+      disabled={!canSubmit}
+      class="@min-[560px]/composer:gap-1"
+      title={m('composer.send')}
+    >
+      <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
+      <span class="hidden @min-[560px]/composer:inline">{m('composer.send_label')}</span>
+    </CompactActionButton>
   </div>
-
-  <CompactActionButton
-    label={m('composer.send')}
-    type="button"
-    onpointerdown={(event) => event.preventDefault()}
-    onclick={onsubmit}
-    disabled={!canSubmit}
-    class="@min-[560px]:gap-1"
-    title={m('composer.send')}
-  >
-    <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
-    <span class="hidden @min-[560px]:inline">{m('composer.send_label')}</span>
-  </CompactActionButton>
 </div>

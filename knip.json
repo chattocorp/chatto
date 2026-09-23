@@ -64,6 +64,10 @@
     "packages/lingua": {
       "entry": ["src/**/*.spec.ts", "test/**/*.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "packages/chattobot": {
+      "entry": ["runling.config.ts", "**/*.test.ts"],
+      "project": ["**/*.ts"]
     }
   }
 }

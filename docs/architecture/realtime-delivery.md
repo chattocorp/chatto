@@ -18,6 +18,17 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 
 ## Public protocol
 
+The integration client [`@chatto/client`](../../packages/chatto-client/README.md)
+also consumes this protocol. It uses bearer authentication, live-only fallback,
+ordered async event acceptance, bounded buffering, and process-local resume
+cursors. Terminal errors stop consumption; unavailable replay reports a gap.
+The [bot client](../../packages/chatto-bot-client/README.md) supplies addressing
+recognition and process-local accepted-delivery tracking. The
+[ChattoBot package](../../packages/chattobot/README.md) routes message events
+into new or active Runling conversations. It accepts a delivery after inbox
+insertion or successful run registration. Runling itself has no Chatto runtime
+dependency.
+
 The public API is a binary protobuf WebSocket at `GET /api/realtime`. The
 server accepts behavioral protocol version 4. The `chatto.realtime.v1` suffix
 is the protobuf package name. It is not the behavioral protocol version.
@@ -97,28 +108,48 @@ unchanged.
 Public asset processing and deletion events include the owning room and
 message IDs. The mapper uses the same retained ownership lookup as event
 authorization, including deleted derivatives. Events without a message target
-are omitted. The frontend uses these IDs to refresh message windows, files,
-and pins only in the affected room.
+are omitted. The frontend uses these IDs to read each affected message once
+and update its loaded timeline, file, and pin rows.
 
 An authorized message-post event carries `body_plaintext` for immediate
 display. EVT does not store this field. The frontend inserts a temporary
 timeline row from the event ID, actor, time, reply references, and plaintext
 body. Values that belong only to the complete message resource start empty.
 These values include attachments, link previews, reactions, pin state, thread
-counts, thread participants, and the timeline cursor. A background `GetMessage`
-read uses the event cursor as its minimum boundary and replaces the temporary
-row with the authoritative resource. A wider cursor-bounded timeline-window
-refresh then reconciles ordering and pagination cursors. The client does not
-save the event cursor if either read fails.
+counts, thread participants, and the timeline cursor. The server-scoped
+[`MessageReconciler`](../../apps/frontend/src/lib/state/server/messageReconciler.ts)
+collects affected message IDs for 10 milliseconds, then reads at most 100 IDs
+per room with `BatchGetMessages`. It uses the latest received event cursor as
+the minimum read boundary. Opaque cursor strings are never sorted.
 
-The temporary row uses the projected user directory, then the per-server user
-summary cache, to resolve its author. If neither has the author, the row keeps
-its body visible and shows a neutral avatar and a name skeleton. A failed or
-empty message read changes this state to “Unknown user”. It does not mark the
-account as deleted. The single-message response replaces the temporary row
-only if no newer row change occurred during the read. Account deletion clears
+Each result supplies the same authoritative message to room timelines, open
+threads, Files, and pins. Loaded thread roots and echo rows join the same
+batch. Related IDs first found in a response use a follow-up batch. Closed
+threads do not need a mounted timeline for their files to update. Text-only
+posts leave file rows unchanged. File and pin updates preserve loaded pages;
+they do not restart the lists. Initial loads, pagination, system-event rows,
+and snapshot recovery still use their collection APIs. Message updates do not
+replace pagination cursors or imply that a gap in a loaded window is complete.
+After a successful thread-read acknowledgement, the root message also uses
+this queue. Acknowledgements that arrive during an active read can require a
+follow-up batch; they do not refresh the timeline window.
+
+The temporary row uses the connection-scoped user store to resolve its author.
+If that store has no profile, the row keeps
+its body visible and shows a neutral avatar and a name skeleton. A failed
+message read fails reconciliation. An omitted message is removed or tombstoned
+through the existing message-deletion rules. Neither case marks the account
+as deleted. The shared response replaces a temporary row only if no newer row
+change occurred during the read. Account deletion clears
 copied author data and the loading state. Deletion fences also apply to late
 responses and cached-author fallback.
+
+Message command responses and shared message reads use the same user store as
+room directories and the realtime projection. They fetch only missing users and share concurrent reads
+for the same user. A profile-change event invalidates that user's summary;
+account deletion, projection reset, and store disposal fence pending cache
+loads. A missing result from a shared read at a different cursor is retried at
+the caller's cursor. Each user request contains at most 100 IDs.
 
 
 ## Exact snapshot and targeted resource reads
@@ -179,10 +210,11 @@ capability.
 Room and thread timelines are not unconditional bootstrap families. The
 frontend reloads each mounted timeline at `E` through `RoomService` or
 `ThreadService`. A read caused by a later durable event uses that event's cursor
-as its minimum boundary. Files, pins, search, and other large or lazy data keep
-their independent ConnectRPC reads. They are not part of the retained realtime
-projection or its cursor. Canonical events act as refresh hints for resources
-that the client already uses.
+as its minimum boundary. Files and pins retain independent paginated reads
+for their collection membership. Changes to their message content use the
+shared message queue, whose completion is part of cursor reconciliation.
+Search and other lazy data retain their own reads. Canonical events update
+resources that the client already uses; they do not open lazy collections.
 
 The bundled frontend gives each cursor-bounded ConnectRPC call a 10-second
 deadline. A timeout fails reconciliation and closes the socket without cursor
@@ -284,7 +316,7 @@ effective authority when its own assignments, a
 retained role's permissions, the `everyone` role, or its direct permissions
 change. Cursor-bounded resource reads refresh authority in place for every
 viewer. Active snapshot queries reauthorize their own scopes; inactive private
-snapshots are discarded. The page remains visible, with input blocked during
+snapshots are discarded. The page remains visible and interactive during
 the check. Denied or failed reads clear the affected resource, not the server
 projection. Permission events do not clear the resume cursor or request a new
 WebSocket snapshot.
@@ -317,6 +349,10 @@ events into count- and byte-bounded session queues. Sessions for one user
 share room-visibility state. There are no per-client NATS or JetStream
 consumers.
 
+Historical message-post facts remain in EVT and reach the internal
+`live.evt.>` feed. The hub and resume replay omit them from public live
+delivery. Clients load these messages through normal timeline reads.
+
 `live.sync.>` messages use `chatto.core.pubsub.v1.PubSubEvent`. Durable
 `live.evt.>` messages use `chatto.core.evt.v1.Event`. The hub decodes each
 subject root with its matching envelope. Publishers derive the NATS subject
@@ -346,8 +382,14 @@ The hub and public event mapper both check this boundary.
 
 `ServerStateStore` owns retained `RoomMembersStore` instances for the session.
 Room navigation selects an existing store. Public join and leave events update
-its membership, and canonical user reads update its profiles. These updates also
-apply while the room is not mounted.
+its membership. Canonical user reads update the shared profile owner directly.
+These updates also apply while the room is not mounted.
+Each join event also starts a profile read at the event cursor, even if no room
+store exists. A retained room records the new member ID and resolves its name
+from the shared user store. It does not start a second profile read. Member-list
+reads at that cursor use the same boundary when they load profiles. An unknown
+typing user starts one shared profile read during a typing burst. Room and
+thread labels can use that profile before member-list loading finishes.
 The session store also retains presence updates for inactive rooms and rooms
 opened later. Catch-up refreshes profiles and presence for retained members.
 An event during offset pagination restarts
@@ -355,12 +397,20 @@ the membership read with the event's minimum cursor. Recovery resets and room
 access loss clear retained membership. Universal-room eligibility changes require
 a new authoritative read rather than client-side permission calculations.
 
-TanStack Query stores directory users by server, connection scope, and user ID.
-Concurrent cache misses share reads in batches of at most 100 IDs. Canonical
-profile updates cancel older reads before replacing entries; deletion records
-prevent an old batch from restoring a removed user. Session disposal removes
-these queries. A room's first page and full background load remain separate so
+[UserStore](../../apps/frontend/src/lib/state/server/users.svelte.ts) stores
+public profiles by server, connection scope, and user ID. Directory and timeline
+hydration share reads in batches of at most 100 IDs. Realtime updates supersede
+pending reads; per-user revisions fence list/detail responses. Deletion markers
+prevent old responses from restoring a removed user. Reset rejects pending reads,
+and disposal permanently fences the retired owner. Profile expiry timers have
+the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
+A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
+Room member state retains membership IDs and resolves profiles from the shared
+owner. It does not keep another profile copy for connected rooms. Typing labels
+prefer that owner when a member row also has profile fields. The quick finder
+reads that owner directly without starting profile requests. Server-scoped name
+and avatar views read the same current profiles.
 Three independent presence-filtered scans publish connected members while the
 full directory loads. Each status filter also supplies presence for cached
 profiles. Per-user change versions prevent these previews from replacing newer
@@ -374,8 +424,12 @@ uses this refresh. The existing projection and cursor remain usable. Unrelated
 users' assignments and cosmetic role changes keep the current projection.
 
 Snapshot queries retain their observers and current data while they cancel
-older reads and fetch authorized replacements. Failed reads remove cached data;
-inactive snapshots are discarded. Query invalidation also fences late matrix
+older reads. TanStack invalidates the server's snapshot queries before it
+refetches active queries, so dependent reads cannot reuse stale snapshots.
+Queries that share a dependency also share its replacement request. Failed
+permission checks remove cached data; inactive snapshots are discarded without
+refetching them. Checks paused while offline hide their cached data and resume
+when the client reconnects. Query invalidation also fences late matrix
 mutations independently of component disposal. Room membership or message-read
 changes clear only the affected plaintext stores and fence their older reads.
 Searches keep their input and refresh their results. Fresh route authorization
@@ -420,6 +474,14 @@ subscription. Failed reads, missing rows, reset state, and disposed subscription
 do not play a sound. Periodic reconciliation is silent. Web Push keeps its
 server-side policy checks.
 
+The app-icon badge uses Important unread attention across authenticated servers.
+It is an unnumbered flag; the window title shows the Important count. Ambient
+attention contributes to neither. Push payloads carry `attentionLevel` at the
+root and in declarative notification data. The worker sets a flag only for
+explicit `important` attention, then asks visible windows to reconcile current
+state. Ambient, unknown, and legacy unclassified pushes do not set a badge.
+Outgoing push payloads omit numeric app badge values.
+
 Each server store owns a RAM-only
 [`ReadViewRegistry`](../../apps/frontend/src/lib/state/server/readViews.svelte.ts).
 Visible thread panes register independently and remove their own registration
@@ -428,12 +490,15 @@ a room view does not cover its threads. App focus and visibility gate the shared
 attention rule. Notification badges and sound use this rule without changing
 server rows or counts. Presentation counts subtract only loaded unread
 occurrences covered by a view. Each successful thread read also refreshes its
-parent message, followed-thread queries, notifications, and room state through
-the existing refresh scheduler, without requiring a realtime invalidation.
+parent message and followed-thread queries. It refreshes notifications and room
+state when the affected room has unread attention, the state is unknown, or an
+outstanding read can replace it. These recovery reads use the existing refresh
+scheduler without requiring a realtime invalidation.
 This read does not replace the open thread's loaded message window.
 
-The bundled frontend selects `SNAPSHOT`. It resets its server projection when
-it receives a snapshot and applies all resource families from that one frame.
+The bundled frontend selects `SNAPSHOT`. A cold snapshot resets its server
+projection. A warm replacement keeps the prior room and timeline view while
+it applies the resource families from the new snapshot frame.
 After every `caught_up`, including a successful resume, it replaces the server
 runtime state, viewer, visible rooms, room groups, notifications, and displayed user
 presence with cursor-bounded ConnectRPC results. It replaces mounted timelines
@@ -446,13 +511,46 @@ not one refresh per event.
 If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
 
+A warm replacement keeps the normal route visible. Fresh room permissions
+remove access to affected rooms; cursor-bounded timeline reads replace retained
+message windows when they complete. An interrupted replacement leaves the
+prior view visible while the client requests another snapshot. A cold offline
+launch restores bounded saved text in the normal chat route. Verified access
+revocation clears affected saved text and position. Explicit sign-out clears
+the saved data. The saved text never supplies a realtime cursor or current
+authorization.
+
 The projection stores canonical public resources. It does not store
-realtime-specific resource copies. Resource invalidation events start
-coalesced ConnectRPC reads. If another event reaches the same resource family
-during a read, the frontend runs one follow-up read at the newest event cursor.
-Timeline-derived stores retain each distinct pending anchor, direction, and
-minimum cursor. They run these reads in order. One bounded page cannot replace
-a read for another anchor. Identical pending reads share one request. Cursor
+realtime-specific resource copies. Resource invalidation events collect for
+10 milliseconds before a ConnectRPC read starts. Adjacent events for the same
+family share one read at the latest received cursor. If another event reaches
+the same resource family during a read, the frontend runs one follow-up read
+at the newest event cursor. Both the collection delay and follow-up reads are
+part of cursor reconciliation. Notification invalidations still require an
+authoritative notification-list read because their events carry no replacement
+notification data. Only occurrence-change hints request that list. Badge hints
+request room state, not notifications. A message post requests room state only
+when the room is missing from the retained directory; known DM activity is
+applied locally. The user-scoped post-commit hint reconciles the poster's read
+state and Slow Mode deadline after those updates finish on the server.
+
+A self-authored Badge hint can skip the room read when the room is already
+read and Slow Mode is disabled. A room-read hint can also skip an already-read
+room. These checks use raw server state, not the attention hidden by an active
+view. Unknown state, failed reconciliation, and outstanding reads retain the
+refresh. Other actors' Badge hints always refresh rooms because they can either
+create or remove attention. Posting can clear older notification occurrences;
+their occurrence-change hints still refresh the list. Reconnect reconciliation
+is unchanged and repairs missed transient hints. No resources are added to
+event payloads, and no new external system receives user data.
+The message queue deduplicates pending IDs and serializes batches within each
+room. An event that arrives during a read queues another read for its ID and
+prevents the older result from being applied. Reset, room-access loss, and
+disposal fence outstanding responses. Required author reads are also bounded
+to 100 IDs. Both message and author failures prevent cursor advancement.
+Remaining timeline-window reads retain each distinct pending anchor, direction,
+and minimum cursor. One bounded page cannot replace a read for another anchor.
+Identical pending window reads share one request. Cursor
 advancement waits for active and queued reads, including reads that started
 without a cursor. A failed refresh closes the socket without saving that event
 cursor.

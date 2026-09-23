@@ -258,7 +258,7 @@ test.describe('Bot account lifecycle', () => {
     await expect(page.getByRole('heading', { name: 'Bots', exact: true })).toBeVisible();
 
     const suffix = Date.now().toString(36);
-    const botLogin = `lifecycle_${suffix}_bot`;
+    const botLogin = `lifecycle_${suffix}`;
     const botDisplayName = `Lifecycle Bot ${suffix}`;
     const newOwner = await createHumanOwner(page, suffix);
 
@@ -272,7 +272,7 @@ test.describe('Bot account lifecycle', () => {
     const originalKey = await captureShowOnceBotKey(page);
     await page.waitForURL(routes.patterns.anyAdminBot);
     await expect(
-      page.getByRole('heading', { name: botDisplayName, exact: true, level: 1 })
+      page.getByRole('heading', { name: `${botDisplayName} BOT`, exact: true, level: 1 })
     ).toBeVisible();
 
     const listedBots = await connectPost<ListBotsResponse>(

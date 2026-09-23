@@ -6,6 +6,7 @@ import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
+import { RealtimeProjectionSyncState } from '$lib/state/server/realtimeSync.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -23,6 +24,7 @@ const { mocks } = vi.hoisted(() => ({
       currentUserId: 'viewer-1'
     },
     currentUserId: 'viewer-1',
+    realtimeSync: null as RealtimeProjectionSyncState | null,
     joinRoom: vi.fn(),
     loadJoinPreview: vi.fn(),
     toastSuccess: vi.fn(),
@@ -67,6 +69,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
+      realtimeSync: mocks.realtimeSync,
       navigation: {
         get rooms() {
           return mocks.roomsStore.rooms;
@@ -145,6 +148,7 @@ function renderLayout() {
         user: null,
         serverInfo: null,
         serverInfoLoaded: true,
+        savedView: null,
         serverSegment: '-',
         roomId: 'room-1'
       },
@@ -154,6 +158,8 @@ function renderLayout() {
 }
 
 beforeEach(() => {
+  mocks.realtimeSync = new RealtimeProjectionSyncState();
+  mocks.realtimeSync.markCaughtUp('initial');
   vi.clearAllMocks();
   mocks.page.params = { serverId: '-', roomId: 'room-1' };
   mocks.page.route.id = '/chat/[serverId]/[roomId]';
@@ -169,6 +175,20 @@ beforeEach(() => {
 });
 
 describe('room route layout access handling', () => {
+  it('keeps the room instance mounted while the snapshot viewer is unavailable', async () => {
+    const { container } = renderLayout();
+    const roomElement = q(container, '[data-testid="room-layout-room"]');
+    mocks.realtimeSync!.acceptProjectionEvent(undefined, true);
+    mocks.roomsStore.isInitialLoading = true;
+    mocks.currentUserId = '';
+    await tick();
+    expect(q(container, '[data-testid="room-layout-room"]')).toBe(roomElement);
+    mocks.roomsStore.isInitialLoading = false;
+    mocks.currentUserId = 'viewer-1';
+    mocks.realtimeSync!.markCaughtUp('replacement');
+    await tick();
+    expect(q(container, '[data-testid="room-layout-room"]')).toBe(roomElement);
+  });
   it('waits for projected rooms to belong to the authenticated viewer', async () => {
     mocks.roomsStore.currentUserId = 'previous-viewer';
 

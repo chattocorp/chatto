@@ -15,6 +15,11 @@ disposable full-text index on a local volume and should scale to most Chatto
 installations. You can run it inside `chatto run`, move it into a separate
 process, or replace it with another compatible provider.
 
+After an index-format upgrade, the bundled provider automatically discards a
+recognized old index and rebuilds it from retained event history. You do not
+need to migrate it. For errors that need operator action, see
+[Rebuild the Search Index](#rebuild-the-search-index).
+
 ## How Search Providers Work
 
 Chatto sends normalized queries and the rooms the requesting member is allowed
@@ -62,6 +67,10 @@ when you press Enter. Leading and trailing spaces do not repeat the same search.
 Filters such as `from:alice`, `in:"Team chat 💬"`, `after:2026-01-01`, and
 `has:attachment` work on their own; quote room names that contain spaces. You do
 not need to add a search word.
+
+You can search for a complete web address or email address. A hostname search
+also finds that host in a link or email address, including subdomains. You can
+search for words in these addresses, such as a host label or path word.
 
 The server-wide page and recently used rooms keep independent, transient query
 and result state. Selecting a result opens that message in its room or thread
@@ -237,9 +246,10 @@ CHATTO_SEARCH_PROVIDER_LANGUAGES=none
 ```
 
 Analyzer order does not matter. Changing the selected set changes the index
-schema. Stop the provider, move or delete only its configured Search directory,
-then restart it to rebuild the index safely from `EVT`. Chatto does not modify
-or remove an incompatible index directory automatically.
+schema and triggers a full reindex on restart. The provider replaces a
+recognized Chatto index automatically. Unreadable indexes, unknown formats,
+and directories with unrelated files require
+[operator recovery](#rebuild-the-search-index).
 
 ## Run Bleve Separately
 
@@ -315,9 +325,14 @@ The Bleve directory is derived state, not a source of truth:
 
 - The `chatto backup` command does not include it; restore `EVT` and let the
   provider rebuild.
-- A missing index is created and rebuilt automatically. A corrupt,
-  incompatible, or differently configured disk index stops the provider
-  without modifying the directory.
+- A missing index is created and rebuilt automatically. A recognized index
+  with an older schema or different language set is discarded and rebuilt on
+  startup. Search reports **Indexing** until replay completes.
+- Unreadable indexes, unknown formats, changed event-log identity, invalid
+  replay bounds, and unrelated directory contents stop automatic replacement.
+  The startup error links to the recovery procedure below.
+- An interrupted index replacement is retried on the next start. A directory
+  lock prevents two current providers from replacing or opening the same index.
 - Message edits replace indexed content. Retractions, room deletion, and user
   key shredding immediately remove matching documents from search results.
 - Bleve reclaims logically deleted data during normal background segment
@@ -328,9 +343,48 @@ The Bleve directory is derived state, not a source of truth:
 - Disabling the provider does not remove its directory. Stop the provider and
   delete the dedicated directory yourself if you want to remove the cache.
 
-To force a clean rebuild, stop every process using the directory, delete only
-the configured Search directory, and restart the provider. Never delete a
-parent directory or the embedded NATS data directory.
+## Rebuild the Search Index
+
+Normal index-format and language changes rebuild automatically. Use this
+procedure to force a clean rebuild or when the startup error requires operator
+action. A rebuild reads retained `EVT` history and creates a new index. It does
+not change messages, accounts, or thread follows.
+
+<Steps>
+
+1. Find the index directory in `search_provider.directory` or
+   `CHATTO_SEARCH_PROVIDER_DIRECTORY`. The default is `./data/search`, relative
+   to the provider's working directory. The startup error also shows the path.
+2. Stop every process that uses this directory. For the bundled provider, stop
+   `chatto run` through your service manager or container platform. For a
+   standalone provider, stop `chatto search-provider`; the chat server can
+   remain running. Disable automatic restarts during this step.
+3. Move only the index directory aside. For the default path, run this from
+   the provider's working directory, with permission to move the directory:
+
+   ```sh
+   test ! -e ./data/search.before-rebuild &&
+     mv ./data/search ./data/search.before-rebuild
+   ```
+
+   Use your configured path if it differs. The destination must not already
+   exist. If the index directory is a mount point, use your volume tools to
+   replace or empty only the dedicated search volume while the provider is
+   stopped. Never remove the parent data directory or the NATS data volume.
+4. Start the same service with the same configuration and volume permissions.
+   The missing index is created automatically. Search reports **Indexing**
+   until replay completes. The provider logs indexing progress and then
+   `Search provider service registered`. Large histories take longer.
+5. Confirm that Search returns an expected message. Delete the old directory
+   you moved aside when you no longer need it. It contains plaintext-derived
+   message content; keep it protected and outside backups until removal.
+
+</Steps>
+
+Search is unavailable during the rebuild unless another compatible provider
+is ready. My Threads still works without a search query. Disabling and
+re-enabling `search.enabled` does not reset the index. A restart alone does
+not repair an unreadable index or an unknown index format.
 
 ## Troubleshooting
 
@@ -340,7 +394,8 @@ parent directory or the embedded NATS data directory.
 | Search reports unavailable | Confirm a bundled or standalone provider is running against the same NATS account. |
 | Search reports indexing | Let the provider finish replaying `EVT`; large histories take longer. |
 | Inflected words do not match | Confirm the relevant code is present in `search_provider.languages`. |
-| A language change prevents startup | Stop the provider, move or delete only its configured Search directory, then restart it for a clean replay. |
+| An upgrade or language change starts indexing | The provider is rebuilding automatically. Follow its progress logs; no index migration is needed. |
+| Startup requires manual index recovery | Follow [Rebuild the Search Index](#rebuild-the-search-index). Unknown or unreadable state is not deleted automatically. |
 | Startup rejects the index directory | Choose a dedicated child directory that does not contain the embedded NATS data directory. |
 | Two provider processes fail against one index | Give each process its own directory; Bleve directories are not shared volumes. |
 

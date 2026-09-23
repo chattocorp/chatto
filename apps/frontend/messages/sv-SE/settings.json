@@ -230,6 +230,12 @@
         "grey": "Grå",
         "preview": "Förhandsvisning"
       },
+      "contrast": {
+        "label": "Kontrast",
+        "softer": "mjukare kontrast",
+        "current": "nuvarande kontrast",
+        "stronger": "starkare kontrast"
+      },
       "depth": {
         "title": "Gränssnittsstil",
         "flat": "Platt",
@@ -492,7 +498,6 @@
       "create_failed": "Det gick inte att skapa bot",
       "created": "Botten skapad",
       "username": "Användarnamn",
-      "username_hint": "Botanvändarnamn måste sluta på _bot.",
       "display_name": "Visningsnamn",
       "owner": "Ägare",
       "reassign_owner": "Tilldela ägare på nytt",

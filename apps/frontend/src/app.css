@@ -19,6 +19,36 @@
 }
 
 :root {
+  /* 30 uses the exact existing palette. Each half of the slider mixes toward
+     a reviewed endpoint without changing accent, status, focus, or depth. */
+  --contrast-soft-mix: 0%;
+  --contrast-strong-mix: 0%;
+  --contrast-base-text: var(--color-gray-600);
+  --contrast-soft-text: color-mix(in srgb, var(--color-gray-500), var(--color-gray-400) 45%);
+  --contrast-strong-text: var(--color-black);
+  --contrast-base-text-top: var(--color-black);
+  --contrast-soft-text-top: var(--color-gray-500);
+  --contrast-base-muted: color-mix(in srgb, var(--color-gray-500), var(--color-gray-600) 75%);
+  --contrast-soft-muted: var(--color-gray-400);
+  --contrast-strong-muted: var(--color-black);
+  --contrast-base-background: var(--color-gray-100);
+  --contrast-strong-background: var(--color-white);
+  --contrast-base-surface: var(--color-gray-200);
+  --contrast-soft-surface: color-mix(in srgb, var(--color-gray-200), var(--color-gray-100) 55%);
+  --contrast-strong-surface: var(--color-white);
+  --contrast-base-surface-emphasized: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 55%);
+  --contrast-soft-surface-emphasized: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 30%);
+  --contrast-strong-surface-emphasized: var(--color-gray-100);
+  --contrast-base-surface-strong: var(--color-gray-300);
+  --contrast-soft-surface-strong: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 65%);
+  --contrast-strong-surface-strong: var(--color-gray-200);
+  --contrast-base-border: var(--color-gray-200);
+  --contrast-soft-border: color-mix(in srgb, var(--color-gray-100), var(--color-gray-200) 50%);
+  --contrast-strong-border: var(--color-black);
+  --contrast-base-input-border: var(--color-gray-300);
+  --contrast-soft-input-border: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 70%);
+  --contrast-strong-input-border: var(--color-black);
+
   --inline-direction: 1;
   /* CSS approximates Svelte's `expoOut` curve for expressive movement that
      settles quickly without an abrupt stop. */
@@ -40,7 +70,7 @@
 .composer-code-palette {
   --composer-code-text: #24292f;
   --composer-code-comment: #6e7781;
-  --composer-code-keyword: #cf222e;
+  --composer-code-keyword: #b4232c;
   --composer-code-string: #0a3069;
   --composer-code-title: #8250df;
   --composer-code-literal: #0550ae;
@@ -77,10 +107,23 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 /* Hover affordances should follow input capability, not viewport width. */
 @custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
+/* Keep these queries in sync with utils/inputMediaQueries.ts. Width still owns
+ * content fitting; only narrow touch-capable windows use mobile presentation. */
+@custom-variant touch-input (@media (any-pointer: coarse));
+@custom-variant compact-input (@media not all and (any-pointer: coarse));
+@custom-variant mobile-presentation (@media (width < 768px) and (any-pointer: coarse));
+@custom-variant desktop-presentation {
+  @media (width >= 768px) {
+    @slot;
+  }
+  @media not all and (any-pointer: coarse) {
+    @slot;
+  }
+}
 
 /* Opt in to reclaiming header space while the software keyboard is open. */
 @utility keyboard-hide-mobile {
-  @variant max-md {
+  @variant mobile-presentation {
     [data-keyboard-open] & {
       display: none;
     }
@@ -126,25 +169,95 @@
   --frame-inset-shadow: 0 1px 3px rgb(0 0 0 / calc(0.08 * var(--depth-strength)));
   --frame-inset-edge: rgb(0 0 0 / calc(0.025 * var(--depth-strength)));
 
-  --color-background: var(--color-gray-100);
-  --color-text: var(--color-gray-600);
-  --color-text-top: var(--color-black);
-  --color-muted: color-mix(in srgb, var(--color-gray-500), var(--color-gray-600) 75%);
+  --color-background: color-mix(
+    in srgb,
+    var(--contrast-base-background),
+    var(--contrast-strong-background) var(--contrast-strong-mix)
+  );
+  --color-text: color-mix(
+    in srgb,
+    var(--contrast-soft-text) var(--contrast-soft-mix),
+    color-mix(
+      in srgb,
+      var(--contrast-base-text),
+      var(--contrast-strong-text) var(--contrast-strong-mix)
+    )
+  );
+  --color-text-top: color-mix(
+    in srgb,
+    var(--contrast-soft-text-top) var(--contrast-soft-mix),
+    var(--contrast-base-text-top)
+  );
+  --color-muted: color-mix(
+    in srgb,
+    var(--contrast-soft-muted) var(--contrast-soft-mix),
+    color-mix(
+      in srgb,
+      var(--contrast-base-muted),
+      var(--contrast-strong-muted) var(--contrast-strong-mix)
+    )
+  );
 
-  --color-border: var(--color-gray-200);
+  --color-border: color-mix(
+    in srgb,
+    var(--contrast-soft-border) var(--contrast-soft-mix),
+    color-mix(
+      in srgb,
+      var(--contrast-base-border),
+      var(--contrast-strong-border) var(--contrast-strong-mix)
+    )
+  );
+  /* Depth-only edges gain the semantic border as contrast rises. */
+  --color-depth-border: color-mix(
+    in srgb,
+    transparent,
+    var(--color-border) var(--contrast-strong-mix)
+  );
   /* Light mode is deliberately not a luminance mirror of dark mode. The pale
      background is the primary work plane; cool gray surfaces make anchored
      chrome and controls feel inset and substantial instead of pasted on. */
-  --color-surface: var(--color-gray-200);
-  --color-surface-emphasized: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 55%);
-  --color-surface-strong: var(--color-gray-300);
-  --color-surface-selected: var(--color-gray-300);
+  --color-surface: color-mix(
+    in srgb,
+    var(--contrast-soft-surface) var(--contrast-soft-mix),
+    color-mix(
+      in srgb,
+      var(--contrast-base-surface),
+      var(--contrast-strong-surface) var(--contrast-strong-mix)
+    )
+  );
+  --color-surface-emphasized: color-mix(
+    in srgb,
+    var(--contrast-soft-surface-emphasized) var(--contrast-soft-mix),
+    color-mix(
+      in srgb,
+      var(--contrast-base-surface-emphasized),
+      var(--contrast-strong-surface-emphasized) var(--contrast-strong-mix)
+    )
+  );
+  --color-surface-strong: color-mix(
+    in srgb,
+    var(--contrast-soft-surface-strong) var(--contrast-soft-mix),
+    color-mix(
+      in srgb,
+      var(--contrast-base-surface-strong),
+      var(--contrast-strong-surface-strong) var(--contrast-strong-mix)
+    )
+  );
+  --color-surface-selected: var(--color-surface-strong);
 
   /* Form-field surface — distinct from any container surface so inputs
      never disappear into a dialog or panel. Pure white in light mode
      (raised paper), deeper-than-surface in dark mode (inset well). */
   --color-input: var(--color-white);
-  --color-input-border: var(--color-gray-300);
+  --color-input-border: color-mix(
+    in srgb,
+    var(--contrast-soft-input-border) var(--contrast-soft-mix),
+    color-mix(
+      in srgb,
+      var(--contrast-base-input-border),
+      var(--contrast-strong-input-border) var(--contrast-strong-mix)
+    )
+  );
 
   /* The accent uses readable text/indicator shades for each theme. Filled
      buttons use the deeper palette shade with white labels in both themes. */
@@ -196,6 +309,32 @@
 }
 
 :root[data-theme='dark'] {
+  --contrast-base-text: var(--color-neutral-300);
+  --contrast-soft-text: var(--color-neutral-500);
+  --contrast-strong-text: var(--color-white);
+  --contrast-base-text-top: var(--color-white);
+  --contrast-soft-text-top: var(--color-neutral-500);
+  --contrast-base-muted: var(--color-neutral-400);
+  --contrast-soft-muted: var(--color-neutral-600);
+  --contrast-strong-muted: var(--color-white);
+  --contrast-base-background: var(--color-neutral-900);
+  --contrast-strong-background: var(--color-black);
+  --contrast-base-surface: var(--color-neutral-800);
+  --contrast-soft-surface: color-mix(in srgb, var(--color-neutral-800), var(--color-neutral-900) 35%);
+  --contrast-strong-surface: var(--color-black);
+  --contrast-base-surface-emphasized: var(--color-neutral-700);
+  --contrast-soft-surface-emphasized: color-mix(in srgb, var(--color-neutral-800), var(--color-neutral-700) 60%);
+  --contrast-strong-surface-emphasized: var(--color-neutral-900);
+  --contrast-base-surface-strong: var(--color-neutral-600);
+  --contrast-soft-surface-strong: color-mix(in srgb, var(--color-neutral-700), var(--color-neutral-600) 60%);
+  --contrast-strong-surface-strong: var(--color-neutral-800);
+  --contrast-base-border: var(--color-neutral-800);
+  --contrast-soft-border: color-mix(in srgb, var(--color-neutral-900), var(--color-neutral-800) 60%);
+  --contrast-strong-border: var(--color-white);
+  --contrast-base-input-border: var(--color-neutral-700);
+  --contrast-soft-input-border: color-mix(in srgb, var(--color-neutral-800), var(--color-neutral-700) 65%);
+  --contrast-strong-input-border: var(--color-white);
+
   color-scheme: dark;
   --segmented-fill: var(--color-neutral-700);
   --shell-highlight: 0.025;
@@ -213,20 +352,8 @@
   --frame-inset-shadow: 0 2px 4px rgb(0 0 0 / calc(0.18 * var(--depth-strength)));
   --frame-inset-edge: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
 
-  --color-background: var(--color-neutral-900);
-  --color-text: var(--color-neutral-300);
-  --color-text-top: var(--color-white);
-  --color-muted: var(--color-neutral-400);
-
-  --color-border: var(--color-neutral-800);
-  --color-surface: var(--color-neutral-800);
-  --color-surface-emphasized: var(--color-neutral-700);
-  --color-surface-strong: var(--color-neutral-600);
-  --color-surface-selected: var(--color-neutral-600);
-
   /* See light-mode comment — sits below all surfaces for an inset well look. */
   --color-input: var(--color-neutral-950);
-  --color-input-border: var(--color-neutral-700);
 
   --color-action: var(--accent-bright);
   --color-action-hover: color-mix(in srgb, var(--color-action), white 15%);
@@ -510,8 +637,8 @@
   @apply max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
-/* Desktop actions form one row and can expand the dialog up to its viewport
- * limit. Task sheets add dialog-actions-sheet for complete, stacked labels. */
+/* Desktop actions expand the dialog up to its viewport limit. Narrow windows
+ * wrap complete labels. Task sheets use dialog-actions-sheet for stacked actions. */
 @utility dialog-actions {
   width: max-content;
   max-width: 100%;
@@ -532,6 +659,16 @@
   & > :is(button, a):first-child:not(:last-child) {
     flex-shrink: 0;
   }
+
+  /* This is a space constraint, independent of input or sheet presentation. */
+  @variant max-md {
+    flex-wrap: wrap;
+    & > :is(button, a),
+    & .button-content {
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+  }
 }
 
 /* Task sheets own button geometry, including the Button label and loading wrapper. */
@@ -547,7 +684,7 @@
     padding-block: 0.75rem;
     white-space: normal;
     overflow: visible;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   & .button-content,
@@ -556,7 +693,7 @@
     overflow: visible;
     text-overflow: clip;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 }
 
@@ -622,6 +759,24 @@
   transition-duration: var(--motion-duration-feedback), var(--motion-duration-feedback), 150ms;
   @apply focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Keep touch targets available on hybrid devices even when a mouse is present. */
+@utility pill-button-group-touch {
+  @media (any-pointer: coarse) {
+    height: 44px;
+    min-height: 44px;
+    & > button {
+      min-width: 44px;
+      min-height: 44px;
+      font-size: var(--text-base);
+    }
+    & > button > .iconify {
+      width: 20px;
+      height: 20px;
+      font-size: 20px;
+    }
+  }
 }
 
 @utility pill-button-success {
@@ -704,6 +859,64 @@
 }
 
 /* Form input utilities */
+@utility range-prominent-field {
+  box-shadow: 0 0 0 1px color-mix(in srgb, transparent, var(--color-border) var(--contrast-strong-mix));
+}
+
+@utility range-prominent {
+  appearance: none;
+  background: transparent;
+  @apply rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+
+  &::-webkit-slider-runnable-track {
+    height: 0.75rem;
+    border: 1px solid var(--color-input-border);
+    border-radius: 9999px;
+    background: linear-gradient(
+      var(--range-direction, to right),
+      var(--color-action) var(--range-progress),
+      var(--color-surface-strong) var(--range-progress)
+    );
+  }
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-top: -0.5625rem;
+    border: 3px solid var(--color-surface);
+    border-radius: 50%;
+    background: var(--color-action);
+    box-shadow: 0 0 0 1px var(--color-input-border);
+  }
+
+  &::-moz-range-track {
+    height: 0.75rem;
+    border: 1px solid var(--color-input-border);
+    border-radius: 9999px;
+    background: var(--color-surface-strong);
+  }
+
+  &::-moz-range-progress {
+    height: 0.75rem;
+    border-radius: 9999px;
+    background: var(--color-action);
+  }
+
+  &::-moz-range-thumb {
+    width: 1.375rem;
+    height: 1.375rem;
+    border: 3px solid var(--color-surface);
+    border-radius: 50%;
+    background: var(--color-action);
+    box-shadow: 0 0 0 1px var(--color-input-border);
+  }
+}
+
+:root[dir='rtl'] .range-prominent {
+  --range-direction: to left;
+}
+
 @utility input {
   @apply min-h-10 w-full control-frame bg-input px-3 py-1.5 text-text;
   @apply placeholder:text-muted/70;
@@ -744,7 +957,7 @@
     & option {
       @apply flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-text;
       white-space: normal;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     & option:checked {
@@ -919,7 +1132,8 @@
 }
 
 @utility embed-control-button {
-  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] md:opacity-0;
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] compact-input:hover-actions:opacity-0 focus-visible:opacity-100;
+  @apply group-hover/preview:opacity-100 group-focus-within/preview:opacity-100;
 }
 
 @utility attachment-action-button {
@@ -983,7 +1197,7 @@
 /* Chat message row primitives. These keep the hover-highlight shell and its
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {
-  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface md:mx-2 md:rounded-md md:pe-8;
+  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface desktop-presentation:mx-2 desktop-presentation:rounded-md desktop-presentation:pe-8;
 }
 
 @utility inline-end-overlay-shadow {
@@ -1324,6 +1538,8 @@
   @apply surface-lowered;
   --lowered-shadow: var(--frame-inset-shadow);
   --lowered-edge: 0 0 0 1px var(--frame-inset-edge);
+  outline: 1px solid var(--color-depth-border);
+  outline-offset: -1px;
 }
 
 /* Touch overlays retain the same frame and recessed work planes as dialogs
@@ -1340,7 +1556,7 @@
   }
 }
 
-/* The outer app frame meets the window edge without a border or highlight. */
+/* The outer app frame meets the window edge without a depth highlight. */
 @utility app-frame-shell {
   @apply bg-surface;
 }
@@ -1352,9 +1568,59 @@
 @utility app-frame-inset {
   @apply relative shadow-[-1px_-1px_0_var(--app-edge-upper),1px_1px_0_var(--app-edge-lower),var(--app-frame-elevation)];
 
+  /* Narrow mouse drawers slide within the rounded work plane. Establish a
+   * containing block for their fixed positioning and clip every animation
+   * frame. Touch drawers still use the viewport for iOS safe-area handling. */
+  @variant max-md {
+    @variant compact-input {
+      contain: layout paint;
+      --sidebar-overlay-top: 0px;
+      --sidebar-overlay-bottom: 0px;
+    }
+  }
+
+  /* Pane backgrounds cover the frame itself, so draw its boundary above them. */
+  &::before {
+    @apply pointer-events-none absolute inset-0 rounded-[inherit];
+    z-index: 60;
+    border: 1px solid var(--color-depth-border);
+    content: '';
+  }
+
   &::after {
     @apply floating-inset pointer-events-none absolute inset-0 z-40 rounded-[inherit] opacity-[var(--app-inset-opacity)];
     content: '';
+  }
+}
+
+/* Both sidebar columns inherit one progress value from MobileSidebarChrome.
+ * Mouse drawers use the thread overlay's short slide and fade. Touch drawers
+ * travel their full width so the surface follows a finger without scaling. */
+@utility sidebar-drawer {
+  @variant max-md {
+    --sidebar-motion-duration: var(--motion-duration-pane);
+    transform: translateX(calc((var(--sidebar-progress, 1) - 1) * var(--sidebar-width, 100vw) * var(--inline-direction)));
+
+    @variant compact-input {
+      transform: translateX(calc((var(--sidebar-progress, 1) - 1) * 300px * var(--inline-direction)));
+      opacity: var(--sidebar-progress, 1);
+    }
+
+    [data-sidebar-dragging='false'] & {
+      transition:
+        transform var(--sidebar-motion-duration) var(--ease-out-expo),
+        opacity var(--sidebar-motion-duration) var(--ease-out-expo),
+        visibility 0s;
+    }
+
+    [data-sidebar-closed='true'] & {
+      visibility: hidden;
+      transition-delay: 0s, 0s, var(--sidebar-motion-duration);
+    }
+
+    @variant motion-reduce {
+      --sidebar-motion-duration: 0ms;
+    }
   }
 }
 
@@ -1410,6 +1676,7 @@
 /* Semantic command rows for ContextMenu and related action surfaces. */
 @utility menu-entry {
   @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
+  @apply touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
@@ -1447,12 +1714,21 @@
 /* Fixed mobile drawers cover the browser content down to the viewport edge.
    Embedded hosts can supply a bottom inset to match their content padding. */
 @utility mobile-sidebar-insets {
-  top: calc(3.5rem + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)));
-  bottom: var(--mobile-sidebar-safe-bottom, 0px);
+  top: var(--sidebar-overlay-top, calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px))));
+  bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
 }
 
 @layer base {
   html {
+    --app-header-height: 2.75rem;
+    @variant mobile-presentation {
+      --app-header-height: 3.5rem;
+    }
+    @media (any-pointer: coarse) {
+      --text-base: 1.0625rem;
+      --text-sm: 0.9375rem;
+      --text-xs: 0.8125rem;
+    }
     height: 100%;
     overflow: hidden;
     /* pan-y lets the browser own vertical scroll while reserving horizontal
@@ -1490,6 +1766,7 @@
   }
 
   body {
+    @apply text-base;
     /* inset:0 on a fixed element fills the layout viewport correctly in all
        modes, including standalone PWA — unlike dvh/vh/100% which are all
        short by safe-area-inset-top due to WebKit bug 237961.

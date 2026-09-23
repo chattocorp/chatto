@@ -213,7 +213,7 @@ test.describe('Password Reset', () => {
     test('forgot password page has sign in link', async ({ authPage }) => {
       await authPage.gotoForgotPassword();
 
-      const signInLink = authPage.page.getByRole('link', { name: 'Sign in' });
+      const signInLink = authPage.signInLink;
       await expect(signInLink).toBeVisible();
       await expect(signInLink).toHaveAttribute('href', '/login');
     });
@@ -234,7 +234,7 @@ test.describe('Password Reset', () => {
       const resetUrl = authPage.extractPasswordResetUrl(emailData.body);
       await authPage.page.goto(resetUrl);
 
-      const signInLink = authPage.page.getByRole('link', { name: 'Sign in' });
+      const signInLink = authPage.signInLink;
       await expect(signInLink).toBeVisible();
       await expect(signInLink).toHaveAttribute('href', '/login');
     });

@@ -371,6 +371,38 @@ function timelineFromFixtures(fake: FakeQueryClient): RoomTimelineAPI {
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
+  it('preserves a shared message update when an older initial page arrives', async () => {
+    const pending = deferred<EventConnectionPage>();
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents: vi.fn(() => pending.promise) })
+    );
+    store.setRoom('room-1');
+    const row = threadMessageEvent('m1');
+    const edited = { ...row, event: { ...row.event, body: 'edited' } };
+    store.captureMessageReconciliation()('m1', edited, true);
+    pending.resolve(pageFromEvent(row));
+    await vi.waitFor(() => expect(store.isInitialLoading).toBe(false));
+    expect(store.getEventById('m1')?.event).toMatchObject({ body: 'edited' });
+    store.dispose();
+  });
+
+  it('does not overwrite a newer local change with a shared read', async () => {
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null, fakeTimelineAPI()
+    );
+    store.setRoom('room-1');
+    await settle();
+    const row = threadMessageEvent('m1');
+    store.ingestEvent(row);
+    const apply = store.captureMessageReconciliation();
+    store.events = [{ ...row, event: { ...row.event, body: 'newer' } }];
+    apply('m1', { ...row, event: { ...row.event, body: 'older' } }, false);
+    expect(store.getEventById('m1')?.event).toMatchObject({ body: 'newer' });
+    store.dispose();
+  });
+
   it('scrubs deleted-user actors, thread participants, and reaction previews', () => {
     const fake = new FakeQueryClient();
     const store = new MessagesStore(
@@ -1034,6 +1066,114 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     expect(store.rootEvents.map((event) => event.id)).toEqual(['after-reset']);
     expect(getRoomEvents).toHaveBeenCalledTimes(2);
+    store.dispose();
+  });
+
+  it('keeps a warm timeline visible until its replacement window arrives', async () => {
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const replacement = deferred<RoomPage>();
+    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('old-row')))
+      .mockImplementationOnce(() => replacement.promise);
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    store.setRoom('room-1');
+    await settle();
+
+    const hydration = store.hydrateRealtimeProjection('replacement-cursor', () => true, true);
+    expect(store.isInitialLoading).toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['old-row']);
+
+    replacement.resolve(pageFromEvent(threadMessageEvent('new-row')));
+    await hydration;
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['new-row']);
+    store.dispose();
+  });
+
+  it('purges plaintext but restores a fresh window around the viewport after a reset', async () => {
+    const getRoomEventsAround = vi.fn<RoomTimelineAPI['getRoomEventsAround']>()
+      .mockResolvedValue({ ...pageFromEvent(threadMessageEvent('anchor')), hasNewer: true });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getRoomEventsAround })
+    );
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('old-private-row'));
+    store.setViewport({ eventId: 'anchor', offset: 17 });
+    store.resetProjectionState();
+    expect(store.events).toEqual([]);
+    expect(store.recoveryViewport).toEqual({ eventId: 'anchor', offset: 17 });
+    store.resetProjectionState();
+    await store.hydrateRealtimeProjection('fresh-boundary', () => true);
+    expect(getRoomEventsAround).toHaveBeenCalledWith(expect.objectContaining({
+      roomId: 'room-1', eventId: 'anchor', minimumCursor: 'fresh-boundary'
+    }));
+    expect(store.events.map((event) => event.id)).toEqual(['anchor']);
+    expect(store.recoveryViewport?.hasNewer).toBe(true);
+    store.clearForAccessRevocation();
+    expect(store.recoveryViewport).toBeNull();
+    expect(store.events).toEqual([]);
+    store.dispose();
+  });
+
+  it('falls back to a fresh latest window when the saved viewport event no longer exists', async () => {
+    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValue(pageFromEvent(threadMessageEvent('fresh')));
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getRoomEvents, getRoomEventsAround: vi.fn().mockRejectedValue(new ConnectError('gone', Code.NotFound)) })
+    );
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('old-private-row'));
+    store.setViewport({ eventId: 'gone', offset: 17 });
+    store.resetProjectionState();
+    await store.hydrateRealtimeProjection('fresh-boundary', () => true);
+    expect(store.events.map((event) => event.id)).toEqual(['fresh']);
+    expect(getRoomEvents).toHaveBeenCalledWith(expect.objectContaining({ minimumCursor: 'fresh-boundary' }));
+    store.dispose();
+  });
+
+  it('discards the saved position when fresh timeline access is denied', async () => {
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getRoomEventsAround: vi.fn().mockRejectedValue(new ConnectError('denied', Code.PermissionDenied)) })
+    );
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('private-row'));
+    store.setViewport({ eventId: 'private-row', offset: 17 });
+    store.resetProjectionState();
+    expect(await store.hydrateRealtimeProjection('fresh-boundary', () => true)).toBe(false);
+    expect(store.events).toEqual([]);
+    expect(store.recoveryViewport).toBeNull();
+    store.dispose();
+  });
+
+  it('pages a restored thread forward and can return to its latest window', async () => {
+    const getThreadEvents = vi.fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('root')))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('new-reply', 'root')))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('latest-reply', 'root')));
+    const getThreadEventsAround = vi.fn<RoomTimelineAPI['getThreadEventsAround']>()
+      .mockResolvedValue({ ...pageFromEvent(threadMessageEvent('anchor', 'root')), endCursor: 'after-anchor', hasNewer: true });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      fakeTimelineAPI({ getThreadEvents, getThreadEventsAround })
+    );
+    store.setThread('room-1', 'root');
+    await settle();
+    store.setViewport({ eventId: 'anchor', offset: 17 });
+    store.resetProjectionState();
+    await store.hydrateRealtimeProjection('fresh-boundary', () => true);
+    expect(getThreadEventsAround).toHaveBeenCalledWith(expect.objectContaining({ threadRootEventId: 'root', eventId: 'anchor', minimumCursor: 'fresh-boundary' }));
+    const jump = new JumpToMessageState();
+    jump.isJumpedMode = true;
+    await store.loadNewer(jump);
+    expect(getThreadEvents).toHaveBeenLastCalledWith(expect.objectContaining({ after: 'after-anchor', threadRootEventId: 'root' }));
+    expect(store.threadEvents.map((event) => event.id)).toContain('new-reply');
+    expect(jump.hasReachedEnd).toBe(true);
+    await store.jumpToPresent(jump);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['latest-reply']);
+    expect(jump.isJumpedMode).toBe(false);
     store.dispose();
   });
 

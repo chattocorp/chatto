@@ -75,7 +75,7 @@ export class AuthPage {
 
   /** Link to login page from registration */
   get signInLink(): Locator {
-    return this.page.getByRole('link', { name: 'Sign in' });
+    return this.page.getByRole('link', { name: 'Sign In', exact: true });
   }
 
   /** Link to registration page from login */

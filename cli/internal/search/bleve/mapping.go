@@ -39,6 +39,10 @@ import (
 const (
 	bodyExactField       = "body_exact"
 	bodyCJKField         = "body_cjk"
+	addressURLField      = "address_url"
+	addressEmailField    = "address_email"
+	addressHostField     = "address_host"
+	addressPartField     = "address_part"
 	projectionStateField = "_chatto_projection_state"
 	bodyExactAnalyzer    = "chatto_exact"
 	bodyCJKAnalyzer      = cjk.AnalyzerName
@@ -124,9 +128,25 @@ func newIndexMapping(languages []languageAnalyzer) mapping.IndexMapping {
 
 	document.AddFieldMappingsAt("message_id", keyword(false))
 	document.AddFieldMappingsAt("room_id", keyword(true))
+	document.AddFieldMappingsAt("thread_root_id", keyword(false))
 	document.AddFieldMappingsAt("author_id", keyword(false))
 	document.AddFieldMappingsAt("body_event_id", keyword(true))
 	document.AddFieldMappingsAt("body", searchBodyFields(languages)...)
+	addressKeyword := keyword(false)
+	addressKeyword.DocValues = false
+	addressKeyword.IncludeInAll = false
+	addressKeyword.IncludeTermVectors = false
+	document.AddFieldMappingsAt("address_urls", addressField(addressURLField, addressKeyword))
+	document.AddFieldMappingsAt("address_emails", addressField(addressEmailField, addressKeyword))
+	document.AddFieldMappingsAt("address_hosts", addressField(addressHostField, addressKeyword))
+	parts := blevesearch.NewTextFieldMapping()
+	parts.Name = addressPartField
+	parts.Analyzer = bodyExactAnalyzer
+	parts.Store = false
+	parts.DocValues = false
+	parts.IncludeInAll = false
+	parts.IncludeTermVectors = false
+	document.AddFieldMappingsAt("address_parts", parts)
 	document.AddFieldMappingsAt("created_at", date)
 	document.AddFieldMappingsAt("updated_at", date)
 	document.AddFieldMappingsAt("has_attachments", boolean)
@@ -141,6 +161,12 @@ func newIndexMapping(languages []languageAnalyzer) mapping.IndexMapping {
 	document.AddFieldMappingsAt("projection_state", projectionState)
 	indexMapping.DefaultMapping = document
 	return indexMapping
+}
+
+func addressField(name string, base *mapping.FieldMapping) *mapping.FieldMapping {
+	field := *base
+	field.Name = name
+	return &field
 }
 
 // searchBodyFields keep a language-neutral representation authoritative while

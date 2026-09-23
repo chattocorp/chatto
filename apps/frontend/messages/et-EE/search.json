@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Otsi minu lõimedest",
+    "no_threads": "Vastavaid lõimi ei leitud",
     "title": "Otsi sõnumeid",
     "open": "Otsi sõnumeid",
     "in_room": "Otsige selles ruumis",

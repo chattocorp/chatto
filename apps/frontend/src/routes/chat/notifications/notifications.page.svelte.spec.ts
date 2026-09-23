@@ -459,6 +459,22 @@ describe('notifications page', () => {
     expect(row.textContent).not.toMatch(/·\s*1\s*·/);
   });
 
+  it('shows the shared badge for a bot in a notification summary', async () => {
+    retainProjection([{ ...mocks.occurrence, actor: {
+      id: 'helper', login: 'helper', displayName: 'Helper', isBot: true,
+      deleted: false, avatarUrl: null, presenceStatus: 1, customStatus: null
+    }, signalKind: NotificationSignalKind.FOLLOWED_THREAD }]);
+
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const element = q(container, '[data-testid="notification-group"]');
+      expect(element).not.toBeNull();
+      return element as HTMLElement;
+    });
+    expect(q(row, '[data-testid="notification-content"] [data-testid="bot-badge"]')).not.toBeNull();
+    expect(row.textContent).not.toContain('(BOT)');
+  });
+
   it('consolidates reactions to one target while showing their emoji and actors', async () => {
     const alice = {
       id: 'alice',
@@ -863,6 +879,142 @@ describe('notifications page', () => {
     expect(firstHeading.classList.contains('w-full')).toBe(true);
     expect(firstHeading.classList.contains('px-4')).toBe(false);
     expect(firstHeading.querySelectorAll('.h-px.bg-border')).toHaveLength(2);
+  });
+
+  it('Dismiss read includes older pages when the loaded page is entirely unread', async () => {
+    // Keep automatic pagination inactive so only the button can load older rows.
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const unread = { ...mocks.occurrence, id: 'unread' };
+    const olderRead = { ...mocks.occurrence, id: 'older-read', unread: false };
+    const oldestRead = { ...mocks.occurrence, id: 'oldest-read', unread: false };
+    const api = {
+      listNotificationOccurrences: vi
+        .fn()
+        .mockResolvedValueOnce(page([olderRead], true))
+        .mockResolvedValueOnce(page([oldestRead, { ...unread, id: 'older-unread' }], false)),
+      batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(2)
+    };
+    const store = new NotificationStore(api as never);
+    store.replaceOccurrenceProjection(page([unread], true));
+    const previous = mocks.store.notifications;
+    (mocks.store as { notifications: unknown }).notifications = store;
+    const { container, unmount } = render(NotificationsPage);
+    try {
+      const button = q(container, 'button[aria-label="Dismiss read"]') as HTMLButtonElement;
+      expect(button).not.toBeNull();
+      expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
+      button.click();
+      await vi.waitFor(() => {
+        expect(api.batchDeleteNotificationOccurrences).toHaveBeenCalledWith([
+          'older-read',
+          'oldest-read'
+        ]);
+      });
+      expect(api.listNotificationOccurrences.mock.calls).toEqual([[50, 1], [50, 2]]);
+      expect(store.occurrences.map((item) => item.id).sort()).toEqual(['older-unread', 'unread']);
+      expect(store.hasMore).toBe(false);
+    } finally {
+      await unmount();
+      mocks.store.notifications = previous;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('Dismiss read rechecks a server refreshed while another server is loading', async () => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const read = { ...mocks.occurrence, id: 'older-read', unread: false };
+    const incoming = { ...mocks.occurrence, id: 'incoming-unread' };
+    const originAPI = {
+      listNotificationOccurrences: vi.fn().mockResolvedValue(page([read])),
+      batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(1)
+    };
+    let finishRemote!: (value: ReturnType<typeof page>) => void;
+    const remoteAPI = {
+      listNotificationOccurrences: vi.fn(
+        () =>
+          new Promise<ReturnType<typeof page>>((resolve) => {
+            finishRemote = resolve;
+          })
+      ),
+      batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(1)
+    };
+    const origin = new NotificationStore(originAPI as never);
+    const remote = new NotificationStore(remoteAPI as never);
+    origin.replaceOccurrenceProjection(page([mocks.occurrence], true));
+    remote.replaceOccurrenceProjection(page([mocks.occurrence], true));
+    const previous = mocks.store.notifications;
+    (mocks.store as { notifications: unknown }).notifications = origin;
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', { ...mocks.store, notifications: remote });
+    const { container, unmount } = render(NotificationsPage);
+    try {
+      (q(container, 'button[aria-label="Dismiss read"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => {
+        expect(origin.hasMore).toBe(false);
+        expect(remoteAPI.listNotificationOccurrences).toHaveBeenCalled();
+      });
+      origin.replaceOccurrenceProjection(page([incoming], true));
+      finishRemote(page([{ ...read, id: 'remote-read' }]));
+      await vi.waitFor(() => {
+        expect(originAPI.batchDeleteNotificationOccurrences).toHaveBeenCalledWith(['older-read']);
+        expect(remoteAPI.batchDeleteNotificationOccurrences).toHaveBeenCalledWith(['remote-read']);
+      });
+      expect(originAPI.listNotificationOccurrences).toHaveBeenCalledTimes(2);
+      expect(origin.occurrences.map((item) => item.id)).toEqual(['incoming-unread']);
+    } finally {
+      await unmount();
+      mocks.store.notifications = previous;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('Dismiss read does not delete a partial list when an older page fails', async () => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const api = {
+      listNotificationOccurrences: vi.fn().mockRejectedValue(new Error('offline')),
+      batchDeleteNotificationOccurrences: vi.fn()
+    };
+    const store = new NotificationStore(api as never);
+    store.replaceOccurrenceProjection(page([{ ...mocks.occurrence, unread: false }], true));
+    const previous = mocks.store.notifications;
+    (mocks.store as { notifications: unknown }).notifications = store;
+    const { container, unmount } = render(NotificationsPage);
+    try {
+      (q(container, 'button[aria-label="Dismiss read"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => {
+        expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
+      });
+      expect(api.batchDeleteNotificationOccurrences).not.toHaveBeenCalled();
+      expect(store.occurrences).toHaveLength(1);
+      expect(
+        (q(container, 'button[aria-label="Dismiss read"]') as HTMLButtonElement).disabled
+      ).toBe(false);
+    } finally {
+      await unmount();
+      mocks.store.notifications = previous;
+      vi.unstubAllGlobals();
+    }
   });
 
   it('dismisses only the read snapshot with one exact request per server', async () => {

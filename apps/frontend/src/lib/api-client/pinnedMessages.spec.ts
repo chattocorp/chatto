@@ -36,7 +36,7 @@ describe('pinned messages API', () => {
 
     const page = await createPinnedMessagesAPI(config).list('R1', 50, 0);
 
-    expect(timelineUsersForMessagesMock).toHaveBeenCalledWith(config, [message]);
+    expect(timelineUsersForMessagesMock).toHaveBeenCalledWith(config, [message], undefined);
     expect(page).toEqual({
       items: [pinnedMessage],
       totalCount: 1,

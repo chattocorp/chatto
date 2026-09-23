@@ -440,11 +440,43 @@ func (c *ChattoCore) CanPostMessage(ctx context.Context, userID string, kind Roo
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePost)
 }
 
-// CanPostInThread checks if a user can post messages in a thread.
-// Direct messages use the same thread-posting permission as Enabled channel
-// rooms.
+// CanPostInThread checks room-level authority to reply in any readable thread.
+// It includes message.post but not relationship-scoped posting. For a specific
+// target, use CanReplyInThread, which also checks access and room policy.
 func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
+}
+
+// CanReplyInThread checks current membership, room policy, read access, and
+// posting authority for one canonical thread root. Interaction posting needs
+// an existing relationship; broad read access alone cannot create one.
+func (c *ChattoCore) CanReplyInThread(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string) (bool, error) {
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		room, err := c.GetRoom(readCtx, kind, roomID)
+		if err != nil {
+			return false, err
+		}
+		if room.Archived || EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+			return false, nil
+		}
+		member, err := c.RoomMembershipExists(readCtx, kind, userID, roomID)
+		if err != nil || !member {
+			return false, err
+		}
+		readable, err := c.canReadThreadMessages(readCtx, userID, kind, roomID, threadRootEventID)
+		if err != nil || !readable {
+			return false, err
+		}
+		broad, err := c.CanPostInThread(readCtx, userID, kind, roomID)
+		if err != nil || broad {
+			return broad, err
+		}
+		narrow, err := c.hasRoomPermission(readCtx, kind, roomID, userID, PermMessagePostInInteractions)
+		if err != nil || !narrow {
+			return false, err
+		}
+		return c.roomModel.hasThreadInteraction(userID, roomID, threadRootEventID), nil
+	})
 }
 
 // CanAttachFiles checks if a user can attach files to messages in a specific room.

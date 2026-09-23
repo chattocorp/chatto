@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { accountNameToken } from '$lib/render/accountName';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import type { AdminMember } from '$lib/api-client/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { Hint, Panel } from '$lib/ui';
@@ -48,7 +50,10 @@
 <Panel title={m('admin.members.danger_zone')} icon="iconify icon-[uil--exclamation-triangle]">
   <form class="flex max-w-md flex-col gap-4" onsubmit={handleSubmit}>
     <Hint tone="danger">
-      <strong>{m('admin.member_delete.warning', { name: isolate(member.displayName) })}</strong>
+      <strong><AccountNameTokens
+        text={m('admin.member_delete.warning', { name: accountNameToken(0) })}
+        accounts={[{ name: member.displayName, identity: member }]}
+      /></strong>
     </Hint>
 
     <p class="text-sm text-muted">{m('admin.member_delete.consequences_intro')}</p>

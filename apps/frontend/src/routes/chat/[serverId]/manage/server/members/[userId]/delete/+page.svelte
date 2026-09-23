@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { formatAccountName } from '$lib/render/accountName';
   import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
@@ -141,6 +143,11 @@
   }
 </script>
 
+{#snippet memberName()}<AccountName
+    name={member?.displayName ?? m('common.loading')}
+    identity={member}
+  />{/snippet}
+
 <!-- @component Full-page confirmation for permanently deleting another member's account. Lives outside a modal so consequences and future blockers can be described before confirming. -->
 <PageTitle
   title={m('admin.common.server_admin_page_title', { title: m('admin.member_delete.title') })}
@@ -149,7 +156,8 @@
 <div class="pane-page">
   <PaneHeader
     title={m('admin.member_delete.title')}
-    subtitle={member?.displayName ?? m('common.loading')}
+    subtitle={formatAccountName(member?.displayName ?? m('common.loading'), member)}
+    subtitleContent={memberName}
     {backHref}
     backLabel={m('admin.members.back_to_members')}
     showMobileNav

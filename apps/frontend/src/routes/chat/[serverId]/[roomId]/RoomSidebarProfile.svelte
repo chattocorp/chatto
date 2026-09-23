@@ -6,6 +6,7 @@ uses cached user data while it refreshes and updates shared profile fields as
 realtime changes arrive.
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
@@ -20,7 +21,7 @@ realtime changes arrive.
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
+  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import {
     getLiveBio,
     getLiveCustomStatus,
@@ -45,8 +46,6 @@ realtime changes arrive.
   const viewerTimeSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
-  const summaryCache = $derived(getUserSummaryCache(serverScope.serverId));
-  const cached = $derived(summaryCache.get(userId));
   let localTimeNow = $state(Date.now());
 
   const userQuery = createQuery(
@@ -56,9 +55,7 @@ realtime changes arrive.
         queryKey: ['user', serverScope.serverId, connection.queryScope, userId],
         queryFn: async () => {
           const users = await connection.getAPI(createUserAPI).batchGetUsers([userId]);
-          const user = users[0] ?? null;
-          if (user && serverScope.isCurrent()) summaryCache.prime([user]);
-          return user;
+          return users[0] ?? null;
         },
         enabled: !!userId,
         staleTime: 30_000,
@@ -68,7 +65,7 @@ realtime changes arrive.
     () => queryClient
   );
 
-  const baseUser = $derived(userQuery.data ?? cached);
+  const baseUser = $derived(mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user));
   const loading = $derived(!baseUser && userQuery.isPending);
   const notFound = $derived(!!userId && !loading && !baseUser);
   const displayName = $derived(
@@ -117,7 +114,7 @@ realtime changes arrive.
       <UserAvatar user={avatarUser} serverId={serverScope.serverId} size="xl" />
       <div class="min-w-0 flex-1">
         <h2 class="truncate text-lg font-semibold text-text-top">
-          <bdi>{displayName}</bdi>
+          <AccountName name={displayName} identity={baseUser} />
         </h2>
         <p class="truncate text-sm text-muted" dir="ltr">@{login}</p>
         <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />

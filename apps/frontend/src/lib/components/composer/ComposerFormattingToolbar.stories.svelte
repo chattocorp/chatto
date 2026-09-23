@@ -56,7 +56,7 @@
   </div>
 </Story>
 
-<Story name="Compact" asChild>
+<Story name="Input-aware sizing" asChild>
   <ComposerFormattingToolbar
     id="formatting-preview"
     {formattingState}

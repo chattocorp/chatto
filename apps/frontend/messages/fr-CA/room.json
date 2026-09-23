@@ -70,8 +70,15 @@
       "remove_account_suffix": " de ce serveur avant de le retirer."
     },
     "timeline": {
+      "post_interactions_only_channel": "Vous pouvez uniquement répondre dans les fils que vous avez créés ou où quelqu’un vous a mentionné.",
+      "post_threads_only": "Vous pouvez uniquement répondre dans les fils que vous pouvez lire.",
+      "post_interactions_only": "Vous pouvez uniquement répondre dans les fils que vous avez créés, où quelqu’un vous a mentionné ou où vous avez reçu un message privé.",
+      "post_denied": "Tu n’as pas la permission d’envoyer des messages dans ce salon.",
       "beginning": "Voici le début de cette conversation.",
-      "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon."
+      "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon.",
+      "limited_access": "Tu ne peux voir que les conversations que tu as commencées ou dans lesquelles quelqu’un t’a mentionné.",
+      "limited_access_dm": "Tu ne peux voir que les conversations que tu as commencées, reçues ou dans lesquelles quelqu’un t’a mentionné.",
+      "limited_empty": "Aucune conversation que tu peux lire pour le moment."
     },
     "message": {
       "empty": "Aucun message pour l'instant",
@@ -188,6 +195,7 @@
       "delete_failed": "Échec de la suppression de l'aperçu du lien"
     },
     "sidebar": {
+      "go_to_message": "Aller au message",
       "extras": "Les meilleurs de la chambre",
       "resize": "Redimensionner le volet des extras de la salle",
       "hide": "Cacher les extras de la chambre",
@@ -200,6 +208,7 @@
       "clear_member_search": "Effacer la recherche de membres",
       "no_members": "Aucun membre trouvé.",
       "online": "En ligne ({count})",
+      "bots": "Bots ({count})",
       "offline": "Hors ligne ({count})",
       "no_files": "Aucun fichier pour l'instant dans cette salle.",
       "files": "Fichiers",

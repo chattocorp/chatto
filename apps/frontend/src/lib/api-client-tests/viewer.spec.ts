@@ -90,6 +90,8 @@ describe('getCurrentUserViaConnect', () => {
       id: 'U1',
       login: 'alice',
       displayName: 'Alice',
+      isBot: false,
+      deleted: false,
       avatarUrl: 'https://cdn/avatar.webp',
       bio: null,
       publicTimezone: 'Europe/Berlin',

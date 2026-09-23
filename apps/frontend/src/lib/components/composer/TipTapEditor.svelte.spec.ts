@@ -33,6 +33,8 @@ describe('Composer editor focus', () => {
       const editor = page.getByRole('textbox', { name: 'Focus test' }).element();
       api.setContent('First paragraph');
       api.focus('start');
+      // TipTap applies DOM focus on the next animation frame, after its selection changes.
+      await expect.element(editor).toHaveFocus();
       await expect.poll(() => api.getTextBeforeCursor()).toBe('');
       await userEvent.keyboard(
         '{ArrowRight}{ArrowRight}{ArrowRight}{Shift>}{ArrowRight}{ArrowRight}{/Shift}'
@@ -113,6 +115,7 @@ describe('TipTapEditor wrapping', () => {
 
     api.setContent('moo');
     api.focus('end');
+    await expect.element(editor).toHaveFocus();
     selectEditorContents(editor);
     editor.dispatchEvent(
       new KeyboardEvent('keydown', { key: '`', bubbles: true, cancelable: true })
@@ -122,6 +125,7 @@ describe('TipTapEditor wrapping', () => {
 
     api.setContent('moo');
     api.focus('end');
+    await expect.element(editor).toHaveFocus();
     await userEvent.keyboard('`');
     await vi.waitFor(() => expect(editor.textContent).toBe('moo`'));
     expect(container.querySelector('code')).toBeNull();

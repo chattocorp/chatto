@@ -443,6 +443,10 @@ function createMainWindow() {
     minWidth: 800,
     minHeight: 600,
     backgroundColor: "#111827",
+    // Let the app header share the title area with the native window buttons.
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset", titleBarOverlay: true }
+      : {}),
     icon: path.join(frontendRoot, "icons/icon-512.png"),
     webPreferences: mainWindowWebPreferences(),
   });

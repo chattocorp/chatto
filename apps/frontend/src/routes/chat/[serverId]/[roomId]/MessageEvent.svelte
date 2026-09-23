@@ -237,7 +237,8 @@
   );
 
   // Message links referenced in this message's body — rendered inline as previews.
-  const messageLinks = $derived(embeddedMessageLinks(msg?.body));
+  const messageBody = $derived(msg?.body);
+  const messageLinks = $derived(embeddedMessageLinks(messageBody));
 
   async function copyMessageLink(e: MouseEvent) {
     if (!event) return;
@@ -256,6 +257,9 @@
     isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
   );
   const isInThreadPane = $derived(!!permalinkThreadRootEventId);
+  const canReplyInThread = $derived(
+    messageEvent?.canReplyInThread ?? roomPermissions.canPostInThread
+  );
   const isEchoedToChannel = $derived(
     isInThreadPane && !isEcho && !!messageEvent?.channelEchoEventId
   );
@@ -272,17 +276,17 @@
     if (isEcho) {
       return (
         threadingMode !== RoomThreadingMode.DISABLED &&
-        roomPermissions.canPostInThread &&
+        canReplyInThread &&
         !!onOpenThread &&
         !!messageEvent?.echoFromThreadRootEventId
       );
     }
-    if (isInThreadPane) return roomPermissions.canPostInThread;
+    if (isInThreadPane) return canReplyInThread;
     if (isRootMessage && threadingMode === RoomThreadingMode.REQUIRED) {
-      return roomPermissions.canPostInThread && !!onOpenThread;
+      return canReplyInThread && !!onOpenThread;
     }
     if (isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED) {
-      return (roomPermissions.canPostInThread && !!onOpenThread) || roomPermissions.canPostMessage;
+      return (canReplyInThread && !!onOpenThread) || roomPermissions.canPostMessage;
     }
     return roomPermissions.canPostMessage;
   });
@@ -290,7 +294,7 @@
     isRootMessage &&
       !isInThreadPane &&
       threadingMode === RoomThreadingMode.ENCOURAGED &&
-      roomPermissions.canPostInThread &&
+      canReplyInThread &&
       !!onOpenThread &&
       roomPermissions.canPostMessage
   );
@@ -299,7 +303,7 @@
       ? !!onOpenThread && !!messageEvent?.echoFromThreadRootEventId
       : threadingMode === RoomThreadingMode.DISABLED
         ? !permalinkThreadRootEventId && isRootMessage && hasThread && !!onOpenThread
-        : roomPermissions.canPostInThread && !!onOpenThread
+        : canReplyInThread && !!onOpenThread
   );
   const actionModel = $derived(
     buildMessageActionModel({
@@ -337,7 +341,11 @@
       replyInRoomLabel: replyInRoomActionLabel,
       replyThreadLabel: replyThreadActionLabel,
       replyInRoom: canUseReplyAction ? handleReply : undefined,
-      replyThread: canUseThreadAction ? handleOpenThread : undefined,
+      replyThread: canUseThreadAction
+        ? isEcho || threadingMode === RoomThreadingMode.DISABLED
+          ? handleOpenThread
+          : handleReplyInThread
+        : undefined,
       secondaryReplyInRoomLabel: canUseSecondaryRoomReply
         ? m('room.message.actions.reply_room')
         : undefined,
@@ -405,7 +413,9 @@
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
   const hasThreadUnread = $derived(
-    hasReplies && event && messageEvent?.viewerHasUnreadThread === true &&
+    hasReplies &&
+      event &&
+      messageEvent?.viewerHasUnreadThread === true &&
       !stores.readViews.covers(roomId, event.id)
   );
   const hasMessageFooter = $derived(
@@ -497,6 +507,7 @@
         reply: {
           eventId: messageEvent.echoOfEventId,
           actorDisplayName: displayName,
+          actorIdentity: actor ?? undefined,
           excerpt
         }
       });
@@ -511,18 +522,9 @@
     if (
       isRootMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
-        (threadingMode === RoomThreadingMode.ENCOURAGED &&
-          roomPermissions.canPostInThread &&
-          !!onOpenThread))
+        (threadingMode === RoomThreadingMode.ENCOURAGED && canReplyInThread && !!onOpenThread))
     ) {
-      onOpenThread?.(event.id, {
-        quoteText: quote ?? undefined,
-        reply: {
-          eventId: roomReplyTargetEventId(event),
-          actorDisplayName: displayName,
-          excerpt
-        }
-      });
+      startReplyInThread(quote);
       return;
     }
 
@@ -535,10 +537,26 @@
 
   function startReplyInCurrentComposer(quote: QuoteInsertionContent | null) {
     const excerpt = (msg?.body ?? '').slice(0, 80);
-    replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt);
+    replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt, actor ?? undefined);
     if (quote) {
       composerContext.quoteInsertionState.requestInsertQuote(quote);
     }
+  }
+
+  function handleReplyInThread() {
+    startReplyInThread(takeSelectedReplyQuote());
+  }
+
+  function startReplyInThread(quote: QuoteInsertionContent | null) {
+    onOpenThread?.(permalinkThreadRootEventId ?? event.id, {
+      quoteText: quote ?? undefined,
+      reply: {
+        eventId: roomReplyTargetEventId(event),
+        actorDisplayName: displayName,
+        actorIdentity: actor ?? undefined,
+        excerpt: (msg?.body ?? '').slice(0, 80)
+      }
+    });
   }
 
   function handleOpenThread() {
@@ -548,13 +566,8 @@
         (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ??
         permalinkThreadRootEventId ??
         event.id;
-      if (isEcho) {
-        selectedReplyQuoteSnapshot = null;
-        onOpenThread(threadRoot);
-        return;
-      }
-      const quote = takeSelectedReplyQuote();
-      onOpenThread(threadRoot, { quoteText: quote ?? undefined });
+      selectedReplyQuoteSnapshot = null;
+      onOpenThread(threadRoot);
       // Note: Thread notifications are dismissed by ThreadPane's $effect when it mounts,
       // which also handles direct URL navigation to threads.
     }

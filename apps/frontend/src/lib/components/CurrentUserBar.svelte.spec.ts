@@ -80,7 +80,6 @@ const {
     participants: [] as { isLocal: boolean; connectionQuality: 'poor' | 'lost' | 'excellent' }[],
     roomId: null as string | null,
     isMuted: false,
-    microphoneSilent: false,
     refreshDevices: vi.fn(),
     audioDevices: [],
     audioOutputDevices: [],
@@ -207,7 +206,6 @@ describe('CurrentUserBar', () => {
     voiceCallState.participants = [];
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
-    voiceCallState.microphoneSilent = false;
     voiceCallState.refreshDevices.mockClear();
     voiceCallState.isMicrophonePending = false;
     voiceCallState.isCameraEnabled = false;
@@ -240,17 +238,6 @@ describe('CurrentUserBar', () => {
     delete window.chattoDesktop;
   });
 
-  it('opens an explanation from the microphone silence hint', async () => {
-    voiceCallState.connected = true;
-    voiceCallState.roomId = 'room-1';
-    voiceCallState.microphoneSilent = true;
-    const screen = render(CurrentUserBarTestHarness);
-    await userEvent.click(screen.getByTestId('microphone-silence-hint'));
-    expect(navigation.pushState).toHaveBeenCalledWith('', {
-      modal: { type: 'microphoneSilence', serverId: 'origin' }
-    });
-  });
-
   it('shows only the local participant network warning on the current-user card', async () => {
     voiceCallState.connected = true;
     voiceCallState.participants = [
@@ -269,12 +256,6 @@ describe('CurrentUserBar', () => {
     await expect
       .element(screen.getByRole('dialog', { name: 'Connection lost' }))
       .not.toBeInTheDocument();
-  });
-
-  it('does not show a microphone warning during normal call activity', () => {
-    voiceCallState.connected = true;
-    const { container } = render(CurrentUserBarTestHarness);
-    expect(q(container, '[data-testid="microphone-silence-hint"]')).toBeNull();
   });
 
   it('asks before enabling privileged mode for this server', async () => {

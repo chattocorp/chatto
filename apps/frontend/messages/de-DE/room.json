@@ -70,8 +70,15 @@
       "remove_account_suffix": " dieses Servers."
     },
     "timeline": {
+      "post_interactions_only_channel": "Du kannst nur in Threads antworten, die du gestartet hast oder in denen dich jemand erwähnt hat.",
+      "post_threads_only": "Du kannst nur in Threads antworten, die du lesen kannst.",
+      "post_interactions_only": "Du kannst nur in Threads antworten, die du gestartet hast, in denen dich jemand erwähnt hat oder in denen du eine DM erhalten hast.",
+      "post_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu senden.",
       "beginning": "Dies ist der Anfang dieser Unterhaltung.",
-      "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen."
+      "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen.",
+      "limited_access": "Du kannst nur Gespräche sehen, die du begonnen hast oder in denen dich jemand erwähnt hat.",
+      "limited_access_dm": "Du kannst nur Gespräche sehen, die du begonnen oder empfangen hast oder in denen dich jemand erwähnt hat.",
+      "limited_empty": "Noch keine Gespräche, die du lesen kannst."
     },
     "message": {
       "empty": "Noch keine Nachrichten",
@@ -188,6 +195,7 @@
       "delete_failed": "Linkvorschau konnte nicht gelöscht werden"
     },
     "sidebar": {
+      "go_to_message": "Zur Nachricht",
       "extras": "Raumdetails",
       "resize": "Raumdetails-Bereich vergrößern/verkleinern",
       "hide": "Raumdetails ausblenden",
@@ -200,6 +208,7 @@
       "clear_member_search": "Mitgliedersuche leeren",
       "no_members": "Keine Mitglieder gefunden.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Noch keine Dateien in diesem Raum.",
       "files": "Dateien",

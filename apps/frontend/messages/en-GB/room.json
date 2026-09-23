@@ -70,8 +70,15 @@
       "remove_account_suffix": " for this server before removing it."
     },
     "timeline": {
+      "post_interactions_only_channel": "You can only reply in threads you started or where someone mentioned you.",
+      "post_threads_only": "You can only reply in threads you can read.",
+      "post_interactions_only": "You can only reply in threads you started, where someone mentioned you, or where you received a DM.",
+      "post_denied": "You do not have permission to post messages in this room.",
       "beginning": "This is the beginning of this conversation.",
-      "read_denied": "You do not have permission to read messages in this room."
+      "read_denied": "You do not have permission to read messages in this room.",
+      "limited_access": "You can only see conversations you started or where someone mentioned you.",
+      "limited_access_dm": "You can only see conversations you started, received, or where someone mentioned you.",
+      "limited_empty": "No conversations you can read yet."
     },
     "message": {
       "empty": "No messages yet",
@@ -188,6 +195,7 @@
       "delete_failed": "Failed to delete link preview"
     },
     "sidebar": {
+      "go_to_message": "Go to message",
       "extras": "Room extras",
       "resize": "Resize room extras pane",
       "hide": "Hide room extras",
@@ -200,6 +208,7 @@
       "clear_member_search": "Clear member search",
       "no_members": "No members found.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "No files in this room yet.",
       "files": "Files",

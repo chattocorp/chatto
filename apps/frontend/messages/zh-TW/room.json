@@ -70,8 +70,15 @@
       "remove_account_suffix": "，再將伺服器移除。"
     },
     "timeline": {
+      "post_interactions_only_channel": "你只能在你發起或有人提及你的討論串中回覆。",
+      "post_threads_only": "你只能在有權閱讀的討論串中回覆。",
+      "post_interactions_only": "你只能在你發起、有人提及你或你收到私訊的討論串中回覆。",
+      "post_denied": "你沒有在此房間傳送訊息的權限。",
       "beginning": "這是這段對話的開端。",
-      "read_denied": "你沒有權限閱讀此房間中的訊息。"
+      "read_denied": "你沒有權限閱讀此房間中的訊息。",
+      "limited_access": "你只能看到自己發起或有人提及你的對話。",
+      "limited_access_dm": "你只能看到自己發起、收到或有人提及你的對話。",
+      "limited_empty": "還沒有你可以閱讀的對話。"
     },
     "message": {
       "empty": "尚無訊息",
@@ -188,6 +195,7 @@
       "delete_failed": "無法刪除連結預覽"
     },
     "sidebar": {
+      "go_to_message": "前往訊息",
       "extras": "聊天室資訊",
       "resize": "調整聊天室資訊面板大小",
       "hide": "隱藏聊天室資訊",
@@ -200,6 +208,7 @@
       "clear_member_search": "清除成員搜尋",
       "no_members": "找不到成員。",
       "online": "上線（{count}）",
+      "bots": "機器人（{count}）",
       "offline": "離線（{count}）",
       "no_files": "此聊天室尚無檔案。",
       "files": "檔案",

@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -40,7 +40,7 @@ at append returns to the caller instead of replaying the batch.
 omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 - **Display name** — freely editable by a human or bot account. Shown in messages, member lists, mention autocomplete, etc.
-- **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Bot logins must end in `_bot`. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message.
+- **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Human and bot logins use the same rules: they start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — human and bot users can upload an image. The server resizes it to 256×256 maximum and stores it as lossless WebP. The old avatar is deleted after the new avatar is committed. Users can also delete their avatar and use the initial-letter placeholder. A human with `user.manage-accounts` can manage another human's avatar. A bot owner, a human with `bot.manage`, or a human with `user.manage-accounts` can manage a bot's avatar.
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
@@ -50,7 +50,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Bio** — human and bot accounts can set a self-authored Markdown bio of up to 1,000 characters through `MyAccountService.UpdateProfile`. The bio is shown on the Profile Card and in the Profile View. Bios use the message Markdown renderer and block styles, including headings, lists, quotes, code blocks, tables, links, and timestamp controls. The client disables source HTML and sanitizes rendered output. The bio editor uses the app's selected Markdown or visual editor and the message formatting toolbar. Both editors save Markdown source. The 1,000-character limit applies to that source. Switching editors and failed saves preserve the current draft. In the Profile View, a non-empty bio appears in a collapsible **Bio** section. It starts expanded. The browser remembers the choice per server. The content stays mounted while collapsed so Markdown loading does not interrupt the expansion animation.
 - **Public time zone** — a user must explicitly enable time-zone sharing. When sharing is enabled, public user reads include the stored IANA zone and clients show the current local time on profile surfaces. When sharing is disabled, public reads and realtime updates omit both values. The account can still use its stored time zone for private formatting.
 - **Profile View** — “View profile” shows the complete public profile as a temporary subview of Members in the current Room Sidebar. It does not navigate or create a DM, and does not require permission to start DMs. The back arrow returns to the current room's Member List; the close button hides the sidebar. This also applies on mobile and inside DMs. Selecting another profile replaces the current subview. Changing rooms or servers clears it. The Profile View shows the avatar, display name, login, custom status, bio, and local time. The direct-message header retains its information button, including in a self-DM. Closing a profile opened by that button returns to the prior room-extras panel, or hides the Room Sidebar when no panel was open.
-- **Desktop sidebar memory** — On desktop (at least 1024px wide), a one-to-one DM or self-DM opens its profile by default when no sidebar choice is saved. The browser remembers the last selected view, including closed, separately for each server and conversation. It restores that choice after navigation or reload. A saved profile also retains the previous room-extras panel. Channels with no saved choice start closed. Mobile profiles open only after an explicit action. Automatic and restored desktop profiles do not open a mobile overlay when the viewport becomes narrow. An explicitly opened Profile View follows the responsive Room Sidebar layout when the viewport changes. Mobile actions do not change the saved desktop choice.
+- **Desktop sidebar memory** — On desktop (at least 1024px wide), channels open Members by default, and a one-to-one DM or self-DM opens its profile by default. The browser remembers explicit choices, including closed, separately for each server and conversation within the current page session. Room navigation, reloads, and browser session restoration retain these choices. A fresh page session starts with the defaults; choices from earlier permanent storage are ignored. Putting the PWA in the background does not reset a choice. A saved profile also retains the previous room-extras panel. Mobile panes open only after an explicit action. Automatic and restored desktop views do not open a mobile overlay when the viewport becomes narrow. An explicitly opened Profile View follows the responsive Room Sidebar layout when the viewport changes. Mobile actions do not change the saved desktop choice.
 - **App Preferences** — users can select System, Light, or Dark appearance, overlay or side-by-side thread presentation, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. Overlay thread presentation is the default. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile Card** — opening a user's Profile Card as a popover or bottom sheet shows their public identity, bio snippet, live local time in their shared zone, and available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — users with `user.manage-accounts` can update human profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar. Profile edits and cooldown resets in member management also accept the caller's own account.
@@ -61,6 +61,13 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
   strengthens and widens them. Changes apply immediately across registered
   servers and remain in this browser. Switching modes animates unless reduced
   motion is enabled. The accent choice, focus indicators, and layout do not change.
+- **Contrast** — Appearance offers a **Contrast** slider from 0% to 100%.
+  It changes text, surface, and background contrast in both light and dark
+  themes. The middle keeps the original appearance. At 100%, the app uses
+  black text on a white background in light mode and white text on a black
+  background in dark mode. Clear boundaries separate surfaces. The change
+  applies while the slider moves and remains in this browser. Accent, status
+  colours, focus indicators, and surface depth do not change.
 - **Accent colour** — Appearance offers eight colours (Blue, Cyan, Teal, Green,
   Amber, Orange, Pink, and Violet) plus Grey. Cyan is the default when a choice
   is absent or invalid. Changes apply immediately across the app and remain
@@ -156,6 +163,12 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 **Why:** One command path gives human and bot avatars the same validation, storage, projection, cleanup, and realtime behavior. Stable authorization input validation prevents a torn permission or ownership decision. Target-user OCC protects account and avatar state.
 **Tradeoff:** This is an intentional pre-1.0 API break. Clients that used `MyAccountService.UploadAvatar` or `MyAccountService.DeleteAvatar` must move to `UserService` and send the authenticated user's ID when they manage their own avatar.
 
+### 15. Contrast stays separate from theme and accent
+
+**Decision:** One browser-local slider adjusts neutral text, background, and surface contrast in both themes. Its middle position keeps the original appearance. At 0%, headings, body text, and muted text become deliberately soft. At 100%, light mode uses black text on a white background, while dark mode uses white text on a black background. Clear boundaries separate surfaces. Accent and status colours keep their meanings.
+**Why:** Users can tune clarity without changing their chosen theme or accent. The middle value preserves the appearance of existing installations.
+**Tradeoff:** Each end of the range needs visual and contrast checks in both themes. The choice does not follow the user to another browser or device.
+
 ## Permissions
 
 - Human or bot self-edit of an avatar — no explicit permission; only authentication.
@@ -167,5 +180,5 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime events)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime events), ADR-101 (shared client user profiles)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-038 (Bot Accounts), FDR-045 (Realtime Event Stream)

@@ -4,7 +4,7 @@ Read this file first. It contains rules for the complete repository.
 
 ## Product Boundaries And Instruction Routing
 
-This repository contains two independent products and shared framework modules
+This repository contains independent products, libraries, and shared framework modules
 under development:
 
 - **Chatto** is the chat server, bundled client, CLI, and existing public
@@ -12,6 +12,10 @@ under development:
   repository content belongs to Chatto.
 - **Authling** is the independent identity-provider product under `authling/`.
   It is not a Chatto component, runtime unit, feature, or deployment mode.
+- **Runling** is the independent TypeScript workflow and agent orchestrator
+  under `packages/runling/`. It includes a library, CLI, and web console. It
+  uses the root pnpm workspace and has its own version, CI job, and npm release.
+  Keep its public APIs and runtime independent of Chatto and Authling.
 - **Shared framework code** is application-neutral event-sourcing, embedded
   NATS, data-cryptography, and configuration-loading machinery intended for
   consumption by both products. The independently versioned but unstable
@@ -27,6 +31,7 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 
 - Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public documentation!) Find the canonical vocabulary in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
 - The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is more specific.
+- Do not reserve protobuf field numbers or names for fields introduced and removed within the same unmerged branch or PR. Remove those fields without reservations. Compare with the target branch to distinguish these fields from existing fields, which remain subject to the normal compatibility rules.
 - Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior. Future maintainers must not have to infer this information from call sites.
 - Keep relevant tests and internal documentation current. Change public documentation only when readers must learn or do something differently. For API changes, document the required client migration; keep implementation details and unchanged behavior out. Apply the release-note scope below.
 - Run verification that can find regressions in the changed area.
@@ -47,6 +52,10 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
+- [packages/runling/README.md](packages/runling/README.md) — Runling APIs,
+  development commands, and release setup.
+- [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
+  ADRs, FDRs, and API guides. Runling records have their own numbering.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,
@@ -97,6 +106,17 @@ task runs the child processes through `tools/dev-supervisor.sh` so lifecycle
 signals reach them directly. Stop it before handing control back to the user.
 Never leave a dev stack running in a detached or yielded terminal session.
 
+## Runling Documentation Updates
+
+- Read [Runling's documentation index](packages/runling/docs/README.md) when
+  changing Runling. Use its ADRs for architecture decisions and its FDRs for
+  feature behavior and rationale. Keep the relevant records and API guides current.
+- Keep Runling records in `packages/runling/docs/adr/` and
+  `packages/runling/docs/fdr/`. Do not add them to Chatto or Authling numbering.
+  Root ADRs apply only when they explicitly describe a repository-wide decision.
+- Keep application-specific bot behavior outside Runling's framework records.
+  Record proposals and unresolved limits as open questions, not implemented behavior.
+
 ## Chatto Documentation Updates
 
 - Use FDRs for feature behavior/rationale and ADRs for cross-cutting decisions.
@@ -130,6 +150,7 @@ Never leave a dev stack running in a detached or yielded terminal session.
   when adding files or changing license boundaries.
 - Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
   or an adjacent `.license` file says otherwise.
+- Runling under `packages/runling/` keeps its MIT license.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
   `pkg/appconfig/`, the framework-neutral `packages/lingua` runtime, plus

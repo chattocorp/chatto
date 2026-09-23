@@ -101,7 +101,7 @@ type CreateMessageRequest struct {
 	// server resolves the token to cached, server-fetched metadata during post.
 	LinkPreviewToken string `protobuf:"bytes,10,opt,name=link_preview_token,json=linkPreviewToken,proto3" json:"link_preview_token,omitempty"`
 	// True to establish the new root message as a thread immediately. Requires
-	// both message.post and message.post-in-thread. Cannot be combined with
+	// message.post (which includes thread posting). Cannot be combined with
 	// thread_root_event_id.
 	CreateThread bool `protobuf:"varint,11,opt,name=create_thread,json=createThread,proto3" json:"create_thread,omitempty"`
 	// Optional descriptions for assets in attachment_asset_ids. Asset IDs must

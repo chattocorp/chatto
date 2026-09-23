@@ -8,6 +8,7 @@ import {
 } from './EventListVirtualizerMock.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import type { JumpToMessageState } from '$lib/state/room';
 
 const resumeCallbacks = vi.hoisted(() => [] as Array<() => void>);
 
@@ -29,6 +30,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
       currentUser: { user: { id: 'test-user' } },
+      realtimeSync: { isRecoveringSnapshot: false },
       serverInfo: { messageEditWindowSeconds: 300 }
     })
   }
@@ -66,6 +68,52 @@ vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
 }));
 
 describe('EventList jump completion', () => {
+  it('releases interrupted forward pagination when the snapshot viewport is restored', async () => {
+    let jumpState!: JumpToMessageState;
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: [], scrollToEventId: null, isLoading: true,
+        recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true },
+        onComposerReady: (context) => {
+          jumpState = context.jumpState;
+          jumpState.isJumpedMode = true;
+          // Snapshot invalidation prevents the old request's finally block
+          // from changing pagination state for the replacement window.
+          jumpState.isLoadingNewer = true;
+        }
+      }
+    });
+    await rendered.rerender({ eventIds: ['msg-anchor'], isLoading: false });
+    await expect.element(page.getByTestId('virtualizer-scroll-offset')).toHaveTextContent('17');
+    expect(jumpState.isLoadingNewer).toBe(false);
+    expect(jumpState.isJumpedMode).toBe(true);
+    expect(jumpState.hasReachedEnd).toBe(false);
+  });
+  it('releases the saved position when recovery produces an empty timeline', async () => {
+    render(EventListTestHarness, {
+      props: {
+        eventIds: [], scrollToEventId: null,
+        recoveryViewport: { eventId: 'removed', offset: 17 }
+      }
+    });
+    await vi.waitFor(() => expect(page.getByTestId('recovery-anchor').element().textContent).toBe(''));
+  });
+  it('restores the saved event and pixel offset after a cleared timeline loads', async () => {
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: [], scrollToEventId: null, isLoading: true,
+        recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true }
+      }
+    });
+    await rendered.rerender({
+      eventIds: ['msg-before', 'msg-anchor', 'msg-after'],
+      scrollToEventId: null, isLoading: false,
+      recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true }
+    });
+    await expect.element(page.getByText('msg-anchor', { exact: true })).toBeVisible();
+    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('start');
+    await expect.element(page.getByTestId('virtualizer-scroll-offset')).toHaveTextContent('17');
+  });
   it('signals completion after highlighting a rendered target', async () => {
     const onComplete = vi.fn();
     render(EventListTestHarness, {

@@ -13,6 +13,7 @@ message list layout, and it announces changes politely to screen readers via a
 **Props:**
 - `typingUserIds` - Array of user IDs currently typing
 - `members` - Room members for resolving avatars and display names
+- `profiles` - Shared profiles for typers whose room membership is still loading
 -->
 <script module lang="ts">
   /** Maximum number of avatars shown regardless of group size. */
@@ -23,27 +24,40 @@ message list layout, and it announces changes politely to screen readers via a
 </script>
 
 <script lang="ts">
+  import { accountNameToken } from '$lib/render/accountName';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { prefersReducedMotion } from 'svelte/motion';
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
+  import type { UserStore } from '$lib/state/server/users.svelte';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
 
   let {
     typingUserIds,
-    members
+    members,
+    profiles
   }: {
     typingUserIds: string[];
     members: RoomMember[];
+    /** Shared profiles can name a typer before room membership finishes loading. */
+    profiles?: Pick<UserStore, 'get' | 'isDeleted'>;
   } = $props();
+
+  function resolveMember(id: string): RoomMember | undefined {
+    if (profiles?.isDeleted(id)) return undefined;
+    const profile = profiles?.get(id);
+    return profile ? mapDirectoryMember(profile) : members.find((member) => member.id === id);
+  }
 
   // Resolve user IDs to members (for avatar URLs and display names), keeping
   // the order in which typers were reported.
   let activeUserIds = $derived([...new Set(typingUserIds)]);
   let typingMembers = $derived(
     activeUserIds
-      .map((id) => members.find((member) => member.id === id))
+      .map(resolveMember)
       .filter((member): member is RoomMember => member != null)
   );
 
@@ -57,11 +71,9 @@ message list layout, and it announces changes politely to screen readers via a
   let label = $derived.by(() => {
     if (activeUserIds.length === 0) return '';
 
-    const names = activeUserIds.slice(0, MAX_LABEL_NAMES).map((id) => {
-      const member = members.find((member) => member.id === id);
-      const name = member?.displayName || member?.login || m('common.unknown_user');
-      return String.fromCodePoint(0x2068) + name + String.fromCodePoint(0x2069);
-    });
+    const names = activeUserIds
+      .slice(0, MAX_LABEL_NAMES)
+      .map((_, index) => accountNameToken(index));
 
     if (names.length === 1) {
       return m('room.typing.one', { name: names[0] });
@@ -74,6 +86,15 @@ message list layout, and it announces changes politely to screen readers via a
     const otherCount = activeUserIds.length - MAX_LABEL_NAMES;
     return m('room.typing.many_count', { count: otherCount, names: names.join(', ') });
   });
+  let labelAccounts = $derived(
+    activeUserIds.slice(0, MAX_LABEL_NAMES).map((id) => {
+      const member = resolveMember(id);
+      return {
+        name: member?.displayName || member?.login || m('common.unknown_user'),
+        identity: member
+      };
+    })
+  );
 </script>
 
 <!-- Keep the live region mounted before text arrives so updates can be announced. -->
@@ -100,7 +121,9 @@ message list layout, and it announces changes politely to screen readers via a
         </span>
       {/each}
       {#if label}
-        <span class="typing-label ms-0.5 max-w-64 min-w-0 truncate text-muted">{label}</span>
+        <span class="typing-label ms-0.5 max-w-64 min-w-0 truncate text-muted">
+          <AccountNameTokens text={label} accounts={labelAccounts} />
+        </span>
       {/if}
       <span class="typing-dots grid shrink-0 grid-cols-3 gap-0.5 text-muted" aria-hidden="true">
         <!-- Clockwise perimeter chase; negative delays start with a complete fading trail. -->

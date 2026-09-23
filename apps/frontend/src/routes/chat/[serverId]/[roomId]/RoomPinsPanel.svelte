@@ -5,6 +5,7 @@ Channel pinned messages rendered through the room timeline's canonical
 message presentation. Each message row itself opens the original message.
 -->
 <script lang="ts">
+  import { formatAccountName } from '$lib/render/accountName';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
@@ -13,7 +14,7 @@ message presentation. Each message row itself opens the original message.
   import { getLocale } from '$lib/i18n/runtime';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { getRoomMembers, type RoomMember, type RoomPinsStore } from '$lib/state/room';
-  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
+  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import type { UserSummary } from '$lib/api-client/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -30,7 +31,6 @@ message presentation. Each message row itself opens the original message.
   } = $props();
 
   const serverScope = useServerScope();
-  const userSummaries = getUserSummaryCache(serverScope.serverId);
   const members = $derived(getRoomMembers());
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
@@ -38,7 +38,8 @@ message presentation. Each message row itself opens the original message.
   const activeLocale = $derived(getLocale());
 
   function user(userId: string): RoomMember | UserSummary | null {
-    return members.find((member) => member.id === userId) ?? userSummaries.get(userId);
+    return members.find((member) => member.id === userId) ??
+      mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user);
   }
 
   function messageActor(message: Message): UserAvatarUserView | null {
@@ -84,11 +85,10 @@ message presentation. Each message row itself opens the original message.
   }
 
   const loadMoreWhenVisible = useLoadMoreWhenVisible({
-    getCursor: () => store.hasMore ? store.items.length : null,
+    getCursor: () => (store.hasMore ? store.items.length : null),
     loadMore: () => store.loadMore(),
     hasError: () => store.loadMoreError
   });
-
 </script>
 
 <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
@@ -119,7 +119,7 @@ message presentation. Each message row itself opens the original message.
               <div
                 role="link"
                 tabindex="0"
-                aria-label={`${actor?.displayName || actor?.login || m('common.unknown')}: ${message.body || ''}`}
+                aria-label={`${formatAccountName(actor?.displayName || actor?.login || m('common.unknown'), actor)}: ${message.body || ''}`}
                 data-room-pin-id={message.id}
                 class="group/search-result cursor-pointer selectable-list-item"
                 onclick={(pointerEvent) => openPinFromPointer(pointerEvent, message)}
@@ -136,7 +136,7 @@ message presentation. Each message row itself opens the original message.
                       viewerLogin={serverScope.store.currentUser.user?.login}
                       timestampSettings={userSettings}
                       timestampLocale={activeLocale}
-                      rowClass="hover:bg-transparent md:mx-0 md:pe-2"
+                      rowClass="hover:bg-transparent desktop-presentation:mx-0 desktop-presentation:pe-2"
                     >
                       {#snippet headerMeta()}
                         {#if message.createdAt}

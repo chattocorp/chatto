@@ -550,7 +550,7 @@ export class BatchGetBotsResponse extends Message<BatchGetBotsResponse> {
  */
 export class CreateBotRequest extends Message<CreateBotRequest> {
   /**
-   * Bot login. Must end in `_bot`.
+   * Bot login. Uses the same username rules as a human account.
    *
    * @generated from field: string login = 1;
    */

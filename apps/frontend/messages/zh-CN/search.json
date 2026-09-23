@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "搜索我的话题",
+    "no_threads": "没有匹配的话题",
     "title": "搜索消息",
     "open": "搜索消息",
     "in_room": "在此聊天室中搜索",

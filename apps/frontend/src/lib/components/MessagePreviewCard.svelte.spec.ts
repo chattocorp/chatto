@@ -214,6 +214,78 @@ beforeEach(() => {
 });
 
 describe('MessagePreviewCard', () => {
+  it('preserves the preview when an equivalent link object replaces the prop', async () => {
+    timelineResults.push(bodyPreviewResult('Stable preview'));
+    const { container, rerender } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    const card = await vi.waitFor(() => {
+      const node = container.querySelector('[data-testid="message-preview-card"]');
+      expect(node).not.toBeNull();
+      return node!;
+    });
+
+    await rerender({ link: link() });
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
+    expect(card.textContent).toContain('Stable preview');
+  });
+
+  it('preserves an outstanding request when an equivalent link object arrives', async () => {
+    const pending = deferred<ReturnType<typeof bodyPreviewResult>>();
+    getRoomEventsAroundMock.mockReturnValueOnce(pending.promise);
+    const { container, rerender } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1));
+
+    await rerender({ link: link() });
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    pending.resolve(bodyPreviewResult('Pending preview'));
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Pending preview'));
+  });
+
+  it.each([
+    ['server', { serverId: null }],
+    ['room', { roomId: 'room_2' }],
+    ['message', { messageId: 'event_2' }],
+    ['thread', { threadRootEventId: 'thread_2' }]
+  ] as const)('clears the preview when the %s target changes', async (_field, change) => {
+    timelineResults.push(bodyPreviewResult('Previous preview'));
+    const { container, rerender } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('Previous preview'));
+    getRoomEventsAroundMock.mockReturnValue(new Promise(() => {}));
+
+    await rerender({ link: { ...link(), ...change } });
+
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes('serverId' in change ? 1 : 2);
+  });
+
+  it('ignores a late response after the target changes', async () => {
+    const previous = deferred<ReturnType<typeof bodyPreviewResult>>();
+    getRoomEventsAroundMock.mockReturnValueOnce(previous.promise);
+    const { container, rerender } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1));
+    timelineResults.push(bodyPreviewResult('Current preview'));
+
+    await rerender({ link: { ...link(), roomId: 'room_2' } });
+    await vi.waitFor(() => expect(container.textContent).toContain('Current preview'));
+    previous.resolve(bodyPreviewResult('Obsolete preview'));
+    await previous.promise;
+    await rerender({ link: { ...link(), roomId: 'room_2' } });
+
+    expect(container.textContent).toContain('Current preview');
+    expect(container.textContent).not.toContain('Obsolete preview');
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(2);
+  });
+
   it('renders a deleted author as an italicized placeholder', async () => {
     timelineResults.push(bodyPreviewResult('A deleted user message'));
 

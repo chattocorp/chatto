@@ -8,6 +8,7 @@ import { SvelteSet } from 'svelte/reactivity';
 
 type ProjectionReadiness = {
   hasUsableProjection: boolean;
+  isRecoveringSnapshot?: boolean;
 };
 
 type NotificationCountState = {
@@ -91,8 +92,13 @@ export function avatarUserFromDirectoryMember(
  * and the owning notification store at the presentation boundary.
  */
 export class NavigationStore {
+  get #readable(): boolean {
+    return this.readiness.hasUsableProjection ||
+      (this.readiness.isRecoveringSnapshot === true && this.projection.viewer !== null);
+  }
+
   readonly #rooms = $derived.by((): RoomsListItem[] => {
-    if (!this.readiness.hasUsableProjection) return [];
+    if (!this.#readable) return [];
     return [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
       if (!room || room.archived) return [];
@@ -124,7 +130,7 @@ export class NavigationStore {
   });
 
   readonly #roomGroups = $derived.by((): RoomsListGroup[] => {
-    if (!this.readiness.hasUsableProjection) return [];
+    if (!this.#readable) return [];
     return this.projection.roomGroups.map((group) => {
       const mapped = mapRoomGroup(group);
       return {
@@ -161,12 +167,12 @@ export class NavigationStore {
   }
 
   get currentUserId(): string | null {
-    if (!this.readiness.hasUsableProjection) return null;
+    if (!this.#readable) return null;
     return this.projection.viewer?.user?.profile?.id ?? null;
   }
 
   get isInitialLoading(): boolean {
-    return !this.readiness.hasUsableProjection;
+    return !this.#readable;
   }
 
   isRoomMember(roomId: string): boolean {

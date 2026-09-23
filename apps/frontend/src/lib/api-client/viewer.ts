@@ -1,5 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { authHeaders, createChattoClient } from './connect.js';
+import { authHeaders, createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import {
   TimeFormat,
@@ -11,17 +11,15 @@ import {
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
-export type ViewerAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type ViewerAPIConfig = ConnectAPIConfig;
 
 export type CurrentUser = {
   id: string;
   login: string;
   displayName: string;
+  /** Public account identity used by shared name renderers. */
+  isBot?: boolean;
+  deleted?: boolean;
   avatarUrl?: string | null;
   bio?: string | null;
   /** Time zone currently exposed on this user's public profile. */
@@ -161,6 +159,8 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       id: user.id,
       login: user.login,
       displayName: user.displayName,
+      isBot: !!user.bot,
+      deleted: user.deleted ?? false,
       avatarUrl: user.avatarUrl ?? null,
       bio: user.bio ?? null,
       publicTimezone: user.timezone ?? null,

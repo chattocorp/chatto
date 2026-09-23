@@ -184,7 +184,7 @@ func validateTimelineEntryRecord(reference *TimelineEntry, record *evtstream.Sub
 		if rootID == "" {
 			rootID = reference.EventID
 		}
-		if posted.GetInThread() != reference.InThreadEventID || rootID != reference.ThreadRootEventID || posted.GetEchoOfEventId() != reference.EchoOfEventID {
+		if posted.GetInThread() != reference.InThreadEventID || rootID != reference.ThreadRootEventID || posted.GetEchoOfEventId() != reference.EchoOfEventID || posted.GetHistoricalImport() != reference.HistoricalImport || posted.GetAuthorId() != reference.MessageAuthorID {
 			return fmt.Errorf("message routing does not match projection reference")
 		}
 	}

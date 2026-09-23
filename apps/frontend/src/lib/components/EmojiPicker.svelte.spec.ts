@@ -1,9 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from 'vitest-browser-svelte';
+import '../../app.css';
+import { cdp, page } from 'vitest/browser';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, tick } from 'svelte';
-import EmojiPicker from './EmojiPicker.svelte';
 import { EMOJI_BY_CATEGORY } from '$lib/emoji';
 import { __resetRecentEmojisForTests } from '$lib/state/recentEmojis.svelte';
+import { render } from 'vitest-browser-svelte';
+import EmojiPicker from './EmojiPicker.svelte';
 
 const TEST_SERVER_ID = 'test-server';
 
@@ -187,4 +189,25 @@ describe('EmojiPicker', () => {
       expect(onClose).toHaveBeenCalledOnce();
     });
   });
+});
+
+afterEach(async () => {
+	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+	await page.viewport(1280, 720);
+});
+
+it.each([false, true])('sizes emoji targets by touch capability, with touch=%s', async (touch) => {
+	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+	const { container } = render(EmojiPicker, {
+		serverId: 'input-presentation-test', onSelect: () => {}, onClose: () => {}
+	});
+	const picker = container.firstElementChild as HTMLElement;
+	for (const width of [320, 390, 1024]) {
+		await page.viewport(width, 800);
+		const button = container.querySelector('button')!;
+		expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(touch ? 44 : 32);
+		expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(touch ? 44 : 30);
+		expect(picker.scrollWidth).toBeLessThanOrEqual(picker.clientWidth);
+		expect(picker.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+	}
 });

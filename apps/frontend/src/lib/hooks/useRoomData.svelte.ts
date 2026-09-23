@@ -16,8 +16,10 @@ export type RoomData = {
   };
   spaceName: string | null;
   canReadMessages: boolean | null;
+  hasLimitedMessageAccess: boolean;
   canPostMessage: boolean;
   canPostInThread: boolean;
+  canPostInteractions: boolean;
   canAttach: boolean;
   canReact: boolean;
   canManageOthersMessage: boolean;
@@ -34,6 +36,7 @@ export type DMData = {
     id: string;
     login: string;
     displayName: string;
+    isBot?: boolean;
     deleted?: boolean;
     avatarUrl?: string | null;
     presenceStatus: DirectoryMember['presenceStatus'];
@@ -73,8 +76,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
       },
       spaceName: currentStore.serverInfo.name ?? null,
       canReadMessages: room.canReadMessages,
+      hasLimitedMessageAccess: room.hasLimitedMessageAccess,
       canPostMessage: room.canPostMessage,
       canPostInThread: room.canPostInThread,
+      canPostInteractions: room.canPostInteractions,
       canAttach: room.canAttach,
       canReact: room.canReact,
       canManageOthersMessage: room.canManageOthersMessage,

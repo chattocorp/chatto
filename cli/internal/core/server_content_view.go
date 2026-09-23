@@ -190,6 +190,14 @@ func (v *ServerContentView) adminProjectionEstimate(components ...events.Snapsho
 		componentEntries, componentBytes, componentMetrics := estimator.adminProjectionEstimate()
 		entries += componentEntries
 		estimatedBytes += componentBytes
+		// The parent estimate includes every component. Expose these two
+		// separately so room/thread memory changes can be measured directly.
+		switch component.(type) {
+		case *RoomTimelineProjection:
+			metrics = append(metrics, ProjectionAdminMetric{Name: "component_room_timeline", Value: componentEntries, Bytes: componentBytes})
+		case *ThreadProjection:
+			metrics = append(metrics, ProjectionAdminMetric{Name: "component_threads", Value: componentEntries, Bytes: componentBytes})
+		}
 		metrics = append(metrics, componentMetrics...)
 	}
 	return entries, estimatedBytes, metrics

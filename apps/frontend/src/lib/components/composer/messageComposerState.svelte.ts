@@ -1,4 +1,6 @@
 import { tick, untrack } from 'svelte';
+import { SvelteSet } from 'svelte/reactivity';
+import type { AccountNameIdentity } from '$lib/render/accountName';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import type {
   ComposerContext,
@@ -56,6 +58,7 @@ export type MessageComposerProps = {
   inThread?: string;
   inReplyTo?: string;
   replyDisplayName?: string;
+  replyIdentity?: AccountNameIdentity;
   replyExcerpt?: string;
   placeholder?: string;
   canPost?: boolean;
@@ -208,9 +211,13 @@ export class MessageComposerState {
   }
 
   get mentionCandidates(): RoomMember[] {
-    return this.mentionSearchMembers.length > 0
-      ? this.mentionSearchMembers
-      : this.#dependencies.getMembers();
+    const members = this.#dependencies.getMembers();
+    if (this.mentionSearchMembers.length === 0) return members;
+    const loadedIds = new SvelteSet(members.map((member) => member.id));
+    return [
+      ...members,
+      ...this.mentionSearchMembers.filter((member) => !loadedIds.has(member.id))
+    ];
   }
 
   get draftKey(): string {
@@ -403,8 +410,8 @@ export class MessageComposerState {
       const query = this.autocomplete.mention?.query ?? null;
       const requestId = ++this.#mentionSearchRequestId;
       this.#mentionSearchDebounce.cancel();
+      this.mentionSearchMembers = [];
       if (!query) {
-        this.mentionSearchMembers = [];
         return;
       }
       this.#mentionSearchDebounce.run(() => {

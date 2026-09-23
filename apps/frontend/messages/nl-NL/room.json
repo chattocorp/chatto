@@ -70,8 +70,15 @@
       "remove_account_suffix": " van deze server."
     },
     "timeline": {
+      "post_interactions_only_channel": "Je kunt alleen antwoorden in threads die je hebt gestart of waarin iemand je heeft vermeld.",
+      "post_threads_only": "Je kunt alleen antwoorden in threads die je kunt lezen.",
+      "post_interactions_only": "Je kunt alleen antwoorden in threads die je hebt gestart, waarin iemand je heeft vermeld of waarin je een privébericht hebt ontvangen.",
+      "post_denied": "Je hebt geen toestemming om berichten in deze kamer te plaatsen.",
       "beginning": "Dit is het begin van dit gesprek.",
-      "read_denied": "Je hebt geen toestemming om berichten in deze ruimte te lezen."
+      "read_denied": "Je hebt geen toestemming om berichten in deze ruimte te lezen.",
+      "limited_access": "Je kunt alleen gesprekken zien die je hebt gestart of waarin iemand je heeft vermeld.",
+      "limited_access_dm": "Je kunt alleen gesprekken zien die je hebt gestart, ontvangen of waarin iemand je heeft vermeld.",
+      "limited_empty": "Er zijn nog geen gesprekken die je kunt lezen."
     },
     "message": {
       "empty": "Nog geen berichten",
@@ -188,6 +195,7 @@
       "delete_failed": "Kan linkvoorbeeld niet verwijderen"
     },
     "sidebar": {
+      "go_to_message": "Ga naar bericht",
       "extras": "Kamerextra's",
       "resize": "Wijzig het formaat van het deelvenster met kamerextra's",
       "hide": "Kamerextra's verbergen",
@@ -200,6 +208,7 @@
       "clear_member_search": "Zoeken naar leden wissen",
       "no_members": "Geen leden gevonden.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Nog geen bestanden in deze kamer.",
       "files": "Bestanden",

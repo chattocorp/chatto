@@ -20,9 +20,10 @@ import (
 var errInvalidCursor = fmt.Errorf("invalid search cursor")
 
 const (
-	exactMatchBoost = 4
-	stemMatchBoost  = 2
-	fuzzyMatchBoost = 0.35
+	exactMatchBoost  = 4
+	stemMatchBoost   = 2
+	fuzzyMatchBoost  = 0.35
+	addressPartBoost = 1
 )
 
 type cursor struct {
@@ -30,7 +31,7 @@ type cursor struct {
 	Sort      []string `json:"sort"`
 }
 
-func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
+func (p *Projection) query(ctx context.Context, request *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	query, err := buildQuery(request, p.languages)
@@ -60,7 +61,7 @@ func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*
 		}
 		searchRequest.SetSearchAfter(decoded.Sort)
 	}
-	result, err := p.index.Search(searchRequest)
+	result, err := p.index.SearchInContext(ctx, searchRequest)
 	if err != nil {
 		return nil, fmt.Errorf("search Bleve index: %w", err)
 	}
@@ -69,7 +70,7 @@ func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*
 	if hasMore {
 		hits = hits[:pageSize]
 	}
-	response := &searchv1.QueryResponse{Hits: make([]*searchv1.QueryHit, 0, len(hits))}
+	response := &searchv1.QueryResponse{Hits: make([]*searchv1.QueryHit, 0, len(hits)), ThreadScopeApplied: true, ThreadExclusionsApplied: true}
 	for _, hit := range hits {
 		roomID, _ := hit.Fields["room_id"].(string)
 		bodyEventID, _ := hit.Fields["body_event_id"].(string)
@@ -106,6 +107,16 @@ func buildQuery(request *searchv1.QueryRequest, languages []languageAnalyzer) (b
 	if len(request.GetAuthorIds()) > 0 {
 		conjuncts = append(conjuncts, termsQuery("author_id", request.GetAuthorIds()))
 	}
+	if len(request.GetThreadRootIds()) > 0 {
+		filters := make([]blevequery.Query, 0, len(request.ThreadRootIds))
+		for _, root := range request.ThreadRootIds {
+			filter := blevesearch.NewTermQuery(root)
+			filter.SetField("thread_root_id")
+			filter.SetBoost(0)
+			filters = append(filters, filter)
+		}
+		conjuncts = append(conjuncts, blevesearch.NewDisjunctionQuery(filters...))
+	}
 	if request.GetCreatedAfter() != nil || request.GetCreatedBefore() != nil {
 		start, end := time.Time{}, time.Time{}
 		if request.GetCreatedAfter() != nil {
@@ -124,12 +135,29 @@ func buildQuery(request *searchv1.QueryRequest, languages []languageAnalyzer) (b
 		q.SetField("has_attachments")
 		conjuncts = append(conjuncts, q)
 	}
-	return blevesearch.NewConjunctionQuery(conjuncts...), nil
+	positive := blevesearch.NewConjunctionQuery(conjuncts...)
+	if len(request.GetExcludedThreadRootIds()) > 0 {
+		filtered := blevesearch.NewBooleanQuery()
+		filtered.AddMust(positive)
+		filtered.AddMustNot(termsQuery("thread_root_id", request.GetExcludedThreadRootIds()))
+		return filtered, nil
+	}
+	return positive, nil
 }
 
 func bodyTermQuery(term string, languages []languageAnalyzer) blevequery.Query {
+	if url, _ := canonicalHTTPURL(term); url != "" {
+		return addressTermQuery(url, addressURLField)
+	}
+	if email, _ := canonicalEmail(term); email != "" {
+		return addressTermQuery(email, addressEmailField)
+	}
+	if host := canonicalHostname(term); host != "" {
+		return addressTermQuery(host, addressHostField)
+	}
 	queries := []blevequery.Query{
 		exactBodyTermQuery(term),
+		addressPartsQuery(term),
 	}
 	for _, language := range languages {
 		queries = append(queries, boostedMatchQuery(
@@ -152,6 +180,24 @@ func bodyTermQuery(term string, languages []languageAnalyzer) blevequery.Query {
 		queries = append(queries, fuzzy)
 	}
 	return blevesearch.NewDisjunctionQuery(queries...)
+}
+
+func addressTermQuery(value, field string) *blevequery.TermQuery {
+	query := blevesearch.NewTermQuery(value)
+	query.SetField(field)
+	query.SetBoost(exactMatchBoost)
+	return query
+}
+
+func addressPartsQuery(term string) blevequery.Query {
+	parts := exactBodyTokens(term)
+	queries := make([]blevequery.Query, 0, len(parts))
+	for _, part := range parts {
+		query := addressTermQuery(part, addressPartField)
+		query.SetBoost(addressPartBoost)
+		queries = append(queries, query)
+	}
+	return blevesearch.NewConjunctionQuery(queries...)
 }
 
 func exactBodyTermQuery(term string) blevequery.Query {

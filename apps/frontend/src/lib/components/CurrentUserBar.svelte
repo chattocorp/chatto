@@ -6,7 +6,6 @@ sidebar. Shows the avatar with presence and the live display name.
 -->
 <script lang="ts">
   import UserCard from '$lib/ui/UserCard.svelte';
-  import MicrophoneSilenceHint from './voice/MicrophoneSilenceHint.svelte';
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
   import FadeScale from '$lib/ui/FadeScale.svelte';
   import PillButtonGroup from '$lib/ui/PillButtonGroup.svelte';
@@ -310,6 +309,7 @@ sidebar. Shows the avatar with presence and the live display name.
     <UserCard
       variant="card"
       name={displayName}
+      identity={activeServerUser}
       username={login}
       testId="current-user-identity-card"
       textTestId="current-user-identity-text"
@@ -336,7 +336,6 @@ sidebar. Shows the avatar with presence and the live display name.
             quality={voiceCallState.participants.find((p) => p.isLocal)?.connectionQuality}
           />
         {/if}
-        <MicrophoneSilenceHint />
         {#if privilegedMode?.available}
           <button
             type="button"

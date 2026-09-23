@@ -3765,9 +3765,11 @@ type TimelineEntrySnapshot struct {
 	ThreadRootEventId string `protobuf:"bytes,7,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	EchoOfEventId     string `protobuf:"bytes,8,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
 	// Direct thread parent. Empty for room-visible entries.
-	InThreadEventId string `protobuf:"bytes,9,opt,name=in_thread_event_id,json=inThreadEventId,proto3" json:"in_thread_event_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	InThreadEventId  string `protobuf:"bytes,9,opt,name=in_thread_event_id,json=inThreadEventId,proto3" json:"in_thread_event_id,omitempty"`
+	HistoricalImport bool   `protobuf:"varint,10,opt,name=historical_import,json=historicalImport,proto3" json:"historical_import,omitempty"`
+	MessageAuthorId  string `protobuf:"bytes,11,opt,name=message_author_id,json=messageAuthorId,proto3" json:"message_author_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TimelineEntrySnapshot) Reset() {
@@ -3859,6 +3861,20 @@ func (x *TimelineEntrySnapshot) GetEchoOfEventId() string {
 func (x *TimelineEntrySnapshot) GetInThreadEventId() string {
 	if x != nil {
 		return x.InThreadEventId
+	}
+	return ""
+}
+
+func (x *TimelineEntrySnapshot) GetHistoricalImport() bool {
+	if x != nil {
+		return x.HistoricalImport
+	}
+	return false
+}
+
+func (x *TimelineEntrySnapshot) GetMessageAuthorId() string {
+	if x != nil {
+		return x.MessageAuthorId
 	}
 	return ""
 }
@@ -4395,7 +4411,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12 \n" +
 	"\fpin_event_id\x18\x02 \x01(\tR\n" +
 	"pinEventId\x12!\n" +
-	"\fpin_sequence\x18\x03 \x01(\x04R\vpinSequence\"\xf0\x02\n" +
+	"\fpin_sequence\x18\x03 \x01(\x04R\vpinSequence\"\xc9\x03\n" +
 	"\x15TimelineEntrySnapshot\x12'\n" +
 	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x17\n" +
@@ -4407,7 +4423,10 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"event_type\x18\x06 \x01(\tR\teventType\x12/\n" +
 	"\x14thread_root_event_id\x18\a \x01(\tR\x11threadRootEventId\x12'\n" +
 	"\x10echo_of_event_id\x18\b \x01(\tR\rechoOfEventId\x12+\n" +
-	"\x12in_thread_event_id\x18\t \x01(\tR\x0finThreadEventId\"\xb9\x02\n" +
+	"\x12in_thread_event_id\x18\t \x01(\tR\x0finThreadEventId\x12+\n" +
+	"\x11historical_import\x18\n" +
+	" \x01(\bR\x10historicalImport\x12*\n" +
+	"\x11message_author_id\x18\v \x01(\tR\x0fmessageAuthorId\"\xb9\x02\n" +
 	"\x14TimelineBodySnapshot\x12(\n" +
 	"\x10message_event_id\x18\x01 \x01(\tR\x0emessageEventId\x120\n" +
 	"\x14body_event_sequences\x18\x02 \x03(\x04R\x12bodyEventSequences\x122\n" +

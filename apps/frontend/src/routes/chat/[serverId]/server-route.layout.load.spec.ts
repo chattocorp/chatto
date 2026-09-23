@@ -7,6 +7,7 @@ const { mocks } = vi.hoisted(() => ({
     origin: true,
     reauthRequiredAt: null as number | null,
     store: {
+      restoreSavedView: vi.fn(),
       currentUser: {
         loading: false,
         user: { id: 'viewer-1' } as { id: string } | undefined,

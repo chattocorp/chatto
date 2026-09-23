@@ -53,6 +53,16 @@ SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc."
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
+path = ["packages/runling/**", "packages/chattobot/**"]
+SPDX-FileCopyrightText = "2026 Hendrik Mans and contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ["packages/chatto-client/**", "packages/chatto-bot-client/**"]
+SPDX-FileCopyrightText = ["2026 Hendrik Mans and contributors", "2026 ChattoCorp GmbH"]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
 path = [
   "pkg/events/LICENSE",
   "pkg/appconfig/LICENSE",

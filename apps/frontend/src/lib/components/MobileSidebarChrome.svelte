@@ -8,8 +8,19 @@
 
   const progress = $derived(sidebarNav.isMobile ? sidebarNav.progress : 1);
   const dragging = $derived(sidebarNav.dragOffset !== null);
-  const mobileClosed = $derived(sidebarNav.isMobile && progress === 0 && !dragging);
-  const tx = $derived((progress - 1) * sidebarNav.panelWidth);
+  const mobileClosed = $derived(sidebarNav.drawerClosed);
+
+  /** Use the work plane's actual width for drawer transforms and swipe progress. */
+  function observePanelWidth(node: HTMLDivElement) {
+    const update = () => sidebarNav.setPanelWidth(node.clientWidth);
+    const observer = new ResizeObserver(update);
+    update();
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      sidebarNav.setPanelWidth(null);
+    };
+  }
 </script>
 
 {#if sidebarNav.isMobile}
@@ -32,63 +43,28 @@
   ></button>
 {/if}
 
-<div class="flex min-h-0 flex-1 flex-row">
+<div
+  {@attach observePanelWidth}
+  class="flex min-h-0 flex-1 flex-row"
+  data-sidebar-closed={mobileClosed}
+  data-sidebar-dragging={dragging}
+  style:--sidebar-progress={progress}
+  style:--sidebar-width={`${sidebarNav.panelWidth}px`}
+>
   <div
     data-app-sidebar="true"
     data-testid="mobile-sidebar-panel"
     class={[
-      'z-50 min-h-0 flex-col self-stretch bg-background',
+      'sidebar-drawer z-50 min-h-0 flex-col self-stretch bg-background',
       'max-md:fixed max-md:start-0 max-md:mobile-sidebar-insets max-md:w-17 max-md:touch-pan-y',
       // Mobile: always rendered so we can animate transform.
       // Desktop: hide entirely when closed (no overlay; layout reflows).
-      sidebarNav.isMobile ? 'flex' : sidebarNav.isOpen ? 'flex' : 'hidden',
-      // Mobile-only: hide via `visibility: hidden` after the close
-      // transition, so Playwright / accessibility tooling correctly see
-      // the sidebar as not-visible while the slide-out animation works.
-      mobileClosed && 'sidebar-mobile-closed',
-      !dragging && 'sidebar-mobile-anim'
+      sidebarNav.isMobile || sidebarNav.isOpen ? 'flex' : 'hidden'
     ]}
-    style:transform={sidebarNav.isMobile
-      ? `translateX(calc(${tx}px * var(--inline-direction)))`
-      : undefined}
+    inert={mobileClosed}
   >
     <ServerGutter />
   </div>
 
   {@render children?.()}
 </div>
-
-<style>
-  /*
-		Mobile sidebar animation — slide via transform, plus a delayed visibility
-		swap so the off-screen panel is reported as `visibility: hidden` (not just
-		visually hidden by transform) once the close animation finishes. This
-		matters for accessibility tooling and Playwright's `toBeVisible()`.
-
-		Open  → transform animates, visibility flips to `visible` immediately.
-		Close → visibility flips to `hidden` after the transform finishes.
-	*/
-  @media (max-width: 767px) {
-    :global(.sidebar-mobile-anim) {
-      visibility: visible;
-      transition:
-        transform var(--motion-duration-pane) var(--ease-out-expo),
-        visibility 0s linear 0s;
-    }
-    :global(.sidebar-mobile-anim.sidebar-mobile-closed) {
-      visibility: hidden;
-      transition:
-        transform var(--motion-duration-pane) var(--ease-out-expo),
-        visibility 0s linear var(--motion-duration-pane);
-    }
-  }
-
-  @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
-    :global(.sidebar-mobile-anim),
-    :global(.sidebar-mobile-anim.sidebar-mobile-closed) {
-      transition:
-        transform 0s,
-        visibility 0s;
-    }
-  }
-</style>

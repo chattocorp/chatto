@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Buscar en mis hilos",
+    "no_threads": "No hay hilos coincidentes",
     "title": "Buscar mensajes",
     "open": "Buscar mensajes",
     "in_room": "Buscar en esta sala",

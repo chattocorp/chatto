@@ -101,6 +101,7 @@
 </script>
 
 <CompactActionButton
+  wrapperClass="mobile-presentation:pill-button-group-touch"
   label={m('composer.timestamp.insert_label')}
   type="button"
   onpointerdown={(event) => event.preventDefault()}

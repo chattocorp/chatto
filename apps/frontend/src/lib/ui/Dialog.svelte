@@ -1,5 +1,6 @@
 <!-- @component
-Standard task shell: a bottom sheet below md and a framed dialog above it.
+Standard task shell: a bottom sheet in narrow touch-capable windows and a
+framed dialog otherwise. Width still limits content and media viewer size.
 Declare primaryAction, secondaryActions, and dismissAction once. The shell
 owns their layout and reading order. Body state survives viewport changes.
 The footer and footerDetails escape hatches are for specialized viewer controls
@@ -8,6 +9,7 @@ and cannot be combined with semantic actions.
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { NARROW_TOUCH_QUERY } from '$lib/utils/inputMediaQueries';
 	import { m } from '$lib/i18n/messages';
 	import ModalSurface from './ModalSurface.svelte';
 	/** Task actions and specialized viewer footers are mutually exclusive. */
@@ -41,12 +43,15 @@ and cannot be combined with semantic actions.
 		mediaViewer = false,
 		visible = $bindable(false),
 		title,
+		titleContent,
 		size = 'md',
 		describedBy,
 		onclose
 	}: {
 		visible?: boolean;
 		title?: string;
+		/** Rich title content; title remains the plain-text fallback. */
+		titleContent?: Snippet;
 		size?: 'sm' | 'md' | 'lg' | 'xl';
 		/** Accessible description element ID. */
 		describedBy?: string;
@@ -55,8 +60,8 @@ and cannot be combined with semantic actions.
 		mediaViewer?: boolean;
 		onclose?: () => void;
 	} & ActionContent = $props();
-	const narrow = new MediaQuery('(width < 768px)');
-	const sheet = $derived(narrow.current && !mediaViewer);
+	const narrowTouch = new MediaQuery(NARROW_TOUCH_QUERY, false);
+	const sheet = $derived(narrowTouch.current && !mediaViewer);
 	const id = $props.id();
 	const titleId = `${id}-title`;
 	const widths = { sm: '400px', md: '600px', lg: '800px', xl: 'min(90vw, 1440px)' };
@@ -208,7 +213,7 @@ and cannot be combined with semantic actions.
 								mediaViewer && 'line-clamp-2'
 							]}
 						>
-							<bdi>{title}</bdi>
+							{#if titleContent}{@render titleContent()}{:else}<bdi>{title}</bdi>{/if}
 						</h2>
 					{:else}<span></span>{/if}
 					<button

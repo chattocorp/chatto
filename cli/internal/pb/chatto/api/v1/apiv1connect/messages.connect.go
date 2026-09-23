@@ -82,8 +82,10 @@ type MessageServiceClient interface {
 	// Successful responses include a short-lived token accepted by CreateMessage.
 	FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error)
 	// Creates a message for the current user. The user must be a room member and
-	// must have message.post for room messages or message.post-in-thread for
-	// thread replies. Echoing a thread reply also requires message.echo and
+	// must have message.post for room messages. Thread replies require read
+	// access and either message.post, message.post-in-thread, or
+	// message.post-in-interactions with an existing interaction relationship.
+	// Echoing a thread reply also requires message.echo and
 	// message.post. The room's Threading Mode may automatically establish a root
 	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
@@ -306,8 +308,10 @@ type MessageServiceHandler interface {
 	// Successful responses include a short-lived token accepted by CreateMessage.
 	FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error)
 	// Creates a message for the current user. The user must be a room member and
-	// must have message.post for room messages or message.post-in-thread for
-	// thread replies. Echoing a thread reply also requires message.echo and
+	// must have message.post for room messages. Thread replies require read
+	// access and either message.post, message.post-in-thread, or
+	// message.post-in-interactions with an existing interaction relationship.
+	// Echoing a thread reply also requires message.echo and
 	// message.post. The room's Threading Mode may automatically establish a root
 	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)

@@ -142,8 +142,16 @@
   let composerApi = $state<MessageComposerApi | null>(null);
   let isDraggingFiles = $state(false);
 
+  const threadMessage = $derived(threadEvents.find((entry) => isMessagePostedEvent(entry.event))?.event);
+  let canPost = $derived(
+    threadingMode !== RoomThreadingMode.DISABLED &&
+      (isMessagePostedEvent(threadMessage)
+        ? (threadMessage.canReplyInThread ?? canPostInThread)
+        : canPostInThread)
+  );
+
   const threadDropZone = $derived(
-    canPostInThread && canAttach
+    canPost && canAttach
       ? dropZone({
           onDrop: (files) => composerApi?.addFiles(files),
           onDragStateChange: (dragging) => (isDraggingFiles = dragging)
@@ -158,7 +166,6 @@
     return true;
   });
 
-  let canPost = $derived(canPostInThread);
   let threadTitle = $derived(
     isDirectMessage ? roomName : m('room.thread.title', { room: roomName })
   );
@@ -226,7 +233,12 @@
     }
 
     consumedReplyId = reply.id;
-    replyState.startReply(reply.eventId, reply.actorDisplayName, reply.excerpt);
+    replyState.startReply(
+      reply.eventId,
+      reply.actorDisplayName,
+      reply.excerpt,
+      reply.actorIdentity
+    );
     api.focus();
     onReplyConsumed?.();
   });
@@ -336,6 +348,12 @@
     hasReachedStart={store.hasReachedStart}
     showStartMarker={false}
     onLoadMore={() => store.loadMore()}
+    isJumpedMode={jumpState.isJumpedMode}
+    isLoadingNewer={jumpState.isLoadingNewer}
+    hasReachedEnd={jumpState.hasReachedEnd}
+    onLoadNewer={() => store.loadNewer(jumpState)}
+    onJumpToPresent={() => store.jumpToPresent(jumpState)}
+    onReachedPresent={() => jumpState.reset()}
     filterThreadReplies={false}
     {updateCounter}
     enableLastEditableFinder={true}
@@ -360,6 +378,7 @@
     inThread={threadRootEventId}
     inReplyTo={replyState.messageEventId ?? undefined}
     replyDisplayName={replyState.actorDisplayName || undefined}
+    replyIdentity={replyState.actorIdentity}
     replyExcerpt={replyState.excerpt || undefined}
     onCancelReply={() => replyState.cancelReply()}
     placeholder={m('room.thread.reply_placeholder')}

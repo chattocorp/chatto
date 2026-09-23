@@ -91,10 +91,17 @@ export class AppUiState {
   }
 
   get activeDesktopRoomSidebarPanel(): RoomSidebarPanelState {
+    return this.desktopRoomSidebarPanel(null);
+  }
+
+  /** Resolve an absent choice without saving the room-specific desktop default. */
+  desktopRoomSidebarPanel(defaultPanel: RoomSidebarPanelState): RoomSidebarPanelState {
+    if (!this.activeRoomScope) return null;
     const preference = this.#desktopRoomSidebarPreference;
+    if (preference === undefined) return defaultPanel;
     return typeof preference === 'object' && preference !== null
       ? preference.previousPanel
-      : (preference ?? null);
+      : preference;
   }
 
   /**
@@ -150,8 +157,16 @@ export class AppUiState {
     else this.openMobileRoomSidebarPanel('members');
   }
 
-  toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    if (!this.activeRoomSidebarProfileUserId && this.#desktopRoomSidebarPreference === panel) {
+  /** Toggle the visible default or explicit panel; profiles switch to the requested panel. */
+  toggleDesktopRoomSidebarPanel(
+    panel: RoomSidebarPanel,
+    defaultPanel: RoomSidebarPanelState = null
+  ): void {
+    const preference = this.#desktopRoomSidebarPreference;
+    if (
+      !this.activeRoomSidebarProfileUserId &&
+      (preference === undefined ? defaultPanel : preference) === panel
+    ) {
       this.closeDesktopRoomSidebarPanel();
       return;
     }
@@ -196,7 +211,8 @@ export class AppUiState {
    * Show a user profile in the room sidebar.
    *
    * The selected room-extras panel is retained so closing the profile
-   * returns the viewer to the prior panel. Desktop choices survive reloads.
+   * returns the viewer to the prior panel. Desktop choices survive reloads
+   * within the browser's page session.
    * The responsive layout selects desktop or mobile presentation at render
    * time, so the profile remains visible after a breakpoint change.
    */

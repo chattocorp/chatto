@@ -139,7 +139,7 @@ can slide out before its rows are removed.
             class={[
               'iconify icon-[uil--angle-right-b] transition-transform',
               leadingOverlay
-                ? 'group-focus-within/section-header:opacity-0 group-hover/section-header:opacity-0 [@media(hover:none)]:opacity-0'
+                ? 'group-focus-within/section-header:opacity-0 group-hover/section-header:opacity-0 touch-input:opacity-0'
                 : '',
               collapsed ? 'rtl:-scale-x-100' : 'rotate-90'
             ]}

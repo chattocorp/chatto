@@ -75,6 +75,45 @@ describe('UserAvatar', () => {
     );
   });
 
+  it('keeps the offline presence dot for a person', () => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'sm',
+      showPresence: true,
+      presenceStatus: PresenceStatus.OFFLINE
+    });
+
+    expect(q(container, '[aria-label="Offline"] [data-testid="presence-dot"]')).toBeTruthy();
+  });
+
+  it.each([PresenceStatus.OFFLINE, PresenceStatus.UNSPECIFIED])(
+    'hides the presence dot for a bot without available presence (%s)',
+    (presenceStatus) => {
+      const { container } = render(UserAvatarTestHarness, {
+        size: 'sm',
+        showPresence: true,
+        isBot: true,
+        presenceStatus
+      });
+
+      expect(q(container, '[data-testid="presence-dot"]')).toBeFalsy();
+    }
+  );
+
+  it.each([
+    [PresenceStatus.ONLINE, 'Online'],
+    [PresenceStatus.AWAY, 'Away'],
+    [PresenceStatus.DO_NOT_DISTURB, 'Do not disturb']
+  ] as const)('shows a bot presence dot for %s', (presenceStatus, label) => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'sm',
+      showPresence: true,
+      isBot: true,
+      presenceStatus
+    });
+
+    expect(q(container, `[aria-label="${label}"] [data-testid="presence-dot"]`)).toBeTruthy();
+  });
+
   it('keeps extra-small avatars free of presence overlays', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'xs', showPresence: true });
 
@@ -89,14 +128,14 @@ describe('UserAvatar', () => {
   });
 
   it.each(['sm', 'md', 'message', 'lg', 'xl'] as const)(
-    'marks %s bot avatars with a robot badge',
+    'keeps %s bot avatars free of robot badges',
     (size) => {
       const { container } = render(UserAvatarTestHarness, {
         size,
         isBot: true
       });
 
-      expect(q(container, '[data-testid="bot-badge"][aria-label="bot"]')).toBeTruthy();
+      expect(q(container, '[data-testid="bot-badge"]')).toBeFalsy();
     }
   );
 
@@ -117,6 +156,6 @@ describe('UserAvatar', () => {
       }
     });
 
-    expect(q(container, '[data-testid="bot-badge"]')).toBeTruthy();
+    expect(q(container, '[data-testid="bot-badge"]')).toBeFalsy();
   });
 });

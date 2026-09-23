@@ -118,7 +118,7 @@ describe('UserCombobox', () => {
     expect(second.container.textContent).toContain('Alice Admin');
   });
 
-  it('shows bot results without a badge on tiny avatars', async () => {
+  it('marks bot results beside their names', async () => {
     mocks.listUsers.mockResolvedValue({
       members: [
         {
@@ -146,7 +146,13 @@ describe('UserCombobox', () => {
     await settle();
 
     expect(view.container.querySelector('[aria-label="helper_bot"]')).not.toBeNull();
-    expect(view.container.querySelector('[data-testid="bot-badge"]')).toBeNull();
+    expect(view.container.querySelector('[data-testid="bot-badge"]')?.textContent).toBe('BOT');
+    (view.container.querySelector('[role="option"]') as HTMLButtonElement).click();
+    await settle();
+    const input = view.container.querySelector<HTMLInputElement>('#actor')!;
+    expect(input.value).toBe('Helper @helper_bot');
+    expect(input.parentElement?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    expect(input.getAttribute('aria-describedby')).toContain('actor-selection-description');
   });
 
   it('omits bot accounts when restricted to human users', async () => {

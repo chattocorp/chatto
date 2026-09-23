@@ -1,8 +1,6 @@
 {
   "voice": {
     "connection_lost": "Tilkoblingen er brutt",
-    "microphone_silence_explanation": "Sjekk mikrofonens dempebryter eller velg en annen inngang.",
-    "microphone_silent_hint": "Ingen lyd fra mikrofonen",
     "connecting": "Kobler til...",
     "joining": "Blir med...",
     "starting": "Starter...",

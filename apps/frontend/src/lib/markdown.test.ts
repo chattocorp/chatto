@@ -328,9 +328,13 @@ describe('renderMarkdown', () => {
   describe('code blocks', () => {
     it('renders fenced code blocks with lowlight classes', async () => {
       const html = await renderMarkdown('```js\nconst x = 1;\n```');
-      expect(html).toContain('<pre class="hljs" data-language="js">');
+      expect(html).toContain('<pre class="hljs markdown-code" data-language="js"');
       expect(html).toContain('language-js');
       expect(html).toContain('hljs-keyword');
+      expect(html).toContain(
+        '<span class="markdown-code-actions"><span class="markdown-code-language">js</span><button'
+      );
+      expect(html).toContain('data-markdown-copy');
     });
 
     it('does not render the fence delimiter newline as a blank code line', async () => {
@@ -375,6 +379,23 @@ describe('renderMarkdown', () => {
       expect(html).toContain('data-language="notalanguage"');
       expect(html).toContain('language-notalanguage');
       expect(html).toContain('name = &quot;chatto&quot;');
+    });
+
+    it('keeps the original fenced code as the escaped copy payload', async () => {
+      const html = await renderMarkdown('```text\n\t<a title="x">&</a>\n```');
+
+      expect(html).toContain('data-copy-source="\t&lt;a title=&quot;x&quot;&gt;&amp;&lt;/a&gt;\n"');
+      expect(html).toContain('&lt;a title=&quot;x&quot;&gt;&amp;&lt;/a&gt;');
+      expect(html).not.toContain('<a title="x">');
+    });
+
+    it('adds a copy button to indented blocks but not inline code', async () => {
+      const html = await renderMarkdown('    first\n    second\n\n`inline`');
+
+      expect(html).toContain('data-copy-source="first\nsecond\n"');
+      expect(html).toContain('<span class="markdown-code-actions"><button');
+      expect(html.match(/data-markdown-copy/g)).toHaveLength(1);
+      expect(html).toContain('<code>inline</code>');
     });
   });
 });

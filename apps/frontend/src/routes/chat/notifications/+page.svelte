@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { accountNameToken } from '$lib/render/accountName';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -152,7 +154,7 @@
   }
 
   async function loadMore() {
-    if (loading || loadingMore || !hasMore) return;
+    if (loading || loadingMore || dismissingRead || !hasMore) return;
     loadingMore = true;
     loadMoreError = false;
     const pending = pagination.filter((source) => source.hasMore);
@@ -301,10 +303,12 @@
     const occurrence = group.openTarget;
     if (!occurrence) return m('chat.notifications.activity');
     const signalKind = occurrence.signalKind;
-    const actor = occurrence.actor?.displayName;
+    const actor = occurrence.actor ? accountNameToken(0) : undefined;
     if (signalKind === NotificationSignalKind.REACTION) {
       const reactionOccurrence = group.occurrences.find((item) => item.actor) ?? occurrence;
-      const reactionActor = reactionOccurrence.actor?.displayName ?? m('common.deleted_user');
+      const reactionActor = reactionOccurrence.actor
+        ? accountNameToken(0)
+        : m('common.deleted_user');
       const emojis = [
         ...new Set(
           group.occurrences
@@ -353,6 +357,15 @@
     return m('chat.notifications.summary.activity', { actor });
   }
 
+  function summaryAccounts(group: NotificationGroupItem) {
+    const occurrence = group.openTarget;
+    const actor =
+      occurrence?.signalKind === NotificationSignalKind.REACTION
+        ? (group.occurrences.find((item) => item.actor)?.actor ?? occurrence.actor)
+        : occurrence?.actor;
+    return actor ? [{ name: actor.displayName, identity: actor }] : [];
+  }
+
   function notificationActors(group: NotificationGroupItem): NotificationActor[] {
     const actors = new SvelteMap<string, NotificationActor>();
     for (const occurrence of group.occurrences) {
@@ -363,7 +376,7 @@
 
   async function openGroup(item: ServerGroup) {
     const key = mutationKey(item);
-    if (pendingMutationKeys.has(key)) return;
+    if (dismissingRead || pendingMutationKeys.has(key)) return;
     const occurrence = item.group.openTarget;
     if (!occurrence || occurrence.targetSupported === false) return;
     setMutationPending(key, true);
@@ -390,7 +403,7 @@
 
   async function dismiss(item: ServerGroup) {
     const key = mutationKey(item);
-    if (pendingMutationKeys.has(key)) return;
+    if (dismissingRead || pendingMutationKeys.has(key)) return;
     setMutationPending(key, true);
     const store = serverRegistry.getStore(item.serverId).notifications;
     for (const occurrence of item.group.occurrences) {
@@ -418,9 +431,23 @@
   }
 
   async function dismissRead() {
-    if (dismissingRead || hasPendingMutation || readOccurrenceBatches.length === 0) return;
+    if (dismissingRead || loadingMore || hasPendingMutation) return;
     dismissingRead = true;
-    const batches = readOccurrenceBatches.map((batch) => ({
+    // Finish pagination before deleting anything: deletions shift page offsets.
+    while (notificationPaginationFromProjection().some((source) => source.hasMore)) {
+      const loads = await Promise.allSettled(
+        notificationPaginationFromProjection()
+          .filter((source) => source.hasMore)
+          .map((source) => serverRegistry.getStore(source.serverId).notifications.fetchAllPages())
+      );
+      if (loads.some((result) => result.status === 'rejected')) {
+        toast.error(m('common.error.network'));
+        dismissingRead = false;
+        return;
+      }
+      // Another server's projection can change while its peers are loading.
+    }
+    const batches = readOccurrencesByServer().map((batch) => ({
       serverId: batch.serverId,
       occurrenceIds: [...batch.occurrenceIds]
     }));
@@ -490,11 +517,11 @@
           <span>{m('settings.notifications.push_prompt.title')}</span>
         </Button>
       {/if}
-      {#if readOccurrenceBatches.length > 0 || dismissingRead}
+      {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
         <Button
           variant="danger-secondary"
           size="sm"
-          disabled={dismissingRead || hasPendingMutation}
+          disabled={dismissingRead || loadingMore || hasPendingMutation}
           label={m('chat.notifications.clear_read')}
           onclick={dismissRead}
         >
@@ -554,7 +581,10 @@
                 {/if}
                 <span class="min-w-0 flex-1" data-testid="notification-content">
                   <bdi class="block truncate font-medium" dir="auto">
-                    {occurrenceSummary(item.group)}
+                    <AccountNameTokens
+                      text={occurrenceSummary(item.group)}
+                      accounts={summaryAccounts(item.group)}
+                    />
                   </bdi>
                   <span class="block truncate text-sm text-muted">
                     {#if showServerHostname}{item.serverHostname}<span

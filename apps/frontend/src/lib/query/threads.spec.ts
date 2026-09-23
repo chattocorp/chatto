@@ -94,6 +94,18 @@ describe('followed thread query helpers', () => {
     expect(reconcileFollowedThreadViewerStates(current, states).hasUnknownThreads).toBe(true);
   });
 
+  it('preserves search totals when reconciling the complete follow projection', () => {
+    const current = data({ threads: [thread('matching')], totalCount: 1, hasMore: false });
+    const states = new Map([
+      [followedThreadKey('room-1', 'matching'), { hasUnreadReplies: true }],
+      [followedThreadKey('room-1', 'unrelated'), { hasUnreadReplies: false }]
+    ]);
+    const reconciled = reconcileFollowedThreadViewerStates(current, states, true);
+    expect(reconciled.data?.pages[0]).toMatchObject({ totalCount: 1, hasMore: false });
+    expect(flattenFollowedThreads(reconciled.data)[0]?.hasUnreadReplies).toBe(true);
+    expect(reconciled.hasUnknownThreads).toBe(false);
+  });
+
   it('does not refetch merely because projected threads belong to unloaded pages', () => {
     const current = data({ threads: [thread('root-1')], totalCount: 2, hasMore: true });
     const states = new Map([

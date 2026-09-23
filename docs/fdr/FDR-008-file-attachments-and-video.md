@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -34,7 +34,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Ordinary file cards keep the filename as the viewer action. Delete and Edit description use the same buttons as media attachments, arranged beside the filename and always visible when permitted.
 - HTML and XHTML attachments use Download and Show preview controls in this shared viewer. The document stays unloaded until the user selects Show preview. A notice explains that external websites can see the viewer's IP address if the document loads their content. Consent applies only to the current opening. Download saves the original file without enabling the preview. The viewer shows the document type and original file size before and after consent. File size comes from an authenticated metadata read that does not fetch the document. If that read fails, the viewer shows an unavailable size and keeps preview and download available.
 - Active document attachment types such as HTML, XHTML, SVG, and XML use a browser sandbox so uploaded scripts cannot run as trusted Chatto application code.
-- The room sidebar Files panel lists current accessible attachments from both root messages and thread replies, grouped by date as Today, Yesterday, This week, This month, then older calendar months. Date groups use the same separated, collapsible sidebar-section treatment as room navigation and remember their expanded state per room. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
+- The room sidebar Files panel lists current accessible attachments from both root messages and thread replies, grouped by date as Today, Yesterday, This week, This month, then older calendar months. Date groups use the same separated, collapsible sidebar-section treatment as room navigation and remember their expanded state per room. Rows show a thumbnail or file-type icon, filename, and upload time. Selecting a file opens only that file in the shared attachment viewer. Closing the viewer returns to the same list position. A separate circle-arrow button goes to the upload message: it brings a root message into view, or opens the thread pane and highlights a thread reply. These separate actions let users view files without losing their place in the conversation.
 - Each room's Files list starts empty and is loaded only when that panel is first opened. Once loaded, incoming message, edit, deletion, and processing updates keep the cached rows current without reloading the whole list; rooms whose Files panel has never opened make no attachment-list request.
 - Deleting a message-owned attachment durably revokes access first, then removes its source/derivative bytes and transform-cache entries. Shared durable-consumer replicas retry failed physical deletion after process restart or replica handover.
 
@@ -100,7 +100,7 @@ message, and sorts by newest message first. The bundled client owns one lazy
 file cache per room in its server-scoped state: opening Files hydrates it once,
 after which authoritative timeline message snapshots reconcile attachment rows
 already in the cache and newly posted attachments are inserted directly.
-**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the server read from the existing room/message projections and updating the client cache from the same realtime message snapshots keeps both surfaces consistent without duplicate durable state or repeated full-list reads.
+**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. The frontend shares bounded message reads across timelines, Files, and pins. Each affected message supplies the current attachment data to all loaded views, including Files when a reply's thread is closed. This keeps the views consistent without separate message reads for each panel or repeated full-list reads.
 **Tradeoff:** There is no search or media filtering in this iteration. Hydrated room caches consume client memory for the server session, and attachment changes beyond a partially loaded page converge when that page is loaded.
 
 ### 10. Displayed images use bounded derivatives

@@ -17,6 +17,8 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
 </script>
 
 <script lang="ts">
+  import AccountName from './AccountName.svelte';
+  import { formatAccountName } from '$lib/render/accountName';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -77,9 +79,11 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
 
 {#snippet identity()}
   <UserAvatar user={profileUser} {size} useLiveProfile={false} />
-  <bdi class="min-w-0 truncate font-medium text-text-top">
-    {profileUser.displayName || profileUser.login}
-  </bdi>
+  <AccountName
+    name={profileUser.displayName || profileUser.login}
+    identity={profileUser}
+    class="font-medium text-text-top"
+  />
 {/snippet}
 
 {#if openOnClick}
@@ -92,7 +96,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     data-testid="user-identity"
     aria-haspopup="dialog"
     aria-label={m('room.sidebar.view_profile', {
-      name: profileUser.displayName || profileUser.login
+      name: formatAccountName(profileUser.displayName || profileUser.login, profileUser)
     })}
     onclick={openProfile}
     {@attach profileMenuTrigger}

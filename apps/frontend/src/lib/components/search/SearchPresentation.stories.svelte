@@ -28,10 +28,10 @@
     loadMore: async () => {}
   };
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 
   createPresenceCache();
-  createUserProfileCache();
+  provideUserProfiles();
 
   const timestampSettings = { effectiveTimezone: 'UTC', effectiveHour12: false };
   const result: MessageSearchResult = {

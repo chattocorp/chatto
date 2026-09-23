@@ -126,6 +126,7 @@ type chattoCollector struct {
 	projectionLag            *prometheus.Desc
 	projectionEntries        *prometheus.Desc
 	projectionBytes          *prometheus.Desc
+	projectionComponentBytes *prometheus.Desc
 	scrapeError              *prometheus.Desc
 }
 
@@ -301,6 +302,12 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			[]string{"projection"},
 			nil,
 		),
+		projectionComponentBytes: prometheus.NewDesc(
+			"chatto_projection_component_estimated_bytes",
+			"Estimated heap bytes held by a component of the combined server content view.",
+			[]string{"component"},
+			nil,
+		),
 		scrapeError: prometheus.NewDesc(
 			"chatto_metrics_scrape_error",
 			"Whether a Chatto metrics collector failed during this scrape.",
@@ -338,6 +345,7 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.projectionLag
 	ch <- c.projectionEntries
 	ch <- c.projectionBytes
+	ch <- c.projectionComponentBytes
 	ch <- c.scrapeError
 }
 
@@ -428,6 +436,14 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(c.projectionLag, prometheus.GaugeValue, float64(projection.Lag), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionEntries, prometheus.GaugeValue, float64(projection.EntryCount), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionBytes, prometheus.GaugeValue, float64(projection.EstimatedBytes), projection.Key)
+		for _, metric := range projection.Metrics {
+			switch metric.Name {
+			case "component_room_timeline":
+				ch <- prometheus.MustNewConstMetric(c.projectionComponentBytes, prometheus.GaugeValue, float64(metric.Bytes), "room_timeline")
+			case "component_threads":
+				ch <- prometheus.MustNewConstMetric(c.projectionComponentBytes, prometheus.GaugeValue, float64(metric.Bytes), "threads")
+			}
+		}
 	}
 }
 

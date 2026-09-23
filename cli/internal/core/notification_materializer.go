@@ -564,12 +564,12 @@ func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *ev
 	if err != nil {
 		return fmt.Errorf("resolve reaction-removal target: %w", err)
 	}
-	if target == nil || target.GetActorId() == "" || target.GetActorId() == event.GetActorId() {
+	if target == nil || messageAuthorID(target) == "" || messageAuthorID(target) == event.GetActorId() {
 		return nil
 	}
 	_, err = m.core.notificationOccurrences.RemoveReaction(
 		ctx,
-		target.GetActorId(),
+		messageAuthorID(target),
 		reaction.GetRoomId(),
 		reaction.GetMessageEventId(),
 		event.GetActorId(),
@@ -589,7 +589,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 		return nil
 	}
 	message := event.GetMessagePosted()
-	if message == nil || message.GetEchoOfEventId() != "" {
+	if message == nil || message.GetEchoOfEventId() != "" || message.GetHistoricalImport() {
 		return nil
 	}
 	if _, retracted, known := m.core.roomModel.latestBodyReference(event.GetId()); known && retracted {
@@ -610,7 +610,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 		if err != nil {
 			return "", err
 		}
-		return target.GetActorId(), nil
+		return messageAuthorID(target), nil
 	}
 	parentActorID, err := resolveActor(message.GetInReplyTo())
 	if err != nil {
@@ -654,7 +654,7 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	}
 	var inputs []CreateNotificationOccurrenceInput
 	if err := m.decisions.Projection().withCurrent(evaluatedAt, func(snapshot *notificationDecisionSnapshot) error {
-		recipientID := target.GetActorId()
+		recipientID := messageAuthorID(target)
 		_, active := snapshot.activeUsers[recipientID]
 		if recipientID == "" || !active || recipientID == event.GetActorId() || !snapshot.notificationVisibilityExists(recipientID, reaction.GetRoomId()) {
 			return nil

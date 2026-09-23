@@ -5,6 +5,7 @@
     "open_quick_switcher": "Öppna snabbväxeln",
     "quick_switcher_shortcut": "Snabbväxling (Cmd+K)",
     "realtime_paused": "Realtidsuppdateringar pausade. Återansluter...",
+    "saved_view": {"cache_title":"Lokal cache","cache_description":"Den här enheten sparar en begränsad textvy av chattar för läsning offline.","clear_cache":"Rensa sparade chattar","cache_cleared":"Sparade chattar har rensats."},
     "update_available": "En ny version är tillgänglig",
     "reload": "Ladda om",
     "sign_out": "Logga ut",

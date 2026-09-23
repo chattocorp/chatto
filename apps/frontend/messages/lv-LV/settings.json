@@ -230,6 +230,12 @@
         "grey": "Pelēka",
         "preview": "Priekšskatījums"
       },
+      "contrast": {
+        "label": "Kontrasts",
+        "softer": "maigāks kontrasts",
+        "current": "pašreizējais kontrasts",
+        "stronger": "izteiktāks kontrasts"
+      },
       "depth": {
         "title": "Saskarnes stils",
         "flat": "Plakans",
@@ -492,7 +498,6 @@
       "create_failed": "Neizdevās izveidot robotu",
       "created": "Bots izveidots",
       "username": "Lietotājvārds",
-      "username_hint": "Bot lietotājvārdiem jābeidzas ar _bot.",
       "display_name": "Parādītais nosaukums",
       "owner": "Īpašnieks",
       "reassign_owner": "Mainīt īpašnieku",

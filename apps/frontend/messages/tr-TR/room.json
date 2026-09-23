@@ -70,8 +70,15 @@
       "remove_account_suffix": " kaldırmadan önce bu sunucu için."
     },
     "timeline": {
+      "post_interactions_only_channel": "Yalnızca başlattığın veya birinin senden bahsettiği ileti dizilerinde yanıt verebilirsin.",
+      "post_threads_only": "Yalnızca okuyabildiğin ileti dizilerinde yanıt verebilirsin.",
+      "post_interactions_only": "Yalnızca başlattığın, birinin senden bahsettiği veya doğrudan mesaj aldığın ileti dizilerinde yanıt verebilirsin.",
+      "post_denied": "Bu odada mesaj gönderme izniniz yok.",
       "beginning": "Bu, bu konuşmanın başlangıcıdır.",
-      "read_denied": "Bu odadaki mesajları okuma izniniz yok."
+      "read_denied": "Bu odadaki mesajları okuma izniniz yok.",
+      "limited_access": "Yalnızca başlattığınız veya birinin sizden bahsettiği konuşmaları görebilirsiniz.",
+      "limited_access_dm": "Yalnızca başlattığınız, aldığınız veya birinin sizden bahsettiği konuşmaları görebilirsiniz.",
+      "limited_empty": "Henüz okuyabileceğiniz konuşma yok."
     },
     "message": {
       "empty": "Henüz mesaj yok",
@@ -188,6 +195,7 @@
       "delete_failed": "Bağlantı önizlemesi silinemedi"
     },
     "sidebar": {
+      "go_to_message": "Mesaja git",
       "extras": "Oda ekstraları",
       "resize": "Oda ekstraları bölmesini yeniden boyutlandır",
       "hide": "Oda ekstralarını gizle",
@@ -200,6 +208,7 @@
       "clear_member_search": "Üye aramasını temizle",
       "no_members": "Üye bulunamadı.",
       "online": "Çevrimiçi ({count})",
+      "bots": "Bots ({count})",
       "offline": "Çevrimdışı ({count})",
       "no_files": "Bu odada henüz dosya yok.",
       "files": "Dosyalar",

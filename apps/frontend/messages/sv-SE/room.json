@@ -70,8 +70,15 @@
       "remove_account_suffix": " för den här servern innan du tar bort den."
     },
     "timeline": {
+      "post_interactions_only_channel": "Du kan bara svara i trådar som du startat eller där någon nämnt dig.",
+      "post_threads_only": "Du kan bara svara i trådar som du kan läsa.",
+      "post_interactions_only": "Du kan bara svara i trådar som du startat, där någon nämnt dig eller där du fått ett direktmeddelande.",
+      "post_denied": "Du har inte behörighet att skicka meddelanden i det här rummet.",
       "beginning": "Det här är början på den här konversationen.",
-      "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet."
+      "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet.",
+      "limited_access": "Du kan bara se konversationer som du startade eller där någon nämnde dig.",
+      "limited_access_dm": "Du kan bara se konversationer som du startade, tog emot eller där någon nämnde dig.",
+      "limited_empty": "Det finns inga konversationer du kan läsa ännu."
     },
     "message": {
       "empty": "Inga meddelanden än",
@@ -188,6 +195,7 @@
       "delete_failed": "Det gick inte att ta bort länkförhandsgranskningen"
     },
     "sidebar": {
+      "go_to_message": "Gå till meddelandet",
       "extras": "Extra rum",
       "resize": "Ändra storlek på rummets extrafönster",
       "hide": "Dölj extrafunktioner i rummet",
@@ -200,6 +208,7 @@
       "clear_member_search": "Rensa medlemssökning",
       "no_members": "Inga medlemmar hittades.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Inga filer i det här rummet ännu.",
       "files": "Filer",

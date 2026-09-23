@@ -6,7 +6,7 @@
 	import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
 	import type { ServerPermissions } from '$lib/state/server/permissions';
 	import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-	import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+	import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 	import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
 	import { provideServerScope } from '$lib/state/server/scope.svelte';
 	import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -20,17 +20,19 @@
 	let {
 		layout = 'stage',
 		scenario = 'screen',
-		animateVoice = false
+		animateVoice = false,
+		initiallyMuted = false
 	}: {
 		layout?: 'sidebar' | 'stage';
 		scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
 		animateVoice?: boolean;
+		initiallyMuted?: boolean;
 	} = $props();
 
 	const roomId = 'storybook-call-room';
 	const storybookServerId = 'storybook-call-server';
 	createPresenceCache();
-	createUserProfileCache();
+	provideUserProfiles();
 	const getScopedServerId = () => serverRegistry.originServer?.id ?? storybookServerId;
 	provideServerScope({
 		get serverId() {
@@ -238,7 +240,7 @@
 		store.voiceCall.connected = scenario !== 'idle';
 		store.voiceCall.audioBoostAvailable = true;
 		store.voiceCall.connecting = false;
-		store.voiceCall.isMuted = false;
+		store.voiceCall.isMuted = initiallyMuted;
 		store.voiceCall.isCameraEnabled = scenario !== 'voice' && scenario !== 'screen-voice';
 		store.voiceCall.isScreenShareEnabled = scenario === 'screen';
 		store.voiceCall.participants = scenario === 'idle' ? [] : participantsForScenario();

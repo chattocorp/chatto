@@ -7,7 +7,7 @@
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
+  import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
 
   let {
@@ -22,7 +22,7 @@
     viewerSettings?: ViewerTimeSettings | null;
   } = $props();
   const scope = useServerScope();
-  const cache = $derived(getUserSummaryCache(scope.serverId));
+  const users = $derived(scope.store.projection.users);
   const query = createQuery(
     () => ({
       queryKey: [
@@ -35,7 +35,6 @@
       ],
       queryFn: async () => {
         const [owner] = await scope.connection.getAPI(createUserAPI).batchGetUsers([ownerId]);
-        if (owner && scope.isCurrent()) cache.prime([owner]);
         return owner ?? null;
       },
       staleTime: 30_000,
@@ -44,7 +43,7 @@
     }),
     () => queryClient
   );
-  const owner = $derived(query.data === undefined ? cache.get(ownerId) : query.data);
+  const owner = $derived(mapOptionalUserSummary(users.get(ownerId)?.user));
   const identity = $derived(
     owner && !owner.deleted
       ? {
@@ -73,7 +72,7 @@
     <span class="text-muted" aria-busy={query.isPending}>
       {query.isPending
         ? m('common.loading')
-        : owner?.deleted
+        : users.isDeleted(ownerId)
           ? m('common.deleted_user')
           : m('common.unknown_user')}
     </span>

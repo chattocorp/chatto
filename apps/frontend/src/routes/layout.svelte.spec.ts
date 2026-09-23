@@ -1,6 +1,6 @@
 import { tick } from 'svelte';
 import { page } from '$app/state';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -37,17 +37,32 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
 }));
 
-vi.mock('$app/state', () => ({
-  page: {
-    params: {},
-    route: { id: '/' },
-    state: {},
-    url: new URL('https://chat.example.test/')
-  },
-  updated: {
-    current: false
-  }
-}));
+vi.mock('$app/state', async () => {
+  const { fromStore, writable } = await import('svelte/store');
+  const routeId = fromStore(writable('/'));
+  const url = fromStore(writable(new URL('https://chat.example.test/')));
+  return {
+    page: {
+      params: {},
+      route: {
+        get id() {
+          return routeId.current;
+        },
+        set id(value: string) {
+          routeId.current = value;
+        }
+      },
+      state: {},
+      get url() {
+        return url.current;
+      },
+      set url(value: URL) {
+        url.current = value;
+      }
+    },
+    updated: { current: false }
+  };
+});
 
 vi.mock('$lib/hooks/usePageTitle.svelte', () => ({
   usePageTitle: () => () => 'Chatto'
@@ -140,7 +155,7 @@ function resetSidebar() {
   sidebarNav.setMobile(true);
 }
 
-function renderLayout() {
+function renderLayout(content = '<main data-testid="layout-child"></main>') {
   const serverInfo: PublicServerInfo = {
     name: 'Test Server',
     version: 'test',
@@ -162,7 +177,7 @@ function renderLayout() {
         serverInfoLoaded: true,
         user: null
       },
-      children: testSnippet('<main data-testid="layout-child"></main>')
+      children: testSnippet(content)
     }
   });
 }
@@ -176,6 +191,85 @@ function pointer(type: string, x: number, y = 120) {
     clientY: y
   });
 }
+
+describe('OAuth page layout', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    installMobileMatchMedia();
+    resetSidebar();
+  });
+
+  afterEach(() => {
+    page.route.id = '/';
+    Object.assign(page, { url: new URL('https://chat.example.test/') });
+  });
+
+  it('restores the frame when client-side navigation leaves OAuth login', async () => {
+    page.route.id = '/login';
+    Object.assign(page, {
+      url: new URL('https://chat.example.test/login?redirect=%2Foauth%2Fauthorize')
+    });
+    const view = renderLayout();
+    await expect.element(view.getByTestId('app-frame')).not.toBeInTheDocument();
+
+    Object.assign(page, { url: new URL('https://chat.example.test/login') });
+    await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
+
+    page.route.id = '/oauth/consent';
+    await expect.element(view.getByTestId('app-frame')).not.toBeInTheDocument();
+    page.route.id = '/register';
+    await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['/oauth/consent', ''],
+    ['/servers/callback', '?mode=popup'],
+    ['/servers/callback', '?mode=provider'],
+    ['/login', '?redirect=%2Foauth%2Fauthorize'],
+    ['/login', '?redirect=%2Foauth%2Fauthorize%3Fclient_id%3Dtest'],
+    ['/login', '?redirect=%2Foauth%2Fconsent']
+  ] as const)('renders %s%s without app navigation', async (route, search) => {
+    page.route.id = route;
+    Object.assign(page, { url: new URL(route + search, 'https://chat.example.test') });
+    const view = renderLayout(
+      '<main data-testid="layout-child"><p role="status">Loading</p><p role="alert">Request failed</p></main>'
+    );
+
+    await expect.element(view.getByText('Loading', { exact: true })).toBeVisible();
+    await expect.element(view.getByRole('alert')).toBeVisible();
+    expect(q(view.container, '[data-testid="app-frame"]')).toBeNull();
+    expect(q(view.container, '[data-testid="mobile-sidebar-panel"]')).toBeNull();
+    await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).not.toBeInTheDocument();
+
+    const child = q(view.container, '[data-testid="layout-child"]')!;
+    child.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+    await tick();
+    expect(sidebarNav.isOpen).toBe(false);
+  });
+
+  it.each([
+    ['/login', ''],
+    ['/register', ''],
+    ['/forgot-password', ''],
+    ['/setup', ''],
+    ['/chat', ''],
+    ['/servers/callback', ''],
+    ['/servers/callback', '?mode=unknown'],
+    ['/login', '?redirect=%2Fchat'],
+    ['/login', '?redirect=https%3A%2F%2Fexternal.test%2Foauth%2Fauthorize'],
+    ['/login', '?redirect=%2F%2Fexternal.test%2Foauth%2Fauthorize'],
+    ['/login', '?redirect=%2F%5Cexternal.test%2Foauth%2Fauthorize'],
+    ['/login', '?redirect=%2Foauth%2Fauthorize-other']
+  ] as const)('keeps the app frame on %s%s', async (route, search) => {
+    page.route.id = route;
+    Object.assign(page, { url: new URL(route + search, 'https://chat.example.test') });
+    const view = renderLayout();
+    await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
+    await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).toBeVisible();
+  });
+});
 
 describe('root layout mobile sidebar animation', () => {
   beforeEach(() => {
@@ -230,9 +324,7 @@ describe('root layout mobile sidebar animation', () => {
     await tick();
 
     expect(sidebarNav.isOpen).toBe(true);
-    expect(q(container, '[data-testid="mobile-sidebar-panel"]')?.style.transform).toBe(
-      'translateX(calc(0px * var(--inline-direction)))'
-    );
+    expect(q(container, '[data-testid="mobile-sidebar-panel"]')?.inert).toBe(false);
   });
 
   it('keeps the sidebar and backdrop mounted while the mobile close animation runs', async () => {
@@ -251,7 +343,7 @@ describe('root layout mobile sidebar animation', () => {
     expect(backdrop).not.toBeNull();
     if (!panel || !backdrop) return;
 
-    expect(panel.style.transform).toBe('translateX(calc(0px * var(--inline-direction)))');
+    expect(panel.inert).toBe(false);
     expect(getComputedStyle(panel).visibility).toBe('visible');
     expect(backdrop.disabled).toBe(false);
     expect(backdrop.style.opacity).toBe('1');
@@ -262,8 +354,7 @@ describe('root layout mobile sidebar animation', () => {
     expect(q(container, '[data-testid="mobile-sidebar-backdrop"]')).toBe(backdrop);
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.style.opacity).toBe('0');
-    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
-    expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
+    expect(panel.inert).toBe(true);
   });
 
   it('keeps drag-to-close working for the mobile sidebar', async () => {
@@ -283,7 +374,7 @@ describe('root layout mobile sidebar animation', () => {
     await tick();
 
     expect(sidebarNav.isOpen).toBe(false);
-    expect(panel.style.transform).toBe(`translateX(calc(-${window.innerWidth}px * var(--inline-direction)))`);
+    expect(panel.inert).toBe(true);
   });
 
   it('opens the inline-start sidebar from a leftward drag in RTL', async () => {

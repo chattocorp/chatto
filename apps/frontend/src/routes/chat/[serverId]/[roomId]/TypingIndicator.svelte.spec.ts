@@ -6,6 +6,8 @@ import { q } from '$lib/test-utils';
 import TypingIndicator from './TypingIndicator.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { UserStore } from '$lib/state/server/users.svelte';
 
 function member(id: string, displayName: string): RoomMember {
   return {
@@ -19,7 +21,7 @@ function member(id: string, displayName: string): RoomMember {
 const members = [member('alice', 'Alice'), member('bob', 'Bob'), member('carol', 'Carol')];
 
 function indicatorText(container: HTMLElement): string | undefined {
-  return q(container, '.typing-label')?.textContent?.replace(/[\u2068\u2069]/g, '') ?? undefined;
+  return q(container, '.typing-label')?.textContent ?? undefined;
 }
 
 afterEach(async () => {
@@ -27,6 +29,29 @@ afterEach(async () => {
 });
 
 describe('TypingIndicator', () => {
+  it('shows the shared badge beside a bot in the typing label', () => {
+    const { container } = render(TypingIndicator, {
+      props: { typingUserIds: ['helper'], members: [{ ...member('helper', 'Helper'), isBot: true }] }
+    });
+    expect(q(container, '.typing-label [data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Helper');
+    expect(indicatorText(container)).toBe('HelperBOT is typing');
+    expect(indicatorText(container)).not.toContain('(BOT)');
+  });
+
+  it('keeps badges with both named bots when it aggregates typers', () => {
+    const { container } = render(TypingIndicator, {
+      props: {
+        typingUserIds: ['helper', 'assistant', 'alice'],
+        members: [
+          { ...member('helper', 'Helper'), isBot: true },
+          { ...member('assistant', 'Assistant'), isBot: true },
+          members[0]
+        ]
+      }
+    });
+    expect(container.querySelectorAll('.typing-label [data-testid="bot-badge"]')).toHaveLength(2);
+    expect(indicatorText(container)).toContain('1 other');
+  });
   it('renders nothing when nobody is typing', () => {
     const { container } = render(TypingIndicator, { props: { typingUserIds: [], members } });
     expect(q(container, '[data-testid="typing-indicator"]')).toBeNull();
@@ -100,6 +125,35 @@ describe('TypingIndicator', () => {
     expect(indicatorText(container)).toBe('Unknown user and bob are typing');
   });
 
+  it('replaces an unknown typer with a late shared profile before membership loads', async () => {
+    const profiles = new UserStore();
+    const { container } = render(TypingIndicator, {
+      props: { typingUserIds: ['late'], members: [], profiles }
+    });
+    expect(indicatorText(container)).toBe('Unknown user is typing');
+
+    profiles.set('late', new DirectoryMember({
+      user: { id: 'late', login: 'late', displayName: 'Late Member', bot: {} }
+    }));
+
+    await expect.poll(() => indicatorText(container)).toBe('Late MemberBOT is typing');
+    expect(container.querySelectorAll('[data-testid="typing-avatar"]')).toHaveLength(1);
+    expect(container.querySelectorAll('.typing-label [data-testid="bot-badge"]')).toHaveLength(1);
+    profiles.dispose();
+  });
+
+  it('uses the shared profile when a member row has an older name', () => {
+    const profiles = new UserStore();
+    profiles.set('alice', new DirectoryMember({
+      user: { id: 'alice', login: 'alice', displayName: 'New Alice' }
+    }));
+    const { container } = render(TypingIndicator, {
+      props: { typingUserIds: ['alice'], members, profiles }
+    });
+    expect(indicatorText(container)).toBe('New Alice is typing');
+    profiles.dispose();
+  });
+
   it('counts distinct people only', () => {
     const { container } = render(TypingIndicator, {
       props: { typingUserIds: ['alice', 'alice', 'bob'], members }
@@ -135,9 +189,7 @@ describe('TypingIndicator', () => {
     const { container } = render(TypingIndicator, {
       props: { typingUserIds: ['alice', 'bob'], members: [member('alice', 'علي'), members[1]] }
     });
-    const text = q(container, '.typing-label')?.textContent ?? '';
-    expect([...text].filter((char) => char.codePointAt(0) === 0x2068)).toHaveLength(2);
-    expect([...text].filter((char) => char.codePointAt(0) === 0x2069)).toHaveLength(2);
+    expect(container.querySelectorAll('.typing-label bdi')).toHaveLength(2);
     expect(indicatorText(container)).toBe('علي and Bob are typing');
   });
 

@@ -13,7 +13,11 @@ import {
 } from './fixtures/serverUser';
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
-import { getRoomIdByNameViaConnect, updateNotificationPolicy } from './fixtures/connectHelpers';
+import {
+  getRoomIdByNameViaConnect,
+  postMessagesViaConnect,
+  updateNotificationPolicy
+} from './fixtures/connectHelpers';
 
 test.describe('Mention Notifications', () => {
   // Note: Toast notifications for mentions were removed - the bell icon with notification badge
@@ -462,60 +466,89 @@ test.describe('Notification Page Display', () => {
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
   });
 
-  test('consolidates reactions to one message while preserving actors and emoji', async ({
-    page,
-    chatPage,
-    roomPage,
-    notificationsPage,
-    browser,
-    serverURL
-  }) => {
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-    const messageText = `Grouped reaction notification ${Date.now()}`;
-    await roomPage.sendMessage(messageText);
-    await page.goto(routes.settings);
-
-    const firstActor = await withServerUser(
-      browser!,
-      serverURL,
-      async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
-        await actorChat.enterRoom('general');
-        const message = actorRoom.getMessage(messageText);
-        await message.react('👍');
-        await message.expectReaction('👍', 1);
-        return user;
+  for (const targetKind of ['recent', 'older', 'thread'] as const) {
+    test(`consolidates reactions and highlights the ${targetKind} message`, async ({
+      page,
+      chatPage,
+      roomPage,
+      notificationsPage,
+      browser,
+      serverURL
+    }) => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+      const messageText = `Grouped reaction notification ${Date.now()}`;
+      const rootText = `Reaction thread root ${Date.now()}`;
+      if (targetKind === 'thread') {
+        await roomPage.sendMessage(rootText);
+        await roomPage.getMessage(rootText).openThread();
+        await roomPage.postThreadReply(messageText);
+      } else {
+        await roomPage.sendMessage(messageText);
       }
-    );
-    const secondActor = await withServerUser(
-      browser!,
-      serverURL,
-      async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
-        await actorChat.enterRoom('general');
-        const message = actorRoom.getMessage(messageText);
-        await message.react('❤️');
-        await message.expectReaction('❤️', 1);
-        return user;
-      }
-    );
+      await page.goto(routes.settings);
 
-    await notificationsPage.goto();
-    await notificationsPage.expectNotificationCount(1, TIMEOUTS.COMPLEX_OPERATION);
-    const notification = notificationsPage.getNotificationBySummary('reacted with');
-    await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    await expect(notification).toHaveAttribute('data-notification-attention', 'ambient');
-    await expect(notification).not.toHaveClass(/bg-attention\/5/);
-    await expect(notification).toContainText('👍');
-    await expect(notification).toContainText('❤️');
-    await expect(notification).toContainText('to your message in #general.');
-    await expect(notification).not.toContainText(messageText);
-    await expect(notification.getByTestId('notification-actor-stack')).toBeVisible();
-    await expect(notification.getByRole('img', { name: firstActor.login })).toBeVisible();
-    await expect(notification.getByRole('img', { name: secondActor.login })).toBeVisible();
-    await expect(serverNotificationBadge(page)).toHaveClass(/bg-text/);
-    await expect(notificationsPage.bellIndicator).toHaveClass(/bg-text/);
-  });
+      const firstActor = await withServerUser(
+        browser!,
+        serverURL,
+        async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
+          await actorChat.enterRoom('general');
+          if (targetKind === 'thread') await actorRoom.getMessage(rootText).openThread();
+          const message = actorRoom.getMessage(messageText);
+          await message.react('👍');
+          await message.expectReaction('👍', 1);
+          return user;
+        }
+      );
+      const secondActor = await withServerUser(
+        browser!,
+        serverURL,
+        async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
+          await actorChat.enterRoom('general');
+          if (targetKind === 'thread') await actorRoom.getMessage(rootText).openThread();
+          const message = actorRoom.getMessage(messageText);
+          await message.react('❤️');
+          await message.expectReaction('❤️', 1);
+          return user;
+        }
+      );
+
+      await notificationsPage.goto();
+      await notificationsPage.expectNotificationCount(1, TIMEOUTS.COMPLEX_OPERATION);
+      const notification = notificationsPage.getNotificationBySummary('reacted with');
+      await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(notification).toHaveAttribute('data-notification-attention', 'ambient');
+      await expect(notification).not.toHaveClass(/bg-attention\/5/);
+      await expect(notification).toContainText('👍');
+      await expect(notification).toContainText('❤️');
+      await expect(notification).toContainText('to your message in #general.');
+      await expect(notification).not.toContainText(messageText);
+      await expect(notification.getByTestId('notification-actor-stack')).toBeVisible();
+      await expect(notification.getByRole('img', { name: firstActor.login })).toBeVisible();
+      await expect(notification.getByRole('img', { name: secondActor.login })).toBeVisible();
+      await expect(serverNotificationBadge(page)).toHaveClass(/bg-text/);
+      await expect(notificationsPage.bellIndicator).toHaveClass(/bg-text/);
+      if (targetKind === 'older') {
+        const roomId = await getRoomIdByNameViaConnect(page, 'general');
+        await postMessagesViaConnect(
+          page,
+          roomId,
+          Array.from({ length: 80 }, (_, i) => `Later message ${i}`)
+        );
+      }
+      await page.reload();
+      await expect(notification).toBeVisible();
+      // A grouped reaction must land on its message, including on a second visit.
+      for (let visit = 0; visit < 2; visit++) {
+        await notificationsPage.clickNotification(notification);
+        const target = roomPage.getMessage(messageText).locator;
+        await expect(target).toBeInViewport();
+        await expect(target).toHaveClass(/highlight-flash/);
+        if (visit === 0) await notificationsPage.goto();
+      }
+    });
+  }
 });
 
 test.describe('Notification dismissal', () => {

@@ -47,9 +47,13 @@ consumer-facing API and UI.
 The bundled provider is a projection of `EVT`. It keeps a disposable local
 index and may resume through the optional local-checkpoint capability from
 ADR-054. The index is excluded from Chatto backups, can be reconstructed from
-retained event history, and never becomes a source of domain truth. Chatto does
-not recursively delete an unreadable or incompatible configured disk index;
-the provider fails startup until the operator moves or removes it.
+retained event history, and never becomes a source of domain truth. A known
+checkpoint contract change for the same event-log incarnation automatically
+discards the old index and replays retained history. Directory ownership checks,
+an OS-backed lock, and a persisted rebuild marker constrain replacement and
+allow retry after interruption. Unknown or unreadable indexes, invalid replay
+bounds, and unrelated files require operator recovery. This keeps normal
+schema upgrades automatic without deleting unknown configured data.
 
 Search is server-local. Cross-server or federated search would need a separate
 authorization, ranking, and pagination decision.

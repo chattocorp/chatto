@@ -230,6 +230,12 @@
         "grey": "Cinza",
         "preview": "Prévia"
       },
+      "contrast": {
+        "label": "Contraste",
+        "softer": "contraste mais suave",
+        "current": "contraste atual",
+        "stronger": "contraste mais forte"
+      },
       "depth": {
         "title": "Estilo da interface",
         "flat": "Plano",
@@ -492,7 +498,6 @@
       "create_failed": "Falha ao criar o bot",
       "created": "Bot criado",
       "username": "Nome de usuário",
-      "username_hint": "Os nomes de usuário dos bots devem terminar em _bot.",
       "display_name": "Nome de exibição",
       "owner": "Proprietário",
       "reassign_owner": "Reatribuir proprietário",

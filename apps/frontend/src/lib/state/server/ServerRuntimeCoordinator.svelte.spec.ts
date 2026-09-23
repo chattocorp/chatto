@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   servers: [{ id: 'origin' }, { id: 'remote' }],
   stores: null as unknown as SvelteMap<string, StoreMock>,
   synchronizeAuthenticatedServers: vi.fn(),
+  onSessionTerminated: vi.fn<(id: string, handler: (reason: string) => void) => () => void>(() => vi.fn()),
+  clearServerAuthentication: vi.fn(),
   getClient: vi.fn((serverId: string) => ({ serverId }))
 }));
 
@@ -39,6 +41,8 @@ vi.mock('./registry.svelte', () => ({
     get servers() {
       return mocks.servers;
     },
+    isOriginServer: (serverId: string) => serverId === mocks.originServerId,
+    clearServerAuthentication: mocks.clearServerAuthentication,
     getStore: (serverId: string) => mocks.stores.get(serverId),
     tryGetStore: (serverId: string) => mocks.stores.get(serverId)
   }
@@ -52,6 +56,10 @@ vi.mock('./eventBus.svelte', () => ({
   eventBusManager: {
     synchronizeAuthenticatedServers: mocks.synchronizeAuthenticatedServers
   }
+}));
+
+vi.mock('$lib/eventBus.svelte', () => ({
+  onSessionTerminated: mocks.onSessionTerminated
 }));
 
 import ServerRuntimeCoordinator from './ServerRuntimeCoordinator.svelte';
@@ -140,6 +148,14 @@ describe('ServerRuntimeCoordinator', () => {
         null
       ])
     );
+  });
+
+  it('clears a remote session when its server confirms termination', async () => {
+    render(ServerRuntimeCoordinator, { props: { user: originUser } });
+    await vi.waitFor(() => expect(mocks.onSessionTerminated).toHaveBeenCalledWith('remote', expect.any(Function)));
+    const handler = mocks.onSessionTerminated.mock.calls.find(([id]) => id === 'remote')?.[1];
+    handler?.('revoked');
+    await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote'));
   });
 
   it('reconciles late session restoration and compatibility discovery', async () => {

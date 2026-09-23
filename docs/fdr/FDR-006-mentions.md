@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -14,6 +14,7 @@ the message body.
 
 - Typing `@` followed by at least one character opens the autocomplete popup in the composer.
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable role names. Prefix matches rank higher than substring matches.
+- While the room list loads, autocomplete combines loaded members with server search results.
 - Pressing Enter confirms the highlighted autocomplete result and appends a space. Pressing Tab completes the first match, appends a space, and pressing Tab again cycles to the next candidate.
 - `@username` mentions select that human or bot account when it is a current
   room member. Universal room implicit members count as room members;

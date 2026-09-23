@@ -1,4 +1,7 @@
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { BOT_ACCOUNT_LABEL, isBotAccount } from '$lib/render/accountName';
+  import BotBadge from '$lib/components/users/BotBadge.svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -38,6 +41,7 @@
   const SEARCH_LIMIT = 10;
   let activeSearch = $state('');
   let debouncePending = $state(false);
+  let selectedUser = $state<User | null>(null);
   const searchDebounce = useDebounce();
   const usersQuery = createQuery(
     () => {
@@ -68,6 +72,7 @@
   }
 
   function scheduleSearch(query: string) {
+    selectedUser = null;
     searchDebounce.cancel();
     const search = query.trim();
 
@@ -99,10 +104,16 @@
   {emptyMessage}
   {clearLabel}
   ontextchange={scheduleSearch}
+  onselect={(user) => (selectedUser = user)}
+  onclear={() => (selectedUser = null)}
+  selectionDescription={isBotAccount(selectedUser) ? BOT_ACCOUNT_LABEL : undefined}
 >
+  {#snippet selectionAdornment()}
+    {#if isBotAccount(selectedUser)}<BotBadge />{/if}
+  {/snippet}
   {#snippet item({ item: user })}
     <UserAvatar {user} size="xs" useLiveProfile={false} class="shrink-0" />
-    <span class="min-w-0 truncate text-sm text-text">{user.displayName}</span>
+    <AccountName name={user.displayName} identity={user} class="text-sm text-text" />
     <span class="min-w-0 truncate text-sm text-muted">@{user.login}</span>
   {/snippet}
 </Combobox>

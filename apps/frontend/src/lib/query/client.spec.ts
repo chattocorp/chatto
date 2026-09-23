@@ -13,9 +13,68 @@ import {
   registerServerQueryCacheRemovalListener
 } from './cacheRegistry';
 import { queryClient } from './client';
-import { QueryObserver } from '@tanstack/svelte-query';
+import { onlineManager, QueryObserver } from '@tanstack/svelte-query';
 
 describe('server query cache', () => {
+  it('refreshes a shared active dependency once before its parent uses the result', async () => {
+    const parentKey = ['server', 'one', 'parent'];
+    const childKey = ['server', 'one', 'child'];
+    queryClient.setQueryData(parentKey, 'old-parent');
+    queryClient.setQueryData(childKey, 'old-child');
+    let resolveChild!: (value: string) => void;
+    const readChild = vi.fn(() => new Promise<string>((resolve) => { resolveChild = resolve; }));
+    const childOptions = { queryKey: childKey, queryFn: readChild, staleTime: Infinity };
+    const parent = new QueryObserver(queryClient, {
+      queryKey: parentKey,
+      staleTime: Infinity,
+      queryFn: () => queryClient.fetchQuery(childOptions)
+    });
+    const child = new QueryObserver(queryClient, childOptions);
+    const unsubscribeParent = parent.subscribe(() => {});
+    const unsubscribeChild = child.subscribe(() => {});
+    try {
+      const refreshing = refreshRegisteredServerQueries('one');
+      await vi.waitFor(() => expect(readChild).toHaveBeenCalledOnce());
+      resolveChild('fresh-child');
+      await refreshing;
+      expect(parent.getCurrentResult().data).toBe('fresh-child');
+      expect(child.getCurrentResult().data).toBe('fresh-child');
+      expect(readChild).toHaveBeenCalledOnce();
+    } finally {
+      unsubscribeParent();
+      unsubscribeChild();
+    }
+  });
+
+  it('combines simultaneous refreshes and shared observers into one read', async () => {
+    const read = vi.fn(async () => 'fresh');
+    const options = { queryKey: ['server', 'one', 'shared'], queryFn: read, staleTime: Infinity };
+    queryClient.setQueryData(options.queryKey, 'before');
+    const first = new QueryObserver(queryClient, options);
+    const second = new QueryObserver(queryClient, options);
+    const unsubscribeFirst = first.subscribe(() => {});
+    const unsubscribeSecond = second.subscribe(() => {});
+    const inactiveRead = vi.fn(async () => 'inactive');
+    const inactiveKey = ['server', 'one', 'inactive'];
+    await queryClient.prefetchQuery({ queryKey: inactiveKey, queryFn: inactiveRead });
+    inactiveRead.mockClear();
+    try {
+      await Promise.all([
+        refreshRegisteredServerQueries('one'),
+        refreshRegisteredServerQueries('one'),
+        refreshRegisteredServerQueries('one')
+      ]);
+      expect(read).toHaveBeenCalledOnce();
+      expect(first.getCurrentResult().data).toBe('fresh');
+      expect(second.getCurrentResult().data).toBe('fresh');
+      expect(inactiveRead).not.toHaveBeenCalled();
+      expect(queryClient.getQueryData(inactiveKey)).toBeUndefined();
+    } finally {
+      unsubscribeFirst();
+      unsubscribeSecond();
+    }
+  });
+
   it.each([0, Infinity])('discards inactive dependencies before nested reads with staleTime=%s', async (staleTime) => {
     const parentKey = ['server', 'one', 'parent'];
     const childKey = ['server', 'one', 'child'];
@@ -54,6 +113,87 @@ describe('server query cache', () => {
     await first;
     expect(observer.getCurrentResult().data).toBe('latest');
     unsubscribe();
+  });
+
+  it('replaces a pending first load instead of accepting its old authority', async () => {
+    let resolveOld!: (value: string) => void;
+    const read = vi.fn()
+      .mockImplementationOnce(() => new Promise<string>((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce('fresh');
+    const observer = new QueryObserver(queryClient, {
+      queryKey: ['server', 'one', 'first-load'], queryFn: read, retry: false
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await refreshRegisteredServerQueries('one');
+      resolveOld('stale-private');
+      await Promise.resolve();
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(observer.getCurrentResult().data).toBe('fresh');
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it('clears an offline snapshot without sending requests until the client reconnects', async () => {
+    const queryKey = ['server', 'one', 'offline'];
+    const read = vi.fn(async () => 'fresh');
+    queryClient.setQueryData(queryKey, 'private-before');
+    const observer = new QueryObserver(queryClient, {
+      queryKey, queryFn: read, staleTime: Infinity, retry: false
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    queryClient.mount();
+    onlineManager.setOnline(false);
+    try {
+      await refreshRegisteredServerQueries('one');
+      expect(observer.getCurrentResult().data).toBeUndefined();
+      expect(observer.getCurrentResult().fetchStatus).toBe('paused');
+      expect(read).not.toHaveBeenCalled();
+      onlineManager.setOnline(true);
+      await vi.waitFor(() => expect(observer.getCurrentResult().data).toBe('fresh'));
+      expect(read).toHaveBeenCalledOnce();
+    } finally {
+      onlineManager.setOnline(true);
+      unsubscribe();
+      queryClient.unmount();
+    }
+  });
+
+  it('clears a failed permission read before slower checks finish, then restores normal error behavior', async () => {
+    const failedKey = ['server', 'one', 'failed'];
+    const slowKey = ['server', 'one', 'slow'];
+    queryClient.setQueryData(failedKey, 'private-before');
+    queryClient.setQueryData(slowKey, 'retained');
+    let resolveSlow!: (value: string) => void;
+    const failed = new QueryObserver(queryClient, {
+      queryKey: failedKey,
+      queryFn: async () => { throw new ConnectError('offline', Code.Unavailable); },
+      staleTime: Infinity,
+      retry: false
+    });
+    const slow = new QueryObserver(queryClient, {
+      queryKey: slowKey,
+      queryFn: () => new Promise<string>((resolve) => { resolveSlow = resolve; }),
+      staleTime: Infinity
+    });
+    const unsubscribeFailed = failed.subscribe(() => {});
+    const unsubscribeSlow = slow.subscribe(() => {});
+    try {
+      const refreshing = refreshRegisteredServerQueries('one');
+      await vi.waitFor(() => expect(failed.getCurrentResult().isError).toBe(true));
+      expect(failed.getCurrentResult().data).toBeUndefined();
+      expect(slow.getCurrentResult().data).toBe('retained');
+      resolveSlow('fresh');
+      await refreshing;
+
+      queryClient.setQueryData(failedKey, 'authorized-after');
+      await failed.refetch();
+      expect(failed.getCurrentResult().data).toBe('authorized-after');
+    } finally {
+      unsubscribeFailed();
+      unsubscribeSlow();
+    }
   });
 
   it.each(['allowed', 'denied', 'offline'])('reauthorizes in place and fences older data: %s', async (outcome) => {

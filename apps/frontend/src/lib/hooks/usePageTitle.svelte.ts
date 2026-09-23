@@ -1,5 +1,5 @@
 /**
- * Computes the full page title including notification count badge.
+ * Computes the full page title including the important unread notification count.
  * Call during component initialization — returns a reactive getter.
  */
 
@@ -19,7 +19,7 @@ export function usePageTitle(): () => string {
     const totalCount = serverRegistry.servers.reduce((sum, instance) => {
       const store = serverRegistry.getStore(instance.id);
       if (!store.isAuthenticated) return sum;
-      return sum + store.notifications.attention.unreadNotificationCount;
+      return sum + store.notifications.attention.importantUnreadNotificationCount;
     }, 0);
 
     return totalCount > 0 ? `(${totalCount}) ${base}` : base;

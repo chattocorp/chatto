@@ -230,6 +230,12 @@
         "grey": "灰色",
         "preview": "预览"
       },
+      "contrast": {
+        "label": "对比度",
+        "softer": "较柔和的对比度",
+        "current": "当前对比度",
+        "stronger": "更强的对比度"
+      },
       "depth": {
         "title": "界面风格",
         "flat": "平面",
@@ -492,7 +498,6 @@
       "create_failed": "创建机器人失败",
       "created": "机器人已创建",
       "username": "用户名",
-      "username_hint": "机器人用户名必须以 _bot 结尾。",
       "display_name": "显示名称",
       "owner": "所有者",
       "reassign_owner": "重新分配所有者",

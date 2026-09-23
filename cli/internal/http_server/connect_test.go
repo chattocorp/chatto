@@ -24,6 +24,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
@@ -77,6 +78,56 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		if got := resp.Msg.GetMember().GetUser().GetLogin(); got != "operator-connect" {
 			t.Fatalf("GetUser login = %q, want operator-connect", got)
 		}
+		roomClient := operatorv1connect.NewOperatorRoomServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		if _, err := roomClient.ListRooms(ctx, connect.NewRequest(&operatorv1.ListRoomsRequest{})); err != nil {
+			t.Fatalf("OperatorRoomService on operator server: %v", err)
+		}
+		created, err := roomClient.CreateRoom(ctx, connect.NewRequest(&operatorv1.CreateRoomRequest{Name: "operator-connect-room"}))
+		if err != nil {
+			t.Fatalf("OperatorRoomService.CreateRoom on operator server: %v", err)
+		}
+		added, err := roomClient.AddMember(ctx, connect.NewRequest(&operatorv1.AddMemberRequest{RoomId: created.Msg.GetRoom().GetId(), UserId: user.GetId()}))
+		if err != nil {
+			t.Fatalf("OperatorRoomService.AddMember on operator server: %v", err)
+		}
+		if added.Msg.GetRoomId() != created.Msg.GetRoom().GetId() || added.Msg.GetMember().GetUser().GetId() != user.GetId() {
+			t.Fatalf("OperatorRoomService.AddMember response = %+v", added.Msg)
+		}
+		for _, request := range []*operatorv1.AddMemberRequest{
+			{UserId: user.GetId()},
+			{RoomId: created.Msg.GetRoom().GetId()},
+		} {
+			if _, err := roomClient.AddMember(ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("OperatorRoomService.AddMember empty ID error = %v, want invalid argument", err)
+			}
+		}
+		assetClient := operatorv1connect.NewOperatorAssetServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		for _, request := range []*operatorv1.CreateUploadRequest{
+			{AuthorId: user.GetId(), Filename: "empty.txt", Sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+			{RoomId: created.Msg.GetRoom().GetId(), Filename: "empty.txt", Sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+		} {
+			if _, err := assetClient.CreateUpload(ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("OperatorAssetService.CreateUpload empty ID error = %v, want invalid argument", err)
+			}
+		}
+		assetUpload, err := assetClient.CreateUpload(ctx, connect.NewRequest(&operatorv1.CreateUploadRequest{
+			RoomId: created.Msg.GetRoom().GetId(), AuthorId: user.GetId(), Filename: "empty.txt",
+			Sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		}))
+		if err != nil {
+			t.Fatalf("OperatorAssetService.CreateUpload: %v", err)
+		}
+		assetDone, err := assetClient.CompleteUpload(ctx, connect.NewRequest(&operatorv1.CompleteUploadRequest{UploadId: assetUpload.Msg.GetUpload().GetUploadId()}))
+		if err != nil || assetDone.Msg.GetAssetId() == "" {
+			t.Fatalf("OperatorAssetService.CompleteUpload = %+v, err = %v", assetDone, err)
+		}
+		messageClient := operatorv1connect.NewOperatorMessageServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		imported, err := messageClient.ImportMessage(ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+			RoomId: created.Msg.GetRoom().GetId(), AuthorId: user.GetId(), CreatedAt: timestamppb.New(time.Now()), Body: "historical",
+		}))
+		if err != nil || imported.Msg.GetMessageId() == "" {
+			t.Fatalf("OperatorMessageService.ImportMessage = %+v, err = %v", imported, err)
+		}
 
 		adminClient := adminv1connect.NewAdminUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
 		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
@@ -89,6 +140,24 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		operatorClient := operatorv1connect.NewOperatorUserServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
 		if _, err := operatorClient.ListUsers(context.Background(), connect.NewRequest(&operatorv1.ListUsersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
 			t.Fatalf("OperatorUserService on public server err = %v, want unimplemented", err)
+		}
+		roomClient := operatorv1connect.NewOperatorRoomServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		if _, err := roomClient.ListRooms(context.Background(), connect.NewRequest(&operatorv1.ListRoomsRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorRoomService on public server err = %v, want unimplemented", err)
+		}
+		if _, err := roomClient.CreateRoom(context.Background(), connect.NewRequest(&operatorv1.CreateRoomRequest{Name: "public-operator-room"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorRoomService.CreateRoom on public server err = %v, want unimplemented", err)
+		}
+		if _, err := roomClient.AddMember(context.Background(), connect.NewRequest(&operatorv1.AddMemberRequest{RoomId: "room", UserId: "user"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorRoomService.AddMember on public server err = %v, want unimplemented", err)
+		}
+		assetClient := operatorv1connect.NewOperatorAssetServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		if _, err := assetClient.CreateUpload(context.Background(), connect.NewRequest(&operatorv1.CreateUploadRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorAssetService on public server err = %v, want unimplemented", err)
+		}
+		messageClient := operatorv1connect.NewOperatorMessageServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		if _, err := messageClient.ImportMessage(context.Background(), connect.NewRequest(&operatorv1.ImportMessageRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorMessageService on public server err = %v, want unimplemented", err)
 		}
 	})
 }

@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -15,6 +15,22 @@ exercise more authority than its human owner currently possesses.
 - Public `User.bot` metadata identifies a bot by its presence and contains
   `owner_user_id`. It is absent for humans and deleted-account references.
   The stored account model keeps its existing bot fields.
+
+- The client shows a small **BOT** badge after each bot display name. This
+  includes messages, direct-message lists, profiles, account pickers, typing
+  indicators, notifications, reaction details, and confirmation text. Each bot
+  in a group direct message has its own badge. Selected account pickers show
+  the badge beside the text field. Plain-text values, such as accessibility
+  labels and page titles, use **Name (BOT)** when they must identify the bot.
+  The badge stays visible when a long name is shortened. Deleted accounts do
+  not have it. Avatars keep their custom-status indicators. Bot avatars show
+  presence dots only for Online, Away, and Do Not Disturb.
+  This makes account type clear without covering the avatar or implying verification.
+
+- The room sidebar lists bots in a **Bots** section between Online and Offline.
+  It shows the section only when the room has bots. Bot presence does not move
+  them to another section. Offline bots are not dimmed and have no presence
+  dot. Bots with Online, Away, or Do Not Disturb presence show their normal dot.
 
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card
@@ -63,14 +79,9 @@ exercise more authority than its human owner currently possesses.
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission
   row.
-- Bot status and ownership are explicit, durable account properties. A login
-  suffix is a naming rule, not the source of truth for whether an account is a
-  bot.
-- Bot logins must end in `_bot`, matched case-insensitively. New human accounts
-  and human login changes cannot claim that suffix.
-- Existing human accounts that already use an `_bot` login remain human
-  accounts. They are not silently converted into bots, but other human
-  accounts cannot newly claim or rename into the reserved suffix.
+- Bot status and ownership are explicit, durable account properties. Human and
+  bot accounts use the same username rules. A username does not identify the
+  account kind.
 - Bot accounts are visible wherever ordinary users are visible, including
   messages, profiles, directories, mentions, direct messages, and member
   management. User identity displays mark them as bots with an accessible
@@ -146,14 +157,16 @@ exercise more authority than its human owner currently possesses.
   any other baseline grants. An absent bot permission is denied.
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
-  channel room. A confirmation dialog explains that the change takes effect immediately
-  after confirmation. Cancel leaves membership unchanged; grants stay unchanged.
+  channel room that is not archived. A confirmation dialog explains that the
+  change takes effect immediately after confirmation. Cancel leaves membership
+  unchanged; grants stay unchanged.
   `user.manage-accounts` or `room.manage` for the room can override a
   missing join permission. Otherwise joining requires the bot's effective
   `room.join`, including the owner's permission ceiling. Bans and archived
   rooms prevent joining. Bot owners do not need `room.manage`. Removal does
-  not require `room.join` and remains
-  available for archived rooms. Universal membership is automatic; server,
+  not require `room.join`. Archived channels have no matrix column; their
+  permissions and membership stay unchanged. Unarchiving restores their columns
+  on the next matrix fetch. Universal membership is automatic; server,
   group, and DM columns have no membership control.
 - Channel-room membership does not give a bot message content. The bot needs
   an explicit `message.read` grant for broad access or an explicit
@@ -221,14 +234,12 @@ exercise more authority than its human owner currently possesses.
 
 ## Design Decisions
 
-### 1. Explicit account kind, independent of the login suffix
+### 1. Explicit account kind
 
-**Decision:** Bot status is an immutable account kind. The `_bot` suffix is a
-separate validation rule for current bot and human logins.
+**Decision:** Bot status is an immutable account kind. Human and bot usernames
+use the same rules.
 **Why:** Clients and authorization rules need a stable way to distinguish bots
-from people. Inferring identity from a name would make existing accounts
-ambiguous and would prevent the suffix rule from changing or becoming
-operator-configurable later.
+from people. Inferring identity from a name would make accounts ambiguous.
 **Tradeoff:** Account creation, profile projection, public user shapes, and
 identity rendering all need to carry the account kind explicitly.
 
@@ -441,13 +452,18 @@ edit. Retracted or inaccessible messages are not sent.
   thread that it started, where another account directly mentioned it, or
   where it received a DM, subject to membership and the owner's effective broad or
   narrow read authority.
-- `message.post` — post room-timeline messages at configured scopes. A bot can
+- `message.post` — post roots and thread replies at configured scopes. Includes
+  `message.post-in-thread` and `message.post-in-interactions`. A bot can
   receive this permission only at Direct messages scope when it must not post
   in channels.
-- `message.post-in-thread` — create and reply in threads at configured scopes.
+- `message.post-in-thread` — post replies, including the first reply to a root,
+  in readable threads at configured scopes.
   A bot that responds only in private-conversation threads can combine this
   DM-scoped allow with DM-scoped `message.read`. It does not need
   `message.post`.
+- `message.post-in-interactions` — reply only in related threads, with separate
+  read access. A broad reader can use this grant to speak only in conversations
+  involving it. The owner's effective authority must also include this grant.
 
 Notification delivery modes are user preferences, not permissions. A bot can
 change its own notification policy through the normal notification policy API
@@ -515,7 +531,7 @@ service, and send the target user ID.
 
 ## Related
 
-- **ADRs:** ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-100 (shared integration client), ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

@@ -70,8 +70,15 @@
       "remove_account_suffix": " selle serveri jaoks enne selle eemaldamist."
     },
     "timeline": {
+      "post_interactions_only_channel": "Saad vastata ainult lõimedes, mille alustasid või kus keegi sind mainis.",
+      "post_threads_only": "Saad vastata ainult lõimedes, mida saad lugeda.",
+      "post_interactions_only": "Saad vastata ainult lõimedes, mille alustasid, kus keegi sind mainis või kus said privaatsõnumi.",
+      "post_denied": "Sul pole õigust selles toas sõnumeid saata.",
       "beginning": "See on selle vestluse algus.",
-      "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda."
+      "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
+      "limited_access": "Näed ainult vestlusi, mille oled alustanud või kus keegi on sind maininud.",
+      "limited_access_dm": "Näed ainult vestlusi, mille oled alustanud, vastu võtnud või kus keegi on sind maininud.",
+      "limited_empty": "Veel pole vestlusi, mida saad lugeda."
     },
     "message": {
       "empty": "Sõnumeid pole veel",
@@ -188,6 +195,7 @@
       "delete_failed": "Lingi eelvaate kustutamine ebaõnnestus"
     },
     "sidebar": {
+      "go_to_message": "Mine sõnumi juurde",
       "extras": "Ruumi lisad",
       "resize": "Muutke ruumi lisade paani suurust",
       "hide": "Peida ruumi lisad",
@@ -200,6 +208,7 @@
       "clear_member_search": "Kustuta liikmeotsing",
       "no_members": "Ühtegi liiget ei leitud.",
       "online": "Võrgus ({count})",
+      "bots": "Bots ({count})",
       "offline": "Võrguühenduseta ({count})",
       "no_files": "Selles ruumis pole veel faile.",
       "files": "Failid",

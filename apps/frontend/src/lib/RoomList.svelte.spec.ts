@@ -716,6 +716,15 @@ describe('RoomList', () => {
     expect(settings).toBeUndefined();
   });
 
+  it('labels a bot beside its name in the DM list', () => {
+    const rooms = mocks.store.navigation.rooms as Array<{ id: string; members: Array<{ id: string; isBot?: boolean }> }>;
+    const dm = rooms.find((room) => room.id === 'dm-with-participants')!;
+    dm.members.find((member) => member.id === 'teal')!.isBot = true;
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]')!;
+    expect(row.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Teal');
+  });
+
   it('renders active-call DM rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('dm-with-participants');
     mocks.projectedCallParticipants.set('dm-with-participants', [
@@ -741,7 +750,7 @@ describe('RoomList', () => {
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
-    expect(dmRow?.querySelector('[data-testid="bot-badge"]')).toBeNull();
+    expect(dmRow?.querySelector('[data-testid="room-call-participants"] [data-testid="bot-badge"]')).toBeNull();
     expect(dmRow!.querySelector('[data-testid="room-call-participants"]')?.nextElementSibling).toBe(
       icon
     );

@@ -1,8 +1,6 @@
 {
   "voice": {
     "connection_lost": "连接已断开",
-    "microphone_silence_explanation": "请检查麦克风的静音开关，或选择其他输入设备。",
-    "microphone_silent_hint": "麦克风没有声音",
     "connecting": "正在连接...",
     "joining": "正在加入...",
     "starting": "正在启动...",

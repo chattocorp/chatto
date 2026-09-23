@@ -10,7 +10,12 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { userPreferences, applyAccentColor, applySurfaceDepth } from '$lib/state/userPreferences.svelte';
+  import {
+    userPreferences,
+    applyAccentColor,
+    applyContrastAge,
+    applySurfaceDepth
+  } from '$lib/state/userPreferences.svelte';
 
   // The app's HTML bootstrap owns this at runtime; Storybook has its own shell.
   onMount(() => {
@@ -18,17 +23,22 @@
     applySurfaceDepth(userPreferences.surfaceDepth);
     const previous = document.documentElement.dataset.accent;
     applyAccentColor(userPreferences.accentColor);
+    const previousSoft = document.documentElement.style.getPropertyValue('--contrast-soft-mix');
+    const previousStrong = document.documentElement.style.getPropertyValue('--contrast-strong-mix');
+    applyContrastAge(userPreferences.contrastAge);
     return () => {
       if (previousDepth) document.documentElement.dataset.depth = previousDepth;
       else delete document.documentElement.dataset.depth;
       if (previous) document.documentElement.dataset.accent = previous;
       else delete document.documentElement.dataset.accent;
+      document.documentElement.style.setProperty('--contrast-soft-mix', previousSoft);
+      document.documentElement.style.setProperty('--contrast-strong-mix', previousStrong);
     };
   });
 </script>
 
 <Story name="Appearance" asChild>
-  <div class="pane-page h-[850px] w-full">
+  <div class="pane-page h-[1000px] w-full">
     <AppAppearanceSettings />
   </div>
 </Story>

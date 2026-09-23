@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -41,6 +41,19 @@ permissions. Room membership remains a separate requirement.
   create a relationship with messages posted before the account joined.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
+- `message.post` permits root messages and thread replies. It includes
+  `message.post-in-thread` and `message.post-in-interactions`.
+- `message.post-in-interactions` permits replies only in threads with an existing
+  interaction relationship. It does not permit new roots. Thread replies also
+  need read access, membership, and a room policy that permits threads.
+- Broad read access with interaction posting lets an account read the room
+  but respond only in related threads. The same rule applies to humans and bots.
+- When the account cannot post roots, the client shows a posting-permission
+  notice above the room timeline. It distinguishes replies in readable threads,
+  replies only in related threads, and no posting. Read access and room policy
+  must also permit replies. The posting notice can appear with the limited-read
+  notice. Only DM notices include received DMs as an interaction condition.
+  Both update when effective permissions change.
 - A channel-room operation that reads or returns an existing message also
   needs access to that message's thread. Deletion remains independently
   authorized and does not return surrounding message state.
@@ -51,6 +64,13 @@ permissions. Room membership remains a separate requirement.
 - A room timeline for an account with only interaction-scoped access contains
   the roots of threads that the account can read. The account can then read
   each complete thread through the thread API.
+- The client shows a persistent notice above this limited timeline. It explains
+  that only conversations started by the account or with a direct mention are
+  visible. In DMs, the notice also includes received conversations.
+- An empty limited timeline says that there are no conversations the account
+  can read yet. It does not imply that the room is empty or show the normal
+  beginning-of-conversation marker. The notice follows effective permissions
+  without an additional request or a page-wide loading lock.
 - Main-room typing indicators require broad access. A thread typing indicator
   is visible when the account can read that thread.
 - The normal realtime protocol carries authorized semantic message events.
@@ -177,8 +197,22 @@ relevant message and thread IDs from its normal notification occurrences.
 - `message.read-interactions` — read message content and message-specific
   metadata only in threads with a current interaction
   relationship.
-- `message.post` — post root messages and send messages in an existing DM.
+- `message.post` — post roots and thread replies in channel rooms and existing
+  DMs. Includes both narrower posting permissions.
 - `message.post-in-thread` — post replies in a channel-room or DM thread.
+- `message.post-in-interactions` — post replies only in related threads. Reuses
+  the read interaction relationship without granting read access.
+
+### Posting compatibility
+
+Existing `message.post` allows now permit thread replies, including when a
+narrow posting permission is denied. Operators must review these grants.
+For reply-only access, remove broad posting and grant `message.post-in-thread`
+or `message.post-in-interactions`. Root-only posting is no longer a separate
+permission. No stored grants or interaction facts are rewritten. Old replicas
+do not support the new permission or posting inclusion; complete the rollout
+before relying on them. Bot grants and the owner's authority each use the
+same explicit inclusion rules.
 
 ## Related
 

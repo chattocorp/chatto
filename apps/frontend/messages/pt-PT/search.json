@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Pesquisar nas minhas conversas",
+    "no_threads": "Nenhuma conversa correspondente",
     "title": "Pesquisar mensagens",
     "open": "Pesquisar mensagens",
     "in_room": "Pesquisar nesta sala",

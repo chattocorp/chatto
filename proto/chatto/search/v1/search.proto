@@ -60,6 +60,12 @@ message QueryRequest {
   uint32 page_size = 9;
   // Provider-issued cursor from the preceding response. Empty starts a query.
   bytes cursor = 10;
+  // Optional thread-root scope. Includes the root itself and its replies.
+  // Empty means no thread restriction. Callers must verify thread_scope_applied.
+  repeated string thread_root_ids = 11;
+  // Roots already resolved by grouped search. Exclude their roots and replies
+  // without changing relevance scores. Verify thread_exclusions_applied.
+  repeated string excluded_thread_root_ids = 12;
 }
 
 // QueryHit identifies one ordered provider match. Chatto rehydrates and
@@ -88,6 +94,11 @@ message QueryResponse {
   repeated QueryHit hits = 1;
   // Cursor for the next provider page. Empty means there are no more hits.
   bytes next_cursor = 2;
+  // True when this provider implements and applies thread_root_ids. Callers
+  // must reject scoped results from older providers that omit this field.
+  bool thread_scope_applied = 3;
+  // True when excluded_thread_root_ids is implemented and applied.
+  bool thread_exclusions_applied = 4;
 }
 
 // GetStatusRequest asks for provider readiness.

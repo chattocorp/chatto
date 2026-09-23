@@ -259,15 +259,16 @@ func mcpMessageResult(ctx context.Context, chattoCore *core.ChattoCore, event *e
 		return messageResult{}, fmt.Errorf("message timestamp is unavailable")
 	}
 	posted := event.GetMessagePosted()
+	authorID := core.MessageAuthorID(event)
 	result := messageResult{
 		ID:                  event.GetId(),
 		RoomID:              posted.GetRoomId(),
-		AuthorID:            event.GetActorId(),
+		AuthorID:            authorID,
 		CreatedAt:           formatTimestamp(event.GetCreatedAt().AsTime()),
 		ThreadRootMessageID: posted.GetInThread(),
 		InReplyToMessageID:  posted.GetInReplyTo(),
 	}
-	user, err := chattoCore.GetUserReference(ctx, event.GetActorId())
+	user, err := chattoCore.GetUserReference(ctx, authorID)
 	if err != nil {
 		return messageResult{}, err
 	}

@@ -82,7 +82,7 @@ input row.
         compact
         gaps={false}
         label={m('composer.formatting_options')}
-        class="w-max shrink-0"
+        class="mobile-presentation:pill-button-group-touch w-max shrink-0"
       >
         {#each formattingControls as control (control.command)}
           {@const label = formattingLabel(control.command)}

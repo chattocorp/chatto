@@ -3,7 +3,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import type { UserAvatarUserView } from '$lib/render/users';
   import imageAvatar from '$lib/assets/chatto-icon-maskable.png';
-  import botIcon from '$lib/assets/bot.svg';
+  import AccountName from './users/AccountName.svelte';
   import UserAvatar from './UserAvatar.svelte';
 
   const { Story } = defineMeta({
@@ -14,7 +14,7 @@
       docs: {
         description: {
           component:
-            'Circular user avatars with optional presence dots. Bot icons appear on all sizes except xs.'
+            'Circular user avatars with optional presence and custom status. Bot identity appears beside the account name.'
         }
       }
     }
@@ -44,9 +44,9 @@
 
 <script lang="ts">
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
 
-  createUserProfileCache();
+  provideUserProfiles();
   createPresenceCache();
 </script>
 
@@ -72,6 +72,7 @@
     {#each ['xs', 'sm', 'md', 'message', 'lg', 'xl'] as const as size (size)}
       <div class="flex flex-col items-center gap-3">
         <UserAvatar user={{ ...onlineUser, displayName: 'Assistant', isBot: true }} {size} />
+        <AccountName name="Assistant" identity={{ isBot: true }} />
         <span class="text-xs text-muted">{size}</span>
       </div>
     {/each}
@@ -100,9 +101,8 @@
   </div>
 </Story>
 
-<Story name="Robot artwork" asChild>
+<Story name="Bot avatar images" asChild>
   <div class="flex max-w-2xl items-center justify-center gap-16 rounded-xl bg-surface px-10 py-12">
-    <img src={botIcon} alt="Chatto robot" class="size-40 outline-none" />
     <div class="flex flex-col items-center gap-6">
       <div class="flex items-center gap-6">
         <UserAvatar user={{ ...onlineUser, displayName: 'Assistant', isBot: true }} size="sm" />

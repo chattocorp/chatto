@@ -63,7 +63,9 @@ const { mocks } = vi.hoisted(() => {
       threadingMode: 3,
       canReadMessages: true as boolean | null,
       canPostMessage: true,
+      hasLimitedMessageAccess: false,
       canPostInThread: true,
+      canPostInteractions: false,
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
@@ -101,6 +103,7 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
+  beforeNavigate: vi.fn(),
   goto: mocks.goto,
   pushState: mocks.pushState,
   replaceState: mocks.replaceState
@@ -133,7 +136,9 @@ vi.mock('$lib/hooks', () => ({
       spaceName: 'Test Space',
       canReadMessages: mocks.canReadMessages,
       canPostMessage: mocks.canPostMessage,
+      hasLimitedMessageAccess: mocks.hasLimitedMessageAccess,
       canPostInThread: mocks.canPostInThread,
+      canPostInteractions: mocks.canPostInteractions,
       canAttach: false,
       canReact: true,
       canManageOthersMessage: false,
@@ -223,6 +228,7 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: (serverId: string) => ({
+      realtimeSync: { isRecoveringSnapshot: false },
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       serverInfo: {
         livekitUrl: mocks.livekitUrl,
@@ -350,7 +356,8 @@ vi.mock('$lib/ui/PaneHeader.svelte', async () => {
 
 vi.mock('$lib/ui', async () => {
   const { default: EmptyState } = await import('$lib/ui/EmptyState.svelte');
-  return { EmptyState };
+  const { default: Hint } = await import('$lib/ui/Hint.svelte');
+  return { EmptyState, Hint };
 });
 
 import Room from './Room.svelte';
@@ -477,7 +484,9 @@ beforeEach(() => {
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
   mocks.canPostMessage = true;
+  mocks.hasLimitedMessageAccess = false;
   mocks.canPostInThread = true;
+  mocks.canPostInteractions = false;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
   mocks.markOccurrenceRead.mockReset();
@@ -491,7 +500,10 @@ beforeEach(() => {
   stubMatchMedia(true);
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Default Members can start an import that outlives a membership-only assertion.
+  // Finish it before the next test clears and checks the module-load spies.
+  await vi.dynamicImportSettled();
   vi.restoreAllMocks();
 });
 
@@ -544,7 +556,8 @@ describe('Room interaction bundles', () => {
     expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
   });
 
-  it('does not load thread or sidebar panes for the default room view', async () => {
+  it('does not load thread or sidebar panes when the sidebar is explicitly closed', async () => {
+    appUi.closeDesktopRoomSidebarPanel();
     render(Room, { props: { roomId: 'room-1' } });
 
     await tick();
@@ -552,6 +565,67 @@ describe('Room interaction bundles', () => {
 
     expect(mocks.threadPaneModuleLoaded).not.toHaveBeenCalled();
     expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])('explains posting denial with read access %s', async (canRead) => {
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = false;
+    mocks.canReadMessages = canRead;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(container, '[data-testid="room-post-denied"]'))
+      .toHaveTextContent('You do not have permission to post messages in this room.');
+  });
+
+  it.each([true, false])('groups the limited-read notice with posting allowed %s', async (canPost) => {
+    mocks.canPostMessage = canPost;
+    mocks.hasLimitedMessageAccess = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const notices = q(container, '[data-testid="room-permission-notices"]');
+    await expect.element(notices).toHaveTextContent(
+      'You can only see conversations you started or where someone mentioned you.'
+    );
+    expect(notices?.children.length).toBe(canPost ? 1 : 2);
+  });
+
+  it('omits the posting notice when posting is allowed', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    expect(container.querySelector('[data-testid="room-post-denied"]')).toBeNull();
+  });
+
+  it.each([
+    [true, true, 'You can only reply in threads you can read.'],
+    [false, true, 'You can only reply in threads you started or where someone mentioned you.']
+  ] as const)('explains reply-only posting with thread grant %s and interaction grant %s', async (threads, interactions, notice) => {
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = threads;
+    mocks.canPostInteractions = interactions;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(notice);
+  });
+
+  it('explains received messages as an interaction in DMs', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = false;
+    mocks.canPostInteractions = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(
+      'You can only reply in threads you started, where someone mentioned you, or where you received a DM.'
+    );
+  });
+
+  it.each([RoomThreadingMode.DISABLED, RoomThreadingMode.ENABLED])('does not promise interaction replies without room access in threading mode %s', async (mode) => {
+    mocks.canPostMessage = false;
+    mocks.canPostInThread = false;
+    mocks.canPostInteractions = true;
+    mocks.threadingMode = mode;
+    mocks.canReadMessages = mode === RoomThreadingMode.DISABLED;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="room-post-denied"]')).toHaveTextContent(
+      'You do not have permission to post messages in this room.'
+    );
   });
 
   it('explains when the viewer cannot read messages and keeps the composer available', async () => {
@@ -576,6 +650,7 @@ describe('Room interaction bundles', () => {
   });
 
   it('loads the thread pane when the thread route is active', async () => {
+    appUi.closeDesktopRoomSidebarPanel();
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
@@ -597,13 +672,27 @@ describe('Room interaction bundles', () => {
       .toBeInTheDocument();
   });
 
+  it('opens the sidebar by default in a desktop channel and allows closing it', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+    const close = await waitForElement<HTMLButtonElement>(
+      container,
+      '[data-testid="close-room-sidebar"]'
+    );
+    close.click();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+  });
+
   it('loads the desktop room sidebar for a transient profile view', async () => {
     appUi.openRoomSidebarProfile('user-1');
     expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
-    await vi.waitFor(() => expect(mocks.roomSidebarModuleLoaded).toHaveBeenCalledOnce());
     await expect
       .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
       .toBeInTheDocument();
@@ -1089,7 +1178,8 @@ describe('Room local message echo', () => {
     await expect.element(pane).not.toBeInTheDocument();
   });
 
-  it('starts with the desktop room sidebar closed', async () => {
+  it('restores an explicitly closed desktop room sidebar', async () => {
+    appUi.closeDesktopRoomSidebarPanel();
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await tick();
@@ -1451,5 +1541,16 @@ describe('Room local message echo', () => {
 
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
     expect(mocks.timeline.getRoomEventsAround).not.toHaveBeenCalled();
+  });
+});
+
+describe('Room DM permission notice', () => {
+  it('includes received conversations', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.hasLimitedMessageAccess = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect.element(q(container, '[data-testid="limited-message-access"]')).toHaveTextContent(
+      'You can only see conversations you started, received, or where someone mentioned you.'
+    );
   });
 });

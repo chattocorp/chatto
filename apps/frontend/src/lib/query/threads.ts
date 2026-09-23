@@ -9,7 +9,7 @@ type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;
 type ThreadViewerState = { hasUnreadReplies?: boolean };
 
 export type FollowedThreadsQueryPage = FollowedThreadsPage & {
-  /** Next server offset, preserved even when projection reconciliation filters rows. */
+  /** Next list offset, preserved across reconciliation; search uses nextCursor. */
   nextOffset: number;
 };
 
@@ -28,8 +28,9 @@ function threadRoot(serverId: string, connection: ThreadQueryConnection) {
 }
 
 export const threadQueryKeys = {
-  followed(serverId: string, connection: ThreadQueryConnection) {
-    return [...threadRoot(serverId, connection), 'followed'] as const;
+  followed(serverId: string, connection: ThreadQueryConnection, query = '') {
+    const base = [...threadRoot(serverId, connection), 'followed'] as const;
+    return query ? [...base, query] as const : base;
   }
 };
 
@@ -37,7 +38,7 @@ export function followedThreadKey(roomId: string, threadRootEventId: string): st
   return `${roomId}\u0000${threadRootEventId}`;
 }
 
-/** Flatten offset pages without rendering a duplicate returned across page boundaries. */
+/** Flatten live pages without rendering a duplicate returned across page boundaries. */
 export function flattenFollowedThreads(data: FollowedThreadsData | undefined): FollowedThread[] {
   const seen = new Set<string>();
   return (data?.pages ?? []).flatMap((page) =>
@@ -103,7 +104,8 @@ export function updateFollowedThreadSummary(
  */
 export function reconcileFollowedThreadViewerStates(
   data: FollowedThreadsData | undefined,
-  states: ReadonlyMap<string, ThreadViewerState>
+  states: ReadonlyMap<string, ThreadViewerState>,
+  filtered = false
 ): { data: FollowedThreadsData | undefined; hasUnknownThreads: boolean } {
   if (!data) return { data, hasUnknownThreads: states.size > 0 };
 
@@ -131,8 +133,10 @@ export function reconcileFollowedThreadViewerStates(
   });
   const hasMissingProjectionThreads = [...states.keys()].some((key) => !knownKeys.has(key));
   const hasUnknownThreads =
-    hasMissingProjectionThreads && (snapshotComplete || states.size !== cachedTotalCount);
+    !filtered && hasMissingProjectionThreads && (snapshotComplete || states.size !== cachedTotalCount);
   pages = pages.map((page, index) => {
+    // Search totals describe matching threads, not the full follow projection.
+    if (filtered) return page;
     const isLastPage = index === pages.length - 1;
     const hasMore = isLastPage && !hasMissingProjectionThreads ? false : page.hasMore;
     if (page.totalCount === states.size && page.hasMore === hasMore) return page;
@@ -201,12 +205,13 @@ function reconcileFollowedThreadQueries(
 ): void {
   for (const query of followedThreadQueries(serverId)) {
     const current = query.state.data as FollowedThreadsData | undefined;
-    const reconciled = reconcileFollowedThreadViewerStates(current, states);
+    const filtered = query.queryKey.length > 6;
+    const reconciled = reconcileFollowedThreadViewerStates(current, states, filtered);
     if (flattenFollowedThreads(reconciled.data).length < flattenFollowedThreads(current).length) {
       void queryClient.cancelQueries({ queryKey: query.queryKey, exact: true });
     }
     if (reconciled.data !== current) queryClient.setQueryData(query.queryKey, reconciled.data);
-    if (reconciled.hasUnknownThreads) {
+    if (reconciled.hasUnknownThreads || filtered) {
       void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
     }
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import Toast from './Toast.svelte';
+import { accountNameToken } from '$lib/render/accountName';
 import type { ToastTone } from './toastState.svelte';
 
 function toastShell(container: Element): HTMLElement {
@@ -30,6 +31,20 @@ function toastSection(container: Element): HTMLElement {
 }
 
 describe('Toast', () => {
+  it('shows an account badge inside a notification sentence', () => {
+    const { container } = render(Toast, {
+      props: {
+        tone: 'success',
+        message: `${accountNameToken(0)} was added to the room`,
+        accounts: [{ name: 'Helper', identity: { isBot: true } }],
+        onDismiss: vi.fn()
+      }
+    });
+
+    expect(container.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Helper');
+    expect(container.textContent).not.toContain('(BOT)');
+  });
+
   it.each([
     ['error', 'text-error'],
     ['success', 'text-success'],

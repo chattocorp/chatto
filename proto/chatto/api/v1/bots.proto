@@ -119,7 +119,7 @@ message BatchGetBotsResponse {
 
 // Request creation of a bot owned by the authenticated human caller.
 message CreateBotRequest {
-  // Bot login. Must end in `_bot`.
+  // Bot login. Uses the same username rules as a human account.
   string login = 1 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
   // Public display name.
   string display_name = 2 [(buf.validate.field).string.max_len = 32];

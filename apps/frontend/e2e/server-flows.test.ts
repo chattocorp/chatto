@@ -401,7 +401,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
       .locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
       .first();
     await expect(remoteIcon).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await expect(remoteIcon).not.toHaveAttribute('title', /connection unavailable|needs sign-in/, {
+    await expect(remoteIcon).not.toHaveAttribute('title', /connection unavailable|Sign in to reconnect/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     expect(pageErrors).toEqual([]);

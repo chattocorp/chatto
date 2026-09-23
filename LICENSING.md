@@ -19,3 +19,12 @@ The shared modules remain explicitly pre-1.0; their permissive license does not
 imply API stability.
 
 Full license texts are available in [LICENSE](LICENSE) and [LICENSES/](LICENSES/).
+
+The independent Runling package under `packages/runling/` uses MIT. Its
+original copyright and license are in [packages/runling/LICENSE](packages/runling/LICENSE).
+
+The internal `packages/chatto-client/` package preserves the MIT license of
+the client helpers extracted from Runling.
+
+The private ChattoBot package under `packages/chattobot/` also retains its MIT
+license. See [packages/chattobot/LICENSE](packages/chattobot/LICENSE).

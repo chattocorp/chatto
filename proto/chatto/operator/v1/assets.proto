@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package chatto.operator.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/asset_uploads.proto";
+
+// Start a room-scoped attachment upload for a mapped author.
+message CreateUploadRequest {
+  // Required Chatto channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required Chatto user ID that will own the asset.
+  string author_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Filename to store with the attachment.
+  string filename = 3 [(buf.validate.field).string.min_len = 1];
+  // MIME content type. Empty uses application/octet-stream.
+  string content_type = 4;
+  // Total file size in bytes.
+  int64 size = 5 [(buf.validate.field).int64.gte = 0];
+  // SHA-256 of the complete file, in lowercase hexadecimal.
+  string sha256 = 6 [(buf.validate.field).string.pattern = "^[a-f0-9]{64}$"];
+}
+
+// State of the new operator upload.
+message CreateUploadResponse {
+  // Created upload session and chunk limit.
+  chatto.api.v1.AssetUpload upload = 1;
+}
+
+// Append one chunk at the committed offset.
+message UploadChunkRequest {
+  // Operator upload session ID.
+  string upload_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Byte offset where this chunk starts.
+  int64 offset = 2 [(buf.validate.field).int64.gte = 0];
+  // Chunk bytes. The server enforces the advertised chunk limit.
+  bytes content = 3 [(buf.validate.field).bytes.min_len = 1];
+  // SHA-256 of this chunk, in lowercase hexadecimal.
+  string chunk_sha256 = 4 [(buf.validate.field).string.pattern = "^[a-f0-9]{64}$"];
+}
+
+// State after a chunk is committed.
+message UploadChunkResponse {
+  // Updated upload session.
+  chatto.api.v1.AssetUpload upload = 1;
+}
+
+// Finish an operator upload.
+message CompleteUploadRequest {
+  // Operator upload session ID.
+  string upload_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of a completed operator attachment upload.
+message CompleteUploadResponse {
+  // Asset ID for a later historical message import.
+  string asset_id = 1;
+}
+
+// Cancel an incomplete operator upload.
+message CancelUploadRequest {
+  // Operator upload session ID.
+  string upload_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// State after cancellation.
+message CancelUploadResponse {
+  // Cancelled upload session.
+  chatto.api.v1.AssetUpload upload = 1;
+}
+
+// Private upload lifecycle for local operator files. Only the Operator Unix
+// socket serves this service; public upload sessions cannot be used here.
+service OperatorAssetService {
+  // Starts a bounded upload in an active channel room for an existing user.
+  rpc CreateUpload(CreateUploadRequest) returns (CreateUploadResponse);
+  // Appends one bounded chunk to an operator upload session.
+  rpc UploadChunk(UploadChunkRequest) returns (UploadChunkResponse);
+  // Completes an operator upload and returns the room-scoped asset ID.
+  rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
+  // Cancels an incomplete operator upload and releases its chunks.
+  rpc CancelUpload(CancelUploadRequest) returns (CancelUploadResponse);
+}

@@ -60,6 +60,42 @@ export function applySurfaceDepth(value: SurfaceDepth): void {
   document.documentElement.dataset.depth = isSurfaceDepth(value) ? value : defaultSurfaceDepth;
 }
 
+/** Keep the saved 20–40 scale so existing browser choices survive the UI label change. */
+export const defaultContrastAge = 30;
+
+/** Reject invalid values from storage and callers before applying CSS percentages. */
+export function isContrastAge(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= 20 &&
+    value <= 40 &&
+    Number.isInteger(value * 2)
+  );
+}
+
+/** Apply the two palette mixes without changing theme, accent, or depth. */
+export function applyContrastAge(value: number): void {
+  if (typeof document === 'undefined') return;
+  const age = isContrastAge(value) ? value : defaultContrastAge;
+  const root = document.documentElement;
+  root.style.setProperty('--contrast-soft-mix', `${Math.max(0, 30 - age) * 10}%`);
+  root.style.setProperty('--contrast-strong-mix', `${Math.max(0, age - 30) * 10}%`);
+  syncShellColor();
+}
+
+/** Keep the browser frame and system theme colour aligned with the active palette. */
+function syncShellColor(): void {
+  const root = document.documentElement;
+  const dark = root.dataset.theme === 'dark';
+  const veryHigh = root.style.getPropertyValue('--contrast-strong-mix') === '100%';
+  const shellColor = dark ? (veryHigh ? '#000000' : '#262626') : veryHigh ? '#ffffff' : '#e5e7eb';
+  root.style.backgroundColor = 'var(--color-surface)';
+  document
+    .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    ?.setAttribute('content', shellColor);
+}
+
 export type DisplayTheme = 'system' | 'light' | 'dark';
 export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
@@ -70,6 +106,8 @@ interface AppPreferences {
   displayTheme: DisplayTheme;
   accentColor: AccentColor;
   surfaceDepth: SurfaceDepth;
+  /** Neutral palette contrast; 30 preserves the original light and dark colours. */
+  contrastAge: number;
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
   composerFormattingToolbarVisible: boolean;
@@ -87,6 +125,7 @@ const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
   accentColor: defaultAccentColor,
   surfaceDepth: defaultSurfaceDepth,
+  contrastAge: defaultContrastAge,
   composerEditor: 'markdown',
   composerSendMode: 'enter',
   composerFormattingToolbarVisible: false,
@@ -165,12 +204,8 @@ export function applyDisplayTheme(theme: DisplayTheme): void {
   const effective = resolveDisplayTheme(theme);
   const root = document.documentElement;
   root.dataset.theme = effective;
-  // Keep the system chrome's page-background sample aligned with the app frame.
-  root.style.backgroundColor = effective === 'dark' ? '#262626' : '#e5e7eb';
   root.style.colorScheme = effective;
-  document
-    .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
-    ?.setAttribute('content', effective === 'dark' ? '#262626' : '#e5e7eb');
+  syncShellColor();
 }
 
 function normalizeNotificationSoundFilters(value: unknown): NotificationSoundFilters {
@@ -198,6 +233,7 @@ function loadAppPreferences(): AppPreferences {
     displayTheme,
     accentColor: isAccentColor(stored.accentColor) ? stored.accentColor : defaultAccentColor,
     surfaceDepth: isSurfaceDepth(stored.surfaceDepth) ? stored.surfaceDepth : defaultSurfaceDepth,
+    contrastAge: isContrastAge(stored.contrastAge) ? stored.contrastAge : defaultContrastAge,
     composerEditor: isComposerEditorKind(stored.composerEditor)
       ? stored.composerEditor
       : defaultAppPreferences.composerEditor,
@@ -232,6 +268,12 @@ export class UserPreferencesState {
   // Keep the legacy fields intact whenever App Preferences are saved so a
   // server first opened later can still migrate the user's previous sound.
   readonly #legacyNotificationSoundPreferences = getLegacyNotificationSoundPreferences();
+
+  constructor() {
+    // The HTML bootstrap handles first paint. Reapply the saved value when
+    // the client store starts so hydration cannot leave the palette at default.
+    applyContrastAge(this.#preferences.contrastAge);
+  }
 
   get displayTheme(): DisplayTheme {
     return this.#preferences.displayTheme;
@@ -270,6 +312,18 @@ export class UserPreferencesState {
     this.#preferences.surfaceDepth = depth;
     this.#persist();
     applySurfaceDepth(depth);
+  }
+
+  /** App-wide palette contrast; 30 preserves the original appearance. */
+  get contrastAge(): number {
+    return this.#preferences.contrastAge;
+  }
+
+  set contrastAge(value: number) {
+    const age = isContrastAge(value) ? value : defaultContrastAge;
+    this.#preferences.contrastAge = age;
+    this.#persist();
+    applyContrastAge(age);
   }
 
   get composerEditor(): ComposerEditorKind {

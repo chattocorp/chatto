@@ -116,8 +116,7 @@
     .min(2, m('common.validation.username_min'))
     .max(32, m('common.validation.username_max'))
     .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, m('common.validation.username_charset'))
-    .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'))
-    .refine((value) => value.toLowerCase().endsWith('_bot'), m('settings.bots.username_hint'));
+    .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'));
   const normalizedCreateLogin = $derived(createLogin.trim());
   const createLoginError = $derived(
     normalizedCreateLogin ? validate(botLoginSchema, normalizedCreateLogin) : undefined
@@ -315,7 +314,6 @@
   <TextInput
     id="bot-login"
     label={m('settings.bots.username')}
-    description={normalizedCreateLogin ? undefined : m('settings.bots.username_hint')}
     error={createLoginError}
     maxlength={32}
     required

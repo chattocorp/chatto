@@ -70,8 +70,15 @@
       "remove_account_suffix": "."
     },
     "timeline": {
+      "post_interactions_only_channel": "Możesz odpowiadać tylko w wątkach, które rozpocząłeś lub w których ktoś Cię wspomniał.",
+      "post_threads_only": "Możesz odpowiadać tylko w wątkach, które możesz czytać.",
+      "post_interactions_only": "Możesz odpowiadać tylko w wątkach, które rozpoczęto, w których ktoś Cię wspomniał lub otrzymano wiadomość prywatną.",
+      "post_denied": "Nie masz uprawnień do wysyłania wiadomości w tym pokoju.",
       "beginning": "To początek tej rozmowy.",
-      "read_denied": "Nie masz uprawnień do odczytywania wiadomości w tym pokoju."
+      "read_denied": "Nie masz uprawnień do odczytywania wiadomości w tym pokoju.",
+      "limited_access": "Widzisz tylko rozmowy rozpoczęte przez Ciebie lub takie, w których ktoś o Tobie wspomniał.",
+      "limited_access_dm": "Widzisz tylko rozmowy rozpoczęte lub otrzymane przez Ciebie albo takie, w których ktoś o Tobie wspomniał.",
+      "limited_empty": "Nie ma jeszcze rozmów, które możesz przeczytać."
     },
     "message": {
       "empty": "Nie ma jeszcze żadnych wiadomości",
@@ -195,6 +202,7 @@
       "delete_failed": "Nie udało się usunąć podglądu linku"
     },
     "sidebar": {
+      "go_to_message": "Przejdź do wiadomości",
       "extras": "Dodatki do pokoju",
       "resize": "Zmień rozmiar okienka z dodatkami do pokoju",
       "hide": "Ukryj dodatki do pokoju",
@@ -207,6 +215,7 @@
       "clear_member_search": "Wyczyść wyszukiwanie członków",
       "no_members": "Nie znaleziono członków.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Nie ma jeszcze plików w tym pokoju.",
       "files": "Pliki",

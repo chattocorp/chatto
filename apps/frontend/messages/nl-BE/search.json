@@ -1,5 +1,7 @@
 {
   "search": {
+    "in_threads": "Mijn threads doorzoeken",
+    "no_threads": "Geen overeenkomende threads",
     "title": "Berichten doorzoeken",
     "open": "Berichten doorzoeken",
     "in_room": "In deze kamer zoeken",

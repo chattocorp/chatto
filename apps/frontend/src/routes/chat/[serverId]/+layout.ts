@@ -3,6 +3,7 @@ import { resolve } from '$app/paths';
 import { saveReturnUrl } from '$lib/auth/returnNavigation';
 import { segmentToServerId } from '$lib/navigation';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { loadSavedView } from '$lib/storage/savedViews';
 import type { LayoutLoad } from './$types';
 
 function redirectToLogin(url: URL): never {
@@ -31,13 +32,16 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
   // A failed remote viewer request can transition the session to the existing
   // reauthentication recovery state while it is awaited above.
   reauthRequired = serverRegistry.getServer(serverId)?.reauthRequiredAt != null;
+  const savedView = await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null);
+  serverStore.restoreSavedView(savedView);
 
   const authenticated = serverRegistry.isOriginServer(serverId)
     ? user !== null
     : serverStore.currentUser.user !== undefined;
-  if (!reauthRequired && !authenticated) redirectToLogin(url);
+  if (!reauthRequired && !authenticated && !savedView) redirectToLogin(url);
 
   return {
+    savedView,
     serverSegment: params.serverId,
 
     /** The currently active room (from child route params). */

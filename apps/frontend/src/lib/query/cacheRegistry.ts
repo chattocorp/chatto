@@ -1,36 +1,4 @@
 import { runResetHandlers } from '$lib/state/server/resetHandlers';
-import type { DirectoryMember } from '$lib/api-client/memberDirectory';
-type DirectoryUserCache = {
-  prime(serverId: string, scope: string, users: DirectoryMember[], overwrite?: boolean): void;
-  remove(serverId: string, scope: string, userId: string): void;
-  reset(serverId: string): void;
-};
-let directoryUserCache: DirectoryUserCache | undefined;
-
-export function registerDirectoryUserCache(cache: DirectoryUserCache): void {
-  directoryUserCache = cache;
-}
-
-export function primeRegisteredDirectoryUsers(
-  serverId: string,
-  scope: string,
-  users: DirectoryMember[],
-  overwrite = true
-): void {
-  directoryUserCache?.prime(serverId, scope, users, overwrite);
-}
-
-export function removeRegisteredDirectoryUser(
-  serverId: string,
-  scope: string,
-  userId: string
-): void {
-  directoryUserCache?.remove(serverId, scope, userId);
-}
-
-export function resetRegisteredDirectoryUsers(serverId: string): void {
-  directoryUserCache?.reset(serverId);
-}
 type ServerCacheRemover = (serverId: string) => void;
 type AdminUserCacheRemover = (serverId: string, userId: string) => void;
 type AdminUserRemovalListener = (serverId: string, userId: string) => void;

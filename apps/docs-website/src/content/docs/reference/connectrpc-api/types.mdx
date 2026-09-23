@@ -338,6 +338,7 @@ requests.
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. Present only when a durable thread has been established for this root message, including an empty thread. |
 | `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
 | `pinned` | `bool` | True when this message's canonical message is currently pinned in its channel room. Always false for direct-message rooms. |
+| `viewer_state` | [`MessageViewerState`](#chatto-api-v1-MessageViewerState) | State resolved for the current viewer. Available even before a durable thread exists. Absent when viewer state has not been resolved. |
 
 <a id="chatto-api-v1-MessageAssetUrl"></a>
 
@@ -435,6 +436,17 @@ One transcoded video rendition.
 | `height` | `int32` | Video height in pixels. |
 | `size` | `int64` | Rendition size in bytes. |
 | `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the rendition. |
+
+<a id="chatto-api-v1-MessageViewerState"></a>
+
+### MessageViewerState
+
+Viewer-specific capabilities for one message, independent of whether its
+canonical thread has been established.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `can_reply_in_thread` | `optional bool` | Whether the viewer can reply in this message's canonical thread, including starting the first reply to a root. Includes read access, room policy, and broad or interaction-scoped posting authority. Absent when not resolved. |
 
 <a id="chatto-api-v1-ThreadSummary"></a>
 
@@ -1028,12 +1040,29 @@ Safe summary of one recorded outbound webhook failure.
 
 ### MessageSearchResult
 
-One current, authorized message search result.
+One current, authorized match. With thread grouping, each result represents
+one thread and message is its best match in the selected order.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
 | `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
+| `thread_context` | [`ThreadSearchContext`](#chatto-api-v1-ThreadSearchContext) | Present only with THREAD grouping. The matching message can be a reply; the root and latest reply in this context need not match the query. |
+
+<a id="chatto-api-v1-ThreadSearchContext"></a>
+
+### ThreadSearchContext
+
+Current context for a grouped match. The viewer need not follow this thread.
+Search evidence stays on the containing MessageSearchResult.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when still visible. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing this thread. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Current thread metadata and viewer follow/read state. |
+| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when present; it need not match the query. |
+| `direct_message_participant_user_ids` | `repeated string` | Conversation-label participants for direct messages; empty for channels. |
 
 <a id="chatto-api-v1-MessageAttachmentDescriptionInput"></a>
 
@@ -2016,17 +2045,40 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
 
+<a id="chatto-api-v1-MessageSearchGroupBy"></a>
+
+### MessageSearchGroupBy
+
+Determines the result type and pagination unit.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_GROUP_BY_UNSPECIFIED` | `0` | Return individual matching messages. |
+| `MESSAGE_SEARCH_GROUP_BY_THREAD` | `1` | Return distinct thread rows. A root without replies is also a thread. |
+
 <a id="chatto-api-v1-MessageSearchOrder"></a>
 
 ### MessageSearchOrder
 
-Ordering for message-search results.
+Ordering for message or grouped-thread search results.
 
 | Name | Number | Description |
 | --- | --- | --- |
 | `MESSAGE_SEARCH_ORDER_UNSPECIFIED` | `0` | Use relevance order. |
-| `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Return the most relevant messages first. |
-| `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Return the most recently created messages first. |
+| `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Highest message score first; grouped results use their best matching message. |
+| `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Newest matching message first, also when results are grouped. |
+| `MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY` | `3` | Return threads with the most recent activity first. Requires thread grouping. |
+
+<a id="chatto-api-v1-MessageSearchScope"></a>
+
+### MessageSearchScope
+
+Candidate scope, intersected with the caller's current access and query filters.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_SCOPE_UNSPECIFIED` | `0` | Search all accessible messages. This is the existing default. |
+| `MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS` | `1` | Search roots and replies in followed threads, including direct messages. |
 
 <a id="chatto-api-v1-MessageSearchState"></a>
 

@@ -2,7 +2,8 @@
 @component
 Application content boundary. Desktop content appears raised in light mode and
 recessed in dark mode. The shared overlay does not intercept pointer input.
-Mobile content stays edge-to-edge.
+Narrow touch-capable windows keep content edge-to-edge. Mouse windows keep the
+frame at every width. Pane and navigation layouts still depend on available space.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -17,7 +18,8 @@ Mobile content stays edge-to-edge.
 </script>
 
 <div
-  class="flex min-h-0 flex-1 bg-background transition-opacity duration-300 md:app-frame-inset md:overflow-hidden md:rounded-2xl {className}"
+  data-testid="app-frame"
+  class="flex min-h-0 flex-1 bg-background transition-opacity duration-300 desktop-presentation:app-frame-inset desktop-presentation:overflow-hidden desktop-presentation:rounded-2xl {className}"
 >
   {@render children()}
 </div>

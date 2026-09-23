@@ -62,16 +62,12 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	isBot := options.isBot
+	if err := ValidateLogin(login); err != nil {
+		return nil, err
+	}
 	if isBot {
-		if err := ValidateBotLogin(login); err != nil {
-			return nil, err
-		}
 		if strings.TrimSpace(options.botOwnerID) == "" || password != "" || options.verifiedEmail != "" || options.external != nil || options.invitationID != "" {
 			return nil, ErrInvalidArgument
-		}
-	} else {
-		if err := ValidateHumanLogin(login); err != nil {
-			return nil, err
 		}
 	}
 

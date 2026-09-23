@@ -58,13 +58,15 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		});
 		const popupPromise = page.waitForEvent('popup');
 		await page.getByRole('button', { name: 'Join', exact: true }).click();
-		const remoteAuthPage = await popupPromise;
+		let remoteAuthPage = await popupPromise;
 
 		// 4. The popup should land on the remote instance's OAuth login page.
 		// The flow: redirect to remote's /oauth/authorize → /login?redirect=/oauth/authorize
 		const identifierInput = remoteAuthPage.locator('input[autocomplete="username"]');
 		await expect(identifierInput).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 		await expect(remoteAuthPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/);
+		await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+		await expect(remoteAuthPage.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
 
 		// 5. Fill in credentials for the remote user
 		await identifierInput.fill('remoteuser');
@@ -80,7 +82,21 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
 		await expect(remoteAuthPage.getByText(/^localhost:\d+$/)).toBeVisible();
+		await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+		await expect(remoteAuthPage.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
 		await expect(remoteAuthPage.getByText(/instances\/callback/)).toHaveCount(0);
+
+		// Cancel once, then retry with the retained remote login session.
+		const cancelledPopupClosed = remoteAuthPage.waitForEvent('close');
+		await remoteAuthPage.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await cancelledPopupClosed;
+		await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeEnabled();
+		const retryPopupPromise = page.waitForEvent('popup');
+		await page.getByRole('button', { name: 'Join', exact: true }).click();
+		remoteAuthPage = await retryPopupPromise;
+		await expect(remoteAuthPage.getByRole('button', { name: 'Allow Access' })).toBeVisible();
+		await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+
 		const popupClosed = remoteAuthPage.waitForEvent('close');
 		await remoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
 		await popupClosed;

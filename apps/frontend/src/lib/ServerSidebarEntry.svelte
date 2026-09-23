@@ -21,6 +21,8 @@
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
   import { toast } from '$lib/ui/toast';
+  import { onMount } from 'svelte';
+  import { loadSavedView } from '$lib/storage/savedViews';
 
   let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
     $props();
@@ -31,6 +33,12 @@
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const stores = serverRegistry.getStore(serverId);
+  onMount(() => {
+    const userId = serverRegistry.getServer(serverId)?.userId ?? null;
+    void loadSavedView(serverId, userId).then((view) => {
+      if (view && serverRegistry.getServer(serverId)?.userId === userId) stores.restoreSavedView(view);
+    });
+  });
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const appUi = getAppUiState();
@@ -72,7 +80,10 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
-  const needsSignIn = $derived(!setupRequired && !stores.isAuthenticated);
+  const needsSignIn = $derived(
+    !setupRequired && !stores.isAuthenticated && !stores.savedView &&
+    (!registeredServer?.token || needsReauth)
+  );
   const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
   const compatibility = $derived(stores.serverInfo.compatibility);
   const compatibilityMessage = $derived.by(() => {
@@ -88,7 +99,13 @@
     }
   });
   const compatibilityWarning = $derived(compatibility.status !== 'supported');
+  const gutterWarning = $derived(compatibilityWarning || serverConnection.showConnectionLostIcon);
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
+  const connectionWarningMessage = $derived(
+    serverConnection.showConnectionLostIcon && !serverUnavailable
+      ? m('chat.server_gutter.connection_unavailable')
+      : null
+  );
   const recoveryNeeded = $derived(serverUnavailable || serverRegistry.needsRecovery(serverId));
   const serverActionsAvailable = $derived(
     stores.isAuthenticated &&
@@ -96,14 +113,16 @@
       compatibility.status === 'supported' &&
       !serverConnection.showConnectionLostIcon
   );
-  const iconDimmed = $derived(signInRequired || !loaded || serverConnection.showConnectionLostIcon);
+  const iconDimmed = $derived(
+    !privateDataLoaded && (signInRequired || !loaded || serverConnection.showConnectionLostIcon)
+  );
   const iconTitle = $derived(
     signInRequired
       ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
       : compatibilityWarning && compatibilityMessage
         ? `${iconServer.name} — ${compatibilityMessage}`
-        : iconDimmed
-          ? `${iconServer.name} (connection unavailable)`
+        : connectionWarningMessage
+          ? `${iconServer.name} — ${connectionWarningMessage}`
           : iconServer.name
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
@@ -146,7 +165,7 @@
   }
 
   async function handleServerClick(event: MouseEvent): Promise<void> {
-    if (recoveryNeeded) {
+    if (recoveryNeeded && !stores.savedView) {
       event.preventDefault();
       await serverRegistry.recoverServer(serverId);
       if (stores.isAuthenticated && stores.serverInfo.compatibility.status === 'supported') {
@@ -154,7 +173,7 @@
       }
       return;
     }
-    if (!needsSignIn) return;
+    if (!needsSignIn || stores.savedView) return;
     event.preventDefault();
     if (signingIn || !registeredServer) return;
 
@@ -237,7 +256,7 @@
   title={iconTitle}
   dimmed={iconDimmed}
   {signInRequired}
-  {compatibilityWarning}
+  compatibilityWarning={gutterWarning}
 />
 
 {#if contextMenu}
@@ -278,6 +297,16 @@
           </span>
         {/if}
       </div>
+      {#if signInRequired}
+        <div
+          class="mt-1 flex items-start gap-1.5 whitespace-normal text-warning"
+          data-testid="server-sign-in-message"
+        >
+          <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
+          ></span>
+          <span>{m('ui.auth_status.sidebar_reauth', { server: iconServer.name })}</span>
+        </div>
+      {/if}
       {#if compatibilityMessage && !serverUnavailable}
         <div
           class={[
@@ -291,6 +320,16 @@
             ></span>
           {/if}
           <span>{compatibilityMessage}</span>
+        </div>
+      {/if}
+      {#if connectionWarningMessage}
+        <div
+          class="mt-1 flex items-start gap-1.5 whitespace-normal text-warning"
+          data-testid="server-connection-message"
+        >
+          <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
+          ></span>
+          <span>{connectionWarningMessage}</span>
         </div>
       {/if}
     </div>

@@ -230,6 +230,12 @@
         "grey": "Šedá",
         "preview": "Náhled"
       },
+      "contrast": {
+        "label": "Kontrast",
+        "softer": "jemnější kontrast",
+        "current": "současný kontrast",
+        "stronger": "výraznější kontrast"
+      },
       "depth": {
         "title": "Styl rozhraní",
         "flat": "Plochý",
@@ -492,7 +498,6 @@
       "create_failed": "Nepodařilo se vytvořit robota",
       "created": "Robot vytvořen",
       "username": "Uživatelské jméno",
-      "username_hint": "Uživatelská jména robotů musí končit _bot.",
       "display_name": "Zobrazovaný název",
       "owner": "Vlastník",
       "reassign_owner": "Změnit vlastníka",

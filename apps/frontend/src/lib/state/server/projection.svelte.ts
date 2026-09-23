@@ -1,5 +1,6 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { UserStore } from './users.svelte';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import type { RoomGroup, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
@@ -18,13 +19,14 @@ export class ServerProjectionStore {
   server = $state.raw<ServerPublicProfile | null>(null);
   serverState = $state.raw<ProjectedServerState | null>(null);
   viewer = $state.raw<GetViewerResponse | null>(null);
-  users = new SvelteMap<string, DirectoryMember>();
+  /** Shared profile owner, also hydrated by room and timeline reads. */
+  constructor(readonly users = new UserStore()) {}
   rooms = new SvelteMap<string, RoomWithViewerState>();
   roomGroups = $state.raw<RoomGroup[]>([]);
   activeCalls = $state.raw<ActiveCall[]>([]);
 
   apply(update: RealtimeProjectionUpdate): void {
-    if (update.reset) this.reset({ preserveViewer: !update.privacyReset });
+    if (update.reset && !update.retainView) this.reset({ preserveViewer: !update.privacyReset });
     const chunk = update.resource;
     if (chunk) {
       switch (chunk.case) {
@@ -42,6 +44,12 @@ export class ServerProjectionStore {
           break;
         case 'viewer':
           this.viewer = chunk.value;
+          if (chunk.value.user?.profile?.id) {
+            const profile = chunk.value.user.profile;
+            const member = this.users.get(profile.id)?.clone() ?? new DirectoryMember();
+            member.user = profile;
+            this.users.set(profile.id, member);
+          }
           break;
         case 'users': {
           if (update.replaceResource) this.users.clear();

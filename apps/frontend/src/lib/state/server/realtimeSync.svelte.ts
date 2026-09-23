@@ -22,6 +22,10 @@ type CatchUpWaiter = {
 export class RealtimeProjectionSyncState {
   phase = $state<RealtimeProjectionPhase>('empty');
   lastCaughtUpAt = $state<number | null>(null);
+  /** Keep mounted UI during a warm snapshot, without authorizing private data. */
+  isRecoveringSnapshot = $state(false);
+  /** Whether the visible projection came from saved device data and still lacks a verified replacement. */
+  restoredFromDisk = $state(false);
   #resumeCursor = $state<string | null>(null);
   #authorizationRefreshGeneration = 0;
   #completedAuthorizationRefreshGeneration = 0;
@@ -55,6 +59,7 @@ export class RealtimeProjectionSyncState {
   /** Advance only after every resource and event reducer accepted the frame. */
   acceptProjectionEvent(cursor: string | undefined, reset: boolean): void {
     if (reset) {
+      this.isRecoveringSnapshot = this.isRecoveringSnapshot || this.hasUsableProjection;
       this.phase = 'hydrating';
       this.#resumeCursor = null;
     }
@@ -69,6 +74,8 @@ export class RealtimeProjectionSyncState {
     );
     const authorizationCurrent = !this.authorizationRefreshRequired;
     this.phase = authorizationCurrent ? 'ready' : 'stale';
+    this.restoredFromDisk = false;
+    this.isRecoveringSnapshot = false;
     this.lastCaughtUpAt = authorizationCurrent ? Date.now() : null;
     this.#caughtUpGeneration++;
     for (const waiter of this.#catchUpWaiters) {
@@ -114,6 +121,15 @@ export class RealtimeProjectionSyncState {
     if (this.phase === 'ready') this.phase = 'stale';
   }
 
+  /** A disk view is readable but has no live cursor or successful sync time. */
+  restoreSavedProjection(): void {
+    if (this.phase !== 'empty') return;
+    this.phase = 'stale';
+    this.restoredFromDisk = true;
+    this.lastCaughtUpAt = null;
+    this.#resumeCursor = null;
+  }
+
   /** Keep mounted state while the next transport refreshes effective permissions. */
   invalidateAuthorization(): number {
     this.markStale();
@@ -126,6 +142,8 @@ export class RealtimeProjectionSyncState {
   reset(): void {
     this.resetGeneration++;
     this.phase = 'empty';
+    this.restoredFromDisk = false;
+    this.isRecoveringSnapshot = false;
     this.lastCaughtUpAt = null;
     this.#resumeCursor = null;
     this.#authorizationRefreshGeneration = 0;

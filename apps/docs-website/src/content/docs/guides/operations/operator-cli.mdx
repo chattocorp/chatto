@@ -1,11 +1,11 @@
 ---
 title: Operator CLI
-description: Create and recover accounts with the local chatto operator CLI.
+description: Manage accounts, channel rooms, and attachment uploads with the local chatto operator CLI.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-`chatto operator` provides local, root-equivalent account administration. Use it to create the first account on a server, recover access, or automate user administration when the in-app Server Admin interface is unavailable or unsuitable.
+`chatto operator` provides local, root-equivalent account administration, channel room management, and attachment upload. Use it to create the first account on a server, recover access, or manage channels and files from a script.
 
 The CLI talks to the running Chatto server over a Unix socket. It does not connect directly to NATS and does not use a Chatto login, bearer token, cookie, or RBAC role.
 
@@ -79,14 +79,18 @@ When the command is not attached to a terminal and you provide no password optio
 
 ## Find and inspect users
 
-List users before running a command that requires `USER_ID`:
+List users or inspect one account:
 
 ```sh
 chatto operator user list
 chatto operator user list --search alice
 chatto operator user list --search alice@example.com
 chatto operator user get USER_ID
+chatto operator user get --login alice
+chatto operator user get --email alice@example.com
 ```
+
+Use `user get --login` or `user get --email` to find one account by its exact login or verified email address. A script can use either command to recover a user ID after an interrupted run. Supply exactly one selector: `USER_ID`, `--login`, or `--email`.
 
 Search matches logins and display names, or an exact verified email address. `list` returns 20 users by default and supports offset pagination:
 
@@ -96,6 +100,84 @@ chatto operator user list --limit 100 --offset 100
 ```
 
 The maximum limit is 100. Human-readable output ends with `total` and `has_more` values so you can tell whether another page exists.
+
+## Find channel rooms
+
+List channel rooms, including archived rooms:
+
+```sh
+chatto operator room list
+chatto operator room list --name general
+chatto operator room list --name general --json
+```
+
+`--name` matches the exact stored channel name. If more than one room has that name, the command returns each room with its own ID. Results include the room ID, name, group ID, description, and archived state. Use the ID to identify a room in later commands.
+
+The command returns 20 rooms by default. Use `--limit` and `--offset` to read more, up to 100 rooms per page:
+
+```sh
+chatto operator room list --limit 100 --offset 0
+chatto operator room list --limit 100 --offset 100
+```
+
+Rooms appear in room ID order. Human-readable output ends with `total` and `has_more`. Pages are live reads, so room changes between requests can shift offsets. You can repeat the command safely.
+
+## Create a channel room
+
+Create a channel in the first room group, or select a group by ID:
+
+```sh
+chatto operator room create --name "project-chat" --description "Project discussion"
+chatto operator room create --name "team-chat" --group-id GROUP_ID
+```
+
+The command returns the room ID, name, group ID, archived state, and description. Use `--json` when a script needs the full response. Chatto checks the name and description as it does for rooms created in the app.
+
+An import script can save the returned Chatto room ID alongside its source room ID. If the response is lost, use `room list --name` to find the room before creating it again. A repeated create request with the same name returns a conflict.
+
+## Add a channel room member
+
+Add an existing user to a channel room by Chatto ID:
+
+```sh
+chatto operator room member add --room-id ROOM_ID --user-id USER_ID
+```
+
+The command returns both IDs. Use `--json` to get the member record. Repeating the command for a current member succeeds without adding a second membership. Chatto rejects missing users or rooms, DM rooms, archived rooms, universal rooms, and users with an active room ban.
+
+## Upload a local attachment
+
+Upload a file for an existing Chatto user and channel room:
+
+```sh
+chatto operator asset upload \
+  --room-id ROOM_ID \
+  --author-id USER_ID \
+  --file /path/to/exported-image.png
+```
+
+The command prints the completed asset ID. Add `--json` to get an `assetId` field for a script. The file basename becomes the stored filename. Chatto infers the MIME type from that name. Use `--filename NAME` or `--content-type TYPE` to override either value. If you run the CLI inside Docker, `--file` must name a file inside that container.
+
+The command reads only the local file. It does not fetch a URL from the export. Chatto applies its normal attachment size limits and media processing. It stores the bytes in its configured NATS or S3 asset backend. If you use S3, the storage provider receives the file bytes and the server's IP address. The asset belongs to the selected author; the upload action is recorded as a system action. The author does not need a session or file-attachment permission for this operator command. The room must be an active channel.
+
+If an upload command returns an error, it attempts to cancel the incomplete upload. If the process stops or cannot reach the server, server cleanup removes abandoned chunks after expiry. A completed asset remains pending until a message attaches it; Chatto removes an unattached pending asset after 24 hours. Running the command again can create a different asset ID, so an import script should save each returned ID. The CLI reports only an asset ID; a later message command attaches it.
+
+## Import a historical message
+
+Import one message for an existing Chatto user and channel room:
+
+```sh
+chatto operator message import \
+  --room-id ROOM_ID --author-id USER_ID \
+  --created-at 2022-08-18T11:11:11.147Z \
+  --body-file /path/to/exported-message.txt
+```
+
+The command prints the new Chatto message ID. Use `--json` to read `messageId` in a script. Supply text with `--body`, `--body-file`, or `--body-stdin`. Use only one of these flags. A message can omit text when it has at least one `--attachment-asset-id ASSET_ID` flag. Repeat that flag for more attachments.
+
+Use `--edited-at RFC3339` to preserve the last edit time. Use `--in-reply-to CHATTO_MESSAGE_ID` to refer to an existing message in the same room. A reply reference does not create a Chatto thread. To preserve an exported preview, use `--preview-url URL` with optional `--preview-title`, `--preview-description`, and `--preview-type` fields. The URL must use HTTP or HTTPS. Chatto stores these values without fetching the URL.
+
+The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. Update all server replicas before you start an import so each replica recognizes historical messages. The command does not require a user session or room membership. Each successful call creates a new message. Save the returned ID in your import script so a retry does not create a duplicate.
 
 ## Update a user
 
@@ -136,6 +218,16 @@ chatto operator user set-password USER_ID \
 ```
 
 The new password cannot be empty. Setting a password does not require the previous password.
+
+## Clear a username-change cooldown
+
+Allow a user to change their username again after a recent self-service change:
+
+```sh
+chatto operator user clear-username-cooldown USER_ID
+```
+
+The command does not change the user's current username. It clears the 30-day wait before the user's next self-service change. Use `--json` to get a `cleared` result for a script.
 
 ## Manage roles
 

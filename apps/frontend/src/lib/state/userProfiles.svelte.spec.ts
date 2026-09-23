@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { scheduleCustomStatusExpiry } from './userProfiles.svelte';
+import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 
 describe('custom status expiry scheduling', () => {
   afterEach(() => {

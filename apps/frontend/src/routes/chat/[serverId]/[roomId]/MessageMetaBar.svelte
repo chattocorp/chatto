@@ -9,6 +9,7 @@ context-menu, and touch surfaces. Thread navigation and tooltip state remain
 local to the footer.
 -->
 <script lang="ts">
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { on } from 'svelte/events';
   import type { MessagePostedPayload } from '$lib/render/timelineEvents';
@@ -85,15 +86,13 @@ local to the footer.
   let unpinning = $state(false);
   const REACTION_TOOLTIP_USER_LIMIT = 5;
   function reactionTooltipUsers(reaction: ReactionSummary): {
-    names: string[];
+    users: ReactionSummary['users'];
     remaining: number;
   } {
-    const names = reaction.users
-      .slice(0, REACTION_TOOLTIP_USER_LIMIT)
-      .map((user) => user.displayName);
+    const users = reaction.users.slice(0, REACTION_TOOLTIP_USER_LIMIT);
     return {
-      names,
-      remaining: Math.max(0, reaction.count - names.length)
+      users,
+      remaining: Math.max(0, reaction.count - users.length)
     };
   }
 
@@ -363,8 +362,8 @@ local to the footer.
     <div class="flex min-w-0 flex-col gap-1 menu-section px-3 py-2 text-xs">
       <strong class="font-semibold">{getEmojiDisplayName(tooltipReaction.emoji)}</strong>
       <span class="flex min-w-0 flex-col gap-0.5 text-muted">
-        {#each tooltipUsers.names as name (name)}
-          <span class="break-words" data-testid="reaction-tooltip-user">{name}</span>
+        {#each tooltipUsers.users as user (user.id)}
+          <span class="break-words" data-testid="reaction-tooltip-user"><AccountName name={user.displayName} identity={user} /></span>
         {/each}
         {#if tooltipUsers.remaining > 0}
           <span class="text-muted/80">

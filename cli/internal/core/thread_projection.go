@@ -37,6 +37,41 @@ type threadFollowRef struct {
 	threadRootEventID string
 }
 
+// threadFollowStateKey avoids allocating a joined user/room/thread string for
+// every follow fact. The three IDs already live in the event-derived indexes.
+type threadFollowStateKey struct {
+	userID string
+	threadFollowRef
+}
+
+type compactThreadFollowState uint8
+
+const (
+	compactThreadFollowNone compactThreadFollowState = iota
+	compactThreadFollowFollowing
+	compactThreadFollowUnfollowed
+)
+
+func compactFollowState(state ThreadFollowState) compactThreadFollowState {
+	if state == ThreadFollowStateFollowing {
+		return compactThreadFollowFollowing
+	}
+	if state == ThreadFollowStateUnfollowed {
+		return compactThreadFollowUnfollowed
+	}
+	return compactThreadFollowNone
+}
+
+func (state compactThreadFollowState) public() ThreadFollowState {
+	if state == compactThreadFollowFollowing {
+		return ThreadFollowStateFollowing
+	}
+	if state == compactThreadFollowUnfollowed {
+		return ThreadFollowStateUnfollowed
+	}
+	return ThreadFollowStateNone
+}
+
 // ThreadInteractionCauseKind identifies the durable fact that established one
 // account's relationship with a channel-room or DM thread.
 type ThreadInteractionCauseKind string
@@ -111,9 +146,9 @@ type ThreadProjection struct {
 	interactions    map[string]map[string]*projectedThreadInteraction
 	replySummaries  map[string]*threadReplySummary
 	summaryByThread map[string]*threadSummary
-	followState     map[string]ThreadFollowState
-	followers       map[string]map[string]struct{}
-	followedByUser  map[string]map[string]threadFollowRef
+	followState     map[threadFollowStateKey]compactThreadFollowState
+	followers       map[threadFollowRef]map[string]struct{}
+	followedByUser  map[string]map[threadFollowRef]struct{}
 	replayGuard     projectionReplayGuard
 	shreddedUsers   map[string]struct{}
 }
@@ -129,9 +164,9 @@ func NewThreadProjection() *ThreadProjection {
 		interactions:    make(map[string]map[string]*projectedThreadInteraction),
 		replySummaries:  make(map[string]*threadReplySummary),
 		summaryByThread: make(map[string]*threadSummary),
-		followState:     make(map[string]ThreadFollowState),
-		followers:       make(map[string]map[string]struct{}),
-		followedByUser:  make(map[string]map[string]threadFollowRef),
+		followState:     make(map[threadFollowStateKey]compactThreadFollowState),
+		followers:       make(map[threadFollowRef]map[string]struct{}),
+		followedByUser:  make(map[string]map[threadFollowRef]struct{}),
 		replayGuard:     newProjectionReplayGuard(),
 		shreddedUsers:   make(map[string]struct{}),
 	}
@@ -345,6 +380,9 @@ func (p *ThreadProjection) applyMessageInteractionStateLocked(event *evtv1.Event
 		rootID = event.GetId()
 	}
 	p.messageThreads[event.GetId()] = threadMessageRef{roomID: message.GetRoomId(), threadRootEventID: rootID}
+	if message.GetHistoricalImport() {
+		return
+	}
 
 	// Either echo field identifies derived channel-echo state. Malformed or
 	// partially upgraded echo facts must not create interaction causes.
@@ -444,14 +482,15 @@ func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRoot
 	if userID == "" || roomID == "" || threadRootEventID == "" {
 		return
 	}
-	key := threadFollowKeyPart(roomID, threadRootEventID)
-	stateKey := userID + "\x00" + key
+	key := threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}
+	stateKey := threadFollowStateKey{userID: userID, threadFollowRef: key}
 	previous := p.followState[stateKey]
-	if previous == state {
+	compactState := compactFollowState(state)
+	if previous == compactState {
 		return
 	}
 
-	if previous == ThreadFollowStateFollowing {
+	if previous == compactThreadFollowFollowing {
 		if followers := p.followers[key]; followers != nil {
 			delete(followers, userID)
 			if len(followers) == 0 {
@@ -466,7 +505,7 @@ func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRoot
 		}
 	}
 
-	p.followState[stateKey] = state
+	p.followState[stateKey] = compactState
 
 	if state == ThreadFollowStateFollowing {
 		followers := p.followers[key]
@@ -478,10 +517,10 @@ func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRoot
 
 		followed := p.followedByUser[userID]
 		if followed == nil {
-			followed = make(map[string]threadFollowRef)
+			followed = make(map[threadFollowRef]struct{})
 			p.followedByUser[userID] = followed
 		}
-		followed[key] = threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}
+		followed[key] = struct{}{}
 	}
 }
 
@@ -607,13 +646,13 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 func (p *ThreadProjection) FollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
 	p.RLock()
 	defer p.RUnlock()
-	return p.followState[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)]
+	return p.followState[threadFollowStateKey{userID: userID, threadFollowRef: threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}}].public()
 }
 
 func (p *ThreadProjection) ThreadFollowers(roomID, threadRootEventID string) []string {
 	p.RLock()
 	defer p.RUnlock()
-	followers := p.followers[threadFollowKeyPart(roomID, threadRootEventID)]
+	followers := p.followers[threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}]
 	if len(followers) == 0 {
 		return nil
 	}
@@ -632,7 +671,7 @@ func (p *ThreadProjection) FollowedThreadsForUser(userID string) []threadFollowR
 		return nil
 	}
 	refs := make([]threadFollowRef, 0, len(followed))
-	for _, ref := range followed {
+	for ref := range followed {
 		refs = append(refs, ref)
 	}
 	return refs

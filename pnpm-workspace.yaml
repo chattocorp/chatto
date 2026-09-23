@@ -13,4 +13,4 @@ allowBuilds:
   protobufjs: false
 
 minimumReleaseAgeExclude:
-  - runling@0.6.0
+  - virtua@0.52.1
