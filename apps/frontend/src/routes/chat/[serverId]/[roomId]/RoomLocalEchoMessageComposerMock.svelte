@@ -6,14 +6,12 @@
     inReplyTo,
     showCreateThread = false,
     createThreadRequired = false,
-    onMessageSent,
-    onThreadCreated
+    onMessageSent
   }: {
     inReplyTo?: string;
     showCreateThread?: boolean;
     createThreadRequired?: boolean;
     onMessageSent?: (event: TimelineEventView | null) => void;
-    onThreadCreated?: (threadRootEventId: string) => void;
   } = $props();
 
   const composerContext = getComposerContext();
@@ -41,6 +39,11 @@
       threadParticipants: [],
       viewerIsFollowingThread: true
     }
+  } as TimelineEventView;
+
+  const returnedThreadPost = {
+    ...returnedPost,
+    event: { ...returnedPost.event, threadExists: true }
   } as TimelineEventView;
 
   const returnedEcho = {
@@ -75,10 +78,7 @@
 
 <button
   data-testid="emit-created-thread"
-  onclick={() => {
-    onMessageSent?.(returnedPost);
-    onThreadCreated?.(returnedPost.id);
-  }}
+  onclick={() => onMessageSent?.(returnedThreadPost)}
 >
   emit created thread
 </button>

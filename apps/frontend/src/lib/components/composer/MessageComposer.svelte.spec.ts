@@ -3490,14 +3490,12 @@ describe('MessageComposer', () => {
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });
 
-    it('reports the root ID after a room-level post creates a thread', async () => {
+    it('sends a new thread root through the normal message success callback', async () => {
       const onMessageSent = vi.fn();
-      const onThreadCreated = vi.fn();
       const { container, roomId } = renderMessageComposer({
         roomId: 'room_456',
         showCreateThread: true,
-        onMessageSent,
-        onThreadCreated
+        onMessageSent
       });
       const editor = await findEditor(container);
       const threadToggle = q(container, 'button[aria-label="Post as thread"]') as HTMLButtonElement;
@@ -3523,7 +3521,6 @@ describe('MessageComposer', () => {
       });
       await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
       expect(onMessageSent).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg_123' }));
-      expect(onThreadCreated).toHaveBeenCalledWith('msg_123');
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
     });
 
@@ -3642,10 +3639,12 @@ describe('MessageComposer', () => {
     });
 
     it('keeps Required thread creation visible, locked on, and reactive to policy changes', async () => {
+      const onMessageSent = vi.fn();
       const rendered = renderMessageComposer({
         roomId: 'room_456',
         showCreateThread: true,
-        createThreadRequired: false
+        createThreadRequired: false,
+        onMessageSent
       });
       const editor = await findEditor(rendered.container);
       const threadToggle = q(
@@ -3668,6 +3667,7 @@ describe('MessageComposer', () => {
         body: 'required thread root',
         createThread: true
       });
+      await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
 
       await rendered.rerender({ createThreadRequired: false });
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');

@@ -85,7 +85,7 @@ async function postMessagesForSetupViaConnect(
 }
 
 test.describe('Message Threading', () => {
-  test('root author can post an empty thread without leaving the room', async ({
+  test('root author stays in the room after posting an empty thread', async ({
     page,
     chatPage,
     roomPage
@@ -100,12 +100,16 @@ test.describe('Message Threading', () => {
     await roomPage.messageInput.fill(rootMessage);
     await roomPage.messageInput.press('Control+Enter');
 
-    await roomPage.expectThreadPaneVisible();
-    await roomPage.expectThreadRouteActive();
+    await roomPage.expectThreadRouteClosed();
+    await expect(roomPage.threadPane).not.toBeVisible();
     const root = roomPage.getMessage(rootMessage);
-    await expect(root.locator.getByRole('link', { name: 'Thread' })).toBeVisible();
+    const threadLink = root.locator.getByRole('link', { name: 'Thread' });
+    await expect(threadLink).toBeVisible();
     await root.expectFollowingThread();
 
+    await threadLink.click();
+    await roomPage.expectThreadRouteActive();
+    await roomPage.expectThreadPaneVisible();
     await roomPage.expectTextInThreadPane(rootMessage);
     await roomPage.expectThreadPaneFollowing();
   });
@@ -124,10 +128,11 @@ test.describe('Message Threading', () => {
     await page.getByRole('button', { name: 'Post as thread' }).click();
     await roomPage.messageInput.fill(rootMessage);
     await roomPage.messageInput.press('Control+Enter');
-    await roomPage.expectThreadPaneVisible();
-    await roomPage.expectTextInThreadPane(rootMessage);
-    await roomPage.closeThread();
     await roomPage.expectThreadRouteClosed();
+    await expect(roomPage.threadPane).not.toBeVisible();
+    await expect(
+      roomPage.getMessage(rootMessage).locator.getByRole('link', { name: 'Thread' })
+    ).toBeVisible();
 
     const followup = `Recent follow-up ${Date.now()}`;
     await roomPage.messageInput.fill(followup);
