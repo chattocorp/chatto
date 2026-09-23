@@ -4,15 +4,20 @@
   import { sample } from "$lib/sample.ts";
   import { submitFormShortcut } from "$lib/form-shortcut.ts";
   let {
-    webhook,
+    webhooks,
+    initialWebhook,
     onclose,
     onstarted,
   }: {
-    webhook: WebhookInfo;
+    webhooks: WebhookInfo[];
+    initialWebhook: string;
     onclose: () => void;
     onstarted: (id: string) => void;
   } = $props();
+  let webhookName = $state("");
+  let webhook = $derived(webhooks.find((item) => item.name === webhookName) ?? webhooks[0]!);
   let dialog: HTMLDialogElement;
+  let form: HTMLFormElement;
   let body = $state("");
   let pending = $state(false);
   let error = $state("");
@@ -22,10 +27,22 @@
   let origin = $state("");
   let copied = $state(false);
   onMount(() => {
-    body = JSON.stringify(sample(webhook.input), null, 2);
+    const initial = webhooks.find((item) => item.name === initialWebhook) ?? webhooks[0]!;
+    webhookName = initial.name;
+    body = JSON.stringify(sample(initial.input), null, 2);
     origin = location.origin;
     dialog.showModal();
   });
+  function selectWebhook(name: string) {
+    webhookName = name;
+    const selected = webhooks.find((item) => item.name === name);
+    if (!selected) return;
+    body = JSON.stringify(sample(selected.input), null, 2);
+    error = "";
+    notice = "";
+    startedRuns = [];
+    copied = false;
+  }
   async function start(event: SubmitEvent) {
     event.preventDefault();
     if (pending) return;
@@ -85,7 +102,12 @@
         "Could not copy the URL. Select and copy it from the address below.";
     }
   }
+  function handleShortcut(event: KeyboardEvent) {
+    if (dialog?.contains(event.target as Node)) submitFormShortcut(event, pending, form);
+  }
 </script>
+
+<svelte:window onkeydown={handleShortcut} />
 
 <dialog
   class="modal modal-middle"
@@ -96,16 +118,19 @@
   <div class="modal-box w-11/12 max-w-2xl p-0">
     <div class="flex justify-between items-center px-6 pt-6 pb-4">
       <div>
-        <p class="text-base-content/60 text-xs mt-0 mr-0 mb-2 ml-0">New run</p>
-        <h2 class="m-0 text-2xl font-medium" id="composer-title">
-          {webhook.workflow}
-        </h2>
+        <h2 class="m-0 text-2xl font-medium" id="composer-title">New run</h2>
       </div>
       <button
         class="btn btn-ghost btn-sm"
         onclick={() => dialog.close()}
         aria-label="Close new run">×</button
       >
+    </div>
+    <div class="mx-6 mb-4">
+      <label class="label mb-1 text-sm font-medium" for="new-run-webhook">Webhook</label>
+      <select id="new-run-webhook" class="select w-full" value={webhookName} disabled={pending} onchange={(event) => selectWebhook(event.currentTarget.value)}>
+        {#each webhooks as item (item.name)}<option value={item.name}>{item.workflow} ({item.name})</option>{/each}
+      </select>
     </div>
     <div class="mx-6 flex items-center gap-2.5 bg-base-200 p-3 rounded-md">
       <code class="font-mono flex-1 wrap-anywhere text-xs"
@@ -114,8 +139,7 @@
         >{copied ? "Copied" : "Copy URL"}</button
       >
     </div>
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Handles the submit shortcut from focused form controls.) -->
-    <form class="p-6" onsubmit={start} onkeydown={(event) => submitFormShortcut(event, pending)}>
+    <form class="p-6" bind:this={form} onsubmit={start}>
       <label class="label mb-2 font-medium text-sm" for="request-body">Request body</label>
       <p class="text-xs text-base-content/60 leading-relaxed">
         Edit the sample request. The schema below defines the accepted values.

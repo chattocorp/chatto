@@ -15,8 +15,8 @@
       <h2 class="text-sm font-medium">{run.status === "running" ? "Waiting for output" : "No output returned"}</h2>
       <p class="text-xs leading-relaxed text-base-content/60">
         {run.status === "running"
-          ? "The result will appear here when the workflow finishes. Follow its progress in Timeline or Logs."
-          : "This run did not return a result. Check Timeline or Logs for activity details."}
+          ? "The result will appear here when the workflow finishes. Follow its progress in Log or Timeline."
+          : "This run did not return a result. Check Log or Timeline for activity details."}
       </p>
     </div>
   </section>

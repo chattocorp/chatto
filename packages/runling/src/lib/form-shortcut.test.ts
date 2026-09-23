@@ -37,3 +37,10 @@ test("does not submit again while a request is pending", () => {
   expect(key.preventDefault).toHaveBeenCalledOnce();
   expect((key.currentTarget as HTMLFormElement).requestSubmit).not.toHaveBeenCalled();
 });
+
+test("submits an explicit form when the listener is on the window", () => {
+  const key = event({ currentTarget: {} as Window });
+  const form = { requestSubmit: vi.fn() } as unknown as HTMLFormElement;
+  submitFormShortcut(key, false, form);
+  expect(form.requestSubmit).toHaveBeenCalledOnce();
+});

@@ -66,10 +66,11 @@ are ignored before routing, including DMs, mentions, follow-ups, and `/cancel`.
 They do not start runs or trigger reactions. This filters incoming requests;
 thread history loaded for an allowed request can still include other participants.
 
-The development task builds workspace dependencies before starting Runling's
-public CLI. Runling watches this package's configuration and workflow files.
-After dependencies are built, `mise x -- pnpm --dir packages/chattobot dev`
-starts the same server. The package is private and has no npm release workflow.
+The development and start commands build workspace dependencies before they
+start Runling's public CLI. Runling watches this package's configuration and
+workflow files during development. From the repository root,
+`mise x -- pnpm --dir packages/chattobot dev` starts the same server.
+The package is private and has no npm release workflow.
 
 ## Conversation behavior
 
