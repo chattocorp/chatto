@@ -492,7 +492,6 @@
       "create_failed": "Falha ao criar o bot",
       "created": "Bot criado",
       "username": "Nome de utilizador",
-      "username_hint": "Os nomes de utilizador dos bots devem terminar em _bot.",
       "display_name": "Nome de visualização",
       "owner": "Proprietário",
       "reassign_owner": "Reatribuir proprietário",

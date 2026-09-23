@@ -492,7 +492,6 @@
       "create_failed": "Boti loomine ebaõnnestus",
       "created": "Bot loodud",
       "username": "Kasutajanimi",
-      "username_hint": "Boti kasutajanimed peavad lõppema numbriga _bot.",
       "display_name": "Kuvatav nimi",
       "owner": "Omanik",
       "reassign_owner": "Määra omanik ümber",

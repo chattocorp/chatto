@@ -258,7 +258,7 @@ test.describe('Bot account lifecycle', () => {
     await expect(page.getByRole('heading', { name: 'Bots', exact: true })).toBeVisible();
 
     const suffix = Date.now().toString(36);
-    const botLogin = `lifecycle_${suffix}_bot`;
+    const botLogin = `lifecycle_${suffix}`;
     const botDisplayName = `Lifecycle Bot ${suffix}`;
     const newOwner = await createHumanOwner(page, suffix);
 

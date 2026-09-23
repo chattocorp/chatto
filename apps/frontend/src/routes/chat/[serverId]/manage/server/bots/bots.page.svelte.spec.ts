@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { queryClient } from '$lib/query/client';
 
@@ -82,6 +83,26 @@ describe('Bot administration page', () => {
 
     expect(container.querySelector('#bot-api-key-name')).toBeNull();
     expect(container.textContent).not.toContain('Key name');
+  });
+
+  it('accepts a bot username without a suffix', async () => {
+    mocks.canCreateBots = true;
+    const { container } = render(BotsPage);
+
+    await userEvent.click(createButton(container)!);
+    await vi.waitFor(() => expect(document.querySelector('#bot-login')).not.toBeNull());
+    const login = document.querySelector<HTMLInputElement>('#bot-login')!;
+    const displayName = document.querySelector<HTMLInputElement>('#bot-display-name')!;
+    const dialog = login.closest('dialog')!;
+    await userEvent.fill(login, 'helper');
+    await userEvent.fill(displayName, 'Helper');
+
+    expect(dialog.textContent).not.toContain('must end in _bot');
+    expect(login.getAttribute('aria-invalid')).not.toBe('true');
+    const submit = Array.from(dialog.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Create bot'
+    );
+    expect(submit?.disabled).toBe(false);
   });
 
   it('renders bot and owner identities with avatars and display names', async () => {

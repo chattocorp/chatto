@@ -157,14 +157,8 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	var loginNeedsMentionCheck bool
 	if login != nil {
 		nextLogin = strings.TrimSpace(*login)
-		var validationErr error
-		if user.GetIsBot() {
-			validationErr = ValidateBotLogin(nextLogin)
-		} else {
-			validationErr = ValidateHumanLogin(nextLogin)
-		}
-		if validationErr != nil {
-			return nil, validationErr
+		if err := ValidateLogin(nextLogin); err != nil {
+			return nil, err
 		}
 		loginChanged = user.GetLogin() != nextLogin
 		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
@@ -430,11 +424,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
-	if user.GetIsBot() {
-		if err := ValidateBotLogin(newLogin); err != nil {
-			return nil, err
-		}
-	} else if err := ValidateHumanLogin(newLogin); err != nil {
+	if err := ValidateLogin(newLogin); err != nil {
 		return nil, err
 	}
 

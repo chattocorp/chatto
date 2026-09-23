@@ -16,7 +16,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
 
-	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "connect_bot", DisplayName: "Connect Bot"}))
+	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "connect-helper", DisplayName: "Connect Bot"}))
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatalf("ListBots = %+v, %v", listed, err)
 	}
 	got, err := service.GetBot(ctx, connect.NewRequest(&apiv1.GetBotRequest{BotUserId: bot.GetUser().GetId()}))
-	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect_bot" {
+	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect-helper" {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
 	firstKey, err := service.CreateBotApiKey(ctx, connect.NewRequest(&apiv1.CreateBotApiKeyRequest{
@@ -105,14 +105,14 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatalf("GetUser bot: %v", err)
 	}
 	updated, err := env.account.UpdateProfile(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.UpdateProfileRequest{
-		Login:       stringPtr("updated_connect_bot"),
+		Login:       stringPtr("updated-connect-helper"),
 		DisplayName: stringPtr("Updated Connect Bot"),
 		Bio:         stringPtr("**Build helper**"),
 	}))
 	if err != nil {
 		t.Fatalf("bot UpdateProfile: %v", err)
 	}
-	if user := updated.Msg.GetUser(); user.GetLogin() != "updated_connect_bot" || user.GetDisplayName() != "Updated Connect Bot" || user.GetBio() != "**Build helper**" {
+	if user := updated.Msg.GetUser(); user.GetLogin() != "updated-connect-helper" || user.GetDisplayName() != "Updated Connect Bot" || user.GetBio() != "**Build helper**" {
 		t.Fatalf("updated bot user = %+v", user)
 	}
 	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
@@ -186,15 +186,15 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	}
 }
 
-func TestBotServiceRejectsInvalidSuffixAndOwnerCeiling(t *testing.T) {
+func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "no-suffix", DisplayName: "No Suffix"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("CreateBot invalid suffix code = %v", connect.CodeOf(err))
+	if _, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "invalid!", DisplayName: "Invalid"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("CreateBot invalid login code = %v", connect.CodeOf(err))
 	}
-	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "ceiling_bot", DisplayName: "Ceiling Bot"}))
+	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "no-suffix", DisplayName: "Ceiling Bot"}))
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}

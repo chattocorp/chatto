@@ -492,7 +492,6 @@
       "create_failed": "יצירת הבוט נכשלה",
       "created": "בוט נוצר",
       "username": "שם משתמש",
-      "username_hint": "שמות משתמש בוטים חייבים להסתיים ב-_bot.",
       "display_name": "שם תצוגה",
       "owner": "בעלים",
       "reassign_owner": "הקצאת בעלים מחדש",

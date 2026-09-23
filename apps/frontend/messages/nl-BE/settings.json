@@ -492,7 +492,6 @@
       "create_failed": "Kan geen bot maken",
       "created": "Bot gemaakt",
       "username": "Gebruikersnaam",
-      "username_hint": "Bot-gebruikersnamen moeten eindigen op _bot.",
       "display_name": "Weergavenaam",
       "owner": "Eigenaar",
       "reassign_owner": "Eigenaar opnieuw toewijzen",
