@@ -5,6 +5,7 @@ import SimulatedChattoWordmark from './SimulatedChattoWordmark.svelte';
 import {
   ballisticDisplacement,
   BoundedLruCache,
+  BoundedObjectPool,
   canvasPixelRatio,
   claimParticleHits,
   CONSTRUCTION_DURATION,
@@ -46,6 +47,7 @@ import {
   smokeFrame,
   sparkleStrength
 } from './simulatedChattoWordmark';
+import { NARROW_TOUCH_QUERY } from '$lib/utils/inputMediaQueries';
 
 describe('SimulatedChattoWordmark', () => {
   beforeEach(() => {
@@ -80,6 +82,91 @@ describe('SimulatedChattoWordmark', () => {
     ).not.toBeNull();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
     expect(container.textContent).toContain('1/10');
+  });
+
+  it('changes mobile rendering detail without changing the clicker score', async () => {
+    const originalMatchMedia = window.matchMedia.bind(window);
+    const listeners = new Set<EventListenerOrEventListenerObject>();
+    let narrow = true;
+    const narrowQuery = {
+      get matches() {
+        return narrow;
+      },
+      media: NARROW_TOUCH_QUERY,
+      addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+        listeners.add(listener);
+      },
+      removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+        listeners.delete(listener);
+      }
+    } as MediaQueryList;
+    const reducedMotion = {
+      matches: true,
+      media: '(prefers-reduced-motion: reduce)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    } as unknown as MediaQueryList;
+    const dispatchChange = () => {
+      const event = new Event('change') as MediaQueryListEvent;
+      for (const listener of listeners) {
+        if (typeof listener === 'function') listener(event);
+        else listener.handleEvent(event);
+      }
+    };
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
+      query === NARROW_TOUCH_QUERY
+        ? narrowQuery
+        : query === '(prefers-reduced-motion: reduce)'
+          ? reducedMotion
+          : originalMatchMedia(query)
+    );
+    vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(3);
+    const drawImage = vi.spyOn(CanvasRenderingContext2D.prototype, 'drawImage');
+    const clearRect = vi.spyOn(CanvasRenderingContext2D.prototype, 'clearRect');
+    const host = document.createElement('div');
+    host.style.width = '400px';
+    host.style.height = '200px';
+    document.body.append(host);
+    const view = render(SimulatedChattoWordmark, {
+      target: host,
+      props: { contained: true }
+    });
+    try {
+      const canvas = q(view.container, 'canvas') as HTMLCanvasElement;
+      canvas.style.width = '400px';
+      canvas.style.height = '200px';
+      await expect.poll(() => canvas.width).toBe(400);
+      await expect.poll(() => drawImage.mock.calls.length).toBeGreaterThan(250);
+      const mobileDraws = drawImage.mock.calls.length / clearRect.mock.calls.length;
+      expect(mobileDraws).toBe(324);
+      expect(canvas.width).toBe(400);
+
+      const previousDrawImages = drawImage.mock.calls.length;
+      const previousFrames = clearRect.mock.calls.length;
+      narrow = false;
+      dispatchChange();
+      await expect.poll(() => clearRect.mock.calls.length).toBeGreaterThan(previousFrames);
+      expect(canvas.width).toBe(600);
+      const desktopDraws =
+        (drawImage.mock.calls.length - previousDrawImages) /
+        (clearRect.mock.calls.length - previousFrames);
+      expect(desktopDraws).toBe(696);
+
+      narrow = true;
+      dispatchChange();
+      await expect.poll(() => canvas.width).toBe(400);
+      (
+        q(view.container, 'button[aria-label="Fire a ready laser at Chatto"]') as HTMLButtonElement
+      ).click();
+      await expect
+        .poll(() => view.container.querySelector('output')?.getAttribute('aria-label'))
+        .toMatch(/^[1-9]\d* points$/);
+    } finally {
+      await view.unmount();
+      host.remove();
+      expect(listeners.size).toBe(0);
+      vi.restoreAllMocks();
+    }
   });
 
   it('fades in the game UI after four successful shots from the first laser', async () => {
@@ -515,6 +602,22 @@ describe('SimulatedChattoWordmark', () => {
     expect(quantizeSpriteFontSize(20.26)).toBe(20.5);
   });
 
+  it('reuses released rendering records and bounds the free pool', () => {
+    const create = vi.fn(() => ({ value: 0 }));
+    const pool = new BoundedObjectPool(1, create);
+    const first = pool.acquire();
+    first.value = 7;
+    pool.release(first);
+    expect(pool.acquire()).toBe(first);
+    expect(create).toHaveBeenCalledTimes(1);
+    const second = pool.acquire();
+    pool.release(first);
+    pool.release(second);
+    expect(pool.size).toBe(1);
+    pool.clear();
+    expect(pool.size).toBe(0);
+  });
+
   it('projects depth and Y rotation into screen coordinates', () => {
     const particle = createWordmarkParticles()[0];
     const flat = projectParticle(particle, 672, 134.4, 0, 0);
@@ -529,6 +632,34 @@ describe('SimulatedChattoWordmark', () => {
     expect(flat.x).not.toBe(turned.x);
     expect(flat.depth).not.toBe(turned.depth);
     expect(cachedRotation).toEqual(turned);
+  });
+
+  it('resets reusable projection and animation frames between particles', () => {
+    const particle = createWordmarkParticles()[0];
+    const projected = { x: 0, y: 0, depth: 0, scale: 1 };
+    expect(
+      projectParticleWithRotation(particle, 672, 134.4, createProjectionRotation(0, 0), projected)
+    ).toBe(projected);
+    expect(projected).toEqual(projectParticle(particle, 672, 134.4, 0, 0));
+
+    const frame = { opacity: 0, scale: 0, glow: 0 };
+    expect(constructionFrame(CONSTRUCTION_DURATION / 2, particle, frame)).toBe(frame);
+    expect(constructionFrame(CONSTRUCTION_DURATION, particle, frame)).toEqual({
+      opacity: 1,
+      scale: 1,
+      glow: 0
+    });
+    expect(rebuildParticleFrame(0.8, 0, 0, frame)).toBe(frame);
+    expect(rebuildParticleFrame(0, 0, 0, frame)).toEqual({ opacity: 0, scale: 0.18, glow: 0 });
+
+    const explosion = { offset: 0, rotation: 0, scaleDelta: 0, opacity: 1 };
+    expect(explosionFrame(0.2, explosion)).toBe(explosion);
+    expect(explosionFrame(1, explosion)).toEqual({
+      offset: 0,
+      rotation: 0,
+      scaleDelta: 0,
+      opacity: 1
+    });
   });
 
   it('constrains explosion force to the local click radius', () => {
@@ -638,19 +769,34 @@ it('cancels wordmark frames when hidden or detached and resumes only when visibl
     frames.set(++nextFrame, callback);
     return nextFrame;
   });
-  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => { frames.delete(id); });
-  vi.stubGlobal('IntersectionObserver', class {
-    constructor(callback: IntersectionObserverCallback) { intersect = callback; }
-    observe() {}
-    disconnect() {}
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+    frames.delete(id);
   });
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(callback: IntersectionObserverCallback) {
+        intersect = callback;
+      }
+      observe() {}
+      disconnect() {}
+    }
+  );
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    }
+  );
   const view = render(SimulatedChattoWordmark);
   let mounted = true;
   try {
-    const intersection = (visible: boolean) => intersect(
-      [{ isIntersecting: visible } as IntersectionObserverEntry], {} as IntersectionObserver
-    );
+    const intersection = (visible: boolean) =>
+      intersect(
+        [{ isIntersecting: visible } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      );
     expect(frames.size).toBe(1);
     intersection(false);
     expect(frames.size).toBe(0);

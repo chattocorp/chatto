@@ -124,6 +124,35 @@ export class BoundedLruCache<T> {
   }
 }
 
+/** Reuse short-lived rendering records after their owner has finished with them. */
+export class BoundedObjectPool<T> {
+  readonly #available: T[] = [];
+  readonly #maximumEntries: number;
+
+  constructor(
+    maximumEntries: number,
+    private readonly create: () => T
+  ) {
+    this.#maximumEntries = Math.max(0, Math.floor(maximumEntries));
+  }
+
+  get size(): number {
+    return this.#available.length;
+  }
+
+  acquire(): T {
+    return this.#available.pop() ?? this.create();
+  }
+
+  release(value: T): void {
+    if (this.#available.length < this.#maximumEntries) this.#available.push(value);
+  }
+
+  clear(): void {
+    this.#available.length = 0;
+  }
+}
+
 const glyphs: Glyph[] = [
   {
     pattern: ['011110', '110011', '110000', '110000', '110000', '110011', '011110'],
@@ -366,11 +395,13 @@ export function createProjectionRotation(rotateX: number, rotateY: number): Proj
   };
 }
 
+/** Project into an optional reusable destination; all fields are overwritten. */
 export function projectParticleWithRotation(
   particle: WordmarkParticle,
   width: number,
   height: number,
-  rotation: ProjectionRotation
+  rotation: ProjectionRotation,
+  destination?: ProjectedParticle
 ): ProjectedParticle {
   const sceneX = (particle.x - 0.5) * width;
   const sceneY = (particle.y - 0.5) * height;
@@ -382,12 +413,12 @@ export function projectParticleWithRotation(
   const perspective = 700 * (width / 672);
   const scale = perspective / Math.max(1, perspective - rotatedZ);
 
-  return {
-    x: width / 2 + rotatedX * scale,
-    y: height / 2 + rotatedY * scale,
-    depth: rotatedZ,
-    scale
-  };
+  const result = destination ?? { x: 0, y: 0, depth: 0, scale: 1 };
+  result.x = width / 2 + rotatedX * scale;
+  result.y = height / 2 + rotatedY * scale;
+  result.depth = rotatedZ;
+  result.scale = scale;
+  return result;
 }
 
 export function radialForce(distance: number, radius: number): number {
@@ -486,11 +517,19 @@ function constructionRowStart(row: number): number {
   return CONSTRUCTION_FIRST_ROW_DELAY + (6 - row) * CONSTRUCTION_ROW_INTERVAL;
 }
 
+/** Compute one entrance frame into an optional reusable destination. */
 export function constructionFrame(
   elapsed: number,
-  particle: Pick<WordmarkParticle, 'row' | 'layer' | 'x'>
+  particle: Pick<WordmarkParticle, 'row' | 'layer' | 'x'>,
+  destination?: ConstructionFrame
 ): ConstructionFrame {
-  if (elapsed >= CONSTRUCTION_DURATION) return { opacity: 1, scale: 1, glow: 0 };
+  const result = destination ?? { opacity: 0, scale: 0, glow: 0 };
+  if (elapsed >= CONSTRUCTION_DURATION) {
+    result.opacity = 1;
+    result.scale = 1;
+    result.glow = 0;
+    return result;
+  }
   const arrival =
     constructionRowStart(particle.row) +
     particle.x * CONSTRUCTION_SWEEP_DURATION +
@@ -499,14 +538,18 @@ export function constructionFrame(
     0,
     Math.min(1, (elapsed - arrival) / CONSTRUCTION_PARTICLE_SETTLE_DURATION)
   );
-  if (progress === 0) return { opacity: 0, scale: 0.18, glow: 0 };
+  if (progress === 0) {
+    result.opacity = 0;
+    result.scale = 0.18;
+    result.glow = 0;
+    return result;
+  }
 
   const eased = easeOutExpo(progress);
-  return {
-    opacity: eased,
-    scale: lerp(0.18, 1, eased),
-    glow: 1 - progress
-  };
+  result.opacity = eased;
+  result.scale = lerp(0.18, 1, eased);
+  result.glow = 1 - progress;
+  return result;
 }
 
 export function canvasPixelRatio(devicePixelRatio: number): number {
@@ -571,22 +614,34 @@ export function smokeFrame(elapsed: number, delay: number): SmokeFrame | null {
   };
 }
 
+/** Compute one rebuild frame into an optional reusable destination. */
 export function rebuildParticleFrame(
   progress: number,
   bottomToTop: number,
-  leftToRight: number
+  leftToRight: number,
+  destination?: ConstructionFrame
 ): ConstructionFrame {
-  if (progress >= 1) return { opacity: 1, scale: 1, glow: 0 };
+  const result = destination ?? { opacity: 0, scale: 0, glow: 0 };
+  if (progress >= 1) {
+    result.opacity = 1;
+    result.scale = 1;
+    result.glow = 0;
+    return result;
+  }
   const arrival = rebuildParticleArrival(bottomToTop, leftToRight) + 0.025;
   const localProgress = Math.max(0, Math.min(1, (progress - arrival) / 0.12));
-  if (localProgress === 0) return { opacity: 0, scale: 0.18, glow: 0 };
+  if (localProgress === 0) {
+    result.opacity = 0;
+    result.scale = 0.18;
+    result.glow = 0;
+    return result;
+  }
   const eased = easeOutExpo(localProgress);
 
-  return {
-    opacity: eased,
-    scale: lerp(0.18, 1, eased),
-    glow: 1 - localProgress
-  };
+  result.opacity = eased;
+  result.scale = lerp(0.18, 1, eased);
+  result.glow = 1 - localProgress;
+  return result;
 }
 
 /** Time from impact until an exploded particle starts to reappear. */
@@ -621,25 +676,37 @@ export function rebuildStitchFrame(
   };
 }
 
-export function explosionFrame(progress: number): ExplosionFrame {
+/** Compute one burst frame into an optional reusable destination. */
+export function explosionFrame(progress: number, destination?: ExplosionFrame): ExplosionFrame {
+  const result = destination ?? { offset: 0, rotation: 0, scaleDelta: 0, opacity: 1 };
   if (progress <= 0 || progress >= 1) {
-    return { offset: 0, rotation: 0, scaleDelta: 0, opacity: 1 };
+    result.offset = 0;
+    result.rotation = 0;
+    result.scaleDelta = 0;
+    result.opacity = 1;
+    return result;
   }
   if (progress < 0.42) {
     const flightTime = progress / 0.42;
     const fade = easeInOutCubic(Math.max(0, Math.min(1, (flightTime - 0.72) / 0.28)));
-    return {
-      offset: flightTime,
-      rotation: flightTime,
-      scaleDelta: lerp(0, -0.18, flightTime),
-      opacity: 1 - fade
-    };
+    result.offset = flightTime;
+    result.rotation = flightTime;
+    result.scaleDelta = lerp(0, -0.18, flightTime);
+    result.opacity = 1 - fade;
+    return result;
   }
   if (progress < EXPLOSION_REBUILD_START) {
-    return { offset: 1, rotation: 1, scaleDelta: -0.18, opacity: 0 };
+    result.offset = 1;
+    result.rotation = 1;
+    result.scaleDelta = -0.18;
+    result.opacity = 0;
+    return result;
   }
-
-  return { offset: 0, rotation: 0, scaleDelta: 0, opacity: 0 };
+  result.offset = 0;
+  result.rotation = 0;
+  result.scaleDelta = 0;
+  result.opacity = 0;
+  return result;
 }
 
 export function sparkleStrength(
