@@ -9,6 +9,18 @@
   } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import AccentColorPicker from './AccentColorPicker.svelte';
+  import RangeField from '$lib/ui/form/RangeField.svelte';
+
+  const contrastDisplayValue = $derived(`${Math.round((userPreferences.contrastAge - 20) * 5)}%`);
+  const contrastValueText = $derived(
+    `${contrastDisplayValue}, ${m(
+      userPreferences.contrastAge < 30
+        ? 'settings.preferences.contrast.softer'
+        : userPreferences.contrastAge > 30
+          ? 'settings.preferences.contrast.stronger'
+          : 'settings.preferences.contrast.current'
+    )}`
+  );
 
   const themeOptions = $derived([
     {
@@ -91,14 +103,30 @@
     </Panel>
 
     <Panel title={m('settings.preferences.depth.title')} icon="iconify icon-[uil--layer-group]">
-      <div class="flex max-w-md flex-col gap-2" role="radiogroup" aria-label={m('settings.preferences.depth.title')}>
-        {#each depthOptions as option (option.value)}
-          <ChoiceRow
-            label={option.label}
-            selected={userPreferences.surfaceDepth === option.value}
-            onclick={() => (userPreferences.surfaceDepth = option.value)}
-          />
-        {/each}
+      <div class="flex flex-col gap-6">
+        <div class="flex max-w-md flex-col gap-2" role="radiogroup" aria-label={m('settings.preferences.depth.title')}>
+          {#each depthOptions as option (option.value)}
+            <ChoiceRow
+              label={option.label}
+              selected={userPreferences.surfaceDepth === option.value}
+              onclick={() => (userPreferences.surfaceDepth = option.value)}
+            />
+          {/each}
+        </div>
+        <RangeField
+          id="ui-contrast"
+          label={m('settings.preferences.contrast.label')}
+          min={20}
+          max={40}
+          step={0.5}
+          ticks={[20, 30, 40]}
+          value={userPreferences.contrastAge}
+          displayValue={contrastDisplayValue}
+          ariaValueText={contrastValueText}
+          prominent
+          oninput={(event) =>
+            (userPreferences.contrastAge = (event.currentTarget as HTMLInputElement).valueAsNumber)}
+        />
       </div>
     </Panel>
 

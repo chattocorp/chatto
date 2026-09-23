@@ -230,6 +230,12 @@
         "grey": "Grå",
         "preview": "Förhandsvisning"
       },
+      "contrast": {
+        "label": "Kontrast",
+        "softer": "mjukare kontrast",
+        "current": "nuvarande kontrast",
+        "stronger": "starkare kontrast"
+      },
       "depth": {
         "title": "Gränssnittsstil",
         "flat": "Platt",

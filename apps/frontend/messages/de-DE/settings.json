@@ -230,6 +230,12 @@
         "grey": "Grau",
         "preview": "Vorschau"
       },
+      "contrast": {
+        "label": "Kontrast",
+        "softer": "sanfterer Kontrast",
+        "current": "aktueller Kontrast",
+        "stronger": "stärkerer Kontrast"
+      },
       "depth": {
         "title": "UI-Stil",
         "flat": "Flach",

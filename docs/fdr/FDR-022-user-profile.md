@@ -61,6 +61,13 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
   strengthens and widens them. Changes apply immediately across registered
   servers and remain in this browser. Switching modes animates unless reduced
   motion is enabled. The accent choice, focus indicators, and layout do not change.
+- **Contrast** — Appearance offers a **Contrast** slider from 0% to 100%.
+  It changes text, surface, and background contrast in both light and dark
+  themes. The middle keeps the original appearance. At 100%, the app uses
+  black text on a white background in light mode and white text on a black
+  background in dark mode. Clear boundaries separate surfaces. The change
+  applies while the slider moves and remains in this browser. Accent, status
+  colours, focus indicators, and surface depth do not change.
 - **Accent colour** — Appearance offers eight colours (Blue, Cyan, Teal, Green,
   Amber, Orange, Pink, and Violet) plus Grey. Cyan is the default when a choice
   is absent or invalid. Changes apply immediately across the app and remain
@@ -155,6 +162,12 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 **Decision:** `UserService.UploadAvatar` and `UserService.DeleteAvatar` each take a target user ID. The core checks the caller, the target account kind, bot ownership, and current permissions at the domain boundary. The durable fact records the authenticated caller as its actor. The write validates stable request-time authorization inputs and uses optimistic concurrency control for the target user aggregate. The response waits for the user projection and then publishes the existing profile-update snapshot. Delete is idempotent.
 **Why:** One command path gives human and bot avatars the same validation, storage, projection, cleanup, and realtime behavior. Stable authorization input validation prevents a torn permission or ownership decision. Target-user OCC protects account and avatar state.
 **Tradeoff:** This is an intentional pre-1.0 API break. Clients that used `MyAccountService.UploadAvatar` or `MyAccountService.DeleteAvatar` must move to `UserService` and send the authenticated user's ID when they manage their own avatar.
+
+### 15. Contrast stays separate from theme and accent
+
+**Decision:** One browser-local slider adjusts neutral text, background, and surface contrast in both themes. Its middle position keeps the original appearance. At 0%, headings, body text, and muted text become deliberately soft. At 100%, light mode uses black text on a white background, while dark mode uses white text on a black background. Clear boundaries separate surfaces. Accent and status colours keep their meanings.
+**Why:** Users can tune clarity without changing their chosen theme or accent. The middle value preserves the appearance of existing installations.
+**Tradeoff:** Each end of the range needs visual and contrast checks in both themes. The choice does not follow the user to another browser or device.
 
 ## Permissions
 

@@ -230,6 +230,12 @@
         "grey": "Cinza",
         "preview": "Prévia"
       },
+      "contrast": {
+        "label": "Contraste",
+        "softer": "contraste mais suave",
+        "current": "contraste atual",
+        "stronger": "contraste mais forte"
+      },
       "depth": {
         "title": "Estilo da interface",
         "flat": "Plano",

@@ -230,6 +230,12 @@
         "grey": "灰色",
         "preview": "预览"
       },
+      "contrast": {
+        "label": "对比度",
+        "softer": "较柔和的对比度",
+        "current": "当前对比度",
+        "stronger": "更强的对比度"
+      },
       "depth": {
         "title": "界面风格",
         "flat": "平面",

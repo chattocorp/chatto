@@ -230,6 +230,12 @@
         "grey": "Pelēka",
         "preview": "Priekšskatījums"
       },
+      "contrast": {
+        "label": "Kontrasts",
+        "softer": "maigāks kontrasts",
+        "current": "pašreizējais kontrasts",
+        "stronger": "izteiktāks kontrasts"
+      },
       "depth": {
         "title": "Saskarnes stils",
         "flat": "Plakans",

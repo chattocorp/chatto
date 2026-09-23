@@ -230,6 +230,12 @@
         "grey": "灰色",
         "preview": "預覽"
       },
+      "contrast": {
+        "label": "對比度",
+        "softer": "較柔和的對比度",
+        "current": "目前的對比度",
+        "stronger": "更強的對比度"
+      },
       "depth": {
         "title": "介面風格",
         "flat": "平面",
