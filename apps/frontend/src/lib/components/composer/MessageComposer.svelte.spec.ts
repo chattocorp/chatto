@@ -1811,6 +1811,24 @@ describe('MessageComposer', () => {
       );
     });
 
+    it('keeps underscores and backslashes when restoring a Visual draft', async () => {
+      const body = '@chatto_bot \\o/ ¯\\_(ツ)_/¯';
+      sessionStorage.setItem('chatto:draft:room_literal_draft', body);
+      const { container } = renderMessageComposer(
+        { roomId: 'room_literal_draft' },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent(body);
+      await placeCaretAtEditorEnd(editor);
+      document.execCommand('insertText', false, '!');
+
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room_literal_draft')).toBe(`${body}!`)
+      );
+    });
+
     it('preserves literal entity-looking text when restoring a draft', async () => {
       const body = 'AT&amp;T &gt; MCI';
       const editedBody = `${body}!`;
@@ -1921,10 +1939,10 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('canonically escapes an unmatched backtick while preserving its literal text', async () => {
+    it('encodes an unmatched backtick while preserving its literal text', async () => {
       const body = '` <b>literal</b>';
       const editedBody = `${body}!`;
-      const serializedBody = `\\${editedBody}`;
+      const serializedBody = editedBody.replace('`', '&#96;');
       sessionStorage.setItem('chatto:draft:room_unmatched_backtick_draft', body);
 
       const { container } = renderMessageComposer(
@@ -1990,10 +2008,10 @@ describe('MessageComposer', () => {
       expect(editor.querySelector('code')?.textContent).toContain('</b>');
     });
 
-    it('canonically escapes an unmatched closing bracket without creating a link', async () => {
+    it('encodes an unmatched closing bracket without creating a link', async () => {
       const body = 'not a link](<b>x</b>)';
       const editedBody = `${body}!`;
-      const serializedBody = editedBody.replace(']', '\\]');
+      const serializedBody = editedBody.replace(']', '&#93;');
       sessionStorage.setItem('chatto:draft:room_fake_link_draft', body);
 
       const { container } = renderMessageComposer(
@@ -2220,6 +2238,27 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeNull()
       );
+    });
+
+    it('saves literal backslashes in a Visual message edit', async () => {
+      roomStateMock.editState.eventId = 'evt_literal_edit';
+      roomStateMock.editState.originalBody = 'before \\o/';
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent('before \\o/');
+      await placeCaretAtEditorEnd(editor);
+      document.execCommand('insertText', false, '!');
+      await expect.element(editor).toHaveTextContent('before \\o/!');
+      await tick();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_literal_edit',
+        body: 'before \\o/!'
+      });
     });
 
     it('sends a plain text edit with Ctrl+Enter', async () => {
@@ -2456,6 +2495,40 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '@alice'
+      });
+    });
+
+    it('sends an underscore username after Visual mention completion', async () => {
+      roomStateMock.members = [roomMember('chatto_bot')];
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '@chatto');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@chatto_bot '));
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '@chatto_bot'
+      });
+    });
+
+    it('sends literal backslashes typed in the Visual editor', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '\\o/ C:\\Users\\foo');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '\\o/ C:\\Users\\foo'
       });
     });
 

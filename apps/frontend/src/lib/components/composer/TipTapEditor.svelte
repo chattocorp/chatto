@@ -36,7 +36,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     getSerializedMarkdown,
     hasDefaultEmptyDocument,
     isHttpMarkdownAutolink,
-    prepareMarkdownForEditor
+    parseMarkdownForEditor
   } from './markdown';
   import { normalizeQuoteInsertionContent } from './quotes';
 
@@ -327,10 +327,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
       setContent: (markdown: string) => {
         if (e.isDestroyed) return;
-        e.commands.setContent(prepareMarkdownForEditor(markdown), {
-          contentType: 'markdown',
-          emitUpdate: false
-        });
+        const parser = e.markdown;
+        if (!parser) return;
+        e.commands.setContent(
+          parseMarkdownForEditor(markdown, (source) => parser.parse(source)),
+          { emitUpdate: false }
+        );
         ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
@@ -473,7 +475,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               const destinationMarks = view.state.storedMarks ?? context.marks();
               const document = markdown
                 ? view.state.schema.nodeFromJSON(
-                    markdown.parse(prepareMarkdownForEditor(normalizedText))
+                    parseMarkdownForEditor(normalizedText, (source) => markdown.parse(source))
                   )
                 : null;
               const content =
@@ -489,14 +491,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               const text = event.clipboardData?.getData('text/plain');
               const normalizedText = text?.replace(/\r\n?/g, '\n');
               const html = event.clipboardData?.getData('text/html');
+              const markdown = editor?.markdown;
               if (
                 normalizedText &&
                 isHttpMarkdownAutolink(normalizedText) &&
-                !editor?.isActive('codeBlock')
+                editor &&
+                !editor.isActive('codeBlock') &&
+                markdown
               ) {
-                editor?.commands.insertContent(prepareMarkdownForEditor(normalizedText), {
-                  contentType: 'markdown'
-                });
+                editor.commands.insertContent(
+                  parseMarkdownForEditor(normalizedText, (source) => markdown.parse(source))
+                );
                 return true;
               }
               if (!text || !html || editor?.isActive('codeBlock')) return false;
