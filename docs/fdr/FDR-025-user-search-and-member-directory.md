@@ -26,7 +26,8 @@ Any authenticated user can browse the server's member directory — a paginated 
 - A room join also loads the joining user's profile when the client has not
   opened that room. The profile becomes available to other client views.
 - Mention completion can search for names before the room list finishes
-  loading. It does not wait for the background member scan.
+  loading. It combines search results with members already loaded in the room.
+  Mention completion does not wait for the background member scan.
 - Connected members load independently of the full list. This includes available,
   away, and do-not-disturb users. The full list continues loading names for
   mention completion. A failed preview does not stop that full load.
