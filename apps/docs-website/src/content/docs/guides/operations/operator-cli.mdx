@@ -159,7 +159,7 @@ The command prints the completed asset ID. Add `--json` to get an `assetId` fiel
 
 The command reads only the local file. It does not fetch a URL from the export. Chatto applies its normal attachment size limits, media processing, and storage rules. The asset belongs to the selected author; the upload action is recorded as a system action. The author does not need a session or file-attachment permission for this operator command. The room must be an active channel.
 
-An incomplete upload is cancelled when the CLI can reach the server. Server cleanup removes abandoned upload chunks after expiry. A completed asset remains pending until a message attaches it; Chatto removes an unattached pending asset after 24 hours. Running the command again can create a different asset ID, so an import script should save each returned ID. The CLI reports only an asset ID; a later message command attaches it.
+If an upload command returns an error, it attempts to cancel the incomplete upload. If the process stops or cannot reach the server, server cleanup removes abandoned chunks after expiry. A completed asset remains pending until a message attaches it; Chatto removes an unattached pending asset after 24 hours. Running the command again can create a different asset ID, so an import script should save each returned ID. The CLI reports only an asset ID; a later message command attaches it.
 
 ## Update a user
 
