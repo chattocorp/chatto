@@ -67,7 +67,7 @@ func extractAddressTerms(body string) addressTerms {
 			}
 			host := strings.ToLower(parsed.Hostname())
 			addHost(host)
-			addParts(host + " " + parsed.EscapedPath() + " " + parsed.RawQuery + " " + parsed.Fragment)
+			addParts(host + " " + parsed.Path + " " + parsed.RawQuery + " " + parsed.Fragment)
 			continue
 		}
 		if email, host := canonicalEmail(candidate); email != "" {

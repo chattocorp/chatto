@@ -32,3 +32,11 @@ func TestAddressRecognitionRejectsNonAddresses(t *testing.T) {
 	value, _ := canonicalHTTPURL("https://192.0.2.1/path")
 	require.Empty(t, value)
 }
+
+func TestAddressPartsUseDecodedURLPath(t *testing.T) {
+	terms := extractAddressTerms("https://example.com/Hello%20World")
+	require.Equal(t, []string{"https://example.com/Hello%20World"}, terms.urls)
+	require.Contains(t, terms.parts, "hello")
+	require.Contains(t, terms.parts, "world")
+	require.NotContains(t, terms.parts, "20")
+}
