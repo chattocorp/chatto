@@ -105,8 +105,11 @@
         "copy_text_failed": "Det gick inte att kopiera texten",
         "copy_link": "Kopiera länk",
         "copy_message_link": "Kopiera meddelandelänk",
+        "copy_image": "Kopiera bild",
         "link_copied": "Länk kopierad",
-        "copy_link_failed": "Det gick inte att kopiera länken"
+        "copy_link_failed": "Det gick inte att kopiera länken",
+        "image_copied": "Bilden har kopierats",
+        "copy_image_failed": "Det gick inte att kopiera bilden"
       },
       "meta": {
         "echo": "Eko",

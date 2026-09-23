@@ -105,8 +105,11 @@
         "copy_text_failed": "無法複製文字",
         "copy_link": "複製連結",
         "copy_message_link": "複製訊息連結",
+        "copy_image": "複製圖片",
         "link_copied": "連結已複製",
-        "copy_link_failed": "無法複製連結"
+        "copy_link_failed": "無法複製連結",
+        "image_copied": "圖片已複製",
+        "copy_image_failed": "無法複製圖片"
       },
       "meta": {
         "echo": "回聲",

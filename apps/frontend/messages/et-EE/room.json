@@ -105,8 +105,11 @@
         "copy_text_failed": "Teksti kopeerimine ebaõnnestus",
         "copy_link": "Kopeeri link",
         "copy_message_link": "Kopeeri sõnumi link",
+        "copy_image": "Kopeeri pilt",
         "link_copied": "Link kopeeritud",
-        "copy_link_failed": "Lingi kopeerimine nurjus"
+        "copy_link_failed": "Lingi kopeerimine nurjus",
+        "image_copied": "Pilt kopeeritud",
+        "copy_image_failed": "Pildi kopeerimine nurjus"
       },
       "meta": {
         "echo": "Kaja",

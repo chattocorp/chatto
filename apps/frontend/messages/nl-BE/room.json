@@ -105,8 +105,11 @@
         "copy_text_failed": "Tekst kopiëren mislukt",
         "copy_link": "Kopieer link",
         "copy_message_link": "Kopieer berichtlink",
+        "copy_image": "Kopieer afbeelding",
         "link_copied": "Link gekopieerd",
-        "copy_link_failed": "Kan link niet kopiëren"
+        "copy_link_failed": "Kan link niet kopiëren",
+        "image_copied": "Afbeelding gekopieerd",
+        "copy_image_failed": "Kan afbeelding niet kopiëren"
       },
       "meta": {
         "echo": "Echo",

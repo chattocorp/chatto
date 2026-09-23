@@ -13,12 +13,14 @@ surface-specific sizing and menu semantics.
   import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
   import { toast } from '$lib/ui/toast';
+  import { copyImageToClipboard } from '$lib/attachments/copyImage';
   import type { MessageActionModel } from './messageActionModel';
 
   let {
     presentation = 'menu',
     action,
     linkUrl = null,
+    imageUrl = null,
     onOpenEmojiPicker,
     onClose
   }: {
@@ -26,6 +28,8 @@ surface-specific sizing and menu semantics.
     action: MessageActionModel;
     /** Resolved URL of the message-body link that opened this context menu. */
     linkUrl?: string | null;
+    /** URL of the image attachment that opened this context menu. */
+    imageUrl?: string | null;
     onOpenEmojiPicker?: () => void;
     onClose: () => void;
   } = $props();
@@ -76,6 +80,17 @@ surface-specific sizing and menu semantics.
       toast.success(m('room.message.actions.link_copied'));
     } catch {
       toast.error(m('room.message.actions.copy_link_failed'));
+    }
+    onClose();
+  }
+
+  async function handleCopyImage() {
+    if (!imageUrl) return;
+    try {
+      await copyImageToClipboard(imageUrl);
+      toast.success(m('room.message.actions.image_copied'));
+    } catch {
+      toast.error(m('room.message.actions.copy_image_failed'));
     }
     onClose();
   }
@@ -231,6 +246,9 @@ surface-specific sizing and menu semantics.
   {/if}
   {#if !isSheet && linkUrl}
     {@render actionButton(m('room.message.actions.copy_link'), 'icon-[uil--link]', handleCopyTargetLink)}
+  {/if}
+  {#if !isSheet && imageUrl}
+    {@render actionButton(m('room.message.actions.copy_image'), 'icon-[uil--image]', handleCopyImage)}
   {/if}
   {@render actionButton(m('room.message.actions.copy_message_link'), 'icon-[uil--link]', handleCopyLink)}
 {/snippet}

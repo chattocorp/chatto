@@ -105,8 +105,11 @@
         "copy_text_failed": "Text se nepodařilo zkopírovat",
         "copy_link": "Zkopírujte odkaz",
         "copy_message_link": "Zkopírovat odkaz na zprávu",
+        "copy_image": "Zkopírovat obrázek",
         "link_copied": "Odkaz zkopírován",
-        "copy_link_failed": "Odkaz se nepodařilo zkopírovat"
+        "copy_link_failed": "Odkaz se nepodařilo zkopírovat",
+        "image_copied": "Obrázek zkopírován",
+        "copy_image_failed": "Obrázek se nepodařilo zkopírovat"
       },
       "meta": {
         "echo": "Ozvěna",

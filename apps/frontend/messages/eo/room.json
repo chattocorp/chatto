@@ -105,8 +105,11 @@
         "copy_text_failed": "Malsukcesis kopii tekston",
         "copy_link": "Kopiu ligilon",
         "copy_message_link": "Kopiu mesaĝan ligilon",
+        "copy_image": "Kopiu bildon",
         "link_copied": "Ligilo kopiita",
-        "copy_link_failed": "Ne eblis kopii ligilon"
+        "copy_link_failed": "Ne eblis kopii ligilon",
+        "image_copied": "Bildo kopiita",
+        "copy_image_failed": "Ne eblis kopii bildon"
       },
       "meta": {
         "echo": "Eĥo",

@@ -106,8 +106,11 @@
         "copy_text_failed": "נכשל בהעתקת טקסט",
         "copy_link": "העתק קישור",
         "copy_message_link": "העתק קישור להודעה",
+        "copy_image": "העתק תמונה",
         "link_copied": "הקישור הועתק",
-        "copy_link_failed": "העתקת הקישור נכשלה"
+        "copy_link_failed": "העתקת הקישור נכשלה",
+        "image_copied": "התמונה הועתקה",
+        "copy_image_failed": "העתקת התמונה נכשלה"
       },
       "meta": {
         "echo": "הד",

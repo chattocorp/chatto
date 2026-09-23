@@ -105,8 +105,11 @@
         "copy_text_failed": "Metin kopyalanamadı",
         "copy_link": "Bağlantıyı kopyala",
         "copy_message_link": "Mesaj bağlantısını kopyala",
+        "copy_image": "Görseli kopyala",
         "link_copied": "Bağlantı kopyalandı",
-        "copy_link_failed": "Bağlantı kopyalanamadı"
+        "copy_link_failed": "Bağlantı kopyalanamadı",
+        "image_copied": "Görsel kopyalandı",
+        "copy_image_failed": "Görsel kopyalanamadı"
       },
       "meta": {
         "echo": "Yankı",

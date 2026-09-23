@@ -8,6 +8,7 @@ import { MessageEventInteractionState } from './messageEventInteractions.svelte'
 import { buildMessageActionModel } from './messageActionModel';
 
 const mocks = vi.hoisted(() => ({
+  copyImageToClipboard: vi.fn(),
   actions: {
     toggleReaction: vi.fn(),
     addReaction: vi.fn(),
@@ -17,6 +18,10 @@ const mocks = vi.hoisted(() => ({
     copyMessageText: vi.fn(),
     copyMessageLink: vi.fn()
   }
+}));
+
+vi.mock('$lib/attachments/copyImage', () => ({
+  copyImageToClipboard: mocks.copyImageToClipboard
 }));
 
 vi.mock('$lib/state/recentEmojis.svelte', () => ({
@@ -77,11 +82,13 @@ function buildAction(overrides: ActionOverrides = {}) {
 function renderMenu({
   presentation,
   linkUrl,
+  imageUrl,
   onOpenEmojiPicker,
   ...overrides
 }: ActionOverrides & {
   presentation?: 'menu' | 'sheet';
   linkUrl?: string | null;
+  imageUrl?: string | null;
   onOpenEmojiPicker?: () => void;
 } = {}) {
   return render(MessageActionMenuTestHarness, {
@@ -89,6 +96,7 @@ function renderMenu({
       action: buildAction(overrides),
       presentation,
       linkUrl,
+      imageUrl,
       onOpenEmojiPicker,
       onClose: baseProps.onClose
     }
@@ -111,6 +119,39 @@ afterEach(() => {
 });
 
 describe('MessageActionMenu', () => {
+  it('copies the clicked image and keeps the message permalink action', async () => {
+    mocks.copyImageToClipboard.mockResolvedValue(undefined);
+    const success = vi.spyOn(toast, 'success').mockImplementation(() => 'toast');
+    const { container } = renderMenu({ imageUrl: 'https://example.com/image?access=ticket' });
+
+    expect(actionLabels(container)).toEqual(['Copy text', 'Copy image', 'Copy message link']);
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.trim() === 'Copy image')!
+      .click();
+
+    await vi.waitFor(() =>
+      expect(mocks.copyImageToClipboard).toHaveBeenCalledWith(
+        'https://example.com/image?access=ticket'
+      )
+    );
+    expect(success).toHaveBeenCalledWith('Image copied');
+    expect(baseProps.onClose).toHaveBeenCalledOnce();
+    expect(mocks.actions.copyMessageLink).not.toHaveBeenCalled();
+  });
+
+  it('reports an image clipboard failure and closes the menu', async () => {
+    mocks.copyImageToClipboard.mockRejectedValue(new Error('Clipboard unavailable'));
+    const error = vi.spyOn(toast, 'error').mockImplementation(() => 'toast');
+    const { container } = renderMenu({ imageUrl: 'https://example.com/image' });
+
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.trim() === 'Copy image')!
+      .click();
+
+    await vi.waitFor(() => expect(error).toHaveBeenCalledWith('Failed to copy image'));
+    expect(baseProps.onClose).toHaveBeenCalledOnce();
+  });
+
   it('copies the clicked link in the desktop menu and keeps the message permalink action', async () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
     const success = vi.spyOn(toast, 'success').mockImplementation(() => 'toast');
@@ -341,6 +382,7 @@ describe('MessageActionMenu', () => {
       const { container } = renderMenu({
         presentation: 'sheet',
         linkUrl: 'https://example.com/path',
+        imageUrl: 'https://example.com/image',
         canReact: true,
         canEdit: true,
         canDelete: true,

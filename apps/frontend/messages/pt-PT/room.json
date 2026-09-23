@@ -105,8 +105,11 @@
         "copy_text_failed": "Não foi possível copiar o texto",
         "copy_link": "Copiar link",
         "copy_message_link": "Copiar ligação da mensagem",
+        "copy_image": "Copiar imagem",
         "link_copied": "Ligação copiada",
-        "copy_link_failed": "Não foi possível copiar a ligação"
+        "copy_link_failed": "Não foi possível copiar a ligação",
+        "image_copied": "Imagem copiada",
+        "copy_image_failed": "Não foi possível copiar a imagem"
       },
       "meta": {
         "echo": "Eco",

@@ -109,8 +109,11 @@
         "copy_text_failed": "فشل في نسخ النص",
         "copy_link": "انسخ الرابط",
         "copy_message_link": "نسخ رابط الرسالة",
+        "copy_image": "نسخ الصورة",
         "link_copied": "تم نسخ الرابط",
-        "copy_link_failed": "تعذر نسخ الرابط"
+        "copy_link_failed": "تعذر نسخ الرابط",
+        "image_copied": "تم نسخ الصورة",
+        "copy_image_failed": "تعذر نسخ الصورة"
       },
       "meta": {
         "echo": "صدى",

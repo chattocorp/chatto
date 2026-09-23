@@ -105,8 +105,11 @@
         "copy_text_failed": "Kunne ikke kopiere teksten",
         "copy_link": "Kopier lenken",
         "copy_message_link": "Kopier meldingslenken",
+        "copy_image": "Kopier bilde",
         "link_copied": "Lenken er kopiert",
-        "copy_link_failed": "Kunne ikke kopiere lenken"
+        "copy_link_failed": "Kunne ikke kopiere lenken",
+        "image_copied": "Bildet er kopiert",
+        "copy_image_failed": "Kunne ikke kopiere bildet"
       },
       "meta": {
         "echo": "Ekko",

@@ -29,12 +29,15 @@
     interactions,
     action,
     linkUrl = null,
+    imageUrl = null,
     onClose
   }: {
     interactions: MessageEventInteractionState;
     action: MessageActionModel;
     /** URL of the message-body link that opened the desktop context menu. */
     linkUrl?: string | null;
+    /** URL of the image attachment that opened the desktop context menu. */
+    imageUrl?: string | null;
     onClose?: () => void;
   } = $props();
 
@@ -80,6 +83,7 @@
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
       {action}
       linkUrl={presentation === 'menu' ? linkUrl : null}
+      imageUrl={presentation === 'menu' ? imageUrl : null}
       onOpenEmojiPicker={action.canReact
         ? presentation === 'sheet'
           ? openSheetEmojiPicker

@@ -105,8 +105,11 @@
         "copy_text_failed": "テキストをコピーできませんでした",
         "copy_link": "リンクをコピー",
         "copy_message_link": "メッセージのリンクをコピー",
+        "copy_image": "画像をコピー",
         "link_copied": "リンクをコピーしました",
-        "copy_link_failed": "リンクをコピーできませんでした"
+        "copy_link_failed": "リンクをコピーできませんでした",
+        "image_copied": "画像をコピーしました",
+        "copy_image_failed": "画像をコピーできませんでした"
       },
       "meta": {
         "echo": "エコー",
