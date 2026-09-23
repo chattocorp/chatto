@@ -68,6 +68,10 @@ Filters such as `from:alice`, `in:"Team chat 💬"`, `after:2026-01-01`, and
 `has:attachment` work on their own; quote room names that contain spaces. You do
 not need to add a search word.
 
+You can search for a complete web address or email address. A hostname search
+also finds that host in a link or email address, including subdomains. You can
+search for words in these addresses, such as a host label or path word.
+
 The server-wide page and recently used rooms keep independent, transient query
 and result state. Selecting a result opens that message in its room or thread
 context. Search never combines results from different servers.
