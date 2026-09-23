@@ -208,6 +208,7 @@
       "clear_member_search": "Kustuta liikmeotsing",
       "no_members": "Ühtegi liiget ei leitud.",
       "online": "Võrgus ({count})",
+      "bots": "Bots ({count})",
       "offline": "Võrguühenduseta ({count})",
       "no_files": "Selles ruumis pole veel faile.",
       "files": "Failid",

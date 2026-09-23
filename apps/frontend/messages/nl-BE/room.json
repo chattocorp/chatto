@@ -208,6 +208,7 @@
       "clear_member_search": "Zoeken naar leden wissen",
       "no_members": "Geen leden gevonden.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Nog geen bestanden in deze kamer.",
       "files": "Bestanden",

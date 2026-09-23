@@ -208,6 +208,7 @@
       "clear_member_search": "メンバー検索をクリア",
       "no_members": "メンバーが見つかりませんでした。",
       "online": "オンライン ({count})",
+      "bots": "ボット ({count})",
       "offline": "オフライン ({count})",
       "no_files": "このルームにはまだファイルがありません。",
       "files": "ファイル",

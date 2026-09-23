@@ -208,6 +208,7 @@
       "clear_member_search": "Rensa medlemssökning",
       "no_members": "Inga medlemmar hittades.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Inga filer i det här rummet ännu.",
       "files": "Filer",

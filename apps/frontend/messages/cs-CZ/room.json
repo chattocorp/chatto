@@ -208,6 +208,7 @@
       "clear_member_search": "Vymazat vyhledávání členů",
       "no_members": "Nebyli nalezeni žádní členové.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "V této místnosti zatím nejsou žádné soubory.",
       "files": "Soubory",

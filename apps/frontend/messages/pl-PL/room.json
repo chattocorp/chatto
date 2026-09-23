@@ -215,6 +215,7 @@
       "clear_member_search": "Wyczyść wyszukiwanie członków",
       "no_members": "Nie znaleziono członków.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Nie ma jeszcze plików w tym pokoju.",
       "files": "Pliki",
