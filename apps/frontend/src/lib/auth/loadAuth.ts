@@ -50,8 +50,19 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
 
   while (true) {
     try {
-      cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
+      const loadedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
+      if (isExplicitSignOutRedirectInProgress()) {
+        cachedUser = null;
+        serverRegistry.clearOriginAuthentication();
+        return null;
+      }
+      cachedUser = loadedUser;
       await revokeLegacyOriginBearerSession();
+      if (isExplicitSignOutRedirectInProgress()) {
+        cachedUser = null;
+        serverRegistry.clearOriginAuthentication();
+        return null;
+      }
       serverRegistry.authenticateOriginCookie(cachedUser);
       serverConnectionManager.originClient.maintainBrowserSession();
       const originId = serverRegistry.originServer?.id;
@@ -60,12 +71,12 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       }
       return cachedUser;
     } catch (err) {
+      if (isExplicitSignOutRedirectInProgress()) {
+        cachedUser = null;
+        serverRegistry.clearOriginAuthentication();
+        return null;
+      }
       if (isAuthenticationRequiredError(err)) {
-        if (isExplicitSignOutRedirectInProgress()) {
-          cachedUser = null;
-          serverRegistry.clearOriginAuthentication();
-          return null;
-        }
         if (!legacyCookieMigrationAttempted) {
           legacyCookieMigrationAttempted = true;
           try {

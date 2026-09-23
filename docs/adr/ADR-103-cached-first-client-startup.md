@@ -17,10 +17,11 @@ On an initial chat route with a saved view for the registered server and user,
 the client creates its stores without network work and restores that view into
 the normal chat layout. It starts discovery and viewer checks after the first
 paint for the selected server. Other registered servers start discovery when
-the user opens them. The saved viewer remains display data and cannot authorize server
-actions or a realtime connection. A successful viewer check releases this
+the user opens them. The saved viewer remains display data and cannot authorize
+server actions or a realtime connection. A successful viewer check releases this
 startup gate only for the same user. An account change clears the old private
 view through the existing session replacement boundary.
+
 The installed app opens the origin chat route so an offline launch can use
 that saved view and the last room saved on the device.
 

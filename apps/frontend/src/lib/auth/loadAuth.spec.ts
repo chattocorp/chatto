@@ -99,6 +99,27 @@ describe('loadCurrentUser', () => {
     expect(maintainBrowserSessionMock).toHaveBeenCalledTimes(2);
   });
 
+  it('does not restore origin auth after sign-out starts during a viewer request', async () => {
+    const { loadCurrentUser } = await loadModule();
+    const { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } = await import('./signOut');
+    let resolveViewer: (value: typeof user) => void = () => {};
+    getCurrentUserViaConnectMock.mockReturnValue(new Promise((resolve) => {
+      resolveViewer = resolve;
+    }));
+
+    try {
+      const pending = loadCurrentUser();
+      beginExplicitSignOutRedirect();
+      resolveViewer(user);
+
+      expect(await pending).toBeNull();
+      expect(authenticateOriginCookieMock).not.toHaveBeenCalled();
+      expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
+    } finally {
+      cancelExplicitSignOutRedirect();
+    }
+  });
+
   it('discards a legacy origin bearer after cookie authentication succeeds', async () => {
     getCurrentUserViaConnectMock.mockResolvedValueOnce(user);
     const { loadCurrentUser } = await loadModule();

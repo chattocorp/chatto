@@ -1099,9 +1099,10 @@ class ServerRegistry {
 		if (this.isOriginServer(id) && store.startupPresentationOnly) {
 			const { loadCurrentUser } = await import('$lib/auth/loadAuth');
 			const user = await loadCurrentUser();
-			if (this.#stores.get(id) !== store || !user) return;
+			// A transient request can return the auth module's cached user. Only
+			// authenticateOriginCookie clears this gate after a live viewer response.
+			if (this.#stores.get(id) !== store || !user || store.startupPresentationOnly) return;
 			store.currentUser.user = user;
-			store.verifyStartupViewer(user.id);
 			const { invalidateAll } = await import('$app/navigation');
 			await invalidateAll();
 			return;
