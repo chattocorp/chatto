@@ -10,6 +10,7 @@
   let inputCount = $state(0);
   let submitCount = $state(0);
   let clearCount = $state(0);
+  let mountFocusCount = $state(0);
 </script>
 
 <ChatSearchInput
@@ -19,6 +20,7 @@
   clearLabel="Clear search"
   bind:value
   {focusOnMount}
+  onMountFocus={() => mountFocusCount++}
   {disabled}
   oninput={() => inputCount++}
   onsubmit={() => submitCount++}
@@ -29,3 +31,4 @@
 <output data-testid="input-count">{inputCount}</output>
 <output data-testid="submit-count">{submitCount}</output>
 <output data-testid="clear-count">{clearCount}</output>
+<output data-testid="mount-focus-count">{mountFocusCount}</output>

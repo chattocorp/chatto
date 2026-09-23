@@ -71,6 +71,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     currentUserId = null,
     membersStore,
     searchStore,
+    focusSearchOnMount = false,
+    onSearchFocused,
     filesStore,
     pinsStore,
     livekitUrl,
@@ -94,6 +96,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     currentUserId?: string | null;
     membersStore: RoomMembersStore;
     searchStore?: MessageSearchStore;
+    /** Focus Search after an explicit open, once its input mounts. */
+    focusSearchOnMount?: boolean;
+    onSearchFocused?: () => void;
     filesStore?: RoomFilesStore;
     pinsStore?: RoomPinsStore;
     livekitUrl?: string;
@@ -531,7 +536,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
     </div>
   {:else if activePanel === 'search'}
     {#if searchStore}
-      <RoomSearchPanel store={searchStore} {roomId} onOpenResult={onOpenSearchResult} />
+      <RoomSearchPanel
+        store={searchStore}
+        {roomId}
+        {focusSearchOnMount}
+        {onSearchFocused}
+        onOpenResult={onOpenSearchResult}
+      />
     {/if}
   {:else if activePanel === 'files'}
     {#if filesStore}

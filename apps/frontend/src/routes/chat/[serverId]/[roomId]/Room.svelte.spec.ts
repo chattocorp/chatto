@@ -103,6 +103,7 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
+  beforeNavigate: vi.fn(),
   goto: mocks.goto,
   pushState: mocks.pushState,
   replaceState: mocks.replaceState

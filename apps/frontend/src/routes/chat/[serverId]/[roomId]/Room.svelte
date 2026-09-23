@@ -3,7 +3,7 @@
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery } from 'svelte/reactivity';
-  import { goto, pushState, replaceState } from '$app/navigation';
+  import { beforeNavigate, goto, pushState, replaceState } from '$app/navigation';
   import { page } from '$app/state';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
@@ -27,7 +27,11 @@
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
   import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
-  import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
+  import {
+    getAppUiState,
+    getRoomSidebarPresentation,
+    type RoomSidebarPresentation
+  } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
@@ -523,9 +527,29 @@
   };
 
   let leavingRoom = $state(false);
+  // Only an explicit open requests focus. Saved panels have no pending request.
+  let focusSearchOnOpen = $state<RoomSidebarPresentation | null>(null);
+
+  beforeNavigate(() => {
+    focusSearchOnOpen = null;
+  });
+
+  function searchFocused(presentation: RoomSidebarPresentation): void {
+    if (focusSearchOnOpen === presentation) focusSearchOnOpen = null;
+  }
 
   function toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
+    const wasSearchOpen =
+      activeRoomSidebarPanel === 'search' && !activeDesktopRoomSidebarProfileUserId;
+    focusSearchOnOpen = panel === 'search' && !wasSearchOpen ? 'desktop' : null;
     appUi.toggleDesktopRoomSidebarPanel(panel, defaultDesktopRoomSidebarPanel);
+  }
+
+  function toggleMobileRoomSidebarPanel(panel: RoomSidebarPanel): void {
+    const wasSearchOpen =
+      mobileRoomSidebarPanel === 'search' && !activeMobileRoomSidebarProfileUserId;
+    focusSearchOnOpen = panel === 'search' && !wasSearchOpen ? 'mobile' : null;
+    appUi.toggleMobileRoomSidebarPanel(panel);
   }
 
   function openDirectMessageProfile(userId: string): void {
@@ -537,6 +561,7 @@
   }
 
   function closeDesktopRoomSidebarPanel(): void {
+    focusSearchOnOpen = null;
     appUi.closeDesktopRoomSidebarPanel();
   }
 
@@ -550,6 +575,7 @@
   }
 
   function closeMobileRoomSidebar(): void {
+    focusSearchOnOpen = null;
     const wasMemberProfile = appUi.isMemberProfileOpen;
     if (activeRoomSidebarProfileUserId) {
       appUi.closeRoomSidebarProfile('mobile');
@@ -572,8 +598,14 @@
 
     event.preventDefault();
     if (desktopRoomLayout.current) {
+      if (activeRoomSidebarPanel !== 'search' || activeDesktopRoomSidebarProfileUserId) {
+        focusSearchOnOpen = 'desktop';
+      }
       appUi.openDesktopRoomSidebarPanel('search');
     } else {
+      if (mobileRoomSidebarPanel !== 'search' || activeMobileRoomSidebarProfileUserId) {
+        focusSearchOnOpen = 'mobile';
+      }
       appUi.openMobileRoomSidebarPanel('search');
     }
   }
@@ -737,7 +769,7 @@
             {panels}
             hasActiveCall={hasActiveRoomCall}
             hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
-            onToggle={(panel) => appUi.toggleMobileRoomSidebarPanel(panel)}
+            onToggle={toggleMobileRoomSidebarPanel}
           />
           <RoomSidebarToggle
             mode="desktop"
@@ -952,6 +984,8 @@
           ? {
               ...sharedRoomSidebarProps,
               activePanel: mobileRoomSidebarPanel ?? 'members',
+              focusSearchOnMount: focusSearchOnOpen === 'mobile',
+              onSearchFocused: () => searchFocused('mobile'),
               activeProfileUserId: activeMobileRoomSidebarProfileUserId,
               onOpenFileMessage: (messageEventId, threadRootEventId) =>
                 openFileMessage(messageEventId, threadRootEventId, true),
@@ -971,6 +1005,8 @@
         sidebarProps={{
           ...sharedRoomSidebarProps,
           activePanel: activeRoomSidebarPanel ?? 'members',
+          focusSearchOnMount: focusSearchOnOpen === 'desktop',
+          onSearchFocused: () => searchFocused('desktop'),
           activeProfileUserId: activeDesktopRoomSidebarProfileUserId,
           maximized: isDesktopCallMaximized,
           onOpenFileMessage: openFileMessage,
