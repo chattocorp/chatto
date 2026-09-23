@@ -19,7 +19,7 @@ import (
 )
 
 func TestSeedCLIUsesOperatorSocket(t *testing.T) {
-	env := newAdminCLITestEnv(t)
+	env := newOperatorCLITestEnv(t)
 	output := env.run(t, "operator", "seed", "--seed", "73", "--users", "2", "--rooms", "1", "--messages", "4", "--thread-replies", "2", "--json")
 	var result operatorv1.SeedDataResponse
 	require.NoError(t, protojson.Unmarshal([]byte(output), &result))
@@ -41,7 +41,7 @@ func TestSeedCLIUsesOperatorSocket(t *testing.T) {
 }
 
 func TestSeedCLIExplainsMissingOrStoppedServer(t *testing.T) {
-	resetAdminGlobals(t)
+	resetOperatorGlobals(t)
 	// Keep Unix socket names below the macOS path limit.
 	directory, err := os.MkdirTemp("/tmp", "seed-cli-")
 	require.NoError(t, err)

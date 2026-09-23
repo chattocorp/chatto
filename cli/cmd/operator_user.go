@@ -2,38 +2,20 @@ package cmd
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
 	"io"
-	"net"
-	"net/http"
 	"os"
 	"strings"
 	"syscall"
 
-	"connectrpc.com/connect"
-	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/connectapi"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
-
-var operatorConfigFile string
-var operatorSocketPath string
-var operatorOutputJSON bool
-
-var operatorCmd = &cobra.Command{
-	Use:   "operator",
-	Short: "Local operator commands",
-}
 
 var operatorUserCmd = &cobra.Command{
 	Use:   "user",
@@ -41,25 +23,28 @@ var operatorUserCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(operatorCmd)
 	operatorCmd.AddCommand(operatorUserCmd)
-	operatorCmd.PersistentFlags().StringVarP(&operatorConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
-	operatorCmd.PersistentFlags().StringVar(&operatorSocketPath, "operator-socket", "", "operator API Unix socket path")
-	operatorCmd.PersistentFlags().BoolVar(&operatorOutputJSON, "json", false, "print JSON output")
-
 	operatorUserCmd.AddCommand(
-		adminUserListCmd(),
-		adminUserGetCmd(),
-		adminUserCreateCmd(),
-		adminUserUpdateCmd(),
-		adminUserSetPasswordCmd(),
-		adminUserDeleteCmd(),
-		adminUserAddEmailCmd(),
-		adminUserRoleCmd(),
+		operatorUserListCmd(),
+		operatorUserGetCmd(),
+		operatorUserCreateCmd(),
+		operatorUserUpdateCmd(),
+		operatorUserSetPasswordCmd(),
+		operatorUserDeleteCmd(),
+		operatorUserAddEmailCmd(),
+		operatorUserRoleCmd(),
 	)
 }
 
-func adminUserListCmd() *cobra.Command {
+func newOperatorUserClient() (operatorv1connect.OperatorUserServiceClient, error) {
+	httpClient, baseURL, err := newOperatorHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return operatorv1connect.NewOperatorUserServiceClient(httpClient, baseURL), nil
+}
+
+func operatorUserListCmd() *cobra.Command {
 	var search string
 	var limit int32
 	var offset int32
@@ -68,7 +53,7 @@ func adminUserListCmd() *cobra.Command {
 		Short: "List users",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
@@ -82,7 +67,7 @@ func adminUserListCmd() *cobra.Command {
 			if offset < 0 {
 				return errors.New("--offset must be greater than or equal to 0")
 			}
-			resp, err := client.ListUsers(cmd.Context(), adminRequest(&operatorv1.ListUsersRequest{
+			resp, err := client.ListUsers(cmd.Context(), operatorRequest(&operatorv1.ListUsersRequest{
 				Search: search,
 				Page: &apiv1.PageRequest{
 					Limit:  requestLimit,
@@ -93,9 +78,9 @@ func adminUserListCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() {
+			return printOperatorOutput(out, resp.Msg, func() {
 				for _, user := range resp.Msg.GetUsers() {
-					printAdminMemberLine(out, user)
+					printOperatorUserLine(out, user)
 				}
 				page := resp.Msg.GetPage()
 				totalCount := page.GetTotalCount()
@@ -110,7 +95,7 @@ func adminUserListCmd() *cobra.Command {
 	return cmd
 }
 
-func adminUserGetCmd() *cobra.Command {
+func operatorUserGetCmd() *cobra.Command {
 	var login string
 	cmd := &cobra.Command{
 		Use:   "get [USER_ID]",
@@ -129,23 +114,23 @@ func adminUserGetCmd() *cobra.Command {
 			} else {
 				request.Login = login
 			}
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.GetUser(cmd.Context(), adminRequest(request))
+			resp, err := client.GetUser(cmd.Context(), operatorRequest(request))
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
+			return printOperatorOutput(out, resp.Msg, func() { printOperatorUserLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&login, "login", "", "find a user by exact login")
 	return cmd
 }
 
-func adminUserCreateCmd() *cobra.Command {
+func operatorUserCreateCmd() *cobra.Command {
 	var login string
 	var displayName string
 	var password string
@@ -186,11 +171,11 @@ func adminUserCreateCmd() *cobra.Command {
 				}
 				password = prompted
 			}
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.CreateUser(cmd.Context(), adminRequest(&operatorv1.CreateUserRequest{
+			resp, err := client.CreateUser(cmd.Context(), operatorRequest(&operatorv1.CreateUserRequest{
 				Login:         login,
 				DisplayName:   displayName,
 				Password:      password,
@@ -201,7 +186,7 @@ func adminUserCreateCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
+			return printOperatorOutput(out, resp.Msg, func() { printOperatorUserLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&login, "login", "", "login for the new user")
@@ -214,7 +199,7 @@ func adminUserCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func adminUserUpdateCmd() *cobra.Command {
+func operatorUserUpdateCmd() *cobra.Command {
 	var newLogin string
 	var displayName string
 	cmd := &cobra.Command{
@@ -225,7 +210,7 @@ func adminUserUpdateCmd() *cobra.Command {
 			if !cmd.Flags().Changed("new-login") && !cmd.Flags().Changed("display-name") {
 				return errors.New("provide --new-login and/or --display-name")
 			}
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
@@ -236,12 +221,12 @@ func adminUserUpdateCmd() *cobra.Command {
 			if cmd.Flags().Changed("display-name") {
 				req.DisplayName = &displayName
 			}
-			resp, err := client.UpdateUser(cmd.Context(), adminRequest(req))
+			resp, err := client.UpdateUser(cmd.Context(), operatorRequest(req))
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
+			return printOperatorOutput(out, resp.Msg, func() { printOperatorUserLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&newLogin, "new-login", "", "new login")
@@ -249,7 +234,7 @@ func adminUserUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-func adminUserSetPasswordCmd() *cobra.Command {
+func operatorUserSetPasswordCmd() *cobra.Command {
 	var password string
 	var passwordFile string
 	var passwordStdin bool
@@ -289,11 +274,11 @@ func adminUserSetPasswordCmd() *cobra.Command {
 			if password == "" {
 				return errors.New("password cannot be empty")
 			}
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.SetUserPassword(cmd.Context(), adminRequest(&operatorv1.SetUserPasswordRequest{
+			resp, err := client.SetUserPassword(cmd.Context(), operatorRequest(&operatorv1.SetUserPasswordRequest{
 				UserId:   args[0],
 				Password: password,
 			}))
@@ -301,7 +286,7 @@ func adminUserSetPasswordCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
+			return printOperatorOutput(out, resp.Msg, func() { printOperatorUserLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&password, "password", "", "new password; prefer --password-stdin or --password-file for automation")
@@ -310,14 +295,14 @@ func adminUserSetPasswordCmd() *cobra.Command {
 	return cmd
 }
 
-func adminUserDeleteCmd() *cobra.Command {
+func operatorUserDeleteCmd() *cobra.Command {
 	var yes bool
 	cmd := &cobra.Command{
 		Use:   "delete USER_ID",
 		Short: "Permanently delete a user",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
@@ -329,19 +314,19 @@ func adminUserDeleteCmd() *cobra.Command {
 					return err
 				}
 			}
-			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&operatorv1.DeleteUserRequest{UserId: args[0]}))
+			resp, err := client.DeleteUser(cmd.Context(), operatorRequest(&operatorv1.DeleteUserRequest{UserId: args[0]}))
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { fmt.Fprintf(out, "deleted user %s\n", args[0]) })
+			return printOperatorOutput(out, resp.Msg, func() { fmt.Fprintf(out, "deleted user %s\n", args[0]) })
 		},
 	}
 	cmd.Flags().BoolVar(&yes, "yes", false, "confirm irreversible user deletion")
 	return cmd
 }
 
-func adminUserAddEmailCmd() *cobra.Command {
+func operatorUserAddEmailCmd() *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
 		Use:   "add-email USER_ID --email EMAIL",
@@ -351,11 +336,11 @@ func adminUserAddEmailCmd() *cobra.Command {
 			if strings.TrimSpace(email) == "" {
 				return errors.New("--email is required")
 			}
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.AddVerifiedEmail(cmd.Context(), adminRequest(&operatorv1.AddVerifiedEmailRequest{
+			resp, err := client.AddVerifiedEmail(cmd.Context(), operatorRequest(&operatorv1.AddVerifiedEmailRequest{
 				UserId: args[0],
 				Email:  email,
 			}))
@@ -363,14 +348,14 @@ func adminUserAddEmailCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
+			return printOperatorOutput(out, resp.Msg, func() { printOperatorUserLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&email, "email", "", "email address to add as already verified")
 	return cmd
 }
 
-func adminUserRoleCmd() *cobra.Command {
+func operatorUserRoleCmd() *cobra.Command {
 	roleCmd := &cobra.Command{
 		Use:   "role",
 		Short: "Manage user roles",
@@ -380,11 +365,11 @@ func adminUserRoleCmd() *cobra.Command {
 		Short: "Assign a role",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.AssignRole(cmd.Context(), adminRequest(&operatorv1.AssignRoleRequest{
+			resp, err := client.AssignRole(cmd.Context(), operatorRequest(&operatorv1.AssignRoleRequest{
 				UserId:   args[0],
 				RoleName: args[1],
 			}))
@@ -392,7 +377,7 @@ func adminUserRoleCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
+			return printOperatorOutput(out, resp.Msg, func() { printOperatorUserLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	roleCmd.AddCommand(addCmd)
@@ -403,11 +388,11 @@ func adminUserRoleCmd() *cobra.Command {
 		Short:   "Revoke a role",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newOperatorAPIClient()
+			client, err := newOperatorUserClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.RevokeRole(cmd.Context(), adminRequest(&operatorv1.RevokeRoleRequest{
+			resp, err := client.RevokeRole(cmd.Context(), operatorRequest(&operatorv1.RevokeRoleRequest{
 				UserId:   args[0],
 				RoleName: args[1],
 			}))
@@ -415,61 +400,11 @@ func adminUserRoleCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
+			return printOperatorOutput(out, resp.Msg, func() { printOperatorUserLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	roleCmd.AddCommand(removeCmd)
 	return roleCmd
-}
-
-func newOperatorAPIClient() (operatorv1connect.OperatorUserServiceClient, error) {
-	resolved, err := resolveOperatorAPIClientConfig()
-	if err != nil {
-		return nil, err
-	}
-	httpClient := &http.Client{Transport: newOperatorSocketTransport(resolved.socketPath)}
-	return operatorv1connect.NewOperatorUserServiceClient(httpClient, resolved.connectBaseURL), nil
-}
-
-type resolvedOperatorAPIConfig struct {
-	connectBaseURL string
-	socketPath     string
-}
-
-func resolveOperatorAPIClientConfig() (resolvedOperatorAPIConfig, error) {
-	resolved := resolvedOperatorAPIConfig{
-		connectBaseURL: "http://chatto-operator" + connectapi.Prefix,
-		socketPath:     strings.TrimSpace(operatorSocketPath),
-	}
-	if envSocketPath := strings.TrimSpace(os.Getenv("CHATTO_OPERATOR_API_SOCKET_PATH")); resolved.socketPath == "" && envSocketPath != "" {
-		resolved.socketPath = envSocketPath
-	}
-	cfg, cfgErr := readOperatorConfigFile(operatorConfigFile)
-	if cfgErr != nil {
-		return resolved, cfgErr
-	}
-	if resolved.socketPath == "" {
-		resolved.socketPath = cfg.OperatorAPI.SocketPathOrDefault()
-	}
-	return resolved, nil
-}
-
-func readOperatorConfigFile(path string) (config.ChattoConfig, error) {
-	var cfg config.ChattoConfig
-	if path == "" {
-		path = "chatto.toml"
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) && operatorConfigFile == "" {
-			return cfg, nil
-		}
-		return cfg, err
-	}
-	if err := toml.Unmarshal(b, &cfg); err != nil {
-		return cfg, err
-	}
-	return cfg, nil
 }
 
 func validateSecretSources(sources ...any) error {
@@ -507,33 +442,7 @@ func trimSecretNewline(s string) string {
 	return strings.TrimRight(s, "\r\n")
 }
 
-func newOperatorSocketTransport(socketPath string) *http.Transport {
-	return &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			var dialer net.Dialer
-			return dialer.DialContext(ctx, "unix", socketPath)
-		},
-	}
-}
-
-func adminRequest[T any](msg *T) *connect.Request[T] {
-	return connect.NewRequest(msg)
-}
-
-func printAdminOutput(out io.Writer, message proto.Message, human func()) error {
-	if operatorOutputJSON {
-		b, err := protojson.MarshalOptions{Indent: "  "}.Marshal(message)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(out, string(b))
-		return nil
-	}
-	human()
-	return nil
-}
-
-func printAdminMemberLine(out io.Writer, member *adminv1.AdminMember) {
+func printOperatorUserLine(out io.Writer, member *adminv1.AdminMember) {
 	if member == nil || member.GetUser() == nil {
 		return
 	}
