@@ -80,7 +80,6 @@ func TestSetupErrorFields(t *testing.T) {
 		err   error
 		field string
 	}{
-		{core.ErrHumanLoginReservedForBot, "login"},
 		{core.ErrUsernameBlocked, "login"},
 		{core.ErrLoginAlreadyTaken, "login"},
 		{core.ErrDisplayNameInvalidStart, "display_name"},

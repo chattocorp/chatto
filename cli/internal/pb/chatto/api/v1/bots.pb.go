@@ -637,7 +637,7 @@ func (x *BatchGetBotsResponse) GetBots() []*Bot {
 // Request creation of a bot owned by the authenticated human caller.
 type CreateBotRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Bot login. Must end in `_bot`.
+	// Bot login. Uses the same username rules as a human account.
 	Login string `protobuf:"bytes,1,opt,name=login,proto3" json:"login,omitempty"`
 	// Public display name.
 	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
