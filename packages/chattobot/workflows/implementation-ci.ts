@@ -6,10 +6,11 @@ import {
 } from './implementation-process.ts';
 
 export interface PullRequestChecks {
-  status: 'passed' | 'failed' | 'pending' | 'unavailable';
+  status: 'passed' | 'failed' | 'pending' | 'skipped' | 'unavailable';
   passed: number;
   failed: number;
   pending: number;
+  skipped: number;
 }
 
 interface CheckOptions {
@@ -38,14 +39,17 @@ function parseChecks(output: string): PullRequestChecks | undefined {
   const buckets = rows.map((row) => row.bucket as string);
   if (buckets.some((bucket) => !['pass', 'fail', 'pending', 'skipping', 'cancel'].includes(bucket)))
     return;
-  const passed = buckets.filter((bucket) => bucket === 'pass' || bucket === 'skipping').length;
+  const passed = buckets.filter((bucket) => bucket === 'pass').length;
   const failed = buckets.filter((bucket) => bucket === 'fail' || bucket === 'cancel').length;
   const pending = buckets.filter((bucket) => bucket === 'pending').length;
+  const skipped = buckets.filter((bucket) => bucket === 'skipping').length;
   return {
-    status: pending || !buckets.length ? 'pending' : failed ? 'failed' : 'passed',
+    status:
+      pending || !buckets.length ? 'pending' : failed ? 'failed' : passed ? 'passed' : 'skipped',
     passed,
     failed,
-    pending
+    pending,
+    skipped
   };
 }
 
@@ -53,7 +57,7 @@ function parseChecks(output: string): PullRequestChecks | undefined {
 export async function observePullRequestChecks(options: CheckOptions): Promise<PullRequestChecks> {
   const deadline = Date.now() + (options.timeoutMs ?? 30 * 60_000);
   const interval = options.intervalMs ?? 30_000;
-  let last: PullRequestChecks = { status: 'pending', passed: 0, failed: 0, pending: 0 };
+  let last: PullRequestChecks = { status: 'pending', passed: 0, failed: 0, pending: 0, skipped: 0 };
   let errors = 0;
   while (true) {
     options.signal.throwIfAborted();

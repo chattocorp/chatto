@@ -20,7 +20,7 @@ test('waits for pending checks and reads JSON even when gh exits nonzero', async
     .mockRejectedValueOnce(new ImplementationCommandError('pending', '[{"bucket":"pending"}]\n'))
     .mockResolvedValueOnce('[{"bucket":"pass"},{"bucket":"skipping"}]');
   const result = await observePullRequestChecks({ ...common, execute });
-  expect(result).toEqual({ status: 'passed', passed: 2, failed: 0, pending: 0 });
+  expect(result).toEqual({ status: 'passed', passed: 1, failed: 0, pending: 0, skipped: 1 });
   expect(execute).toHaveBeenCalledWith(
     'gh',
     ['pr', 'checks', common.prUrl, '--repo', common.repository, '--json', 'bucket'],
@@ -41,7 +41,19 @@ test('reports failed and cancelled checks without exposing check output', async 
     status: 'failed',
     passed: 0,
     failed: 2,
-    pending: 0
+    pending: 0,
+    skipped: 0
+  });
+});
+
+test('does not claim CI passed when every reported check was skipped', async () => {
+  const execute = vi.fn<ImplementationProcess>().mockResolvedValue('[{"bucket":"skipping"}]');
+  expect(await observePullRequestChecks({ ...common, execute })).toEqual({
+    status: 'skipped',
+    passed: 0,
+    failed: 0,
+    pending: 0,
+    skipped: 1
   });
 });
 

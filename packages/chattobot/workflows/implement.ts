@@ -1302,7 +1302,7 @@ export function implementationExtension(
               });
             } catch {
               ctx.signal.throwIfAborted();
-              ci = { status: 'unavailable' as const, passed: 0, failed: 0, pending: 0 };
+              ci = { status: 'unavailable' as const, passed: 0, failed: 0, pending: 0, skipped: 0 };
             }
             await ctx.emit({
               type: 'state',
@@ -1317,8 +1317,10 @@ export function implementationExtension(
                 : ci.status === 'failed'
                   ? `CI failed for [the pull request](${result.prUrl}): ${ci.failed} checks failed or were cancelled. Please review its Checks tab.`
                   : ci.status === 'pending'
-                    ? `CI is still pending for [the pull request](${result.prUrl}) after 30 minutes. Please review its Checks tab.`
-                    : `I could not read CI for [the pull request](${result.prUrl}). Please review its Checks tab.`;
+                    ? `CI is still pending for [the pull request](${result.prUrl}) after 30 minutes.${ci.failed ? ` ${ci.failed} checks have already failed or been cancelled.` : ''} Please review its Checks tab.`
+                    : ci.status === 'skipped'
+                      ? `All reported CI checks were skipped for [the pull request](${result.prUrl}). Please review its Checks tab.`
+                      : `I could not read CI for [the pull request](${result.prUrl}). Please review its Checks tab.`;
             let ciNoticeDelivered = false;
             try {
               if (dependencies.onCiResult) {

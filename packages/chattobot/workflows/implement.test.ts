@@ -793,7 +793,7 @@ test('host posts the verified PR before a separate CI result and suppresses dupl
   const observeChecks = vi.fn(async () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain('https://github.com/example/chatto/pull/7');
-    return { status: 'failed' as const, passed: 1, failed: 1, pending: 0 };
+    return { status: 'failed' as const, passed: 1, failed: 1, pending: 0, skipped: 0 };
   });
   const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
     execute: f.execute,
