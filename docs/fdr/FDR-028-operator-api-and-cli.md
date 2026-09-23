@@ -5,7 +5,7 @@
 
 ## Overview
 
-The Operator API gives server operators local, root-equivalent user administration and channel room management outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where an action should be attributed to Chatto's system actor rather than a human account.
+The Operator API gives server operators local, root-equivalent user administration, channel room management, and attachment upload outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where an action should be attributed to Chatto's system actor rather than a human account.
 
 ## Behavior
 
@@ -22,6 +22,7 @@ The Operator API gives server operators local, root-equivalent user administrati
 - Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.
 - `chatto operator room create` creates a channel as the system actor with normal name and description checks. An omitted group selects the current default group.
 - `chatto operator room member add` adds an existing user as an explicit member of a channel room. An existing membership succeeds without another join fact. Missing resources, DM rooms, archived rooms, universal rooms, and active bans prevent the add.
+- `chatto operator asset upload` reads a local file, uploads it in bounded chunks, and returns a room-scoped asset ID owned by the mapped author. It uses normal attachment size, processing, storage, and pending-asset cleanup. The upload fact records the system actor. The CLI does not fetch source URLs.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
@@ -100,6 +101,12 @@ fixture remains separate so its workload stays comparable.
 **Decision:** The local Operator API adds explicit channel members through the existing membership operation as the system actor. A repeat for a current member returns the member without another join fact.
 **Why:** Import scripts must make mapped users members before they can refer to them as historical room participants. Membership is already a set in Chatto, so no import source key is needed.
 **Tradeoff:** The operation keeps normal room limits: it cannot add explicit members to archived, universal, or DM rooms, and it cannot bypass an active room ban.
+
+### 10. Local attachment upload
+
+**Decision:** The Operator API uses the existing chunked asset lifecycle with a private upload-session marker. The operator can upload for an existing author in an active channel without a user session, room membership, or RBAC permission. The asset belongs to the author and the creation fact records the system actor. Public upload calls cannot use private sessions.
+**Why:** An import script needs an asset ID before it creates a historical message. Reusing the upload lifecycle preserves configured size limits, checksums, media processing, storage, and cleanup.
+**Tradeoff:** An interrupted upload may leave temporary chunks until session cleanup. A lost completion response may leave an unattached asset until the pending-asset window expires. A new command run may create another asset; the script owns retry decisions.
 
 ## Permissions
 

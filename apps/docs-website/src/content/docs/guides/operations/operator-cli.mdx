@@ -1,11 +1,11 @@
 ---
 title: Operator CLI
-description: Manage accounts and channel rooms with the local chatto operator CLI.
+description: Manage accounts, channel rooms, and attachment uploads with the local chatto operator CLI.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-`chatto operator` provides local, root-equivalent account administration and channel room management. Use it to create the first account on a server, recover access, or manage channels from a script.
+`chatto operator` provides local, root-equivalent account administration, channel room management, and attachment upload. Use it to create the first account on a server, recover access, or manage channels and files from a script.
 
 The CLI talks to the running Chatto server over a Unix socket. It does not connect directly to NATS and does not use a Chatto login, bearer token, cookie, or RBAC role.
 
@@ -143,6 +143,23 @@ chatto operator room member add --room-id ROOM_ID --user-id USER_ID
 ```
 
 The command returns both IDs. Use `--json` to get the member record. Repeating the command for a current member succeeds without adding a second membership. Chatto rejects missing users or rooms, DM rooms, archived rooms, universal rooms, and users with an active room ban.
+
+## Upload a local attachment
+
+Upload a file for an existing Chatto user and channel room:
+
+```sh
+chatto operator asset upload \
+  --room-id ROOM_ID \
+  --author-id USER_ID \
+  --file /path/to/exported-image.png
+```
+
+The command prints the completed asset ID. Add `--json` to get an `assetId` field for a script. The file basename becomes the stored filename. Chatto infers the MIME type from that name. Use `--filename NAME` or `--content-type TYPE` to override either value. If you run the CLI inside Docker, `--file` must name a file inside that container.
+
+The command reads only the local file. It does not fetch a URL from the export. Chatto applies its normal attachment size limits and media processing. It stores the bytes in its configured NATS or S3 asset backend. If you use S3, the storage provider receives the file bytes and the server's IP address. The asset belongs to the selected author; the upload action is recorded as a system action. The author does not need a session or file-attachment permission for this operator command. The room must be an active channel.
+
+If an upload command returns an error, it attempts to cancel the incomplete upload. If the process stops or cannot reach the server, server cleanup removes abandoned chunks after expiry. A completed asset remains pending until a message attaches it; Chatto removes an unattached pending asset after 24 hours. Running the command again can create a different asset ID, so an import script should save each returned ID. The CLI reports only an asset ID; a later message command attaches it.
 
 ## Update a user
 

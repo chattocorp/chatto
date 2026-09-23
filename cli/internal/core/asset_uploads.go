@@ -45,7 +45,11 @@ const (
 )
 
 type AssetUploadCreateInput struct {
-	ActorID     string
+	// ActorID is the authenticated user for a public upload or the mapped asset
+	// owner for an operator upload. The operator fact uses SystemActorID.
+	ActorID string
+	// Operator is set only by the private Operator API handler.
+	Operator    bool
 	RoomID      string
 	Filename    string
 	ContentType string
@@ -54,7 +58,9 @@ type AssetUploadCreateInput struct {
 }
 
 type AssetUploadChunkInput struct {
-	ActorID     string
+	ActorID string
+	// Operator selects a private upload session and requires SystemActorID.
+	Operator    bool
 	UploadID    string
 	Offset      int64
 	Content     []byte
@@ -62,18 +68,25 @@ type AssetUploadChunkInput struct {
 }
 
 type AssetUploadCompleteInput struct {
-	ActorID  string
+	ActorID string
+	// Operator selects a private upload session and requires SystemActorID.
+	Operator bool
 	UploadID string
 }
 
 type AssetUploadCancelInput struct {
-	ActorID  string
+	ActorID string
+	// Operator selects a private upload session and requires SystemActorID.
+	Operator bool
 	UploadID string
 }
 
 type AssetUploadSession struct {
-	UploadID        string            `json:"upload_id"`
-	ActorID         string            `json:"actor_id"`
+	UploadID string `json:"upload_id"`
+	// ActorID owns the asset, including when the upload was started by an operator.
+	ActorID string `json:"actor_id"`
+	// Operator prevents public upload calls from using this session.
+	Operator        bool              `json:"operator,omitempty"`
 	RoomID          string            `json:"room_id"`
 	Filename        string            `json:"filename"`
 	ContentType     string            `json:"content_type"`
@@ -113,7 +126,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 	if err := m.checkUploadSize(contentType, input.Size); err != nil {
 		return nil, err
 	}
-	if err := m.authorizeUpload(ctx, input.ActorID, input.RoomID); err != nil {
+	if err := m.authorizeUploadForSession(ctx, input.ActorID, input.RoomID, input.Operator); err != nil {
 		return nil, err
 	}
 
@@ -121,6 +134,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 	session := &AssetUploadSession{
 		UploadID:     NewAssetID(),
 		ActorID:      input.ActorID,
+		Operator:     input.Operator,
 		RoomID:       input.RoomID,
 		Filename:     filename,
 		ContentType:  contentType,
@@ -145,7 +159,7 @@ func (m *AssetUploadModel) GetUpload(ctx context.Context, actorID, uploadID stri
 	if err != nil {
 		return nil, err
 	}
-	if session.ActorID != actorID {
+	if session.ActorID != actorID || session.Operator {
 		return nil, ErrPermissionDenied
 	}
 	return session, nil
@@ -166,7 +180,7 @@ func (m *AssetUploadModel) UploadChunk(ctx context.Context, input AssetUploadChu
 	if err != nil {
 		return nil, err
 	}
-	if session.ActorID != input.ActorID {
+	if !uploadSessionMatches(session, input.ActorID, input.Operator) {
 		return nil, ErrPermissionDenied
 	}
 	if session.Status != AssetUploadStatusOpen {
@@ -204,7 +218,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	if err != nil {
 		return nil, nil, err
 	}
-	if session.ActorID != input.ActorID {
+	if !uploadSessionMatches(session, input.ActorID, input.Operator) {
 		return nil, nil, ErrPermissionDenied
 	}
 	if session.Status == AssetUploadStatusCompleted {
@@ -224,7 +238,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	if session.CommittedOffset != session.Size {
 		return nil, nil, invalidArgument("upload is incomplete")
 	}
-	if err := m.authorizeUpload(ctx, input.ActorID, session.RoomID); err != nil {
+	if err := m.authorizeUploadForSession(ctx, session.ActorID, session.RoomID, session.Operator); err != nil {
 		return nil, nil, err
 	}
 	tmp, err := m.materializeUpload(ctx, session)
@@ -239,7 +253,11 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	}
 	pendingExpiresAt := time.Now().Add(defaultPendingAttachmentAssetTTL)
 	needsVideoProcessing := m.core.VideoUploadsEnabled && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
-	if err := m.core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
+	assetActorID := session.ActorID
+	if session.Operator {
+		assetActorID = SystemActorID
+	}
+	if err := m.core.assetModel.recordUploadedPendingAttachmentAsset(ctx, assetActorID, session.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
 		m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment)
 		return nil, nil, err
 	}
@@ -258,7 +276,7 @@ func (m *AssetUploadModel) CancelUpload(ctx context.Context, input AssetUploadCa
 	if err != nil {
 		return nil, err
 	}
-	if session.ActorID != input.ActorID {
+	if !uploadSessionMatches(session, input.ActorID, input.Operator) {
 		return nil, ErrPermissionDenied
 	}
 	if session.Status == AssetUploadStatusCompleted {
@@ -431,6 +449,35 @@ func (m *AssetUploadModel) authorizeUpload(ctx context.Context, actorID, roomID 
 		return ErrPermissionDenied
 	}
 	return nil
+}
+
+// authorizeUploadForSession keeps operator uploads separate from user uploads.
+// The private operator listener is the authority for the bypass path.
+func (m *AssetUploadModel) authorizeUploadForSession(ctx context.Context, actorID, roomID string, operator bool) error {
+	if !operator {
+		return m.authorizeUpload(ctx, actorID, roomID)
+	}
+	if _, err := m.core.GetUser(ctx, actorID); err != nil {
+		return err
+	}
+	room, err := m.core.GetRoom(ctx, KindChannel, roomID)
+	if err != nil {
+		return err
+	}
+	if room.Archived {
+		return ErrRoomArchived
+	}
+	return nil
+}
+
+func uploadSessionMatches(session *AssetUploadSession, actorID string, operator bool) bool {
+	if session.Operator != operator {
+		return false
+	}
+	if operator {
+		return actorID == SystemActorID
+	}
+	return session.ActorID == actorID
 }
 
 func (m *AssetUploadModel) loadUpload(ctx context.Context, uploadID string) (*AssetUploadSession, uint64, error) {
