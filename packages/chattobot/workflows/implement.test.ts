@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm, readdir, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -13,7 +13,8 @@ import {
   implementationExtension,
   implementationSettings,
   matchesRepository,
-  validationDiagnostic
+  validationDiagnostic,
+  workerStopReason
 } from './implement.ts';
 import {
   implementationProcess,
@@ -151,7 +152,12 @@ test('implements in an isolated worktree, records final checks, pushes and verif
       expect(options.tools).not.toContain('write');
       expect(options.tools).not.toContain('bash');
       expect(options.tools).toContain('runCheck');
+      expect(options.tools).toContain('runFocusedTests');
       expect(options.tools).toContain('reviewDiff');
+      expect(options.tools).toContain('checkpointWork');
+      expect(options.instructions?.join('\n')).toContain(
+        'Partial progress, task size, and a later human quality review are not by themselves blockers.'
+      );
       expect(f.calls.some((call) => call.args.includes('install'))).toBe(true);
       expect(await readFile(join(options.cwd, 'example.txt'), 'utf8')).toBe('original\n');
       await call('apply_patch', { patch });
@@ -242,6 +248,132 @@ test('worker can review new changes and run an approved check before host valida
   ).toHaveLength(2);
 });
 
+test('worker can inspect one changed file and run selected frontend tests', async () => {
+  const f = await fixture();
+  const spec = 'src/lib/example.test.ts';
+  await mkdir(join(f.settings.directory, 'apps/frontend/src/lib'), { recursive: true });
+  await writeFile(join(f.settings.directory, 'apps/frontend', spec), 'test fixture\n');
+  await f.git('add', '.');
+  await f.git('-c', 'commit.gpgsign=false', 'commit', '-m', 'Add test fixture');
+  await f.git('push', 'origin', 'main');
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    createAgent: worker(async (_options, call) => {
+      await call('apply_patch', { patch });
+      await call('apply_patch', {
+        patch: '--- /dev/null\n+++ b/other.txt\n@@ -0,0 +1 @@\n+other\n'
+      });
+      const fileDiff = await call('reviewDiff', { path: 'example.txt' });
+      expect(fileDiff.content[0]?.text).toContain('+fixed');
+      expect(fileDiff.content[0]?.text).not.toContain('other.txt');
+      expect((await call('reviewDiff', { path: '../example.txt' })).content[0]?.text).toContain(
+        'exact changed path'
+      );
+      const before = f.calls.length;
+      expect(
+        (await call('runFocusedTests', { project: 'server', files: ['../example.spec.ts'] }))
+          .content[0]?.text
+      ).toContain('Select existing frontend spec paths');
+      expect(f.calls).toHaveLength(before);
+      const focused = await call('runFocusedTests', { project: 'server', files: [spec] });
+      expect(focused.content[0]?.text).toContain('Passed: mise x -- pnpm --dir apps/frontend');
+      expect((await call('runCheck', { check: 'lint:frontend' })).content[0]?.text).toContain(
+        'Passed: mise x -- pnpm run lint:frontend'
+      );
+      expect((await call('runCheck', { check: 'build:frontend' })).content[0]?.text).toContain(
+        'Passed: mise x -- pnpm run build:frontend'
+      );
+      await call('preparePullRequest', proposal);
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(result.outcome).toBe('completed');
+  expect(result.workerChecks).toEqual([
+    {
+      command: `mise x -- pnpm --dir apps/frontend exec vitest run --project=server ${spec}`,
+      passed: true
+    },
+    { command: 'mise x -- pnpm run lint:frontend', passed: true },
+    { command: 'mise x -- pnpm run build:frontend', passed: true }
+  ]);
+});
+
+test('an actionable checkpoint continues in the same worker before host validation', async () => {
+  const f = await fixture();
+  const updates: unknown[] = [];
+  let turns = 0;
+  const createAgent = vi.fn(async (options: AgentOptions) => ({
+    dispose: vi.fn(),
+    async runOutcome(_ctx: unknown, prompt: string) {
+      const call = await workerTools(options);
+      turns++;
+      if (turns === 1) {
+        await call('apply_patch', { patch });
+        await call('checkpointWork', {
+          summary: 'First file is complete.',
+          nextSteps: ['Add the regression fixture'],
+          risks: []
+        });
+      } else {
+        expect(prompt).toContain('Add the regression fixture');
+        expect(await readFile(join(options.cwd, 'example.txt'), 'utf8')).toBe('fixed\n');
+        await call('apply_patch', {
+          patch: '--- /dev/null\n+++ b/regression.txt\n@@ -0,0 +1 @@\n+covered\n'
+        });
+        await call('preparePullRequest', proposal);
+      }
+      return { outcome: 'completed' as const, summary: 'Continue', usage: emptyTokenUsage() };
+    }
+  }));
+  const result = await createImplementation(f.settings, { createAgent, execute: f.execute })(
+    {
+      ...createWorkflowContext(),
+      emit: async (value) => {
+        updates.push(value);
+      }
+    },
+    { request: 'Fix' }
+  );
+  expect(result.outcome).toBe('completed');
+  expect(turns).toBe(2);
+  expect(createAgent).toHaveBeenCalledOnce();
+  expect(updates).toContainEqual(
+    expect.objectContaining({
+      type: 'state',
+      value: { phase: 'editing_checkpoint', idleCheckpoints: 0 }
+    })
+  );
+  expect(result.checks.every((check) => check.passed)).toBe(true);
+});
+
+test('three checkpoints without source progress stop with a retained handoff', async () => {
+  const f = await fixture();
+  let turns = 0;
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    createAgent: async (options) => ({
+      dispose() {},
+      async runOutcome() {
+        turns++;
+        await (
+          await workerTools(options)
+        )('checkpointWork', {
+          summary: 'Need another work turn.',
+          nextSteps: ['Edit example.txt'],
+          risks: []
+        });
+        return { outcome: 'completed' as const, summary: 'Continue', usage: emptyTokenUsage() };
+      }
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(result.outcome).toBe('blocked');
+  expect(result.summary).toContain('without source progress');
+  expect(turns).toBe(3);
+  expect(result.checks).toEqual([]);
+  expect(
+    JSON.parse(await readFile(join(result.worktree, '..', 'metadata.json'), 'utf8')).handoff
+  ).toMatchObject({ nextSteps: ['Edit example.txt'] });
+});
+
 test('worker check failures return bounded repair diagnostics and leave final validation to the host', async () => {
   const f = await fixture();
   let workerCheck = true;
@@ -261,13 +393,43 @@ test('worker check failures return bounded repair diagnostics and leave final va
       const check = await call('runCheck', { check: 'check' });
       expect(check.isError).toBeUndefined();
       expect(check.content[0]?.text).toContain('Assertion failed');
+      expect(check.content[0]?.text).toContain('also failed on the base commit');
       expect(check.content[0]?.text).not.toContain('test@example.invalid');
       expect(check.content[0]?.text).not.toContain('https://example.invalid');
       await call('preparePullRequest', proposal);
     })
   })(createWorkflowContext(), { request: 'Fix' });
   expect(result.outcome).toBe('completed');
+  expect(result.workerChecks).toEqual([
+    { command: 'mise x -- pnpm run check', passed: false, baseline: 'failed' }
+  ]);
   expect(result.checks.every((check) => check.passed)).toBe(true);
+});
+
+test('a worker check failure that passes on base is marked for worktree repair', async () => {
+  const f = await fixture();
+  let workerCheck = true;
+  const result = await createImplementation(f.settings, {
+    execute: async (command, args, options) => {
+      if (command === 'mise' && args.at(-1) === 'check' && workerCheck) {
+        workerCheck = false;
+        throw new ImplementationCommandError('Check failed', 'Changed test failed');
+      }
+      if (command === 'mise' && args.at(-1) === 'check' && options.cwd.endsWith('/baseline'))
+        return '';
+      return f.execute(command, args, options);
+    },
+    createAgent: worker(async (_options, call) => {
+      await call('apply_patch', { patch });
+      const check = await call('runCheck', { check: 'check' });
+      expect(check.content[0]?.text).toContain('passed on the base commit');
+      await call('preparePullRequest', proposal);
+    })
+  })(createWorkflowContext(), { request: 'Fix' });
+  expect(result.outcome).toBe('completed');
+  expect(result.workerChecks).toEqual([
+    { command: 'mise x -- pnpm run check', passed: false, baseline: 'passed' }
+  ]);
 });
 
 test('worker answer tool emits a correlated reply without treating commentary as an answer', async () => {
@@ -442,9 +604,11 @@ test('a failed worker report stops immediately and preserves the worktree for us
   expect(turns).toBe(1);
   expect(result).toMatchObject({
     outcome: 'blocked',
-    summary: expect.stringContaining('could not complete'),
-    checks: []
+    summary: expect.stringContaining('Edits are unfinished'),
+    checks: [],
+    workerChecks: []
   });
+  expect(result.notes).toContain('Host final validation did not run. No PR was created.');
   expect(await readFile(join(result.worktree, 'example.txt'), 'utf8')).toBe('fixed\n');
   expect(f.calls.some((call) => call.command === 'mise' && !call.args.includes('install'))).toBe(
     false
@@ -785,6 +949,65 @@ test.each(['sent', 'failed'])(
     }
   }
 );
+
+test('a blocked worker reason and its check count reach the owner without claiming final validation', async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const onStopped = vi.fn(async (_message: string) => {});
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    execute: f.execute,
+    onStopped,
+    createAgent: async (options) => ({
+      dispose() {},
+      async runOutcome() {
+        const call = await workerTools(options);
+        await call('apply_patch', { patch });
+        await call('runCheck', { check: 'check' });
+        await call('saveHandoff', {
+          summary: 'The requested source work remains incomplete.',
+          nextSteps: ['Finish the remaining files'],
+          risks: []
+        });
+        return {
+          outcome: 'blocked',
+          summary: '18 catalog sections remain; translation review belongs in the PR notes.',
+          usage: emptyTokenUsage()
+        };
+      }
+    })
+  });
+  const call = await workerTools({
+    cwd: f.settings.directory,
+    model: 'test/model',
+    extensions: [extension]
+  });
+  try {
+    const handle = JSON.parse(
+      (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
+        .text!
+    );
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
+    expect(onStopped).toHaveBeenCalledOnce();
+    const message = onStopped.mock.calls[0]![0];
+    expect(message).toContain('18 catalog sections remain');
+    expect(message).toContain('worker ran 1 check');
+    expect(message).toContain('not final host checks');
+    expect(message).toContain('implementation-');
+    const result = JSON.parse(tasks.get(handle.id).result!);
+    expect(result).toMatchObject({
+      outcome: 'blocked',
+      checks: [],
+      workerChecks: [{ command: 'mise x -- pnpm run check', passed: true }],
+      noticeDelivered: true
+    });
+    expect(
+      f.calls.filter((entry) => entry.command === 'mise' && entry.args.at(-1) === 'check')
+    ).toHaveLength(1);
+  } finally {
+    await tasks.dispose();
+  }
+});
 
 test('host posts the verified PR before a separate CI result and suppresses duplicate notices', async () => {
   const f = await fixture();
@@ -1241,6 +1464,18 @@ test('validation diagnostics retain failure detail without credentials, URLs, or
   expect(diagnostic).toContain('<worktree>/file.ts');
   expect(diagnostic).not.toMatch(/private-api-value|person@|token=abc|Bearer secret/);
   expect(diagnostic.length).toBeLessThanOrEqual(8000);
+});
+
+test('worker stop reasons are bounded and redacted before reaching the owner', () => {
+  vi.stubEnv('OPENAI_API_KEY', 'private-api-value');
+  const reason = workerStopReason(
+    '18 catalog sections remain. /Users/test/private/file.ts private-api-value person@example.invalid https://example.invalid/?token=abc Bearer secret ' +
+      'x'.repeat(2000),
+    '/worktree'
+  );
+  expect(reason).toContain('18 catalog sections remain');
+  expect(reason).not.toMatch(/\/Users\/test|private-api-value|person@|token=abc|Bearer secret/);
+  expect(reason.length).toBeLessThanOrEqual(800);
 });
 
 test.skipIf(!process.env.CHATTO_EVAL_MODEL)(

@@ -307,9 +307,16 @@ Each new implementation fetches the configured base branch and creates a new
 changes from the supplied checkout. The host first runs
 `mise x -- pnpm install --frozen-lockfile` in that worktree. The worker uses
 `apply_patch` for source changes and has no shell tool. It can use `reviewDiff`
-to read the current diff, including new files, and `runCheck` to run an approved
-repository check. The worker can save brief handoff notes for a later attempt.
-Patch and check failures return bounded diagnostics to the worker. Repository
+to read the current diff, including new files, or select one changed path when
+the complete diff is too long. `runCheck` runs an approved repository check,
+including frontend lint and build. `runFocusedTests` runs selected existing
+frontend test or spec files in one Vitest project. The worker can save brief
+handoff notes for a later attempt.
+Patch and check failures return bounded diagnostics to the worker. After a
+worker-requested check fails, the host runs it on the base commit and reports
+whether the base passed, failed, or could not be checked. A failed base check
+does not establish the cause. Worker checks are recorded separately from the
+final host checks because edits can make earlier results stale. Repository
 setup and check commands do not inherit the bot's Chatto,
 Authling, model-provider, or GitHub token variables. The host repeats final
 checks before publication. To continue, ask the bot to resume the exact
@@ -322,11 +329,19 @@ After the worker reports its edits, the host runs `check:frontend` and
 `test:frontend` for changes limited to `apps/frontend/`; other changes run the
 root `check` and `test` scripts. Commands run through `mise x -- pnpm run`.
 Changes to Go source or module files also run `mise run test-cli`.
-The worker must finish its edits before it reports completion. A blocked or failed
-worker report ends the attempt and requires a new user request. After a failed
-final check, the host runs the same command on a clean worktree at the base
-commit. If it also fails, the host stops and reports that the cause is not
-known. If it passes, the host sends bounded diagnostic output to the same
+The worker must finish its edits before it requests final validation. For a
+large, actionable change, it can save progress with `checkpointWork` and get
+another work turn in the same implementation. A checkpoint does not start
+validation or publication. Three checkpoints with no source changes stop the
+attempt and retain the handoff for review. A proposed
+human review can be recorded as a PR review need unless the user requires that
+review before publication. A blocked or failed worker report ends the attempt
+and requires a new user request. The host reports the worker's bounded,
+redacted reason and the number of worker checks it ran. It says when final host
+validation did not run. After a failed final check, the host runs the same
+command on a clean worktree at the base commit. If it also fails, the host
+stops and reports that the cause is not known. If it passes, the host sends
+bounded diagnostic output to the same
 worker, with at most two repair turns. If the base check cannot run, the host
 reports that the comparison is unknown and lets the worker try to repair.
 The final result also retains failed-check diagnostics
