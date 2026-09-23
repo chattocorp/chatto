@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
-	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -64,17 +63,26 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		snapshot.Replies = append(snapshot.Replies, row)
 	}
 
-	followKeys := sortedMapKeys(p.followState)
-	for _, key := range followKeys {
-		parts := strings.SplitN(key, "\x00", 3)
-		if len(parts) != 3 {
-			return nil, fmt.Errorf("invalid thread follow key in projection")
+	followKeys := make([]threadFollowStateKey, 0, len(p.followState))
+	for key := range p.followState {
+		followKeys = append(followKeys, key)
+	}
+	sort.Slice(followKeys, func(i, j int) bool {
+		a, b := followKeys[i], followKeys[j]
+		if a.userID != b.userID {
+			return a.userID < b.userID
 		}
+		if a.roomID != b.roomID {
+			return a.roomID < b.roomID
+		}
+		return a.threadRootEventID < b.threadRootEventID
+	})
+	for _, key := range followKeys {
 		snapshot.Follows = append(snapshot.Follows, &projectionv1.ThreadFollowSnapshot{
-			UserId:            parts[0],
-			RoomId:            parts[1],
-			ThreadRootEventId: parts[2],
-			State:             string(p.followState[key]),
+			UserId:            key.userID,
+			RoomId:            key.roomID,
+			ThreadRootEventId: key.threadRootEventID,
+			State:             string(p.followState[key].public()),
 		})
 	}
 
@@ -137,9 +145,9 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		interactions    map[string]map[string]*projectedThreadInteraction
 		replySummaries  map[string]*threadReplySummary
 		summaryByThread map[string]*threadSummary
-		followState     map[string]ThreadFollowState
-		followers       map[string]map[string]struct{}
-		followedByUser  map[string]map[string]threadFollowRef
+		followState     map[threadFollowStateKey]compactThreadFollowState
+		followers       map[threadFollowRef]map[string]struct{}
+		followedByUser  map[string]map[threadFollowRef]struct{}
 		replayGuard     projectionReplayGuard
 		shreddedUsers   map[string]struct{}
 	}{p.byThread, p.messageToThread, p.channelRooms, p.dmRooms, p.messageThreads, p.interactions, p.replySummaries, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
@@ -293,7 +301,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		if state != ThreadFollowStateFollowing && state != ThreadFollowStateUnfollowed {
 			return fmt.Errorf("Thread projection snapshot has invalid follow state %q", state)
 		}
-		key := follow.GetUserId() + "\x00" + threadFollowKeyPart(follow.GetRoomId(), follow.GetThreadRootEventId())
+		key := threadFollowStateKey{userID: follow.GetUserId(), threadFollowRef: threadFollowRef{roomID: follow.GetRoomId(), threadRootEventID: follow.GetThreadRootEventId()}}
 		if _, duplicate := p.followState[key]; duplicate {
 			return fmt.Errorf("Thread projection snapshot repeats follow state")
 		}
@@ -386,9 +394,9 @@ func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.interactions = make(map[string]map[string]*projectedThreadInteraction)
 	p.replySummaries = make(map[string]*threadReplySummary)
 	p.summaryByThread = make(map[string]*threadSummary)
-	p.followState = make(map[string]ThreadFollowState)
-	p.followers = make(map[string]map[string]struct{})
-	p.followedByUser = make(map[string]map[string]threadFollowRef)
+	p.followState = make(map[threadFollowStateKey]compactThreadFollowState)
+	p.followers = make(map[threadFollowRef]map[string]struct{})
+	p.followedByUser = make(map[string]map[threadFollowRef]struct{})
 	p.replayGuard = newProjectionReplayGuard()
 	p.shreddedUsers = make(map[string]struct{})
 }

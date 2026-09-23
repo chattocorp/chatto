@@ -163,6 +163,11 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	if !strings.Contains(text, `chatto_projection_startup_messages{projection="server_content_view"}`) {
 		t.Fatalf("metrics body missing server_content_view startup messages metric\n%s", text)
 	}
+	for _, component := range []string{"room_timeline", "threads"} {
+		if !strings.Contains(text, `chatto_projection_component_estimated_bytes{component="`+component+`"}`) {
+			t.Fatalf("metrics body missing %s component estimate\n%s", component, text)
+		}
+	}
 	if strings.Contains(text, `projection="Server Content View"`) {
 		t.Fatalf("metrics body used human projection name as label\n%s", text)
 	}

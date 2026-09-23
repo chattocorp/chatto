@@ -246,6 +246,16 @@ message content; retraction removes the association during projection. The
 current Room Timeline schema stores only compact timeline and body references.
 Its schema fingerprint rejects the earlier `v7` payload-bearing schema.
 
+The Room Timeline component shares room and user IDs between compact event
+rows. Each row keeps a small event-kind value. An event-ID index locates a
+message's current body state in a dense array. A small map holds body facts
+that arrive before their message post, then moves them into the array. Each
+row stores references to known thread roots and echo sources as numeric row
+indexes. A sparse fallback keeps the original ID if the referenced event has
+not arrived or is outside the timeline. The Threads component uses structured
+keys for follow state and followed-thread indexes. Both components reconstruct
+detached read results and keep the same snapshot payloads and contract IDs.
+
 Snapshot loads and replay frontiers are projector-local. A successful restore
 starts that projector's ordered consumer at one greater than its cutoff. A
 missing, invalid, or unavailable scalar snapshot cold-replays only its owning
@@ -337,6 +347,10 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 Registered projector keys are used by metrics and automation. Registered names
 match the admin projection diagnostics. Composite projections expose nested
 read models, but only their parent projector is started by `ChattoCore.Run`.
+`chatto_projection_component_estimated_bytes` reports separate room-timeline
+and threads estimates inside the Server Content View. These estimates are
+diagnostic approximations; retained-heap benchmarks measure their actual Go
+heap cost.
 
 Independent projectors isolate snapshot availability, replay cost, status,
 lag, failure, and read-your-writes waiters for state outside the content view.
