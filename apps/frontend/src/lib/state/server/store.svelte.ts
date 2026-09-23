@@ -686,6 +686,22 @@ export class ServerStateStore {
       this.restoreSavedProjection(view);
   }
 
+  /** Remove saved device content, including a normal view restored from that content. */
+  clearSavedPresentation(): void {
+    this.savedView = null;
+    this.#recentSavedRoomIds = [];
+    if (!this.realtimeSync.restoredFromDisk) return;
+    this.#realtimeProjectionGeneration++;
+    this.#permissionCheckGeneration++;
+    this.#messageReconciler.reset();
+    this.#serverConnection.invalidatePrivateData();
+    this.currentUser.user = undefined;
+    this.permissions = EMPTY_PERMISSIONS;
+    this.projection.reset();
+    this.resetProjectionMirrors();
+    this.realtimeSync.reset();
+  }
+
   /** Populate the normal chat selectors with presentation-only disk data. */
   private restoreSavedProjection(view: SavedView): void {
     const viewer = new GetViewerResponse({
@@ -744,7 +760,8 @@ export class ServerStateStore {
   /** Capture current authorized data without making the saved copy authoritative. */
   saveCurrentView(savedAt: number): void {
     const userId = this.currentUser.user?.id ?? this.#getSession().userId;
-    if (!userId || !this.projection.viewer || this.projection.viewer.user?.profile?.id !== userId) return;
+    if (!userId || this.#deletedRealtimeUserIds.has(userId) ||
+      !this.projection.viewer || this.projection.viewer.user?.profile?.id !== userId) return;
     const rooms = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
       if (!room || room.archived || !room.isMember || room.canReadMessages !== true) return [];

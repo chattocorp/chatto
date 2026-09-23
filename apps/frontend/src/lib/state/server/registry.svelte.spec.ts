@@ -265,6 +265,56 @@ describe('ServerRegistry', () => {
 		}
 	});
 
+	it('clears a disk-restored projection when saved chats are cleared', async () => {
+		const registry = await createRegistry();
+		registry.removeAll();
+		registry.init();
+		registry.addServer(makeServer({ id: 'offline', token: 'access', userId: 'U1' }));
+		const store = registry.getStore('offline');
+		store.currentUser.loading = false;
+		store.restoreSavedView({
+			version: 1,
+			serverId: 'offline',
+			userId: 'U1',
+			serverName: 'Saved server',
+			savedAt: Date.now(),
+			rooms: [{ id: 'R1', name: 'general', messages: [] }]
+		});
+		expect(store.projection.rooms.has('R1')).toBe(true);
+
+		await registry.clearDeviceSavedViews();
+
+		expect(store.savedView).toBeNull();
+		expect(store.projection.rooms.has('R1')).toBe(false);
+		expect(store.projection.viewer).toBeNull();
+		expect(store.currentUser.user).toBeUndefined();
+		expect(store.realtimeSync.phase).toBe('empty');
+	});
+
+	it('keeps an authorized live projection when saved chats are cleared', async () => {
+		const registry = await createRegistry();
+		registry.removeAll();
+		registry.init();
+		registry.addServer(makeServer({ id: 'live', token: 'access', userId: 'U1' }));
+		const store = registry.getStore('live');
+		store.currentUser.loading = false;
+		store.restoreSavedView({
+			version: 1,
+			serverId: 'live',
+			userId: 'U1',
+			serverName: 'Live server',
+			savedAt: Date.now(),
+			rooms: [{ id: 'R1', name: 'general', messages: [] }]
+		});
+		store.realtimeSync.markCaughtUp('authorized');
+
+		await registry.clearDeviceSavedViews();
+
+		expect(store.savedView).toBeNull();
+		expect(store.projection.rooms.has('R1')).toBe(true);
+		expect(store.realtimeSync.phase).toBe('ready');
+	});
+
 	describe('handleAuthenticationRequired', () => {
 		it('marks remote instances as needing reauth without removing them', async () => {
 			const registry = await createRegistry();

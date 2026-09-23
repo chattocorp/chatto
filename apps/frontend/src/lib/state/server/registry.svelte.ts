@@ -614,7 +614,7 @@ class ServerRegistry {
 	/** Clear all locally saved read-only views on this device. */
 	async clearDeviceSavedViews(): Promise<void> {
 		this.#cacheChannel?.postMessage({ type: 'clear-all' });
-		for (const store of this.#stores.values()) store.savedView = null;
+		for (const store of this.#stores.values()) store.clearSavedPresentation();
 		await clearAllSavedViews();
 	}
 
@@ -788,7 +788,7 @@ class ServerRegistry {
 				const data: unknown = event.data;
 				if (!data || typeof data !== 'object' || !('type' in data)) return;
 				if (data.type === 'clear-all') {
-					for (const store of this.#stores.values()) store.savedView = null;
+					for (const store of this.#stores.values()) store.clearSavedPresentation();
 					void clearAllSavedViews();
 				} else if (data.type === 'sign-out' && 'serverId' in data && typeof data.serverId === 'string') {
 					this.clearServerAuthentication(data.serverId, false);
@@ -801,7 +801,7 @@ class ServerRegistry {
 						void clearSavedView(data.serverId, oldUserId);
 					} else {
 						const store = this.tryGetStore(data.serverId);
-						if (store) store.savedView = null;
+						if (store) store.clearSavedPresentation();
 						void clearSavedView(data.serverId);
 					}
 				}

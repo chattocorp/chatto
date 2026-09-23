@@ -24,6 +24,8 @@ export class RealtimeProjectionSyncState {
   lastCaughtUpAt = $state<number | null>(null);
   /** Keep mounted UI during a warm snapshot, without authorizing private data. */
   isRecoveringSnapshot = $state(false);
+  /** Whether the visible projection came from saved device data and still lacks a verified replacement. */
+  restoredFromDisk = $state(false);
   #resumeCursor = $state<string | null>(null);
   #authorizationRefreshGeneration = 0;
   #completedAuthorizationRefreshGeneration = 0;
@@ -72,6 +74,7 @@ export class RealtimeProjectionSyncState {
     );
     const authorizationCurrent = !this.authorizationRefreshRequired;
     this.phase = authorizationCurrent ? 'ready' : 'stale';
+    this.restoredFromDisk = false;
     this.isRecoveringSnapshot = false;
     this.lastCaughtUpAt = authorizationCurrent ? Date.now() : null;
     this.#caughtUpGeneration++;
@@ -122,6 +125,7 @@ export class RealtimeProjectionSyncState {
   restoreSavedProjection(): void {
     if (this.phase !== 'empty') return;
     this.phase = 'stale';
+    this.restoredFromDisk = true;
     this.lastCaughtUpAt = null;
     this.#resumeCursor = null;
   }
@@ -138,6 +142,7 @@ export class RealtimeProjectionSyncState {
   reset(): void {
     this.resetGeneration++;
     this.phase = 'empty';
+    this.restoredFromDisk = false;
     this.isRecoveringSnapshot = false;
     this.lastCaughtUpAt = null;
     this.#resumeCursor = null;

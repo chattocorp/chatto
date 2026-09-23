@@ -1374,6 +1374,13 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('clears the saved view when the viewer account is deleted', () => {
     const store = makeStore(new FakeServerConnection([]));
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    store.projection.rooms.set('R1', new RoomWithViewerState({
+      room: { id: 'R1', name: 'Private' },
+      viewerState: { isMember: true, permissions: [{ permission: 'message.read', granted: true }] }
+    }));
     store.savedView = {
       version: 1,
       serverId: store.serverId,
@@ -1385,6 +1392,8 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(userDeleted('U1'));
 
+    expect(store.savedView).toBeNull();
+    store.saveCurrentView(Date.now());
     expect(store.savedView).toBeNull();
   });
 
