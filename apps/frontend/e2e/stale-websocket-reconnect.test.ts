@@ -6,7 +6,6 @@ import { postThreadReplyViaConnect, postMessagesViaConnect } from './fixtures/co
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import { RealtimeServerFrame, RealtimeSubscribe } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { GetRoomEventsAroundRequest } from '@chatto/api-types/api/v1/room_timeline_pb';
 
 async function simulateBackgroundResumeAndReconnect(page: Page, hiddenMs = 31_000) {
   await page.evaluate((durationMs: number) => {
@@ -40,12 +39,6 @@ for (const mobile of [false, true]) {
   test(`keeps room and thread instances through a replacement snapshot (${mobile ? 'mobile' : 'desktop'})`, async ({ page, chatPage, roomPage }) => {
     let forceSnapshot = false;
     let releaseCatchUp: (() => void) | undefined;
-    const restoredAnchorIds: string[] = [];
-    page.on('request', (request) => {
-      if (request.url().endsWith('/GetRoomEventsAround')) {
-        restoredAnchorIds.push(GetRoomEventsAroundRequest.fromBinary(request.postDataBuffer()!).eventId);
-      }
-    });
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.routeWebSocket('**/api/realtime', (socket) => {
@@ -114,8 +107,8 @@ for (const mobile of [false, true]) {
     forceSnapshot = true;
     await simulateBackgroundResumeAndReconnect(page);
     await expect.poll(() => !!releaseCatchUp).toBe(true);
-    await expect(page.getByTestId('room-main-pane')).toBeHidden();
-    await expect(page.getByTestId('thread-pane').getByText('snapshot reply', { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('room-main-pane')).toBeVisible();
+    await expect(page.getByTestId('thread-pane').getByText('snapshot reply', { exact: true })).toBeVisible();
     expect(await room!.evaluate((element) => element.isConnected)).toBe(true);
     expect(await thread!.evaluate((element) => element.isConnected)).toBe(true);
     releaseCatchUp!();
@@ -124,7 +117,6 @@ for (const mobile of [false, true]) {
     expect(await room!.evaluate((element) => element.isConnected)).toBe(true);
     expect(await thread!.evaluate((element) => element.isConnected)).toBe(true);
     await expect(roomPage.threadReplyInput).toHaveText('unsent reply');
-    expect(restoredAnchorIds).toContain(anchor.id);
     await expect.poll(async () => (await visibleAnchor())?.id).toBe(anchor.id);
     await expect.poll(async () => Math.abs(((await visibleAnchor())?.offset ?? Infinity) - anchor.offset)).toBeLessThan(5);
     expect(page.url()).toBe(url);

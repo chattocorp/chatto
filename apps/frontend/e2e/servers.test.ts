@@ -81,7 +81,7 @@ test.describe('Leave Server', () => {
 		await expect(page).toHaveURL(/\/chat\/-/);
 		await expect(
 			page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
-		).toHaveAttribute('title', /needs sign-in/, { timeout: TIMEOUTS.UI_STANDARD });
+		).toHaveAttribute('title', /Sign in to reconnect/, { timeout: TIMEOUTS.UI_STANDARD });
 		await expect(page.getByTitle('Sign out')).toBeVisible();
 	});
 
