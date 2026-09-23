@@ -103,7 +103,10 @@
         "edit_short": "Rediger",
         "copy_text": "Kopier tekst",
         "copy_text_failed": "Kunne ikke kopiere teksten",
-        "copy_link": "Kopier lenken"
+        "copy_link": "Kopier lenken",
+        "copy_message_link": "Kopier meldingslenken",
+        "link_copied": "Lenken er kopiert",
+        "copy_link_failed": "Kunne ikke kopiere lenken"
       },
       "meta": {
         "echo": "Ekko",

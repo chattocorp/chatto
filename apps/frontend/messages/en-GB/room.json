@@ -103,7 +103,10 @@
         "edit_short": "Edit",
         "copy_text": "Copy text",
         "copy_text_failed": "Failed to copy text",
-        "copy_link": "Copy link"
+        "copy_link": "Copy link",
+        "copy_message_link": "Copy message link",
+        "link_copied": "Link copied",
+        "copy_link_failed": "Failed to copy link"
       },
       "meta": {
         "echo": "Echo",

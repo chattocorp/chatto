@@ -104,7 +104,10 @@
         "edit_short": "עריכה",
         "copy_text": "העתק טקסט",
         "copy_text_failed": "נכשל בהעתקת טקסט",
-        "copy_link": "העתק קישור"
+        "copy_link": "העתק קישור",
+        "copy_message_link": "העתק קישור להודעה",
+        "link_copied": "הקישור הועתק",
+        "copy_link_failed": "העתקת הקישור נכשלה"
       },
       "meta": {
         "echo": "הד",

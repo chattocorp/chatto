@@ -103,7 +103,10 @@
         "edit_short": "Düzenle",
         "copy_text": "Metni kopyala",
         "copy_text_failed": "Metin kopyalanamadı",
-        "copy_link": "Bağlantıyı kopyala"
+        "copy_link": "Bağlantıyı kopyala",
+        "copy_message_link": "Mesaj bağlantısını kopyala",
+        "link_copied": "Bağlantı kopyalandı",
+        "copy_link_failed": "Bağlantı kopyalanamadı"
       },
       "meta": {
         "echo": "Yankı",

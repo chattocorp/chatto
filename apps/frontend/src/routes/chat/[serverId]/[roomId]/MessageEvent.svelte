@@ -135,6 +135,12 @@
   const userInteractions = new MessageUserInteractionState(() => members);
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
+  let contextLink = $state<{ eventId: string; url: string } | null>(null);
+  const contextLinkUrl = $derived(contextLink?.eventId === event?.id ? contextLink.url : null);
+  // Virtualized rows can receive another message while their menu is still open.
+  $effect(() => {
+    if (contextLink && contextLink.eventId !== event?.id) contextLink = null;
+  });
 
   const messageActions = useMessageActions();
 
@@ -188,6 +194,7 @@
   // Open context menu from the toolbar's "more actions" button,
   // positioned to cover the toolbar exactly.
   function openMenuFromToolbar(e: MouseEvent) {
+    contextLink = null;
     selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
     interactions.openContextMenuFromToolbar(e);
   }
@@ -197,6 +204,11 @@
     // Browsers may synthesize this event during a touch long press, including
     // on hybrid devices; that gesture already owns the action sheet.
     if (interactions.hasActiveLongPressGesture) return;
+    const anchor = e.target instanceof Element ? e.target.closest('a[href]') : null;
+    contextLink =
+      anchor instanceof HTMLAnchorElement && messageBodySelectionRoot?.contains(anchor)
+        ? { eventId: event.id, url: anchor.href }
+        : null;
     selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
     interactions.openContextMenuAtPointer(e);
   }
@@ -763,7 +775,11 @@
     <MessageEventActionOverlays
       {interactions}
       action={actionModel}
-      onClose={discardSelectedReplyQuote}
+      linkUrl={contextLinkUrl}
+      onClose={() => {
+        contextLink = null;
+        discardSelectedReplyQuote();
+      }}
     />
   {/if}
 {/if}

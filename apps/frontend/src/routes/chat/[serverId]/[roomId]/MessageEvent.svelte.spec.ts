@@ -126,7 +126,7 @@ async function openContextMenu(container: HTMLElement): Promise<void> {
       clientY: 120
     })
   );
-  await vi.waitFor(() => expect(menuButton(container, 'Copy link')).toBeTruthy());
+  await vi.waitFor(() => expect(menuButton(container, 'Copy message link')).toBeTruthy());
 }
 
 async function selectPickerEmoji(
@@ -149,10 +149,66 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   window.getSelection()?.removeAllRanges();
 });
 
 describe('MessageEvent action model integration', () => {
+  it('shows Copy Link only for a right-clicked message-body link', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const body = q(rendered.container, '[data-testid="message-body"]')!;
+    body.innerHTML = '<a href="/linked/path"><strong>Linked text</strong></a>';
+    const link = q(body, 'a') as HTMLAnchorElement;
+    const click = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 80,
+      clientY: 120
+    });
+
+    q(body, 'strong')!.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeTruthy());
+    expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy();
+
+    menuButton(rendered.container, 'Copy link')!.click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(link.href));
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeUndefined());
+
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
+
+    q(body, 'strong')!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeTruthy());
+    (q(rendered.container, 'button[aria-label="More actions"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeUndefined());
+
+    expect(link.href).toBe(new URL('/linked/path', window.location.href).href);
+  });
+
+  it('drops a clicked link when a virtualized row changes message', async () => {
+    const firstMessage = messageEvent();
+    const rendered = render(MessageEventTestHarness, { props: { event: firstMessage } });
+    const body = q(rendered.container, '[data-testid="message-body"]')!;
+    body.innerHTML = '<a href="https://example.com"><span>Link</span></a>';
+    q(body, 'span')!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeTruthy());
+
+    await rendered.rerender({ event: messageEvent({ id: 'next-message' }) });
+
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy link')).toBeUndefined());
+    expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy();
+
+    await rendered.rerender({ event: firstMessage });
+    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
+  });
+
   it('shows an Echo link only for an echoed reply in the thread pane', async () => {
     const reply = messageEvent({
       id: 'thread-reply',
@@ -456,7 +512,7 @@ describe('MessageEvent action model integration', () => {
     );
 
     await openContextMenu(rendered.container);
-    menuButton(rendered.container, 'Copy link')!.click();
+    menuButton(rendered.container, 'Copy message link')!.click();
     await vi.waitFor(() =>
       expect(mocks.actions.copyMessageLink).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -556,7 +612,7 @@ describe('MessageEvent action model integration', () => {
     vi.advanceTimersByTime(500);
     flushSync();
     vi.useRealTimers();
-    await vi.waitFor(() => expect(actionSheetButton(rendered.container, 'Copy link')).toBeTruthy());
+    await vi.waitFor(() => expect(actionSheetButton(rendered.container, 'Copy message link')).toBeTruthy());
     expect(actionSheetButton(rendered.container, 'Edit')).toBeUndefined();
     expect(actionSheetButton(rendered.container, 'Delete')).toBeUndefined();
     expect(q(rendered.container, 'dialog[open] button[aria-label="React with 👍"]')).toBeNull();
