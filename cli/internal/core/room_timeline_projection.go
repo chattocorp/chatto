@@ -19,7 +19,14 @@ import (
 // timeline readers walk on every page load.
 type RoomTimelineProjection struct {
 	events.MemoryProjection
-	entries            []TimelineEntry
+	entries []timelineRow
+	// unresolvedRefs holds IDs whose target row had not arrived when a row was
+	// appended. Most message references use compact one-based row indexes.
+	unresolvedRefs     map[int]timelineUnresolvedRefs
+	roomIDs            map[string]uint32
+	rooms              []string
+	userIDs            map[string]uint32
+	users              []string
 	byRoom             map[string][]int
 	byEventID          map[string]int
 	messagePostsByRoom map[string][]int
@@ -28,12 +35,12 @@ type RoomTimelineProjection struct {
 	// retractions intentionally do not change it.
 	latestOriginalPostAt map[roomActorKey]time.Time
 	replayGuard          projectionReplayGuard
-	// bodyStates keeps the current body-event reference and its EVT lifecycle in
-	// one entry per message. supersededSequences stays nil until the first edit,
-	// avoiding a slice allocation for the common single-body case. Complete
-	// encrypted bodies remain in EVT and are loaded only for authorized reads.
-	bodyStates     map[string]timelineBodyState
-	retractedFlags map[string]struct{}
+	// bodyStates is a dense array addressed by message rows. Only bodies that
+	// arrive before their post need an event-ID map until that post is indexed.
+	// Complete encrypted bodies remain in EVT.
+	bodyStates       []timelineBodyState
+	orphanBodyStates map[string]timelineBodyState
+	retractedFlags   map[string]struct{}
 	// tombstonedAt records when message content first became unavailable
 	// through a durable retraction or user key-shred fact. It deliberately does
 	// not cover missing/corrupt body payloads so clients can distinguish those
@@ -69,9 +76,10 @@ type roomActorKey struct {
 	actorID string
 }
 
-// TimelineEntry is the compact projected reference for one room event. It
-// retains only values needed to select, authorize, order, and validate EVT
-// hydration. Complete event payloads remain in EVT.
+// TimelineEntry is a detached read reference for one projected room event.
+// It carries values needed to select, authorize, order, and validate EVT
+// hydration. The projection retains timelineRow values; complete event
+// payloads remain in EVT.
 type TimelineEntry struct {
 	StreamSeq         uint64
 	EventID           string
@@ -84,6 +92,104 @@ type TimelineEntry struct {
 	InThreadEventID   string
 	EchoOfEventID     string
 	HistoricalImport  bool
+}
+
+// timelineRow stores only projection-owned data. Public reads reconstruct a
+// detached TimelineEntry; room and user names are shared across all rows.
+type timelineRow struct {
+	streamSeq        uint64
+	eventID          string
+	createdAt        time.Time
+	threadRoot       uint32
+	inThread         uint32
+	echoOf           uint32
+	room             uint32
+	actor            uint32
+	author           uint32
+	kind             timelineEventKind
+	historicalImport bool
+	bodyIndex        uint32 // one-based index into bodyStates; zero for non-posts
+}
+
+type timelineUnresolvedRefs struct {
+	threadRootEventID string
+	inThreadEventID   string
+	echoOfEventID     string
+}
+
+type timelineEventKind uint8
+
+const (
+	timelineUnknown timelineEventKind = iota
+	timelineMessagePosted
+	timelineRoomCreated
+	timelineRoomUpdated
+	timelineRoomDeleted
+	timelineRoomArchived
+	timelineRoomUnarchived
+	timelineRoomThreadingModeChanged
+	timelineUserJoinedRoom
+	timelineUserLeftRoom
+	timelineCallStarted
+	timelineCallEnded
+)
+
+func timelineKind(eventType string) timelineEventKind {
+	switch eventType {
+	case evtstream.EventMessagePosted:
+		return timelineMessagePosted
+	case evtstream.EventRoomCreated:
+		return timelineRoomCreated
+	case evtstream.EventRoomUpdated:
+		return timelineRoomUpdated
+	case evtstream.EventRoomDeleted:
+		return timelineRoomDeleted
+	case evtstream.EventRoomArchived:
+		return timelineRoomArchived
+	case evtstream.EventRoomUnarchived:
+		return timelineRoomUnarchived
+	case evtstream.EventRoomThreadingModeChanged:
+		return timelineRoomThreadingModeChanged
+	case evtstream.EventUserJoinedRoom:
+		return timelineUserJoinedRoom
+	case evtstream.EventUserLeftRoom:
+		return timelineUserLeftRoom
+	case evtstream.EventCallStarted:
+		return timelineCallStarted
+	case evtstream.EventCallEnded:
+		return timelineCallEnded
+	default:
+		return timelineUnknown
+	}
+}
+
+func (k timelineEventKind) eventType() string {
+	switch k {
+	case timelineMessagePosted:
+		return evtstream.EventMessagePosted
+	case timelineRoomCreated:
+		return evtstream.EventRoomCreated
+	case timelineRoomUpdated:
+		return evtstream.EventRoomUpdated
+	case timelineRoomDeleted:
+		return evtstream.EventRoomDeleted
+	case timelineRoomArchived:
+		return evtstream.EventRoomArchived
+	case timelineRoomUnarchived:
+		return evtstream.EventRoomUnarchived
+	case timelineRoomThreadingModeChanged:
+		return evtstream.EventRoomThreadingModeChanged
+	case timelineUserJoinedRoom:
+		return evtstream.EventUserJoinedRoom
+	case timelineUserLeftRoom:
+		return evtstream.EventUserLeftRoom
+	case timelineCallStarted:
+		return evtstream.EventCallStarted
+	case timelineCallEnded:
+		return evtstream.EventCallEnded
+	default:
+		return ""
+	}
 }
 
 // IsMessagePost reports whether this reference points to a durable message
@@ -142,36 +248,167 @@ type timelineBodyState struct {
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Event) int {
 	idx := len(p.entries)
-	entry := TimelineEntry{
-		StreamSeq: seq,
-		EventID:   event.GetId(),
-		RoomID:    roomIDOfEvent(event),
-		ActorID:   event.GetActorId(),
-		CreatedAt: eventCreatedAt(event),
-		EventType: evtstream.EventTypeOf(event),
+	entry := timelineRow{
+		streamSeq: seq,
+		eventID:   event.GetId(),
+		room:      p.internRoomLocked(roomIDOfEvent(event)),
+		actor:     p.internUserLocked(event.GetActorId()),
+		createdAt: eventCreatedAt(event),
+		kind:      timelineKind(evtstream.EventTypeOf(event)),
 	}
 	if posted := event.GetMessagePosted(); posted != nil {
-		entry.MessageAuthorID = posted.GetAuthorId()
-		entry.HistoricalImport = posted.GetHistoricalImport()
-		entry.InThreadEventID = posted.GetInThread()
-		entry.ThreadRootEventID = posted.GetInThread()
-		if entry.ThreadRootEventID == "" {
-			entry.ThreadRootEventID = posted.GetEchoFromThreadRootEventId()
+		entry.bodyIndex = uint32(len(p.bodyStates) + 1)
+		entry.author = p.internUserLocked(posted.GetAuthorId())
+		entry.historicalImport = posted.GetHistoricalImport()
+		inThreadID := posted.GetInThread()
+		rootID := inThreadID
+		if rootID == "" {
+			rootID = posted.GetEchoFromThreadRootEventId()
 		}
-		if entry.ThreadRootEventID == "" {
-			entry.ThreadRootEventID = entry.EventID
+		if rootID == "" {
+			rootID = entry.eventID
 		}
-		entry.EchoOfEventID = posted.GetEchoOfEventId()
+		entry.threadRoot = p.timelineRefLocked(idx, entry.eventID, rootID, 0)
+		entry.inThread = p.timelineRefLocked(idx, entry.eventID, inThreadID, 1)
+		entry.echoOf = p.timelineRefLocked(idx, entry.eventID, posted.GetEchoOfEventId(), 2)
 	}
 	p.entries = append(p.entries, entry)
+	if entry.bodyIndex != 0 {
+		p.bodyStates = append(p.bodyStates, p.orphanBodyStates[entry.eventID])
+		delete(p.orphanBodyStates, entry.eventID)
+	}
 	return idx
 }
 
+func (p *RoomTimelineProjection) internRoomLocked(id string) uint32 {
+	if id == "" {
+		return 0
+	}
+	if index := p.roomIDs[id]; index != 0 {
+		return index
+	}
+	index := uint32(len(p.rooms))
+	p.rooms = append(p.rooms, id)
+	p.roomIDs[id] = index
+	return index
+}
+
+func (p *RoomTimelineProjection) internUserLocked(id string) uint32 {
+	if id == "" {
+		return 0
+	}
+	if index := p.userIDs[id]; index != 0 {
+		return index
+	}
+	index := uint32(len(p.users))
+	p.users = append(p.users, id)
+	p.userIDs[id] = index
+	return index
+}
+
+func (p *RoomTimelineProjection) appendRestoredEntryLocked(entry TimelineEntry) int {
+	idx := len(p.entries)
+	row := timelineRow{
+		streamSeq: entry.StreamSeq, eventID: entry.EventID, createdAt: entry.CreatedAt,
+		room:  p.internRoomLocked(entry.RoomID),
+		actor: p.internUserLocked(entry.ActorID), author: p.internUserLocked(entry.MessageAuthorID),
+		kind: timelineKind(entry.EventType), historicalImport: entry.HistoricalImport,
+	}
+	row.threadRoot = p.timelineRefLocked(idx, entry.EventID, entry.ThreadRootEventID, 0)
+	row.inThread = p.timelineRefLocked(idx, entry.EventID, entry.InThreadEventID, 1)
+	row.echoOf = p.timelineRefLocked(idx, entry.EventID, entry.EchoOfEventID, 2)
+	if row.kind == timelineMessagePosted {
+		row.bodyIndex = uint32(len(p.bodyStates) + 1)
+		p.bodyStates = append(p.bodyStates, timelineBodyState{})
+	}
+	p.entries = append(p.entries, row)
+	return idx
+}
+
+// timelineRefLocked uses an existing row index when the referenced message is
+// already present. A later or external target keeps its exact ID in the sparse
+// fallback so replay and old snapshots retain their original read values.
+func (p *RoomTimelineProjection) timelineRefLocked(row int, eventID, targetID string, field int) uint32 {
+	if targetID == "" {
+		return 0
+	}
+	if targetID == eventID {
+		return uint32(row + 1)
+	}
+	if target, ok := p.byEventID[targetID]; ok {
+		return uint32(target + 1)
+	}
+	if p.unresolvedRefs == nil {
+		p.unresolvedRefs = make(map[int]timelineUnresolvedRefs)
+	}
+	refs := p.unresolvedRefs[row]
+	switch field {
+	case 0:
+		refs.threadRootEventID = targetID
+	case 1:
+		refs.inThreadEventID = targetID
+	case 2:
+		refs.echoOfEventID = targetID
+	}
+	p.unresolvedRefs[row] = refs
+	return 0
+}
+
+func (p *RoomTimelineProjection) timelineRefIDLocked(row int, index uint32, field int) string {
+	if index != 0 {
+		return p.entries[index-1].eventID
+	}
+	refs := p.unresolvedRefs[row]
+	switch field {
+	case 0:
+		return refs.threadRootEventID
+	case 1:
+		return refs.inThreadEventID
+	case 2:
+		return refs.echoOfEventID
+	}
+	return ""
+}
+
+// bodyStateLocked resolves a message's body through its existing event index.
+// The fallback retains body facts that precede their MessagePosted fact.
+func (p *RoomTimelineProjection) bodyStateLocked(eventID string) (timelineBodyState, bool) {
+	if idx, ok := p.byEventID[eventID]; ok {
+		if bodyIndex := p.entries[idx].bodyIndex; bodyIndex != 0 {
+			state := p.bodyStates[bodyIndex-1]
+			return state, state.currentSequence != 0
+		}
+	}
+	state, ok := p.orphanBodyStates[eventID]
+	return state, ok
+}
+
+func (p *RoomTimelineProjection) putBodyStateLocked(eventID string, state timelineBodyState) {
+	if idx, ok := p.byEventID[eventID]; ok {
+		if bodyIndex := p.entries[idx].bodyIndex; bodyIndex != 0 {
+			p.bodyStates[bodyIndex-1] = state
+			return
+		}
+	}
+	p.orphanBodyStates[eventID] = state
+}
+
+// entryAtLocked reconstructs a detached read value; callers may return it
+// after releasing the projection lock without another copy.
 func (p *RoomTimelineProjection) entryAtLocked(idx int) *TimelineEntry {
 	if idx < 0 || idx >= len(p.entries) {
 		return nil
 	}
-	return &p.entries[idx]
+	row := &p.entries[idx]
+	return &TimelineEntry{
+		StreamSeq: row.streamSeq, EventID: row.eventID, RoomID: p.rooms[row.room],
+		ActorID: p.users[row.actor], MessageAuthorID: p.users[row.author],
+		CreatedAt: row.createdAt, EventType: row.kind.eventType(),
+		ThreadRootEventID: p.timelineRefIDLocked(idx, row.threadRoot, 0),
+		InThreadEventID:   p.timelineRefIDLocked(idx, row.inThread, 1),
+		EchoOfEventID:     p.timelineRefIDLocked(idx, row.echoOf, 2),
+		HistoricalImport:  row.historicalImport,
+	}
 }
 
 func (p *RoomTimelineProjection) entryByEventIDLocked(eventID string) (*TimelineEntry, bool) {
@@ -186,23 +423,19 @@ func (p *RoomTimelineProjection) entryByEventIDLocked(eventID string) (*Timeline
 	return entry, true
 }
 
-func cloneTimelineEntry(entry *TimelineEntry) *TimelineEntry {
-	if entry == nil {
-		return nil
-	}
-	copy := *entry
-	return &copy
-}
-
 // NewRoomTimelineProjection returns an empty projection.
 func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
+		roomIDs:                    make(map[string]uint32),
+		rooms:                      []string{""},
+		userIDs:                    make(map[string]uint32),
+		users:                      []string{""},
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
 		messagePostsByRoom:         make(map[string][]int),
 		latestOriginalPostAt:       make(map[roomActorKey]time.Time),
 		replayGuard:                newProjectionReplayGuard(),
-		bodyStates:                 make(map[string]timelineBodyState),
+		orphanBodyStates:           make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
 		tombstonedAt:               make(map[string]time.Time),
 		shreddedAt:                 make(map[string]time.Time),
@@ -343,7 +576,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 				p.removeAttachmentMessageLocked(targetID)
 			}
 		}
-		if state, ok := p.bodyStates[targetID]; ok && state.active {
+		if state, ok := p.bodyStateLocked(targetID); ok && state.active {
 			p.refreshAttachmentMessageLocked(roomID, targetID)
 		}
 		// Track timeline placements so content and attachment reads can
@@ -485,7 +718,7 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 }
 
 func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID, bodyEventID, authorID string, attachmentCount int, sequence uint64) {
-	state, exists := p.bodyStates[eventID]
+	state, exists := p.bodyStateLocked(eventID)
 	if exists {
 		state.supersededSequences = append(state.supersededSequences, state.currentSequence)
 	}
@@ -494,17 +727,17 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID, bodyEventID, auth
 	state.authorID = authorID
 	state.attachmentCount = attachmentCount
 	state.active = true
-	p.bodyStates[eventID] = state
+	p.putBodyStateLocked(eventID, state)
 }
 
 func (p *RoomTimelineProjection) clearCurrentBodyLocked(eventID string) {
-	state, exists := p.bodyStates[eventID]
+	state, exists := p.bodyStateLocked(eventID)
 	if !exists {
 		return
 	}
 	state.active = false
 	state.attachmentCount = 0
-	p.bodyStates[eventID] = state
+	p.putBodyStateLocked(eventID, state)
 }
 
 func (p *RoomTimelineProjection) setTombstonedAtLocked(eventID string, at time.Time) {
@@ -543,7 +776,7 @@ func (p *RoomTimelineProjection) RoomEvents(roomID string, limit int, beforeStre
 		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
 			continue
 		}
-		out = append(out, cloneTimelineEntry(e))
+		out = append(out, e)
 	}
 	return out
 }
@@ -622,7 +855,7 @@ func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	entry, ok := p.entryByEventIDLocked(eventID)
-	return cloneTimelineEntry(entry), ok
+	return entry, ok
 }
 
 // LastRoomMessageEntry returns the newest non-hidden ordinary post in a room,
@@ -643,7 +876,7 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 		if e.HistoricalImport {
 			continue
 		}
-		return cloneTimelineEntry(e), true
+		return e, true
 	}
 	return nil, false
 }
@@ -722,7 +955,7 @@ func (p *RoomTimelineProjection) latestBodyReferenceLocked(eventID string) (Time
 	if _, retracted := p.retractedFlags[entry.EventID]; retracted {
 		return TimelineBodyReference{}, true, true
 	}
-	if state, has := p.bodyStates[entry.EventID]; has && state.active {
+	if state, has := p.bodyStateLocked(entry.EventID); has && state.active {
 		return TimelineBodyReference{
 			MessageEventID: entry.EventID, BodyEventID: state.currentEventID, RoomID: entry.RoomID,
 			AuthorID: state.authorID, StreamSeq: state.currentSequence, AttachmentCount: state.attachmentCount,
@@ -770,7 +1003,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 		}
 
 		out = append(out, projectedRoomAttachmentMessage{
-			Entry:              cloneTimelineEntry(entry),
+			Entry:              entry,
 			BodyMessageEventID: reference.MessageEventID,
 			BodySequence:       reference.StreamSeq,
 			BodyEventID:        reference.BodyEventID,
@@ -866,7 +1099,7 @@ func (p *RoomTimelineProjection) BodyEventSeqs(eventID string) (seqs []uint64, c
 	if _, exists := p.byEventID[eventID]; !exists {
 		return nil, 0, false
 	}
-	state, hasBodyState := p.bodyStates[eventID]
+	state, hasBodyState := p.bodyStateLocked(eventID)
 	if !hasBodyState {
 		return nil, 0, true
 	}
@@ -886,7 +1119,7 @@ func (p *RoomTimelineProjection) ObsoleteBodyEventSeqs(eventID string) []uint64 
 	if eventID == "" {
 		return nil
 	}
-	state, ok := p.bodyStates[eventID]
+	state, ok := p.bodyStateLocked(eventID)
 	if !ok {
 		return nil
 	}
@@ -905,7 +1138,26 @@ func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
 	p.RLock()
 	defer p.RUnlock()
 	var out []uint64
-	for eventID, state := range p.bodyStates {
+	for _, row := range p.entries {
+		if row.bodyIndex == 0 {
+			continue
+		}
+		state := p.bodyStates[row.bodyIndex-1]
+		if state.currentSequence == 0 {
+			continue
+		}
+		eventID := row.eventID
+		if _, retracted := p.retractedFlags[eventID]; retracted {
+			out = appendBodySequences(out, state)
+			continue
+		}
+		if _, hidden := p.hiddenEchoes[eventID]; hidden {
+			out = appendBodySequences(out, state)
+			continue
+		}
+		out = append(out, state.supersededSequences...)
+	}
+	for eventID, state := range p.orphanBodyStates {
 		if _, retracted := p.retractedFlags[eventID]; retracted {
 			out = appendBodySequences(out, state)
 			continue
@@ -1136,7 +1388,7 @@ func (p *RoomTimelineProjection) LastVisibleRoomEntry(
 		if visible != nil && !visible(e) {
 			continue
 		}
-		return cloneTimelineEntry(e), true
+		return e, true
 	}
 	return nil, false
 }
@@ -1179,7 +1431,7 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 		if visible != nil && !visible(e) {
 			continue
 		}
-		out = append(out, cloneTimelineEntry(e))
+		out = append(out, e)
 	}
 	return out
 }
@@ -1215,7 +1467,7 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 		if visible != nil && !visible(e) {
 			continue
 		}
-		out = append(out, cloneTimelineEntry(e))
+		out = append(out, e)
 		if len(out) >= limit {
 			break
 		}
@@ -1286,7 +1538,7 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 			continue
 		}
 		if visibleIndex >= start && visibleIndex < end {
-			out = append(out, cloneTimelineEntry(entry))
+			out = append(out, entry)
 		}
 		visibleIndex++
 		if visibleIndex >= end {

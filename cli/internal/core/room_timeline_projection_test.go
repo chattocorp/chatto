@@ -407,6 +407,14 @@ func TestRoomTimeline_RetainsOnlyVisibleEntriesAndMessagePostLookups(t *testing.
 			t.Fatalf("Get(%s) ok=true, want false for folded event", eventID)
 		}
 	}
+	reply, _ := p.Get("ENV-REPLY")
+	if reply.InThreadEventID != "ENV-ROOT" || reply.ThreadRootEventID != "ENV-ROOT" {
+		t.Fatalf("reply routing = %q/%q, want ENV-ROOT", reply.InThreadEventID, reply.ThreadRootEventID)
+	}
+	echo, _ := p.Get("ENV-ECHO")
+	if echo.EchoOfEventID != "ENV-REPLY" || echo.ThreadRootEventID != "ENV-ROOT" {
+		t.Fatalf("echo routing = %q/%q, want ENV-REPLY/ENV-ROOT", echo.EchoOfEventID, echo.ThreadRootEventID)
+	}
 }
 
 func TestRoomTimeline_LastRoomMessageEntryIncludesThreadReplies(t *testing.T) {
@@ -547,7 +555,7 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if !ok || current != 1 || len(seqs) != 1 || seqs[0] != 1 {
 		t.Fatalf("BodyEventSeqs = (%v, %d, %v), want ([1], 1, true)", seqs, current, ok)
 	}
-	if got := p.bodyStates["ENV-M1"].supersededSequences; got != nil {
+	if got := bodyStateForTest(p, "ENV-M1").supersededSequences; got != nil {
 		t.Fatalf("first body superseded sequences = %v, want nil", got)
 	}
 
@@ -564,7 +572,7 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs active = %v, want [1]", got)
 	}
-	if got := p.bodyStates["ENV-M1"].supersededSequences; !slices.Equal(got, []uint64{1}) {
+	if got := bodyStateForTest(p, "ENV-M1").supersededSequences; !slices.Equal(got, []uint64{1}) {
 		t.Fatalf("edited body superseded sequences = %v, want [1]", got)
 	}
 
@@ -592,7 +600,7 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1, 3, 5}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
 	}
-	if got := p.bodyStates["ENV-M1"].active; got {
+	if got := bodyStateForTest(p, "ENV-M1").active; got {
 		t.Fatal("late body reference remained active after retraction")
 	}
 	if got := p.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
@@ -631,12 +639,17 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	if body, retracted, ok := restored.LatestBodyReference("ENV-M1"); body.StreamSeq != 0 || !retracted || !ok {
 		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
 	}
-	if got := restored.bodyStates["ENV-M1"].active; got {
+	if got := bodyStateForTest(restored, "ENV-M1").active; got {
 		t.Fatal("restored snapshot retained an active late body reference after retraction")
 	}
 	if got := restored.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
 		t.Fatalf("CurrentRoomAttachmentMessages after restore = %v, want empty", got)
 	}
+}
+
+func bodyStateForTest(p *RoomTimelineProjection, eventID string) timelineBodyState {
+	state, _ := p.bodyStateLocked(eventID)
+	return state
 }
 
 func TestRoomTimeline_SnapshotPreservesVisibleThreadingModeChanges(t *testing.T) {
@@ -1010,7 +1023,9 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		if metric.Value == 0 {
 			t.Fatalf("metric %q value = 0, want non-zero", name)
 		}
-		if metric.Bytes == 0 {
+		// Reply rows are already included in timeline_entries bytes; the
+		// retained-entry metric counts them without charging them twice.
+		if metric.Bytes == 0 && name != "event_id_retained_entries" {
 			t.Fatalf("metric %q bytes = 0, want non-zero", name)
 		}
 	}
