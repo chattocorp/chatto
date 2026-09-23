@@ -6,7 +6,7 @@ height, radius, background, and spacing while keeping native form behaviour.
 Use the bordered appearance for page searches, matching standard form inputs.
 -->
 <script lang="ts">
-  import type { Attachment } from 'svelte/attachments';
+  import { onMount } from 'svelte';
 
   const generatedId = $props.id();
   let {
@@ -17,6 +17,7 @@ Use the bordered appearance for page searches, matching standard form inputs.
     value = $bindable(''),
     disabled = false,
     focusOnMount = false,
+    onMountFocus,
     appearance = 'chat',
     clearLabel,
     oninput,
@@ -30,6 +31,8 @@ Use the bordered appearance for page searches, matching standard form inputs.
     value?: string;
     disabled?: boolean;
     focusOnMount?: boolean;
+    /** Called after a requested mount focus reaches the input. */
+    onMountFocus?: () => void;
     /** Page searches use the standard bordered input; chat rails use the shell surface. */
     appearance?: 'chat' | 'bordered';
     clearLabel?: string;
@@ -40,17 +43,12 @@ Use the bordered appearance for page searches, matching standard form inputs.
 
   let inputElement: HTMLInputElement | null = null;
 
-  const observeInput: Attachment<HTMLInputElement> = (input) => {
-    inputElement = input;
-    if (focusOnMount) {
-      queueMicrotask(() => {
-        if (input.isConnected && !input.disabled) input.focus();
-      });
-    }
-    return () => {
-      if (inputElement === input) inputElement = null;
-    };
-  };
+  onMount(() => {
+    const input = inputElement;
+    if (!focusOnMount || !input || input.disabled) return;
+    input.focus();
+    if (document.activeElement === input) onMountFocus?.();
+  });
 
   function submit(event: SubmitEvent): void {
     event.preventDefault();
@@ -80,7 +78,7 @@ Use the bordered appearance for page searches, matching standard form inputs.
     aria-hidden="true"
   ></span>
   <input
-    {@attach observeInput}
+    bind:this={inputElement}
     {id}
     data-testid={testid}
     type="search"

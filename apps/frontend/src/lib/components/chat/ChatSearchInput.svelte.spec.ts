@@ -43,11 +43,15 @@ describe('ChatSearchInput', () => {
     await expect
       .element(focused.getByRole('searchbox', { name: 'Search messages' }))
       .toHaveFocus();
+    await expect.element(focused.getByTestId('mount-focus-count')).toHaveTextContent('1');
     focused.unmount();
 
-    const disabled = render(ChatSearchInputTestHarness, { props: { disabled: true } });
+    const disabled = render(ChatSearchInputTestHarness, {
+      props: { disabled: true, focusOnMount: true }
+    });
     await expect
       .element(disabled.getByRole('searchbox', { name: 'Search messages' }))
       .toBeDisabled();
+    await expect.element(disabled.getByTestId('mount-focus-count')).toHaveTextContent('0');
   });
 });

@@ -46,6 +46,9 @@ provider supplies results.
 - Search is available as a server-level page reached from the server sidebar
   between Overview and My Threads, and as a room-sidebar tab that searches only
   the current room or direct-message conversation.
+- Opening the room Search tab with its button or Cmd/Ctrl+/ puts focus in the
+  query input. Restoring an open tab after reload or room navigation does not
+  move focus to that input.
 - Both entry points search automatically after a short typing pause, while
   Enter submits immediately. Leading or trailing whitespace is ignored for
   search requests without replacing the text in the field or repeating an
