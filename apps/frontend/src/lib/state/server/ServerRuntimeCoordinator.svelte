@@ -8,6 +8,7 @@
   import { serverRegistry } from './registry.svelte';
   import { serverConnectionManager } from './serverConnection.svelte';
   import { startServerRecovery } from './serverRecovery';
+  import { onSessionTerminated } from '$lib/eventBus.svelte';
 
   let { user }: { user?: CurrentUser | null } = $props();
 
@@ -75,6 +76,31 @@
         nextRegistrations,
         nextActiveServerId || null
       );
+    });
+  });
+
+  $effect(() => {
+    const settled = serverRegistry.servers.flatMap((server) => {
+      const store = serverRegistry.tryGetStore(server.id);
+      const caughtUpAt = store?.realtimeSync.lastCaughtUpAt;
+      return store && caughtUpAt ? [{ store, caughtUpAt }] : [];
+    });
+    untrack(() => {
+      for (const { store, caughtUpAt } of settled) store.saveCurrentView(caughtUpAt);
+    });
+  });
+
+  // Remote session termination is authoritative even when its server is not
+  // the active route. Sign out that server and clear its saved private view.
+  $effect(() => {
+    const remoteIds = serverRegistry.servers
+      .filter((server) => !serverRegistry.isOriginServer(server.id))
+      .map((server) => server.id);
+    return untrack(() => {
+      const disposers = remoteIds.map((id) => onSessionTerminated(id, () => {
+        queueMicrotask(() => serverRegistry.clearServerAuthentication(id));
+      }));
+      return () => disposers.forEach((dispose) => dispose());
     });
   });
 </script>

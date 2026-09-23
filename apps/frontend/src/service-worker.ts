@@ -2,13 +2,12 @@
 /// <reference types="@sveltejs/kit" />
 
 /**
- * Service Worker for Chatto's push notifications.
- *
- * Frontend and uploaded-asset requests use the browser's normal HTTP caching
- * behavior without service-worker interception.
+ * Service worker for push notifications and a versioned offline application shell.
+ * Private content lives only in the bounded IndexedDB saved-view store.
  */
 
 import { APP_BADGE_REFRESH_MESSAGE_TYPE, updateAppBadge } from '$lib/notifications/appBadge';
+import { build, version } from '$service-worker';
 import {
   routeNotificationClick,
   type NotificationClickClients
@@ -16,30 +15,56 @@ import {
 
 declare const self: ServiceWorkerGlobalScope;
 
-const RETIRED_SHELL_CACHE_PREFIX = 'chatto-shell-';
+const SHELL_CACHE_PREFIX = 'chatto-shell-';
+const SHELL_CACHE = `${SHELL_CACHE_PREFIX}${version}`;
+const MAX_SHELL_BYTES = 12_000_000;
+const ownsAppShell = new URL(self.registration.scope).pathname === '/';
+const shellAssets = new Set(build.map((path) => new URL(path, self.location.origin).pathname));
+const OFFLINE_DOCUMENT = '/login';
 const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
 
 /**
- * Retire an existing request-intercepting worker promptly, even when Chatto
- * tabs remain open. Installation performs no network or cache work.
+ * Install only compiled application code and a public, unauthenticated HTML
+ * document. API calls, authentication, realtime, and uploaded assets are never
+ * added to Cache Storage.
  */
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil((async () => {
+    if (!ownsAppShell) {
+      await self.skipWaiting();
+      return;
+    }
+    const cache = await caches.open(SHELL_CACHE);
+    await cache.addAll([...build, OFFLINE_DOCUMENT]);
+    let bytes = 0;
+    for (const request of await cache.keys()) {
+      const response = await cache.match(request);
+      bytes += (await response?.arrayBuffer())?.byteLength ?? 0;
+      if (bytes > MAX_SHELL_BYTES) {
+        await caches.delete(SHELL_CACHE);
+        throw new Error('Offline application shell exceeds its storage budget');
+      }
+    }
+    await self.skipWaiting();
+  })());
 });
 
 /**
- * Delete Cache Storage left by earlier worker versions. Current workers do not
- * intercept requests or populate caches.
+ * Delete shell versions only after the current shell has installed.
  */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
+      if (!ownsAppShell) {
+        await self.clients.claim();
+        return;
+      }
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames
           .filter(
             (cacheName) =>
-              cacheName.startsWith(RETIRED_SHELL_CACHE_PREFIX) ||
+              (cacheName.startsWith(SHELL_CACHE_PREFIX) && cacheName !== SHELL_CACHE) ||
               RETIRED_BADGE_CACHE_NAMES.has(cacheName)
           )
           .map((cacheName) => caches.delete(cacheName))
@@ -47,6 +72,35 @@ self.addEventListener('activate', (event) => {
       await self.clients.claim();
     })()
   );
+});
+
+/** Serve a cached shell when navigation fails offline; compiled assets are immutable. */
+self.addEventListener('fetch', (event) => {
+  if (!ownsAppShell) return;
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (shellAssets.has(url.pathname)) {
+    event.respondWith((async () => {
+      const cached = await (await caches.open(SHELL_CACHE)).match(request);
+      return cached ?? fetch(request);
+    })());
+    return;
+  }
+  const appNavigation = url.pathname === '/' || url.pathname === '/login' ||
+    url.pathname === '/chat' || url.pathname.startsWith('/chat/');
+  if (request.mode === 'navigate' && appNavigation) {
+    event.respondWith((async () => {
+      try {
+        return await fetch(request);
+      } catch {
+        const cached = await (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
+        return cached ?? Response.error();
+      }
+    })());
+  }
 });
 
 // Type for push notification payload from server

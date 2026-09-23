@@ -6,6 +6,7 @@ import { Codecs, globalSlot, serverSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import { clearAllSavedViews, clearSavedView } from '$lib/storage/savedViews';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import {
 	ServerCatalog,
@@ -342,6 +343,7 @@ class ServerRegistry {
 	#stores = new SvelteMap<string, ServerStateStore>();
 	#renewalPromises = new Map<string, Promise<string | null>>();
 	#originProbe: Promise<void> | null = null;
+	#cacheChannel: BroadcastChannel | null = null;
 
 	constructor() {
 		const persisted = restorePersistedServerState();
@@ -578,9 +580,11 @@ class ServerRegistry {
 		store.currentUser.loading = false;
 	}
 
-	clearServerAuthentication(id: string): void {
+	clearServerAuthentication(id: string, notifyTabs = true): void {
 		const server = this.getServer(id);
 		if (!server) return;
+		if (notifyTabs) this.#cacheChannel?.postMessage({ type: 'sign-out', serverId: id });
+		void clearSavedView(id);
 		this.#replaceServerAuth(id, {
 			token: null,
 			refreshToken: null,
@@ -605,6 +609,13 @@ class ServerRegistry {
 		const origin = this.originServer;
 		if (!origin) return;
 		this.clearServerAuthentication(origin.id);
+	}
+
+	/** Clear all locally saved read-only views on this device. */
+	async clearDeviceSavedViews(): Promise<void> {
+		this.#cacheChannel?.postMessage({ type: 'clear-all' });
+		for (const store of this.#stores.values()) store.savedView = null;
+		await clearAllSavedViews();
 	}
 
 	handleAuthenticationRequired(id: string): void {
@@ -771,6 +782,31 @@ class ServerRegistry {
 	 * Call once from the root layout's script init (before any $derived reads stores).
 	 */
 	init(): void {
+		if (!this.#cacheChannel && typeof BroadcastChannel !== 'undefined') {
+			this.#cacheChannel = new BroadcastChannel('chatto-private-cache');
+			this.#cacheChannel.onmessage = (event: MessageEvent) => {
+				const data: unknown = event.data;
+				if (!data || typeof data !== 'object' || !('type' in data)) return;
+				if (data.type === 'clear-all') {
+					for (const store of this.#stores.values()) store.savedView = null;
+					void clearAllSavedViews();
+				} else if (data.type === 'sign-out' && 'serverId' in data && typeof data.serverId === 'string') {
+					this.clearServerAuthentication(data.serverId, false);
+				} else if (data.type === 'clear-server' && 'serverId' in data && typeof data.serverId === 'string') {
+					const oldUserId = 'userId' in data && typeof data.userId === 'string' ? data.userId : null;
+					const current = this.getServer(data.serverId);
+					if (oldUserId && current?.userId === oldUserId) {
+						this.clearServerAuthentication(data.serverId, false);
+					} else if (oldUserId) {
+						void clearSavedView(data.serverId, oldUserId);
+					} else {
+						const store = this.tryGetStore(data.serverId);
+						if (store) store.savedView = null;
+						void clearSavedView(data.serverId);
+					}
+				}
+			};
+		}
 		for (const registration of this.registrations) {
 			if (!this.#stores.has(registration.id)) {
 				this.#createStore(registration.id);
@@ -802,6 +838,8 @@ class ServerRegistry {
 		if (!server) {
 			return false;
 		}
+		this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: id, userId: server.userId });
+		void clearSavedView(id);
 
 		// Stop event bus subscription
 		eventBusManager.stopBus(id);
@@ -823,6 +861,8 @@ class ServerRegistry {
 	/** Remove all local registrations and sessions without synchronizing deletions. */
 	removeAll(): void {
 		const ids = this.servers.map((server) => server.id);
+		for (const server of this.servers) this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: server.id, userId: server.userId });
+		for (const id of ids) void clearSavedView(id);
 		this.#disposeServers(ids);
 		for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
 		this.sessions.clear();
@@ -834,6 +874,8 @@ class ServerRegistry {
 	resetToOrigin(): void {
 		const origin = this.originServer;
 		const ids = this.servers.map((server) => server.id);
+		for (const server of this.servers) this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: server.id, userId: server.userId });
+		for (const id of ids) void clearSavedView(id);
 		this.#disposeServers(ids);
 		for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
 		this.sessions.clear();
@@ -901,6 +943,11 @@ class ServerRegistry {
 		>
 	): boolean {
 		if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
+		const previousUserId = this.sessions.get(id)?.userId;
+		if (previousUserId && previousUserId !== data.userId) {
+			this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: id, userId: previousUserId });
+			void clearSavedView(id, previousUserId);
+		}
 
 		eventBusManager.stopBus(id);
 		this.#stores.get(id)?.dispose();

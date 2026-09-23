@@ -10,6 +10,7 @@
   import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import AccentColorPicker from './AccentColorPicker.svelte';
   import RangeField from '$lib/ui/form/RangeField.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
 
   const contrastDisplayValue = $derived(`${Math.round((userPreferences.contrastAge - 20) * 5)}%`);
   const contrastValueText = $derived(
@@ -21,6 +22,12 @@
           : 'settings.preferences.contrast.current'
     )}`
   );
+  let cacheCleared = $state(false);
+
+  async function clearDeviceCache() {
+    await serverRegistry.clearDeviceSavedViews();
+    cacheCleared = true;
+  }
 
   const themeOptions = $derived([
     {
@@ -150,6 +157,13 @@
           {/each}
         </div>
       </div>
+    </Panel>
+    <Panel title={m('ui.saved_view.cache_title')} icon="iconify icon-[uil--database]">
+      <p class="mb-3 text-muted">{m('ui.saved_view.cache_description')}</p>
+      <button class="button" type="button" onclick={clearDeviceCache}>
+        {m('ui.saved_view.clear_cache')}
+      </button>
+      {#if cacheCleared}<p role="status">{m('ui.saved_view.cache_cleared')}</p>{/if}
     </Panel>
   </div>
 </PaneContent>

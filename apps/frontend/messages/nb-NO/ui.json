@@ -5,6 +5,7 @@
     "open_quick_switcher": "Åpne hurtigbryteren",
     "quick_switcher_shortcut": "Hurtigbytter (Cmd+K)",
     "realtime_paused": "Sanntidsoppdateringer satt på pause. Kobler på nytt ...",
+    "saved_view": {"cache_title":"Lokal hurtigbuffer","cache_description":"Denne enheten lagrer en begrenset tekstvisning av chatter for lesing uten nett.","clear_cache":"Slett lagrede chatter","cache_cleared":"Lagrede chatter er slettet."},
     "update_available": "En ny versjon er tilgjengelig",
     "reload": "Last inn på nytt",
     "sign_out": "Logg av",

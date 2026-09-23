@@ -416,11 +416,17 @@ describe('eventBusManager realtime transport', () => {
     );
     const socket = sockets[0];
     socket.open();
-    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    const projectionHandler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(projectionHandler);
     await socket.receive(snapshotFrame());
 
     expect(sync.phase).toBe('hydrating');
     expect(sync.resumeCursor).toBeNull();
+    expect(projectionHandler).toHaveBeenCalledWith(expect.objectContaining({
+      reset: true,
+      retainView: true,
+      privacyReset: false
+    }));
 
     await socket.receive(
       serverFrame({

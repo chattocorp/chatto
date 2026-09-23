@@ -118,6 +118,14 @@ export class RealtimeProjectionSyncState {
     if (this.phase === 'ready') this.phase = 'stale';
   }
 
+  /** A disk view is readable but has no live cursor or successful sync time. */
+  restoreSavedProjection(): void {
+    if (this.phase !== 'empty') return;
+    this.phase = 'stale';
+    this.lastCaughtUpAt = null;
+    this.#resumeCursor = null;
+  }
+
   /** Keep mounted state while the next transport refreshes effective permissions. */
   invalidateAuthorization(): number {
     this.markStale();

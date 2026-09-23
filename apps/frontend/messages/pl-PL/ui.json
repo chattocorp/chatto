@@ -5,6 +5,7 @@
     "open_quick_switcher": "Otwórz szybki przełącznik",
     "quick_switcher_shortcut": "Szybki przełącznik (Cmd+K)",
     "realtime_paused": "Aktualizacje w czasie rzeczywistym wstrzymane. Ponowne łączenie...",
+    "saved_view": {"cache_title":"Pamięć lokalna","cache_description":"To urządzenie zapisuje ograniczony widok tekstowy czatów do czytania offline.","clear_cache":"Wyczyść zapisane czaty","cache_cleared":"Zapisane czaty zostały usunięte."},
     "update_available": "Dostępna jest nowa wersja",
     "reload": "Załaduj ponownie",
     "sign_out": "Wyloguj się",

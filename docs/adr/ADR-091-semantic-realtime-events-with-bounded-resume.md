@@ -175,6 +175,13 @@ starts at the current boundary. The `caught_up.recovery` value reports
 `RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`. A successful replay with zero events
 reports `RESUMED`; a live-only fallback does not claim to have repaired a gap.
 
+The bundled client keeps its normal mounted chat view during a warm reconnect.
+An expired cursor starts replacement reads while the prior rooms and timeline
+remain visible. Fresh resources replace them and verified access loss removes
+affected content. A cold offline launch restores saved text into the normal
+chat view without server actions. The saved data has no cursor and cannot be
+used for realtime resume.
+
 Role and permission changes have public semantic events in both live delivery
 and replay. Clients update role displays normally and discard private data
 only when an event can affect their viewer's permissions. The server does not
