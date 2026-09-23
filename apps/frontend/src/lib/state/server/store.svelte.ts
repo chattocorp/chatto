@@ -190,6 +190,7 @@ export class ServerStateStore {
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #roomMembers: Record<string, RoomMembersStore> = Object.create(null);
+  #roomMemberRoots: Record<string, () => void> = Object.create(null);
   #memberPresence = new SvelteMap<string, PresenceStatus>();
 
   /** Keep presence current for retained rooms and rooms first opened later. */
@@ -641,10 +642,16 @@ export class ServerStateStore {
   membersForRoom(roomId: string): RoomMembersStore {
     let store = this.#roomMembers[roomId];
     if (!store) {
-      store = new RoomMembersStore(this.#serverConnection);
-      store.setRoom(roomId);
-      // Initialize before exposing the store; selectors can run in a derived.
-      store.livePresence = new SvelteMap(this.#memberPresence);
+      // A route can create this store from a derived selector. Give its own
+      // derived fields an owner that lasts until this server store is disposed.
+      let created!: RoomMembersStore;
+      this.#roomMemberRoots[roomId] = $effect.root(() => {
+        created = new RoomMembersStore(this.#serverConnection);
+        created.setRoom(roomId);
+        // Initialize before exposing the store; selectors can run in a derived.
+        created.livePresence = new SvelteMap(this.#memberPresence);
+      });
+      store = created;
       this.#roomMembers[roomId] = store;
     }
     return store;
@@ -2001,6 +2008,8 @@ export class ServerStateStore {
     removeRegisteredServerQueries(this.serverId);
     for (const store of Object.values(this.#roomMembers)) store.resetProjectionState();
     this.#roomMembers = Object.create(null);
+    for (const dispose of Object.values(this.#roomMemberRoots)) dispose();
+    this.#roomMemberRoots = Object.create(null);
     this.#memberPresence.clear();
     this.#disposeEffects();
     this.adminRoomLayout.deactivateProjectionRefresh();

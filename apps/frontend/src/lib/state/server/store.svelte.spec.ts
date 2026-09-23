@@ -975,6 +975,23 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('keeps retained room members reactive after the route that created them closes', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    let members!: ReturnType<typeof store.membersForRoom>;
+    const closeRoute = $effect.root(() => {
+      members = store.membersForRoom('a');
+      expect(members.members).toEqual([]);
+    });
+
+    closeRoute();
+    members.replaceProjection('a', [{
+      id: 'U2', login: 'two', displayName: 'Two', presenceStatus: 1
+    }]);
+
+    expect(members.members.map((member) => member.id)).toEqual(['U2']);
+    store.dispose();
+  });
+
   it('keeps presence current in inactive and newly opened rooms', () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.membersForRoom('a');
