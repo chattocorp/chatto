@@ -79,14 +79,17 @@ When the command is not attached to a terminal and you provide no password optio
 
 ## Find and inspect users
 
-List users before running a command that requires `USER_ID`:
+List users or inspect one account:
 
 ```sh
 chatto operator user list
 chatto operator user list --search alice
 chatto operator user list --search alice@example.com
 chatto operator user get USER_ID
+chatto operator user get --login alice
 ```
+
+Use `user get --login` to find one account by its login. This helps a script recover the user ID after an interrupted run. Supply either a user ID or `--login`, not both.
 
 Search matches logins and display names, or an exact verified email address. `list` returns 20 users by default and supports offset pagination:
 
