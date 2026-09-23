@@ -63,8 +63,8 @@ The cache has the following boundaries:
 
 TanStack Query does not own the server-scoped realtime resource snapshot,
 notifications and unread state, presence, active calls, room and thread
-timeline stores, message search, authentication, or expiring asset URLs. Those
-remain in their established per-server owners. Realtime reducers may
+timeline stores, authentication, or expiring asset URLs. Those remain in their
+established per-server owners. Realtime reducers may
 explicitly update, invalidate, or remove a snapshot query, but a query must not
 become a second unordered copy of canonical projection state.
 
@@ -73,6 +73,13 @@ permission matrices, and event-log lists and details. Other snapshot reads can
 move incrementally when doing so removes meaningful custom lifecycle code.
 The first follow-up applies it to paginated moderation bans and the bounded
 system-diagnostics snapshot.
+Message search also uses an infinite query for its transient result pages.
+The retained search store owns the input, availability, and privacy events.
+Each search query includes the server, connection scope, search-store identity,
+and input in its key. The store loads TanStack only when a search starts. It
+removes the old query and its plaintext when input changes, access changes, or
+the store is disposed. Search pages do not remain in the cache after their
+observer is removed.
 
 [ADR-101](ADR-101-shared-client-user-profiles.md) defines one connection-scoped
 owner for public user profiles shared by snapshot and realtime readers.
@@ -91,5 +98,6 @@ public-profile cache.
 - Correct key construction and invalidation become part of mutation and
   authorization review.
 - TanStack Query is loaded by routes that use snapshot queries rather than by
-  the application shell; server-store disposal reaches it through a small
-  cache registry so privacy cleanup does not force it into unrelated bundles.
+  the application shell. Message search loads its query adapter only when a
+  search starts. Server-store disposal reaches the shared cache through a small
+  registry so privacy cleanup does not force it into unrelated bundles.

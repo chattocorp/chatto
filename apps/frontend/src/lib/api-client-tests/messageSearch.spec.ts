@@ -153,4 +153,34 @@ describe('createMessageSearchAPI', () => {
       }
     ]);
   });
+
+  it('does not publish a search page after its query is canceled during enrichment', async () => {
+    const controller = new AbortController();
+    let finishUsers!: (value: { users: [] }) => void;
+    mocks.searchMessages.mockResolvedValue({
+      results: [{ relevanceScore: 1, message: {
+        id: 'message-1', roomId: 'room-1', actorId: 'user-1', body: 'private', attachments: []
+      } }],
+      nextCursor: ''
+    });
+    mocks.batchGetRooms.mockResolvedValue({ rooms: [] });
+    mocks.batchGetUsers.mockReturnValue(new Promise((resolve) => { finishUsers = resolve; }));
+
+    const api = createMessageSearchAPI({
+      baseUrl: 'https://chat.example/api/connect', bearerToken: 'secret'
+    });
+    const pending = api.searchMessages(
+      { query: 'private', order: MessageSearchOrder.RELEVANCE },
+      { signal: controller.signal }
+    );
+    await vi.waitFor(() => expect(mocks.batchGetUsers).toHaveBeenCalledOnce());
+    controller.abort();
+    finishUsers({ users: [] });
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mocks.searchMessages).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'private' }),
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
 });

@@ -434,9 +434,12 @@ refetching them. Checks paused while offline hide their cached data and resume
 when the client reconnects. Query invalidation also fences late matrix
 mutations independently of component disposal. Room membership or message-read
 changes clear only the affected plaintext stores and fence their older reads.
-Searches keep their input and refresh their results. Fresh route authorization
-removes pages whose access was revoked. The shell and other pages remain mounted
-and visible. Search and member checks run even when another resource read fails.
+Message searches keep their input in retained server state. TanStack infinite
+queries own the result pages while a search is active. A new input or privacy
+event removes the old query entry and its plaintext before a new read starts.
+Fresh route authorization removes pages whose access was revoked. The shell and
+other pages remain mounted and visible. Search and member checks run even when
+another resource read fails.
 Role changes apply before asynchronous checks, so overlapping checks cannot
 discard an earlier role change.
 Authentication loss and `RESYNC_REQUIRED` still use full privacy cleanup.
