@@ -98,8 +98,11 @@ export function createReplyWorkflow(
       }
 
       // The agent needs conversation text, not server event or author IDs.
-      const readThread = async () => (await client.readThread(input, r.signal))
-        .map(({ role, body }) => ({ role, body }));
+      const readThread = async () => (await client.readThread({
+        roomId: input.room_id, threadRootId: input.thread_root_id ?? input.message.id,
+      }, r.signal)).map(({ authorId, body }) => ({
+        role: authorId === input.bot_id ? "bot" as const : "human" as const, body,
+      }));
 
       // Start typing before loading context, and keep it active during composition.
       const stopTyping = await step("Start typing", () =>
