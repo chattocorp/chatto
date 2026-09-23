@@ -58,7 +58,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrNeighborMatchesServerOrigin) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	if errors.Is(err, core.ErrRoomNameExists) || errors.Is(err, core.ErrRoomSourceConflict) {
+	if errors.Is(err, core.ErrRoomNameExists) {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
 	if errors.Is(err, core.ErrLoginAlreadyTaken) ||

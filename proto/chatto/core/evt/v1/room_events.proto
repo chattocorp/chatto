@@ -41,15 +41,6 @@ message RoomCreatedEvent {
   // Threading policy for this channel. Historical events omit the field and
   // are interpreted as ENABLED. DM rooms leave it UNSPECIFIED.
   RoomThreadingMode threading_mode = 7;
-  // SHA-256 identity of an optional operator import source key. Its type
-  // domain is channel room creation. Empty for ordinary room creation.
-  string operator_source_key_hash = 8;
-  // SHA-256 identity of the exact operator creation input. Only present with
-  // operator_source_key_hash, so retries can reject changed input.
-  string operator_request_hash = 9;
-  // Group selected when this source-bound room was created. The placement fact
-  // remains authoritative for current group membership.
-  string operator_created_group_id = 10;
 }
 
 message RoomUpdatedEvent {

@@ -140,11 +140,7 @@ type CreateRoomRequest struct {
 	// Optional room description.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	// Optional group ID. Empty selects the current default group.
-	GroupId string `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	// Optional source namespace. Supply with source_id for durable retries.
-	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
-	// Optional source room ID. Supply with source.
-	SourceId      string `protobuf:"bytes,5,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	GroupId       string `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -200,24 +196,10 @@ func (x *CreateRoomRequest) GetGroupId() string {
 	return ""
 }
 
-func (x *CreateRoomRequest) GetSource() string {
-	if x != nil {
-		return x.Source
-	}
-	return ""
-}
-
-func (x *CreateRoomRequest) GetSourceId() string {
-	if x != nil {
-		return x.SourceId
-	}
-	return ""
-}
-
-// The room created by this request or its exact source-key retry.
+// The room created by this request.
 type CreateRoomResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The original created room, with its stable Chatto ID.
+	// The created room, with its stable Chatto ID.
 	Room          *v1.Room `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -270,13 +252,11 @@ const file_chatto_operator_v1_rooms_proto_rawDesc = "" +
 	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"k\n" +
 	"\x11ListRoomsResponse\x12)\n" +
 	"\x05rooms\x18\x01 \x03(\v2\x13.chatto.api.v1.RoomR\x05rooms\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\x99\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"d\n" +
 	"\x11CreateRoomRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
-	"\bgroup_id\x18\x03 \x01(\tR\agroupId\x12\x16\n" +
-	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1b\n" +
-	"\tsource_id\x18\x05 \x01(\tR\bsourceId\"=\n" +
+	"\bgroup_id\x18\x03 \x01(\tR\agroupId\"=\n" +
 	"\x12CreateRoomResponse\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room2\xcc\x01\n" +
 	"\x13OperatorRoomService\x12X\n" +

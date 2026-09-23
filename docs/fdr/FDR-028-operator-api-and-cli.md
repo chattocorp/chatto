@@ -21,7 +21,6 @@ The Operator API gives server operators local, root-equivalent user administrati
 - `chatto operator room list` shows active and archived channel rooms without a user session or room membership. Operators can filter by the exact stored name. Each result includes the room ID, name, description, group ID, and archived state.
 - Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.
 - `chatto operator room create` creates a channel as the system actor with normal name and description checks. An omitted group selects the current default group.
-- A script can supply a source namespace and source room ID together. Chatto binds that key to the first room. An exact retry returns the original creation result, including after a restart. Changed input with the same key fails without changing the room. A key is optional for ordinary operator room creation.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
@@ -89,11 +88,11 @@ fixture remains separate so its workload stays comparable.
 **Why:** A script must recover stable IDs after an interrupted operation. Archived rooms and names that match more than one room must not be hidden or guessed away.
 **Tradeoff:** Offset pages can shift when rooms change during a scan. Scripts can repeat the read and compare IDs.
 
-### 8. Durable source identity for channel creation
+### 8. Channel creation and import scripts
 
-**Decision:** A source-bound channel creation keeps its external identity with the room creation fact. Chatto returns the original creation result on an exact retry, even if the room was changed later.
-**Why:** Import scripts need to recover a room ID after a lost response and must not create duplicate channels after restart or on another replica.
-**Tradeoff:** Source keys remain occupied after room deletion. A script must use a new source ID to create a different room.
+**Decision:** Channel creation accepts room fields and returns the created room ID. Import scripts keep their own mapping from source IDs to Chatto IDs and use channel lookup to recover from an uncertain response.
+**Why:** Source identity and retry policy belong to each import script. The Operator API provides room creation and lookup without storing external source keys.
+**Tradeoff:** A script must resolve name matches when recovering an ID after a lost response. A repeated create request with the same name returns a conflict.
 
 ## Permissions
 

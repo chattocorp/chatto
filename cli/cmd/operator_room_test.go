@@ -109,7 +109,7 @@ func TestOperatorRoomCreate(t *testing.T) {
 	if err != nil || len(groups) == 0 {
 		t.Fatalf("ListRoomGroupsOrdered = %v, %v", groups, err)
 	}
-	output := env.run(t, "operator", "room", "create", "--name", "Imported", "--description", "From export", "--source", "discord", "--source-id", "100", "--json")
+	output := env.run(t, "operator", "room", "create", "--name", "Imported", "--description", "From export", "--json")
 	var created operatorv1.CreateRoomResponse
 	if err := protojson.Unmarshal([]byte(output), &created); err != nil {
 		t.Fatalf("decode room create: %v\n%s", err, output)
@@ -123,13 +123,8 @@ func TestOperatorRoomCreate(t *testing.T) {
 	if err := protojson.Unmarshal([]byte(listed), &list); err != nil || len(list.GetRooms()) != 1 || list.GetRooms()[0].GetId() != room.GetId() {
 		t.Fatalf("list created room = %+v, error = %v", &list, err)
 	}
-	retry := env.run(t, "operator", "room", "create", "--name", "Imported", "--description", "From export", "--source", "discord", "--source-id", "100", "--json")
-	var retried operatorv1.CreateRoomResponse
-	if err := protojson.Unmarshal([]byte(retry), &retried); err != nil || retried.GetRoom().GetId() != room.GetId() {
-		t.Fatalf("retry = %+v, error = %v", &retried, err)
-	}
-	if _, err := env.execute(t, "operator", "room", "create", "--name", "Different", "--source", "discord", "--source-id", "100"); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Fatalf("changed input error = %v, want already exists", err)
+	if _, err := env.execute(t, "operator", "room", "create", "--name", "Imported"); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("duplicate name error = %v, want already exists", err)
 	}
 	if _, err := env.execute(t, "operator", "room", "create", "--name", "bad\nname"); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid name error = %v, want invalid argument", err)
@@ -139,10 +134,6 @@ func TestOperatorRoomCreate(t *testing.T) {
 	}
 	for _, args := range [][]string{
 		{"operator", "room", "create"},
-		{"operator", "room", "create", "--name", "Other", "--source", "discord"},
-		{"operator", "room", "create", "--name", "Other", "--source-id", "101"},
-		{"operator", "room", "create", "--name", "Other", "--source", ""},
-		{"operator", "room", "create", "--name", "Other", "--source", "", "--source-id", ""},
 	} {
 		if _, err := env.execute(t, args...); err == nil {
 			t.Fatalf("invalid command %v succeeded", args)

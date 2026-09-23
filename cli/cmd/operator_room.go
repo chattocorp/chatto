@@ -23,7 +23,7 @@ func init() {
 }
 
 func operatorRoomCreateCmd() *cobra.Command {
-	var name, description, groupID, source, sourceID string
+	var name, description, groupID string
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a channel room",
@@ -32,18 +32,12 @@ func operatorRoomCreateCmd() *cobra.Command {
 			if strings.TrimSpace(name) == "" {
 				return errors.New("--name is required")
 			}
-			if cmd.Flags().Changed("source") != cmd.Flags().Changed("source-id") {
-				return errors.New("--source and --source-id must be supplied together")
-			}
-			if cmd.Flags().Changed("source") && (strings.TrimSpace(source) == "" || strings.TrimSpace(sourceID) == "") {
-				return errors.New("--source and --source-id must contain visible text")
-			}
 			client, err := newOperatorRoomClient()
 			if err != nil {
 				return err
 			}
 			resp, err := client.CreateRoom(cmd.Context(), operatorRequest(&operatorv1.CreateRoomRequest{
-				Name: name, Description: description, GroupId: groupID, Source: source, SourceId: sourceID,
+				Name: name, Description: description, GroupId: groupID,
 			}))
 			if err != nil {
 				return err
@@ -58,8 +52,6 @@ func operatorRoomCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "channel name")
 	cmd.Flags().StringVar(&description, "description", "", "channel description")
 	cmd.Flags().StringVar(&groupID, "group-id", "", "room group ID (default: first group)")
-	cmd.Flags().StringVar(&source, "source", "", "source namespace for durable retries")
-	cmd.Flags().StringVar(&sourceID, "source-id", "", "room ID in the source namespace")
 	return cmd
 }
 

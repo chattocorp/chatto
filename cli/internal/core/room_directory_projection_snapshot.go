@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"time"
 
@@ -33,12 +32,6 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 		// a newer binary during a rollback.
 		room.ThreadingMode = entry.threadingMode
 		snapshot.Rooms = append(snapshot.Rooms, room)
-	}
-	for _, keyHash := range sortedMapKeys(p.Catalog.sourceClaims) {
-		claim := p.Catalog.sourceClaims[keyHash]
-		snapshot.OperatorRoomSourceClaims = append(snapshot.OperatorRoomSourceClaims, &projectionv1.OperatorRoomSourceClaimSnapshot{
-			KeyHash: keyHash, RequestHash: claim.requestHash, CreatedRoom: proto.Clone(claim.createdRoom).(*evtv1.Room),
-		})
 	}
 	for _, roomID := range sortedMapKeys(p.Membership.byRoom) {
 		snapshot.Memberships = append(snapshot.Memberships, &projectionv1.RoomMembershipSnapshot{
@@ -85,16 +78,6 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),
 			threadingMode: room.GetThreadingMode(),
 		}
-	}
-	sourceClaims := make(map[string]roomSourceClaim, len(snapshot.GetOperatorRoomSourceClaims()))
-	for _, row := range snapshot.GetOperatorRoomSourceClaims() {
-		if row.GetKeyHash() == "" || row.GetRequestHash() == "" || row.GetCreatedRoom().GetId() == "" {
-			return fmt.Errorf("room directory snapshot has invalid operator source claim")
-		}
-		if _, duplicate := sourceClaims[row.GetKeyHash()]; duplicate {
-			return fmt.Errorf("room directory snapshot repeats operator source claim")
-		}
-		sourceClaims[row.GetKeyHash()] = roomSourceClaim{requestHash: row.GetRequestHash(), createdRoom: proto.Clone(row.GetCreatedRoom()).(*evtv1.Room)}
 	}
 	byRoom := make(map[string]map[string]struct{}, len(snapshot.GetMemberships()))
 	byUser := make(map[string]map[string]struct{})
@@ -150,7 +133,7 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 	p.Catalog.Lock()
 	p.Membership.Lock()
 	p.Bans.Lock()
-	p.Catalog.rooms, p.Catalog.sourceClaims, p.Catalog.seq = rooms, sourceClaims, snapshot.GetCatalogSequence()
+	p.Catalog.rooms, p.Catalog.seq = rooms, snapshot.GetCatalogSequence()
 	p.Membership.byRoom, p.Membership.byUser = byRoom, byUser
 	p.Bans.byRoom = bans
 	p.Bans.Unlock()

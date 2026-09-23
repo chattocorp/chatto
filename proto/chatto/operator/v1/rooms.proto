@@ -29,15 +29,11 @@ message CreateRoomRequest {
   string description = 2;
   // Optional group ID. Empty selects the current default group.
   string group_id = 3;
-  // Optional source namespace. Supply with source_id for durable retries.
-  string source = 4;
-  // Optional source room ID. Supply with source.
-  string source_id = 5;
 }
 
-// The room created by this request or its exact source-key retry.
+// The room created by this request.
 message CreateRoomResponse {
-  // The original created room, with its stable Chatto ID.
+  // The created room, with its stable Chatto ID.
   chatto.api.v1.Room room = 1;
 }
 
@@ -47,8 +43,8 @@ service OperatorRoomService {
   // room membership. Pages are live reads; changes between requests can shift
   // offsets. The service is available only on the Operator Unix socket.
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
-  // Creates a channel room as Chatto's system actor. A source key is optional;
-  // exact retries return the original room, while changed input conflicts.
+  // Creates a channel room as Chatto's system actor. A repeated request for
+  // an existing name returns ALREADY_EXISTS.
   // The service is available only on the Operator Unix socket.
   rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
 }

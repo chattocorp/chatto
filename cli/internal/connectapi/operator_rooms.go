@@ -33,10 +33,13 @@ func (s *operatorRoomService) ListRooms(ctx context.Context, req *connect.Reques
 }
 
 func (s *operatorRoomService) CreateRoom(ctx context.Context, req *connect.Request[operatorv1.CreateRoomRequest]) (*connect.Response[operatorv1.CreateRoomResponse], error) {
-	room, err := s.api.core.CreateOperatorRoom(ctx, core.OperatorRoomCreateInput{
-		Name: req.Msg.GetName(), Description: req.Msg.GetDescription(), GroupID: req.Msg.GetGroupId(),
-		Source: req.Msg.GetSource(), SourceID: req.Msg.GetSourceId(),
-	})
+	if err := core.ValidateRoomName(req.Msg.GetName()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := core.ValidateRoomDescription(req.Msg.GetDescription()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	room, err := s.api.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
 	if err != nil {
 		return nil, connectError(err)
 	}

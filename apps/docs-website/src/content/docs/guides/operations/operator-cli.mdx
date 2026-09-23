@@ -132,17 +132,7 @@ chatto operator room create --name "team-chat" --group-id GROUP_ID
 
 The command returns the room ID, name, group ID, archived state, and description. Use `--json` when a script needs the full response. Chatto checks the name and description as it does for rooms created in the app.
 
-For an import, supply both `--source` and `--source-id`:
-
-```sh
-chatto operator room create \
-  --name "imported-chat" \
-  --source discord \
-  --source-id SOURCE_CHANNEL_ID \
-  --json
-```
-
-Save the returned Chatto room ID. If the command loses its response, repeat it with the same flags. Chatto returns the original room and ID, even after a restart. A change to the name, description, or `--group-id` with the same source key returns a conflict. An omitted group ID and an explicit group ID count as different input. Source keys remain used after room deletion. `--source` is limited to 256 bytes and `--source-id` to 1024 bytes.
+An import script can save the returned Chatto room ID alongside its source room ID. If the response is lost, use `room list --name` to find the room before creating it again. A repeated create request with the same name returns a conflict.
 
 ## Update a user
 

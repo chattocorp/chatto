@@ -47,8 +47,8 @@ type OperatorRoomServiceClient interface {
 	// room membership. Pages are live reads; changes between requests can shift
 	// offsets. The service is available only on the Operator Unix socket.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
-	// Creates a channel room as Chatto's system actor. A source key is optional;
-	// exact retries return the original room, while changed input conflicts.
+	// Creates a channel room as Chatto's system actor. A repeated request for
+	// an existing name returns ALREADY_EXISTS.
 	// The service is available only on the Operator Unix socket.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
 }
@@ -102,8 +102,8 @@ type OperatorRoomServiceHandler interface {
 	// room membership. Pages are live reads; changes between requests can shift
 	// offsets. The service is available only on the Operator Unix socket.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
-	// Creates a channel room as Chatto's system actor. A source key is optional;
-	// exact retries return the original room, while changed input conflicts.
+	// Creates a channel room as Chatto's system actor. A repeated request for
+	// an existing name returns ALREADY_EXISTS.
 	// The service is available only on the Operator Unix socket.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
 }

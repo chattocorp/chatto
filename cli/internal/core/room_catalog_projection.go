@@ -20,22 +20,13 @@ import (
 // "single consumer per filter" out-of-scope note in ADR-033.
 type RoomCatalogProjection struct {
 	events.MemoryProjection
-	rooms        map[string]*roomCatalogEntry
-	sourceClaims map[string]roomSourceClaim
-	seq          uint64
+	rooms map[string]*roomCatalogEntry
+	seq   uint64
 }
 
 type RoomNameClaimSnapshot struct {
 	ConflictingRoomID string
 	Seq               uint64
-	sourceClaim       *roomSourceClaim
-}
-
-// roomSourceClaim retains the first creation result after a room is renamed,
-// moved, or deleted. Its key is the type-scoped digest of an external ID.
-type roomSourceClaim struct {
-	requestHash string
-	createdRoom *evtv1.Room
 }
 
 // roomCatalogEntry is the in-memory shape held per room. Not exposed
@@ -54,8 +45,7 @@ type roomCatalogEntry struct {
 // NewRoomCatalogProjection returns an empty projection.
 func NewRoomCatalogProjection() *RoomCatalogProjection {
 	return &RoomCatalogProjection{
-		rooms:        make(map[string]*roomCatalogEntry),
-		sourceClaims: make(map[string]roomSourceClaim),
+		rooms: make(map[string]*roomCatalogEntry),
 	}
 }
 
@@ -90,19 +80,6 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 			kind:          c.GetKind(),
 			universal:     c.GetUniversal(),
 			threadingMode: c.GetThreadingMode(),
-		}
-		if key := c.GetOperatorSourceKeyHash(); key != "" {
-			if p.sourceClaims == nil {
-				p.sourceClaims = make(map[string]roomSourceClaim)
-			}
-			p.sourceClaims[key] = roomSourceClaim{
-				requestHash: c.GetOperatorRequestHash(),
-				createdRoom: &evtv1.Room{
-					Id: c.GetRoomId(), Kind: c.GetKind(), Name: c.GetName(),
-					Description: c.GetDescription(), GroupId: c.GetOperatorCreatedGroupId(),
-					Universal: c.GetUniversal(), ThreadingMode: normalizedRoomThreadingMode(c.GetKind(), c.GetThreadingMode()),
-				},
-			}
 		}
 	case *evtv1.Event_RoomUpdated:
 		u := e.RoomUpdated
@@ -195,25 +172,13 @@ func (p *RoomCatalogProjection) FindByName(name string) string {
 // entries is important when stronger Unicode comparison reveals collisions in
 // data written by an older release.
 func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) RoomNameClaimSnapshot {
-	return p.CreationClaimSnapshot(name, excludeRoomID, "")
-}
-
-// CreationClaimSnapshot reads the source claim, name owner, and OCC sequence
-// under one lock. A caller can therefore check both invariants against the
-// same room-event prefix before publishing a new room.
-func (p *RoomCatalogProjection) CreationClaimSnapshot(name, excludeRoomID, sourceKeyHash string) RoomNameClaimSnapshot {
 	target := canonicalRoomName(name)
+	if target == "" {
+		return RoomNameClaimSnapshot{}
+	}
 	p.RLock()
 	defer p.RUnlock()
 	snapshot := RoomNameClaimSnapshot{Seq: p.seq}
-	if sourceKeyHash != "" {
-		if claim, ok := p.sourceClaims[sourceKeyHash]; ok {
-			snapshot.sourceClaim = &roomSourceClaim{requestHash: claim.requestHash, createdRoom: proto.Clone(claim.createdRoom).(*evtv1.Room)}
-		}
-	}
-	if target == "" {
-		return snapshot
-	}
 	for id, entry := range p.rooms {
 		if id == excludeRoomID || entry.kind != evtv1.RoomKind_ROOM_KIND_CHANNEL {
 			continue
