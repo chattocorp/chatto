@@ -7,6 +7,7 @@
 package operatorv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -242,11 +243,121 @@ func (x *CreateRoomResponse) GetRoom() *v1.Room {
 	return nil
 }
 
+// Request to add an existing user to a channel room as an explicit member.
+type AddMemberRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required Chatto channel room ID.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required Chatto user ID.
+	UserId        string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddMemberRequest) Reset() {
+	*x = AddMemberRequest{}
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddMemberRequest) ProtoMessage() {}
+
+func (x *AddMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddMemberRequest.ProtoReflect.Descriptor instead.
+func (*AddMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_rooms_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AddMemberRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AddMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+// The resulting channel room membership.
+type AddMemberResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Chatto channel room ID.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// User who is now an explicit member of the room.
+	Member        *v1.DirectoryMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddMemberResponse) Reset() {
+	*x = AddMemberResponse{}
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddMemberResponse) ProtoMessage() {}
+
+func (x *AddMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddMemberResponse.ProtoReflect.Descriptor instead.
+func (*AddMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_rooms_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AddMemberResponse) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AddMemberResponse) GetMember() *v1.DirectoryMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
 var File_chatto_operator_v1_rooms_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_rooms_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/operator/v1/rooms.proto\x12\x12chatto.operator.v1\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\"V\n" +
+	"\x1echatto/operator/v1/rooms.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\"V\n" +
 	"\x10ListRoomsRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
 	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"k\n" +
@@ -258,11 +369,18 @@ const file_chatto_operator_v1_rooms_proto_rawDesc = "" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
 	"\bgroup_id\x18\x03 \x01(\tR\agroupId\"=\n" +
 	"\x12CreateRoomResponse\x12'\n" +
-	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room2\xcc\x01\n" +
+	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"V\n" +
+	"\x10AddMemberRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
+	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"d\n" +
+	"\x11AddMemberResponse\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x126\n" +
+	"\x06member\x18\x02 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x06member2\xa6\x02\n" +
 	"\x13OperatorRoomService\x12X\n" +
 	"\tListRooms\x12$.chatto.operator.v1.ListRoomsRequest\x1a%.chatto.operator.v1.ListRoomsResponse\x12[\n" +
 	"\n" +
-	"CreateRoom\x12%.chatto.operator.v1.CreateRoomRequest\x1a&.chatto.operator.v1.CreateRoomResponseB\xc9\x01\n" +
+	"CreateRoom\x12%.chatto.operator.v1.CreateRoomRequest\x1a&.chatto.operator.v1.CreateRoomResponse\x12X\n" +
+	"\tAddMember\x12$.chatto.operator.v1.AddMemberRequest\x1a%.chatto.operator.v1.AddMemberResponseB\xc9\x01\n" +
 	"\x16com.chatto.operator.v1B\n" +
 	"RoomsProtoP\x01Z9hmans.de/chatto/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
 
@@ -278,30 +396,36 @@ func file_chatto_operator_v1_rooms_proto_rawDescGZIP() []byte {
 	return file_chatto_operator_v1_rooms_proto_rawDescData
 }
 
-var file_chatto_operator_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_operator_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_operator_v1_rooms_proto_goTypes = []any{
 	(*ListRoomsRequest)(nil),   // 0: chatto.operator.v1.ListRoomsRequest
 	(*ListRoomsResponse)(nil),  // 1: chatto.operator.v1.ListRoomsResponse
 	(*CreateRoomRequest)(nil),  // 2: chatto.operator.v1.CreateRoomRequest
 	(*CreateRoomResponse)(nil), // 3: chatto.operator.v1.CreateRoomResponse
-	(*v1.PageRequest)(nil),     // 4: chatto.api.v1.PageRequest
-	(*v1.Room)(nil),            // 5: chatto.api.v1.Room
-	(*v1.PageInfo)(nil),        // 6: chatto.api.v1.PageInfo
+	(*AddMemberRequest)(nil),   // 4: chatto.operator.v1.AddMemberRequest
+	(*AddMemberResponse)(nil),  // 5: chatto.operator.v1.AddMemberResponse
+	(*v1.PageRequest)(nil),     // 6: chatto.api.v1.PageRequest
+	(*v1.Room)(nil),            // 7: chatto.api.v1.Room
+	(*v1.PageInfo)(nil),        // 8: chatto.api.v1.PageInfo
+	(*v1.DirectoryMember)(nil), // 9: chatto.api.v1.DirectoryMember
 }
 var file_chatto_operator_v1_rooms_proto_depIdxs = []int32{
-	4, // 0: chatto.operator.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
-	5, // 1: chatto.operator.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.Room
-	6, // 2: chatto.operator.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
-	5, // 3: chatto.operator.v1.CreateRoomResponse.room:type_name -> chatto.api.v1.Room
-	0, // 4: chatto.operator.v1.OperatorRoomService.ListRooms:input_type -> chatto.operator.v1.ListRoomsRequest
-	2, // 5: chatto.operator.v1.OperatorRoomService.CreateRoom:input_type -> chatto.operator.v1.CreateRoomRequest
-	1, // 6: chatto.operator.v1.OperatorRoomService.ListRooms:output_type -> chatto.operator.v1.ListRoomsResponse
-	3, // 7: chatto.operator.v1.OperatorRoomService.CreateRoom:output_type -> chatto.operator.v1.CreateRoomResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 0: chatto.operator.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
+	7, // 1: chatto.operator.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.Room
+	8, // 2: chatto.operator.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
+	7, // 3: chatto.operator.v1.CreateRoomResponse.room:type_name -> chatto.api.v1.Room
+	9, // 4: chatto.operator.v1.AddMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
+	0, // 5: chatto.operator.v1.OperatorRoomService.ListRooms:input_type -> chatto.operator.v1.ListRoomsRequest
+	2, // 6: chatto.operator.v1.OperatorRoomService.CreateRoom:input_type -> chatto.operator.v1.CreateRoomRequest
+	4, // 7: chatto.operator.v1.OperatorRoomService.AddMember:input_type -> chatto.operator.v1.AddMemberRequest
+	1, // 8: chatto.operator.v1.OperatorRoomService.ListRooms:output_type -> chatto.operator.v1.ListRoomsResponse
+	3, // 9: chatto.operator.v1.OperatorRoomService.CreateRoom:output_type -> chatto.operator.v1.CreateRoomResponse
+	5, // 10: chatto.operator.v1.OperatorRoomService.AddMember:output_type -> chatto.operator.v1.AddMemberResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_operator_v1_rooms_proto_init() }
@@ -315,7 +439,7 @@ func file_chatto_operator_v1_rooms_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_operator_v1_rooms_proto_rawDesc), len(file_chatto_operator_v1_rooms_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

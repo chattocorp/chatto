@@ -81,8 +81,24 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		if _, err := roomClient.ListRooms(ctx, connect.NewRequest(&operatorv1.ListRoomsRequest{})); err != nil {
 			t.Fatalf("OperatorRoomService on operator server: %v", err)
 		}
-		if _, err := roomClient.CreateRoom(ctx, connect.NewRequest(&operatorv1.CreateRoomRequest{Name: "operator-connect-room"})); err != nil {
+		created, err := roomClient.CreateRoom(ctx, connect.NewRequest(&operatorv1.CreateRoomRequest{Name: "operator-connect-room"}))
+		if err != nil {
 			t.Fatalf("OperatorRoomService.CreateRoom on operator server: %v", err)
+		}
+		added, err := roomClient.AddMember(ctx, connect.NewRequest(&operatorv1.AddMemberRequest{RoomId: created.Msg.GetRoom().GetId(), UserId: user.GetId()}))
+		if err != nil {
+			t.Fatalf("OperatorRoomService.AddMember on operator server: %v", err)
+		}
+		if added.Msg.GetRoomId() != created.Msg.GetRoom().GetId() || added.Msg.GetMember().GetUser().GetId() != user.GetId() {
+			t.Fatalf("OperatorRoomService.AddMember response = %+v", added.Msg)
+		}
+		for _, request := range []*operatorv1.AddMemberRequest{
+			{UserId: user.GetId()},
+			{RoomId: created.Msg.GetRoom().GetId()},
+		} {
+			if _, err := roomClient.AddMember(ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("OperatorRoomService.AddMember empty ID error = %v, want invalid argument", err)
+			}
 		}
 
 		adminClient := adminv1connect.NewAdminUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
@@ -103,6 +119,9 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		}
 		if _, err := roomClient.CreateRoom(context.Background(), connect.NewRequest(&operatorv1.CreateRoomRequest{Name: "public-operator-room"})); connect.CodeOf(err) != connect.CodeUnimplemented {
 			t.Fatalf("OperatorRoomService.CreateRoom on public server err = %v, want unimplemented", err)
+		}
+		if _, err := roomClient.AddMember(context.Background(), connect.NewRequest(&operatorv1.AddMemberRequest{RoomId: "room", UserId: "user"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorRoomService.AddMember on public server err = %v, want unimplemented", err)
 		}
 	})
 }

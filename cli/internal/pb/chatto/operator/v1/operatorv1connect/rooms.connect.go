@@ -39,6 +39,9 @@ const (
 	// OperatorRoomServiceCreateRoomProcedure is the fully-qualified name of the OperatorRoomService's
 	// CreateRoom RPC.
 	OperatorRoomServiceCreateRoomProcedure = "/chatto.operator.v1.OperatorRoomService/CreateRoom"
+	// OperatorRoomServiceAddMemberProcedure is the fully-qualified name of the OperatorRoomService's
+	// AddMember RPC.
+	OperatorRoomServiceAddMemberProcedure = "/chatto.operator.v1.OperatorRoomService/AddMember"
 )
 
 // OperatorRoomServiceClient is a client for the chatto.operator.v1.OperatorRoomService service.
@@ -51,6 +54,11 @@ type OperatorRoomServiceClient interface {
 	// an existing name returns ALREADY_EXISTS.
 	// The service is available only on the Operator Unix socket.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
+	// Adds an explicit channel member as Chatto's system actor. An existing
+	// membership succeeds without another join event. Archived, universal, and
+	// DM rooms cannot gain explicit members. The service is available only on
+	// the Operator Unix socket.
+	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 }
 
 // NewOperatorRoomServiceClient constructs a client for the chatto.operator.v1.OperatorRoomService
@@ -76,6 +84,12 @@ func NewOperatorRoomServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(operatorRoomServiceMethods.ByName("CreateRoom")),
 			connect.WithClientOptions(opts...),
 		),
+		addMember: connect.NewClient[v1.AddMemberRequest, v1.AddMemberResponse](
+			httpClient,
+			baseURL+OperatorRoomServiceAddMemberProcedure,
+			connect.WithSchema(operatorRoomServiceMethods.ByName("AddMember")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -83,6 +97,7 @@ func NewOperatorRoomServiceClient(httpClient connect.HTTPClient, baseURL string,
 type operatorRoomServiceClient struct {
 	listRooms  *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
 	createRoom *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
+	addMember  *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
 }
 
 // ListRooms calls chatto.operator.v1.OperatorRoomService.ListRooms.
@@ -93,6 +108,11 @@ func (c *operatorRoomServiceClient) ListRooms(ctx context.Context, req *connect.
 // CreateRoom calls chatto.operator.v1.OperatorRoomService.CreateRoom.
 func (c *operatorRoomServiceClient) CreateRoom(ctx context.Context, req *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error) {
 	return c.createRoom.CallUnary(ctx, req)
+}
+
+// AddMember calls chatto.operator.v1.OperatorRoomService.AddMember.
+func (c *operatorRoomServiceClient) AddMember(ctx context.Context, req *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error) {
+	return c.addMember.CallUnary(ctx, req)
 }
 
 // OperatorRoomServiceHandler is an implementation of the chatto.operator.v1.OperatorRoomService
@@ -106,6 +126,11 @@ type OperatorRoomServiceHandler interface {
 	// an existing name returns ALREADY_EXISTS.
 	// The service is available only on the Operator Unix socket.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
+	// Adds an explicit channel member as Chatto's system actor. An existing
+	// membership succeeds without another join event. Archived, universal, and
+	// DM rooms cannot gain explicit members. The service is available only on
+	// the Operator Unix socket.
+	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 }
 
 // NewOperatorRoomServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -127,12 +152,20 @@ func NewOperatorRoomServiceHandler(svc OperatorRoomServiceHandler, opts ...conne
 		connect.WithSchema(operatorRoomServiceMethods.ByName("CreateRoom")),
 		connect.WithHandlerOptions(opts...),
 	)
+	operatorRoomServiceAddMemberHandler := connect.NewUnaryHandler(
+		OperatorRoomServiceAddMemberProcedure,
+		svc.AddMember,
+		connect.WithSchema(operatorRoomServiceMethods.ByName("AddMember")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.operator.v1.OperatorRoomService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OperatorRoomServiceListRoomsProcedure:
 			operatorRoomServiceListRoomsHandler.ServeHTTP(w, r)
 		case OperatorRoomServiceCreateRoomProcedure:
 			operatorRoomServiceCreateRoomHandler.ServeHTTP(w, r)
+		case OperatorRoomServiceAddMemberProcedure:
+			operatorRoomServiceAddMemberHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -148,4 +181,8 @@ func (UnimplementedOperatorRoomServiceHandler) ListRooms(context.Context, *conne
 
 func (UnimplementedOperatorRoomServiceHandler) CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorRoomService.CreateRoom is not implemented"))
+}
+
+func (UnimplementedOperatorRoomServiceHandler) AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorRoomService.AddMember is not implemented"))
 }

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package chatto.operator.v1;
 
+import "buf/validate/validate.proto";
+import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/rooms.proto";
 
@@ -37,6 +39,22 @@ message CreateRoomResponse {
   chatto.api.v1.Room room = 1;
 }
 
+// Request to add an existing user to a channel room as an explicit member.
+message AddMemberRequest {
+  // Required Chatto channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required Chatto user ID.
+  string user_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// The resulting channel room membership.
+message AddMemberResponse {
+  // Chatto channel room ID.
+  string room_id = 1;
+  // User who is now an explicit member of the room.
+  chatto.api.v1.DirectoryMember member = 2;
+}
+
 // Root-equivalent local room commands.
 service OperatorRoomService {
   // Lists channel rooms, including archived rooms, without a user session or
@@ -47,4 +65,9 @@ service OperatorRoomService {
   // an existing name returns ALREADY_EXISTS.
   // The service is available only on the Operator Unix socket.
   rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  // Adds an explicit channel member as Chatto's system actor. An existing
+  // membership succeeds without another join event. Archived, universal, and
+  // DM rooms cannot gain explicit members. The service is available only on
+  // the Operator Unix socket.
+  rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
 }
