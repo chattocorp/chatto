@@ -7,6 +7,8 @@ import type {
 } from '$lib/api-client/messageSearch';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import { queryClient } from '$lib/query/client';
+import { refreshRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import { onlineManager } from '@tanstack/svelte-query';
 import { MessageSearchOrder, MessageSearchState, MessageSearchStore } from './messageSearch.svelte';
 
 function result(id: string): MessageSearchResult {
@@ -464,5 +466,48 @@ describe('MessageSearchStore', () => {
     finishRefresh(page([], null));
     await vi.waitFor(() => expect(store.loading).toBe(false));
     store.reset();
+  });
+
+  it('keeps newly authorized search results when snapshot queries also refresh', async () => {
+    const searchMessages = vi.fn()
+      .mockResolvedValueOnce(page([result('old')], null))
+      .mockResolvedValueOnce(page([result('current')], null));
+    const store = new MessageSearchStore(api({ searchMessages }), () => true, {
+      serverId: 'remote', queryScope: 'connection-3'
+    });
+    await store.search({ query: 'hello', order: MessageSearchOrder.RELEVANCE });
+
+    store.refreshPermissions();
+    await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['current']));
+    await refreshRegisteredServerQueries('remote');
+
+    expect(store.results.map((item) => item.id)).toEqual(['current']);
+    expect(searchMessages).toHaveBeenCalledTimes(2);
+    store.reset();
+  });
+
+  it('does not report no results while the first page is paused offline', async () => {
+    const client = api();
+    const store = new MessageSearchStore(client, () => true, {
+      serverId: 'remote', queryScope: 'connection-4'
+    });
+    queryClient.mount();
+    onlineManager.setOnline(false);
+    try {
+      const search = store.search({ query: 'hello', order: MessageSearchOrder.RELEVANCE });
+      await vi.waitFor(() => expect(queryClient.getQueryCache().findAll({
+        queryKey: ['server', 'remote', 'session', 'connection-4', 'message-search']
+      })).toHaveLength(1));
+      expect(client.searchMessages).not.toHaveBeenCalled();
+      expect(store.loading).toBe(true);
+
+      onlineManager.setOnline(true);
+      await search;
+      expect(store.results.map((item) => item.id)).toEqual(['one']);
+    } finally {
+      onlineManager.setOnline(true);
+      store.reset();
+      queryClient.unmount();
+    }
   });
 });

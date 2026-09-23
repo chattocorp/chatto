@@ -79,7 +79,8 @@ Each search query includes the server, connection scope, search-store identity,
 and input in its key. The store loads TanStack only when a search starts. It
 removes the old query and its plaintext when input changes, access changes, or
 the store is disposed. Search pages do not remain in the cache after their
-observer is removed.
+observer is removed. The global snapshot-query permission refresh excludes
+search queries because the search store fences and refreshes them separately.
 
 [ADR-101](ADR-101-shared-client-user-profiles.md) defines one connection-scoped
 owner for public user profiles shared by snapshot and realtime readers.

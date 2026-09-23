@@ -73,7 +73,13 @@ export function removeServerQueries(serverId: string): void {
 export async function refreshServerQueries(serverId: string): Promise<void> {
   const generation = Symbol();
   permissionRefreshes.set(serverId, generation);
-  const filters = { queryKey: serverQueryRoot(serverId) };
+  // Search has its own synchronous privacy fence and replacement read. Its
+  // disabled observer is otherwise classified as inactive and reset here,
+  // which can erase a newly authorized result after that read completes.
+  const filters = {
+    queryKey: serverQueryRoot(serverId),
+    predicate: (query: { queryKey: QueryKey }) => query.queryKey[4] !== 'message-search'
+  };
   await queryClient.cancelQueries(filters);
   if (permissionRefreshes.get(serverId) !== generation) return;
   const queries = queryClient.getQueryCache().findAll(filters);

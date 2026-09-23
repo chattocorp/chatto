@@ -53,7 +53,9 @@ export function startMessageSearchQuery(
         return true;
       })),
       nextCursor: current.hasNextPage ? pages.at(-1)?.nextCursor ?? null : null,
-      loading: current.isPending && current.isFetching,
+      // A first page paused by the browser's offline state has no result yet.
+      // Keep it pending instead of telling the user there are no matches.
+      loading: current.isPending,
       loadingMore: current.isFetchingNextPage,
       error: current.isError
     });
