@@ -19,13 +19,13 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// getRoomLastRootEntry returns the most recent root message entry
-// (excluding thread replies) in a room, or nil if none have been
+// getRoomLastRootEntry returns the most recent ordinary root message entry
+// (excluding thread replies and historical imports) in a room, or nil if none have been
 // projected yet. Bounded O(walk-until-found) via the projection's
 // LastVisibleRoomEntry helper.
 func (c *ChattoCore) getRoomLastRootEntry(roomID string) *TimelineEntry {
 	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, func(entry *TimelineEntry) bool {
-		return entry != nil && entry.IsMessagePost() && entry.InThreadEventID == ""
+		return entry != nil && entry.IsMessagePost() && entry.InThreadEventID == "" && !entry.HistoricalImport
 	})
 	if !ok {
 		return nil
@@ -33,7 +33,7 @@ func (c *ChattoCore) getRoomLastRootEntry(roomID string) *TimelineEntry {
 	return entry
 }
 
-// getRoomLastMessageEntry returns the most recent message entry
+// getRoomLastMessageEntry returns the most recent ordinary message entry
 // of any kind (root or thread reply) in a room, or nil. It uses the
 // projection's message-post index because thread replies are not part of the
 // visible room timeline.
@@ -45,8 +45,8 @@ func (c *ChattoCore) getRoomLastMessageEntry(roomID string) *TimelineEntry {
 	return entry
 }
 
-// GetRoomLastMessageAt returns the timestamp of the last message in a
-// room, including thread replies. Reads from the in-memory room
+// GetRoomLastMessageAt returns the timestamp of the last ordinary message in a
+// room, including thread replies but excluding historical imports. Reads from the in-memory room
 // timeline projection.
 func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
 	entry := c.getRoomLastMessageEntry(roomID)

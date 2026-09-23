@@ -5,11 +5,29 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-func messageAuthorID(event *evtv1.Event) string {
+// MessageAuthorID returns the displayed author of a message, or the event
+// actor for other facts. Historical imports retain the operator in the event
+// envelope for audit.
+func MessageAuthorID(event *evtv1.Event) string {
 	if event != nil {
+		if authorID := event.GetMessagePosted().GetAuthorId(); authorID != "" {
+			return authorID
+		}
 		return event.GetActorId()
 	}
 	return ""
+}
+
+func messageAuthorID(event *evtv1.Event) string { return MessageAuthorID(event) }
+
+func timelineEntryMessageAuthorID(entry *TimelineEntry) string {
+	if entry == nil {
+		return ""
+	}
+	if entry.MessageAuthorID != "" {
+		return entry.MessageAuthorID
+	}
+	return entry.ActorID
 }
 
 func roomIDOfEvent(event *evtv1.Event) string {
@@ -385,6 +403,9 @@ func IsVisibleRoomTimelineEntry(event *evtv1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
+	if event.GetMessagePosted().GetHistoricalImport() {
+		return false
+	}
 	return isDeliverableLiveEVTRoomEventType(evtstream.EventTypeOf(event))
 }
 

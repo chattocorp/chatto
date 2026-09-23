@@ -212,7 +212,12 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v8`.
+uses `v9`.
+
+Room Timeline `v9` retains a historical-import bit on each message reference.
+Unread and room-activity reads omit these messages, while timeline reads keep
+them visible. Slow Mode, thread interaction, notification, webhook, and live
+delivery consumers also omit historical posting effects when they replay EVT.
 
 The 0.5 internal protobuf package split changes full protobuf names and selects
 new snapshot contract IDs. A server ignores older snapshots, cold-replays EVT,
@@ -414,7 +419,7 @@ same room. Body selection and attachment indexes use the original body
 reference. Echo bodies from historical EVT records remain indexed only for
 physical record ownership and secure deletion. Snapshot restore rebuilds
 attachment membership from these links. The Room Timeline snapshot semantics
-token is `v8`. Timeline pages batch original metadata reads and reuse metadata
+token is `v9`. Timeline pages batch original metadata reads and reuse metadata
 and canonical bodies within the response. Missing or invalid original metadata
 is omitted for the affected echo; storage errors still fail the read. Historical
 echo metadata is never used as a fallback. Projections do not retain decrypted

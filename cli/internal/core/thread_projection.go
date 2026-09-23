@@ -271,7 +271,7 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 
 	case *evtv1.Event_MessagePosted:
 		m := e.MessagePosted
-		if p.isInteractionRoomLocked(m.GetRoomId()) {
+		if !m.GetHistoricalImport() && p.isInteractionRoomLocked(m.GetRoomId()) {
 			p.applyMessageInteractionStateLocked(event, m)
 		}
 		threadRoot := m.GetInThread()

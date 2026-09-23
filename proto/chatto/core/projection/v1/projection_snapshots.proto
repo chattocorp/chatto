@@ -436,6 +436,8 @@ message TimelineEntrySnapshot {
   string echo_of_event_id = 8;
   // Direct thread parent. Empty for room-visible entries.
   string in_thread_event_id = 9;
+  bool historical_import = 10;
+  string message_author_id = 11;
 }
 
 message TimelineBodySnapshot {

@@ -318,7 +318,10 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *evtv1.Event, seq 
 			if state.ThreadRootID == "" {
 				state.ThreadRootID = event.GetId()
 			}
-			state.AuthorID = event.GetActorId()
+			state.AuthorID = posted.GetAuthorId()
+			if state.AuthorID == "" {
+				state.AuthorID = event.GetActorId()
+			}
 			// Echoes are timeline references, not separate searchable contributions.
 			state.Visible = posted.GetEchoOfEventId() == ""
 			if !state.Visible {

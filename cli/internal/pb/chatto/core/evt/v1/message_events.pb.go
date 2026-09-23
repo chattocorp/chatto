@@ -45,9 +45,14 @@ type MessagePostedEvent struct {
 	// a direct, role, presence-scoped, or room-wide mention. Derived consumers
 	// can therefore apply the correct policy without re-parsing message content
 	// or consulting newer room state.
-	Mentions      []*MessageMention `protobuf:"bytes,10,rep,name=mentions,proto3" json:"mentions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Mentions []*MessageMention `protobuf:"bytes,10,rep,name=mentions,proto3" json:"mentions,omitempty"`
+	// Historical imports record the operator as the event actor. This user is
+	// the displayed author and the owner of the encrypted message body.
+	AuthorId string `protobuf:"bytes,11,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	// Historical imports must not generate live posting effects during replay.
+	HistoricalImport bool `protobuf:"varint,12,opt,name=historical_import,json=historicalImport,proto3" json:"historical_import,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MessagePostedEvent) Reset() {
@@ -127,6 +132,20 @@ func (x *MessagePostedEvent) GetMentions() []*MessageMention {
 		return x.Mentions
 	}
 	return nil
+}
+
+func (x *MessagePostedEvent) GetAuthorId() string {
+	if x != nil {
+		return x.AuthorId
+	}
+	return ""
+}
+
+func (x *MessagePostedEvent) GetHistoricalImport() bool {
+	if x != nil {
+		return x.HistoricalImport
+	}
+	return false
 }
 
 type DirectUserMention struct {
@@ -878,7 +897,7 @@ var File_chatto_core_evt_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\xf7\x02\n" +
+	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\xc1\x03\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
@@ -887,7 +906,9 @@ const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
 	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12>\n" +
 	"\bmentions\x18\n" +
-	" \x03(\v2\".chatto.core.evt.v1.MessageMentionR\bmentionsJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
+	" \x03(\v2\".chatto.core.evt.v1.MessageMentionR\bmentions\x12\x1b\n" +
+	"\tauthor_id\x18\v \x01(\tR\bauthorId\x12+\n" +
+	"\x11historical_import\x18\f \x01(\bR\x10historicalImportJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
 	"R\bspace_idR\x0fmessage_body_idR\x04body\"\x13\n" +
 	"\x11DirectUserMention\"1\n" +
 	"\x12RoleMessageMention\x12\x1b\n" +

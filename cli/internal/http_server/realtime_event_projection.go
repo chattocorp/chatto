@@ -99,6 +99,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_VoiceCallEnded{VoiceCallEnded: &realtimev1.VoiceCallEndedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
 	case *evtv1.Event_MessagePosted:
 		v := e.MessagePosted
+		if v.GetHistoricalImport() {
+			return nil
+		}
 		target.Event = &realtimev1.RealtimeEvent_MessagePosted{MessagePosted: &realtimev1.MessagePostedEvent{RoomId: v.GetRoomId(), InReplyTo: v.GetInReplyTo(), ThreadRootEventId: v.GetInThread(), EchoOfEventId: v.GetEchoOfEventId(), EchoFromThreadRootEventId: v.GetEchoFromThreadRootEventId(), Mentions: realtimeMentions(viewerID, v.GetMentions())}}
 	case *evtv1.Event_MessageEdited:
 		v := e.MessageEdited

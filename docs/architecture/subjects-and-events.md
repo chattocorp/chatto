@@ -265,6 +265,12 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
 | `evt.room.{roomId}.thread_followed`                          | `ThreadFollowedEvent`                               |
 | `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |
+
+An operator historical import uses the existing message-body and message-post
+subjects. The body and post commit with any asset claims in one batch. The
+post's event actor is the system; its `author_id` names the displayed author.
+Its `historical_import` field remains in EVT so replay consumers suppress
+posting effects. No source ID or deduplication record is stored.
 | `evt.room.{roomId}.reaction_added`                           | `ReactionAddedEvent`                                |
 | `evt.room.{roomId}.reaction_removed`                         | `ReactionRemovedEvent`                              |
 | `evt.asset.{assetId}.asset_created`                          | `AssetCreatedEvent`                                 |

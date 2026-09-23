@@ -161,6 +161,23 @@ The command reads only the local file. It does not fetch a URL from the export. 
 
 If an upload command returns an error, it attempts to cancel the incomplete upload. If the process stops or cannot reach the server, server cleanup removes abandoned chunks after expiry. A completed asset remains pending until a message attaches it; Chatto removes an unattached pending asset after 24 hours. Running the command again can create a different asset ID, so an import script should save each returned ID. The CLI reports only an asset ID; a later message command attaches it.
 
+## Import a historical message
+
+Import one message for an existing Chatto user and channel room:
+
+```sh
+chatto operator message import \
+  --room-id ROOM_ID --author-id USER_ID \
+  --created-at 2022-08-18T11:11:11.147Z \
+  --body-file /path/to/exported-message.txt
+```
+
+The command prints the new Chatto message ID. Use `--json` to read `messageId` in a script. Supply text with `--body`, `--body-file`, or `--body-stdin`. Use only one of these flags. A message can omit text when it has at least one `--attachment-asset-id ASSET_ID` flag. Repeat that flag for more attachments.
+
+Use `--edited-at RFC3339` to preserve the last edit time. Use `--in-reply-to CHATTO_MESSAGE_ID` to refer to an existing message in the same room. A reply reference does not create a Chatto thread. To preserve an exported preview, use `--preview-url URL` with optional `--preview-title`, `--preview-description`, and `--preview-type` fields. Chatto stores these values without fetching the URL.
+
+The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. Update all server replicas before you start an import so each replica recognizes historical messages. The command does not require a user session or room membership. Each successful call creates a new message. Save the returned ID in your import script so a retry does not create a duplicate.
+
 ## Update a user
 
 Change a login, a display name, or both:

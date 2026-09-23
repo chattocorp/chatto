@@ -598,7 +598,7 @@ func (s *MessageModel) DeleteMessage(ctx context.Context, input MessageDeleteInp
 		return err
 	}
 
-	authorID := event.GetActorId()
+	authorID := messageAuthorID(event)
 	if authorID != "" && authorID != input.ActorID {
 		can, err := s.core.CanManageOthersMessage(ctx, input.ActorID, kind, room.Id)
 		if err != nil {

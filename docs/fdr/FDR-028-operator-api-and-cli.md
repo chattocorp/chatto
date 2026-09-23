@@ -5,7 +5,7 @@
 
 ## Overview
 
-The Operator API gives server operators local, root-equivalent user administration, channel room management, and attachment upload outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where an action should be attributed to Chatto's system actor rather than a human account.
+The Operator API gives server operators local, root-equivalent user administration, channel room management, attachment upload, and historical message import outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where an action should be attributed to Chatto's system actor rather than a human account.
 
 ## Behavior
 
@@ -23,6 +23,8 @@ The Operator API gives server operators local, root-equivalent user administrati
 - `chatto operator room create` creates a channel as the system actor with normal name and description checks. An omitted group selects the current default group.
 - `chatto operator room member add` adds an existing user as an explicit member of a channel room. An existing membership succeeds without another join fact. Missing resources, DM rooms, archived rooms, universal rooms, and active bans prevent the add.
 - `chatto operator asset upload` reads a local file, uploads it in bounded chunks, and returns a room-scoped asset ID owned by the mapped author. It uses normal attachment size, processing, storage, and pending-asset cleanup. The upload fact records the system actor. The CLI does not fetch source URLs.
+- `chatto operator message import` creates one encrypted historical message in an active channel. The event records the system actor and the mapped author separately. It preserves source creation and optional edit times, a same-room reply reference, attachment IDs, and an exported preview. It does not fetch preview URLs or infer thread membership from a reply.
+- Historical message facts do not create notifications, unread activity, thread follows, webhook deliveries, or live message-post frames. Projections retain this rule during replay. The command returns a new message ID on each success. Import scripts own source mappings and retry decisions.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
@@ -107,6 +109,12 @@ fixture remains separate so its workload stays comparable.
 **Decision:** The Operator API uses the existing chunked asset lifecycle with a private upload-session marker. The operator can upload for an existing author in an active channel without a user session, room membership, or RBAC permission. The asset belongs to the author and the creation fact records the system actor. Public upload calls cannot use private sessions.
 **Why:** An import script needs an asset ID before it creates a historical message. Reusing the upload lifecycle preserves configured size limits, checksums, media processing, storage, and cleanup.
 **Tradeoff:** An interrupted upload may leave temporary chunks until session cleanup. A lost completion response may leave an unattached asset until the pending-asset window expires. A new command run may create another asset; the script owns retry decisions.
+
+### 11. Historical message import
+
+**Decision:** Historical imports use normal message encryption and attachment storage. Each message keeps the mapped author and records the import as a system action. A source reply stays a reply reference in the channel timeline, even when the target belongs to a Chatto thread. Imports do not cause new message activity, including after a server restart.
+**Why:** Scripts need source-time messages that ordinary readers can use without causing new attention or read activity.
+**Tradeoff:** A repeated import creates another message. The import script must save returned IDs and decide whether an uncertain request needs a retry. Message order in a channel follows import order; scripts should send messages in source order. All server replicas must run a version that understands the historical marker before import starts.
 
 ## Permissions
 

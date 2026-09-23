@@ -206,12 +206,13 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 	if event == nil || event.Event == nil {
 		return nil, nil
 	}
-	h.addUserID(event.ActorId)
+	authorID := core.MessageAuthorID(event.Event)
+	h.addUserID(authorID)
 
 	apiEvent := &apiv1.RoomTimelineEvent{
 		Id:        event.Id,
 		CreatedAt: event.CreatedAt,
-		ActorId:   event.ActorId,
+		ActorId:   authorID,
 	}
 
 	switch payload := event.Event.GetEvent().(type) {
@@ -273,7 +274,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		Id:                        event.Id,
 		RoomId:                    payload.GetRoomId(),
 		CreatedAt:                 event.CreatedAt,
-		ActorId:                   event.ActorId,
+		ActorId:                   core.MessageAuthorID(event.Event),
 		InReplyTo:                 payload.GetInReplyTo(),
 		ThreadRootEventId:         payload.GetInThread(),
 		EchoOfEventId:             payload.GetEchoOfEventId(),

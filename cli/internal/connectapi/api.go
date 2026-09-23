@@ -209,10 +209,12 @@ func (a *API) OperatorHandlers() []Handler {
 	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, options...)
 	roomPath, roomHandler := operatorv1connect.NewOperatorRoomServiceHandler(&operatorRoomService{api: a}, options...)
 	assetPath, assetHandler := operatorv1connect.NewOperatorAssetServiceHandler(&operatorAssetService{api: a}, assetOptions...)
+	messagePath, messageHandler := operatorv1connect.NewOperatorMessageServiceHandler(&operatorMessageService{api: a}, options...)
 	handlers := []Handler{
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: roomPath, Handler: roomHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyPublic},
 	}
 	return append(handlers, a.operatorSeedHandlers(options)...)
 }

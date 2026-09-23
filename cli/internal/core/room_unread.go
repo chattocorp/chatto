@@ -61,7 +61,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, 
 // GetRoomLastEvent returns the last root message's event ID and proto-level
 // `created_at` timestamp for a room. Excludes thread replies — only root
 // messages affect room-level unread tracking. exists is false if the room
-// has no root messages.
+// has no ordinary root messages. Historical imports do not advance this marker.
 //
 // Uses the proto's `created_at` rather than JetStream's stored time so the
 // value stays correct after #354 phase 4d (which re-publishes messages
@@ -90,7 +90,7 @@ func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind
 		}
 	}
 	visible := func(entry *TimelineEntry) bool {
-		if entry == nil || !entry.IsMessagePost() || entry.InThreadEventID != "" {
+		if entry == nil || !entry.IsMessagePost() || entry.InThreadEventID != "" || entry.HistoricalImport {
 			return false
 		}
 		if broad {
