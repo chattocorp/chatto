@@ -35,7 +35,7 @@ describe('UserBio', () => {
     expect(q(container, 'blockquote')).not.toBeNull();
     expect(q(container, 'table')).not.toBeNull();
     expect(q(container, '.message-timestamp')).not.toBeNull();
-    const paragraph = q(container, '.prose > p') as HTMLElement;
+    const paragraph = q(container, '.prose > .markdown-html > p') as HTMLElement;
     expect(getComputedStyle(paragraph).display).toBe('block');
   });
 

@@ -5,6 +5,7 @@ import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import tlds from 'tlds';
 import { classifyMessageBodyChatLink } from '$lib/messageLinks';
+import { m } from '$lib/i18n/messages';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
 
@@ -309,6 +310,18 @@ function renderPlainCodeLines(code: string): string[] {
   return code.replaceAll('\t', '    ').split('\n').map(escapeHtml);
 }
 
+function renderCodeCopyButton(): string {
+  const label = escapeAttribute(m('common.copy_to_clipboard'));
+  return `<button type="button" class="markdown-code-copy mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span></button>`;
+}
+
+function renderCodeActions(language?: string): string {
+  const label = language
+    ? `<span class="markdown-code-language">${escapeHtml(language)}</span>`
+    : '';
+  return `<span class="markdown-code-actions">${label}${renderCodeCopyButton()}</span>`;
+}
+
 function renderCodeFence(code: string, rawLanguage: string): string {
   const displayLanguage = normalizeCodeLanguage(rawLanguage);
   const resolvedLanguage = codeHighlighting?.resolveCodeLanguage(displayLanguage);
@@ -333,7 +346,8 @@ function renderCodeFence(code: string, rawLanguage: string): string {
         : renderPlainCodeLines(displayCode);
   const lineHtml = lines.map((line) => `<span class="line">${line}</span>`).join('');
 
-  return `<pre class="hljs" data-language="${escapeAttribute(displayLanguage)}"><code class="language-${escapeAttribute(displayLanguage)}">${lineHtml}</code></pre>`;
+  // Copy the parser's code content before display-only newline and tab changes.
+  return `<pre class="hljs markdown-code" data-language="${escapeAttribute(displayLanguage)}" data-copy-source="${escapeAttribute(code)}"><code class="language-${escapeAttribute(displayLanguage)}">${lineHtml}</code>${renderCodeActions(displayLanguage)}</pre>`;
 }
 
 function normalizeCodeLanguage(language: string | null | undefined): string {
@@ -464,6 +478,10 @@ function initialize(): void {
   // a separate grid row.
   md.renderer.rules.paragraph_open = renderParagraphOpen;
   md.renderer.rules.paragraph_close = renderParagraphClose;
+  md.renderer.rules.code_block = (tokens, idx) => {
+    const code = tokens[idx].content;
+    return `<pre class="markdown-code" data-copy-source="${escapeAttribute(code)}"><code>${escapeHtml(code)}</code>${renderCodeActions()}</pre>\n`;
+  };
 
   // Customize link rendering for security
   const defaultLinkRender =
