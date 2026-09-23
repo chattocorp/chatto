@@ -89,12 +89,26 @@ function runThemeScript({
 
   let dark = systemDark;
   let changeHandler: (() => void) | undefined;
+  const styleValues = new Map<string, string>();
   const root: {
     dataset: Record<string, string>;
-    style: Record<string, string>;
+    style: {
+      backgroundColor?: string;
+      colorScheme?: string;
+      setProperty: (name: string, value: string) => void;
+      getPropertyValue: (name: string) => string;
+    };
     lang?: string;
     dir?: string;
-  } = { dataset: {}, style: {} };
+  } = {
+    dataset: {},
+    style: {
+      setProperty: (name: string, value: string) => {
+        styleValues.set(name, value);
+      },
+      getPropertyValue: (name: string) => styleValues.get(name) ?? ''
+    }
+  };
   const themeColor = {
     content: '#e5e7eb',
     setAttribute: (_name: string, value: string) => {
@@ -237,6 +251,33 @@ describe('app.html metadata', () => {
 });
 
 describe('app.html theme bootstrap', () => {
+  it.each([20, 25.5, 30, 34.5, 40])('restores saved contrast value %s before the app starts', (contrastAge) => {
+    const { root } = runThemeScript({ preferences: { contrastAge }, systemDark: false });
+    expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe(`${Math.max(0, 30 - contrastAge) * 10}%`);
+    expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe(`${Math.max(0, contrastAge - 30) * 10}%`);
+  });
+
+  it.each([
+    ['light', '#ffffff'],
+    ['dark', '#000000']
+  ])('uses the %s maximum-contrast shell colour before first paint', (displayTheme, color) => {
+    const { root, themeColor } = runThemeScript({
+      preferences: { displayTheme, contrastAge: 40 },
+      systemDark: false
+    });
+    expect(root.style.backgroundColor).toBe('var(--color-surface)');
+    expect(themeColor.content).toBe(color);
+  });
+
+  it.each([undefined, null, '40', 19.5, 40.5, 30.25])(
+    'uses current contrast for an absent or invalid saved value: %j',
+    (contrastAge) => {
+      const { root } = runThemeScript({ preferences: { contrastAge }, systemDark: false });
+      expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe('0%');
+      expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe('0%');
+    }
+  );
+
   it.each(['flat', '3d', 'very-3d'])('restores %s surface depth before the app starts', (surfaceDepth) => {
     const { root } = runThemeScript({ preferences: { surfaceDepth }, systemDark: false });
     expect(root.dataset.depth).toBe(surfaceDepth);
@@ -275,7 +316,7 @@ describe('app.html theme bootstrap', () => {
     });
 
     expect(root.dataset.theme).toBe('light');
-    expect(root.style.backgroundColor).toBe('#e5e7eb');
+    expect(root.style.backgroundColor).toBe('var(--color-surface)');
     expect(root.style.colorScheme).toBe('light');
     expect(themeColor.content).toBe('#e5e7eb');
   });
@@ -283,7 +324,7 @@ describe('app.html theme bootstrap', () => {
   it('uses legacy localStorage.theme when no display preference exists', () => {
     const { root, themeColor } = runThemeScript({ legacyTheme: 'dark', systemDark: false });
     expect(root.dataset.theme).toBe('dark');
-    expect(root.style.backgroundColor).toBe('#262626');
+    expect(root.style.backgroundColor).toBe('var(--color-surface)');
     expect(root.style.colorScheme).toBe('dark');
     expect(themeColor.content).toBe('#262626');
   });

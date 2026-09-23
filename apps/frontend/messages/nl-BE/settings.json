@@ -230,6 +230,12 @@
         "grey": "Grijs",
         "preview": "Voorbeeld"
       },
+      "contrast": {
+        "label": "Contrast",
+        "softer": "zachter contrast",
+        "current": "huidig contrast",
+        "stronger": "sterker contrast"
+      },
       "depth": {
         "title": "Interfacestijl",
         "flat": "Vlak",

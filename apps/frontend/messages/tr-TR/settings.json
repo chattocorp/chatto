@@ -230,6 +230,12 @@
         "grey": "Gri",
         "preview": "Önizleme"
       },
+      "contrast": {
+        "label": "Kontrast",
+        "softer": "daha yumuşak kontrast",
+        "current": "mevcut kontrast",
+        "stronger": "daha güçlü kontrast"
+      },
       "depth": {
         "title": "Arayüz stili",
         "flat": "Düz",

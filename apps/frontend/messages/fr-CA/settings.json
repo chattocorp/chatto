@@ -230,6 +230,12 @@
         "grey": "Gris",
         "preview": "Aperçu"
       },
+      "contrast": {
+        "label": "Contraste",
+        "softer": "contraste plus doux",
+        "current": "contraste actuel",
+        "stronger": "contraste plus marqué"
+      },
       "depth": {
         "title": "Style de l’interface",
         "flat": "Plat",

@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -9,7 +9,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ## Behavior
 
-- Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline and fenced code, blockquotes, and ordered and unordered lists.
+- Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Wide tables scroll horizontally inside the message instead of widening or clipping the conversation layout.
 - Message source HTML, horizontal rules, reference-style links, and setext headings render as literal text rather than active formatting. Image syntax never loads or displays an image; its label and destination can fall back to an ordinary link.
@@ -19,6 +19,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. Unlabelled and unsupported languages remain plain code.
+- Each rendered code block has a button to copy its code without the Markdown fence, line numbers, or display-only tab spacing.
 - The app applies the editor choice to every registered Chatto server. It does not sync this App Preference to other browsers or devices.
 - The app applies the sending keys to every registered Chatto server. Return sends by default. People can select the platform modifier plus Return instead.
 - The key not assigned to sending performs the selected editor's normal Return action. In the visual editor that includes paragraph splitting, list continuation, leaving an empty list item, and new lines inside code blocks; Shift+Return remains a hard line break.

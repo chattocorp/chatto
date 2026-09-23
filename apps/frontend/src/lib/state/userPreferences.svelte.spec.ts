@@ -35,6 +35,8 @@ describe('UserPreferencesState', () => {
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.accent;
     delete document.documentElement.dataset.depth;
+    document.documentElement.style.removeProperty('--contrast-soft-mix');
+    document.documentElement.style.removeProperty('--contrast-strong-mix');
     document.documentElement.style.backgroundColor = '';
     document.documentElement.style.colorScheme = '';
     document.head.innerHTML = '<meta name="theme-color" content="#e5e7eb" />';
@@ -46,6 +48,7 @@ describe('UserPreferencesState', () => {
     expect(state.displayTheme).toBe('system');
     expect(state.accentColor).toBe('cyan');
     expect(state.surfaceDepth).toBe('3d');
+    expect(state.contrastAge).toBe(30);
     expect(state.effectiveDisplayTheme).toBe('light');
     expect(state.composerEditor).toBe('markdown');
     expect(state.composerSendMode).toBe('enter');
@@ -77,6 +80,62 @@ describe('UserPreferencesState', () => {
     state.surfaceDepth = depth as SurfaceDepth;
     expect(state.surfaceDepth).toBe('3d');
     expect(document.documentElement.dataset.depth).toBe('3d');
+  });
+
+  it('persists and applies contrast without changing the other appearance choices', () => {
+    const state = new UserPreferencesState();
+    state.displayTheme = 'dark';
+    state.accentColor = 'violet';
+    state.surfaceDepth = 'flat';
+    state.contrastAge = 26.5;
+
+    expect(state.contrastAge).toBe(26.5);
+    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('35%');
+    expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('0%');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.accent).toBe('violet');
+    expect(document.documentElement.dataset.depth).toBe('flat');
+    expect(new UserPreferencesState().contrastAge).toBe(26.5);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      contrastAge: 26.5
+    });
+
+    state.contrastAge = 40;
+    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('0%');
+    expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('100%');
+    expect(document.documentElement.style.backgroundColor).toBe('var(--color-surface)');
+    expect(document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content).toBe(
+      '#000000'
+    );
+    state.displayTheme = 'light';
+    expect(document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content).toBe(
+      '#ffffff'
+    );
+    state.contrastAge = 30;
+    expect(document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content).toBe(
+      '#e5e7eb'
+    );
+  });
+
+  it('applies saved contrast when the client store starts after a reload', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ contrastAge: 40 }));
+
+    const state = new UserPreferencesState();
+
+    expect(state.contrastAge).toBe(40);
+    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('0%');
+    expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('100%');
+  });
+
+  it.each([null, '35', 19.5, 40.5, 30.25, {}, []])('rejects invalid contrast age %j', (age) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ contrastAge: age }));
+    const state = new UserPreferencesState();
+    expect(state.contrastAge).toBe(30);
+    state.contrastAge = 35;
+    state.contrastAge = age as number;
+    expect(state.contrastAge).toBe(30);
+    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('0%');
+    expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('0%');
   });
 
   it('resolves the system display theme from prefers-color-scheme', () => {
@@ -133,19 +192,19 @@ describe('UserPreferencesState', () => {
     {
       displayTheme: 'light' as const,
       effectiveTheme: 'light' as const,
-      background: 'rgb(229, 231, 235)',
+      background: 'var(--color-surface)',
       themeColor: '#e5e7eb'
     },
     {
       displayTheme: 'dark' as const,
       effectiveTheme: 'dark' as const,
-      background: 'rgb(38, 38, 38)',
+      background: 'var(--color-surface)',
       themeColor: '#262626'
     },
     {
       displayTheme: 'system' as const,
       effectiveTheme: 'dark' as const,
-      background: 'rgb(38, 38, 38)',
+      background: 'var(--color-surface)',
       themeColor: '#262626'
     }
   ])(

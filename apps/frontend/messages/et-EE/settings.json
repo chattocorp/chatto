@@ -230,6 +230,12 @@
         "grey": "Hall",
         "preview": "Eelvaade"
       },
+      "contrast": {
+        "label": "Kontrast",
+        "softer": "pehmem kontrast",
+        "current": "praegune kontrast",
+        "stronger": "tugevam kontrast"
+      },
       "depth": {
         "title": "Kasutajaliidese stiil",
         "flat": "Lame",
