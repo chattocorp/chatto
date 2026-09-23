@@ -277,7 +277,7 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 | Package | Service | Access policy |
 | ------- | ------- | ------------- |
 | `chatto.operator.v1` | `OperatorUserService` | Root-equivalent access over the private Unix socket |
-| `chatto.operator.v1` | `OperatorRoomService` | Root-equivalent channel lookup and creation over the private Unix socket |
+| `chatto.operator.v1` | `OperatorRoomService` | Root-equivalent channel lookup, creation, and explicit membership add over the private Unix socket |
 | `chatto.operator.v1` | `OperatorSeedService` | Private Unix socket; compiled only with `bootstrap` or `test_endpoints` |
 
 The [synthetic data generator](../../cli/internal/core/seed_development.go) uses

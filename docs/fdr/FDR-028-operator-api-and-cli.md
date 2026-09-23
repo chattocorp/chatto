@@ -21,6 +21,7 @@ The Operator API gives server operators local, root-equivalent user administrati
 - `chatto operator room list` shows active and archived channel rooms without a user session or room membership. Operators can filter by the exact stored name. Each result includes the room ID, name, description, group ID, and archived state.
 - Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.
 - `chatto operator room create` creates a channel as the system actor with normal name and description checks. An omitted group selects the current default group.
+- `chatto operator room member add` adds an existing user as an explicit member of a channel room. An existing membership succeeds without another join fact. Missing resources, DM rooms, archived rooms, universal rooms, and active bans prevent the add.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
@@ -93,6 +94,12 @@ fixture remains separate so its workload stays comparable.
 **Decision:** Channel creation accepts room fields and returns the created room ID. Import scripts keep their own mapping from source IDs to Chatto IDs and use channel lookup to recover from an uncertain response.
 **Why:** Source identity and retry policy belong to each import script. The Operator API provides room creation and lookup without storing external source keys.
 **Tradeoff:** A script must resolve name matches when recovering an ID after a lost response. A repeated create request with the same name returns a conflict.
+
+### 9. Operator channel membership
+
+**Decision:** The local Operator API adds explicit channel members through the existing membership operation as the system actor. A repeat for a current member returns the member without another join fact.
+**Why:** Import scripts must make mapped users members before they can refer to them as historical room participants. Membership is already a set in Chatto, so no import source key is needed.
+**Tradeoff:** The operation keeps normal room limits: it cannot add explicit members to archived, universal, or DM rooms, and it cannot bypass an active room ban.
 
 ## Permissions
 

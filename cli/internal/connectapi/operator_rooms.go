@@ -46,6 +46,25 @@ func (s *operatorRoomService) CreateRoom(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&operatorv1.CreateRoomResponse{Room: apiRoom(room)}), nil
 }
 
+func (s *operatorRoomService) AddMember(ctx context.Context, req *connect.Request[operatorv1.AddMemberRequest]) (*connect.Response[operatorv1.AddMemberResponse], error) {
+	if req.Msg.GetRoomId() == "" || req.Msg.GetUserId() == "" {
+		return nil, invalidArgument("room_id and user_id are required")
+	}
+	membership, err := s.api.core.AddMember(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetRoomId(), req.Msg.GetUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	user, err := s.api.core.GetUser(ctx, membership.GetUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	member, err := directoryMember(ctx, s.api, user, nil)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&operatorv1.AddMemberResponse{RoomId: membership.GetRoomId(), Member: member}), nil
+}
+
 // operatorRoomPage retains every exact-name match, including archived rooms,
 // and applies offsets only after ordering by stable room ID.
 func operatorRoomPage(rooms []*evtv1.Room, name string, limit, offset int) ([]*evtv1.Room, int, bool) {

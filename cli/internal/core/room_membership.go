@@ -169,7 +169,7 @@ func (c *ChattoCore) addMember(ctx context.Context, actorID string, kind RoomKin
 	if room.GetUniversal() {
 		return nil, invalidArgument("universal room membership cannot be managed explicitly")
 	}
-	if authorize == nil && room.GetArchived() {
+	if room.GetArchived() {
 		return nil, ErrRoomArchived
 	}
 	if _, err := c.GetUser(ctx, targetUserID); err != nil {
@@ -195,6 +195,18 @@ func (c *ChattoCore) addMember(ctx context.Context, actorID string, kind RoomKin
 		}
 		if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
 			return nil, err
+		}
+		// Room lifecycle changes use the same room aggregate. Check the
+		// projected state after catching up to the OCC tail on every attempt.
+		room, err := c.GetRoom(ctx, kind, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if room.GetUniversal() {
+			return nil, invalidArgument("universal room membership cannot be managed explicitly")
+		}
+		if room.GetArchived() {
+			return nil, ErrRoomArchived
 		}
 		if c.roomModel.hasExplicitRoomMembership(roomID, targetUserID) {
 			return membership, nil

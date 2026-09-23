@@ -134,6 +134,16 @@ The command returns the room ID, name, group ID, archived state, and description
 
 An import script can save the returned Chatto room ID alongside its source room ID. If the response is lost, use `room list --name` to find the room before creating it again. A repeated create request with the same name returns a conflict.
 
+## Add a channel room member
+
+Add an existing user to a channel room by Chatto ID:
+
+```sh
+chatto operator room member add --room-id ROOM_ID --user-id USER_ID
+```
+
+The command returns both IDs. Use `--json` to get the member record. Repeating the command for a current member succeeds without adding a second membership. Chatto rejects missing users or rooms, DM rooms, archived rooms, and universal rooms.
+
 ## Update a user
 
 Change a login, a display name, or both:
