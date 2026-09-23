@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -50,6 +51,12 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 	}
 	if err := validateLinkPreview(input.LinkPreview); err != nil {
 		return nil, err
+	}
+	if input.LinkPreview != nil {
+		parsed, err := url.Parse(input.LinkPreview.GetUrl())
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return nil, invalidArgument("preview_url must be an HTTP or HTTPS URL with a host")
+		}
 	}
 	if _, err := c.GetUser(ctx, input.AuthorID); err != nil {
 		return nil, err

@@ -21,7 +21,7 @@ message ImportMessageRequest {
   repeated string attachment_asset_ids = 6;
   // Message text. Empty is valid only when attachments are present.
   string body = 7;
-  // Exported preview URL; no external URL is fetched.
+  // Exported HTTP or HTTPS preview URL; no external URL is fetched.
   string preview_url = 8;
   // Exported preview title.
   string preview_title = 9;

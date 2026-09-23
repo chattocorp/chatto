@@ -142,6 +142,9 @@ func TestImportHistoricalMessageRejectsInvalidInputs(t *testing.T) {
 		{"oversize preview", func(v *HistoricalMessageInput) {
 			v.LinkPreview = &evtv1.LinkPreview{Url: strings.Repeat("x", MaxLinkPreviewURLLength+1)}
 		}},
+		{"unsafe preview URL", func(v *HistoricalMessageInput) {
+			v.LinkPreview = &evtv1.LinkPreview{Url: "javascript:alert(1)"}
+		}},
 		{"missing asset", func(v *HistoricalMessageInput) { v.AttachmentAssetIDs = []string{"missing"} }},
 		{"duplicate asset", func(v *HistoricalMessageInput) { v.AttachmentAssetIDs = []string{"same", "same"} }},
 	}

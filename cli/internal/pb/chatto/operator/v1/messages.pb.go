@@ -40,7 +40,7 @@ type ImportMessageRequest struct {
 	AttachmentAssetIds []string `protobuf:"bytes,6,rep,name=attachment_asset_ids,json=attachmentAssetIds,proto3" json:"attachment_asset_ids,omitempty"`
 	// Message text. Empty is valid only when attachments are present.
 	Body string `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
-	// Exported preview URL; no external URL is fetched.
+	// Exported HTTP or HTTPS preview URL; no external URL is fetched.
 	PreviewUrl string `protobuf:"bytes,8,opt,name=preview_url,json=previewUrl,proto3" json:"preview_url,omitempty"`
 	// Exported preview title.
 	PreviewTitle string `protobuf:"bytes,9,opt,name=preview_title,json=previewTitle,proto3" json:"preview_title,omitempty"`
