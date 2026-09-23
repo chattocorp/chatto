@@ -552,6 +552,13 @@ class ServerRegistry {
 			userAvatarUrl: user?.avatarUrl ?? origin.userAvatarUrl,
 			reauthRequiredAt: null
 		};
+		// A new cookie viewer must not inherit the previous account's projection
+		// or its realtime cursor, even though both accounts use cookie auth.
+		const previousUserId = origin.userId ?? this.tryGetStore(origin.id)?.currentUser.user?.id;
+		if (user && previousUserId && previousUserId !== user.id) {
+			this.#replaceServerAuth(origin.id, cookieSession);
+			return;
+		}
 		if (
 			origin.token === null &&
 			origin.refreshToken === null &&
@@ -943,7 +950,7 @@ class ServerRegistry {
 		>
 	): boolean {
 		if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
-		const previousUserId = this.sessions.get(id)?.userId;
+		const previousUserId = this.sessions.get(id)?.userId ?? this.#stores.get(id)?.currentUser.user?.id;
 		if (previousUserId && previousUserId !== data.userId) {
 			this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: id, userId: previousUserId });
 			void clearSavedView(id, previousUserId);

@@ -426,7 +426,7 @@ describe('ServerRegistry', () => {
 			expect(registry.getStore('remote')).toBe(remoteStore);
 		});
 
-		it('keeps the origin store when cookie auth is already active', async () => {
+		it('replaces the origin store when the cookie changes accounts', async () => {
 			const registry = await createRegistry();
 			registry.removeAll();
 			registry.addServer(
@@ -441,12 +441,25 @@ describe('ServerRegistry', () => {
 
 			registry.authenticateOriginCookie({ id: 'new-user', login: 'new-login' });
 
-			expect(registry.getStore('origin')).toBe(originStore);
+			expect(registry.getStore('origin')).not.toBe(originStore);
 			expect(registry.getServer('origin')).toMatchObject({
 				token: null,
 				userId: 'new-user',
 				userLogin: 'new-login'
 			});
+		});
+
+		it('keeps the origin store when the cookie still belongs to the same account', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.addServer(makeServer({
+				id: 'origin', url: window.location.origin, userId: 'same-user'
+			}));
+			const originStore = registry.getStore('origin');
+
+			registry.authenticateOriginCookie({ id: 'same-user', login: 'same-login' });
+
+			expect(registry.getStore('origin')).toBe(originStore);
 		});
 	});
 
