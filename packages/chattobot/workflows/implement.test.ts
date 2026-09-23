@@ -63,6 +63,7 @@ async function fixture() {
     if (command === 'git' && args.includes('get-url')) return 'git@github.com:example/chatto.git\n';
     if (command === 'gh') {
       if (args[0] === 'auth') return '';
+      if (args[1] === 'checks') return JSON.stringify([{ bucket: 'pass' }]);
       if (args[1] === 'create') {
         branch = args[args.indexOf('--head') + 1]!;
         body = await readFile(args[args.indexOf('--body-file') + 1]!, 'utf8');
@@ -410,6 +411,8 @@ test('host validation returns diagnostics to the same worker and checks the repa
     execute: async (command, args, options) => {
       if (command === 'mise' && args.at(-1) === 'check' && ++validations === 1)
         throw new ImplementationCommandError('Check failed', 'Expected regression coverage');
+      if (command === 'mise' && args.at(-1) === 'check' && options.cwd.endsWith('/baseline'))
+        return '';
       return f.execute(command, args, options);
     }
   })(createWorkflowContext(), { request: 'Fix' });
@@ -458,17 +461,30 @@ test('a new human request can continue the same unfinished worktree and rerun fi
     ownerKey,
     createAgent: worker(async (_options, call) => {
       await call('apply_patch', { patch });
+      await call('saveHandoff', {
+        summary: 'The value is fixed, but the PR description is not prepared.',
+        nextSteps: ['Review the diff and prepare the PR'],
+        risks: []
+      });
     }, 'blocked')
   })(createWorkflowContext(), { request: 'Fix the value' });
   expect(first.outcome).toBe('blocked');
   const resumed = await createImplementation(f.settings, {
     execute: f.execute,
     ownerKey,
-    createAgent: worker(async (options, call) => {
-      expect(await readFile(join(options.cwd, 'example.txt'), 'utf8')).toBe('fixed\n');
-      await call('preparePullRequest', proposal);
+    createAgent: async (options) => ({
+      dispose() {},
+      async runOutcome(_ctx: unknown, prompt: string) {
+        expect(JSON.parse(prompt).handoff).toMatchObject({
+          nextSteps: ['Review the diff and prepare the PR']
+        });
+        expect(await readFile(join(options.cwd, 'example.txt'), 'utf8')).toBe('fixed\n');
+        const call = await workerTools(options);
+        await call('preparePullRequest', proposal);
+        return { outcome: 'completed' as const, summary: 'Ready', usage: emptyTokenUsage() };
+      }
     })
-  })(createWorkflowContext(), { request: 'Continue', resumeExisting: true });
+  })(createWorkflowContext(), { request: 'Continue', resumeArtifactId: first.artifactId });
   expect(resumed).toMatchObject({
     outcome: 'completed',
     branch: first.branch,
@@ -499,8 +515,29 @@ test('an unfinished worktree cannot be resumed by a different conversation', asy
     execute: f.execute,
     ownerKey: 'other-conversation',
     createAgent
-  })(createWorkflowContext(), { request: 'Continue', resumeExisting: true });
+  })(createWorkflowContext(), { request: 'Continue', resumeArtifactId: first.artifactId });
   expect(result).toMatchObject({ outcome: 'blocked', worktree: '' });
+  expect(createAgent).not.toHaveBeenCalled();
+});
+
+test('continuation requires the exact artifact ID', async () => {
+  const f = await fixture();
+  const ownerKey = 'conversation-owner';
+  const first = await createImplementation(f.settings, {
+    execute: f.execute,
+    ownerKey,
+    createAgent: worker(async (_options, call) => {
+      await call('apply_patch', { patch });
+    }, 'blocked')
+  })(createWorkflowContext(), { request: 'Fix' });
+  const createAgent = vi.fn(worker(async () => {}));
+  const result = await createImplementation(f.settings, {
+    execute: f.execute,
+    ownerKey,
+    createAgent
+  })(createWorkflowContext(), { request: 'Continue', resumeArtifactId: 'implementation-missing' });
+  expect(result).toMatchObject({ outcome: 'blocked', worktree: '' });
+  expect(result.artifactId).not.toBe(first.artifactId);
   expect(createAgent).not.toHaveBeenCalled();
 });
 
@@ -579,7 +616,7 @@ test.each([
 });
 
 test.each(['failed-check', 'source-changing-check'])(
-  'bounds repairs for %s and never publishes',
+  'stops without publication for %s',
   async (mode) => {
     const f = await fixture();
     let turns = 0;
@@ -601,15 +638,14 @@ test.each(['failed-check', 'source-changing-check'])(
         return f.execute(command, args, options);
       }
     })(createWorkflowContext(), { request: 'Fix' });
-    expect(result).toMatchObject({
-      outcome: 'blocked',
-      summary: expect.stringContaining('three attempts')
-    });
+    expect(result).toMatchObject({ outcome: 'blocked' });
+    if (mode === 'failed-check') expect(result.summary).toContain('also failed on the base commit');
+    else expect(result.summary).toContain('three attempts');
     if (mode === 'failed-check')
       expect(result.checks).toEqual([
         { command: 'mise x -- pnpm run check', passed: false, diagnostic: 'Assertion failed' }
       ]);
-    expect(turns).toBe(3);
+    expect(turns).toBe(mode === 'failed-check' ? 1 : 3);
     expect(createAgent).toHaveBeenCalledOnce();
     expect(f.calls.some((call) => call.args.includes('push'))).toBe(false);
   }
@@ -748,6 +784,94 @@ test.each(['sent', 'failed'])(
     }
   }
 );
+
+test('host posts the verified PR before a separate CI result and suppresses duplicate notices', async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const messages: string[] = [];
+  const observeChecks = vi.fn(async () => {
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('https://github.com/example/chatto/pull/7');
+    return { status: 'failed' as const, passed: 1, failed: 1, pending: 0 };
+  });
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    execute: f.execute,
+    createAgent: worker(async (_options, call) => {
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    }),
+    observeChecks,
+    onPublished: async (message) => {
+      messages.push(message);
+    },
+    onCiResult: async (message) => {
+      messages.push(message);
+    }
+  });
+  const call = await workerTools({
+    cwd: f.settings.directory,
+    model: 'test/model',
+    extensions: [extension]
+  });
+  try {
+    const handle = JSON.parse(
+      (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
+        .text!
+    );
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
+    expect(messages).toHaveLength(2);
+    expect(messages[1]).toContain('CI failed');
+    expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
+      outcome: 'completed',
+      ci: { status: 'failed', failed: 1 },
+      noticeDelivered: true
+    });
+  } finally {
+    await tasks.dispose();
+  }
+});
+
+test('a failed PR notice stays available in the terminal task result', async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const onCiResult = vi.fn(async () => {});
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    execute: f.execute,
+    createAgent: worker(async (_options, call) => {
+      await call('apply_patch', { patch });
+      await call('preparePullRequest', proposal);
+    }),
+    onPublished: async () => {
+      throw new Error('Chat post failed');
+    },
+    onCiResult
+  });
+  const call = await workerTools({
+    cwd: f.settings.directory,
+    model: 'test/model',
+    extensions: [extension]
+  });
+  try {
+    const handle = JSON.parse(
+      (await call('implementChatto', { request: 'Fix', announcement: 'Starting' })).content[0]!
+        .text!
+    );
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe('completed'));
+    expect(onCiResult).toHaveBeenCalledOnce();
+    expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({
+      outcome: 'completed',
+      publicationNoticeDelivered: false,
+      ciNoticeDelivered: true,
+      noticeDelivered: false
+    });
+  } finally {
+    warning.mockRestore();
+    await tasks.dispose();
+  }
+});
 
 test('an unexpected worker error produces one safe stopped result for the owner', async () => {
   const f = await fixture();

@@ -76,6 +76,11 @@ export const conversation = task(
       await options.announce(text, signal);
       delegationReported = true;
     };
+    const postImplementationUpdate = async (message: string) => {
+      if (options.postUpdate) await options.postUpdate(message, ctx.signal);
+      else await ctx.emit(message);
+      delegationReported = true;
+    };
     const bot = await createAgent({
       // Resolve resources from this package, independent of the host's working directory.
       cwd: fileURLToPath(new URL('..', import.meta.url)),
@@ -108,11 +113,9 @@ export const conversation = task(
                   delegationReported = true;
                   await ctx.emit(summary);
                 },
-                onStopped: async (message) => {
-                  if (options.postUpdate) await options.postUpdate(message, ctx.signal);
-                  else await ctx.emit(message);
-                  delegationReported = true;
-                },
+                onStopped: postImplementationUpdate,
+                onPublished: postImplementationUpdate,
+                onCiResult: postImplementationUpdate,
                 requestVersion: () => (latestOrigin === 'user' ? requestVersion : undefined)
               })
             ]

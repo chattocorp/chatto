@@ -292,9 +292,9 @@ implementation worker. Questions and investigation requests do not authorize
 implementation. The investigator stays read-only. Follow-up messages can steer
 the implementation through the same `task_send` channel. If the worker does not
 consume a forwarded clarification, publication stops. Use `/cancel` to stop the
-whole flow, including after the worker finishes editing. The owner reports check
-results and publication progress, then posts the verified PR URL, a change
-summary, checks, and remaining review notes.
+whole flow, including after the worker finishes editing. The host reports check
+and publication progress. It posts the verified PR link as soon as publication
+is confirmed, then posts a separate CI result.
 
 When a user asks the owner to ask the implementation worker a question, the owner
 uses `askImplementation`. The worker's answer wakes the owner, which can reply
@@ -308,19 +308,28 @@ changes from the supplied checkout. The host first runs
 `mise x -- pnpm install --frozen-lockfile` in that worktree. The worker uses
 `apply_patch` for source changes and has no shell tool. It can use `reviewDiff`
 to read the current diff, including new files, and `runCheck` to run an approved
-repository check. Patch and check failures return bounded diagnostics to the
-worker. Repository setup and check commands do not inherit the bot's Chatto,
+repository check. The worker can save brief handoff notes for a later attempt.
+Patch and check failures return bounded diagnostics to the worker. Repository
+setup and check commands do not inherit the bot's Chatto,
 Authling, model-provider, or GitHub token variables. The host repeats final
-checks before publication. A continuation uses the retained branch and worktree.
+checks before publication. To continue, ask the bot to resume the exact
+`implementation-<id>` artifact from its stopped result. The host verifies that
+it belongs to the conversation and reuses its branch and worktree. The next
+worker receives the original request and saved handoff, and must check the
+handoff against the retained diff.
 
 After the worker reports its edits, the host runs `check:frontend` and
 `test:frontend` for changes limited to `apps/frontend/`; other changes run the
 root `check` and `test` scripts. Commands run through `mise x -- pnpm run`.
 Changes to Go source or module files also run `mise run test-cli`.
 The worker must finish its edits before it reports completion. A blocked or failed
-worker report ends the attempt and requires a new user request. Validation
-failures return bounded diagnostic output to the same worker, with at most two
-repair turns. The final result also retains failed-check diagnostics
+worker report ends the attempt and requires a new user request. After a failed
+final check, the host runs the same command on a clean worktree at the base
+commit. If it also fails, the host stops and reports that the cause is not
+known. If it passes, the host sends bounded diagnostic output to the same
+worker, with at most two repair turns. If the base check cannot run, the host
+reports that the comparison is unknown and lets the worker try to repair.
+The final result also retains failed-check diagnostics
 for supervisor questions, with known host credentials, URLs, email addresses,
 and IPv4 addresses removed. These private diagnostics are not operational logs
 and must not be copied verbatim into chat or PR descriptions.
@@ -349,6 +358,9 @@ The host commits the changes with a Conventional Commit title, pushes only the
 new branch, and creates a ready-for-review PR. Its body describes what changed,
 why, verification, and limitations. It does not merge or deploy. The host reads
 back the PR URL, branch, base branch, state, and commit before reporting success.
+It watches GitHub checks for up to 30 minutes and posts a second message when
+they pass, fail, stay pending, or cannot be read. CI failure does not undo the
+published PR. Review the PR Checks tab for individual failures.
 If a publication response is lost, it checks for the existing PR rather than
 creating another one. An unverified result is reported as uncertain and is not
 automatically retried.
