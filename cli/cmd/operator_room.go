@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -12,12 +13,54 @@ import (
 
 var operatorRoomCmd = &cobra.Command{
 	Use:   "room",
-	Short: "Find channel rooms through the local operator API",
+	Short: "Find and create channel rooms through the local operator API",
 }
 
 func init() {
 	operatorCmd.AddCommand(operatorRoomCmd)
 	operatorRoomCmd.AddCommand(operatorRoomListCmd())
+	operatorRoomCmd.AddCommand(operatorRoomCreateCmd())
+}
+
+func operatorRoomCreateCmd() *cobra.Command {
+	var name, description, groupID, source, sourceID string
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a channel room",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if strings.TrimSpace(name) == "" {
+				return errors.New("--name is required")
+			}
+			if cmd.Flags().Changed("source") != cmd.Flags().Changed("source-id") {
+				return errors.New("--source and --source-id must be supplied together")
+			}
+			if cmd.Flags().Changed("source") && (strings.TrimSpace(source) == "" || strings.TrimSpace(sourceID) == "") {
+				return errors.New("--source and --source-id must contain visible text")
+			}
+			client, err := newOperatorRoomClient()
+			if err != nil {
+				return err
+			}
+			resp, err := client.CreateRoom(cmd.Context(), operatorRequest(&operatorv1.CreateRoomRequest{
+				Name: name, Description: description, GroupId: groupID, Source: source, SourceId: sourceID,
+			}))
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			return printOperatorOutput(out, resp.Msg, func() {
+				room := resp.Msg.GetRoom()
+				fmt.Fprintf(out, "%s\t%s\tgroup=%s\tarchived=%t\tdescription=%q\n", room.GetId(), room.GetName(), room.GetGroupId(), room.GetArchived(), room.GetDescription())
+			})
+		},
+	}
+	cmd.Flags().StringVar(&name, "name", "", "channel name")
+	cmd.Flags().StringVar(&description, "description", "", "channel description")
+	cmd.Flags().StringVar(&groupID, "group-id", "", "room group ID (default: first group)")
+	cmd.Flags().StringVar(&source, "source", "", "source namespace for durable retries")
+	cmd.Flags().StringVar(&sourceID, "source-id", "", "room ID in the source namespace")
+	return cmd
 }
 
 func newOperatorRoomClient() (operatorv1connect.OperatorRoomServiceClient, error) {

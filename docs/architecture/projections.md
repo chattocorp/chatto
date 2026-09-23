@@ -84,6 +84,12 @@ and sidebar-ordering paths use focused `RoomModel` operations instead of
 projection fields on `ChattoCore`. Raw membership reads are named as explicit
 membership so they remain distinct from policy-derived Universal-room access.
 
+The Room Directory also keeps a source-key index for operator-created channel
+rooms. Each claim retains the first creation result and request identity, even
+after a room changes or is deleted. Its disposable snapshot includes the index;
+EVT replay rebuilds it when a snapshot is unavailable. Room-name and source-key
+claims use one projected `evt.room.>` prefix for creation OCC.
+
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run
 loop returns. Readiness and provider status therefore cannot remain

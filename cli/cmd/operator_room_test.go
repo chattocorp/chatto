@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -99,5 +100,60 @@ func TestOperatorRoomList(t *testing.T) {
 	}
 	if _, err := env.execute(t, "operator", "room", "list", "--offset", "-1"); err == nil || err.Error() != "--offset must be greater than or equal to 0" {
 		t.Fatalf("negative offset error = %v", err)
+	}
+}
+
+func TestOperatorRoomCreate(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	groups, err := env.core.ListRoomGroupsOrdered(env.ctx, core.KindChannel)
+	if err != nil || len(groups) == 0 {
+		t.Fatalf("ListRoomGroupsOrdered = %v, %v", groups, err)
+	}
+	output := env.run(t, "operator", "room", "create", "--name", "Imported", "--description", "From export", "--source", "discord", "--source-id", "100", "--json")
+	var created operatorv1.CreateRoomResponse
+	if err := protojson.Unmarshal([]byte(output), &created); err != nil {
+		t.Fatalf("decode room create: %v\n%s", err, output)
+	}
+	room := created.GetRoom()
+	if room.GetId() == "" || room.GetName() != "Imported" || room.GetDescription() != "From export" || room.GetGroupId() != groups[0].GetId() {
+		t.Fatalf("created room = %+v", room)
+	}
+	listed := env.run(t, "operator", "room", "list", "--name", "Imported", "--json")
+	var list operatorv1.ListRoomsResponse
+	if err := protojson.Unmarshal([]byte(listed), &list); err != nil || len(list.GetRooms()) != 1 || list.GetRooms()[0].GetId() != room.GetId() {
+		t.Fatalf("list created room = %+v, error = %v", &list, err)
+	}
+	retry := env.run(t, "operator", "room", "create", "--name", "Imported", "--description", "From export", "--source", "discord", "--source-id", "100", "--json")
+	var retried operatorv1.CreateRoomResponse
+	if err := protojson.Unmarshal([]byte(retry), &retried); err != nil || retried.GetRoom().GetId() != room.GetId() {
+		t.Fatalf("retry = %+v, error = %v", &retried, err)
+	}
+	if _, err := env.execute(t, "operator", "room", "create", "--name", "Different", "--source", "discord", "--source-id", "100"); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("changed input error = %v, want already exists", err)
+	}
+	if _, err := env.execute(t, "operator", "room", "create", "--name", "bad\nname"); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid name error = %v, want invalid argument", err)
+	}
+	if _, err := env.execute(t, "operator", "room", "create", "--name", "Missing group", "--group-id", "missing"); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing group error = %v, want not found", err)
+	}
+	for _, args := range [][]string{
+		{"operator", "room", "create"},
+		{"operator", "room", "create", "--name", "Other", "--source", "discord"},
+		{"operator", "room", "create", "--name", "Other", "--source-id", "101"},
+		{"operator", "room", "create", "--name", "Other", "--source", ""},
+		{"operator", "room", "create", "--name", "Other", "--source", "", "--source-id", ""},
+	} {
+		if _, err := env.execute(t, args...); err == nil {
+			t.Fatalf("invalid command %v succeeded", args)
+		}
+	}
+	group, err := env.core.CreateRoomGroup(env.ctx, core.SystemActorID, "Explicit import group", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	human := env.run(t, "operator", "room", "create", "--name", "Explicit", "--group-id", group.GetId())
+	if !strings.Contains(human, "Explicit") || !strings.Contains(human, "group="+group.GetId()) {
+		t.Fatalf("human create output = %q", human)
 	}
 }

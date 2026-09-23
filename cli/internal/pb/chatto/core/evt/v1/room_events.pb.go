@@ -92,8 +92,17 @@ type RoomCreatedEvent struct {
 	// Threading policy for this channel. Historical events omit the field and
 	// are interpreted as ENABLED. DM rooms leave it UNSPECIFIED.
 	ThreadingMode RoomThreadingMode `protobuf:"varint,7,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.core.evt.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// SHA-256 identity of an optional operator import source key. Its type
+	// domain is channel room creation. Empty for ordinary room creation.
+	OperatorSourceKeyHash string `protobuf:"bytes,8,opt,name=operator_source_key_hash,json=operatorSourceKeyHash,proto3" json:"operator_source_key_hash,omitempty"`
+	// SHA-256 identity of the exact operator creation input. Only present with
+	// operator_source_key_hash, so retries can reject changed input.
+	OperatorRequestHash string `protobuf:"bytes,9,opt,name=operator_request_hash,json=operatorRequestHash,proto3" json:"operator_request_hash,omitempty"`
+	// Group selected when this source-bound room was created. The placement fact
+	// remains authoritative for current group membership.
+	OperatorCreatedGroupId string `protobuf:"bytes,10,opt,name=operator_created_group_id,json=operatorCreatedGroupId,proto3" json:"operator_created_group_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RoomCreatedEvent) Reset() {
@@ -166,6 +175,27 @@ func (x *RoomCreatedEvent) GetThreadingMode() RoomThreadingMode {
 		return x.ThreadingMode
 	}
 	return RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
+}
+
+func (x *RoomCreatedEvent) GetOperatorSourceKeyHash() string {
+	if x != nil {
+		return x.OperatorSourceKeyHash
+	}
+	return ""
+}
+
+func (x *RoomCreatedEvent) GetOperatorRequestHash() string {
+	if x != nil {
+		return x.OperatorRequestHash
+	}
+	return ""
+}
+
+func (x *RoomCreatedEvent) GetOperatorCreatedGroupId() string {
+	if x != nil {
+		return x.OperatorCreatedGroupId
+	}
+	return ""
 }
 
 type RoomUpdatedEvent struct {
@@ -933,14 +963,18 @@ var File_chatto_core_evt_v1_room_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\x8f\x02\n" +
+	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\xb7\x03\n" +
 	"\x10RoomCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x120\n" +
 	"\x04kind\x18\x05 \x01(\x0e2\x1c.chatto.core.evt.v1.RoomKindR\x04kind\x12\x1c\n" +
 	"\tuniversal\x18\x06 \x01(\bR\tuniversal\x12L\n" +
-	"\x0ethreading_mode\x18\a \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingModeJ\x04\b\x01\x10\x02R\bspace_id\"q\n" +
+	"\x0ethreading_mode\x18\a \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\x127\n" +
+	"\x18operator_source_key_hash\x18\b \x01(\tR\x15operatorSourceKeyHash\x122\n" +
+	"\x15operator_request_hash\x18\t \x01(\tR\x13operatorRequestHash\x129\n" +
+	"\x19operator_created_group_id\x18\n" +
+	" \x01(\tR\x16operatorCreatedGroupIdJ\x04\b\x01\x10\x02R\bspace_id\"q\n" +
 	"\x10RoomUpdatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +

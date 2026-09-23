@@ -133,6 +133,10 @@ func (m *RoomModel) nameClaimSnapshot(name, excludeRoomID string) RoomNameClaimS
 	return m.directory.Projection().Catalog.NameClaimSnapshot(name, excludeRoomID)
 }
 
+func (m *RoomModel) creationClaimSnapshot(name, excludeRoomID, sourceKeyHash string) RoomNameClaimSnapshot {
+	return m.directory.Projection().Catalog.CreationClaimSnapshot(name, excludeRoomID, sourceKeyHash)
+}
+
 func (m *RoomModel) hasExplicitRoomMembership(roomID, userID string) bool {
 	return m.directory.Projection().Membership.IsMember(roomID, userID)
 }

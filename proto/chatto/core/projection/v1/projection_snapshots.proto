@@ -141,6 +141,14 @@ message RoomDirectoryProjectionSnapshot {
   repeated RoomMembershipSnapshot memberships = 2;
   repeated RoomBanSnapshot bans = 3;
   uint64 catalog_sequence = 4;
+  // Rebuildable index of source keys already used to create channel rooms.
+  repeated OperatorRoomSourceClaimSnapshot operator_room_source_claims = 5;
+}
+
+message OperatorRoomSourceClaimSnapshot {
+  string key_hash = 1;
+  string request_hash = 2;
+  chatto.core.evt.v1.Room created_room = 3;
 }
 
 message RoomMembershipSnapshot {

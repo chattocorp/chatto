@@ -224,6 +224,10 @@ func collectCreateRoomOptions(opts []CreateRoomOption) createRoomOptions {
 // advance the filter's seq and cause our publish to fail; we re-check
 // uniqueness from the (now-caught-up) projection and retry.
 func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*evtv1.Room, error) {
+	return c.createRoom(ctx, actorID, kind, groupID, name, description, nil, opts...)
+}
+
+func (c *ChattoCore) createRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, source *roomCreationSource, opts ...CreateRoomOption) (*evtv1.Room, error) {
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
 	}
@@ -284,6 +288,12 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 			},
 		},
 	})
+	if source != nil {
+		created := createdEvent.GetRoomCreated()
+		created.OperatorSourceKeyHash = source.keyHash
+		created.OperatorRequestHash = source.requestHash
+		created.OperatorCreatedGroupId = groupID
+	}
 
 	var defaultPermissionEntries []evtstream.BatchEntry
 	if kind == KindChannel && options.applyAnnouncementsDefaults {
@@ -320,13 +330,16 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		entries = append(entries, defaultPermissionEntries...)
 		return entries, nil
 	}
-	seqs, err := c.publishRoomEventWithNameOCCEntries(ctx, name, createdEvent, room_id, additionalEntries)
+	seqs, existingRoom, err := c.publishRoomEventWithNameOCCEntries(ctx, name, createdEvent, room_id, source, additionalEntries)
 	if err != nil {
 		return nil, err
 	}
+	if existingRoom != nil {
+		return existingRoom, nil
+	}
 	createdSeq := seqs[0]
 
-	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name, "group_id", groupID)
+	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "group_id", groupID)
 
 	createdSubject := evtstream.RoomAggregate(room_id).SubjectFor(createdEvent)
 	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(createdSubject, createdSeq)); err != nil {
@@ -533,9 +546,10 @@ func (c *ChattoCore) setRoomThreadingMode(
 // used by UpdateRoom so a room can keep a name it already holds
 // (e.g. case-only changes, or no-op renames).
 func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name string, event *evtv1.Event, excludeRoomID string, additionalEntries ...evtstream.BatchEntry) ([]uint64, error) {
-	return c.publishRoomEventWithNameOCCEntries(ctx, name, event, excludeRoomID, func(context.Context) ([]evtstream.BatchEntry, error) {
+	seqs, _, err := c.publishRoomEventWithNameOCCEntries(ctx, name, event, excludeRoomID, nil, func(context.Context) ([]evtstream.BatchEntry, error) {
 		return append([]evtstream.BatchEntry(nil), additionalEntries...), nil
 	})
+	return seqs, err
 }
 
 // publishRoomEventWithNameOCCEntries is the retry-aware form of
@@ -547,8 +561,9 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 	name string,
 	event *evtv1.Event,
 	excludeRoomID string,
+	source *roomCreationSource,
 	buildAdditionalEntries func(context.Context) ([]evtstream.BatchEntry, error),
-) ([]uint64, error) {
+) ([]uint64, *evtv1.Room, error) {
 	// Determine publish subject from the event payload. Room events
 	// all target the per-room aggregate subject; this doesn't change
 	// across retries.
@@ -559,19 +574,27 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 	case *evtv1.Event_RoomUpdated:
 		roomID = e.RoomUpdated.GetRoomId()
 	default:
-		return nil, fmt.Errorf("publishRoomEventWithNameOCC: unsupported event type %T", e)
+		return nil, nil, fmt.Errorf("publishRoomEventWithNameOCC: unsupported event type %T", e)
 	}
 	publishSubject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	occFilter := evtstream.RoomSubjectFilter()
 
 	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
-		snapshot := c.roomModel.nameClaimSnapshot(name, excludeRoomID)
+		var sourceKeyHash string
+		if source != nil {
+			sourceKeyHash = source.keyHash
+		}
+		snapshot := c.roomModel.creationClaimSnapshot(name, excludeRoomID, sourceKeyHash)
+		if snapshot.sourceClaim != nil {
+			room, err := c.operatorRoomClaimResult(ctx, source, snapshot.sourceClaim)
+			return nil, room, err
+		}
 		if snapshot.ConflictingRoomID != "" {
-			return nil, ErrRoomNameExists
+			return nil, nil, ErrRoomNameExists
 		}
 		additionalEntries, err := buildAdditionalEntries(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		var seqs []uint64
@@ -592,25 +615,25 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 			seqs, err = c.EventPublisher.AppendBatch(ctx, entries)
 		}
 		if err == nil {
-			return seqs, nil
+			return seqs, nil, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if err := c.roomModel.waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
-			return nil, fmt.Errorf("wait for room directory after OCC conflict: %w", err)
+			return nil, nil, fmt.Errorf("wait for room directory after OCC conflict: %w", err)
 		}
 
 		// Filter advanced under us after the snapshot. Backoff briefly
 		// and retry — the next attempt reads a fresh projection snapshot.
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, nil, ctx.Err()
 		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
-	return nil, fmt.Errorf("room name OCC retry exhausted after %d attempts: %w", maxRoomNameClaimRetries, events.ErrConflict)
+	return nil, nil, fmt.Errorf("room name OCC retry exhausted after %d attempts: %w", maxRoomNameClaimRetries, events.ErrConflict)
 }
 
 // UpdateRoom updates an existing room's mutable fields (name +
