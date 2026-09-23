@@ -85,7 +85,9 @@ test.describe('Multi-Instance Identity', () => {
     ).toHaveClass(/bg-presence-do-not-disturb/);
 
     await page.locator('a[data-testid="server-icon"][href*="/chat/127.0.0.1"]').first().click();
-    await page.getByTestId('current-user-presence-menu').click();
+    const remoteUserBar = page.getByRole('group', { name: 'User presence-remote' });
+    await expect(remoteUserBar).toBeVisible();
+    await remoteUserBar.getByTestId('current-user-presence-menu').click();
     await expect(
       page.getByRole('menuitemradio', { name: 'Look offline', exact: true })
     ).toHaveAttribute('aria-checked', 'true');

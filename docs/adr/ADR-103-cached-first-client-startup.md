@@ -16,12 +16,17 @@ server could therefore delay useful content that was already on the device.
 On an initial chat route with a saved view for the registered server and user,
 the client creates its stores without network work and restores that view into
 the normal chat layout. It starts discovery and viewer checks after the first
-paint for the selected server. Other registered servers start discovery when
+paint for the selected server. Other remote servers start discovery when
 the user opens them. The saved viewer remains display data. While its viewer
 check is pending, the connection holds private reads and rejects server
 actions. It allows the viewer check to proceed. A successful check releases
 the held reads and realtime startup only for the same user. An account change
 clears the old private view through the existing session replacement boundary.
+On chat-wide pages without a selected saved view, the client starts the origin
+server with the public shell requests. These pages use its live projections.
+Unopened remote servers remain dormant.
+After origin sign-out, a dormant remote bearer session can be selected for
+navigation. Its viewer check starts when that route opens.
 
 Message permalinks use live startup because their target can be outside the
 bounded saved window. The client resolves that target after the live viewer

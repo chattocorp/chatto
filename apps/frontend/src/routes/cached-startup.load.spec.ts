@@ -121,6 +121,23 @@ describe('saved startup route load', () => {
     await load(route('/chat/-/overview'));
 
     expect(mocks.init).toHaveBeenLastCalledWith(true);
+    expect(mocks.startServerNetwork).toHaveBeenCalledWith('origin');
+  });
+
+  it('starts the origin projection on a cold chat-wide route', async () => {
+    let finishViewer: (user: { id: string }) => void = () => {};
+    mocks.loadCurrentUser.mockReturnValue(new Promise((resolve) => { finishViewer = resolve; }));
+    const { load } = await import('./+layout');
+
+    const pending = load({
+      url: new URL('https://chat.example.test/chat/notifications'),
+      params: {}
+    } as never);
+
+    expect(mocks.startServerNetwork).toHaveBeenCalledWith('origin');
+    expect(mocks.startServerNetwork).toHaveBeenCalledTimes(1);
+    finishViewer({ id: 'U1' });
+    await pending;
   });
 
   it('uses live startup for a message permalink outside the saved window', async () => {

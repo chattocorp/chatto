@@ -1159,15 +1159,24 @@ class ServerRegistry {
 		return this.tryGetStore(serverId)?.isAuthenticated ?? false;
 	}
 
-	/** Prefer the origin, then registration order, when choosing a retained session. */
+	/**
+	 * Choose a server for navigation after sign-out or from chat-wide settings.
+	 * A dormant bearer session can be opened; its route verifies the viewer.
+	 */
 	firstAuthenticatedServerId(excludedId?: string): string | undefined {
 		const originId = this.originServer?.id;
 		if (originId && originId !== excludedId && this.isAuthenticated(originId)) {
 			return originId;
 		}
 
-		return this.servers.find(
+		const active = this.servers.find(
 			(server) => server.id !== excludedId && this.isAuthenticated(server.id)
+		)?.id;
+		if (active) return active;
+		return this.servers.find((server) =>
+			server.id !== excludedId && !this.isOriginServer(server.id) &&
+			this.sessions.get(server.id)?.token != null &&
+			this.sessions.get(server.id)?.reauthRequiredAt === null
 		)?.id;
 	}
 }

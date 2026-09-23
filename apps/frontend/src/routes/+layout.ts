@@ -66,6 +66,12 @@ export const load: LayoutLoad = async ({ url, params }) => {
     serverRegistry.tryGetStore(routeServerId)?.startupPresentationOnly ? routeServerId : null;
   serverRegistry.init(true);
   if (savedStartupServerId) serverRegistry.startServerNetwork(savedStartupServerId);
+  // Chat-wide pages need the origin's live projections. Start a known origin
+  // alongside the public shell requests, while remote servers stay dormant.
+  const knownOriginServerId = serverRegistry.originServer?.id;
+  if (knownOriginServerId && knownOriginServerId !== savedStartupServerId) {
+    serverRegistry.startServerNetwork(knownOriginServerId);
+  }
   const [, serverInfo, user] = await Promise.all([
     publicLocalePromise ?? preloadPublicLocaleMessages(),
     originHasBackend ? getPublicServerInfo(url.origin).catch(() => null) : null,
@@ -79,6 +85,10 @@ export const load: LayoutLoad = async ({ url, params }) => {
     : false;
   await serverRegistry.probeOrigin(user !== null || retainSavedOrigin, undefined, serverInfo ?? undefined);
   if (!user && !retainSavedOrigin) serverRegistry.settleOriginUnauthenticated();
+  // A first visit can discover the origin only after the shell requests.
+  if (serverRegistry.originServer?.id && serverRegistry.originServer.id !== knownOriginServerId) {
+    serverRegistry.startServerNetwork(serverRegistry.originServer.id);
+  }
 
   if (serverInfo?.setupRequired && (url.pathname === '/' || url.pathname === '/login' || url.pathname.startsWith('/register'))) {
     redirect(302, '/setup');
