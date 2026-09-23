@@ -555,7 +555,7 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if !ok || current != 1 || len(seqs) != 1 || seqs[0] != 1 {
 		t.Fatalf("BodyEventSeqs = (%v, %d, %v), want ([1], 1, true)", seqs, current, ok)
 	}
-	if got := bodyStateForTest(p, "ENV-M1").supersededSequences; got != nil {
+	if got := p.bodyHistoryLocked("ENV-M1"); got != nil {
 		t.Fatalf("first body superseded sequences = %v, want nil", got)
 	}
 
@@ -572,7 +572,7 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs active = %v, want [1]", got)
 	}
-	if got := bodyStateForTest(p, "ENV-M1").supersededSequences; !slices.Equal(got, []uint64{1}) {
+	if got := p.bodyHistoryLocked("ENV-M1"); !slices.Equal(got, []uint64{1}) {
 		t.Fatalf("edited body superseded sequences = %v, want [1]", got)
 	}
 
@@ -650,6 +650,55 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 func bodyStateForTest(p *RoomTimelineProjection, eventID string) timelineBodyState {
 	state, _ := p.bodyStateLocked(eventID)
 	return state
+}
+
+func TestRoomTimeline_OrphanEditHistoryAndBodyAuthorSurviveRestore(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	for sequence, event := range []*evtv1.Event{
+		bodyEvent("B1", "M1", "R1", "U2", "first", 1),
+		bodyEvent("B2", "M1", "R1", "U2", "second", 2),
+	} {
+		if err := p.Apply(event, uint64(sequence+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", sequence+1, err)
+		}
+	}
+	orphanPayload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot orphan history: %v", err)
+	}
+	restoredOrphan := NewRoomTimelineProjection()
+	if err := restoredOrphan.Restore(orphanPayload); err != nil {
+		t.Fatalf("Restore orphan history: %v", err)
+	}
+	for _, projection := range []*RoomTimelineProjection{p, restoredOrphan} {
+		if err := projection.Apply(bodylessPostedEvent("M1", "R1", "U1", 3), 3); err != nil {
+			t.Fatalf("Apply post: %v", err)
+		}
+		if err := projection.Apply(bodyEvent("B3", "M1", "R1", "U2", "third", 4), 4); err != nil {
+			t.Fatalf("Apply third body: %v", err)
+		}
+	}
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot indexed history: %v", err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore indexed history: %v", err)
+	}
+	for _, projection := range []*RoomTimelineProjection{p, restoredOrphan, restored} {
+		seqs, current, ok := projection.BodyEventSeqs("M1")
+		if !ok || current != 4 || !slices.Equal(seqs, []uint64{1, 2, 4}) {
+			t.Fatalf("BodyEventSeqs = (%v, %d, %v), want ([1 2 4], 4, true)", seqs, current, ok)
+		}
+		if got := projection.ObsoleteBodyEventSeqs("M1"); !slices.Equal(got, []uint64{1, 2}) {
+			t.Fatalf("ObsoleteBodyEventSeqs = %v, want [1 2]", got)
+		}
+		body, retracted, ok := projection.LatestBodyReference("M1")
+		if !ok || retracted || body.AuthorID != "U2" || body.BodyEventID != "B3" {
+			t.Fatalf("LatestBodyReference = (%+v, %v, %v), want B3 by U2", body, retracted, ok)
+		}
+	}
 }
 
 func TestRoomTimeline_SnapshotPreservesVisibleThreadingModeChanges(t *testing.T) {
