@@ -359,8 +359,10 @@ new branch, and creates a ready-for-review PR. Its body describes what changed,
 why, verification, and limitations. It does not merge or deploy. The host reads
 back the PR URL, branch, base branch, state, and commit before reporting success.
 It watches GitHub checks for up to 30 minutes and posts a second message when
-they pass, fail, are all skipped, stay pending, or cannot be read. CI failure does not undo the
-published PR. Review the PR Checks tab for individual failures.
+they pass, fail, are all skipped, stay pending, or cannot be read. It verifies
+that the PR still points to ChattoBot's published commit before it reports a
+CI result. If the head changes, it reports that change instead. CI failure
+does not undo the published PR. Review the PR Checks tab for individual failures.
 If a publication response is lost, it checks for the existing PR rather than
 creating another one. An unverified result is reported as uncertain and is not
 automatically retried.

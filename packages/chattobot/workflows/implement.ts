@@ -226,6 +226,7 @@ export function createImplementation(
         prUrl: Type.Optional(Type.String()),
         branch: Type.String(),
         baseCommit: Type.String(),
+        commit: Type.Optional(Type.String()),
         worktree: Type.String(),
         artifactId: Type.Optional(Type.String()),
         checks: Type.Array(
@@ -332,6 +333,7 @@ export function createImplementation(
           notes: ['No coding agent started and no PR was created.'],
           branch,
           baseCommit: '',
+          commit: undefined,
           worktree: '',
           prUrl: undefined,
           ...(input.resumeArtifactId ? { artifactId: input.resumeArtifactId } : {}),
@@ -385,6 +387,7 @@ export function createImplementation(
           notes,
           branch,
           baseCommit,
+          ...(metadata.commit ? { commit: metadata.commit } : {}),
           worktree,
           artifactId: basename(folder),
           ...(metadata.prUrl ? { prUrl: metadata.prUrl } : {}),
@@ -1244,6 +1247,7 @@ export function implementationExtension(
                 notes: ['No PR was verified.'],
                 branch: '',
                 baseCommit: '',
+                commit: undefined,
                 worktree: '',
                 prUrl: undefined,
                 ...(input.resumeArtifactId ? { artifactId: input.resumeArtifactId } : {}),
@@ -1290,6 +1294,7 @@ export function implementationExtension(
                 execute: dependencies.execute ?? implementationProcess,
                 repository: settings.repository,
                 prUrl: result.prUrl!,
+                headCommit: result.commit!,
                 cwd: result.worktree,
                 signal: ctx.signal,
                 onPending: async (checks) => {
@@ -1320,7 +1325,9 @@ export function implementationExtension(
                     ? `CI is still pending for [the pull request](${result.prUrl}) after 30 minutes.${ci.failed ? ` ${ci.failed} checks have already failed or been cancelled.` : ''} Please review its Checks tab.`
                     : ci.status === 'skipped'
                       ? `All reported CI checks were skipped for [the pull request](${result.prUrl}). Please review its Checks tab.`
-                      : `I could not read CI for [the pull request](${result.prUrl}). Please review its Checks tab.`;
+                      : ci.status === 'head_changed'
+                        ? `The head commit changed on [the pull request](${result.prUrl}) before I could report CI for ChattoBot's commit. Please review its Checks tab.`
+                        : `I could not read CI for [the pull request](${result.prUrl}). Please review its Checks tab.`;
             let ciNoticeDelivered = false;
             try {
               if (dependencies.onCiResult) {

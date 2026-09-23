@@ -6,7 +6,7 @@ import {
 } from './implementation-process.ts';
 
 export interface PullRequestChecks {
-  status: 'passed' | 'failed' | 'pending' | 'skipped' | 'unavailable';
+  status: 'passed' | 'failed' | 'pending' | 'skipped' | 'head_changed' | 'unavailable';
   passed: number;
   failed: number;
   pending: number;
@@ -17,6 +17,8 @@ interface CheckOptions {
   execute: ImplementationProcess;
   repository: string;
   prUrl: string;
+  /** Commit verified immediately after PR publication. */
+  headCommit: string;
   cwd: string;
   signal: AbortSignal;
   /** Defaults to a 30-minute observation window. */
@@ -59,9 +61,27 @@ export async function observePullRequestChecks(options: CheckOptions): Promise<P
   const interval = options.intervalMs ?? 30_000;
   let last: PullRequestChecks = { status: 'pending', passed: 0, failed: 0, pending: 0, skipped: 0 };
   let errors = 0;
+  const readHead = async () => {
+    const head: unknown = JSON.parse(
+      await options.execute(
+        'gh',
+        ['pr', 'view', options.prUrl, '--repo', options.repository, '--json', 'headRefOid'],
+        { cwd: options.cwd, signal: options.signal, timeoutMs: 15_000 }
+      )
+    );
+    if (
+      typeof head !== 'object' ||
+      head === null ||
+      !('headRefOid' in head) ||
+      typeof head.headRefOid !== 'string'
+    )
+      throw new Error('PR head was unavailable');
+    return head.headRefOid;
+  };
   while (true) {
     options.signal.throwIfAborted();
     try {
+      if ((await readHead()) !== options.headCommit) return { ...last, status: 'head_changed' };
       let output: string;
       try {
         output = await options.execute(
@@ -77,7 +97,10 @@ export async function observePullRequestChecks(options: CheckOptions): Promise<P
       if (!checks) throw new Error('Check response was unavailable');
       errors = 0;
       last = checks;
-      if (checks.status !== 'pending') return checks;
+      if (checks.status !== 'pending') {
+        if ((await readHead()) !== options.headCommit) return { ...checks, status: 'head_changed' };
+        return checks;
+      }
       await options.onPending?.(checks);
     } catch {
       options.signal.throwIfAborted();

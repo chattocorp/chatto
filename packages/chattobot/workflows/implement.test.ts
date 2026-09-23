@@ -170,6 +170,7 @@ test('implements in an isolated worktree, records final checks, pushes and verif
   expect(result).toMatchObject({
     outcome: 'completed',
     prUrl: 'https://github.com/example/chatto/pull/7',
+    commit: expect.stringMatching(/^[0-9a-f]{40}$/),
     summary: proposal.summary,
     notes: proposal.notes,
     checks: [
