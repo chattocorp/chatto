@@ -446,7 +446,9 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
 
   await stopConsumer(server);
   server = undefined;
-  const sourceLifecycle = (await readFile(resolve(project, "source-lifecycle.txt"), "utf8")).trim().split("\n");
+  const sourceLifecyclePath = resolve(project, "source-lifecycle.txt");
+  const stoppedLifecycle = await readFile(sourceLifecyclePath, "utf8");
+  const sourceLifecycle = stoppedLifecycle.trim().split("\n");
   assert(sourceLifecycle.length >= 4, "Sources reload with configuration");
   assert.equal(sourceLifecycle.length % 2, 0, "Shutdown releases the final source");
   for (let index = 0; index < sourceLifecycle.length; index += 2) {
@@ -466,12 +468,20 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
   server.stdout.on("data", chunk => { serverOutput += chunk; });
   server.stderr.on("data", chunk => { serverOutput += chunk; });
   await waitForPage("/api/webhooks/echo");
-  const beforeEdit = await readFile(resolve(project, "source-lifecycle.txt"), "utf8");
+  let beforeEdit = stoppedLifecycle;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (server.exitCode !== null) throw new Error(`Server stopped:\n${serverOutput}`);
+    beforeEdit = await readFile(sourceLifecyclePath, "utf8");
+    if (beforeEdit !== stoppedLifecycle) break;
+    await delay(100);
+  }
+  assert.equal(beforeEdit, `${stoppedLifecycle}start:1\n`,
+    "Default serving starts its source before the file edit");
   await writeFile(configPath, "export default { invalid: true };\n");
   await delay(500);
   assert.equal((await fetch(`${origin}/api/webhooks/echo`)).status, 200);
   assert(!((await configState()).error), "Default serving does not reload invalid edits");
-  assert.equal(await readFile(resolve(project, "source-lifecycle.txt"), "utf8"), beforeEdit,
+  assert.equal(await readFile(sourceLifecyclePath, "utf8"), beforeEdit,
     "Default serving does not replace sources on file changes");
   await stopConsumer(server);
   server = undefined;
