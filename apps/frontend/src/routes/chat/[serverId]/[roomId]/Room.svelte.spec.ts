@@ -1062,19 +1062,23 @@ describe('Room local message echo', () => {
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
   });
 
-  it('opens a newly created thread after adding its root post to the room timeline', async () => {
-    const { container } = render(Room, { props: { roomId: 'room-1' } });
+  it.each([RoomThreadingMode.ENABLED, RoomThreadingMode.REQUIRED])(
+    'keeps the room open after adding a new thread root in mode %s',
+    async (threadingMode) => {
+      mocks.threadingMode = threadingMode;
+      const { container } = render(Room, { props: { roomId: 'room-1' } });
 
-    await expect
-      .element(q(container, '[data-testid="composer-can-create-thread"]'))
-      .toHaveTextContent('true');
-    (q(container, '[data-testid="emit-created-thread"]') as HTMLButtonElement).click();
+      await expect
+        .element(q(container, '[data-testid="composer-can-create-thread"]'))
+        .toHaveTextContent('true');
+      (q(container, '[data-testid="emit-created-thread"]') as HTMLButtonElement).click();
 
-    await expect
-      .element(q(container, '[data-testid="room-event-ids"]'))
-      .toHaveTextContent('msg-local');
-    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/msg-local');
-  });
+      await expect
+        .element(q(container, '[data-testid="room-event-ids"]'))
+        .toHaveTextContent('msg-local');
+      expect(mocks.goto).not.toHaveBeenCalled();
+    }
+  );
 
   it('offers thread creation in DMs with thread-post permission', async () => {
     mocks.roomKind = RoomKind.DM;

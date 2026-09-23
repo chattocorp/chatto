@@ -64,7 +64,6 @@
     onReady,
     onTyping,
     onMessageSent,
-    onThreadCreated,
     onThreadMessageSent,
     onCancelReply,
     onEscape,
@@ -161,7 +160,6 @@
         if (event) optimisticPost = { roomId, createdAt: Date.parse(event.createdAt) };
         onMessageSent?.(event);
       },
-      onThreadCreated,
       onThreadMessageSent,
       onCancelReply,
       onEscape
