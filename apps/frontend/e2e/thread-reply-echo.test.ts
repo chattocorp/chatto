@@ -613,6 +613,55 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
   });
 
+  test('editing an image-only thread reply can add and remove its room echo', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const root = await roomPage.sendMessage(`Root for image echo edit ${Date.now()}`);
+    await root.openThread();
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.dropFileInThread('e2e/fixtures/brighton.jpg');
+    await roomPage.threadReplyInput.press('Control+Enter');
+    await expect(roomPage.threadAttachmentPreview).toHaveCount(0);
+
+    const threadImage = roomPage.threadPane.locator(
+      '[role="article"]:has(button[aria-label^="View"] img)'
+    );
+    await expect(threadImage).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    const replyId = await threadImage.getAttribute('data-event-id');
+    expect(replyId).toBeTruthy();
+    const reply = roomPage.getMessageByEventId(replyId!);
+    const roomImage = roomPage.roomDropZone.locator(
+      '[role="article"]:has(button[aria-label^="View"] img)'
+    );
+
+    await reply.startEdit();
+    await roomPage.expectThreadEditModeActive();
+    const toggle = page.getByRole('button', { name: 'Also send to channel' });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await toggle.click();
+    await roomPage.threadReplyInput.press('Control+Enter');
+
+    await roomPage.expectThreadEditModeInactive();
+    await expect(threadImage).toBeVisible();
+    await expect(roomImage).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+    await reply.startEdit();
+    await roomPage.expectThreadEditModeActive();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.click();
+    await roomPage.threadReplyInput.press('Control+Enter');
+
+    await roomPage.expectThreadEditModeInactive();
+    await expect(threadImage).toBeVisible();
+    await expect(roomImage).toHaveCount(0, { timeout: TIMEOUTS.REALTIME_EVENT });
+  });
+
   test('editing an echoed thread reply can remove the main room echo', async ({
     page,
     chatPage,

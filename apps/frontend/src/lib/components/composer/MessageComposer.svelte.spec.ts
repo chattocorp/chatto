@@ -2059,6 +2059,77 @@ describe('MessageComposer', () => {
   });
 
   describe('edit mode transitions', () => {
+    it('adds an echo to an image-only thread reply without replacing its body', async () => {
+      roomStateMock.editState.eventId = 'evt_image_reply';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.canAddChannelEcho = true;
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+      const editor = await findEditor(container, 'thread-reply-input');
+      const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
+
+      await expect.element(editor).toHaveTextContent('');
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
+      await userEvent.click(toggle);
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_image_reply',
+        alsoSendToChannel: true
+      });
+    });
+
+    it('removes an echo from an image-only thread reply without replacing its body', async () => {
+      roomStateMock.editState.eventId = 'evt_image_reply';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.channelEchoEventId = 'evt_echo';
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+      const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
+
+      await findEditor(container, 'thread-reply-input');
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+      await userEvent.click(toggle);
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_image_reply',
+        alsoSendToChannel: false
+      });
+    });
+
+    it('rejects an empty image-only edit when the echo state is unchanged', async () => {
+      roomStateMock.editState.eventId = 'evt_image_reply';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.canAddChannelEcho = true;
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+
+      await findEditor(container, 'thread-reply-input');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+      expect(updateMessageConnectMock).not.toHaveBeenCalled();
+      expect(getToasts().map(({ message }) => message)).toContain('Message cannot be empty');
+    });
+
+    it('rejects clearing a text reply even when its echo state changes', async () => {
+      roomStateMock.editState.eventId = 'evt_text_reply';
+      roomStateMock.editState.originalBody = 'original body';
+      roomStateMock.editState.threadRootEventId = 'evt_root';
+      roomStateMock.editState.canAddChannelEcho = true;
+      const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
+      const editor = await findEditor(container, 'thread-reply-input');
+
+      await expect.element(editor).toHaveTextContent('original body');
+      await typeInEditor(editor, '');
+      await userEvent.click(q(container, 'button[aria-label="Also send to channel"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+
+      expect(updateMessageConnectMock).not.toHaveBeenCalled();
+      expect(getToasts().map(({ message }) => message)).toContain('Message cannot be empty');
+    });
+
     it('keeps an existing message editable when new posting is unavailable', async () => {
       roomStateMock.editState.eventId = 'evt_historical_thread_edit';
       roomStateMock.editState.originalBody = 'historical reply';
