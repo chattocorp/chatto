@@ -41,3 +41,24 @@ test("bounds large details and formats elapsed time across hours", () => {
   expect(row!.message.length).toBeLessThan(16100);
   expect(feedTime(3_723_999)).toBe("01:02:03");
 });
+
+test("preserves text that happens to be valid JSON", () => {
+  const texts = ["42", "true", "null", '"hello"', '{"answer":42}'];
+  const events: RunlingEvent[] = texts.map((payload, timestamp) => ({
+    type: "message.sent", id: String(timestamp), channelId: "c", direction: "update", payload, timestamp,
+  }));
+  expect(activityFeed(events, "running").map(row => row.message)).toEqual(texts);
+});
+
+test("shows agent text once when the same task forwards it to its owner", () => {
+  const events: RunlingEvent[] = [
+    { type: "step.started", id: "task", label: "Worker", timestamp: 0 },
+    { type: "task.linked", channelId: "c", taskId: "task", timestamp: 1 },
+    { type: "agent.started", agentId: "a", activityId: "task", model: "test/model", color: "#60a5fa", timestamp: 2 },
+    { type: "agent.action", agentId: "a", action: "Found the cause", timestamp: 3 },
+    { type: "message.sent", id: "m", channelId: "c", direction: "update", payload: '{"type":"output","text":"Found the cause"}', timestamp: 4 },
+    { type: "message.sent", id: "n", channelId: "c", direction: "update", payload: "Found the cause", timestamp: 5 },
+  ];
+  // Consume only the mirrored copy; a later independent repeat remains visible.
+  expect(activityFeed(events, "running").filter(row => row.message === "Found the cause")).toHaveLength(2);
+});

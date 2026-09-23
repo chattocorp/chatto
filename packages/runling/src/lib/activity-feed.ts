@@ -37,6 +37,9 @@ export function activityFeed(events: RunlingEvent[], status: RunStatus, duration
     }
   }
   const entries: FeedEntry[] = [];
+  // Agent text is also forwarded through its task channel. Suppress that one
+  // mirrored delivery, without hiding repeated messages from users or tasks.
+  const forwardedText = new Map<string, string>();
   for (const [index, event] of events.entries()) {
     const agent = "agentId" in event ? agents.get(event.agentId) : undefined;
     const taskId = event.type === "step.started" || event.type === "step.finished" ? event.id
@@ -58,7 +61,10 @@ export function activityFeed(events: RunlingEvent[], status: RunStatus, duration
         if (event.phase === "failed") tone = "error";
         break;
       case "task.activity": message = event.message; break;
-      case "agent.action": message = event.action; break;
+      case "agent.action":
+        message = event.action;
+        if (taskId) forwardedText.set(taskId, message);
+        break;
       case "command.started": message = "Command started"; detail = event.command; break;
       case "command.finished":
         message = `Command ${event.status}`; tone = event.status === "failed" ? "error" : "success";
@@ -70,12 +76,17 @@ export function activityFeed(events: RunlingEvent[], status: RunStatus, duration
         break;
       case "message.sent":
         if (event.direction === "input") { message = `Received: ${event.payload}`; break; }
+        message = event.payload;
         try {
           const update = JSON.parse(event.payload);
-          if ((update.type === "finding" || update.type === "output") && typeof update.text === "string") {
+          if ((update?.type === "finding" || update?.type === "output") && typeof update.text === "string") {
             message = update.text;
-          } else continue;
-        } catch { message = event.payload; }
+          } else if (["state", "tool", "retrying", "blocked", "working"].includes(update?.type)) continue;
+        } catch { /* Plain text is a valid task update. */ }
+        if (taskId && forwardedText.get(taskId) === message) {
+          forwardedText.delete(taskId);
+          continue;
+        }
         break;
       case "log":
         if (event.source || event.level === "debug") continue;
