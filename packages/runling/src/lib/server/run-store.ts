@@ -1,30 +1,16 @@
-import type { WebhookTask } from "runling/web";
-import { serverLog } from "../../runtime/server-log.ts";
-import { createServerActivityLog } from "../../runtime/server-activity.ts";
-import {
-  mkdir,
-  readdir,
-  appendFile,
-  writeFile,
-  truncate,
-  stat,
-} from "node:fs/promises";
-import { createReadStream } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { randomUUID } from "node:crypto";
-import { randomId } from "../../runtime/id.ts";
-import {
-  emptyTokenUsage,
-  runWorkflow,
-  type WorkflowExecution,
-} from "runling";
-import {
-  type RunDetail,
-  type RunRecord,
-  type RunSummary,
-} from "../runs.ts";
+/** Persist web runs and bridge their lifecycle to live console subscribers. */
+import type { WebhookTask } from 'runling/web';
+import { serverLog } from '../../runtime/server-log.ts';
+import { createServerActivityLog } from '../../runtime/server-activity.ts';
+import { mkdir, readdir, appendFile, writeFile, truncate, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { randomId } from '../../runtime/id.ts';
+import { emptyTokenUsage, runWorkflow, type WorkflowExecution } from 'runling';
+import { type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
 
-import { summarizeRunActivity } from "../run-activity.ts";
+import { summarizeRunActivity } from '../run-activity.ts';
 
 const validId = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
 type Listener = (id: string, record: RunRecord) => void;
@@ -36,13 +22,24 @@ function summary(run: RunDetail): RunSummary {
 
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
-  if (record.type === "resumed") {
-    if (includeDetails) run.events.push({ type: "workflow.resumed", attempt: record.attempt, timestamp: run.durationMs ?? 0 });
-    Object.assign(run, { status: "running", attempt: record.attempt, finishedAt: undefined, error: null, output: null });
-  } else if (record.type === "event") {
+  if (record.type === 'resumed') {
+    if (includeDetails)
+      run.events.push({
+        type: 'workflow.resumed',
+        attempt: record.attempt,
+        timestamp: run.durationMs ?? 0
+      });
+    Object.assign(run, {
+      status: 'running',
+      attempt: record.attempt,
+      finishedAt: undefined,
+      error: null,
+      output: null
+    });
+  } else if (record.type === 'event') {
     if (includeDetails) run.events.push(record.event);
-    if (record.event.type === "usage.updated") run.usage = record.event.usage;
-  } else if (record.type === "finished") {
+    if (record.event.type === 'usage.updated') run.usage = record.event.usage;
+  } else if (record.type === 'finished') {
     const { type: _, output, error, ...result } = record;
     Object.assign(run, result);
     if (includeDetails) Object.assign(run, { output, error });
@@ -51,14 +48,17 @@ function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = t
 
 // Ignore an incomplete final line, but preserve its byte offset for recovery.
 async function* journalRecords(path: string) {
-  let buffer = "";
-  for await (const chunk of createReadStream(path, { encoding: "utf8" })) {
+  let buffer = '';
+  for await (const chunk of createReadStream(path, { encoding: 'utf8' })) {
     buffer += chunk;
     let end: number;
-    while ((end = buffer.indexOf("\n")) !== -1) {
+    while ((end = buffer.indexOf('\n')) !== -1) {
       const line = buffer.slice(0, end);
       buffer = buffer.slice(end + 1);
-      yield { record: line ? JSON.parse(line) as RunRecord : undefined, bytes: Buffer.byteLength(line) + 1 };
+      yield {
+        record: line ? (JSON.parse(line) as RunRecord) : undefined,
+        bytes: Buffer.byteLength(line) + 1
+      };
     }
   }
 }
@@ -72,40 +72,43 @@ export class RunStore {
   private executions = new Set<Promise<WorkflowExecution>>();
   private listeners = new Set<Listener>();
   private references = new Set<string>();
-  private readonly shutdownReason = new Error("Runling server stopped.");
+  private readonly shutdownReason = new Error('Runling server stopped.');
   private closing = false;
 
-  constructor(readonly directory: string, private readonly createReference = randomId) {}
+  constructor(
+    readonly directory: string,
+    private readonly createReference = randomId
+  ) {}
 
   async init(): Promise<void> {
     await mkdir(this.directory, { recursive: true });
     for (const file of await readdir(this.directory)) {
-      const id = file.replace(/\.jsonl$/, "");
-      if (!file.endsWith(".jsonl") || !validId.test(id)) continue;
+      const id = file.replace(/\.jsonl$/, '');
+      if (!file.endsWith('.jsonl') || !validId.test(id)) continue;
       const path = resolve(this.directory, file);
       try {
         const { run, end, lastTimestamp } = await this.read(id, false);
         if (!run) continue;
         if (run.reference) this.references.add(run.reference);
-        if (run.status === "running") {
+        if (run.status === 'running') {
           // A crash can leave the final JSON line incomplete.
           await truncate(path, end);
           const record: RunRecord = {
-            type: "finished",
-            status: "interrupted",
+            type: 'finished',
+            status: 'interrupted',
             finishedAt: Date.now(),
             durationMs: lastTimestamp,
             output: null,
             usage: run.usage,
-            error: "The server stopped before this run finished.",
+            error: 'The server stopped before this run finished.'
           };
           await appendFile(path, `${JSON.stringify(record)}\n`);
           applyStoredRecord(run, record, false);
-          serverLog("warn", "run.interrupted", { runId: id, runReference: run.reference });
+          serverLog('warn', 'run.interrupted', { runId: id, runReference: run.reference });
         }
         this.runs.set(id, summary(run));
       } catch (cause) {
-        serverLog("error", "run.restore_failed", { runId: id, error: cause });
+        serverLog('error', 'run.restore_failed', { runId: id, error: cause });
       }
     }
   }
@@ -128,7 +131,7 @@ export class RunStore {
   cancel(id: string): boolean {
     const controller = this.controllers.get(id);
     if (!controller) return false;
-    controller.abort(new Error("Workflow cancelled by user."));
+    controller.abort(new Error('Workflow cancelled by user.'));
     return true;
   }
 
@@ -155,13 +158,19 @@ export class RunStore {
       const record = line.record;
       if (!record) continue;
       if (!run) {
-        if (record.type !== "started" || record.run.id !== id) break;
-        run = includeDetails ? record.run : {
-          ...record.run, input: null, output: null, error: null, events: [],
-        };
+        if (record.type !== 'started' || record.run.id !== id) break;
+        run = includeDetails
+          ? record.run
+          : {
+              ...record.run,
+              input: null,
+              output: null,
+              error: null,
+              events: []
+            };
       } else {
         applyStoredRecord(run, record, includeDetails);
-        if (record.type === "event") lastTimestamp = record.event.timestamp;
+        if (record.type === 'event') lastTimestamp = record.event.timestamp;
       }
     }
     return { run, end, lastTimestamp };
@@ -180,15 +189,12 @@ export class RunStore {
 
   private append(id: string, record: RunRecord): Promise<void> {
     const next = (this.pending.get(id) ?? Promise.resolve()).then(async () => {
-      await appendFile(
-        resolve(this.directory, `${id}.jsonl`),
-        `${JSON.stringify(record)}\n`,
-      );
+      await appendFile(resolve(this.directory, `${id}.jsonl`), `${JSON.stringify(record)}\n`);
       const run = this.details.get(id)!;
       applyStoredRecord(run, record);
       this.runs.set(id, summary(run));
       this.publish(id, record);
-      if (record.type === "finished") this.details.delete(id);
+      if (record.type === 'finished') this.details.delete(id);
     });
     this.pending.set(id, next);
     return next;
@@ -198,25 +204,25 @@ export class RunStore {
     webhook: string,
     workflow: WebhookTask<Input, Output>,
     input: Input,
-    source: "webhook" | "web" | "source",
+    source: 'webhook' | 'web' | 'source'
   ) {
-    if (this.closing) throw new Error("Run store is stopping");
+    if (this.closing) throw new Error('Run store is stopping');
     const id = randomUUID();
     const run: RunDetail = {
       id,
       webhook,
       workflow: workflow.name,
       source,
-      ...(source === "source" ? { sourceName: webhook } : {}),
+      ...(source === 'source' ? { sourceName: webhook } : {}),
       input: input === undefined ? null : JSON.parse(JSON.stringify(input)),
-      status: "running",
+      status: 'running',
       startedAt: Date.now(),
       output: null,
       error: null,
       events: [],
-      usage: emptyTokenUsage(),
+      usage: emptyTokenUsage()
     };
-    const started: RunRecord = { type: "started", run };
+    const started: RunRecord = { type: 'started', run };
     // Reserve before the first await so concurrent starts cannot share a reference.
     for (let attempt = 0; attempt < 100; attempt++) {
       const reference = this.createReference();
@@ -225,13 +231,12 @@ export class RunStore {
       this.references.add(reference);
       break;
     }
-    if (!run.reference) throw new Error("Cannot allocate a unique run reference");
+    if (!run.reference) throw new Error('Cannot allocate a unique run reference');
     try {
-      await writeFile(
-        resolve(this.directory, `${id}.jsonl`),
-        `${JSON.stringify(started)}\n`,
-        { flag: "wx", mode: 0o600 },
-      );
+      await writeFile(resolve(this.directory, `${id}.jsonl`), `${JSON.stringify(started)}\n`, {
+        flag: 'wx',
+        mode: 0o600
+      });
     } catch (error) {
       this.references.delete(run.reference);
       throw error;
@@ -241,12 +246,23 @@ export class RunStore {
     const controller = new AbortController();
     this.controllers.set(id, controller);
     this.publish(id, started);
-    serverLog("info", "run.started", { runId: id, runReference: run.reference, webhook, workflow: workflow.name, source });
+    serverLog('info', 'run.started', {
+      runId: id,
+      runReference: run.reference,
+      webhook,
+      workflow: workflow.name,
+      source
+    });
     const completion = this.execute(id, workflow, input, controller.signal);
     this.executions.add(completion);
-    void completion.then(() => this.executions.delete(completion), () => this.executions.delete(completion));
+    void completion.then(
+      () => this.executions.delete(completion),
+      () => this.executions.delete(completion)
+    );
     // Background runs must always have a rejection handler, even after the HTTP client leaves.
-    void completion.catch((cause) => serverLog("error", "run.error", { runId: id, runReference: run.reference, error: cause }));
+    void completion.catch((cause) =>
+      serverLog('error', 'run.error', { runId: id, runReference: run.reference, error: cause })
+    );
     return { id, completion };
   }
 
@@ -254,7 +270,7 @@ export class RunStore {
     id: string,
     workflow: WebhookTask<Input, Output>,
     input: Input,
-    signal: AbortSignal,
+    signal: AbortSignal
   ): Promise<WorkflowExecution> {
     const base = performance.now();
     const activityLog = createServerActivityLog(id, this.runs.get(id)?.reference);
@@ -264,34 +280,38 @@ export class RunStore {
       onEvent: (event) => {
         activityLog(event);
         void this.append(id, {
-          type: "event",
-          event: { ...event, timestamp: Math.max(0, event.timestamp - base) },
+          type: 'event',
+          event: { ...event, timestamp: Math.max(0, event.timestamp - base) }
         }).catch(() => {}); // The same write failure is handled when completion flushes the queue.
-      },
+      }
     }).finally(() => activityLog.dispose());
     this.controllers.delete(id);
     const status = signal.aborted
-      ? signal.reason === this.shutdownReason ? "interrupted" : "cancelled"
-      : execution.ok ? "completed" : "failed";
+      ? signal.reason === this.shutdownReason
+        ? 'interrupted'
+        : 'cancelled'
+      : execution.ok
+        ? 'completed'
+        : 'failed';
     try {
       await this.append(id, {
-        type: "finished",
+        type: 'finished',
         status,
         finishedAt: Date.now(),
         durationMs: execution.durationMs,
         usage: execution.usage,
         output: execution.output,
-        error: execution.error,
+        error: execution.error
       });
     } catch (cause) {
       const record: RunRecord = {
-        type: "finished",
-        status: "failed",
+        type: 'finished',
+        status: 'failed',
         finishedAt: Date.now(),
         durationMs: execution.durationMs,
         usage: execution.usage,
         output: null,
-        error: `Cannot save run history: ${cause instanceof Error ? cause.message : String(cause)}`,
+        error: `Cannot save run history: ${cause instanceof Error ? cause.message : String(cause)}`
       };
       const run = this.details.get(id)!;
       applyStoredRecord(run, record);
@@ -301,10 +321,21 @@ export class RunStore {
     } finally {
       this.pending.delete(id);
     }
-    serverLog(status === "failed" ? "error" : status === "cancelled" || status === "interrupted" ? "warn" : "info", "run.finished", {
-      runId: id, runReference: this.runs.get(id)?.reference, status,
-      durationMs: execution.durationMs, usage: execution.usage,
-    });
+    serverLog(
+      status === 'failed'
+        ? 'error'
+        : status === 'cancelled' || status === 'interrupted'
+          ? 'warn'
+          : 'info',
+      'run.finished',
+      {
+        runId: id,
+        runReference: this.runs.get(id)?.reference,
+        status,
+        durationMs: execution.durationMs,
+        usage: execution.usage
+      }
+    );
     return execution;
   }
 }
@@ -314,14 +345,14 @@ const state = globalThis as typeof globalThis & {
   __runlingRunStore?: Promise<RunStore>;
 };
 export async function historyDirectory(cwd: string): Promise<string> {
-  const current = resolve(cwd, ".runling/runs");
-  const legacy = resolve(cwd, ".factory/runs");
+  const current = resolve(cwd, '.runling/runs');
+  const legacy = resolve(cwd, '.factory/runs');
   for (const path of [current, legacy]) {
     try {
       if ((await stat(path)).isDirectory()) return path;
       throw new Error(`Run history path is not a directory: ${path}`);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
   }
   return current;
@@ -330,7 +361,7 @@ export async function historyDirectory(cwd: string): Promise<string> {
 export function getRunStore(): Promise<RunStore> {
   state.__runlingRunStore ??= (async () => {
     const configPath = process.env.RUNLING_WEB_CONFIG;
-    if (!configPath) throw new Error("RUNLING_WEB_CONFIG is required for run history");
+    if (!configPath) throw new Error('RUNLING_WEB_CONFIG is required for run history');
     const cwd = dirname(configPath);
     const store = new RunStore(await historyDirectory(cwd));
     await store.init();
