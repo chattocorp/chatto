@@ -79,3 +79,25 @@ func TestOperatorAssetUploadRejectsInvalidFileAndFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestOperatorAssetUploadMultipleChunks(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-large-author", "Large Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "operator-large-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	content := bytes.Repeat([]byte("a"), 1024*1024+13)
+	filePath := filepath.Join(t.TempDir(), "large.txt")
+	if err := os.WriteFile(filePath, content, 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	assetID := strings.TrimSpace(env.run(t, "operator", "asset", "upload", "--room-id", room.GetId(), "--author-id", author.GetId(), "--file", filePath))
+	events, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, evtstream.AssetAggregate(assetID).Subject(evtstream.EventAssetCreated))
+	if err != nil || len(events) != 1 || events[0].GetAssetCreated().GetAsset().GetSize() != int64(len(content)) {
+		t.Fatalf("large asset events = %+v, err = %v", events, err)
+	}
+}
