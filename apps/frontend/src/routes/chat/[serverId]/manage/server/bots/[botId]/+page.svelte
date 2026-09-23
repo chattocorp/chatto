@@ -1,6 +1,7 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { formatAccountName } from '$lib/render/accountName';
+  import { accountNameToken, formatAccountName } from '$lib/render/accountName';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -548,7 +549,8 @@
   onconfirm={deleteBot}
   onclose={() => (deleteVisible = false)}
 >
-  {m('settings.bots.delete_warning', {
-    name: bot ? formatAccountName(bot.displayName, { isBot: true }) : ''
-  })}
+  <AccountNameTokens
+    text={m('settings.bots.delete_warning', { name: bot ? accountNameToken(0) : '' })}
+    accounts={bot ? [{ name: bot.displayName, identity: { isBot: true } }] : []}
+  />
 </ConfirmDialog>

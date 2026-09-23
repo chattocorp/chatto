@@ -1,10 +1,10 @@
 <script lang="ts">
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
+  import AccountName from '$lib/components/users/AccountName.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { MessageSearchState } from '$lib/api-client/messageSearch';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-  import { formatAccountName } from '$lib/render/accountName';
   import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -257,7 +257,7 @@
   function actorName(event: FollowedThread['rootMessage']): string {
     const actor = event?.actor;
     return actor
-      ? formatAccountName(getLiveDisplayName(actor.id, actor.displayName || actor.login), actor)
+      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
       : '';
   }
 
@@ -440,7 +440,7 @@
                     <bdi class="min-w-0 flex-1 truncate" dir="auto">
                       {#if actorName(primary)}
                         <span class="font-medium"
-                          >{actorName(primary)}:
+                          ><AccountName name={actorName(primary)} identity={primary?.actor} />:
                           <span class="font-normal">{messageExcerpt(primary)}</span></span
                         >
                       {:else}
@@ -462,7 +462,7 @@
                           />
                         {:else}{roomLabel(thread)}{/if}
                         {#if thread.latestReply}<span class="font-normal"
-                            >· {actorName(thread.rootMessage)}: {messageExcerpt(
+                            >· <AccountName name={actorName(thread.rootMessage)} identity={thread.rootMessage?.actor} />: {messageExcerpt(
                               thread.rootMessage
                             )}</span
                           >{/if}</span

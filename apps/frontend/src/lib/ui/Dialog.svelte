@@ -43,12 +43,15 @@ and cannot be combined with semantic actions.
 		mediaViewer = false,
 		visible = $bindable(false),
 		title,
+		titleContent,
 		size = 'md',
 		describedBy,
 		onclose
 	}: {
 		visible?: boolean;
 		title?: string;
+		/** Rich title content; title remains the plain-text fallback. */
+		titleContent?: Snippet;
 		size?: 'sm' | 'md' | 'lg' | 'xl';
 		/** Accessible description element ID. */
 		describedBy?: string;
@@ -210,7 +213,7 @@ and cannot be combined with semantic actions.
 								mediaViewer && 'line-clamp-2'
 							]}
 						>
-							<bdi>{title}</bdi>
+							{#if titleContent}{@render titleContent()}{:else}<bdi>{title}</bdi>{/if}
 						</h2>
 					{:else}<span></span>{/if}
 					<button

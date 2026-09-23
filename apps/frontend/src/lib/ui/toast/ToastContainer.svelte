@@ -22,6 +22,7 @@
       <Toast
         tone={t.tone}
         message={t.message}
+        accounts={t.accounts}
         action={t.action}
         onDismiss={() => toast.remove(t.id)}
       />

@@ -1,5 +1,5 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { formatAccountName } from '$lib/render/accountName';
+import { accountNameToken } from '$lib/render/accountName';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { onDestroy, untrack } from 'svelte';
@@ -488,7 +488,7 @@ export class QuickSwitcherModel {
           label: message.body,
           detail: [
             message.actor
-              ? formatAccountName(message.actor.displayName || message.actor.login, message.actor)
+              ? accountNameToken(0)
               : undefined,
             message.roomName ? `#${message.roomName}` : null,
             serverName

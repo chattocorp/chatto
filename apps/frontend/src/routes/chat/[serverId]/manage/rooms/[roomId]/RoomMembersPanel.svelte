@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { BOT_ACCOUNT_LABEL, accountNameToken, isBotAccount } from '$lib/render/accountName';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
+  import BotBadge from '$lib/components/users/BotBadge.svelte';
   import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import type { DirectoryMember } from '$lib/api-client/memberDirectory';
@@ -212,7 +214,7 @@
   });
 
   function memberLabel(member: DirectoryMember): string {
-    return `${formatAccountName(member.displayName, member)} @${member.login}`;
+    return `${member.displayName} @${member.login}`;
   }
 
   function scheduleDirectorySearch(text: string): void {
@@ -293,9 +295,10 @@
       await reconcileMembership(target);
       if (!isCurrentTarget(target)) return;
       clearSelectedUser();
-      toast.success(
-        m('admin.rooms_admin.member_added', { name: formatAccountName(user.displayName, user) })
-      );
+      toast.success({
+        text: m('admin.rooms_admin.member_added', { name: accountNameToken(0) }),
+        accounts: [{ name: user.displayName, identity: { isBot: user.isBot, deleted: user.deleted } }]
+      });
     } catch (error) {
       if (!isCurrentTarget(target)) return;
       toast.error(
@@ -316,9 +319,10 @@
       await reconcileMembership(target);
       if (!isCurrentTarget(target)) return;
       removeCandidate = null;
-      toast.success(
-        m('admin.rooms_admin.member_removed', { name: formatAccountName(user.displayName, user) })
-      );
+      toast.success({
+        text: m('admin.rooms_admin.member_removed', { name: accountNameToken(0) }),
+        accounts: [{ name: user.displayName, identity: { isBot: user.isBot, deleted: user.deleted } }]
+      });
     } catch (error) {
       if (!isCurrentTarget(target)) return;
       toast.error(
@@ -372,7 +376,11 @@
           ontextchange={scheduleDirectorySearch}
           onselect={(user) => (selectedUser = user)}
           onclear={clearSelectedUser}
+          selectionDescription={isBotAccount(selectedUser) ? BOT_ACCOUNT_LABEL : undefined}
         >
+          {#snippet selectionAdornment()}
+            {#if isBotAccount(selectedUser)}<BotBadge />{/if}
+          {/snippet}
           {#snippet item({ item: user })}
             <UserAvatar {user} size="sm" useLiveProfile={false} />
             <AccountName name={user.displayName} identity={user} />
@@ -465,9 +473,12 @@
     onconfirm={() => void confirmRemoveMember()}
     onclose={() => (removeCandidate = null)}
   >
-    {m('admin.rooms_admin.remove_member_prompt', {
-      name: formatAccountName(removeCandidate.displayName, removeCandidate),
-      room: `#${roomName}`
-    })}
+    <AccountNameTokens
+      text={m('admin.rooms_admin.remove_member_prompt', {
+        name: accountNameToken(0),
+        room: `#${roomName}`
+      })}
+      accounts={[{ name: removeCandidate.displayName, identity: removeCandidate }]}
+    />
   </ConfirmDialog>
 {/if}
