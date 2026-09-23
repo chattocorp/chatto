@@ -9,12 +9,13 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "dev": "runling serve",
+    "dev": "runling serve --watch",
     "start": "runling serve",
     "check": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@chatto/bot-client": "workspace:*",
     "@chatto/client": "workspace:*",
     "linkedom": "^0.18.13",
     "runling": "workspace:*"

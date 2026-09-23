@@ -10,6 +10,7 @@
     "@chatto/api-types#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "@chatto/lingua#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "@chatto/client#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
+    "@chatto/bot-client#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "check": { "dependsOn": ["^build"], "cache": false },
     "@chatto/runling-bot#check": { "dependsOn": [], "cache": false },
     "lint": { "dependsOn": ["^build"], "cache": false },

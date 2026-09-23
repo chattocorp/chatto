@@ -1443,6 +1443,27 @@ test("text mode delivers a natural response once without report tools or retries
   }
 });
 
+test("final text delivery excludes tool preambles and failed responses", async () => {
+  const text = vi.fn();
+  promptImplementation = async () => {
+    for (const stopReason of ["toolUse", "error", "aborted"] as const) {
+      eventHandler?.({ type: "message_end", message: {
+        role: "assistant", content: [{ type: "text", text: "I'm implementing it now." }],
+        stopReason, usage: emptyUsage,
+      } });
+    }
+    eventHandler?.({ type: "message_end", message: {
+      role: "assistant", content: [{ type: "text", text: "The tool refused; no work started." }],
+      stopReason: "stop", usage: emptyUsage,
+    } });
+  };
+  const bot = await agent({ cwd: "/project", model: "anthropic/claude-opus-4-5", output: "text", textDelivery: "final" });
+  try {
+    await bot.run(createWorkflowContext(), "Look it up", { onText: text });
+    expect(text.mock.calls).toEqual([["The tool refused; no work started."]]);
+  } finally { bot.dispose(); }
+});
+
 test("text mode keeps progress delivery but returns only the final response", async () => {
   const text = vi.fn();
   promptImplementation = async () => {
@@ -1489,7 +1510,7 @@ test("tool activity excludes raw arguments and results and counts failures until
   };
   await runAgent(createWorkflowContext(), "Investigate", { cwd: "/project", model: "anthropic/claude-opus-4-5", onActivity });
   expect(onActivity.mock.calls.filter(([event]) => event.phase !== "started").map(([event]) => event.failures)).toEqual([1, 2, 0, 1]);
-  expect(onActivity).toHaveBeenCalledWith({ type: "tool", operation: "edit", phase: "failed", failures: 2, error: "unknown" });
+  expect(onActivity).toHaveBeenCalledWith({ type: "tool", toolName: "edit", operation: "edit", phase: "failed", failures: 2, error: "unknown" });
   expect(JSON.stringify(onActivity.mock.calls)).not.toMatch(/private|secret/);
 });
 

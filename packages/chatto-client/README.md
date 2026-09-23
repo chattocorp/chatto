@@ -1,6 +1,6 @@
 # Chatto client helpers
 
-`@chatto/client` is an internal workspace package for Chatto 0.5 bots and
+`@chatto/client` is an internal workspace package for Chatto 0.5
 integrations. It supplies authenticated ConnectRPC JSON requests, message
 delivery, complete thread reads, reactions, typing refresh helpers, and realtime events.
 It is not published to npm. Realtime uses `@chatto/api-types` and its protobuf runtime.
@@ -27,14 +27,6 @@ credentials, and URLs. The package does not log requests or responses.
   `id`, `roomId`, `authorId`, and optional `body`, `threadRootId`, and `inReplyTo`.
   It is a projection for integrations, not a complete renderable message.
   Missing or mismatched message identity returns `undefined`; RPC failures reject.
-- `addressedMessage(event, { viewerId, signal })` recognizes textual DMs, viewer
-  mentions, and verified replies to the viewer. Obtain `viewerId` from this
-  connection's `getViewer()`. It returns an `AddressedMessage` with addressing
-  `reasons`, or `undefined` for unrelated, self-authored, or non-text events.
-  Unmentioned replies require a message lookup to verify author, room, and thread.
-  DMs and mentions need no lookup; their reasons do not include a verified reply.
-  Errors and cancellation propagate. Hosts decide whether a lookup failure is
-  retryable or can be ignored; the client does not log or advance checkpoints.
 - `rpc<T>` calls a resource service such as `ViewerService/GetViewer` with
   protobuf JSON. `T` is the caller's response type, not runtime validation.
   Use `@chatto/api-types` for generated protocol definitions.
@@ -46,8 +38,9 @@ credentials, and URLs. The package does not log requests or responses.
   associate every chunk with its prompting message. The thread root stays separate.
   `createMessage` also accepts this destination field; its explicit reply argument
   takes precedence. Existing destinations need no changes.
-- `readThread` reads all history pages, puts the root first, and removes page
-  overlap. It returns textual messages with IDs, authors, and bot/human roles.
+- `readThread({ roomId, threadRootId }, signal)` reads all history pages, puts
+  the root first, and removes page overlap. It returns textual messages with
+  IDs and authors, without bot-specific roles.
   It rejects missing pages and repeated or missing pagination cursors.
 - `addReaction` targets a message event. The host chooses the emoji.
 - `refreshTyping` makes one presence request. `withTyping` refreshes during
@@ -61,14 +54,14 @@ Requests have a ten-second timeout. A complete thread read has a thirty-second
 total timeout. Caller cancellation also reaches the transport. The client never
 retries requests: a failed connection can leave delivery uncertain.
 
-The addressing helper returns Chatto message data, not webhook deliveries or
-workflow inputs. Sender restrictions, conversation keys, deduplication, replies,
-and workflow registration remain host responsibilities. Apply sender restrictions
-before calling the helper to avoid unnecessary lookups. These helpers are additive;
-existing RPC and realtime callers need no migration.
+Bot conventions live in [`@chatto/bot-client`](../chatto-bot-client/README.md).
+This includes addressing recognition, bot-relative thread roles, reply context,
+conversation keys, and process-local deduplication. OAuth login, webhook
+authentication, workflow routing, and agent behavior remain host responsibilities.
 
-OAuth login, webhook authentication, deduplication,
-conversation routing, and agent behavior remain the host's responsibility.
+Migration: `client.addressedMessage` and its addressing types moved to the bot
+package. Thread reads now take `{ roomId, threadRootId }` instead of a webhook
+delivery and no longer return bot/human roles. Use the bot adapter when needed.
 
 ## Realtime events
 

@@ -42,12 +42,22 @@ test("reloaded routes feed the original inbox and use new code only for new conv
 });
 
 test("failed registration can retry the same delivery", async () => {
-  const route = createChattoRouter({ name: "bot", output: Type.String(), post: async () => {}, run: async () => "ok" }).route;
+  const state = createConversationState();
+  const route = createChattoRouter({ name: "bot", state, output: Type.String(), post: async () => {}, run: async () => "ok" }).route;
   const delivery: Delivery = { version: 1, id: "first", type: "message.created", triggers: ["direct_message"],
     occurred_at: "now", bot_id: "bot", room_id: "room", thread_root_id: null,
     message: { id: "first", author_id: "human", body: "hello" } };
-  const start = vi.fn().mockRejectedValueOnce(new Error("disk failure")).mockResolvedValue({ id: "run" });
+  const start = vi.fn().mockImplementationOnce(async () => {
+    expect(state.seen.size).toBe(0);
+    throw new Error("disk failure");
+  }).mockImplementationOnce(async () => {
+    expect(state.seen.size).toBe(0);
+    return { id: "run" };
+  });
   await expect(route({ start }, delivery)).rejects.toThrow("Conversation registration failed");
+  expect(state.seen.size).toBe(0);
+  expect(state.conversations.size).toBe(0);
   await route({ start }, delivery);
+  expect(state.seen.size).toBe(1);
   expect(start).toHaveBeenCalledTimes(2);
 });

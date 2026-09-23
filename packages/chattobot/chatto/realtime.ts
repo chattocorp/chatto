@@ -1,4 +1,6 @@
-import { createChattoClient, type AddressedMessage, type RealtimeCheckpoint } from "@chatto/client";
+import { createChattoClient, type RealtimeCheckpoint } from "@chatto/client";
+import { createBotClient, type AddressedMessage } from "@chatto/bot-client";
+import { threadLocation } from "../thread.ts";
 import type { EventSource } from "runling/web";
 import { log } from "runling";
 import { setTimeout as delay } from "node:timers/promises";
@@ -33,7 +35,8 @@ export const chattoSource: EventSource = async ctx => {
   const allowedUserId = process.env.CHATTO_ALLOWED_USER_ID?.trim() || undefined;
   if (!serverUrl || !apiKey) throw new Error("Set CHATTO_URL and CHATTO_API_KEY");
   const client = createChattoClient({ serverUrl, apiKey });
-  const { id: botId } = await client.getViewer({ signal: ctx.signal });
+  const botClient = await createBotClient(client, { signal: ctx.signal });
+  const botId = botClient.viewerId;
   const identity = JSON.stringify([new URL(serverUrl).origin, botId]);
   let session = ctx.state.get("chatto") as Session | undefined;
   if (!session || session.identity !== identity) {
@@ -48,7 +51,8 @@ export const chattoSource: EventSource = async ctx => {
     state: session.conversations, model: process.env.CHATTO_AGENT_MODEL,
     investigation: investigationSettings(),
     implementation: implementationSettings(),
-    post: client.postMessage, typing: client.refreshTyping, readThread: client.readThread,
+    post: client.postMessage, typing: client.refreshTyping,
+    readThread: (delivery, signal) => botClient.readThread(threadLocation(delivery), signal),
     acknowledge: (delivery, signal) => client.addReaction(delivery.room_id, delivery.message.id, "eyes", signal),
   });
   await client.consumeRealtime({
@@ -63,7 +67,7 @@ export const chattoSource: EventSource = async ctx => {
       // Ignore before routing: disallowed senders cannot start, steer, cancel,
       // or trigger acknowledgements for an existing conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await client.addressedMessage(event, { viewerId: botId, signal: ctx.signal }).catch(() => {
+      const message = await botClient.addressedMessage(event, { signal: ctx.signal }).catch(() => {
         ctx.signal.throwIfAborted();
         // Missing reply targets do not stop this bot's realtime source.
         console.warn("ChattoBot could not verify a reply target; ignoring the unmentioned message.");

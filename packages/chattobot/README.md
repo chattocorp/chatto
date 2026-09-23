@@ -5,9 +5,17 @@ Chatto direct messages, mentions, and direct replies to its own messages.
 It owns its realtime source configuration and Chatto transport adapter.
 It is the private workspace package `@chattocorp/chattobot` under
 `packages/chattobot/`. It depends on the public Runling package API and
-`@chatto/client`.
+`@chatto/client` and `@chatto/bot-client`. The client owns API and realtime
+transport. The bot client supplies identity, addressing, thread roles,
+conversation keys, and acceptance tracking. ChattoBot owns Runling routing,
+inboxes, cancellation, and conversation lifetime. See the
+[bot client guide](../chatto-bot-client/README.md).
 
 ## Run locally
+
+Use `pnpm start` to load the bot once without automatic reload. Use `pnpm dev`
+for development; it passes `--watch` to `runling serve`. Both start the realtime
+source and console. Without `--watch`, restart to load code or configuration changes.
 
 1. Run `mise setup-frontend` from the monorepo root.
 2. Copy `.env.example` to `.env` in this directory. Set `CHATTO_URL` to your Chatto
@@ -18,10 +26,23 @@ It is the private workspace package `@chattocorp/chattobot` under
    explicit mention even in DMs; membership alone does not pass that check.
    This can suppress ordinary DM deliveries. Broad `message.read` access works
    around that server behavior, but is not a ChattoBot requirement.
-3. Configure OpenRouter in Pi with `/login openrouter`, or set
-   `OPENROUTER_API_KEY` in `.env`. The default model is
+3. Set `OPENROUTER_API_KEY` in `.env`; no Pi login is required. The key is
+   available to all agents that use an OpenRouter model. An existing Pi login
+   is also supported. The default model is
    `openrouter/google/gemma-4-26b-a4b-it`. Set `CHATTO_AGENT_MODEL` to select
    another configured model.
+   To use GLM 5.3 Flash for investigation and implementation, add:
+
+   ```dotenv
+   OPENROUTER_API_KEY=your-openrouter-api-key
+   CHATTO_INVESTIGATION_MODEL=openrouter/z-ai/glm-5.3-flash
+   CHATTO_IMPLEMENTATION_MODEL=openrouter/z-ai/glm-5.3-flash
+   ```
+
+   `runling serve` loads `.env` from its working directory at startup. Restart
+   the bot after changes. Existing shell environment variables take precedence
+   over values in `.env`. OpenRouter and its selected model provider receive
+   the prompts and source excerpts sent to the model.
 4. From the repository root, run:
 
    ```sh
@@ -72,8 +93,9 @@ in the DM thread or mention the bot with
 `/cancel` in the thread to stop the conversation.
 Duplicate deliveries do not start another run.
 
-A conversation ends after 15 minutes without a new message. Conversation state
-is held in memory and is lost on process restart. Config reload preserves active
+A conversation ends after 15 minutes without a new message. Live conversation
+state and completed plans are held in memory and are lost on process restart.
+Config reload preserves active
 conversations for the same source name, server, and bot identity. Existing
 conversations keep their original code, server, and credentials; new conversations
 use updated code and connection settings.
@@ -126,8 +148,11 @@ The chat agent can call `investigateChatto` with a question and relevant context
 It supplies a brief announcement in the user's language. The tool posts that
 message to the conversation thread and waits for delivery before starting work.
 If posting fails or the conversation is cancelled, the investigation does not start.
-Matching adjacent assistant text and tool announcements share one delivery when
-they arrive within ten seconds; ordinary repeated assistant replies are preserved.
+Tool-call preambles stay in agent logs. A delegation announcement or implementation
+refusal supplies the turn's user-facing reply; the supervisor's second version
+is suppressed. Later turns can report progress or answer new questions normally.
+An investigation completion notification cannot authorize implementation. A
+refusal states whether work is active, was already attempted, or was not started.
 Runling's `taskTool` bridge starts a background child workflow and returns a task
 handle. The workflow is shown under the conversation in the console.
 A separate read-only agent reads and searches files in a new detached worktree.
@@ -136,18 +161,45 @@ implementation requests produce an assessment and suggested changes. Its report 
 the chat agent with findings, source references, test coverage inspected, limitations, and the base
 commit. Progress and completion notifications wake the owning chat agent. It
 decides which developments need a short user update and explains the final result.
-Worker progress is coalesced over 30-second intervals; raw shell output is not
-posted to Chatto. Progress comes from accepted `recordFinding` calls. Free-form
-worker narration is not forwarded to the owner.
+Worker progress is coalesced over two-minute intervals; raw shell output is not
+posted to Chatto. Accepted findings and worker commentary stay in the task buffer
+without a notification for each finding. Completion and important blockers wake
+the owner. A newer host phase supersedes an older progress announcement.
 Provider retries and blockers notify the owner immediately. Each incoming prompt
 includes task status and the age of the latest finding, so the owner can distinguish
 old findings from current activity. No status polling tool is exposed.
 Each delegated task retains a bounded local buffer of worker commentary and
 findings. The owner receives a fresh snapshot on every user message and task
-notification. Workflow state records the current phase; implementation also
+notification. JSON task results are decoded into structured values in this
+snapshot; plain-text or truncated results remain text. Retained Runling records
+are unchanged. Workflow state records the current phase; implementation also
 records completed and pending checks. Commentary is historical context, not
 proof of current activity, and does not itself trigger a reply. The buffer is
 process-local and does not survive a restart.
+
+Both direct investigation calls and the agent tool default to `purpose: assessment`.
+For a feature or bug plan, the supervisor explicitly selects `purpose: implementation` and
+returns a typed plan through `prepareImplementationPlan`. The plan contains a
+goal, base commit, file-level steps, acceptance criteria, proposed checks, and
+open questions. An assessment-only source question can omit a plan. A missing
+required plan gets one corrective turn, then a blocked `missing_plan` result.
+The conversation retains successful plans by investigation task ID. On a later
+implementation request, the supervisor passes `investigationId`; host code
+copies the original plan into the implementation input. Unknown or unfinished
+plan IDs are rejected before work starts. Plans are not reconstructed from chat
+prose. Plans live only in the active conversation.
+
+After a process restart, old runs remain history only. A new addressed message
+starts a new run with a fresh agent and the current thread as context. It does
+not restore plans, inboxes, or in-flight work. If an implementation was interrupted,
+inspect its worktree, branch, and any PR before asking for another attempt.
+Old experimental checkpoint files are ignored; no workflow is resumed at startup.
+
+The implementer verifies the plan against its current base commit, preserves
+acceptance criteria, and reports necessary deviations. Open questions are not
+automatic design requirements. A direct implementation request can still start
+without an investigation. A plan does not grant permission to implement or
+replace the host's validation commands.
 
 Observed tool activity replaces older progress prose. Tool failures appear in
 snapshots with safe error categories and no raw error output. One failed lookup
@@ -165,9 +217,10 @@ Reports must distinguish source evidence from hypotheses and respect the
 separate Chatto, Authling, and Runling product boundaries.
 
 The investigator records structured findings through `recordFinding`. The host
-checks each quoted excerpt against its relative file path and exact line range
-in the retained checkout. Invalid citations are rejected. Only accepted findings
-reach the owner. A completed investigation without accepted findings gets one
+extracts excerpts from relative file paths and line ranges in the retained
+checkout. Optional supplied quotes must match the source. Invalid citations are rejected. Only accepted findings
+reach the owner. Source checks do not establish that a claim follows from the excerpt.
+A completed investigation without accepted findings gets one
 corrective turn in the same session and checkout. If it still supplies no findings,
 the result is blocked with `missing_evidence`. `missing_outcome` identifies a
 missing final report; `provider_error` identifies a provider failure. Deliberate
@@ -251,7 +304,11 @@ After the worker reports its edits, the host runs `check:frontend` and
 root `check` and `test` scripts. Commands run through `mise x -- pnpm run`.
 Changes to Go source or module files also run `mise run test-cli`.
 Validation failures return bounded diagnostic output to the same worker, with
-at most two repair turns. Every check must pass on the final Git tree. If a
+at most two repair turns. The final result also retains failed-check diagnostics
+for supervisor questions, with known host credentials, URLs, email addresses,
+and IPv4 addresses removed. These private diagnostics are not operational logs
+and must not be copied verbatim into chat or PR descriptions.
+Every check must pass on the final Git tree. If a
 check changes source files, validation must run again. Setup and each check
 have a ten-minute limit; the complete flow has a thirty-minute limit.
 The owner cannot start a replacement implementation from a task notification.

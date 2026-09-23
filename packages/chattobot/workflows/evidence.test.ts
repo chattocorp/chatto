@@ -21,6 +21,14 @@ test("checks exact source lines without claiming reproduction or applied changes
   expect(renderFindings([finding])).toContain("Tests were not run.");
   expect(renderFindings([])).toContain("No checked source evidence");
 });
+
+test("extracts source excerpts without asking the agent to reproduce tabs and whitespace", async () => {
+  const { root, finding } = await fixture();
+  await writeFile(join(root, "example.ts"), "first\n\tconst answer = 42;\nlast\n");
+  delete finding.evidence[0]!.quote;
+  await verifyFinding(root, finding, new AbortController().signal);
+  expect(finding.evidence[0]!.quote).toBe("\tconst answer = 42;");
+});
 test.each([
   { startLine: 1, endLine: 1 }, { endLine: 10 }, { startLine: 0 },
   { quote: "invented quote" }, { path: "../outside.ts" }, { path: "/etc/passwd" }, { path: "missing.ts" },

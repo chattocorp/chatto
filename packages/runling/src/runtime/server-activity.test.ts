@@ -31,7 +31,26 @@ test("throttles agent activity but always reports tool failures and completion",
   write({ type: "agent.tool", agentId: "agent", operation: "read", phase: "failed", timestamp: 15_002 });
   write({ type: "step.finished", id: "task", status: "failed", durationMs: 5, timestamp: 15_003 });
   expect(vi.mocked(serverLog).mock.calls.map(call => [call[0], call[2]?.activity])).toEqual([
-    ["info", "Agent started"], ["info", "Agent active"], ["error", "Tool read failed"], ["error", "Task failed · 5 ms"],
+    ["info", "Agent started · model"], ["error", "Tool read failed"], ["error", "Task failed · 5 ms"],
   ]);
   expect(JSON.stringify(vi.mocked(serverLog).mock.calls)).not.toContain("secret");
+});
+
+test("summarizes successful calls, reports failures immediately, and associates host milestones", () => {
+  const write = createServerActivityLog("run", "sunny-poems-5431");
+  write({ type: "task.linked", taskId: "step", channelId: "channel", timestamp: 0 });
+  write({ type: "agent.started", activityId: "step", agentId: "worker", label: "implement", model: "test/model", color: "blue", timestamp: 0 });
+  for (let timestamp = 1; timestamp <= 100; timestamp++) {
+    write({ type: "agent.tool", activityId: "step", agentId: "worker", operation: "read", phase: "started", timestamp });
+    write({ type: "agent.tool", activityId: "step", agentId: "worker", operation: "read", phase: "succeeded", timestamp });
+  }
+  expect(serverLog).toHaveBeenCalledOnce();
+  write({ type: "agent.tool", activityId: "step", agentId: "worker", operation: "search", phase: "succeeded", timestamp: 30_000 });
+  write({ type: "agent.tool", activityId: "step", agentId: "worker", operation: "other", toolName: "preparePullRequest", phase: "failed", timestamp: 30_001 });
+  write({ type: "task.activity", channelId: "channel", message: "Validation failed", timestamp: 30_002 });
+  expect(vi.mocked(serverLog).mock.calls.map(call => call[2]?.activity)).toEqual([
+    "Agent started · test/model", "Activity · 100 read, 1 search", "Tool preparePullRequest failed", "Validation failed",
+  ]);
+  expect(vi.mocked(serverLog).mock.calls[1]?.[2]).toMatchObject({ agentLabel: "implement", taskReference: "task-1" });
+  expect(vi.mocked(serverLog).mock.calls[3]?.[2]).toMatchObject({ taskReference: "task-1" });
 });

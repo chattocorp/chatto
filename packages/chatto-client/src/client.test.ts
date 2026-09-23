@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createChattoClient, withTyping } from "./index.js";
 
 const destination = { roomId: "room", threadRootId: "root" };
-const delivery = { room_id: "room", thread_root_id: null, bot_id: "bot", message: { id: "root" } };
+const delivery = { roomId: "room", threadRootId: "root" };
 const event = (id: string, body: string, actorId = "human") => ({
   id, messagePosted: { message: { actorId, body } },
 });
@@ -102,7 +102,8 @@ test("reads overlapping history pages with one root and stable conversation orde
   const client = createChattoClient({ serverUrl: "https://chat.example", apiKey: "secret", fetch: request });
   const messages = await client.readThread(delivery);
   expect(messages.map(message => message.id)).toEqual(["root", "one", "two", "three"]);
-  expect(messages.at(-1)!.role).toBe("bot");
+  expect(messages.at(-1)!.authorId).toBe("bot");
+  expect(messages.at(-1)).not.toHaveProperty("role");
   expect(JSON.parse(String(request.mock.calls[1]![1]!.body))).toMatchObject({ before: "older", threadRootEventId: "root", limit: 100 });
 });
 

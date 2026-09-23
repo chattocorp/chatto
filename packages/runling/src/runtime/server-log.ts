@@ -32,7 +32,8 @@ function terminalLine(level: Level, event: string, fields: Record<string, unknow
     case "source.failed": message = `Source ${plain(fields.source)} failed`; break;
     default: message = event.replace(/[._]/g, " ");
   }
-  const identifiers = [fields.runReference || (fields.runId ? plain(fields.runId).slice(0, 8) : undefined), fields.taskReference, fields.agentId].filter(Boolean).map(plain);
+  const task = fields.agentLabel ? [fields.agentLabel, fields.taskReference].filter(Boolean).map(plain).join(":") : fields.taskReference ?? fields.agentId;
+  const identifiers = [fields.runReference || (fields.runId ? plain(fields.runId).slice(0, 8) : undefined), task].filter(Boolean).map(plain);
   const prefix = identifiers.length ? `${paint("magenta", `[${identifiers.join(" / ")}]`)} ` : "";
   const detail = fields.error instanceof Error ? fields.error.message : fields.message;
   if (typeof detail === "string") message += ` · ${plain(detail)}`;

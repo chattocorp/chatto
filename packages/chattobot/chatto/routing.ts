@@ -1,4 +1,5 @@
 import { createChattoClient, type ChattoPost, type Destination } from "@chatto/client";
+import { conversationKey as botConversationKey, createDeliveryTracker } from "@chatto/bot-client";
 export type { ChattoPost, Destination } from "@chatto/client";
 import type { WebhookRouter } from "runling/web";
 import { task, Type, TimeoutError, type WorkflowContext, type TSchema, type Static } from "runling";
@@ -56,28 +57,24 @@ export function createChattoRouter<Output extends TSchema>({ name, output, post,
   run: (ctx: WorkflowContext, delivery: Delivery, destination: Destination, inbox: ChattoInbox) => Promise<Static<Output>>;
 }) {
   const { conversations, seen, reserved } = state;
+  const deliveries = createDeliveryTracker({ accepted: seen });
   const deliveryKey = (delivery: Delivery) => JSON.stringify([delivery.bot_id, delivery.message.id]);
-  const conversationKey = (delivery: Delivery) => JSON.stringify([
-    delivery.bot_id, delivery.room_id, delivery.thread_root_id ?? delivery.message.id, delivery.message.author_id,
-  ]);
+  const conversationKey = (delivery: Delivery) => botConversationKey(delivery.bot_id, {
+    id: delivery.message.id, roomId: delivery.room_id,
+    threadRootId: delivery.thread_root_id ?? undefined, authorId: delivery.message.author_id,
+  });
   const routeDelivery = (delivery: Delivery): "start" | "ignored" | "duplicate" | "queued" | "cancelled" => {
     if (delivery.message.author_id === delivery.bot_id) return "ignored";
     if (!isDirectMessage(delivery) && !delivery.triggers.includes("mention") && !delivery.triggers.includes("reply")) return "ignored";
-    const now = Date.now();
-    for (const [id, expires] of seen) {
-      if (expires <= now) {
-        seen.delete(id);
-      }
-    }
     const id = deliveryKey(delivery);
-    if (seen.has(id)) return "duplicate";
-    seen.set(id, now + 86_400_000);
+    if (deliveries.has(id) || reserved.has(id)) return "duplicate";
     const key = conversationKey(delivery);
     const conversation = conversations.get(key);
     if (conversation) {
       if (conversation.cancelled) return "ignored";
       if (delivery.message.body.trim() === "/cancel") {
         conversation.cancelled = true;
+        deliveries.accept(id);
         // abort() intentionally throws; the workflow observes the same signal.
         try {
           conversation.ctx?.abort("Cancelled from Chatto");
@@ -87,6 +84,7 @@ export function createChattoRouter<Output extends TSchema>({ name, output, post,
         return "cancelled";
       }
       conversation.messages.push(delivery);
+      deliveries.accept(id);
       for (const listener of conversation.listeners) {
         listener();
       }
@@ -102,10 +100,10 @@ export function createChattoRouter<Output extends TSchema>({ name, output, post,
     reserved.add(id);
     try {
       await ctx.start(workflow, { input: delivery });
+      deliveries.accept(id);
     } catch (error) {
       // A failed journal creation must leave the delivery retryable.
       if (reserved.delete(id)) {
-        seen.delete(id);
         conversations.delete(conversationKey(delivery));
       }
       throw new RegistrationError(error);
@@ -123,6 +121,7 @@ export function createChattoRouter<Output extends TSchema>({ name, output, post,
       const outcome = routeDelivery(delivery);
       if (outcome !== "start") return outcome;
     }
+    deliveries.accept(deliveryKey(delivery));
     const threadRootId = delivery.thread_root_id ?? delivery.message.id;
     const key = conversationKey(delivery);
     const conversation = conversations.get(key)!;

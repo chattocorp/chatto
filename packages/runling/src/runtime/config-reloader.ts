@@ -16,14 +16,16 @@ export class ConfigReloader {
   private timer?: ReturnType<typeof setTimeout>;
   private disposed = false;
   private listeners = new Set<() => void>();
-  private watcher;
-  private ready: Promise<void>;
+  private watcher?: ReturnType<typeof watch>;
+  private ready: Promise<void> = Promise.resolve();
   error: string | undefined;
   revision = 0;
 
-  constructor(readonly path: string) {
+  /** Load once by default. Explicit reload() remains available without a watcher. */
+  constructor(readonly path: string, options: { watch?: boolean } = {}) {
+    if (!options.watch) return;
     const root = dirname(path);
-    this.watcher = watch(root, {
+    const watcher = this.watcher = watch(root, {
       ignoreInitial: true,
       persistent: false,
       ignored: (file, stats) => {
@@ -41,8 +43,8 @@ export class ConfigReloader {
       },
     });
     this.ready = new Promise((resolve, reject) => {
-      this.watcher.once("ready", resolve);
-      this.watcher.on("error", (error) => {
+      watcher.once("ready", resolve);
+      watcher.on("error", (error) => {
         reject(error);
         this.error = `Configuration watcher failed: ${error instanceof Error ? error.message : String(error)}`;
         serverLog("error", "config.watch_failed", { config: this.path, message: this.error });
@@ -125,6 +127,6 @@ export class ConfigReloader {
     this.disposed = true;
     clearTimeout(this.timer);
     this.listeners.clear();
-    return this.watcher.close();
+    return this.watcher?.close() ?? Promise.resolve();
   }
 }
