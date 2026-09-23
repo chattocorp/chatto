@@ -32,17 +32,25 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
   const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
   const readProfiles = async (read: () => Promise<APIDirectoryMember[]>) =>
     (store ? await store.readSnapshot(read) : await read()).map(mapDirectoryMember);
-  const batchUsers = async (userIds: string[]): Promise<APIDirectoryMember[]> => {
-    const response = await users.batchGetUsers({ userIds }, { headers: headers() });
+  const batchUsers = async (userIds: string[], minimumCursor?: string): Promise<APIDirectoryMember[]> => {
+    const requestHeaders = minimumCursor ? new Headers(headers()) : headers();
+    if (minimumCursor && requestHeaders instanceof Headers) {
+      requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
+    }
+    const response = await users.batchGetUsers(
+      { userIds },
+      { headers: requestHeaders, ...(minimumCursor ? { timeoutMs: 10_000 } : {}) }
+    );
     return response.users;
   };
   const loadUsers =
     store
-      ? async (ids: string[]) => (await store.resolve(ids, batchUsers)).map(mapDirectoryMember)
-      : async (ids: string[]) => {
+      ? async (ids: string[], minimumCursor?: string) =>
+          (await store.resolve(ids, batchUsers, minimumCursor)).map(mapDirectoryMember)
+      : async (ids: string[], minimumCursor?: string) => {
           const members: DirectoryMember[] = [];
           for (let offset = 0; offset < ids.length; offset += 100) {
-            members.push(...(await batchUsers(ids.slice(offset, offset + 100))).map(mapDirectoryMember));
+            members.push(...(await batchUsers(ids.slice(offset, offset + 100), minimumCursor)).map(mapDirectoryMember));
           }
           return members;
         };
@@ -141,7 +149,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
         }
       );
       options.signal?.throwIfAborted();
-      const members = await loadUsers(response.userIds);
+      const members = await loadUsers(response.userIds, options.minimumCursor);
       options.signal?.throwIfAborted();
       return {
         members,

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import { REALTIME_MINIMUM_CURSOR_HEADER } from '$lib/api-client/connect';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -230,6 +231,36 @@ describe('createMemberDirectoryAPI', () => {
       { roomId: 'room-1', search: 'bob', page: { limit: 5, offset: 0 } },
       { headers: undefined }
     );
+  });
+
+  it('waits for the join cursor when hydrating IDs from a room member page', async () => {
+    const member = {
+      user: { id: 'U2', login: 'newcomer', displayName: 'Newcomer' },
+      roles: []
+    };
+    mocks.listRoomMembers.mockResolvedValue({
+      userIds: ['U2'],
+      page: { totalCount: 1n, hasMore: false }
+    });
+    mocks.batchGetUsers.mockImplementation(async (_request, options) => ({
+      users: options.headers?.get(REALTIME_MINIMUM_CURSOR_HEADER) === 'join-cursor'
+        ? [member]
+        : []
+    }));
+    const api = createMemberDirectoryAPI({
+      baseUrl: '/api/connect', bearerToken: null,
+      serverId: 'cursor-test', queryScope: 'cursor-test'
+    });
+
+    const page = await api.listRoomMembers('room-1', '', 250, 0, {
+      minimumCursor: 'join-cursor'
+    });
+
+    expect(page.members.map((user) => user.id)).toEqual(['U2']);
+    expect(mocks.listRoomMembers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER))
+      .toBe('join-cursor');
+    expect(mocks.batchGetUsers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER))
+      .toBe('join-cursor');
   });
 
   it('defaults room member pages to 250 members', async () => {

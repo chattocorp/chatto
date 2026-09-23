@@ -15,11 +15,11 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-09-18 |
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-09-18 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-09-15 |
-| [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-09-15 |
+| [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-09-23 |
 | [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-09-04 |
 | [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-09-20 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-08-27 |
-| [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-09-14 |
+| [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-09-23 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-09-19 |
 | [FDR-012](FDR-012-notifications.md) | Notifications | Experimental | 2026-09-20 |
 | [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-09-20 |
@@ -34,7 +34,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-23 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-09-19 |
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-08-27 |
-| [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-09-21 |
+| [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-09-23 |
 | [FDR-026](FDR-026-last-room-memory.md) | Last-Room Memory | Active | 2026-06-16 |
 | [FDR-027](FDR-027-pwa-and-service-worker.md) | PWA & Service Worker | Active | 2026-09-21 |
 | [FDR-028](FDR-028-operator-api-and-cli.md) | Operator API & CLI | Active | 2026-09-23 |

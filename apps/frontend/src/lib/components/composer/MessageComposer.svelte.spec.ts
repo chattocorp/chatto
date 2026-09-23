@@ -66,6 +66,7 @@ const createMessageConnectMock = vi.hoisted(() => vi.fn());
 const updateMessageConnectMock = vi.hoisted(() => vi.fn());
 const fetchLinkPreviewConnectMock = vi.hoisted(() => vi.fn());
 const listRolesConnectMock = vi.hoisted(() => vi.fn());
+const mentionSearchMock = vi.hoisted(() => vi.fn(async () => [] as RoomMember[]));
 const roomStateMock = vi.hoisted(() => ({
   members: [] as RoomMember[],
   editState: {
@@ -168,7 +169,7 @@ vi.mock('$lib/state/room', () => ({
     get members() {
       return roomStateMock.members;
     },
-    searchMembers: vi.fn(async () => roomStateMock.members)
+    searchMembers: mentionSearchMock
   }),
   getComposerContext: () => ({
     editState: roomStateMock.editState,
@@ -396,6 +397,7 @@ describe('MessageComposer', () => {
     mockInstanceStores.serverInfo.supportsFeature.mockReturnValue(true);
     mockInstanceStores.roomUnread.setRoomUnread.mockClear();
     roomStateMock.members = [];
+    mentionSearchMock.mockReset().mockImplementation(async () => roomStateMock.members);
     roomStateMock.editState.eventId = null;
     roomStateMock.editState.originalBody = '';
     roomStateMock.editState.threadRootEventId = null;
@@ -944,6 +946,23 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body: '@alice' });
+    });
+
+    it('keeps loaded room members in mention results when server search returns other matches', async () => {
+      roomStateMock.members = [roomMember('ping')];
+      mentionSearchMock.mockResolvedValue([roomMember('ping-helper')]);
+      const { container } = renderMessageComposer({ roomId: 'mention-loaded-member' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '@ping');
+      await vi.waitFor(() => expect(mentionSearchMock).toHaveBeenCalledWith('ping'));
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')?.textContent)
+          .toContain('@ping-helper')
+      );
+      const handles = [...container.querySelectorAll('[data-testid="mention-autocomplete"] bdi')]
+        .map((element) => element.textContent);
+      expect(handles).toContain('@ping');
     });
 
     it('completes emoji before Enter can submit Markdown', async () => {

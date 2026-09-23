@@ -6,6 +6,8 @@ import { q } from '$lib/test-utils';
 import TypingIndicator from './TypingIndicator.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { UserStore } from '$lib/state/server/users.svelte';
 
 function member(id: string, displayName: string): RoomMember {
   return {
@@ -121,6 +123,35 @@ describe('TypingIndicator', () => {
       props: { typingUserIds: ['ghost', 'bob'], members: [member('bob', '')] }
     });
     expect(indicatorText(container)).toBe('Unknown user and bob are typing');
+  });
+
+  it('replaces an unknown typer with a late shared profile before membership loads', async () => {
+    const profiles = new UserStore();
+    const { container } = render(TypingIndicator, {
+      props: { typingUserIds: ['late'], members: [], profiles }
+    });
+    expect(indicatorText(container)).toBe('Unknown user is typing');
+
+    profiles.set('late', new DirectoryMember({
+      user: { id: 'late', login: 'late', displayName: 'Late Member', bot: {} }
+    }));
+
+    await expect.poll(() => indicatorText(container)).toBe('Late MemberBOT is typing');
+    expect(container.querySelectorAll('[data-testid="typing-avatar"]')).toHaveLength(1);
+    expect(container.querySelectorAll('.typing-label [data-testid="bot-badge"]')).toHaveLength(1);
+    profiles.dispose();
+  });
+
+  it('uses the shared profile when a member row has an older name', () => {
+    const profiles = new UserStore();
+    profiles.set('alice', new DirectoryMember({
+      user: { id: 'alice', login: 'alice', displayName: 'New Alice' }
+    }));
+    const { container } = render(TypingIndicator, {
+      props: { typingUserIds: ['alice'], members, profiles }
+    });
+    expect(indicatorText(container)).toBe('New Alice is typing');
+    profiles.dispose();
   });
 
   it('counts distinct people only', () => {

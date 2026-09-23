@@ -13,6 +13,7 @@ message list layout, and it announces changes politely to screen readers via a
 **Props:**
 - `typingUserIds` - Array of user IDs currently typing
 - `members` - Room members for resolving avatars and display names
+- `profiles` - Shared profiles for typers whose room membership is still loading
 -->
 <script module lang="ts">
   /** Maximum number of avatars shown regardless of group size. */
@@ -30,22 +31,33 @@ message list layout, and it announces changes politely to screen readers via a
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
+  import type { UserStore } from '$lib/state/server/users.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
 
   let {
     typingUserIds,
-    members
+    members,
+    profiles
   }: {
     typingUserIds: string[];
     members: RoomMember[];
+    /** Shared profiles can name a typer before room membership finishes loading. */
+    profiles?: Pick<UserStore, 'get' | 'isDeleted'>;
   } = $props();
+
+  function resolveMember(id: string): RoomMember | undefined {
+    if (profiles?.isDeleted(id)) return undefined;
+    const profile = profiles?.get(id);
+    return profile ? mapDirectoryMember(profile) : members.find((member) => member.id === id);
+  }
 
   // Resolve user IDs to members (for avatar URLs and display names), keeping
   // the order in which typers were reported.
   let activeUserIds = $derived([...new Set(typingUserIds)]);
   let typingMembers = $derived(
     activeUserIds
-      .map((id) => members.find((member) => member.id === id))
+      .map(resolveMember)
       .filter((member): member is RoomMember => member != null)
   );
 
@@ -76,7 +88,7 @@ message list layout, and it announces changes politely to screen readers via a
   });
   let labelAccounts = $derived(
     activeUserIds.slice(0, MAX_LABEL_NAMES).map((id) => {
-      const member = members.find((candidate) => candidate.id === id);
+      const member = resolveMember(id);
       return {
         name: member?.displayName || member?.login || m('common.unknown_user'),
         identity: member

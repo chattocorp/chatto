@@ -1669,6 +1669,57 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(store.projection.rooms.get('R1')?.memberUserIds).toEqual(['U1', 'U2']);
   });
 
+  it('loads a joining user at the event cursor without a retained room store', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const profile = new DirectoryMember({
+      user: new User({ id: 'U2', login: 'newcomer', displayName: 'Newcomer' })
+    });
+    apiMocks.readRealtimeUsers.mockResolvedValueOnce([
+      new RealtimeResourceUpdate({
+        resource: { case: 'users', value: { users: [profile] } },
+        replace: false
+      })
+    ]);
+
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'join-cursor',
+      event: new RealtimeEvent({
+        actorId: 'U2',
+        event: { case: 'userJoinedRoom', value: new UserJoinedRoomEvent({ roomId: 'R1' }) }
+      })
+    }));
+    await store.waitForRealtimeReconciliation();
+
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledWith(['U2'], 'join-cursor');
+    expect(store.projection.users.get('U2')).toEqual(profile);
+  });
+
+  it('does not restore a joining user deleted before their profile read finishes', async () => {
+    const response = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeUsers.mockReturnValueOnce(response.promise);
+    const store = makeStore(new FakeServerConnection([]));
+
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({
+      cursor: 'join-cursor',
+      event: new RealtimeEvent({
+        actorId: 'U2',
+        event: { case: 'userJoinedRoom', value: new UserJoinedRoomEvent({ roomId: 'R1' }) }
+      })
+    }));
+    await vi.waitFor(() => expect(apiMocks.readRealtimeUsers).toHaveBeenCalledWith(['U2'], 'join-cursor'));
+    store.realtimeProjectionHandler(userDeleted('U2'));
+    response.resolve([new RealtimeResourceUpdate({
+      resource: { case: 'users', value: { users: [new DirectoryMember({
+        user: new User({ id: 'U2', login: 'removed' })
+      })] } },
+      replace: false
+    })]);
+    await store.waitForRealtimeReconciliation();
+
+    expect(store.projection.users.has('U2')).toBe(false);
+    expect(store.projection.users.isDeleted('U2')).toBe(true);
+  });
+
   it('discards resource responses from a superseded reset generation', async () => {
     const oldState = deferred<RealtimeResourceUpdate[]>();
     const stateResource = (motd: string) =>

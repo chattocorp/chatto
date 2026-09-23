@@ -1,7 +1,7 @@
 # FDR-025: User Search & Member Directory
 
 **Status:** Active
-**Last reviewed:** 2026-09-21
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -23,8 +23,11 @@ Any authenticated user can browse the server's member directory — a paginated 
 - The bundled client retains loaded room members for the authenticated server
   session. Moving between rooms reuses these lists. Realtime joins, leaves, and
   profile changes update retained rooms, including rooms that are not open.
+- A room join also loads the joining user's profile when the client has not
+  opened that room. The profile becomes available to other client views.
 - Mention completion can search for names before the room list finishes
-  loading. It does not wait for the background member scan.
+  loading. It combines search results with members already loaded in the room.
+  Mention completion does not wait for the background member scan.
 - Connected members load independently of the full list. This includes available,
   away, and do-not-disturb users. The full list continues loading names for
   mention completion. A failed preview does not stop that full load.
@@ -88,6 +91,7 @@ pagination counts IDs even when an account disappears before its row is loaded.
 **Decision:** Room membership reads return IDs. The client shares cached user
 profiles across rooms and resolves missing profiles in batches. The room store
 continues background loading so local mention matching has names available.
+Reads caused by a room join wait for that join before they load profiles.
 **Why:** A room switch must not repeat profile reads for users the client already
 knows. Each membership page must not decrypt every profile in the room.
 **Tradeoff:** A cold load requires a second request for names. Name search remains
