@@ -424,7 +424,7 @@ export class MessageComposerState {
       const eventId = this.editState.eventId;
       const originalBody = this.editState.originalBody;
       const api = this.editorApi;
-      if (eventId && originalBody && this.#editSeededForEvent !== eventId) {
+      if (eventId && this.#editSeededForEvent !== eventId) {
         this.#editSeededForEvent = eventId;
         this.autocomplete.reset();
         this.draft.clearText();
@@ -627,7 +627,10 @@ export class MessageComposerState {
 
   async #editMessage(): Promise<void> {
     const body = bodyForSend(this.message);
-    if (!body) {
+    const echoStateChanged =
+      this.showEditEchoToggle &&
+      this.alsoSendToChannel !== (this.editState.channelEchoEventId !== null);
+    if (!body && !(this.editState.originalBody === '' && echoStateChanged)) {
       toast.error('Message cannot be empty');
       return;
     }
@@ -635,9 +638,9 @@ export class MessageComposerState {
     if (!eventId) return;
     const input: UpdateMessageInput = {
       roomId: this.#dependencies.getRoomId(),
-      eventId,
-      body
+      eventId
     };
+    if (body) input.body = body;
     if (this.showEditEchoToggle) input.alsoSendToChannel = this.alsoSendToChannel;
     await this.submission.editMessage(input);
   }
