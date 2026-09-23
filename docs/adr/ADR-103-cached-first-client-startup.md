@@ -20,7 +20,9 @@ paint for the selected server. Other remote servers start discovery when
 the user opens them. The saved viewer remains display data. While its viewer
 check is pending, the connection holds private reads and rejects server
 actions. It allows the viewer check to proceed. A successful check releases
-the held reads and realtime startup only for the same user. An account change
+the held reads and realtime startup only for the same user. The response guard
+records the private data generation after the held read is released. This
+prevents viewer verification from rejecting a valid response. An account change
 clears the old private view through the existing session replacement boundary.
 On chat-wide pages without a selected saved view, the client starts the origin
 server with the public shell requests. These pages use its live projections.

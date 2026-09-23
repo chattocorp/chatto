@@ -79,8 +79,9 @@ export function createChattoTransport(
     interceptors:
       config.dataGeneration || config.renewBearerToken || config.beforePrivateRequest
         ? [
-            ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
+            // The verification gate must run before the response guard captures its generation.
             ...(config.beforePrivateRequest ? [privateRequestInterceptor(config.beforePrivateRequest)] : []),
+            ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
             ...(config.renewBearerToken ? [bearerRenewalInterceptor(config)] : [])
           ]
         : undefined

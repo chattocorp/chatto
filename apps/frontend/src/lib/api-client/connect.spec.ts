@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Code, ConnectError } from '@connectrpc/connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { describe, expect, it, vi } from 'vitest';
 import {
   bearerRenewalInterceptor,
+  createChattoClient,
   dataGenerationInterceptor,
   privateRequestInterceptor,
   StaleResponseError
@@ -24,6 +26,38 @@ describe('saved-view private request boundary', () => {
       method: { name: 'ListMembers' }, signal } as never);
     expect(beforeRequest).toHaveBeenCalledOnce();
     expect(beforeRequest).toHaveBeenCalledWith('ListMembers', signal);
+  });
+
+  it('records the data generation after viewer verification releases a private read', async () => {
+    let generation = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const beforeRequest = vi.fn(async () => gate);
+    const fetch = vi.fn(async () =>
+      new Response(new Uint8Array(), {
+        status: 200,
+        headers: { 'Content-Type': 'application/proto' }
+      })
+    );
+    vi.stubGlobal('fetch', fetch);
+    try {
+      const client = createChattoClient(RoomService, {
+        baseUrl: 'http://localhost:1234/api/connect',
+        bearerToken: null,
+        dataGeneration: () => generation,
+        beforePrivateRequest: beforeRequest
+      });
+      const result = client.listMembers({ roomId: 'room' });
+      await vi.waitFor(() => expect(beforeRequest).toHaveBeenCalledOnce());
+      generation++;
+      release();
+      await expect(result).resolves.toBeDefined();
+      expect(fetch).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
