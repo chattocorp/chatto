@@ -230,6 +230,12 @@
         "grey": "Šedá",
         "preview": "Náhled"
       },
+      "contrast": {
+        "label": "Kontrast",
+        "softer": "jemnější kontrast",
+        "current": "současný kontrast",
+        "stronger": "výraznější kontrast"
+      },
       "depth": {
         "title": "Styl rozhraní",
         "flat": "Plochý",

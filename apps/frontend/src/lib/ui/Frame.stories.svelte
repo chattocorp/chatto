@@ -13,7 +13,7 @@
 <Story name="Application surface" asChild>
   <div class="flex h-80 max-w-4xl bg-surface desktop-presentation:app-frame-shell desktop-presentation:p-3">
     <Frame>
-      <aside class="w-48 border-e border-border bg-surface p-4">
+      <aside class="relative z-50 w-48 border-e border-border bg-surface p-4">
         <p class="font-medium">Spaces</p>
         <p class="mt-3 text-sm text-muted">Product</p>
         <p class="mt-2 text-sm text-muted">Support</p>

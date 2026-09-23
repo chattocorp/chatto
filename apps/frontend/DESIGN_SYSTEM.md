@@ -454,7 +454,7 @@ instead of adding local gradients or arbitrary inset shadows.
 | `floating-frame` | Lit panel, dialog, and menu frames. |
 | `floating-inset` | Recessed content inside those frames. |
 | `sheet-frame` | Touch dialog and menu frames; uses shared depth, shell radius, and safe-area spacing. |
-| `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no outer border or highlight in any depth mode. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
+| `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no depth highlight on its outer edge. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. Higher contrast settings strengthen the edge in both themes. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
 | `accent-swatch` | Palette samples with their own colour gradient and shared lit edges. |
 
 The shared `--shell-*` theme tokens soften shell bevels in light mode with a
@@ -581,6 +581,21 @@ adjust the owning component when the hierarchy itself is wrong.
 
 For text, use `text-text` for normal copy, `text-text-top` for the strongest
 heading contrast, and `text-muted` for metadata. Use `link` for inline links.
+
+The **Contrast** slider in Appearance's UI Style panel runs from 0% to 100%.
+At 50%, the semantic palette keeps its original colours. Lower values soften
+text and surface separation; higher values strengthen them. Keep text,
+backgrounds, surfaces, and borders on semantic tokens so they respond together.
+Accent, status, focus, and depth treatments stay independent of this control.
+At 0%, headings, body text, and muted text become deliberately softer in both
+themes. Action colours keep their separate contrast.
+At 100%, light uses black text on a white background with dark boundaries.
+Dark uses white text on a black background with light boundaries. The app frame
+and recessed panel edges use the same clear boundary. The prominent
+range field gains a visible boundary as contrast increases.
+The control fills the UI Style panel width and uses the prominent `RangeField`
+variant, with a larger track, thumb, and pointer target. Other range settings
+keep the standard size.
 
 ## Components, Utilities, And Tailwind
 

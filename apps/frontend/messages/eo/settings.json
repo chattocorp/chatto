@@ -230,6 +230,12 @@
         "grey": "Griza",
         "preview": "Antaŭrigardo"
       },
+      "contrast": {
+        "label": "Kontrasto",
+        "softer": "pli milda kontrasto",
+        "current": "nuna kontrasto",
+        "stronger": "pli forta kontrasto"
+      },
       "depth": {
         "title": "Interfaca stilo",
         "flat": "Plata",

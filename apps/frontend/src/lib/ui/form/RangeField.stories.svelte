@@ -21,6 +21,7 @@
   let volume = $state(70);
   let steppedVolume = $state(100);
   let disabledValue = $state(35);
+  let contrastAge = $state(30);
 </script>
 
 <Story name="Default" asChild>
@@ -33,6 +34,22 @@
       max={100}
       bind:value={volume}
       displayValue={`${volume}%`}
+    />
+  </div>
+</Story>
+
+<Story name="Prominent" asChild>
+  <div class="w-full">
+    <RangeField
+      id="ui-contrast"
+      label="Contrast"
+      min={20}
+      max={40}
+      step={0.5}
+      ticks={[20, 30, 40]}
+      bind:value={contrastAge}
+      displayValue={`${Math.round((contrastAge - 20) * 5)}%`}
+      prominent
     />
   </div>
 </Story>

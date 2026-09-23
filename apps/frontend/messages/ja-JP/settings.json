@@ -230,6 +230,12 @@
         "grey": "グレー",
         "preview": "プレビュー"
       },
+      "contrast": {
+        "label": "コントラスト",
+        "softer": "弱めのコントラスト",
+        "current": "現在のコントラスト",
+        "stronger": "強めのコントラスト"
+      },
       "depth": {
         "title": "UIスタイル",
         "flat": "フラット",
