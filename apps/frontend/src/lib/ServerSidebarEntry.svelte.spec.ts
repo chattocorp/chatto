@@ -1,10 +1,13 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { SvelteSet } from 'svelte/reactivity';
 
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
 import { page } from '$app/state';
+
+const connectionLostServers = new SvelteSet<string>();
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -124,7 +127,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     getClient: vi.fn(() => ({
       get showConnectionLostIcon() {
-        return mocks.showConnectionLostIcon;
+        return connectionLostServers.has('remote') || mocks.showConnectionLostIcon;
       },
       connectBaseUrl: 'https://remote.example.com/api/connect',
       bearerToken: 'token'
@@ -219,6 +222,7 @@ describe('ServerSidebarEntry', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.showConnectionLostIcon = false;
+    connectionLostServers.clear();
     mocks.getAuthenticatedServerState.mockReset();
     mocks.getViewerStateViaConnect.mockReset();
     mocks.createRoomDirectoryAPI.mockReset();
@@ -724,32 +728,29 @@ describe('ServerSidebarEntry', () => {
       .toHaveTextContent('Connection unavailable');
   });
 
-  it('does not retain a connection warning after recovery', async () => {
-    mocks.showConnectionLostIcon = true;
-    const first = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
-    const { container } = first;
+  it('updates an open menu when the connection fails and recovers', async () => {
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]');
 
     icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-name"]')).not.toBeNull());
+    expect(q(document.body, '[data-testid="server-connection-message"]')).toBeNull();
+
+    connectionLostServers.add('remote');
     await vi.waitFor(() =>
       expect(q(document.body, '[data-testid="server-connection-message"]')).not.toBeNull()
     );
     await expect
       .element(q(document.body, '[data-testid="server-connection-message"]'))
       .toHaveTextContent('Connection unavailable');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
 
-    first.unmount();
-    mocks.showConnectionLostIcon = false;
-    const recovered = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
-    const recoveredIcon = q(recovered.container, '[data-testid="server-icon"]');
-    recoveredIcon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    connectionLostServers.delete('remote');
     await vi.waitFor(() =>
-      expect(q(document.body, '[data-testid="server-name"]')).not.toBeNull()
+      expect(q(document.body, '[data-testid="server-connection-message"]')).toBeNull()
     );
-
-    await expect.element(q(document.body, '[data-testid="server-connection-message"]')).not.toBeInTheDocument();
-    await expect.element(q(recovered.container, '[data-testid="server-compatibility-warning"]')).not.toBeInTheDocument();
-    await expect.element(recoveredIcon).toHaveAttribute('title', 'Loaded Remote');
+    await expect.element(q(container, '[data-testid="server-compatibility-warning"]')).not.toBeInTheDocument();
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
   });
 
   it('shows the connection warning in the touch sheet', async () => {
