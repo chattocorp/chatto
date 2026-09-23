@@ -153,7 +153,7 @@
     void roomMessageStore.events;
     const caughtUpAt = stores.realtimeSync.lastCaughtUpAt;
     if (!caughtUpAt) return;
-    const timer = setTimeout(() => untrack(() => stores.noteViewedRoom(roomId)), 500);
+    const timer = setTimeout(() => untrack(() => stores.noteViewedRoom(roomId)), 2_000);
     return () => clearTimeout(timer);
   });
   const room = useRoomData(() => ({ roomId }));

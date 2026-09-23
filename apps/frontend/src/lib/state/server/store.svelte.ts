@@ -759,6 +759,7 @@ export class ServerStateStore {
 
   /** Capture current authorized data without making the saved copy authoritative. */
   saveCurrentView(savedAt: number): void {
+    if (this.realtimeSync.phase !== 'ready' || this.realtimeSync.lastCaughtUpAt !== savedAt) return;
     const userId = this.currentUser.user?.id ?? this.#getSession().userId;
     if (!userId || this.#deletedRealtimeUserIds.has(userId) ||
       !this.projection.viewer || this.projection.viewer.user?.profile?.id !== userId) return;

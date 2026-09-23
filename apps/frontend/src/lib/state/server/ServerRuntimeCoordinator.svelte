@@ -85,9 +85,13 @@
       const caughtUpAt = store?.realtimeSync.lastCaughtUpAt;
       return store && caughtUpAt ? [{ store, caughtUpAt }] : [];
     });
-    untrack(() => {
-      for (const { store, caughtUpAt } of settled) store.saveCurrentView(caughtUpAt);
-    });
+    // Serializing a large room directory must not block the first useful paint.
+    const timer = setTimeout(() => {
+      untrack(() => {
+        for (const { store, caughtUpAt } of settled) store.saveCurrentView(caughtUpAt);
+      });
+    }, 2_000);
+    return () => clearTimeout(timer);
   });
 
   // Remote session termination is authoritative even when its server is not

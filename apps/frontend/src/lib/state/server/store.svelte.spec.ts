@@ -1397,6 +1397,21 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(store.savedView).toBeNull();
   });
 
+  it('does not save a stale projection after the connection drops', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    store.realtimeSync.markCaughtUp('cursor-before-disconnect');
+    const caughtUpAt = store.realtimeSync.lastCaughtUpAt;
+    expect(caughtUpAt).not.toBeNull();
+    store.realtimeSync.markStale();
+
+    store.saveCurrentView(caughtUpAt!);
+
+    expect(store.savedView).toBeNull();
+  });
+
   it('coalesces the resource hints from a post before starting reads', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.messagesForRoom('R1');
