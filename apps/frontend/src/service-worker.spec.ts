@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('$service-worker', () => ({
+  build: ['/_app/immutable/entry.js'],
+  version: 'test-version'
+}));
+
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
   notification?: {
@@ -37,14 +42,25 @@ function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
 }
 
 function createMemoryCacheStorage() {
-  const cacheNames = new Set<string>();
+  const caches = new Map<string, Map<string, { arrayBuffer: () => Promise<ArrayBuffer> }>>();
   return {
     open: vi.fn(async (name: string) => {
-      cacheNames.add(name);
-      return {};
+      let entries = caches.get(name);
+      if (!entries) {
+        entries = new Map();
+        caches.set(name, entries);
+      }
+      const cache = entries;
+      return {
+        addAll: vi.fn(async (urls: string[]) => {
+          for (const url of urls) cache.set(url, { arrayBuffer: async () => new ArrayBuffer(1) });
+        }),
+        keys: vi.fn(async () => [...cache.keys()]),
+        match: vi.fn(async (request: string) => cache.get(request))
+      };
     }),
-    keys: vi.fn(async () => Array.from(cacheNames)),
-    delete: vi.fn(async (name: string) => cacheNames.delete(name))
+    keys: vi.fn(async () => [...caches.keys()]),
+    delete: vi.fn(async (name: string) => caches.delete(name))
   };
 }
 
@@ -67,7 +83,7 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
 
   vi.stubGlobal('self', {
     location: { origin: 'https://chatto.example' },
-    registration,
+    registration: { ...registration, scope: 'https://chatto.example/' },
     clients,
     skipWaiting,
     addEventListener: vi.fn((type: string, handler: ServiceWorkerHandler) => {
@@ -109,13 +125,13 @@ describe('service worker notifications', () => {
     vi.unstubAllGlobals();
   });
 
-  it('activates promptly without installing request interception', async () => {
+  it('installs the versioned shell and its fetch handler', async () => {
     const worker = await importServiceWorker();
 
     await worker.dispatch('install');
 
     expect(worker.skipWaiting).toHaveBeenCalledOnce();
-    expect(worker.handlers.has('fetch')).toBe(false);
+    expect(worker.handlers.has('fetch')).toBe(true);
   });
 
   it('deletes retired shell and foreground badge caches during activation', async () => {
@@ -126,9 +142,10 @@ describe('service worker notifications', () => {
     await cacheStorage.open('unrelated-cache');
     const worker = await importServiceWorker(cacheStorage);
 
+    await worker.dispatch('install');
     await worker.dispatch('activate');
 
-    await expect(cacheStorage.keys()).resolves.toEqual(['unrelated-cache']);
+    await expect(cacheStorage.keys()).resolves.toEqual(['unrelated-cache', 'chatto-shell-test-version']);
     expect(worker.clients.claim).toHaveBeenCalledOnce();
   });
 
