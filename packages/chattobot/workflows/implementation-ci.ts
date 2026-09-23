@@ -29,6 +29,8 @@ interface CheckOptions {
 
 /** Read only the check buckets. Never forward check output or names to a chat message. */
 function parseChecks(output: string): PullRequestChecks | undefined {
+  if (/no checks reported/i.test(output))
+    return { status: 'pending', passed: 0, failed: 0, pending: 0, skipped: 0 };
   const end = output.indexOf(']');
   if (end < 0) return;
   let rows: unknown;

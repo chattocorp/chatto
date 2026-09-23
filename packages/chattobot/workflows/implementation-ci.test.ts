@@ -83,6 +83,18 @@ test('bounds pending and unavailable check observation', async () => {
   expect(unavailable).toHaveBeenCalledTimes(6);
 });
 
+test('waits when GitHub has not attached checks yet', async () => {
+  let checks = 0;
+  const execute = vi.fn<ImplementationProcess>(async (_command, args) => {
+    if (args[1] === 'view') return JSON.stringify({ headRefOid: common.headCommit });
+    if (++checks === 1)
+      throw new ImplementationCommandError('No checks', 'no checks reported on the pull request');
+    return '[{"bucket":"pass"}]';
+  });
+  expect((await observePullRequestChecks({ ...common, execute })).status).toBe('passed');
+  expect(checks).toBe(2);
+});
+
 test('stops reporting CI when the PR head changes', async () => {
   const execute = vi
     .fn<ImplementationProcess>()
