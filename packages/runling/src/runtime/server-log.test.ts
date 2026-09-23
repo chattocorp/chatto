@@ -100,3 +100,11 @@ it("keeps task identities distinct under compact agent role prefixes", () => {
   expect(output.mock.calls[0]![0]).not.toContain("full-agent-id");
   expect(readFileSync(serverLogPath(), "utf8")).toContain('"agentId":"full-agent-id"');
 });
+
+it("marks successful task activity in the terminal", () => {
+  setup();
+  vi.stubEnv("NO_COLOR", "1");
+  const output = vi.spyOn(console, "info").mockImplementation(() => {});
+  serverLog("info", "run.activity", { runReference: "quiet-run-1234", activity: "Validation passed · check", activityLevel: "success" });
+  expect(output.mock.calls[0]![0]).toContain("[quiet-run-1234] ✓ Validation passed · check");
+});

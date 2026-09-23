@@ -27,6 +27,7 @@
   let nodes = $derived(buildTimeline(run.events, run.status));
   let activity = $derived(findActivity(nodes, selected));
   let elapsed = $derived(run.durationMs ?? Math.max(0, now - run.startedAt));
+  let quietFor = $derived(Math.max(0, elapsed - (run.events.at(-1)?.timestamp ?? 0)));
   let logs = $derived(runLogRows(run.events));
 
   function handleTabKey(event: KeyboardEvent) {
@@ -100,6 +101,9 @@
       </div>
     </div>
     {#if pendingInputs}<p class="mt-2 text-sm text-warning">{pendingInputs} {pendingInputs === 1 ? "input" : "inputs"} pending</p>{/if}
+    {#if run.status === "running" && !isRunWaiting(currentActivity) && quietFor >= 120_000}
+      <p class="mt-2 text-sm text-warning" role="status">No recorded activity for {duration(quietFor)}. Last reported status: running.</p>
+    {/if}
     {#if cancelError}<p class="mt-2 text-sm text-error" role="alert">{cancelError}</p>{/if}
     {#if run.status === "cancelled"}
       <p class="mt-2 text-sm text-base-content/60" role="status">Run cancelled</p>

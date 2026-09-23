@@ -33,7 +33,7 @@ test("explicit host activity reaches operational events without copying task sta
     const tasks = createAgentTasks(ctx, { notifyActivity: false });
     const finish = Promise.withResolvers<void>();
     const run = ctx.spawn(async (ctx: WorkflowContext<string, AgentTaskUpdate>) => {
-      await ctx.emit({ type: "state", value: { phase: "validating", private: "secret" }, activity: "Validating change" });
+      await ctx.emit({ type: "state", value: { phase: "validating", private: "secret" }, activity: "Validating change", activityLevel: "success" });
       await finish.promise;
     });
     tasks.observe("Worker", run);
@@ -43,7 +43,7 @@ test("explicit host activity reaches operational events without copying task sta
     try {
       await vi.waitFor(() => expect(events.some(event => event.type === "task.activity")).toBe(true));
       expect(events.filter(event => event.type === "task.activity")).toEqual([
-        expect.objectContaining({ channelId: run.id, message: "Validating change" }),
+        expect.objectContaining({ channelId: run.id, message: "Validating change", level: "success" }),
       ]);
       expect(JSON.stringify(events.filter(event => event.type === "task.activity"))).not.toContain("secret");
       expect(next).not.toHaveBeenCalled();
@@ -51,6 +51,21 @@ test("explicit host activity reaches operational events without copying task sta
       await notice;
       expect(JSON.parse(next.mock.calls[0]![0].value).type).toBe("task.completed");
     } finally { finish.resolve(); await tasks.dispose(); }
+  });
+});
+
+test("legacy task starts keep public activity severity", async () => {
+  const events: RunlingEvent[] = [];
+  await observeRunlingEvents(event => events.push(event), async () => {
+    const tasks = createAgentTasks(createWorkflowContext());
+    try {
+      tasks.start("Worker", async ctx => {
+        await ctx.emit({ type: "state", value: { phase: "done" }, activity: "Check passed", activityLevel: "success" });
+        return "done";
+      }, undefined);
+      await vi.waitFor(() => expect(events.some(event => event.type === "task.activity")).toBe(true));
+      expect(events.find(event => event.type === "task.activity")).toMatchObject({ message: "Check passed", level: "success" });
+    } finally { await tasks.dispose(); }
   });
 });
 
@@ -110,6 +125,39 @@ test("task context keeps bounded output and fresh state without waking the owner
     expect(event).toMatchObject({ type: "task.completed", task: { result: "Final result" } });
     expect(event.task.output).toBeUndefined();
     expect(tasks.get(handle.id).output).toHaveLength(16);
+  } finally { finish.resolve("done"); await tasks.dispose(); }
+});
+
+test("an explicit reply wakes the owner without waiting for the progress interval", async () => {
+  const tasks = createAgentTasks(createWorkflowContext(), { progressIntervalMs: 120_000, notifyActivity: false });
+  const finish = Promise.withResolvers<string>();
+  const handle = tasks.start("Worker", async ctx => {
+    await ctx.emit({ type: "reply", text: "A diff viewer and a test runner would help." });
+    return finish.promise;
+  }, undefined);
+  const reader = tasks.notifications[Symbol.asyncIterator]();
+  try {
+    const notice = JSON.parse((await reader.next()).value!);
+    expect(notice).toMatchObject({ type: "task.reply", task: { id: handle.id, status: "running" } });
+    expect(tasks.get(handle.id).output.at(-1)).toMatchObject({ kind: "reply", text: "A diff viewer and a test runner would help." });
+  } finally { finish.resolve("done"); await tasks.dispose(); }
+});
+
+test("a pending reply is not replaced by later tool failure activity", async () => {
+  const tasks = createAgentTasks(createWorkflowContext(), { toolFailureNoticeThreshold: 1 });
+  const finish = Promise.withResolvers<string>();
+  const emitted = Promise.withResolvers<void>();
+  const handle = tasks.start("Worker", async ctx => {
+    await ctx.emit({ type: "reply", text: "Use the test runner.", replyTo: "question-1" });
+    await ctx.emit({ type: "tool", operation: "other", phase: "failed", failures: 1, toolName: "runCheck", error: "unknown" });
+    emitted.resolve();
+    return finish.promise;
+  }, undefined);
+  try {
+    await emitted.promise;
+    await vi.waitFor(() => expect(tasks.get(handle.id).lastToolFailure).toBeDefined());
+    const notice = JSON.parse((await tasks.notifications[Symbol.asyncIterator]().next()).value!);
+    expect(notice.type).toBe("task.reply");
   } finally { finish.resolve("done"); await tasks.dispose(); }
 });
 

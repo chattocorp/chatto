@@ -5,7 +5,7 @@ export type RunlingEventPayload =
   | { type: "workflow.resumed"; attempt: number }
   | { type: "conversation.started" }
   | { type: "task.linked"; channelId: string; taskId: string }
-  | { type: "task.activity"; channelId: string; message: string }
+  | { type: "task.activity"; channelId: string; message: string; level?: "info" | "success" | "error" }
   | {
       type: "message.sent";
       id: string;

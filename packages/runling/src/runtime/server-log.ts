@@ -37,7 +37,8 @@ function terminalLine(level: Level, event: string, fields: Record<string, unknow
   const prefix = identifiers.length ? `${paint("magenta", `[${identifiers.join(" / ")}]`)} ` : "";
   const detail = fields.error instanceof Error ? fields.error.message : fields.message;
   if (typeof detail === "string") message += ` · ${plain(detail)}`;
-  const success = event === "server.listening" || (event === "run.finished" && fields.status === "completed");
+  const success = event === "server.listening" || (event === "run.finished" && fields.status === "completed")
+    || (event === "run.activity" && fields.activityLevel === "success");
   const symbol = level === "error" ? "✗" : level === "warn" ? "!" : success ? "✓" : "●";
   const tone = level === "error" ? "red" : level === "warn" ? "yellow" : success ? "green" : "cyan";
   return `${paint("dim", new Date().toTimeString().slice(0, 8))} ${prefix}${paint(tone, symbol)} ${paint(success ? "bold" : tone, plain(message))}`;

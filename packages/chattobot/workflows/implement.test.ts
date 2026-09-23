@@ -7,7 +7,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createWorkflowContext, emptyTokenUsage } from "runling";
 import type { AgentExtensionAPI, AgentOptions, AgentRunOptions } from "runling/agents";
 import { createAgentTasks } from "runling/agents";
-import { createImplementation, implementationExtension, implementationSettings, matchesRepository, validationDiagnostic } from "./implement.ts";
+import { createImplementation, implementationCommandEnvKeys, implementationExtension, implementationSettings, matchesRepository, validationDiagnostic } from "./implement.ts";
 import { implementationProcess, ImplementationCommandError, type ImplementationProcess } from "./implementation-process.ts";
 
 const exec = promisify(execFile);
@@ -91,7 +91,8 @@ test("implements in an isolated worktree, records final checks, pushes and verif
     expect(options.tools).toContain("apply_patch");
     expect(options.tools).not.toContain("write");
     expect(options.tools).not.toContain("bash");
-    expect(options.tools).not.toContain("runCheck");
+    expect(options.tools).toContain("runCheck");
+    expect(options.tools).toContain("reviewDiff");
     expect(f.calls.some(call => call.args.includes("install"))).toBe(true);
     expect(await readFile(join(options.cwd, "example.txt"), "utf8")).toBe("original\n");
     await call("apply_patch", { patch });
@@ -113,6 +114,83 @@ test("implements in an isolated worktree, records final checks, pushes and verif
     completedChecks: ["mise x -- pnpm run check", "mise x -- pnpm run test"], pendingChecks: [] } });
   const [folder] = await readdir(f.settings.artifactsDirectory);
   expect(JSON.parse(await readFile(join(f.settings.artifactsDirectory, folder!, "metadata.json"), "utf8"))).toMatchObject({ stage: "published", prUrl: result.prUrl });
+});
+
+test("worker can review new changes and run an approved check before host validation", async () => {
+  const f = await fixture();
+  const result = await createImplementation(f.settings, { execute: f.execute, createAgent: worker(async (options, call) => {
+    await call("apply_patch", { patch });
+    const diff = await call("reviewDiff", {});
+    expect(diff.content[0]?.text).toContain("+fixed");
+    expect(diff.content[0]?.text).toContain("-original");
+    expect((await exec("git", ["diff", "--cached", "--name-only"], { cwd: options.cwd })).stdout).toBe("");
+    const check = await call("runCheck", { check: "check" });
+    expect(check.content[0]?.text).toContain("Passed: mise x -- pnpm run check");
+    await call("preparePullRequest", proposal);
+  }) })(createWorkflowContext(), { request: "Fix" });
+  expect(result.outcome).toBe("completed");
+  expect(f.calls.filter(call => call.command === "mise" && call.args.at(-1) === "check")).toHaveLength(2);
+});
+
+test("worker check failures return bounded repair diagnostics and leave final validation to the host", async () => {
+  const f = await fixture();
+  let workerCheck = true;
+  const result = await createImplementation(f.settings, { execute: async (command, args, options) => {
+    if (command === "mise" && args.at(-1) === "check" && workerCheck) {
+      workerCheck = false;
+      throw new ImplementationCommandError("Failed", "Assertion failed for test@example.invalid at https://example.invalid");
+    }
+    return f.execute(command, args, options);
+  }, createAgent: worker(async (_options, call) => {
+    await call("apply_patch", { patch });
+    const check = await call("runCheck", { check: "check" });
+    expect(check.isError).toBeUndefined();
+    expect(check.content[0]?.text).toContain("Assertion failed");
+    expect(check.content[0]?.text).not.toContain("test@example.invalid");
+    expect(check.content[0]?.text).not.toContain("https://example.invalid");
+    await call("preparePullRequest", proposal);
+  }) })(createWorkflowContext(), { request: "Fix" });
+  expect(result.outcome).toBe("completed");
+  expect(result.checks.every(check => check.passed)).toBe(true);
+});
+
+test("worker answer tool emits a correlated reply without treating commentary as an answer", async () => {
+  const f = await fixture();
+  const updates: unknown[] = [];
+  const questionId = "3df53a4d-4240-4086-89b2-c37330b92715";
+  const result = await createImplementation(f.settings, { execute: f.execute, createAgent: worker(async (_options, call) => {
+    const answer = await call("answerOwner", { questionId, answer: "A diff viewer and a test runner would help." });
+    expect(answer.content[0]?.text).toBe("Answer sent to the owner.");
+    await call("apply_patch", { patch });
+    await call("preparePullRequest", proposal);
+  }) })({ ...createWorkflowContext(), emit: async value => { updates.push(value); } }, { request: "Fix" });
+  expect(result.outcome).toBe("completed");
+  expect(updates).toContainEqual({ type: "reply", replyTo: questionId, text: "A diff viewer and a test runner would help." });
+  expect(updates).toContainEqual({ type: "output", text: "Worker commentary for the supervisor" });
+});
+
+test("owner question tool forwards a marked question to the active implementation", async () => {
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { progressIntervalMs: 120_000 });
+  const finish = Promise.withResolvers<string>();
+  const handle = tasks.start("Chatto implementation", async child => {
+    const message = (await child.inbox[Symbol.asyncIterator]().next()).value!;
+    const match = /^\[ChattoBot owner question: ([0-9a-f-]{36})\]\n(.+)$/.exec(message);
+    expect(match?.[2]).toBe("What tools would help?");
+    await child.emit({ type: "reply", text: "A diff viewer and a test runner.", replyTo: match?.[1] });
+    return finish.promise;
+  }, undefined);
+  const call = await workerTools({ cwd: "/unused", model: "test/model", extensions: [
+    implementationExtension(ctx, { directory: "/unused", repository: "example/chatto" }, async () => {}, tasks),
+  ] });
+  const reader = tasks.notifications[Symbol.asyncIterator]();
+  try {
+    const queued = JSON.parse((await call("askImplementation", { id: handle.id, question: "What tools would help?" })).content[0]!.text!);
+    expect(queued).toEqual({ queued: true, questionId: expect.any(String) });
+    const notice = JSON.parse((await reader.next()).value!);
+    expect(notice.type).toBe("task.reply");
+    expect(tasks.get(handle.id).output.at(-1)).toMatchObject({ kind: "reply", text: "A diff viewer and a test runner.", replyTo: queued.questionId });
+  } finally { finish.resolve("done"); await tasks.dispose(); }
 });
 
 test.each(["protected-file", "empty", "blocked", "missing-proposal", "history-changed", "branch-changed"])("does not publish %s", async mode => {
@@ -151,6 +229,78 @@ test("host validation returns diagnostics to the same worker and checks the repa
   expect(createAgent).toHaveBeenCalledOnce();
   expect(turns).toBe(2);
   expect(result.checks.every(check => check.passed)).toBe(true);
+});
+
+test("a failed worker report stops immediately and preserves the worktree for user direction", async () => {
+  const f = await fixture();
+  let turns = 0;
+  const result = await createImplementation(f.settings, { execute: f.execute, createAgent: async options => ({
+    dispose() {}, async runOutcome() {
+      turns++;
+      await (await workerTools(options))("apply_patch", { patch });
+      return { outcome: "failed", summary: "Edits are unfinished", usage: emptyTokenUsage() };
+    },
+  }) })(createWorkflowContext(), { request: "Fix" });
+  expect(turns).toBe(1);
+  expect(result).toMatchObject({ outcome: "blocked", summary: expect.stringContaining("could not complete"), checks: [] });
+  expect(await readFile(join(result.worktree, "example.txt"), "utf8")).toBe("fixed\n");
+  expect(f.calls.some(call => call.command === "mise" && !call.args.includes("install"))).toBe(false);
+  expect(f.calls.some(call => call.args.includes("push") || call.args[1] === "create")).toBe(false);
+});
+
+test("a new human request can continue the same unfinished worktree and rerun final checks", async () => {
+  const f = await fixture();
+  const ownerKey = "conversation-owner";
+  const first = await createImplementation(f.settings, { execute: f.execute, ownerKey,
+    createAgent: worker(async (_options, call) => { await call("apply_patch", { patch }); }, "blocked"),
+  })(createWorkflowContext(), { request: "Fix the value" });
+  expect(first.outcome).toBe("blocked");
+  const resumed = await createImplementation(f.settings, { execute: f.execute, ownerKey,
+    createAgent: worker(async (options, call) => {
+      expect(await readFile(join(options.cwd, "example.txt"), "utf8")).toBe("fixed\n");
+      await call("preparePullRequest", proposal);
+    }),
+  })(createWorkflowContext(), { request: "Continue", resumeExisting: true });
+  expect(resumed).toMatchObject({ outcome: "completed", branch: first.branch, worktree: first.worktree,
+    prUrl: "https://github.com/example/chatto/pull/7" });
+  expect(resumed.checks.map(check => check.passed)).toEqual([true, true]);
+  const metadata = JSON.parse(await readFile(join(first.worktree, "..", "metadata.json"), "utf8"));
+  expect(metadata).toMatchObject({ stage: "published", ownerKey, input: { request: "Fix the value" } });
+});
+
+test("an unfinished worktree cannot be resumed by a different conversation", async () => {
+  const f = await fixture();
+  const first = await createImplementation(f.settings, { execute: f.execute, ownerKey: "first-conversation",
+    createAgent: worker(async (_options, call) => { await call("apply_patch", { patch }); }, "blocked"),
+  })(createWorkflowContext(), { request: "Fix" });
+  expect(first.outcome).toBe("blocked");
+  const createAgent = vi.fn(worker(async () => {}));
+  const result = await createImplementation(f.settings, { execute: f.execute, ownerKey: "other-conversation", createAgent })
+    (createWorkflowContext(), { request: "Continue", resumeExisting: true });
+  expect(result).toMatchObject({ outcome: "blocked", worktree: "" });
+  expect(createAgent).not.toHaveBeenCalled();
+});
+
+test("repository checks remove bot routing and model credentials from the inherited environment", () => {
+  expect(implementationCommandEnvKeys({ CHATTO_ALLOWED_USER_ID: "id", OPENAI_API_KEY: "secret", GH_TOKEN: "token", PATH: "/bin" }))
+    .toEqual(["CHATTO_ALLOWED_USER_ID", "OPENAI_API_KEY", "GH_TOKEN"]);
+});
+
+test("setup, worker checks, and final validation use the isolated command environment", async () => {
+  const f = await fixture();
+  vi.stubEnv("CHATTO_ALLOWED_USER_ID", "private-test-id");
+  const checkEnvironments: Array<string[] | undefined> = [];
+  const result = await createImplementation(f.settings, { execute: async (command, args, options) => {
+    if (command === "mise") checkEnvironments.push(options.unsetEnv);
+    return f.execute(command, args, options);
+  }, createAgent: worker(async (_options, call) => {
+    await call("apply_patch", { patch });
+    await call("runCheck", { check: "check" });
+    await call("preparePullRequest", proposal);
+  }) })(createWorkflowContext(), { request: "Fix" });
+  expect(result.outcome).toBe("completed");
+  expect(checkEnvironments).toHaveLength(4);
+  expect(checkEnvironments.every(keys => keys?.includes("CHATTO_ALLOWED_USER_ID"))).toBe(true);
 });
 
 test("patch errors give the worker Git diagnostics and incorrect hunk counts can be repaired", async () => {
@@ -264,6 +414,45 @@ test("notifications cannot restart a failed implementation; a new human request 
   } finally { await tasks.dispose(); }
 });
 
+test.each(["sent", "failed"])("a stopped implementation records notice delivery: %s", async mode => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const onStopped = vi.fn(async (_message: string) => { if (mode === "failed") throw new Error("Post failed"); });
+  const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    execute: f.execute, createAgent: worker(async () => {}, "blocked"), onStopped,
+  });
+  const call = await workerTools({ cwd: f.settings.directory, model: "test/model", extensions: [extension] });
+  try {
+    const handle = JSON.parse((await call("implementChatto", { request: "Fix", announcement: "Starting" })).content[0]!.text!);
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe("completed"));
+    expect(onStopped).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("The implementation stopped:"));
+    expect(onStopped.mock.calls[0]![0]).toContain("worktree was kept for review");
+    expect(onStopped.mock.calls[0]![0]).toContain("Please tell me how you want to proceed");
+    expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({ outcome: "blocked", noticeDelivered: mode === "sent" });
+  } finally { warning.mockRestore(); await tasks.dispose(); }
+});
+
+test("an unexpected worker error produces one safe stopped result for the owner", async () => {
+  const f = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const onStopped = vi.fn(async () => {});
+  const extension = implementationExtension(ctx, f.settings, async () => {}, tasks, {
+    execute: f.execute, onStopped,
+    createAgent: async () => ({ dispose() {}, async runOutcome() { throw new Error("private provider detail"); } }),
+  });
+  const call = await workerTools({ cwd: f.settings.directory, model: "test/model", extensions: [extension] });
+  try {
+    const handle = JSON.parse((await call("implementChatto", { request: "Fix", announcement: "Starting" })).content[0]!.text!);
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe("completed"));
+    expect(onStopped).toHaveBeenCalledOnce();
+    expect(JSON.stringify(tasks.get(handle.id))).not.toContain("private provider detail");
+    expect(JSON.parse(tasks.get(handle.id).result!)).toMatchObject({ outcome: "blocked", noticeDelivered: true });
+  } finally { await tasks.dispose(); }
+});
+
 test("notification refusal says no implementation started and has no side effects", async () => {
   const ctx = createWorkflowContext();
   const tasks = createAgentTasks(ctx);
@@ -312,6 +501,7 @@ test("cancellation stops work, disposes the worker and retains the patch without
   expect(f.calls.some(call => call.args.includes("push"))).toBe(false);
   const [folder] = await readdir(f.settings.artifactsDirectory);
   expect(await readFile(join(f.settings.artifactsDirectory, folder!, "changes.patch"), "utf8")).toContain("+fixed");
+  expect(JSON.parse(await readFile(join(f.settings.artifactsDirectory, folder!, "metadata.json"), "utf8"))).toMatchObject({ stage: "interrupted" });
 });
 
 test("settings are opt-in and remote matching cannot select a different host or repository", () => {
@@ -448,9 +638,9 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)("live worker edits a fixture and pas
   await f.git("add", ".");
   await f.git("-c", "commit.gpgsign=false", "commit", "-m", "test: add fixture validation");
   await f.git("push", "origin", "main");
-  const result = await createImplementation({ ...f.settings, model: process.env.CHATTO_EVAL_MODEL, timeoutMs: 120_000 }, {
+  const result = await createImplementation({ ...f.settings, model: process.env.CHATTO_EVAL_MODEL }, {
     execute: (command, args, options) => command === "mise" ? implementationProcess(command, args, options) : f.execute(command, args, options),
-  })(createWorkflowContext(), { request: "Fix example.txt: its complete contents must be fixed followed by one newline. The existing regression test defines the correct behavior; do not weaken it. Prepare the PR when the edit is ready. Host validation runs after your report." });
+  })({ ...createWorkflowContext(), signal: AbortSignal.timeout(120_000) }, { request: "Fix example.txt: its complete contents must be fixed followed by one newline. The existing regression test defines the correct behavior; do not weaken it. Prepare the PR when the edit is ready. Host validation runs after your report." });
   expect(result.outcome).toBe("completed");
   expect(result.checks).toHaveLength(2);
   expect(result.checks.every(check => check.passed)).toBe(true);

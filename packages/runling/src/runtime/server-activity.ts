@@ -14,13 +14,33 @@ export function createServerActivityLog(runId: string, runReference?: string) {
   const taskLabels = new Map<string, string>();
   const channels = new Map<string, string>();
   const counts = new Map<string, Map<string, number>>();
+  const lastAgentEvent = new Map<string, number>();
+  const lastReminder = new Map<string, number>();
+  const agentTasks = new Map<string, string>();
+  let reminder: ReturnType<typeof setInterval> | undefined;
   let sequence = 0;
   const taskReference = (id: string) => {
     let reference = tasks.get(id);
     if (!reference) { reference = `task-${++sequence}`; tasks.set(id, reference); }
     return reference;
   };
-  return (event: RunlingEvent) => {
+  const remind = () => {
+    const now = Date.now();
+    for (const [agentId, last] of lastAgentEvent) {
+      const remindedAt = lastReminder.get(agentId);
+      if (now - last < 120_000 || (remindedAt !== undefined && now - remindedAt < 300_000)) continue;
+      lastReminder.set(agentId, now);
+      const taskId = agentTasks.get(agentId);
+      serverLog("warn", "run.activity", {
+        runId, runReference, activity: `No recorded agent activity for ${Math.floor((now - last) / 60_000)} min; agent still running`,
+        ...(taskId ? { taskId, taskReference: taskReference(taskId) } : {}),
+        ...(labels.has(agentId) ? { agentLabel: labels.get(agentId) } : {}),
+        agentId,
+      });
+    }
+  };
+  const record = (event: RunlingEvent) => {
+    if ("agentId" in event && lastAgentEvent.has(event.agentId)) lastAgentEvent.set(event.agentId, Date.now());
     let activity: string;
     let level: "info" | "warn" | "error" = "info";
     let taskId = event.activityId;
@@ -30,6 +50,7 @@ export function createServerActivityLog(runId: string, runReference?: string) {
       case "task.activity":
         taskId = channels.get(event.channelId);
         activity = event.message;
+        if (event.level === "error") level = "error";
         break;
       case "step.started": taskId = event.id; activity = "Task started"; break;
       case "step.finished":
@@ -40,6 +61,10 @@ export function createServerActivityLog(runId: string, runReference?: string) {
       case "agent.started":
         agentId = event.agentId;
         agents.set(agentId, event.timestamp);
+        lastAgentEvent.set(agentId, Date.now());
+        if (taskId) agentTasks.set(agentId, taskId);
+        reminder ??= setInterval(remind, 60_000);
+        reminder.unref?.();
         if (event.label) {
           labels.set(agentId, event.label);
           if (taskId) taskLabels.set(taskId, event.label);
@@ -49,6 +74,10 @@ export function createServerActivityLog(runId: string, runReference?: string) {
       case "agent.finished":
         agentId = event.agentId;
         agents.delete(agentId);
+        lastAgentEvent.delete(agentId);
+        lastReminder.delete(agentId);
+        agentTasks.delete(agentId);
+        if (!lastAgentEvent.size) { clearInterval(reminder); reminder = undefined; }
         activity = `Agent ${event.outcome}${counts.get(agentId)?.size ? ` · ${[...counts.get(agentId)!].map(([name, count]) => `${count} ${name}`).join(", ")}` : ""}`;
         counts.delete(agentId);
         if (event.outcome !== "completed") level = event.outcome === "failed" ? "error" : "warn";
@@ -84,9 +113,11 @@ export function createServerActivityLog(runId: string, runReference?: string) {
     }
     serverLog(level, "run.activity", {
       runId, runReference, activity,
+      ...(event.type === "task.activity" && event.level ? { activityLevel: event.level } : {}),
       ...(taskId && taskLabels.has(taskId) ? { agentLabel: taskLabels.get(taskId) } : {}),
       ...(taskId ? { taskId, taskReference: taskReference(taskId) } : {}),
       ...(agentId ? { agentId, ...(labels.has(agentId) ? { agentLabel: labels.get(agentId) } : {}) } : {}),
     });
   };
+  return Object.assign(record, { dispose() { clearInterval(reminder); reminder = undefined; } });
 }

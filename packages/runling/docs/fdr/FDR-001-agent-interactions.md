@@ -27,12 +27,14 @@ outcomes. Connections deliver live input and ordered assistant output.
   unconsumed user input and handles task notifications separately.
 - Abort signals and disposal cancel pending work. Cancellation cannot undo a
   tool's external effects or stop uncooperative code.
-- The console opens each run on its recorded Log view. It shows log time,
+- The console opens each run on its recorded Log view. It shows log lines and
+  task milestones in journal order, with time,
   level, indentation, and ANSI colors. New lines keep the view at the bottom
   until the reader scrolls up. The reader can resume following and load older
   lines. Long lines show four rows until the reader expands them. Timeline is
   the other run tab. Input, result, and usage are in Run details. A static icon
-  marks a run that waits for input with no other active work.
+  marks a run that waits for input with no other active work. A running run
+  with active work shows its quiet time after two minutes without a recorded event.
 
 ## Design Decisions
 

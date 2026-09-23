@@ -8,11 +8,36 @@ export interface LogRow {
   event: LogEvent;
 }
 
-/** Keep recorded log events in journal order, including source and debug logs. */
+/** Show recorded logs and host-owned task milestones in journal order. */
 export function runLogRows(events: RunlingEvent[]): LogRow[] {
   const rows: LogRow[] = [];
+  const taskReferences = new Map<string, string>();
+  const channelTasks = new Map<string, string>();
+  const taskReference = (id: string) => {
+    let reference = taskReferences.get(id);
+    if (!reference) { reference = `task-${taskReferences.size + 1}`; taskReferences.set(id, reference); }
+    return reference;
+  };
+  const addActivity = (id: number, timestamp: number, message: string, level: LogEvent["level"]) => {
+    rows.push({ id, event: { type: "log", timestamp, message, level, depth: 0, color: "dodgerblue", source: "step" } });
+  };
   events.forEach((event, id) => {
-    if (event.type === "log") rows.push({ id, event });
+    switch (event.type) {
+      case "log": rows.push({ id, event }); break;
+      case "step.started":
+        addActivity(id, event.timestamp, `Started ${taskReference(event.id)}`, "info");
+        break;
+      case "task.linked": channelTasks.set(event.channelId, event.taskId); break;
+      case "task.activity": {
+        const taskId = channelTasks.get(event.channelId);
+        addActivity(id, event.timestamp, `${taskId ? taskReference(taskId) : "Task"} · ${event.message}`, event.level ?? "info");
+        break;
+      }
+      case "step.finished":
+        addActivity(id, event.timestamp, `${taskReference(event.id)} ${event.status} · ${Math.round(event.durationMs / 1000)} s`,
+          event.status === "completed" ? "success" : "error");
+        break;
+    }
   });
   return rows;
 }

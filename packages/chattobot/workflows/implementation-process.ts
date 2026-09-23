@@ -5,6 +5,10 @@ export type ImplementationProcess = (command: string, args: string[], options: {
   cwd: string;
   signal: AbortSignal;
   timeoutMs?: number;
+  /** Process-local environment overrides, such as a temporary Git index. */
+  env?: Record<string, string>;
+  /** Remove inherited settings before launching repository setup or checks. */
+  unsetEnv?: string[];
   /** Return local patch/validation diagnostics to the worker. Auth/publication output stays private. */
   captureDiagnostics?: boolean;
 }) => Promise<string>;
@@ -19,8 +23,10 @@ export const implementationProcess: ImplementationProcess = async (command, args
   const signal = AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? 60_000)]);
   signal.throwIfAborted();
   return new Promise<string>((resolve, reject) => {
+    const env: NodeJS.ProcessEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1", GH_HOST: "github.com", ...options.env };
+    for (const key of options.unsetEnv ?? []) delete env[key];
     const child = spawn(command, args, { cwd: options.cwd, detached: process.platform !== "win32",
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1", GH_HOST: "github.com" },
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";

@@ -268,7 +268,7 @@ export class RunStore {
           event: { ...event, timestamp: Math.max(0, event.timestamp - base) },
         }).catch(() => {}); // The same write failure is handled when completion flushes the queue.
       },
-    });
+    }).finally(() => activityLog.dispose());
     this.controllers.delete(id);
     const status = signal.aborted
       ? signal.reason === this.shutdownReason ? "interrupted" : "cancelled"

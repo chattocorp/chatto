@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { taskContext, taskNotification } from "./task-context.ts";
+import { taskContext, taskNotification, userFacingTaskNotifications } from "./task-context.ts";
 
 test("new host phase supersedes an old setup announcement without changing retained history", () => {
   const task = { id: "worker", name: "Implementation", status: "running" as const,
@@ -32,4 +32,19 @@ test("decoded results are detached from the original retained snapshot", () => {
   const result = taskContext([task])[0]!.result as { plan: { goal: string } };
   result.plan.goal = "Changed";
   expect(JSON.parse(task.result).plan.goal).toBe("Original");
+});
+
+test("only requested answers and unreported terminal results wake the owner", async () => {
+  const messages = [
+    { type: "task.progress", task: { id: "implementation" } },
+    { type: "task.tool_failed", task: { id: "implementation" } },
+    { type: "task.reply", task: { id: "implementation" } },
+    { type: "task.completed", task: { name: "Chatto implementation", result: JSON.stringify({ outcome: "blocked", noticeDelivered: true }) } },
+    { type: "task.completed", task: { name: "Chatto implementation", result: JSON.stringify({ outcome: "completed" }) } },
+    { type: "task.failed", task: { name: "Chatto investigation" } },
+  ];
+  async function* source() { for (const message of messages) yield JSON.stringify(message); }
+  const received: unknown[] = [];
+  for await (const message of userFacingTaskNotifications(source())) received.push(JSON.parse(message));
+  expect(received).toEqual(messages.slice(2, 3).concat(messages.slice(4)));
 });

@@ -33,3 +33,21 @@ export function taskNotification(message: string): string {
     return JSON.stringify({ type: value.type, taskId: value.task?.id });
   } catch { return "Background task changed; use the current backgroundTasks snapshot."; }
 }
+
+/** Wake the owner only for a requested answer or a terminal result that still needs a reply. */
+export async function* userFacingTaskNotifications(source: AsyncIterable<string>): AsyncIterable<string> {
+  for await (const message of source) {
+    let forward = true;
+    try {
+      const notice = JSON.parse(message);
+      if (notice.type !== "task.reply" && !["task.completed", "task.failed", "task.cancelled"].includes(notice.type)) forward = false;
+      if (notice.task?.name === "Chatto implementation" && notice.task?.result) {
+        const result = JSON.parse(notice.task.result);
+        if (result.noticeDelivered === true) forward = false;
+      }
+    } catch {
+      // An unknown notification can be a terminal result. Let the owner inspect it.
+    }
+    if (forward) yield message;
+  }
+}

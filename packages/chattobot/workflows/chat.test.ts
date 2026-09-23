@@ -108,7 +108,7 @@ test("implementation is a separate opt-in tool with host-result reporting instru
   const bot = createChattoBot({ acknowledge: async () => {}, typing: async () => {}, post: async () => {},
     timeout: 0, readThread: async () => [], implementation: { directory: "/configured/chatto", repository: "example/chatto" },
     createAgent: async options => {
-      expect(options.tools).toEqual(["fetchPage", "implementChatto", "task_send", "task_cancel"]);
+      expect(options.tools).toEqual(["fetchPage", "implementChatto", "askImplementation", "task_send", "task_cancel"]);
       expect(options.systemPrompt).toContain("conversational assistant");
       expect(options.instructions?.join("\n")).toContain("report the host-provided prUrl as a Markdown link");
       expect(options.instructions?.join("\n")).not.toContain("Implementation is disabled.");

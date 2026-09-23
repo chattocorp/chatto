@@ -20,6 +20,8 @@ test("concurrent runs and nested tasks retain distinct stable prefixes without p
     ["bright-waves-1234", "task-1"], ["bright-waves-1234", "task-2"],
   ]);
   expect(JSON.stringify(vi.mocked(serverLog).mock.calls)).not.toMatch(/private|secret/);
+  first.dispose();
+  second.dispose();
 });
 
 test("throttles agent activity but always reports tool failures and completion", () => {
@@ -34,6 +36,7 @@ test("throttles agent activity but always reports tool failures and completion",
     ["info", "Agent started · model"], ["error", "Tool read failed"], ["error", "Task failed · 5 ms"],
   ]);
   expect(JSON.stringify(vi.mocked(serverLog).mock.calls)).not.toContain("secret");
+  write.dispose();
 });
 
 test("summarizes successful calls, reports failures immediately, and associates host milestones", () => {
@@ -47,10 +50,32 @@ test("summarizes successful calls, reports failures immediately, and associates 
   expect(serverLog).toHaveBeenCalledOnce();
   write({ type: "agent.tool", activityId: "step", agentId: "worker", operation: "search", phase: "succeeded", timestamp: 30_000 });
   write({ type: "agent.tool", activityId: "step", agentId: "worker", operation: "other", toolName: "preparePullRequest", phase: "failed", timestamp: 30_001 });
-  write({ type: "task.activity", channelId: "channel", message: "Validation failed", timestamp: 30_002 });
+  write({ type: "task.activity", channelId: "channel", message: "Validation failed", level: "error", timestamp: 30_002 });
   expect(vi.mocked(serverLog).mock.calls.map(call => call[2]?.activity)).toEqual([
     "Agent started · test/model", "Activity · 100 read, 1 search", "Tool preparePullRequest failed", "Validation failed",
   ]);
   expect(vi.mocked(serverLog).mock.calls[1]?.[2]).toMatchObject({ agentLabel: "implement", taskReference: "task-1" });
   expect(vi.mocked(serverLog).mock.calls[3]?.[2]).toMatchObject({ taskReference: "task-1" });
+  expect(vi.mocked(serverLog).mock.calls[3]).toMatchObject(["error", "run.activity", { activityLevel: "error" }]);
+  write.dispose();
+});
+
+test("reports silence without claiming progress and stops reminders after agent completion", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(0);
+  try {
+    const write = createServerActivityLog("run", "quiet-run-1234");
+    write({ type: "agent.started", agentId: "agent", label: "implement", model: "model", color: "blue", timestamp: 0 });
+    vi.advanceTimersByTime(120_000);
+    expect(vi.mocked(serverLog).mock.calls.at(-1)).toMatchObject(["warn", "run.activity", {
+      activity: "No recorded agent activity for 2 min; agent still running", agentLabel: "implement",
+    }]);
+    write({ type: "agent.tool", agentId: "agent", operation: "read", phase: "succeeded", timestamp: 120_001 });
+    vi.advanceTimersByTime(120_000);
+    expect(vi.mocked(serverLog).mock.calls.filter(call => String(call[2]?.activity).startsWith("No recorded agent activity"))).toHaveLength(1);
+    write({ type: "agent.finished", agentId: "agent", outcome: "completed", usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 }, timestamp: 240_002 });
+    vi.advanceTimersByTime(600_000);
+    expect(vi.mocked(serverLog).mock.calls.filter(call => String(call[2]?.activity).startsWith("No recorded agent activity"))).toHaveLength(1);
+    write.dispose();
+  } finally { vi.useRealTimers(); }
 });

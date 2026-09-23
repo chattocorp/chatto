@@ -12,8 +12,10 @@ export type AgentTaskData = null | boolean | number | string | AgentTaskData[] |
 export interface AgentTaskOutput {
   sequence: number;
   at: number;
-  kind: "output" | "finding";
+  kind: "output" | "finding" | "reply";
   text: string;
+  /** Correlation ID supplied by the application for a direct reply. */
+  replyTo?: string;
   /** True when the retained text is only a prefix of the published message. */
   truncated?: boolean;
 }
@@ -27,14 +29,22 @@ export type AgentTaskUpdate = string | AgentStatus | AgentActivity | {
   /** Replaces the previous workflow state. Must be JSON and at most 16,000 characters. Does not wake the owner. */
   type: "state";
   value: { [key: string]: AgentTaskData };
-  /** Optional public operational message for the server console. Supply static,
+  /** Optional public operational message for the server console and web Log view. Supply static,
    * host-owned text only: no prompts, model output, paths, credentials, or personal data. */
   activity?: string;
+  /** Display severity for the public activity message. */
+  activityLevel?: "info" | "success" | "error";
 } | {
   /** Explicit substantive progress, retained across later tool activity.
    * The application must validate this text; Runling does not verify evidence. */
   type: "finding";
   text: string;
+} | {
+  /** Answer to an owner question. Retain it and wake the owner immediately. */
+  type: "reply";
+  text: string;
+  /** Optional application question ID, copied to the retained output entry. */
+  replyTo?: string;
 };
 
 /** A conversation-local task handle. Results and handles are not durable across restart. */
@@ -97,6 +107,9 @@ export function observeAgentTasks(ctx: WorkflowContext<any, any>, {
   });
   const notify = (entry: Entry, type: string, text?: string) => {
     if (closed) return;
+    // A solicited answer must survive later progress or tool activity until the
+    // owner reads it. A terminal result still takes precedence.
+    if (notices.get(entry.state.id)?.type === "task.reply" && !["task.completed", "task.failed", "task.cancelled"].includes(type)) return;
     notices.set(entry.state.id, { entry, type, text });
     if (type === "task.progress") entry.progress = undefined;
     wake?.();
@@ -157,7 +170,7 @@ export function observeAgentTasks(ctx: WorkflowContext<any, any>, {
             const encoded = JSON.stringify(update.value);
             if (!encoded || encoded.length > 16_000) throw new Error("Task state exceeds the JSON size limit");
             // Copy before queuing so subsequent producer mutations cannot change the published state.
-            await ctx.emit({ type: "state", value: JSON.parse(encoded) } as Update);
+            await ctx.emit({ ...(update as Extract<AgentTaskUpdate, { type: "state" }>), value: JSON.parse(encoded) } as Update);
           } else await ctx.emit(update);
         } }, input));
       }));
@@ -172,9 +185,9 @@ export function observeAgentTasks(ctx: WorkflowContext<any, any>, {
       const state: AgentTaskState = { id: handle.id, name: name.slice(0, 200), status: handle.status, output: [], droppedOutput: 0 };
       const entry: Entry = { state, handle, settled: Promise.resolve() };
       tasks.set(state.id, entry);
-      const remember = (kind: AgentTaskOutput["kind"], text: string) => {
+      const remember = (kind: AgentTaskOutput["kind"], text: string, replyTo?: string) => {
         state.output.push({ sequence: state.droppedOutput + state.output.length + 1, at: Date.now(), kind, text: text.slice(0, 4_000),
-          ...(text.length > 4_000 ? { truncated: true } : {}) });
+          ...(text.length > 4_000 ? { truncated: true } : {}), ...(replyTo ? { replyTo } : {}) });
         if (state.output.length > 16) { state.output.shift(); state.droppedOutput++; }
       };
       const updates = (async () => {
@@ -185,12 +198,19 @@ export function observeAgentTasks(ctx: WorkflowContext<any, any>, {
               remember("output", text.text);
               continue;
             }
+            if (typeof text !== "string" && text.type === "reply") {
+              remember("reply", text.text, text.replyTo);
+              notify(entry, "task.reply");
+              continue;
+            }
             if (typeof text !== "string" && text.type === "state") {
               const encoded = JSON.stringify(text.value);
               if (!encoded || encoded.length > 16_000) throw new Error("Task state exceeds the JSON size limit");
               state.state = JSON.parse(encoded);
               state.stateAt = Date.now();
-              if (text.activity) emitRunlingEvent({ type: "task.activity", channelId: handle.id, message: text.activity.slice(0, 200) });
+              if (text.activity) emitRunlingEvent({ type: "task.activity", channelId: handle.id, message: text.activity.slice(0, 200),
+                ...(text.activityLevel ? { level: text.activityLevel } : {}),
+              });
               continue;
             }
             if (typeof text !== "string" && text.type !== "finding") {
