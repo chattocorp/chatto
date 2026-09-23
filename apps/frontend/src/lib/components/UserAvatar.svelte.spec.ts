@@ -75,6 +75,45 @@ describe('UserAvatar', () => {
     );
   });
 
+  it('keeps the offline presence dot for a person', () => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'sm',
+      showPresence: true,
+      presenceStatus: PresenceStatus.OFFLINE
+    });
+
+    expect(q(container, '[aria-label="Offline"] [data-testid="presence-dot"]')).toBeTruthy();
+  });
+
+  it.each([PresenceStatus.OFFLINE, PresenceStatus.UNSPECIFIED])(
+    'hides the presence dot for a bot without available presence (%s)',
+    (presenceStatus) => {
+      const { container } = render(UserAvatarTestHarness, {
+        size: 'sm',
+        showPresence: true,
+        isBot: true,
+        presenceStatus
+      });
+
+      expect(q(container, '[data-testid="presence-dot"]')).toBeFalsy();
+    }
+  );
+
+  it.each([
+    [PresenceStatus.ONLINE, 'Online'],
+    [PresenceStatus.AWAY, 'Away'],
+    [PresenceStatus.DO_NOT_DISTURB, 'Do not disturb']
+  ] as const)('shows a bot presence dot for %s', (presenceStatus, label) => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'sm',
+      showPresence: true,
+      isBot: true,
+      presenceStatus
+    });
+
+    expect(q(container, `[aria-label="${label}"] [data-testid="presence-dot"]`)).toBeTruthy();
+  });
+
   it('keeps extra-small avatars free of presence overlays', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'xs', showPresence: true });
 

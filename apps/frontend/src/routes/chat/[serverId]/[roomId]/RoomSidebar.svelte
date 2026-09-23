@@ -203,7 +203,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const sortedMembers = $derived(sortByName(members));
 
   function readOnlineState(list: RoomMember[]): Map<string, boolean> {
-    return new Map(list.map((member) => [member.id, isOnlineStatus(getPresence(member))]));
+    return new Map(
+      list
+        .filter((member) => !member.isBot)
+        .map((member) => [member.id, isOnlineStatus(getPresence(member))])
+    );
   }
 
   function onlineStatesEqual(
@@ -263,15 +267,21 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const groupedMembers = $derived.by(() => {
     const online: RoomMember[] = [];
+    const bots: RoomMember[] = [];
     const offline: RoomMember[] = [];
     for (const member of sortedMembers) {
+      if (member.isBot) {
+        bots.push(member);
+        continue;
+      }
       const groupedOnline =
         groupedOnlineState.get(member.id) ?? isOnlineStatus(member.presenceStatus);
       (groupedOnline ? online : offline).push(member);
     }
-    return { online, offline };
+    return { online, bots, offline };
   });
   const onlineMembers = $derived(groupedMembers.online);
+  const botMembers = $derived(groupedMembers.bots);
   const offlineMembers = $derived(groupedMembers.offline);
   const memberGroups = $derived.by(() => {
     const groups: Array<{
@@ -289,6 +299,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
         label: m('room.sidebar.online', { count: onlineMembers.length }),
         items: onlineMembers,
         persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:online'),
+        testid: 'room-member-group-heading'
+      });
+    }
+    if (botMembers.length > 0) {
+      groups.push({
+        id: 'bots',
+        label: m('room.sidebar.bots', { count: botMembers.length }),
+        items: botMembers,
+        persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:bots'),
         testid: 'room-member-group-heading'
       });
     }
@@ -348,10 +367,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
     toast.success({
       text: m('room.sidebar.ban_success', { name: accountNameToken(0) }),
-      accounts: [{
-        name: member.displayName || member.login,
-        identity: { isBot: member.isBot, deleted: member.deleted }
-      }]
+      accounts: [
+        {
+          name: member.displayName || member.login,
+          identity: { isBot: member.isBot, deleted: member.deleted }
+        }
+      ]
     });
     banDialogMember = null;
   }
@@ -580,7 +601,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   <UserCard
     variant="row"
     username={getLiveLogin(member.id, member.login)}
-    class={!isOnline ? 'opacity-50' : undefined}
+    class={!member.isBot && !isOnline ? 'opacity-50' : undefined}
     secondaryTestId="room-member-login"
     testId="room-member-card"
     menu={member.deleted

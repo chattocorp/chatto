@@ -118,7 +118,17 @@
       : null
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
-  const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
+  // A bot's public Offline state does not reveal whether it set a presence choice.
+  // Show a bot dot only while it has an active public presence state.
+  const showPresenceDot = $derived(
+    !!presence &&
+      showPresence &&
+      size !== 'xs' &&
+      (!user?.isBot ||
+        presence === PresenceStatus.ONLINE ||
+        presence === PresenceStatus.AWAY ||
+        presence === PresenceStatus.DO_NOT_DISTURB)
+  );
   const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot);
   const wrapperClass = $derived(
     [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]

@@ -251,6 +251,22 @@ function renderedMemberTitles(container: Element): string[] {
   );
 }
 
+function memberGroupLabels(container: Element): string[] {
+  return Array.from(container.querySelectorAll('[data-testid="room-member-group-heading"]')).map(
+    (element) => element.textContent?.trim() ?? ''
+  );
+}
+
+function memberGroup(container: Element, label: string): Element {
+  const group = Array.from(container.querySelectorAll('[data-testid="room-group-section"]')).find(
+    (section) =>
+      section.querySelector('[data-testid="room-member-group-heading"]')?.textContent?.trim() ===
+      label
+  );
+  if (!group) throw new Error(`Missing room member group: ${label}`);
+  return group;
+}
+
 function presenceBadge(container: Element, label: string): Element | null {
   return container.querySelector(`[aria-label="${label}"]`);
 }
@@ -690,15 +706,69 @@ describe('RoomSidebar', () => {
     expect(window.getComputedStyle(login).direction).toBe('ltr');
   });
 
-  it('marks bot accounts in the room member list', async () => {
-    mockRoomMembers([{ ...member(1), login: 'helper_bot', isBot: true }]);
+  it('shows an offline bot in an expanded Bots-only section', async () => {
+    mockRoomMembers([
+      {
+        ...member(1),
+        login: 'helper_bot',
+        isBot: true,
+        presenceStatus: PresenceStatus.OFFLINE
+      }
+    ]);
 
     const { container } = render(RoomSidebarTestHarness, {
       props: { roomData: roomData([], 0, false) }
     });
 
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+      expect(memberGroupLabels(container)).toEqual(['Bots (1)']);
+    });
+    const bots = memberGroup(container, 'Bots (1)');
+    expect(bots.querySelector('[data-testid="room-member-group-heading"]')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(bots.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    expect(presenceBadge(bots, 'Offline')).toBeFalsy();
+    expect(q(bots, '[data-testid="room-member-card"]')).not.toHaveClass('opacity-50');
+    expect(q(container, 'h1')?.textContent).toContain('Members (1)');
+  });
+
+  it('orders online people, bots, and offline people without counting bots twice', async () => {
+    mockRoomMembers([
+      { ...member(1), displayName: 'Zara Human' },
+      { ...member(2), displayName: 'Beta Bot', isBot: true },
+      {
+        ...member(3),
+        displayName: 'Alpha Bot',
+        isBot: true,
+        presenceStatus: PresenceStatus.OFFLINE
+      },
+      { ...member(4), displayName: 'Morgan Human', presenceStatus: PresenceStatus.OFFLINE }
+    ]);
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    await vi.waitFor(() => {
+      expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (2)', 'Offline (1)']);
+    });
+    expect(renderedMemberTitles(memberGroup(container, 'Online (1)'))).toEqual([
+      'View profile of Zara Human'
+    ]);
+    expect(renderedMemberTitles(memberGroup(container, 'Bots (2)'))).toEqual([
+      'View profile of Alpha Bot (BOT)',
+      'View profile of Beta Bot (BOT)'
+    ]);
+    expect(renderedMemberTitles(memberGroup(container, 'Offline (1)'))).toEqual([]);
+    expect(q(container, 'h1')?.textContent).toContain('Members (4)');
+
+    (q(memberGroup(container, 'Offline (1)'), 'button') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(memberGroup(container, 'Offline (1)'))).toEqual([
+        'View profile of Morgan Human'
+      ]);
     });
   });
 
@@ -1547,6 +1617,43 @@ describe('RoomSidebar', () => {
     expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps matching bots in their own section during member search', async () => {
+    mockRoomMembers([
+      { ...member(1), displayName: 'Helper Human' },
+      {
+        ...member(2),
+        displayName: 'Helper Bot',
+        isBot: true,
+        presenceStatus: PresenceStatus.OFFLINE
+      },
+      { ...member(3), displayName: 'Other Bot', isBot: true }
+    ]);
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    await vi.waitFor(() => {
+      expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (2)']);
+    });
+
+    const input = container.querySelector('#room-member-search') as HTMLInputElement;
+    input.value = 'helper';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await waitForMemberSearchDebounce();
+
+    await vi.waitFor(() => {
+      expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (1)']);
+    });
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(memberGroup(container, 'Bots (1)'))).toEqual([
+        'View profile of Helper Bot (BOT)'
+      ]);
+    });
+    expect(q(container, 'h1')?.textContent).toContain('Members (3)');
+    expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the member search fixed below a scroll-faded member list', async () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -1732,6 +1839,52 @@ describe('RoomSidebar', () => {
 
     expect(presenceBadge(container, 'Online')).toBeTruthy();
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+  });
+
+  it('keeps bots in their section across presence changes', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const bot = { ...member(1), isBot: true };
+    const human = member(2);
+    mockRoomMembers([bot, human]);
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (1)']);
+    });
+    expect(presenceBadge(memberGroup(container, 'Bots (1)'), 'Online')).toBeTruthy();
+
+    presenceCache!.update({ serverId: 'test-server', userId: bot.id }, PresenceStatus.OFFLINE);
+    await tick();
+    await waitForPresenceGrouping();
+
+    expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (1)']);
+    expect(presenceBadge(memberGroup(container, 'Bots (1)'), 'Offline')).toBeFalsy();
+    expect(
+      q(memberGroup(container, 'Bots (1)'), '[data-testid="room-member-card"]')
+    ).not.toHaveClass('opacity-50');
+
+    presenceCache!.update({ serverId: 'test-server', userId: bot.id }, PresenceStatus.AWAY);
+    await tick();
+    expect(memberGroupLabels(container)).toEqual(['Online (1)', 'Bots (1)']);
+    expect(presenceBadge(memberGroup(container, 'Bots (1)'), 'Away')).toBeTruthy();
+
+    presenceCache!.update({ serverId: 'test-server', userId: human.id }, PresenceStatus.OFFLINE);
+    await tick();
+    await waitForPresenceGrouping();
+
+    expect(memberGroupLabels(container)).toEqual(['Bots (1)', 'Offline (1)']);
+    expect(renderedMemberTitles(memberGroup(container, 'Bots (1)'))).toEqual([
+      'View profile of User 1 (BOT)'
+    ]);
   });
 
   it('shows presence immediately while debouncing member group movement', async () => {

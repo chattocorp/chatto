@@ -208,6 +208,7 @@
       "clear_member_search": "清除成员搜索",
       "no_members": "未找到成员。",
       "online": "在线（{count}）",
+      "bots": "机器人（{count}）",
       "offline": "离线（{count}）",
       "no_files": "此聊天室中还没有文件。",
       "files": "文件",

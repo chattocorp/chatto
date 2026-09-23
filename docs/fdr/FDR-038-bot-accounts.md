@@ -23,8 +23,14 @@ exercise more authority than its human owner currently possesses.
   the badge beside the text field. Plain-text values, such as accessibility
   labels and page titles, use **Name (BOT)** when they must identify the bot.
   The badge stays visible when a long name is shortened. Deleted accounts do
-  not have it. Avatars keep their presence and custom-status indicators.
+  not have it. Avatars keep their custom-status indicators. Bot avatars show
+  presence dots only for Online, Away, and Do Not Disturb.
   This makes account type clear without covering the avatar or implying verification.
+
+- The room sidebar lists bots in a **Bots** section between Online and Offline.
+  It shows the section only when the room has bots. Bot presence does not move
+  them to another section. Offline bots are not dimmed and have no presence
+  dot. Bots with Online, Away, or Do Not Disturb presence show their normal dot.
 
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card

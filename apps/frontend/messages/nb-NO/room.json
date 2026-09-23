@@ -208,6 +208,7 @@
       "clear_member_search": "Slett medlemssøk",
       "no_members": "Ingen medlemmer funnet.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Frakoblet ({count})",
       "no_files": "Ingen filer i dette rommet ennå.",
       "files": "Filer",

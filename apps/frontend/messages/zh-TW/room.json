@@ -208,6 +208,7 @@
       "clear_member_search": "清除成員搜尋",
       "no_members": "找不到成員。",
       "online": "上線（{count}）",
+      "bots": "機器人（{count}）",
       "offline": "離線（{count}）",
       "no_files": "此聊天室尚無檔案。",
       "files": "檔案",

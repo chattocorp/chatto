@@ -208,6 +208,7 @@
       "clear_member_search": "Klarigi membroserĉon",
       "no_members": "Neniuj membroj trovitaj.",
       "online": "Enreta ({count})",
+      "bots": "Bots ({count})",
       "offline": "Senkonekta ({count})",
       "no_files": "Ankoraŭ neniuj dosieroj en ĉi tiu ĉambro.",
       "files": "Dosieroj",

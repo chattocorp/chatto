@@ -212,6 +212,7 @@
       "clear_member_search": "נקה חיפוש חברים",
       "no_members": "לא נמצאו חברים.",
       "online": "באינטרנט ({count})",
+      "bots": "בוטים ({count})",
       "offline": "במצב לא מקוון ({count})",
       "no_files": "עדיין אין קבצים בחדר הזה.",
       "files": "קבצים",

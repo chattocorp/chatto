@@ -208,6 +208,7 @@
       "clear_member_search": "Mitgliedersuche leeren",
       "no_members": "Keine Mitglieder gefunden.",
       "online": "Online ({count})",
+      "bots": "Bots ({count})",
       "offline": "Offline ({count})",
       "no_files": "Noch keine Dateien in diesem Raum.",
       "files": "Dateien",

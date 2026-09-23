@@ -208,6 +208,7 @@
       "clear_member_search": "Üye aramasını temizle",
       "no_members": "Üye bulunamadı.",
       "online": "Çevrimiçi ({count})",
+      "bots": "Bots ({count})",
       "offline": "Çevrimdışı ({count})",
       "no_files": "Bu odada henüz dosya yok.",
       "files": "Dosyalar",

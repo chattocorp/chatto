@@ -208,6 +208,7 @@
       "clear_member_search": "Notīrīt dalībnieku meklēšanu",
       "no_members": "Nav atrasts neviens dalībnieks.",
       "online": "Tiešsaistē ({count})",
+      "bots": "Bots ({count})",
       "offline": "Bezsaistē ({count})",
       "no_files": "Šajā telpā vēl nav neviena faila.",
       "files": "Faili",
