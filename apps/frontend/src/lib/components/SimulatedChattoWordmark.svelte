@@ -5,12 +5,12 @@
   import {
     ballisticDisplacement,
     BoundedLruCache,
+    BoundedObjectPool,
     canvasPixelRatio,
     claimParticleHits,
     CONSTRUCTION_DURATION,
     constructionFrame,
     constructionLaserFrame,
-    createProjectionRotation,
     createStarFieldParticles,
     createWordmarkParticles,
     cursorGravity,
@@ -46,10 +46,12 @@
     smokeFrame,
     sparkleStrength,
     type ProjectedParticle,
+    type ExplosionFrame,
     type ProjectionRotation,
     type WordmarkParticle
   } from './simulatedChattoWordmark';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
+  import { NARROW_TOUCH_QUERY } from '$lib/utils/inputMediaQueries';
 
   type BurstVector = {
     x: number;
@@ -67,7 +69,12 @@
     vectors: BurstVector[];
     lasers: LaserBeam[];
     smoke: SmokeParticle[];
+    /** Active slots in the reusable smoke array. */
+    smokeCount: number;
     smokeIntensity: number;
+    /** Last animation frame, updated before particles are drawn. */
+    progress: number;
+    frame: ExplosionFrame;
     impactResolved: boolean;
     awardSpendablePoints: boolean;
     ignoreParticleAvailability: boolean;
@@ -111,9 +118,14 @@
 
   const ACTIVE_FRAME_RATE = 60;
   const IDLE_FRAME_RATE = 30;
+  const NARROW_ACTIVE_FRAME_RATE = 30;
+  const NARROW_IDLE_FRAME_RATE = 15;
   // Keep two complete volleys because a burst lasts twice as long as a laser cooldown.
   const MAX_ACTIVE_BURSTS = MAX_LASER_GUNS * 2;
   const MAX_EMOJI_SPRITES = 768;
+  const NARROW_EMOJI_SPRITE_BYTES = 2 * 1024 * 1024;
+  const FULL_EMOJI_SPRITE_BYTES = 8 * 1024 * 1024;
+  const MAX_SMOKE_PARTICLES = Math.round(5 + laserPowerSmokeScale(MAX_LASER_POWER) * 9);
   const FOREGROUND_STAR_DEPTH = 0.66;
   const FINAL_VOLLEY_COMPLETION_DELAY = IMPACT_LASER_DURATION + EXPLOSION_DURATION;
   type StarFieldLayer = 'background' | 'foreground';
@@ -136,12 +148,36 @@
 
   const particles = createWordmarkParticles();
   const stars = createStarFieldParticles();
-  const renderParticles: RenderParticle[] = particles.map((particle, index) => ({
+  const narrowStars = stars.filter((_, index) => index % 4 === 0);
+  // Only drawing detail changes on narrow touch screens; all particles still score hits.
+  const allRenderParticles: RenderParticle[] = particles.map((particle, index) => ({
     index,
     particle,
     position: { x: 0, y: 0, depth: particle.z, scale: 1 }
   }));
-  const emojiSprites = new BoundedLruCache<EmojiSprite>(MAX_EMOJI_SPRITES);
+  const narrowRenderParticles = allRenderParticles.filter(
+    ({ particle }) => particle.layer === 1 || particle.layer === 3
+  );
+  let renderParticles = allRenderParticles;
+  let renderStars = stars;
+  // Sprites are decoded canvases, so their backing pixels set the cache limit.
+  function createEmojiSpriteCache(narrowTouch: boolean) {
+    return new BoundedLruCache<EmojiSprite>(
+      MAX_EMOJI_SPRITES,
+      narrowTouch ? NARROW_EMOJI_SPRITE_BYTES : FULL_EMOJI_SPRITE_BYTES,
+      ({ canvas }) => canvas.width * canvas.height * 4
+    );
+  }
+  let emojiSprites = createEmojiSpriteCache(false);
+  const burstPool = new BoundedObjectPool<ActiveBurst>(MAX_ACTIVE_BURSTS, createBurstRecord);
+  const projectionFrame: CanvasProjectionFrame = {
+    wordmark: { left: 0, top: 0, width: 0, height: 0 },
+    rotation: { cosX: 1, sinX: 0, cosY: 1, sinY: 0 },
+    glyphOffsets: Array(6).fill(0)
+  };
+  const projectedParticleScratch: ProjectedParticle = { x: 0, y: 0, depth: 0, scale: 1 };
+  const constructionScratch = { opacity: 0, scale: 0, glow: 0 };
+  const rebuildScratch = { opacity: 0, scale: 0, glow: 0 };
 
   let canvasContext: CanvasRenderingContext2D | null = null;
   let canvasElement: HTMLCanvasElement | null = null;
@@ -158,6 +194,7 @@
   let currentRotateY = 0;
   let constructionStartedAt = Number.NEGATIVE_INFINITY;
   let activeBursts: ActiveBurst[] = [];
+  let narrowTouchProfile = false;
   const particleAvailableAt = new Float64Array(particles.length);
   let reducedMotion = false;
   let hoverCursor: { x: number; y: number } | null = null;
@@ -186,10 +223,15 @@
     canvasContext = canvas.getContext('2d');
     constructionStartedAt = performance.now();
     hudNow = constructionStartedAt;
+    const narrowTouch = window.matchMedia(NARROW_TOUCH_QUERY);
+    narrowTouchProfile = narrowTouch.matches;
+    renderParticles = narrowTouchProfile ? narrowRenderParticles : allRenderParticles;
+    renderStars = narrowTouchProfile ? narrowStars : stars;
+    emojiSprites = createEmojiSpriteCache(narrowTouchProfile);
 
     function resizeCanvas() {
       const bounds = canvas.getBoundingClientRect();
-      const pixelRatio = canvasPixelRatio(window.devicePixelRatio || 1);
+      const pixelRatio = narrowTouchProfile ? 1 : canvasPixelRatio(window.devicePixelRatio || 1);
       canvasWidth = bounds.width;
       canvasHeight = bounds.height;
       canvas.width = Math.max(1, Math.round(bounds.width * pixelRatio));
@@ -199,6 +241,15 @@
       lastSortedRotateX = Number.NaN;
       lastSortedRotateY = Number.NaN;
       requestDraw();
+    }
+
+    function handleRenderProfile() {
+      if (narrowTouchProfile === narrowTouch.matches) return;
+      narrowTouchProfile = narrowTouch.matches;
+      renderParticles = narrowTouchProfile ? narrowRenderParticles : allRenderParticles;
+      renderStars = narrowTouchProfile ? narrowStars : stars;
+      emojiSprites = createEmojiSpriteCache(narrowTouchProfile);
+      resizeCanvas();
     }
 
     function handleMotionPreference() {
@@ -226,9 +277,11 @@
     });
     canvasLifecycle = lifecycle;
     reducedMotion = lifecycle.reducedMotion;
+    narrowTouch.addEventListener('change', handleRenderProfile);
     resizeCanvas();
 
     return () => {
+      narrowTouch.removeEventListener('change', handleRenderProfile);
       canvasLifecycle?.destroy();
       canvasLifecycle = undefined;
       if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
@@ -236,6 +289,8 @@
       canvasContext = null;
       canvasElement = null;
       emojiSprites.clear();
+      activeBursts = [];
+      burstPool.clear();
     };
   }
 
@@ -245,49 +300,48 @@
     }
   }
 
-  function getWordmarkBounds(): WordmarkBounds {
+  function updateCanvasProjectionFrame(now: number): CanvasProjectionFrame {
     const width = canvasWidth / drawingSurfaceWidthScale;
     const height = width / 5;
-
-    return {
-      left: (canvasWidth - width) / 2,
-      top: (canvasHeight - height) / 2,
-      width,
-      height
-    };
-  }
-
-  function createCanvasProjectionFrame(now: number): CanvasProjectionFrame {
+    const wordmark = projectionFrame.wordmark;
+    wordmark.left = (canvasWidth - width) / 2;
+    wordmark.top = (canvasHeight - height) / 2;
+    wordmark.width = width;
+    wordmark.height = height;
+    const radiansX = (currentRotateX * Math.PI) / 180;
+    const radiansY = (currentRotateY * Math.PI) / 180;
+    const rotation = projectionFrame.rotation;
+    rotation.cosX = Math.cos(radiansX);
+    rotation.sinX = Math.sin(radiansX);
+    rotation.cosY = Math.cos(radiansY);
+    rotation.sinY = Math.sin(radiansY);
     const elapsed = now - constructionStartedAt;
-    return {
-      wordmark: getWordmarkBounds(),
-      rotation: createProjectionRotation(currentRotateX, currentRotateY),
-      glyphOffsets: Array.from({ length: 6 }, (_, glyph) =>
-        glyphFloatOffset(elapsed, glyph, reducedMotion)
-      )
-    };
+    for (let glyph = 0; glyph < projectionFrame.glyphOffsets.length; glyph += 1) {
+      projectionFrame.glyphOffsets[glyph] = glyphFloatOffset(elapsed, glyph, reducedMotion);
+    }
+    return projectionFrame;
   }
 
   function projectForCanvas(
     particle: WordmarkParticle,
-    frame: CanvasProjectionFrame
+    frame: CanvasProjectionFrame,
+    destination: ProjectedParticle = projectedParticleScratch
   ): ProjectedParticle {
     const position = projectParticleWithRotation(
       particle,
       frame.wordmark.width,
       frame.wordmark.height,
-      frame.rotation
+      frame.rotation,
+      destination
     );
-
-    return {
-      ...position,
-      x: position.x + frame.wordmark.left,
-      y: position.y + frame.wordmark.top + frame.glyphOffsets[particle.glyph]
-    };
+    position.x += frame.wordmark.left;
+    position.y += frame.wordmark.top + frame.glyphOffsets[particle.glyph];
+    return position;
   }
 
   function getEmojiSprite(emoji: string, fontSize: number, pixelRatio: number): EmojiSprite {
-    const roundedFontSize = quantizeSpriteFontSize(fontSize);
+    // Smoke has many random sizes; coarse steps keep its bitmap cache reusable.
+    const roundedFontSize = quantizeSpriteFontSize(fontSize, emoji === '☁️' ? 4 : 0.5);
     const key = `${emoji}:${roundedFontSize}:${pixelRatio}`;
     const cached = emojiSprites.get(key);
     if (cached) return cached;
@@ -310,9 +364,12 @@
     return sprite;
   }
 
-  function drawConstructionLasers(context: CanvasRenderingContext2D, elapsed: number) {
+  function drawConstructionLasers(
+    context: CanvasRenderingContext2D,
+    elapsed: number,
+    wordmark: WordmarkBounds
+  ) {
     if (elapsed >= CONSTRUCTION_DURATION) return;
-    const wordmark = getWordmarkBounds();
 
     for (let row = 6; row >= 0; row -= 1) {
       const laser = constructionLaserFrame(elapsed, row);
@@ -390,7 +447,8 @@
     pixelRatio: number
   ) {
     const elapsed = now - activeBurst.startedAt;
-    for (const smoke of activeBurst.smoke) {
+    for (let index = 0; index < activeBurst.smokeCount; index += 1) {
+      const smoke = activeBurst.smoke[index];
       const frame = smokeFrame(elapsed, smoke.delay);
       if (!frame) continue;
       const distance = smoke.distance * frame.distanceProgress;
@@ -482,7 +540,7 @@
 
     const elapsed = reducedMotion ? 0 : now - constructionStartedAt;
     const baseFontSize = Math.min(13, Math.max(6, canvasWidth * 0.016));
-    for (const star of stars) {
+    for (const star of renderStars) {
       const foreground = star.depth >= FOREGROUND_STAR_DEPTH;
       if ((layer === 'foreground') !== foreground) continue;
       const foregroundDepth = foreground
@@ -524,9 +582,11 @@
     const context = canvasContext;
     if (!context || canvasWidth <= 0 || canvasHeight <= 0) return;
     resolveBurstImpacts(now);
-    activeBursts = activeBursts.filter(
-      (activeBurst) => now - activeBurst.startedAt < EXPLOSION_DURATION
-    );
+    for (let index = activeBursts.length - 1; index >= 0; index -= 1) {
+      if (now - activeBursts[index].startedAt >= EXPLOSION_DURATION) {
+        releaseBurst(activeBursts.splice(index, 1)[0]);
+      }
+    }
     const constructionElapsed = reducedMotion ? CONSTRUCTION_DURATION : now - constructionStartedAt;
     const rotationSettling =
       Math.abs(targetRotateX - currentRotateX) > 0.02 ||
@@ -539,7 +599,14 @@
       cooldownActive ||
       hoverCursor !== null ||
       rotationSettling;
-    const frameInterval = 1000 / (activeMotion ? ACTIVE_FRAME_RATE : IDLE_FRAME_RATE);
+    const frameRate = narrowTouchProfile
+      ? activeMotion
+        ? NARROW_ACTIVE_FRAME_RATE
+        : NARROW_IDLE_FRAME_RATE
+      : activeMotion
+        ? ACTIVE_FRAME_RATE
+        : IDLE_FRAME_RATE;
+    const frameInterval = 1000 / frameRate;
     const elapsedSinceLastDraw = now - lastDrawnAt;
     if (elapsedSinceLastDraw < frameInterval - 1) {
       requestDraw();
@@ -555,26 +622,24 @@
       currentRotateY += (targetRotateY - currentRotateY) * 0.12;
     }
 
-    const pixelRatio = canvasPixelRatio(window.devicePixelRatio || 1);
+    const pixelRatio = narrowTouchProfile ? 1 : canvasPixelRatio(window.devicePixelRatio || 1);
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.clearRect(0, 0, canvasWidth, canvasHeight);
 
     const viewportFontSize = Math.min(20, Math.max(10.88, window.innerWidth * 0.02));
-    const projectionFrame = createCanvasProjectionFrame(now);
+    const projectionFrame = updateCanvasProjectionFrame(now);
     drawStarField(context, now, pixelRatio, 'background');
-    drawConstructionLasers(context, constructionElapsed);
-    const burstFrames = reducedMotion
-      ? []
-      : activeBursts.map((activeBurst) => ({
-          activeBurst,
-          progress: (now - activeBurst.startedAt) / EXPLOSION_DURATION,
-          frame: explosionFrame((now - activeBurst.startedAt) / EXPLOSION_DURATION)
-        }));
+    drawConstructionLasers(context, constructionElapsed, projectionFrame.wordmark);
     if (!reducedMotion) {
+      for (const activeBurst of activeBursts) {
+        activeBurst.progress = (now - activeBurst.startedAt) / EXPLOSION_DURATION;
+        explosionFrame(activeBurst.progress, activeBurst.frame);
+      }
       for (const activeBurst of activeBursts) {
         drawImpactLasers(context, activeBurst, now);
       }
-      for (const { activeBurst, progress } of burstFrames) {
+      for (const activeBurst of activeBursts) {
+        const progress = activeBurst.progress;
         if (progress <= 0 || progress >= 0.32) continue;
         const shockwaveProgress = progress / 0.32;
         const shockwaveRadius = activeBurst.influenceRadius * (0.12 + shockwaveProgress * 1.18);
@@ -592,12 +657,12 @@
       for (const activeBurst of activeBursts) {
         drawBurstSmoke(context, activeBurst, now, viewportFontSize, pixelRatio);
       }
-      for (const { activeBurst, progress } of burstFrames) {
-        drawRebuildStitches(context, activeBurst, progress, projectionFrame);
+      for (const activeBurst of activeBursts) {
+        drawRebuildStitches(context, activeBurst, activeBurst.progress, projectionFrame);
       }
     }
     for (const entry of renderParticles) {
-      entry.position = projectForCanvas(entry.particle, projectionFrame);
+      projectForCanvas(entry.particle, projectionFrame, entry.position);
     }
     if (
       !Number.isFinite(lastSortedRotateX) ||
@@ -610,7 +675,7 @@
     }
 
     for (const { index, particle, position } of renderParticles) {
-      const construction = constructionFrame(constructionElapsed, particle);
+      const construction = constructionFrame(constructionElapsed, particle, constructionScratch);
       if (construction.opacity <= 0) continue;
       let burstX = 0;
       let burstY = 0;
@@ -619,36 +684,44 @@
       let burstOpacity = 1;
       let rebuildScale = 1;
       let rebuildGlow = 0;
-      for (const { activeBurst, frame, progress } of burstFrames) {
-        const vector = activeBurst.vectors[index];
-        burstX += vector.x * frame.offset;
-        burstY += ballisticDisplacement(vector.y, vector.gravity, frame.offset);
-        burstRotation += vector.rotation * frame.rotation;
-        burstScaleDelta += frame.scaleDelta * vector.force;
+      if (!reducedMotion) {
+        for (const activeBurst of activeBursts) {
+          const { frame, progress } = activeBurst;
+          const vector = activeBurst.vectors[index];
+          burstX += vector.x * frame.offset;
+          burstY += ballisticDisplacement(vector.y, vector.gravity, frame.offset);
+          burstRotation += vector.rotation * frame.rotation;
+          burstScaleDelta += frame.scaleDelta * vector.force;
 
-        if (progress >= EXPLOSION_REBUILD_START) {
-          const bottomToTop = Math.max(
-            0,
-            Math.min(
-              1,
-              (activeBurst.origin.y + activeBurst.influenceRadius - position.y) /
-                (activeBurst.influenceRadius * 2)
-            )
-          );
-          const leftToRight = Math.max(
-            0,
-            Math.min(
-              1,
-              (position.x - activeBurst.origin.x + activeBurst.influenceRadius) /
-                (activeBurst.influenceRadius * 2)
-            )
-          );
-          const rebuild = rebuildParticleFrame(progress, bottomToTop, leftToRight);
-          burstOpacity *= explosionParticleOpacity(vector.force, rebuild.opacity);
-          rebuildScale *= 1 - vector.force * (1 - rebuild.scale);
-          rebuildGlow = Math.max(rebuildGlow, rebuild.glow * vector.force);
-        } else {
-          burstOpacity *= explosionParticleOpacity(vector.force, frame.opacity);
+          if (progress >= EXPLOSION_REBUILD_START) {
+            const bottomToTop = Math.max(
+              0,
+              Math.min(
+                1,
+                (activeBurst.origin.y + activeBurst.influenceRadius - position.y) /
+                  (activeBurst.influenceRadius * 2)
+              )
+            );
+            const leftToRight = Math.max(
+              0,
+              Math.min(
+                1,
+                (position.x - activeBurst.origin.x + activeBurst.influenceRadius) /
+                  (activeBurst.influenceRadius * 2)
+              )
+            );
+            const rebuild = rebuildParticleFrame(
+              progress,
+              bottomToTop,
+              leftToRight,
+              rebuildScratch
+            );
+            burstOpacity *= explosionParticleOpacity(vector.force, rebuild.opacity);
+            rebuildScale *= 1 - vector.force * (1 - rebuild.scale);
+            rebuildGlow = Math.max(rebuildGlow, rebuild.glow * vector.force);
+          } else {
+            burstOpacity *= explosionParticleOpacity(vector.force, frame.opacity);
+          }
         }
       }
       let hoverX = 0;
@@ -669,12 +742,18 @@
       const y = position.y + burstY + hoverY;
       const scale =
         position.scale * construction.scale * rebuildScale * Math.max(0.15, 1 + burstScaleDelta);
-      const sparkle = reducedMotion
-        ? 0
-        : sparkleStrength(now, particle.sparkleDelay, particle.sparkleDuration, particle.sparkles);
+      const sparkle =
+        reducedMotion || narrowTouchProfile
+          ? 0
+          : sparkleStrength(
+              now,
+              particle.sparkleDelay,
+              particle.sparkleDuration,
+              particle.sparkles
+            );
       const opacity = particle.opacity * construction.opacity * burstOpacity;
       if (opacity <= 0.002) continue;
-      const constructionGlow = Math.max(construction.glow, rebuildGlow);
+      const constructionGlow = narrowTouchProfile ? 0 : Math.max(construction.glow, rebuildGlow);
       const cullingRadius = viewportFontSize * particle.size * scale * 1.1 + constructionGlow * 20;
       if (
         x + cullingRadius < 0 ||
@@ -733,34 +812,78 @@
     requestDraw();
   }
 
-  function createBurstSmoke(originX: number, originY: number, smokeScale: number): SmokeParticle[] {
-    const smokeCount = Math.round(5 + smokeScale * 9);
-    return Array.from({ length: smokeCount }, (_, index) => {
+  function createBurstRecord(): ActiveBurst {
+    return {
+      triggeredAt: 0,
+      startedAt: 0,
+      origin: { x: 0, y: 0 },
+      influenceRadius: 0,
+      vectors: particles.map(() => ({
+        x: 0,
+        y: 0,
+        force: 0,
+        rotation: 0,
+        gravity: 0,
+        unavailableDuration: 0
+      })),
+      lasers: [],
+      smoke: Array.from({ length: MAX_SMOKE_PARTICLES }, () => ({
+        angle: 0,
+        distance: 0,
+        delay: 0,
+        size: 0
+      })),
+      smokeCount: 0,
+      smokeIntensity: 0,
+      progress: 0,
+      frame: { offset: 0, rotation: 0, scaleDelta: 0, opacity: 1 },
+      impactResolved: false,
+      awardSpendablePoints: false,
+      ignoreParticleAvailability: false
+    };
+  }
+
+  function releaseBurst(burst: ActiveBurst) {
+    burst.lasers.length = 0;
+    burst.smokeCount = 0;
+    burstPool.release(burst);
+  }
+
+  function createBurstSmoke(
+    burst: ActiveBurst,
+    originX: number,
+    originY: number,
+    smokeScale: number
+  ) {
+    const smokeCount = Math.min(burst.smoke.length, Math.round(5 + smokeScale * 9));
+    burst.smokeCount = smokeCount;
+    for (let index = 0; index < smokeCount; index += 1) {
       const angleDirection = Math.random() < 0.5 ? -1 : 1;
-      return {
-        angle:
-          (index / smokeCount) * Math.PI * 2 +
-          (originX + originY) * 0.001 +
-          angleDirection * Math.min(0.5, exponentialSample(Math.random()) * 0.12),
-        distance:
-          (28 + (index % 4) * 8) * (1 + Math.min(0.65, exponentialSample(Math.random()) * 0.18)),
-        delay: Math.min(180, exponentialSample(Math.random()) * 52),
-        size:
-          (2.2 + (index % 3) * 0.4) *
-          smokeScale *
-          (1 + Math.min(0.9, exponentialSample(Math.random()) * 0.22))
-      };
-    });
+      const smoke = burst.smoke[index];
+      smoke.angle =
+        (index / smokeCount) * Math.PI * 2 +
+        (originX + originY) * 0.001 +
+        angleDirection * Math.min(0.5, exponentialSample(Math.random()) * 0.12);
+      smoke.distance =
+        (28 + (index % 4) * 8) * (1 + Math.min(0.65, exponentialSample(Math.random()) * 0.18));
+      smoke.delay = Math.min(180, exponentialSample(Math.random()) * 52);
+      smoke.size =
+        (2.2 + (index % 3) * 0.4) *
+        smokeScale *
+        (1 + Math.min(0.9, exponentialSample(Math.random()) * 0.22));
+    }
   }
 
   function createBurstVectors(
+    burst: ActiveBurst,
     originX: number,
     originY: number,
     projectionFrame: CanvasProjectionFrame,
     influenceRadius: number,
     fullStrength = false
-  ): BurstVector[] {
-    return particles.map((particle) => {
+  ) {
+    for (let index = 0; index < particles.length; index += 1) {
+      const particle = particles[index];
       const position = projectForCanvas(particle, projectionFrame);
       let vectorX = position.x - originX;
       let vectorY = position.y - originY;
@@ -802,15 +925,14 @@
         0,
         Math.min(1, (position.x - originX + influenceRadius) / (influenceRadius * 2))
       );
-      return {
-        x: directionX * travelDistance,
-        y: directionY * travelDistance - 0.5 * gravity,
-        force,
-        rotation: particle.burstRotation * force,
-        gravity,
-        unavailableDuration: explosionParticleUnavailableDuration(bottomToTop, leftToRight)
-      };
-    });
+      const vector = burst.vectors[index];
+      vector.x = directionX * travelDistance;
+      vector.y = directionY * travelDistance - 0.5 * gravity;
+      vector.force = force;
+      vector.rotation = particle.burstRotation * force;
+      vector.gravity = gravity;
+      vector.unavailableDuration = explosionParticleUnavailableDuration(bottomToTop, leftToRight);
+    }
   }
 
   function resolveBurstImpacts(now: number) {
@@ -825,13 +947,19 @@
         activeBurst.ignoreParticleAvailability
       );
       let hitCount = 0;
-      activeBurst.vectors = activeBurst.vectors.map((vector, index) => {
+      for (let index = 0; index < activeBurst.vectors.length; index += 1) {
+        const vector = activeBurst.vectors[index];
         if (acceptedHits[index]) {
           hitCount += 1;
-          return vector;
+          continue;
         }
-        return { x: 0, y: 0, force: 0, rotation: 0, gravity: 0, unavailableDuration: 0 };
-      });
+        vector.x = 0;
+        vector.y = 0;
+        vector.force = 0;
+        vector.rotation = 0;
+        vector.gravity = 0;
+        vector.unavailableDuration = 0;
+      }
       activeBurst.impactResolved = true;
       score += hitCount;
       if (activeBurst.awardSpendablePoints) points += hitCount;
@@ -865,30 +993,25 @@
     );
     if (introShot) firstLaserShots += 1;
     hudNow = triggeredAt;
-    const projectionFrame = createCanvasProjectionFrame(triggeredAt);
+    const projectionFrame = updateCanvasProjectionFrame(triggeredAt);
     const influenceRadius = projectionFrame.wordmark.width * laserPowerRadiusScale(shotPower);
-    const lasers = [laserBeamOrigin(laserIndex, canvasWidth, canvasHeight)];
     const smokeScale = laserPowerSmokeScale(shotPower);
-    const smoke = createBurstSmoke(originX, originY, smokeScale);
-    const vectors = createBurstVectors(originX, originY, projectionFrame, influenceRadius);
-
+    if (activeBursts.length >= MAX_ACTIVE_BURSTS) releaseBurst(activeBursts.shift()!);
+    const burst = burstPool.acquire();
     const impactDelay = reducedMotion ? 0 : IMPACT_LASER_DURATION;
-    activeBursts = [
-      ...activeBursts.slice(-(MAX_ACTIVE_BURSTS - 1)),
-      {
-        triggeredAt,
-        startedAt: triggeredAt + impactDelay,
-        origin: { x: originX, y: originY },
-        influenceRadius,
-        vectors,
-        lasers,
-        smoke,
-        smokeIntensity: Math.min(1, 0.35 + smokeScale * 0.5),
-        impactResolved: false,
-        awardSpendablePoints: true,
-        ignoreParticleAvailability: false
-      }
-    ];
+    burst.triggeredAt = triggeredAt;
+    burst.startedAt = triggeredAt + impactDelay;
+    burst.origin.x = originX;
+    burst.origin.y = originY;
+    burst.influenceRadius = influenceRadius;
+    burst.lasers.push(laserBeamOrigin(laserIndex, canvasWidth, canvasHeight));
+    createBurstSmoke(burst, originX, originY, smokeScale);
+    createBurstVectors(burst, originX, originY, projectionFrame, influenceRadius);
+    burst.smokeIntensity = Math.min(1, 0.35 + smokeScale * 0.5);
+    burst.impactResolved = false;
+    burst.awardSpendablePoints = true;
+    burst.ignoreParticleAvailability = false;
+    activeBursts.push(burst);
     if (reducedMotion) resolveBurstImpacts(triggeredAt);
     requestDraw();
   }
@@ -926,27 +1049,28 @@
 
     const originX = canvasWidth / 2;
     const originY = canvasHeight / 2;
-    const projectionFrame = createCanvasProjectionFrame(triggeredAt);
+    const projectionFrame = updateCanvasProjectionFrame(triggeredAt);
     const influenceRadius = projectionFrame.wordmark.width;
     const smokeScale = laserPowerSmokeScale(MAX_LASER_POWER);
     const impactDelay = reducedMotion ? 0 : IMPACT_LASER_DURATION;
-    activeBursts = [
-      {
-        triggeredAt,
-        startedAt: triggeredAt + impactDelay,
-        origin: { x: originX, y: originY },
-        influenceRadius,
-        vectors: createBurstVectors(originX, originY, projectionFrame, influenceRadius, true),
-        lasers: laserGuns.map((_, index) =>
-          laserBeamOrigin(index, canvasWidth, canvasHeight, laserGuns.length)
-        ),
-        smoke: createBurstSmoke(originX, originY, smokeScale),
-        smokeIntensity: 1,
-        impactResolved: false,
-        awardSpendablePoints: false,
-        ignoreParticleAvailability: true
-      }
-    ];
+    for (const activeBurst of activeBursts) releaseBurst(activeBurst);
+    activeBursts = [];
+    const burst = burstPool.acquire();
+    burst.triggeredAt = triggeredAt;
+    burst.startedAt = triggeredAt + impactDelay;
+    burst.origin.x = originX;
+    burst.origin.y = originY;
+    burst.influenceRadius = influenceRadius;
+    for (let index = 0; index < laserGuns.length; index += 1) {
+      burst.lasers.push(laserBeamOrigin(index, canvasWidth, canvasHeight, laserGuns.length));
+    }
+    createBurstSmoke(burst, originX, originY, smokeScale);
+    createBurstVectors(burst, originX, originY, projectionFrame, influenceRadius, true);
+    burst.smokeIntensity = 1;
+    burst.impactResolved = false;
+    burst.awardSpendablePoints = false;
+    burst.ignoreParticleAvailability = true;
+    activeBursts.push(burst);
     if (reducedMotion) {
       resolveBurstImpacts(triggeredAt);
       finishFinalVolley();
