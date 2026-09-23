@@ -19,6 +19,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 - API, authentication, live, webhook, and uploaded-asset requests use the network.
 - The foreground app saves the room list and up to 50 text messages from each of 10 recently viewed rooms per server and user. Saved views expire seven days after the last successful sync. The current offline storage budget is 20 MB: at most 12 MB for the shell and 8 MB for saved text.
 - On a cold chat launch, the app shows a matching saved view in the normal chat layout before it checks the session or opens a connection. It keeps server actions disabled until the server confirms the viewer. It then applies missed data or a replacement snapshot. A missing saved view follows the normal online startup path.
+- A message permalink uses live startup because the target message can be outside the saved view.
 - The app clears affected saved content on sign-out, account switch, server removal, account deletion, and verified room access loss. App preferences include a control to clear saved chats on the device.
 - On activation, the root worker removes older shell caches after the new shell is installed.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.

@@ -36,7 +36,9 @@ export const load: LayoutLoad = async ({ url, params }) => {
   initialLoad = false;
   let startupSavedView: SavedView | null = null;
   let publicLocalePromise: Promise<void> | null = null;
-  if (serverId && savedUserId && !isExplicitSignOutRedirectInProgress()) {
+  // A message permalink may point outside the bounded saved window. Resolve
+  // it against the live projection so startup replacement cannot lose its jump.
+  if (serverId && savedUserId && !params?.messageId && !isExplicitSignOutRedirectInProgress()) {
     publicLocalePromise = preloadPublicLocaleMessages();
     const [view] = await Promise.all([
       loadSavedView(serverId, savedUserId),

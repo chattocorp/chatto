@@ -100,6 +100,20 @@ describe('saved startup route load', () => {
     expect(mocks.loadCurrentUser).toHaveBeenCalledOnce();
   });
 
+  it('uses live startup for a message permalink outside the saved window', async () => {
+    const { load } = await import('./+layout');
+    const result = await load({
+      url: new URL('https://chat.example.test/chat/-/R1/m/E1'),
+      params: { serverId: '-', roomId: 'R1', messageId: 'E1' }
+    } as never);
+
+    expect(result).not.toHaveProperty('startupPending');
+    expect(mocks.loadSavedView).not.toHaveBeenCalled();
+    expect(mocks.restoreSavedView).not.toHaveBeenCalled();
+    expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
+    expect(mocks.loadCurrentUser).toHaveBeenCalledOnce();
+  });
+
   it('does not restore a view after its local account changes during the disk read', async () => {
     let finishRead: (view: unknown) => void = () => {};
     mocks.loadSavedView.mockReturnValue(new Promise((resolve) => { finishRead = resolve; }));

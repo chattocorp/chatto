@@ -22,6 +22,10 @@ server actions or a realtime connection. A successful viewer check releases this
 startup gate only for the same user. An account change clears the old private
 view through the existing session replacement boundary.
 
+Message permalinks use live startup because their target can be outside the
+bounded saved window. The client resolves that target after the live viewer
+and room state are ready.
+
 The installed app opens the origin chat route so an offline launch can use
 that saved view and the last room saved on the device.
 
