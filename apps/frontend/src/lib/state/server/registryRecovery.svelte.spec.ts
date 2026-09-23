@@ -59,6 +59,13 @@ describe('registered server recovery', () => {
     expect(registry.needsRecovery('retry-test')).toBe(false);
   });
 
+  it('does not recover a dormant server before it is opened', async () => {
+    const store = await register();
+    store.networkStartupDeferred = true;
+
+    expect(registry.needsRecovery('retry-test')).toBe(false);
+  });
+
   it('retries a viewer-only failure and stops on an authentication rejection', async () => {
     mocks.discovery.mockResolvedValue(profile);
     await register();

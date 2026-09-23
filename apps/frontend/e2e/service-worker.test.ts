@@ -60,6 +60,10 @@ test('offline reload restores saved text in the normal chat view', async ({ page
   await postMessageViaConnect(page, roomId, message);
   await expect(page.getByText(message)).toBeVisible();
   await ensureServiceWorkerIsActive(page);
+  const manifest = await page.evaluate(async () =>
+    (await (await fetch('/manifest.webmanifest')).json()) as { start_url?: string }
+  );
+  expect(manifest.start_url).toBe('/chat/-');
   await expect.poll(() => page.evaluate(async (body) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('chatto-saved-views', 1);
@@ -78,6 +82,34 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     }
   }, message)).toBe(true);
 
+  let releaseViewer: () => void = () => {};
+  const viewerHeld = new Promise<void>((resolve) => { releaseViewer = resolve; });
+  const realtimeSockets: string[] = [];
+  const privateRequests: string[] = [];
+  page.on('websocket', (socket) => {
+    if (socket.url().includes('/api/realtime')) realtimeSockets.push(socket.url());
+  });
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/api/connect/') &&
+      !path.endsWith('/ViewerService/GetViewer') &&
+      !path.endsWith('/ServerDiscoveryService/GetServer')) privateRequests.push(path);
+  });
+  await page.route('**/ViewerService/GetViewer', async (route) => {
+    await viewerHeld;
+    await route.continue();
+  });
+  try {
+    await page.goto('/chat/-');
+    await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await expect(page.getByText(message)).toBeVisible();
+    expect(realtimeSockets).toHaveLength(0);
+    expect(privateRequests).toHaveLength(0);
+  } finally {
+    releaseViewer();
+    await page.unroute('**/ViewerService/GetViewer');
+  }
+
   await page.context().setOffline(true);
   try {
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
@@ -95,6 +127,10 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     await expect(page.getByText(message)).toBeVisible();
     await expect(page.getByTestId('saved-view-overlay')).toHaveCount(0);
+
+    await page.goto('/chat/-');
+    await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await expect(page.getByText(message)).toBeVisible();
   } finally {
     await page.context().setOffline(false);
   }

@@ -13,7 +13,7 @@ import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineE
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { MessagesStore } from './messages.svelte';
 import { JumpToMessageState } from './composerContext.svelte';
-import { Code, ConnectError } from '$lib/api-client/connect';
+import { Code, ConnectError, StaleResponseError } from '$lib/api-client/connect';
 
 class FakeQueryClient {
   reconnectCount = 0;
@@ -1067,6 +1067,29 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(store.rootEvents.map((event) => event.id)).toEqual(['after-reset']);
     expect(getRoomEvents).toHaveBeenCalledTimes(2);
     store.dispose();
+  });
+
+  it('treats a discarded permission-reset response as a retryable read', async () => {
+    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockRejectedValueOnce(new StaleResponseError(false))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('after-reset')));
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    try {
+      store.setRoom('room-1');
+      await vi.waitFor(() => expect(store.isInitialLoading).toBe(false));
+      expect(errorLog).not.toHaveBeenCalled();
+
+      await store.hydrateRealtimeProjection('replacement-cursor', () => true);
+      expect(store.rootEvents.map((event) => event.id)).toEqual(['after-reset']);
+    } finally {
+      store.dispose();
+      errorLog.mockRestore();
+    }
   });
 
   it('keeps a warm timeline visible until its replacement window arrives', async () => {

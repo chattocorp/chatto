@@ -74,15 +74,39 @@ describe('CurrentUserState', () => {
     await Promise.all([first, second]);
 
     expect(state.user?.id).toBe('U1');
+    expect(state.verifiedUserId).toBe('U1');
     expect(state.loading).toBe(false);
+  });
+
+  it('does not verify a saved viewer when a network request fails', async () => {
+    const savedViewer = { id: 'U1', login: 'alice', displayName: 'Alice' } as CurrentUser;
+    const loadViewer = vi.fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(savedViewer);
+    const state = new CurrentUserState(false, {
+      serverId: 'remote', baseUrl: 'https://remote.example.test', bearerToken: 'token'
+    }, loadViewer);
+    state.user = savedViewer;
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await state.load();
+      expect(state.user).toBe(savedViewer);
+      expect(state.verifiedUserId).toBeNull();
+      await state.load();
+      expect(state.verifiedUserId).toBe('U1');
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('marks auth required without revoking the server session by default', async () => {
     const onAuthenticationRequired = vi.fn();
     const state = new CurrentUserState(true, undefined, undefined, onAuthenticationRequired);
+    state.verifiedUserId = 'U1';
 
     await state.handleAuthFailure();
 
+    expect(state.verifiedUserId).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
     expect(clearCachedUserMock).not.toHaveBeenCalled();
     expect(onAuthenticationRequired).toHaveBeenCalledOnce();

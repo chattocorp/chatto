@@ -109,7 +109,8 @@
   );
 
   $effect(() => {
-    if (supportsMessageSearch) void activeStore.messageSearch.ensureStatus();
+    if (supportsMessageSearch && activeStore.isAuthenticated)
+      void activeStore.messageSearch.ensureStatus();
   });
 
   // Detect if we're on the My Threads page

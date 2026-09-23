@@ -134,6 +134,25 @@ describe('service worker notifications', () => {
     expect(worker.handlers.has('fetch')).toBe(true);
   });
 
+  it('serves a cached chat document without waiting for navigation fetch', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const worker = await importServiceWorker(cacheStorage);
+    await worker.dispatch('install');
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    let response: Promise<unknown> | undefined;
+
+    const handler = worker.handlers.get('fetch')?.[0];
+    handler?.({
+      request: { url: 'https://chatto.example/chat/-/R1', method: 'GET', mode: 'navigate' },
+      respondWith: (pending: Promise<unknown>) => { response = pending; }
+    } as never);
+
+    expect(response).toBeDefined();
+    expect(await response).toBe(await (await cacheStorage.open('chatto-shell-test-version')).match('/login'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('deletes retired shell and foreground badge caches during activation', async () => {
     const cacheStorage = createMemoryCacheStorage();
     await cacheStorage.open('chatto-shell-old-version');

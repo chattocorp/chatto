@@ -225,8 +225,13 @@ export class RoomMembersStore {
     }
   }
 
-  async refresh({ reauthorize = false }: { reauthorize?: boolean } = {}): Promise<void> {
+  /** Recheck membership after a projection change, at or beyond its cursor. */
+  async refresh({ reauthorize = false, minimumCursor }: {
+    reauthorize?: boolean;
+    minimumCursor?: string;
+  } = {}): Promise<void> {
     if (!this.roomId || !this.api) return;
+    this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
     this.isInitialLoading = !this.hasFirstPage;
     this.#fullScanFinished = false;

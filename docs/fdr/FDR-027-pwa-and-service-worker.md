@@ -14,9 +14,12 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 ## Behavior
 
 - The foreground app registers the root service worker shortly after startup in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
-- The root worker caches the current version of the application shell. It serves that shell on a failed navigation and serves cached compiled frontend files. Narrow push-worker registrations do not manage the shell.
+- The root worker caches the current version of the application shell. On a later app launch, it serves the complete cached shell immediately. It uses the network when the cache is absent. Narrow push-worker registrations do not manage the shell.
+- The installed app opens the origin chat route. That route uses the last room saved on the device when one exists.
 - API, authentication, live, webhook, and uploaded-asset requests use the network.
 - The foreground app saves the room list and up to 50 text messages from each of 10 recently viewed rooms per server and user. Saved views expire seven days after the last successful sync. The current offline storage budget is 20 MB: at most 12 MB for the shell and 8 MB for saved text.
+- On a cold chat launch, the app shows a matching saved view in the normal chat layout before it checks the session or opens a connection. It keeps server actions disabled until the server confirms the viewer. It then applies missed data or a replacement snapshot. A missing saved view follows the normal online startup path.
+- A message permalink uses live startup because the target message can be outside the saved view.
 - The app clears affected saved content on sign-out, account switch, server removal, account deletion, and verified room access loss. App preferences include a control to clear saved chats on the device.
 - On activation, the root worker removes older shell caches after the new shell is installed.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
@@ -31,13 +34,13 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ### 1. Versioned offline shell
 
-**Decision:** The root worker caches only compiled frontend files and a public login document. It uses the document as a navigation fallback when the network fails.
-**Why:** The normal chat view must remain available after an offline PWA launch.
-**Tradeoff:** The shell uses device storage. A browser can evict it under storage pressure.
+**Decision:** The root worker caches only compiled frontend files and a public login document. It serves that version-matched document first for app routes on a later launch. It uses the network when the cache is absent.
+**Why:** The normal chat view must open quickly on a repeat launch, including when the server is slow or offline.
+**Tradeoff:** A repeat launch can open the previous installed frontend version until the worker update completes. The shell uses device storage, which the browser can evict under storage pressure.
 
 ### 2. Saved text in the normal view
 
-**Decision:** IndexedDB stores bounded, presentation-only text data under the server and user identity. The foreground app restores it into the normal chat view for the matching identity. It never stores a realtime cursor with that data and clears saved data at explicit privacy boundaries.
+**Decision:** IndexedDB stores bounded, presentation-only text data under the server and user identity. The foreground app restores it into the normal chat view for the matching identity before it starts connection work. A saved viewer is display data; it cannot authorize server actions or a realtime connection. The app never stores a realtime cursor with that data and clears saved data at explicit privacy boundaries.
 **Why:** People can read saved text in the familiar chat layout while offline. The saved data does not establish current authorization.
 **Tradeoff:** Automatic saving puts private text on the device. A remote revocation takes effect on this copy only after the device reconnects and verifies it.
 
@@ -61,5 +64,5 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ## Related
 
-- **ADRs:** ADR-047 (direct ticketed asset URLs), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging)
+- **ADRs:** ADR-047 (direct ticketed asset URLs), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-103 (cached-first client startup)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-034 (Chatto Desktop)

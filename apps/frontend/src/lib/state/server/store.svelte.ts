@@ -165,6 +165,10 @@ export class ServerStateStore {
   readonly realtimeSync = new RealtimeProjectionSyncState();
   /** Last authorized text view for read-only reconnect and offline presentation. */
   savedView = $state.raw<SavedView | null>(null);
+  /** A cold disk view can render before its session has been verified. */
+  startupPresentationOnly = $state(false);
+  /** A registered background server has not started discovery or viewer checks. */
+  networkStartupDeferred = $state(false);
   #recentSavedRoomIds: string[] = [];
   #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
@@ -186,6 +190,7 @@ export class ServerStateStore {
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #roomMembers: Record<string, RoomMembersStore> = Object.create(null);
+  #roomMemberRoots: Record<string, () => void> = Object.create(null);
   #memberPresence = new SvelteMap<string, PresenceStatus>();
 
   /** Keep presence current for retained rooms and rooms first opened later. */
@@ -321,8 +326,8 @@ export class ServerStateStore {
       roomCommandAPI
     );
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
-    this.messageSearch = new MessageSearchStore(messageSearchAPI);
-    this.mentionRoles = new MentionRolesStore(roleAPI);
+    this.messageSearch = new MessageSearchStore(messageSearchAPI, () => this.isAuthenticated);
+    this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
 
     // Apply the canonical projection delivered by this server's bus. Transient
     // envelopes are consumed only by components that need one-shot signals.
@@ -462,6 +467,12 @@ export class ServerStateStore {
         )
       );
       this.requireCurrentRealtimeProjection(generation);
+      // Retained channel membership can have been read before this snapshot.
+      // Recheck it at the snapshot cursor before declaring the view current.
+      await Promise.all(Object.values(this.#roomMembers).map(
+        (store) => store.refresh({ minimumCursor: cursor })
+      ));
+      this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
     }
     await this.waitForRealtimeReconciliation();
@@ -523,12 +534,13 @@ export class ServerStateStore {
     if (!room || room.archived) throw new Error('Conversation is unavailable');
   }
 
-  /** Stable room timeline owner used by routes as a rendering selector. */
-  messagesForRoom(roomId: string): MessagesStore {
+  /** Stable room timeline owner. Disk projection restoration skips the initial API read. */
+  messagesForRoom(roomId: string, fromSavedProjection = false): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
     store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.setRoom(roomId);
+    if (fromSavedProjection) store.awaitRoomProjection(roomId);
+    else store.setRoom(roomId);
     this.#roomMessages[roomId] = store;
     return store;
   }
@@ -614,7 +626,7 @@ export class ServerStateStore {
         delete this.#roomMessageSearch[oldestRoomId];
       }
     }
-    store = new MessageSearchStore(this.#messageSearchAPI);
+    store = new MessageSearchStore(this.#messageSearchAPI, () => this.isAuthenticated);
     this.#roomMessageSearch[roomId] = store;
     this.#roomMessageSearchRecency.push(roomId);
     return store;
@@ -630,10 +642,16 @@ export class ServerStateStore {
   membersForRoom(roomId: string): RoomMembersStore {
     let store = this.#roomMembers[roomId];
     if (!store) {
-      store = new RoomMembersStore(this.#serverConnection);
-      store.setRoom(roomId);
-      // Initialize before exposing the store; selectors can run in a derived.
-      store.livePresence = new SvelteMap(this.#memberPresence);
+      // A route can create this store from a derived selector. Give its own
+      // derived fields an owner that lasts until this server store is disposed.
+      let created!: RoomMembersStore;
+      this.#roomMemberRoots[roomId] = $effect.root(() => {
+        created = new RoomMembersStore(this.#serverConnection);
+        created.setRoom(roomId);
+        // Initialize before exposing the store; selectors can run in a derived.
+        created.livePresence = new SvelteMap(this.#memberPresence);
+      });
+      store = created;
       this.#roomMembers[roomId] = store;
     }
     return store;
@@ -678,18 +696,32 @@ export class ServerStateStore {
   }
 
   /** Restore a device snapshot only for the same local viewer. */
-  restoreSavedView(view: SavedView | null): void {
+  restoreSavedView(view: SavedView | null, beforeConnection = false): void {
     if (!view || view.serverId !== this.serverId || view.userId !== this.#getSession().userId) return;
     if (!this.savedView || view.savedAt > this.savedView.savedAt) this.savedView = view;
     this.#recentSavedRoomIds = view.rooms.filter((room) => room.messages.length > 0).map((room) => room.id);
-    if (this.realtimeSync.phase === 'empty' && !this.currentUser.loading && !this.currentUser.user)
+    if (this.realtimeSync.phase === 'empty' &&
+      (beforeConnection || (!this.currentUser.loading && !this.currentUser.user))) {
+      this.startupPresentationOnly = true;
+      this.#serverConnection.pausePrivateRequests();
       this.restoreSavedProjection(view);
+    }
+  }
+
+  /** Permit transport work only after the server confirms the saved viewer. */
+  verifyStartupViewer(userId: string): void {
+    if (this.startupPresentationOnly && this.savedView?.userId === userId) {
+      this.startupPresentationOnly = false;
+      this.#serverConnection.resumePrivateRequests();
+    }
   }
 
   /** Remove saved device content, including a normal view restored from that content. */
   clearSavedPresentation(): void {
+    this.#serverConnection.cancelPrivateRequests();
     this.savedView = null;
     this.#recentSavedRoomIds = [];
+    this.startupPresentationOnly = false;
     if (!this.realtimeSync.restoredFromDisk) return;
     this.#realtimeProjectionGeneration++;
     this.#permissionCheckGeneration++;
@@ -743,7 +775,7 @@ export class ServerStateStore {
           }) }
         });
       });
-      this.messagesForRoom(room.id).replaceRoomProjectionPage(room.id, new RoomTimelinePage({
+      this.messagesForRoom(room.id, true).replaceRoomProjectionPage(room.id, new RoomTimelinePage({
         events,
         includes: { users }
       }));
@@ -1857,6 +1889,8 @@ export class ServerStateStore {
    */
   get isAuthenticated(): boolean {
     if (this.#getSession().reauthRequiredAt !== null) return false;
+    if (this.networkStartupDeferred) return false;
+    if (this.startupPresentationOnly) return false;
     if (this.#cookieAuth) {
       return this.currentUser.user != null;
     }
@@ -1974,6 +2008,8 @@ export class ServerStateStore {
     removeRegisteredServerQueries(this.serverId);
     for (const store of Object.values(this.#roomMembers)) store.resetProjectionState();
     this.#roomMembers = Object.create(null);
+    for (const dispose of Object.values(this.#roomMemberRoots)) dispose();
+    this.#roomMemberRoots = Object.create(null);
     this.#memberPresence.clear();
     this.#disposeEffects();
     this.adminRoomLayout.deactivateProjectionRefresh();

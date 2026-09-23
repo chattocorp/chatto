@@ -40,6 +40,24 @@ function api(overrides: Partial<MessageSearchAPI> = {}): MessageSearchAPI {
 }
 
 describe('MessageSearchStore', () => {
+  it('does not request private search data before viewer verification', async () => {
+    let canLoad = false;
+    const client = api();
+    const store = new MessageSearchStore(client, () => canLoad);
+    const input = { query: 'hello', roomId: 'room-1', order: MessageSearchOrder.NEWEST };
+
+    await store.ensureStatus();
+    await store.search(input);
+    expect(client.getStatus).not.toHaveBeenCalled();
+    expect(client.searchMessages).not.toHaveBeenCalled();
+
+    canLoad = true;
+    await store.ensureStatus();
+    await store.search(input);
+    expect(client.getStatus).toHaveBeenCalledOnce();
+    expect(client.searchMessages).toHaveBeenCalledOnce();
+  });
+
   it('reauthorizes the active search and fences a late page without losing its input', async () => {
     let resolveOld!: (value: MessageSearchPage) => void;
     const oldPage = new Promise<MessageSearchPage>((resolve) => { resolveOld = resolve; });

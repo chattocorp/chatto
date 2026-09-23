@@ -381,8 +381,10 @@ The hub and public event mapper both check this boundary.
 ## Bundled frontend
 
 `ServerStateStore` owns retained `RoomMembersStore` instances for the session.
-Room navigation selects an existing store. Public join and leave events update
-its membership. Canonical user reads update the shared profile owner directly.
+Each instance has a reactive owner that lasts until the server store is
+disposed. Room navigation selects an existing store. Public join and leave
+events update its membership. Canonical user reads update the shared profile
+owner directly.
 These updates also apply while the room is not mounted.
 Each join event also starts a profile read at the event cursor, even if no room
 store exists. A retained room records the new member ID and resolves its name

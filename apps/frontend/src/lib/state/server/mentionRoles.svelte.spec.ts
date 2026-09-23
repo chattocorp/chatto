@@ -15,6 +15,20 @@ function role(name: string) {
 }
 
 describe('MentionRolesStore', () => {
+  it('waits for verified startup authority before loading roles', async () => {
+    let canLoad = false;
+    const listRoles = vi.fn().mockResolvedValue(catalog());
+    const store = new MentionRolesStore({ listRoles }, () => canLoad);
+
+    await expect(store.load()).resolves.toBe(false);
+    expect(listRoles).not.toHaveBeenCalled();
+    expect(store.status).toBe('idle');
+
+    canLoad = true;
+    await expect(store.load()).resolves.toBe(true);
+    expect(listRoles).toHaveBeenCalledOnce();
+  });
+
   it('maps and caches the public role catalogue', async () => {
     const listRoles = vi.fn().mockResolvedValue({
       roles: [role('everyone'), role('moderator')],

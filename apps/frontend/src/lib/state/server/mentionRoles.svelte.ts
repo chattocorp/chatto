@@ -11,6 +11,7 @@ export class MentionRolesStore {
   status = $state<MentionRolesStatus>('idle');
 
   readonly #api: MentionRoleAPI;
+  readonly #canLoad: () => boolean;
   #loadPromise: Promise<boolean> | null = null;
   #generation = 0;
 
@@ -22,18 +23,21 @@ export class MentionRolesStore {
     this.status = 'idle';
   }
 
-  constructor(api: MentionRoleAPI) {
+  constructor(api: MentionRoleAPI, canLoad: () => boolean = () => true) {
     this.#api = api;
+    this.#canLoad = canLoad;
   }
 
   /** Ensure the catalogue has loaded, coalescing concurrent consumers. */
   load(): Promise<boolean> {
+    if (!this.#canLoad()) return Promise.resolve(false);
     if (this.status === 'ready') return Promise.resolve(true);
     return this.refresh();
   }
 
   /** Reload the catalogue while coalescing with any request already in flight. */
   refresh(): Promise<boolean> {
+    if (!this.#canLoad()) return Promise.resolve(false);
     if (this.#loadPromise) return this.#loadPromise;
 
     this.status = 'loading';
