@@ -123,6 +123,7 @@
   // Keep two complete volleys because a burst lasts twice as long as a laser cooldown.
   const MAX_ACTIVE_BURSTS = MAX_LASER_GUNS * 2;
   const MAX_EMOJI_SPRITES = 768;
+  const MAX_EMOJI_SPRITE_BYTES = 16 * 1024 * 1024;
   const MAX_SMOKE_PARTICLES = Math.round(5 + laserPowerSmokeScale(MAX_LASER_POWER) * 9);
   const FOREGROUND_STAR_DEPTH = 0.66;
   const FINAL_VOLLEY_COMPLETION_DELAY = IMPACT_LASER_DURATION + EXPLOSION_DURATION;
@@ -158,7 +159,11 @@
   );
   let renderParticles = allRenderParticles;
   let renderStars = stars;
-  const emojiSprites = new BoundedLruCache<EmojiSprite>(MAX_EMOJI_SPRITES);
+  const emojiSprites = new BoundedLruCache<EmojiSprite>(
+    MAX_EMOJI_SPRITES,
+    MAX_EMOJI_SPRITE_BYTES,
+    ({ canvas }) => canvas.width * canvas.height * 4
+  );
   const burstPool = new BoundedObjectPool<ActiveBurst>(MAX_ACTIVE_BURSTS, createBurstRecord);
   const projectionFrame: CanvasProjectionFrame = {
     wordmark: { left: 0, top: 0, width: 0, height: 0 },
@@ -328,7 +333,8 @@
   }
 
   function getEmojiSprite(emoji: string, fontSize: number, pixelRatio: number): EmojiSprite {
-    const roundedFontSize = quantizeSpriteFontSize(fontSize);
+    // Smoke has many random sizes; coarse steps keep its bitmap cache reusable.
+    const roundedFontSize = quantizeSpriteFontSize(fontSize, emoji === '☁️' ? 4 : 0.5);
     const key = `${emoji}:${roundedFontSize}:${pixelRatio}`;
     const cached = emojiSprites.get(key);
     if (cached) return cached;

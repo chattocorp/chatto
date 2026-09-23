@@ -600,6 +600,24 @@ describe('SimulatedChattoWordmark', () => {
     expect(cache.get('third')).toBe(3);
     expect(quantizeSpriteFontSize(20.24)).toBe(20);
     expect(quantizeSpriteFontSize(20.26)).toBe(20.5);
+    expect(quantizeSpriteFontSize(20.26, 4)).toBe(20);
+  });
+
+  it('bounds sprite bitmap weight even when entries have different sizes', () => {
+    const cache = new BoundedLruCache<{ pixels: number }>(3, 16, ({ pixels }) => pixels * 4);
+    cache.set('small', { pixels: 1 });
+    cache.set('medium', { pixels: 2 });
+    expect(cache.weight).toBe(12);
+    cache.set('small', { pixels: 1 });
+    expect(cache.weight).toBe(12);
+    cache.set('large', { pixels: 2 });
+    expect(cache.get('medium')).toBeUndefined();
+    expect(cache.weight).toBe(12);
+    cache.set('oversized', { pixels: 5 });
+    expect(cache.get('oversized')).toBeUndefined();
+    expect(cache.weight).toBe(12);
+    cache.clear();
+    expect(cache.weight).toBe(0);
   });
 
   it('reuses released rendering records and bounds the free pool', () => {

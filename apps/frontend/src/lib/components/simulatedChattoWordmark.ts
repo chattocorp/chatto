@@ -90,37 +90,59 @@ export type StarFieldParticle = {
   twinkleSpeed: number;
 };
 
-/** A small least-recently-used cache for generated rendering resources. */
+/** A least-recently-used cache bounded by entry count and optional resource weight. */
 export class BoundedLruCache<T> {
-  readonly #entries = new Map<string, T>();
+  readonly #entries = new Map<string, { value: T; weight: number }>();
   readonly #maximumEntries: number;
+  readonly #maximumWeight: number;
+  readonly #weightOf: (value: T) => number;
+  #weight = 0;
 
-  constructor(maximumEntries: number) {
+  constructor(
+    maximumEntries: number,
+    maximumWeight = Number.POSITIVE_INFINITY,
+    weightOf = (_: T) => 1
+  ) {
     this.#maximumEntries = Math.max(1, Math.floor(maximumEntries));
+    this.#maximumWeight = Math.max(0, maximumWeight);
+    this.#weightOf = weightOf;
   }
 
   get size(): number {
     return this.#entries.size;
   }
 
+  get weight(): number {
+    return this.#weight;
+  }
+
   get(key: string): T | undefined {
-    const value = this.#entries.get(key);
-    if (value === undefined) return undefined;
+    const entry = this.#entries.get(key);
+    if (entry === undefined) return undefined;
     this.#entries.delete(key);
-    this.#entries.set(key, value);
-    return value;
+    this.#entries.set(key, entry);
+    return entry.value;
   }
 
   set(key: string, value: T): void {
+    const previous = this.#entries.get(key);
+    if (previous !== undefined) this.#weight -= previous.weight;
     this.#entries.delete(key);
-    this.#entries.set(key, value);
-    if (this.#entries.size <= this.#maximumEntries) return;
-    const oldestKey = this.#entries.keys().next().value;
-    if (oldestKey !== undefined) this.#entries.delete(oldestKey);
+    const weight = Math.max(0, this.#weightOf(value));
+    if (weight > this.#maximumWeight) return;
+    this.#entries.set(key, { value, weight });
+    this.#weight += weight;
+    while (this.#entries.size > this.#maximumEntries || this.#weight > this.#maximumWeight) {
+      const oldestKey = this.#entries.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.#weight -= this.#entries.get(oldestKey)!.weight;
+      this.#entries.delete(oldestKey);
+    }
   }
 
   clear(): void {
     this.#entries.clear();
+    this.#weight = 0;
   }
 }
 
@@ -556,8 +578,8 @@ export function canvasPixelRatio(devicePixelRatio: number): number {
   return Math.max(1, Math.min(CANVAS_PIXEL_RATIO_LIMIT, devicePixelRatio));
 }
 
-export function quantizeSpriteFontSize(fontSize: number): number {
-  return Math.max(0.5, Math.round(fontSize * 2) / 2);
+export function quantizeSpriteFontSize(fontSize: number, step = 0.5): number {
+  return Math.max(step, Math.round(fontSize / step) * step);
 }
 
 export function glyphFloatOffset(elapsed: number, glyph: number, reducedMotion = false): number {
