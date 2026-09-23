@@ -24,6 +24,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
@@ -120,6 +121,13 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		if err != nil || assetDone.Msg.GetAssetId() == "" {
 			t.Fatalf("OperatorAssetService.CompleteUpload = %+v, err = %v", assetDone, err)
 		}
+		messageClient := operatorv1connect.NewOperatorMessageServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		imported, err := messageClient.ImportMessage(ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+			RoomId: created.Msg.GetRoom().GetId(), AuthorId: user.GetId(), CreatedAt: timestamppb.New(time.Now()), Body: "historical",
+		}))
+		if err != nil || imported.Msg.GetMessageId() == "" {
+			t.Fatalf("OperatorMessageService.ImportMessage = %+v, err = %v", imported, err)
+		}
 
 		adminClient := adminv1connect.NewAdminUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
 		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
@@ -146,6 +154,10 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		assetClient := operatorv1connect.NewOperatorAssetServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
 		if _, err := assetClient.CreateUpload(context.Background(), connect.NewRequest(&operatorv1.CreateUploadRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
 			t.Fatalf("OperatorAssetService on public server err = %v, want unimplemented", err)
+		}
+		messageClient := operatorv1connect.NewOperatorMessageServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		if _, err := messageClient.ImportMessage(context.Background(), connect.NewRequest(&operatorv1.ImportMessageRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorMessageService on public server err = %v, want unimplemented", err)
 		}
 	})
 }

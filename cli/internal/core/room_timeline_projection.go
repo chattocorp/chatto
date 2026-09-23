@@ -77,11 +77,13 @@ type TimelineEntry struct {
 	EventID           string
 	RoomID            string
 	ActorID           string
+	MessageAuthorID   string
 	CreatedAt         time.Time
 	EventType         string
 	ThreadRootEventID string
 	InThreadEventID   string
 	EchoOfEventID     string
+	HistoricalImport  bool
 }
 
 // IsMessagePost reports whether this reference points to a durable message
@@ -149,6 +151,8 @@ func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Even
 		EventType: evtstream.EventTypeOf(event),
 	}
 	if posted := event.GetMessagePosted(); posted != nil {
+		entry.MessageAuthorID = posted.GetAuthorId()
+		entry.HistoricalImport = posted.GetHistoricalImport()
 		entry.InThreadEventID = posted.GetInThread()
 		entry.ThreadRootEventID = posted.GetInThread()
 		if entry.ThreadRootEventID == "" {
@@ -314,7 +318,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 			entryIdx = p.appendEntryLocked(seq, event)
 		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entryIdx)
-		if event.GetMessagePosted().GetEchoOfEventId() == "" && event.GetActorId() != "" {
+		if event.GetMessagePosted().GetEchoOfEventId() == "" && !event.GetMessagePosted().GetHistoricalImport() && event.GetActorId() != "" {
 			p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
 		}
 	}
@@ -470,7 +474,7 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 		if entry == nil || !entry.IsMessagePost() {
 			continue
 		}
-		if entry.ActorID != userID {
+		if timelineEntryMessageAuthorID(entry) != userID {
 			continue
 		}
 		p.clearCurrentBodyLocked(eventID)
@@ -621,8 +625,9 @@ func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 	return cloneTimelineEntry(entry), ok
 }
 
-// LastRoomMessageEntry returns the newest non-hidden MessagePostedEvent in a
-// room, including thread replies that are intentionally absent from byRoom.
+// LastRoomMessageEntry returns the newest non-hidden ordinary post in a room,
+// including thread replies that are intentionally absent from byRoom.
+// Historical imports do not count as new room activity.
 func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
 	p.RLock()
 	defer p.RUnlock()
@@ -633,6 +638,9 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 			continue
 		}
 		if p.isHiddenEchoEntryLocked(e) {
+			continue
+		}
+		if e.HistoricalImport {
 			continue
 		}
 		return cloneTimelineEntry(e), true

@@ -345,6 +345,9 @@ func (p *ThreadProjection) applyMessageInteractionStateLocked(event *evtv1.Event
 		rootID = event.GetId()
 	}
 	p.messageThreads[event.GetId()] = threadMessageRef{roomID: message.GetRoomId(), threadRootEventID: rootID}
+	if message.GetHistoricalImport() {
+		return
+	}
 
 	// Either echo field identifies derived channel-echo state. Malformed or
 	// partially upgraded echo facts must not create interaction causes.

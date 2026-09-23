@@ -973,7 +973,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 		var rootAuthorID string
 		if rootEvent != nil {
-			rootAuthorID = rootEvent.ActorId
+			rootAuthorID = messageAuthorID(rootEvent)
 		}
 
 		// Update the poster's thread read marker to the reply they just wrote.
@@ -1135,7 +1135,7 @@ func (c *ChattoCore) authorizeMessageMutation(
 	if err != nil {
 		return err
 	}
-	if entry.ActorID != actorID {
+	if timelineEntryMessageAuthorID(entry) != actorID {
 		canManage, err := c.CanManageOthersMessage(ctx, actorID, kind, roomID)
 		if err != nil {
 			return err
@@ -1186,7 +1186,7 @@ func (c *ChattoCore) validateMessageMutationIdentity(
 	if retracted || current.StreamSeq == 0 {
 		return nil, ErrMessageNotFound
 	}
-	if entry.ActorID == actorID {
+	if timelineEntryMessageAuthorID(entry) == actorID {
 		if policy.enforceEditWindow && now.After(entry.CreatedAt.Add(MessageEditWindow)) {
 			canManage, err := c.CanManageOthersMessage(ctx, actorID, kind, roomID)
 			if err != nil {

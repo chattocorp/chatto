@@ -191,7 +191,7 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 		return err
 	}
 	message := e.GetMessagePosted()
-	if message == nil {
+	if message == nil || message.GetHistoricalImport() {
 		return nil
 	}
 	expiry := e.GetCreatedAt().AsTime().Add(m.core.config.BotWebhooks.ExpiryOrDefault())

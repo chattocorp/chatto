@@ -11,7 +11,7 @@ import (
 	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v8", &projectionv1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v9", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -31,6 +31,8 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			ThreadRootEventId: entry.ThreadRootEventID,
 			EchoOfEventId:     entry.EchoOfEventID,
 			InThreadEventId:   entry.InThreadEventID,
+			HistoricalImport:  entry.HistoricalImport,
+			MessageAuthorId:   entry.MessageAuthorID,
 		}
 		if !entry.CreatedAt.IsZero() {
 			row.CreatedAt = timestamppb.New(entry.CreatedAt)
@@ -125,6 +127,8 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			ThreadRootEventID: row.GetThreadRootEventId(),
 			EchoOfEventID:     row.GetEchoOfEventId(),
 			InThreadEventID:   row.GetInThreadEventId(),
+			HistoricalImport:  row.GetHistoricalImport(),
+			MessageAuthorID:   row.GetMessageAuthorId(),
 		}
 		index := len(restored.entries)
 		restored.entries = append(restored.entries, entry)
@@ -134,7 +138,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.byEventID[entry.EventID] = index
 		if entry.IsMessagePost() {
 			restored.messagePostsByRoom[entry.RoomID] = append(restored.messagePostsByRoom[entry.RoomID], index)
-			if entry.EchoOfEventID == "" && entry.ActorID != "" {
+			if entry.EchoOfEventID == "" && !entry.HistoricalImport && entry.ActorID != "" {
 				restored.latestOriginalPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
 			}
 			if entry.EchoOfEventID != "" {

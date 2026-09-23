@@ -753,7 +753,7 @@ func timelineEntryEstimatedBytes(entry *TimelineEntry) int64 {
 	if entry == nil {
 		return projectionSliceEntryOverhead
 	}
-	return projectionSliceEntryOverhead + 8 + 24 + int64(len(entry.EventID)+len(entry.RoomID)+len(entry.ActorID)+len(entry.EventType)+len(entry.ThreadRootEventID)+len(entry.InThreadEventID)+len(entry.EchoOfEventID))
+	return projectionSliceEntryOverhead + 8 + 24 + int64(len(entry.EventID)+len(entry.RoomID)+len(entry.ActorID)+len(entry.MessageAuthorID)+len(entry.EventType)+len(entry.ThreadRootEventID)+len(entry.InThreadEventID)+len(entry.EchoOfEventID))
 }
 
 func estimateStringSetBytes(values map[string]struct{}) int64 {

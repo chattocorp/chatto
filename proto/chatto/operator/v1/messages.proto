@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package chatto.operator.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// One historical message in an existing channel room.
+message ImportMessageRequest {
+  // Existing channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Existing Chatto user ID shown as the message author.
+  string author_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Original message creation time.
+  google.protobuf.Timestamp created_at = 3 [(buf.validate.field).required = true];
+  // Original last edit time, if the exported message was edited.
+  google.protobuf.Timestamp edited_at = 4;
+  // Existing message ID in the same room; this does not create a thread.
+  string in_reply_to = 5;
+  // Existing unattached asset IDs owned by the author in this room.
+  repeated string attachment_asset_ids = 6;
+  // Message text. Empty is valid only when attachments are present.
+  string body = 7;
+  // Exported HTTP or HTTPS preview URL; no external URL is fetched.
+  string preview_url = 8;
+  // Exported preview title.
+  string preview_title = 9;
+  // Exported preview description.
+  string preview_description = 10;
+  // Exported preview type.
+  string preview_type = 11;
+}
+
+// Stable Chatto identity of the new historical message.
+message ImportMessageResponse {
+  string message_id = 1;
+}
+
+// Private historical import. Only the Operator Unix socket serves this RPC.
+service OperatorMessageService {
+  // Appends an encrypted historical message as a system operation. A repeated
+  // request creates another message; import scripts own retry decisions.
+  rpc ImportMessage(ImportMessageRequest) returns (ImportMessageResponse);
+}

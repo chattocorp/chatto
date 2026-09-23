@@ -12,6 +12,38 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
+func TestThreadProjectionHistoricalImportRetainsMessageIndexWithoutInteraction(t *testing.T) {
+	p := NewThreadProjection()
+	if err := p.Apply(roomCreatedEvent("ROOM", "", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 1); err != nil {
+		t.Fatal(err)
+	}
+	imported := newEvent(SystemActorID, &evtv1.Event{Id: "IMPORTED", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+		RoomId: "ROOM", AuthorId: "AUTHOR", HistoricalImport: true,
+	}}})
+	if err := p.Apply(imported, 2); err != nil {
+		t.Fatal(err)
+	}
+	rootID, ok := p.ThreadRootForMessage("ROOM", imported.Id)
+	if !ok || rootID != imported.Id {
+		t.Fatalf("thread root = (%q, %t)", rootID, ok)
+	}
+	if p.HasInteraction("AUTHOR", "ROOM", imported.Id) {
+		t.Fatal("import created an author interaction")
+	}
+	snapshot, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewThreadProjection()
+	if err := restored.Restore(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	rootID, ok = restored.ThreadRootForMessage("ROOM", imported.Id)
+	if !ok || rootID != imported.Id || restored.HasInteraction("AUTHOR", "ROOM", imported.Id) {
+		t.Fatal("snapshot changed historical thread state")
+	}
+}
+
 func TestThreadProjectionDMReceivedInteractions(t *testing.T) {
 	joined := func(id, userID string) *evtv1.Event {
 		return &evtv1.Event{Id: id, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{

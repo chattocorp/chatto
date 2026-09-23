@@ -59,6 +59,13 @@ message MessagePostedEvent {
   // can therefore apply the correct policy without re-parsing message content
   // or consulting newer room state.
   repeated MessageMention mentions = 10;
+
+  // Historical imports record the operator as the event actor. This user is
+  // the displayed author and the owner of the encrypted message body.
+  string author_id = 11;
+
+  // Historical imports must not generate live posting effects during replay.
+  bool historical_import = 12;
 }
 
 message DirectUserMention {}

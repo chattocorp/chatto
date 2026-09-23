@@ -349,6 +349,10 @@ events into count- and byte-bounded session queues. Sessions for one user
 share room-visibility state. There are no per-client NATS or JetStream
 consumers.
 
+Historical message-post facts remain in EVT and reach the internal
+`live.evt.>` feed. The hub and resume replay omit them from public live
+delivery. Clients load these messages through normal timeline reads.
+
 `live.sync.>` messages use `chatto.core.pubsub.v1.PubSubEvent`. Durable
 `live.evt.>` messages use `chatto.core.evt.v1.Event`. The hub decodes each
 subject root with its matching envelope. Publishers derive the NATS subject
