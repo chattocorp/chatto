@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"hmans.de/chatto/internal/config"
@@ -261,6 +262,44 @@ func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 	if !strings.Contains(getOut, user.Id+"\tcli-admin-user\tCLI Admin User") {
 		t.Fatalf("get output = %q", getOut)
 	}
+	getByLoginOut := env.run(t, "operator", "user", "get", "--login", "cli-admin-user")
+	if getByLoginOut != getOut {
+		t.Fatalf("get by login output = %q, want %q", getByLoginOut, getOut)
+	}
+	getByLoginJSON := env.run(t, "operator", "user", "get", "--login", "cli-admin-user", "--json")
+	var lookedUp struct {
+		Member struct {
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		} `json:"member"`
+	}
+	if err := json.Unmarshal([]byte(getByLoginJSON), &lookedUp); err != nil {
+		t.Fatalf("unmarshal login lookup output: %v\n%s", err, getByLoginJSON)
+	}
+	if lookedUp.Member.User.ID != user.Id {
+		t.Fatalf("get by login JSON user ID = %q, want %q", lookedUp.Member.User.ID, user.Id)
+	}
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "missing selector", args: []string{"operator", "user", "get"}, want: "provide USER_ID or a non-empty --login"},
+		{name: "empty login", args: []string{"operator", "user", "get", "--login", ""}, want: "provide USER_ID or a non-empty --login"},
+		{name: "conflicting selectors", args: []string{"operator", "user", "get", user.Id, "--login", "cli-admin-user"}, want: "provide USER_ID or --login, not both"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := env.execute(t, tc.args...)
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("get error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+	_, err = env.execute(t, "operator", "user", "get", "--login", "unknown-cli-user")
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unknown login error = %v, want not found", err)
+	}
 
 	updateOut := env.run(t, "operator", "user", "update", user.Id, "--display-name", "CLI Renamed")
 	if !strings.Contains(updateOut, "\tCLI Renamed\t") {
@@ -398,6 +437,15 @@ func startAdminCLITestCore(t *testing.T, c *core.ChattoCore) {
 
 func (env *adminCLITestEnv) run(t *testing.T, args ...string) string {
 	t.Helper()
+	out, err := env.execute(t, args...)
+	if err != nil {
+		t.Fatalf("chatto %s: %v\noutput:\n%s", strings.Join(args, " "), err, out)
+	}
+	return out
+}
+
+func (env *adminCLITestEnv) execute(t *testing.T, args ...string) (string, error) {
+	t.Helper()
 	resetCommandFlags(rootCmd)
 	oldStdin := os.Stdin
 	r, w, err := os.Pipe()
@@ -429,10 +477,8 @@ func (env *adminCLITestEnv) run(t *testing.T, args ...string) string {
 		rootCmd.SetArgs(nil)
 		operatorOutputJSON = false
 	}()
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("chatto %s: %v\noutput:\n%s", strings.Join(args, " "), err, out.String())
-	}
-	return out.String()
+	err = rootCmd.Execute()
+	return out.String(), err
 }
 
 func resetCommandFlags(cmd *cobra.Command) {

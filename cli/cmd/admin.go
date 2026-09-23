@@ -111,16 +111,29 @@ func adminUserListCmd() *cobra.Command {
 }
 
 func adminUserGetCmd() *cobra.Command {
+	var login string
 	cmd := &cobra.Command{
-		Use:   "get USER_ID",
-		Short: "Get a user by ID",
-		Args:  cobra.ExactArgs(1),
+		Use:   "get [USER_ID]",
+		Short: "Get a user by ID or login",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 && cmd.Flags().Changed("login") {
+				return errors.New("provide USER_ID or --login, not both")
+			}
+			if len(args) == 0 && strings.TrimSpace(login) == "" {
+				return errors.New("provide USER_ID or a non-empty --login")
+			}
+			request := &operatorv1.GetUserRequest{}
+			if len(args) == 1 {
+				request.UserId = args[0]
+			} else {
+				request.Login = login
+			}
 			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.GetUser(cmd.Context(), adminRequest(&operatorv1.GetUserRequest{UserId: args[0]}))
+			resp, err := client.GetUser(cmd.Context(), adminRequest(request))
 			if err != nil {
 				return err
 			}
@@ -128,6 +141,7 @@ func adminUserGetCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
+	cmd.Flags().StringVar(&login, "login", "", "find a user by exact login")
 	return cmd
 }
 
