@@ -378,8 +378,8 @@ The hub and public event mapper both check this boundary.
 
 `ServerStateStore` owns retained `RoomMembersStore` instances for the session.
 Room navigation selects an existing store. Public join and leave events update
-its membership, and canonical user reads update its profiles. These updates also
-apply while the room is not mounted.
+its membership. Canonical user reads update the shared profile owner directly.
+These updates also apply while the room is not mounted.
 Each join event also starts a profile read at the event cursor, even if no room
 store exists. A retained room records the new member ID and resolves its name
 from the shared user store. It does not start a second profile read. Member-list
@@ -403,8 +403,10 @@ the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
 Room member state retains membership IDs and resolves profiles from the shared
-owner. The quick finder reads that owner directly without starting profile
-requests. Server-scoped name and avatar views read the same current profiles.
+owner. It does not keep another profile copy for connected rooms. Typing labels
+prefer that owner when a member row also has profile fields. The quick finder
+reads that owner directly without starting profile requests. Server-scoped name
+and avatar views read the same current profiles.
 Three independent presence-filtered scans publish connected members while the
 full directory loads. Each status filter also supplies presence for cached
 profiles. Per-user change versions prevent these previews from replacing newer

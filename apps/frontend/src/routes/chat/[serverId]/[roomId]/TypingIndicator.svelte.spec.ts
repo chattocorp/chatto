@@ -142,6 +142,18 @@ describe('TypingIndicator', () => {
     profiles.dispose();
   });
 
+  it('uses the shared profile when a member row has an older name', () => {
+    const profiles = new UserStore();
+    profiles.set('alice', new DirectoryMember({
+      user: { id: 'alice', login: 'alice', displayName: 'New Alice' }
+    }));
+    const { container } = render(TypingIndicator, {
+      props: { typingUserIds: ['alice'], members, profiles }
+    });
+    expect(indicatorText(container)).toBe('New Alice is typing');
+    profiles.dispose();
+  });
+
   it('counts distinct people only', () => {
     const { container } = render(TypingIndicator, {
       props: { typingUserIds: ['alice', 'alice', 'bob'], members }

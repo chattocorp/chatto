@@ -26,25 +26,21 @@ interface TypingIndicatorConfig {
  * Typing indicator hook for a room or thread.
  * MUST be called during component initialization (uses getContext).
  *
- * Accepts a getter that returns the current config. The getter is called
- * inside an $effect, so reactive values read within it are automatically
- * tracked.
+ * Accepts a getter that returns the current config. Its room and thread values
+ * are tracked by an effect; the viewer ID is tracked by a derived value.
  */
 export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
   const serverScope = useServerScope();
 
-  /** Current configuration snapshot */
+  /** Current room and thread snapshot, plus the reactive viewer ID. */
   let configRoomId: string | null = null;
   let configThreadRootEventId: string | null = null;
-  let configCurrentUserId: string | null = null;
+  const configCurrentUserId = $derived(getConfig().currentUserId);
 
   /** Map of userId -> TypingUser for users currently typing */
   const typingUsers = new SvelteMap<string, TypingUser>();
   /** Limit missing-profile reads to one attempt during each typing burst. */
   const profileReadAttempts = new SvelteSet<string>();
-
-  /** Version counter to force reactivity updates */
-  const state = $state({ version: 0 });
 
   /** Timestamp of last sent typing indicator */
   let lastSentAt = 0;
@@ -68,8 +64,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       userId: data.userId,
       lastTypingAt: Date.now()
     });
-    state.version++;
-
     const profiles = serverScope.store.projection.users;
     if (!profiles.has(data.userId) && !profiles.isDeleted(data.userId) &&
       !profileReadAttempts.has(data.userId)) {
@@ -83,16 +77,11 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
 
   function cleanupExpired() {
     const now = Date.now();
-    let changed = false;
     for (const [userId, user] of typingUsers) {
       if (now - user.lastTypingAt >= TYPING_TIMEOUT_MS) {
         typingUsers.delete(userId);
         profileReadAttempts.delete(userId);
-        changed = true;
       }
-    }
-    if (changed) {
-      state.version++;
     }
   }
 
@@ -115,7 +104,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
 
     configRoomId = config.roomId;
     configThreadRootEventId = config.threadRootEventId;
-    configCurrentUserId = config.currentUserId;
   });
 
   // Cleanup on destroy
@@ -130,7 +118,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
   return {
     /** Reactive list of user IDs currently typing (excludes current user) */
     get userIds(): string[] {
-      void state.version;
       if (!configCurrentUserId) return [];
       return Array.from(typingUsers.keys()).filter((id) => id !== configCurrentUserId);
     },
@@ -140,7 +127,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       if (typingUsers.has(userId)) {
         typingUsers.delete(userId);
         profileReadAttempts.delete(userId);
-        state.version++;
       }
     },
 

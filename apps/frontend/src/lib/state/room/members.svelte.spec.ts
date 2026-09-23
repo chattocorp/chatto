@@ -257,6 +257,30 @@ describe('RoomMembersStore', () => {
     disposeUserStore('member-join-test', 'connection');
   });
 
+  it('keeps connected member names owned by the shared profile store', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('first', 'stale')])]);
+    const profiles = getUserStore('member-profile-test', 'connection');
+    profiles.set('first', new DirectoryMember({
+      user: { id: 'first', login: 'current', displayName: 'Current' }
+    }));
+    const connection = {
+      serverId: 'member-profile-test', queryScope: 'connection', getAPI: () => api
+    } as unknown as ServerConnection;
+    const store = new RoomMembersStore(connection);
+    store.setRoom('room');
+    await store.loadInitial();
+    expect(store.members[0]?.login).toBe('current');
+
+    store.updateUsers([user('first', 'stale')]);
+    expect(store.members[0]?.login).toBe('current');
+
+    profiles.set('first', new DirectoryMember({
+      user: { id: 'first', login: 'updated', displayName: 'Updated' }
+    }));
+    expect(store.members[0]?.login).toBe('updated');
+    disposeUserStore('member-profile-test', 'connection');
+  });
+
   it('discards a pending join after that member leaves', async () => {
     const pending = deferred<ReturnType<typeof user>[]>();
     const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);

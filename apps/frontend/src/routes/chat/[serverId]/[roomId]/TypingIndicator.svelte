@@ -48,10 +48,8 @@ message list layout, and it announces changes politely to screen readers via a
 
   function resolveMember(id: string): RoomMember | undefined {
     if (profiles?.isDeleted(id)) return undefined;
-    const member = members.find((candidate) => candidate.id === id);
-    if (member?.displayName || member?.login) return member;
     const profile = profiles?.get(id);
-    return profile ? mapDirectoryMember(profile) : member;
+    return profile ? mapDirectoryMember(profile) : members.find((member) => member.id === id);
   }
 
   // Resolve user IDs to members (for avatar URLs and display names), keeping

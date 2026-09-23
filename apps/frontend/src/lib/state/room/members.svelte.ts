@@ -320,8 +320,10 @@ export class RoomMembersStore {
     this.#presenceChanges.set(userId, this.presenceVersion);
   }
 
-  /** Apply a canonical profile read without listing room membership again. */
+  /** Standalone stores keep profile rows; connected stores read the shared owner. */
   updateUsers(users: DirectoryMember[]): void {
+    this.#searchCache.clear();
+    if (this.#users) return;
     const updates = new SvelteMap(users.map((user) => [user.id, memberFromDirectory(user)]));
     for (const [id, user] of updates) this.#profileUpdates.set(id, user);
     this.members = this.members.map((member) => updates.get(member.id) ?? member);
@@ -333,7 +335,6 @@ export class RoomMembersStore {
         }
       }
     }
-    this.#searchCache.clear();
   }
 
   /** Apply membership deltas even while this room is not mounted. A delta

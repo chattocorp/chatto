@@ -94,4 +94,41 @@ describe('createTypingIndicator profile hydration', () => {
 
     dispose();
   });
+
+  it('updates visible typers as events and viewer identity change', async () => {
+    let viewerId = $state('viewer');
+    let visibleIds: string[] = [];
+    let indicator!: ReturnType<typeof createTypingIndicator>;
+    const dispose = $effect.root(() => {
+      indicator = createTypingIndicator(() => ({
+        roomId: 'room', threadRootEventId: null, currentUserId: viewerId
+      }));
+      $effect(() => { visibleIds = indicator.userIds; });
+    });
+    flushSync();
+    expect(visibleIds).toEqual([]);
+
+    mocks.typingHandler?.(signal);
+    flushSync();
+    expect(visibleIds).toEqual(['late']);
+
+    viewerId = 'late';
+    flushSync();
+    expect(visibleIds).toEqual([]);
+
+    viewerId = 'viewer';
+    flushSync();
+    expect(visibleIds).toEqual(['late']);
+    indicator.removeTypingUser('late');
+    flushSync();
+    expect(visibleIds).toEqual([]);
+
+    mocks.typingHandler?.(signal);
+    flushSync();
+    expect(visibleIds).toEqual(['late']);
+    await vi.advanceTimersByTimeAsync(TYPING_TIMEOUT_MS);
+    flushSync();
+    expect(visibleIds).toEqual([]);
+    dispose();
+  });
 });
