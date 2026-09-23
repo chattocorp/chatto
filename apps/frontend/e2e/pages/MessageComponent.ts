@@ -209,8 +209,7 @@ export class MessageComponent {
   }
 
   /**
-   * Open the thread pane for this message.
-   * Right-clicks to open context menu, then clicks Reply in thread.
+   * Open the thread pane without leaving a reply target in its composer.
    */
   async openThread(): Promise<void> {
     await this.openContextMenu();
@@ -222,6 +221,18 @@ export class MessageComponent {
       await openThread.click({ timeout: TIMEOUTS.REALTIME_EVENT });
       return;
     }
+    await this.contextMenu
+      .getByRole('menuitem', { name: 'Reply in thread', exact: true })
+      .click({ timeout: TIMEOUTS.REALTIME_EVENT });
+    const replyIndicator = this.page.getByTestId('thread-pane').getByTestId('reply-indicator');
+    await expect(replyIndicator).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await replyIndicator.locator('button:visible').click();
+    await expect(replyIndicator).not.toBeVisible();
+  }
+
+  /** Start an attributed reply to this message in its thread. */
+  async replyInThread(): Promise<void> {
+    await this.openContextMenu();
     await this.contextMenu
       .getByRole('menuitem', { name: 'Reply in thread', exact: true })
       .click({ timeout: TIMEOUTS.REALTIME_EVENT });
