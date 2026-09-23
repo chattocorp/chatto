@@ -30,8 +30,8 @@
   let { data, children } = $props();
   let modalContainerModule: Promise<typeof import('./chat/ModalContainer.svelte')> | null = null;
 
-  // Shell precaching fetches the full compiled build. Start it after the first
-  // navigation settles so it cannot contend with the page's initial requests.
+  // Shell precaching fetches the full compiled build. Delay registration so
+  // those requests do not contend with the page's initial navigation.
   onMount(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     const timer = setTimeout(() => {

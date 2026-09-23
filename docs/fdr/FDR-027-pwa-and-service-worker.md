@@ -13,7 +13,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ## Behavior
 
-- The root service worker is registered by SvelteKit in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
+- The foreground app registers the root service worker shortly after startup in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
 - The root worker caches the current version of the application shell. It serves that shell on a failed navigation and serves cached compiled frontend files. Narrow push-worker registrations do not manage the shell.
 - API, authentication, live, webhook, and uploaded-asset requests use the network.
 - The foreground app saves the room list and up to 50 text messages from each of 10 recently viewed rooms per server and user. Saved views expire seven days after the last successful sync. The current offline storage budget is 20 MB: at most 12 MB for the shell and 8 MB for saved text.
@@ -41,11 +41,11 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 **Why:** People can read saved text in the familiar chat layout while offline. The saved data does not establish current authorization.
 **Tradeoff:** Automatic saving puts private text on the device. A remote revocation takes effect on this copy only after the device reconnects and verifies it.
 
-### 3. SvelteKit owns the root registration
+### 3. Foreground app owns the root registration
 
-**Decision:** The frontend relies on SvelteKit's production service-worker registration for the root worker. Push setup reuses that registration for the serving server and registers the same worker script under stable, server-specific narrow scopes for remote-server subscriptions.
-**Why:** The root worker and its updates belong to the installed PWA lifecycle. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let remote servers retain their own VAPID keys without changing which worker controls the application page.
-**Tradeoff:** Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. Only the root worker handles shell requests.
+**Decision:** The foreground app registers the root worker after a short startup delay. Push setup reuses that registration for the serving server and registers the same worker script under stable, server-specific narrow scopes for remote-server subscriptions.
+**Why:** Preloading the complete shell during the first navigation delays the page. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let remote servers retain their own VAPID keys without changing which worker controls the application page.
+**Tradeoff:** The offline shell can be unavailable for the first few seconds after a new install. Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. Only the root worker handles shell requests.
 
 ### 4. Protected assets bypass the worker
 
