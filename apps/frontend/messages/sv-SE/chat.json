@@ -55,6 +55,7 @@
       "version": "Version {version}",
       "version_unknown": "Okänd version",
       "unreachable": "Servern kan inte nås",
+      "connection_unavailable": "Anslutningen är inte tillgänglig",
       "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
       "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen."
     },

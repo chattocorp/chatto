@@ -101,6 +101,11 @@
   const compatibilityWarning = $derived(compatibility.status !== 'supported');
   const gutterWarning = $derived(compatibilityWarning || serverConnection.showConnectionLostIcon);
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
+  const connectionWarningMessage = $derived(
+    serverConnection.showConnectionLostIcon && !serverUnavailable
+      ? m('chat.server_gutter.connection_unavailable')
+      : null
+  );
   const recoveryNeeded = $derived(serverUnavailable || serverRegistry.needsRecovery(serverId));
   const serverActionsAvailable = $derived(
     stores.isAuthenticated &&
@@ -116,8 +121,8 @@
       ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
       : compatibilityWarning && compatibilityMessage
         ? `${iconServer.name} — ${compatibilityMessage}`
-        : serverConnection.showConnectionLostIcon
-          ? `${iconServer.name} (connection unavailable)`
+        : connectionWarningMessage
+          ? `${iconServer.name} — ${connectionWarningMessage}`
           : iconServer.name
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
@@ -292,6 +297,16 @@
           </span>
         {/if}
       </div>
+      {#if signInRequired}
+        <div
+          class="mt-1 flex items-start gap-1.5 whitespace-normal text-warning"
+          data-testid="server-sign-in-message"
+        >
+          <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
+          ></span>
+          <span>{m('ui.auth_status.sidebar_reauth', { server: iconServer.name })}</span>
+        </div>
+      {/if}
       {#if compatibilityMessage && !serverUnavailable}
         <div
           class={[
@@ -305,6 +320,16 @@
             ></span>
           {/if}
           <span>{compatibilityMessage}</span>
+        </div>
+      {/if}
+      {#if connectionWarningMessage}
+        <div
+          class="mt-1 flex items-start gap-1.5 whitespace-normal text-warning"
+          data-testid="server-connection-message"
+        >
+          <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
+          ></span>
+          <span>{connectionWarningMessage}</span>
         </div>
       {/if}
     </div>
