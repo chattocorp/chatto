@@ -701,6 +701,75 @@ func TestRoomTimeline_OrphanEditHistoryAndBodyAuthorSurviveRestore(t *testing.T)
 	}
 }
 
+func TestRoomTimeline_InterleavedBodyHistoriesStayWithTheirMessages(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*evtv1.Event{
+		bodyEvent("B1", "M1", "R1", "U1", "first R1 body", 1),
+		bodyEvent("B2", "M2", "R2", "U2", "first R2 body", 2),
+		bodyEvent("B3", "M1", "R1", "U1", "second R1 body", 3),
+		bodylessPostedEvent("M2", "R2", "U2", 4),
+		bodylessPostedEvent("M1", "R1", "U1", 5),
+		bodyEvent("B4", "M2", "R2", "U2", "second R2 body", 6),
+		bodyEvent("B5", "M1", "R1", "U1", "third R1 body", 7),
+	})
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	for _, projection := range []*RoomTimelineProjection{p, restored} {
+		for _, tc := range []struct {
+			messageID string
+			roomID    string
+			authorID  string
+			bodyID    string
+			sequences []uint64
+			obsolete  []uint64
+		}{
+			{"M1", "R1", "U1", "B5", []uint64{1, 3, 7}, []uint64{1, 3}},
+			{"M2", "R2", "U2", "B4", []uint64{2, 6}, []uint64{2}},
+		} {
+			body, retracted, ok := projection.LatestBodyReference(tc.messageID)
+			if !ok || retracted || body.RoomID != tc.roomID || body.AuthorID != tc.authorID || body.BodyEventID != tc.bodyID {
+				t.Fatalf("LatestBodyReference(%s) = (%+v, %v, %v)", tc.messageID, body, retracted, ok)
+			}
+			seqs, current, ok := projection.BodyEventSeqs(tc.messageID)
+			if !ok || current != tc.sequences[len(tc.sequences)-1] || !slices.Equal(seqs, tc.sequences) {
+				t.Fatalf("BodyEventSeqs(%s) = (%v, %d, %v), want %v", tc.messageID, seqs, current, ok, tc.sequences)
+			}
+			if got := projection.ObsoleteBodyEventSeqs(tc.messageID); !slices.Equal(got, tc.obsolete) {
+				t.Fatalf("ObsoleteBodyEventSeqs(%s) = %v, want %v", tc.messageID, got, tc.obsolete)
+			}
+		}
+		shred := &evtv1.Event{
+			Id: "SHRED-U1", CreatedAt: timestamppb.New(fixedTime(8)),
+			Event: &evtv1.Event_UserKeyShredded{
+				UserKeyShredded: &evtv1.UserKeyShreddedEvent{UserId: "U1"},
+			},
+		}
+		if err := projection.Apply(shred, 8); err != nil {
+			t.Fatalf("Apply U1 shred: %v", err)
+		}
+		if _, retracted, ok := projection.LatestBodyReference("M1"); !ok || !retracted {
+			t.Fatal("M1 remained readable after its author's key was shredded")
+		}
+		if body, retracted, ok := projection.LatestBodyReference("M2"); !ok || retracted || body.BodyEventID != "B4" {
+			t.Fatalf("unrelated M2 changed after U1 shred: (%+v, %v, %v)", body, retracted, ok)
+		}
+		if got := projection.ObsoleteBodyEventSeqs("M1"); !slices.Equal(got, []uint64{1, 3, 7}) {
+			t.Fatalf("obsolete M1 bodies after U1 shred = %v, want [1 3 7]", got)
+		}
+		obsolete := projection.AllObsoleteBodyEventSeqs()
+		slices.Sort(obsolete)
+		if !slices.Equal(obsolete, []uint64{1, 2, 3, 7}) {
+			t.Fatalf("all obsolete bodies after U1 shred = %v, want [1 2 3 7]", obsolete)
+		}
+	}
+}
+
 func TestRoomTimeline_SnapshotPreservesVisibleThreadingModeChanges(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	event := &evtv1.Event{
