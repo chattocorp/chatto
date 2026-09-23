@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-21
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -27,6 +27,10 @@ provider supplies results.
   the operator-selected Bleve language analyzers, CJK token matching when its
   analyzer is selected, and conservative one-character spelling mistakes in
   longer words. The bundled provider enables all analyzers by default.
+- The bundled provider finds complete HTTP(S) URLs and email addresses in
+  message text. A hostname search also finds that host within a URL or email
+  address, including its subdomains. Searches for ordinary words can find parts
+  of these addresses; a hostname search does not match scattered words.
 - Structured filters support a room (`in:`), author (`from:`), messages before
   or after a date, and messages with attachments. Any recognized filter can be
   used on its own without an additional word or phrase.
@@ -116,6 +120,8 @@ search implementation would require.
 **Decision:** A provider may decrypt message bodies into a local derived index
 that is excluded from normal backups and can be rebuilt from retained `EVT`
 history.
+The bundled provider derives address search terms from the current body in
+that index without keeping a second durable address record.
 Known search-index format and language changes automatically discard the old
 index and rebuild it. Search reports indexing until replay completes. Unknown
 or unreadable indexes require operator recovery, with instructions linked from

@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	checkpointContractBaseID = "bleve-message-index-v11"
+	checkpointContractBaseID = "bleve-message-index-v12"
 	checkpointInternalKey    = "chatto/search/checkpoint"
 	dekInternalKey           = "chatto/search/deks"
 	startupReplayBatchSize   = 256
@@ -58,6 +58,12 @@ type messageDocument struct {
 	Visible        bool      `json:"visible"`
 	BodySequence   uint64    `json:"body_sequence"`
 	PostedSequence uint64    `json:"posted_sequence"`
+	// Address fields are indexed from Body after ProjectionState is encoded.
+	// The stored state keeps no duplicate derived address values.
+	AddressURLs   []string `json:"address_urls,omitempty"`
+	AddressEmails []string `json:"address_emails,omitempty"`
+	AddressHosts  []string `json:"address_hosts,omitempty"`
+	AddressParts  []string `json:"address_parts,omitempty"`
 	// ProjectionState is stored but not indexed. It lets a later EVT event
 	// reconstruct this document without maintaining a second per-message copy
 	// in Bleve's high-churn internal Bolt keyspace.
@@ -542,10 +548,19 @@ func (b *projectionBatch) storeMessage(state messageDocument) error {
 		return err
 	}
 	state.ProjectionState = string(data)
+	addresses := extractAddressTerms(state.Body)
+	state.AddressURLs = addresses.urls
+	state.AddressEmails = addresses.emails
+	state.AddressHosts = addresses.hosts
+	state.AddressParts = addresses.parts
 	if err := b.index.Index(messageDocumentID(state.MessageID), state); err != nil {
 		return fmt.Errorf("index message: %w", err)
 	}
 	state.ProjectionState = ""
+	state.AddressURLs = nil
+	state.AddressEmails = nil
+	state.AddressHosts = nil
+	state.AddressParts = nil
 	b.messages[state.MessageID] = state
 	delete(b.deletedMessages, state.MessageID)
 	return nil

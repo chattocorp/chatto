@@ -53,7 +53,7 @@ func TestProjectionRebuildRetainsIntentUntilReplacementIsDurable(t *testing.T) {
 }
 
 func TestProjectionRebuildsKnownContractChanges(t *testing.T) {
-	for _, base := range []string{"bleve-message-index-v10", checkpointContractBaseID} {
+	for _, base := range []string{"bleve-message-index-v10", "bleve-message-index-v11", checkpointContractBaseID} {
 		t.Run(base, func(t *testing.T) {
 			ctx := context.Background()
 			key, err := encryption.GenerateKey()

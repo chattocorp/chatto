@@ -30,6 +30,15 @@ func TestIndexMappingUsesBM25AndPurposeBuiltBodyFields(t *testing.T) {
 		require.Equal(t, language.analyzer, fields[language.field], language.field)
 		require.NotNil(t, indexMapping.AnalyzerNamed(language.analyzer), language.field)
 	}
+	for _, source := range []string{"address_urls", "address_emails", "address_hosts", "address_parts"} {
+		addressMapping := implementation.DefaultMapping.Properties[source]
+		require.Len(t, addressMapping.Fields, 1, source)
+		field := addressMapping.Fields[0]
+		require.False(t, field.Store, source)
+		require.False(t, field.DocValues, source)
+		require.False(t, field.IncludeInAll, source)
+		require.False(t, field.IncludeTermVectors, source)
+	}
 }
 
 func TestConfiguredLanguageAnalyzersAreCanonicalAndSelective(t *testing.T) {

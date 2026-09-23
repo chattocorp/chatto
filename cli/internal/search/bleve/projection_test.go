@@ -613,6 +613,64 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 	}
 }
 
+func TestProjectionIndexesAddressFormsAndReplacesThemOnEdit(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", []string{}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	created := time.Unix(100, 0)
+	applyLegacyMessage(t, projection, key, "url", "B1", "R1", "U1", "[Preview](https://dev.preview.chatto.run/Help-Center?Token=AbC)", created, 1)
+	applyLegacyMessage(t, projection, key, "words", "B2", "R1", "U1", "preview notes for chatto on the next run", created, 3)
+	applyLegacyMessage(t, projection, key, "email", "B3", "R1", "U1", "Write Alice.Smith@example.com", created, 5)
+	applyLegacyMessage(t, projection, key, "host", "B4", "R1", "U1", "Use dev.preview.chatto.run", created, 7)
+	applyLegacyMessage(t, projection, key, "other", "B5", "R1", "U1", "See other.example.com", created, 9)
+	applyLegacyMessage(t, projection, key, "disjoint", "B6", "R1", "U1", "Alice discussed example.com", created, 11)
+	applyLegacyMessage(t, projection, key, "prefix", "B7", "R1", "U1", "Try notpreview.chatto.run", created, 13)
+
+	tests := []struct {
+		term string
+		want []string
+	}{
+		{term: "preview.chatto.run", want: []string{"url", "host"}},
+		{term: "https://DEV.preview.chatto.run/Help-Center?Token=AbC", want: []string{"url"}},
+		{term: "https://dev.preview.chatto.run/help-center?Token=AbC"},
+		{term: "ALICE.SMITH@EXAMPLE.COM", want: []string{"email"}},
+		{term: "example.com", want: []string{"email", "other", "disjoint"}},
+		{term: "smith", want: []string{"email"}},
+		{term: "center", want: []string{"url"}},
+	}
+	for _, test := range tests {
+		t.Run(test.term, func(t *testing.T) {
+			response, err := projection.query(context.Background(), relevanceRequest([]string{test.term}, nil))
+			require.NoError(t, err)
+			require.ElementsMatch(t, test.want, hitIDs(response))
+		})
+	}
+
+	state, err := projection.loadMessage("url")
+	require.NoError(t, err)
+	require.Empty(t, state.AddressURLs)
+	require.Empty(t, state.AddressHosts)
+	require.Empty(t, state.AddressParts)
+
+	applyLegacyBody(t, projection, key, "url", "B8", "R1", "U1", "https://other.example.org/new", created, nil, 15)
+	response, err := projection.query(context.Background(), relevanceRequest([]string{"https://dev.preview.chatto.run/Help-Center?Token=AbC"}, nil))
+	require.NoError(t, err)
+	require.Empty(t, response.GetHits())
+	response, err = projection.query(context.Background(), relevanceRequest([]string{"other.example.org"}, nil))
+	require.NoError(t, err)
+	require.Equal(t, []string{"url"}, hitIDs(response))
+
+	require.NoError(t, projection.Apply(&evtv1.Event{Event: &evtv1.Event_MessageRetracted{
+		MessageRetracted: &evtv1.MessageRetractedEvent{EventId: "host"},
+	}}, 16))
+	response, err = projection.query(context.Background(), relevanceRequest([]string{"preview.chatto.run"}, nil))
+	require.NoError(t, err)
+	require.Empty(t, response.GetHits())
+}
+
 func TestProjectionUsesOnlyConfiguredLanguageAnalyzers(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)

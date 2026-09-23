@@ -169,7 +169,7 @@ generation, and user key shredding event families, and uses projector key
 During captured startup replay it commits up to 256 ordered events and the
 final checkpoint in one Bleve transaction, including a smaller final batch;
 once current, each relevant live event is committed immediately.
-Its checkpoint contract starts with `bleve-message-index-v11-` and includes a
+Its checkpoint contract starts with `bleve-message-index-v12-` and includes a
 stable fingerprint of the configured language analyzer set, so changing that
 set forces a cold EVT replay.
 
@@ -180,6 +180,10 @@ posting event is a stored, non-indexed field in that same Bleve document; it is
 not duplicated as one internal Bolt key per message. Candidate revisions must
 match current core state before hydration, fencing provider catch-up races.
 Attachment descriptions are not indexed or copied into this projection.
+The index also derives unstored fields for complete HTTP(S) URLs, email
+addresses, hostname suffixes, and address parts from each current body. These
+fields are absent from the stored projection state and are replaced with the
+body after an edit. Extraction makes no network request.
 
 Message bodies use BM25 scoring over a language-neutral field plus the
 operator-selected subset of all 22 complete language analyzers available in
@@ -425,6 +429,6 @@ is omitted for the affected echo; storage errors still fail the read. Historical
 echo metadata is never used as a fallback. Projections do not retain decrypted
 content.
 
-The Bleve search checkpoint contract is `bleve-message-index-v11`. Echo posts
+The Bleve search checkpoint contract is `bleve-message-index-v12`. Echo posts
 are not searchable contributions. Historical echo bodies cannot replace the
 original search document or create a second result.

@@ -21,6 +21,14 @@ func TestParseQuery(t *testing.T) {
 	require.True(t, parsed.HasAttachments)
 }
 
+func TestParseQueryKeepsAddressesAsSearchTerms(t *testing.T) {
+	parsed, err := ParseQuery("https://preview.chatto.run/path preview.chatto.run Alice@example.com")
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"https://preview.chatto.run/path", "preview.chatto.run", "Alice@example.com",
+	}, parsed.RequiredTerms)
+}
+
 func TestParseQueryUsesStrictestRepeatedDateBounds(t *testing.T) {
 	parsed, err := ParseQuery("search after:2025-01-01 after:2025-01-03 before:2025-02-01 before:2025-01-20")
 	require.NoError(t, err)

@@ -20,9 +20,10 @@ import (
 var errInvalidCursor = fmt.Errorf("invalid search cursor")
 
 const (
-	exactMatchBoost = 4
-	stemMatchBoost  = 2
-	fuzzyMatchBoost = 0.35
+	exactMatchBoost  = 4
+	stemMatchBoost   = 2
+	fuzzyMatchBoost  = 0.35
+	addressPartBoost = 1
 )
 
 type cursor struct {
@@ -145,8 +146,18 @@ func buildQuery(request *searchv1.QueryRequest, languages []languageAnalyzer) (b
 }
 
 func bodyTermQuery(term string, languages []languageAnalyzer) blevequery.Query {
+	if url, _ := canonicalHTTPURL(term); url != "" {
+		return addressTermQuery(url, addressURLField)
+	}
+	if email, _ := canonicalEmail(term); email != "" {
+		return addressTermQuery(email, addressEmailField)
+	}
+	if host := canonicalHostname(term); host != "" {
+		return addressTermQuery(host, addressHostField)
+	}
 	queries := []blevequery.Query{
 		exactBodyTermQuery(term),
+		addressPartsQuery(term),
 	}
 	for _, language := range languages {
 		queries = append(queries, boostedMatchQuery(
@@ -169,6 +180,24 @@ func bodyTermQuery(term string, languages []languageAnalyzer) blevequery.Query {
 		queries = append(queries, fuzzy)
 	}
 	return blevesearch.NewDisjunctionQuery(queries...)
+}
+
+func addressTermQuery(value, field string) *blevequery.TermQuery {
+	query := blevesearch.NewTermQuery(value)
+	query.SetField(field)
+	query.SetBoost(exactMatchBoost)
+	return query
+}
+
+func addressPartsQuery(term string) blevequery.Query {
+	parts := exactBodyTokens(term)
+	queries := make([]blevequery.Query, 0, len(parts))
+	for _, part := range parts {
+		query := addressTermQuery(part, addressPartField)
+		query.SetBoost(addressPartBoost)
+		queries = append(queries, query)
+	}
+	return blevesearch.NewConjunctionQuery(queries...)
 }
 
 func exactBodyTermQuery(term string) blevequery.Query {
