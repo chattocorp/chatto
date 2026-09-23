@@ -96,6 +96,19 @@ func TestOperatorAssetUploadOwnershipAndPublicIsolation(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("read attached asset through room access: %v", err)
 	}
+	publicUpload, err := chatto.AssetUploads().CreateUpload(ctx, AssetUploadCreateInput{
+		ActorID: author.GetId(), RoomID: room.GetId(), Filename: "public.txt",
+		ContentType: "text/plain", Size: 0,
+		SHA256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+	})
+	if err != nil {
+		t.Fatalf("public CreateUpload: %v", err)
+	}
+	if _, _, err := chatto.AssetUploads().CompleteUpload(ctx, AssetUploadCompleteInput{
+		ActorID: SystemActorID, Operator: true, UploadID: publicUpload.UploadID,
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("operator CompleteUpload of public session = %v, want permission denied", err)
+	}
 }
 
 func TestOperatorAssetUploadTargetsAndCancellation(t *testing.T) {
