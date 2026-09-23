@@ -250,9 +250,9 @@ The Room Timeline component shares room and user IDs between compact event
 rows. Each row keeps a small event-kind value. An event-ID index locates a
 message's current body state in a dense array. Body authors use the shared
 user table. Only messages with multiple body events retain a separate index
-of superseded body sequences. A
-small map holds body facts and edit history that arrive before their message
-post, then moves them into the dense and sparse indexes. Each
+of superseded body sequences. A small map holds body facts and body history
+that arrive before their message post. The projection moves these values into
+the dense and sparse indexes when the post arrives. Each
 row stores references to known thread roots and echo sources as numeric row
 indexes. A sparse fallback keeps the original ID if the referenced event has
 not arrived or is outside the timeline. The Threads component uses structured
