@@ -15,14 +15,15 @@ func TestRootRegistersOperatorUserCommands(t *testing.T) {
 	for _, args := range [][]string{
 		{"operator", "user", "create", "--help"},
 		{"operator", "user", "set-password", "--help"},
+		{"operator", "user", "clear-username-cooldown", "--help"},
 		{"operator", "user", "role", "add", "--help"},
 	} {
 		cmd, _, err := rootCmd.Find(args)
 		if err != nil {
 			t.Fatalf("find %v: %v", args, err)
 		}
-		if cmd == nil {
-			t.Fatalf("root command did not register %v", args)
+		if cmd == nil || cmd.Name() != args[len(args)-2] {
+			t.Fatalf("root command did not register %v; found %v", args, cmd)
 		}
 	}
 }
@@ -93,14 +94,21 @@ func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 	if lookedUp.Member.User.ID != user.Id {
 		t.Fatalf("get by login JSON user ID = %q, want %q", lookedUp.Member.User.ID, user.Id)
 	}
+	getByEmailOut := env.run(t, "operator", "user", "get", "--email", "cli-admin@example.com")
+	if getByEmailOut != getOut {
+		t.Fatalf("get by email output = %q, want %q", getByEmailOut, getOut)
+	}
 	for _, tc := range []struct {
 		name string
 		args []string
 		want string
 	}{
-		{name: "missing selector", args: []string{"operator", "user", "get"}, want: "provide USER_ID or a non-empty --login"},
-		{name: "empty login", args: []string{"operator", "user", "get", "--login", ""}, want: "provide USER_ID or a non-empty --login"},
-		{name: "conflicting selectors", args: []string{"operator", "user", "get", user.Id, "--login", "cli-admin-user"}, want: "provide USER_ID or --login, not both"},
+		{name: "missing selector", args: []string{"operator", "user", "get"}, want: "provide exactly one of USER_ID, --login, or --email"},
+		{name: "empty login", args: []string{"operator", "user", "get", "--login", ""}, want: "--login must not be empty"},
+		{name: "empty email", args: []string{"operator", "user", "get", "--email", ""}, want: "--email must not be empty"},
+		{name: "ID and login", args: []string{"operator", "user", "get", user.Id, "--login", "cli-admin-user"}, want: "provide exactly one of USER_ID, --login, or --email"},
+		{name: "ID and email", args: []string{"operator", "user", "get", user.Id, "--email", "cli-admin@example.com"}, want: "provide exactly one of USER_ID, --login, or --email"},
+		{name: "login and email", args: []string{"operator", "user", "get", "--login", "cli-admin-user", "--email", "cli-admin@example.com"}, want: "provide exactly one of USER_ID, --login, or --email"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := env.execute(t, tc.args...)
@@ -112,6 +120,10 @@ func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 	_, err = env.execute(t, "operator", "user", "get", "--login", "unknown-cli-user")
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("unknown login error = %v, want not found", err)
+	}
+	_, err = env.execute(t, "operator", "user", "get", "--email", "unknown@example.com")
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unknown email error = %v, want not found", err)
 	}
 
 	updateOut := env.run(t, "operator", "user", "update", user.Id, "--display-name", "CLI Renamed")
@@ -153,6 +165,26 @@ func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 	emailListOut := env.run(t, "operator", "user", "list", "--search", "cli-admin-2@example.com")
 	if !strings.Contains(emailListOut, "total=1 has_more=false") || !strings.Contains(emailListOut, user.Id) {
 		t.Fatalf("list with email search output = %q", emailListOut)
+	}
+	if _, err := env.core.UpdateUserLogin(env.ctx, user.Id, "cli-admin-first"); err != nil {
+		t.Fatalf("first self-service login change: %v", err)
+	}
+	if _, err := env.core.UpdateUserLogin(env.ctx, user.Id, "cli-admin-second"); !errors.Is(err, core.ErrLoginChangeCooldown) {
+		t.Fatalf("second self-service login change error = %v, want cooldown", err)
+	}
+	_, err = env.execute(t, "operator", "user", "clear-username-cooldown", "missing-user")
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("clear cooldown for missing user error = %v, want not found", err)
+	}
+	clearOut := env.run(t, "operator", "user", "clear-username-cooldown", user.Id, "--json")
+	var cleared struct {
+		Cleared bool `json:"cleared"`
+	}
+	if err := json.Unmarshal([]byte(clearOut), &cleared); err != nil || !cleared.Cleared {
+		t.Fatalf("clear cooldown output = %q, error = %v", clearOut, err)
+	}
+	if _, err := env.core.UpdateUserLogin(env.ctx, user.Id, "cli-admin-second"); err != nil {
+		t.Fatalf("self-service login change after cooldown clear: %v", err)
 	}
 
 	deleteOut := env.run(t, "operator", "user", "delete", user.Id, "--yes")

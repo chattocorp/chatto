@@ -30,6 +30,7 @@ func init() {
 		operatorUserCreateCmd(),
 		operatorUserUpdateCmd(),
 		operatorUserSetPasswordCmd(),
+		operatorUserClearUsernameCooldownCmd(),
 		operatorUserDeleteCmd(),
 		operatorUserAddEmailCmd(),
 		operatorUserRoleCmd(),
@@ -96,23 +97,38 @@ func operatorUserListCmd() *cobra.Command {
 }
 
 func operatorUserGetCmd() *cobra.Command {
-	var login string
+	var login, email string
 	cmd := &cobra.Command{
 		Use:   "get [USER_ID]",
-		Short: "Get a user by ID or login",
+		Short: "Get a user by ID, login, or verified email",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 1 && cmd.Flags().Changed("login") {
-				return errors.New("provide USER_ID or --login, not both")
+			selectors := len(args)
+			if cmd.Flags().Changed("login") {
+				selectors++
 			}
-			if len(args) == 0 && strings.TrimSpace(login) == "" {
-				return errors.New("provide USER_ID or a non-empty --login")
+			if cmd.Flags().Changed("email") {
+				selectors++
+			}
+			if selectors != 1 {
+				return errors.New("provide exactly one of USER_ID, --login, or --email")
 			}
 			request := &operatorv1.GetUserRequest{}
 			if len(args) == 1 {
+				if strings.TrimSpace(args[0]) == "" {
+					return errors.New("USER_ID must not be empty")
+				}
 				request.UserId = args[0]
-			} else {
+			} else if cmd.Flags().Changed("login") {
+				if strings.TrimSpace(login) == "" {
+					return errors.New("--login must not be empty")
+				}
 				request.Login = login
+			} else {
+				if strings.TrimSpace(email) == "" {
+					return errors.New("--email must not be empty")
+				}
+				request.Email = email
 			}
 			client, err := newOperatorUserClient()
 			if err != nil {
@@ -127,7 +143,31 @@ func operatorUserGetCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&login, "login", "", "find a user by exact login")
+	cmd.Flags().StringVar(&email, "email", "", "find a user by exact verified email")
 	return cmd
+}
+
+func operatorUserClearUsernameCooldownCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "clear-username-cooldown USER_ID",
+		Short: "Allow a user to change their username again",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if strings.TrimSpace(args[0]) == "" {
+				return errors.New("USER_ID must not be empty")
+			}
+			client, err := newOperatorUserClient()
+			if err != nil {
+				return err
+			}
+			resp, err := client.ClearUsernameCooldown(cmd.Context(), operatorRequest(&operatorv1.ClearUsernameCooldownRequest{UserId: args[0]}))
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			return printOperatorOutput(out, resp.Msg, func() { fmt.Fprintf(out, "cleared username cooldown for user %s\n", args[0]) })
+		},
+	}
 }
 
 func operatorUserCreateCmd() *cobra.Command {

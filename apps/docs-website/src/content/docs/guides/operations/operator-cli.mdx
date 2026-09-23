@@ -87,9 +87,10 @@ chatto operator user list --search alice
 chatto operator user list --search alice@example.com
 chatto operator user get USER_ID
 chatto operator user get --login alice
+chatto operator user get --email alice@example.com
 ```
 
-Use `user get --login` to find one account by its login. This helps a script recover the user ID after an interrupted run. Supply either a user ID or `--login`, not both.
+Use `user get --login` or `user get --email` to find one account by its exact login or verified email address. A script can use either command to recover a user ID after an interrupted run. Supply exactly one selector: `USER_ID`, `--login`, or `--email`.
 
 Search matches logins and display names, or an exact verified email address. `list` returns 20 users by default and supports offset pagination:
 
@@ -217,6 +218,16 @@ chatto operator user set-password USER_ID \
 ```
 
 The new password cannot be empty. Setting a password does not require the previous password.
+
+## Clear a username-change cooldown
+
+Allow a user to change their username again after a recent self-service change:
+
+```sh
+chatto operator user clear-username-cooldown USER_ID
+```
+
+The command does not change the user's current username. It clears the 30-day wait before the user's next self-service change. Use `--json` to get a `cleared` result for a script.
 
 ## Manage roles
 
