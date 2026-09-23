@@ -85,10 +85,10 @@ test("shutdown keeps Node alive until cooperative cleanup and journal flush fini
   `, original.directory], { timeout: 10_000 });
   const [file] = await readdir(original.directory);
   const records = (await readFile(resolve(original.directory, file!), "utf8")).trim().split("\n").map(line => JSON.parse(line));
-  expect(records.at(-1)).toMatchObject({ type: "finished", status: "cancelled" });
+  expect(records.at(-1)).toMatchObject({ type: "finished", status: "interrupted" });
 });
 
-test("shutdown cancels active source runs and flushes source metadata to history", async () => {
+test("shutdown interrupts active source runs and flushes source metadata to history", async () => {
   const original = await store();
   const workflow = task(async ctx => {
     await new Promise<void>(resolve => {
@@ -98,10 +98,10 @@ test("shutdown cancels active source runs and flushes source metadata to history
   });
   const run = await original.start("chatto", workflow, undefined, "source");
   await original.close();
-  expect((await original.get(run.id))?.status).toBe("cancelled");
+  expect((await original.get(run.id))?.status).toBe("interrupted");
   const restored = new RunStore(original.directory);
   await restored.init();
-  expect(await restored.get(run.id)).toMatchObject({ source: "source", sourceName: "chatto", status: "cancelled" });
+  expect(await restored.get(run.id)).toMatchObject({ source: "source", sourceName: "chatto", status: "interrupted" });
 });
 
 test("uses Runling history for new projects and preserves existing Factory history", async () => {

@@ -347,8 +347,8 @@
           </li>
         {:else}
           <li class="p-3 text-sm text-base-content/60">
-            No webhooks configured. Add one to runling.config.ts. Changes load
-            automatically.
+            No webhooks configured. Add one to runling.config.ts, then restart
+            the server or use --watch to load changes automatically.
           </li>
         {/each}
       </ul>

@@ -38,7 +38,7 @@ test("repeated shutdown signals flush an idle conversation with a completed chil
     `, directory], { timeout: 10_000 });
     const [file] = await readdir(directory);
     const records = (await readFile(join(directory, file!), "utf8")).trim().split("\n").map(line => JSON.parse(line));
-    expect(records.at(-1)).toMatchObject({ type: "finished", status: "cancelled" });
+    expect(records.at(-1)).toMatchObject({ type: "finished", status: "interrupted" });
     expect(records.filter(record => record.type === "finished")).toHaveLength(1);
     expect(records.some(record => record.event?.type === "input.finished" && record.event.reason === "cancelled")).toBe(true);
   } finally { await rm(directory, { recursive: true, force: true }); }

@@ -87,3 +87,16 @@ it("does not replace the original server failure when error details are circular
   expect(() => serverLog("error", "http.error", { error })).not.toThrow();
   expect(JSON.parse(readFileSync(serverLogPath(), "utf8"))).toMatchObject({ event: "http.error", message: "Log details could not be serialized" });
 });
+
+it("keeps task identities distinct under compact agent role prefixes", () => {
+  setup();
+  vi.stubEnv("NO_COLOR", "1");
+  const output = vi.spyOn(console, "info").mockImplementation(() => {});
+  for (const taskReference of ["task-3", "task-4"]) serverLog("info", "run.activity", {
+    runReference: "sunny-poems-5431", taskReference, agentId: "full-agent-id", agentLabel: "investigate", activity: "Investigation complete",
+  });
+  expect(output.mock.calls[0]![0]).toContain("[sunny-poems-5431 / investigate:task-3]");
+  expect(output.mock.calls[1]![0]).toContain("[sunny-poems-5431 / investigate:task-4]");
+  expect(output.mock.calls[0]![0]).not.toContain("full-agent-id");
+  expect(readFileSync(serverLogPath(), "utf8")).toContain('"agentId":"full-agent-id"');
+});

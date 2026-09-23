@@ -13,7 +13,7 @@ import { setTimeout as delay } from "node:timers/promises";
 test("development server uses the same server options", () => {
   const command = createServeCommand().name("runling-web").exitOverride();
   command.parse(["--port", "4173", "--open"], { from: "user" });
-  expect(command.opts()).toEqual({ config: "runling.config.ts", host: "localhost", port: 4173, open: true });
+  expect(command.opts()).toEqual({ config: "runling.config.ts", host: "localhost", port: 4173, open: true, watch: false });
 });
 
 test("development server serves the app from outside the repository", async () => {

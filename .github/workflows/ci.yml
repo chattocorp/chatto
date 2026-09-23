@@ -62,6 +62,7 @@ jobs:
               - 'packages/runling/**'
               - 'packages/chatto-client/**'
             chattobot:
+              - 'packages/chatto-bot-client/**'
               - 'packages/chattobot/**'
               - 'packages/runling/**'
               - 'packages/chatto-client/**'
@@ -111,6 +112,8 @@ jobs:
         with:
           install-cli-deps: "false"
       - run: mise check-chattobot
+      - run: mise test-chatto-client
+      - run: mise test-chatto-bot-client
       - run: mise test-chattobot
 
   build-main-image-contexts:

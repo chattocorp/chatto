@@ -44,6 +44,10 @@ Runs appear in the console with their source name. Their records have
 
 ## Lifecycle and reload
 
+`runling serve` loads configuration once. Use `runling serve --watch` to reload
+configuration and sources when project files change. Without this flag, restart
+the server to load changes. Sources still start eagerly in both modes.
+
 Development and installed `runling serve` start sources before any HTTP
 request. Source functions must wait for cancellation and release their
 resources before returning. Shutdown waits for cleanup and pending dispatches,

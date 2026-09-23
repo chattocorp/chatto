@@ -22,9 +22,12 @@ The integration client [`@chatto/client`](../../packages/chatto-client/README.md
 also consumes this protocol. It uses bearer authentication, live-only fallback,
 ordered async event acceptance, bounded buffering, and process-local resume
 cursors. Terminal errors stop consumption; unavailable replay reports a gap.
-The [ChattoBot package](../../packages/chattobot/README.md) routes accepted
-message events into new or active Runling conversations. Runling itself has
-no Chatto runtime dependency.
+The [bot client](../../packages/chatto-bot-client/README.md) supplies addressing
+recognition and process-local accepted-delivery tracking. The
+[ChattoBot package](../../packages/chattobot/README.md) routes message events
+into new or active Runling conversations. It accepts a delivery after inbox
+insertion or successful run registration. Runling itself has no Chatto runtime
+dependency.
 
 The public API is a binary protobuf WebSocket at `GET /api/realtime`. The
 server accepts behavioral protocol version 4. The `chatto.realtime.v1` suffix

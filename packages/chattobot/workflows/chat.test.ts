@@ -35,6 +35,7 @@ test.each([
         origin: "user",
         recentUserMessages: ["Hello!"],
         backgroundTasks: [],
+        savedImplementationPlans: [],
       });
       expect(acknowledge).toHaveBeenCalledOnce();
       options?.onText?.("Hi! I'm ChattoBot.");
@@ -167,6 +168,23 @@ test("an owner can finish a turn silently without posting its internal no-update
   expect(post).not.toHaveBeenCalled();
 });
 
+test.each(["Token usage: 1138\n<|thought|>\n", "<think>private reasoning</think>", "<|channel|>analysis"])("blocks malformed model output: %s", async text => {
+  const post = vi.fn(async () => {});
+  const bot = createChattoBot({ acknowledge: async () => {}, typing: async () => {}, post,
+    timeout: 0, readThread: async () => [],
+    createAgent: async () => ({ dispose: () => {}, steer: async () => false,
+      async runOutcome(_ctx, _prompt, options) {
+        options?.onText?.(text);
+        return { outcome: "completed", summary: "", usage: emptyTokenUsage() };
+      },
+    }),
+  });
+  await bot(createWorkflowContext(), delivery);
+  expect(post).toHaveBeenCalledOnce();
+  expect(post.mock.calls[0]).not.toContain(text);
+  expect(JSON.stringify(post.mock.calls)).toContain("couldn't format");
+});
+
 test("rapid follow-ups wait for initial context then steer the same turn in order without waiting for receipts", async () => {
   let releaseHistory!: () => void;
   const history = new Promise<void>(resolve => { releaseHistory = resolve; });
@@ -264,6 +282,7 @@ test("refreshes history for a later mention in the same conversation", async () 
   expect(JSON.parse(prompts[1]!)).toEqual({
     thread: [{ id: "count", role: "human", body: "eins, zwei, drei" }],
     currentMessage: "What's next?",
+    savedImplementationPlans: [],
     origin: "user",
     recentUserMessages: ["Hello!", "What's next?"],
     backgroundTasks: [],

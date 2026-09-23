@@ -129,6 +129,8 @@ export type AgentStatus =
 /** Tool lifecycle facts without arguments, paths, commands, or tool output. */
 export interface AgentActivity {
   type: "tool";
+  /** Registered tool identifier; no arguments or output. */
+  toolName?: string;
   operation: "read" | "search" | "edit" | "command" | "other";
   phase: "started" | "succeeded" | "failed";
   /** Failures since this operation last succeeded, within the current interaction. */
@@ -158,6 +160,8 @@ function providerFailureSummary(error: string): string {
 
 export interface RunAgentOptions {
   model: string;
+  /** Static operational role shown in server logs. Never use user data or model output. */
+  label?: string;
   /** Reasoning effort for the model. Defaults to pi's own settings default. */
   thinkingLevel?: ThinkingLevel;
   instructions?: readonly string[];
@@ -166,6 +170,9 @@ export interface RunAgentOptions {
   cwd: string;
   /** Text agents finish naturally; report agents must call report_outcome (default). */
   output?: "text" | "report";
+  /** Deliver only normally stopped assistant messages, excluding tool-call preambles.
+   * Defaults to all completed assistant messages. Logs retain intermediate text. */
+  textDelivery?: "all" | "final";
   /** Text mode only: accept a normally stopped assistant turn with no text. Provider errors still fail. */
   allowEmptyResponse?: boolean;
   /** Built-in and extension tools to expose. `report_outcome` is added in report mode. */
@@ -455,11 +462,12 @@ async function createRunlingAgent(
     const activity = (tool: string, phase: AgentActivity["phase"], result?: unknown) => {
       const operation: AgentActivity["operation"] = tool === "read" ? "read"
         : ["grep", "find", "ls"].includes(tool) ? "search"
-        : ["edit", "write"].includes(tool) ? "edit" : tool === "bash" ? "command" : "other";
+        : ["edit", "write", "apply_patch"].includes(tool) ? "edit" : tool === "bash" ? "command" : "other";
       if (phase === "failed") failures.set(operation, (failures.get(operation) ?? 0) + 1);
       if (phase === "succeeded") failures.set(operation, 0);
-      emitRunlingEvent({ type: "agent.tool", agentId, operation, phase });
-      options.onActivity?.({ type: "tool", operation, phase, failures: failures.get(operation) ?? 0,
+      const toolName = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(tool) ? tool : undefined;
+      emitRunlingEvent({ type: "agent.tool", agentId, operation, phase, toolName });
+      options.onActivity?.({ type: "tool", operation, phase, toolName, failures: failures.get(operation) ?? 0,
         ...(phase === "failed" ? { error: toolFailureCategory(result) } : {}),
       });
     };
@@ -508,6 +516,7 @@ async function createRunlingAgent(
           type: "agent.started",
           agentId,
           model: `${model.provider}/${model.id}`,
+          ...(options.label ? { label: options.label } : {}),
           color,
         });
         agentLog.info(
@@ -647,7 +656,8 @@ async function createRunlingAgent(
         ctx.recordUsage(event.message.usage);
         emitRunlingEvent({ type: "agent.usage", agentId, usage: { ...usage } });
         agentLog.debug(`Tokens: ${formatTokenUsage(usage)}`);
-        if (finalText.trim()) onText?.(finalText);
+        if (finalText.trim() && (options.textDelivery !== "final" ||
+          (finalTextStopped && !event.message.content.some(part => part.type === "toolCall")))) onText?.(finalText);
       }
     }));
 

@@ -36,7 +36,10 @@ function summary(run: RunDetail): RunSummary {
 
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
-  if (record.type === "event") {
+  if (record.type === "resumed") {
+    if (includeDetails) run.events.push({ type: "workflow.resumed", attempt: record.attempt, timestamp: run.durationMs ?? 0 });
+    Object.assign(run, { status: "running", attempt: record.attempt, finishedAt: undefined, error: null, output: null });
+  } else if (record.type === "event") {
     if (includeDetails) run.events.push(record.event);
     if (record.event.type === "usage.updated") run.usage = record.event.usage;
   } else if (record.type === "finished") {
@@ -69,6 +72,8 @@ export class RunStore {
   private executions = new Set<Promise<WorkflowExecution>>();
   private listeners = new Set<Listener>();
   private references = new Set<string>();
+  private readonly shutdownReason = new Error("Runling server stopped.");
+  private closing = false;
 
   constructor(readonly directory: string, private readonly createReference = randomId) {}
 
@@ -127,13 +132,14 @@ export class RunStore {
     return true;
   }
 
-  /** Cancel active workflows and flush their final records during server shutdown. */
+  /** Interrupt active workflows and flush their records. Explicit user cancellations stay cancelled. */
   async close(): Promise<void> {
+    this.closing = true;
     // After HTTP and watchers close, cleanup can depend only on unref'ed
     // deadlines. A promise alone does not keep Node alive to flush the journal.
     const keepAlive = setInterval(() => {}, 1000);
     try {
-      for (const controller of this.controllers.values()) controller.abort(new Error("Runling server stopped."));
+      for (const controller of this.controllers.values()) controller.abort(this.shutdownReason);
       await Promise.allSettled(this.executions);
     } finally {
       clearInterval(keepAlive);
@@ -194,6 +200,7 @@ export class RunStore {
     input: Input,
     source: "webhook" | "web" | "source",
   ) {
+    if (this.closing) throw new Error("Run store is stopping");
     const id = randomUUID();
     const run: RunDetail = {
       id,
@@ -263,10 +270,13 @@ export class RunStore {
       },
     });
     this.controllers.delete(id);
+    const status = signal.aborted
+      ? signal.reason === this.shutdownReason ? "interrupted" : "cancelled"
+      : execution.ok ? "completed" : "failed";
     try {
       await this.append(id, {
         type: "finished",
-        status: signal.aborted ? "cancelled" : execution.ok ? "completed" : "failed",
+        status,
         finishedAt: Date.now(),
         durationMs: execution.durationMs,
         usage: execution.usage,
@@ -291,8 +301,7 @@ export class RunStore {
     } finally {
       this.pending.delete(id);
     }
-    const status = signal.aborted ? "cancelled" : execution.ok ? "completed" : "failed";
-    serverLog(status === "failed" ? "error" : status === "cancelled" ? "warn" : "info", "run.finished", {
+    serverLog(status === "failed" ? "error" : status === "cancelled" || status === "interrupted" ? "warn" : "info", "run.finished", {
       runId: id, runReference: this.runs.get(id)?.reference, status,
       durationMs: execution.durationMs, usage: execution.usage,
     });

@@ -4,10 +4,31 @@ import { join } from "node:path";
 import { expect, test, vi } from "vitest";
 import { ConfigReloader } from "./config-reloader.ts";
 
+test("loads once by default and does not reload edited project files", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "runling-static-config-"));
+  const path = join(directory, "runling.config.ts");
+  await writeFile(path, "export default { webhooks: {}, sources: {} };\n");
+  const loader = new ConfigReloader(path);
+  try {
+    const original = await loader.load();
+    const changed = vi.fn();
+    loader.subscribe(changed);
+    await writeFile(path, "export default { invalid: true };\n");
+    await new Promise(resolve => setTimeout(resolve, 250));
+    expect(await loader.load()).toBe(original);
+    expect(loader.revision).toBe(1);
+    expect(changed).not.toHaveBeenCalled();
+    expect(loader.error).toBeUndefined();
+  } finally {
+    await loader.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 async function fixture(run: (loader: ConfigReloader, path: string) => Promise<void>) {
   const directory = await mkdtemp(join(tmpdir(), "runling-config-test-"));
   const path = join(directory, "runling.config.ts");
-  const loader = new ConfigReloader(path);
+  const loader = new ConfigReloader(path, { watch: true });
   try {
     await run(loader, path);
   } finally {

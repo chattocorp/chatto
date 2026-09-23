@@ -7,7 +7,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { createWorkflowContext, emptyTokenUsage } from "runling";
 import type { AgentExtensionAPI, AgentOptions, AgentRunOptions } from "runling/agents";
 import { createAgentTasks } from "runling/agents";
-import { createImplementation, implementationExtension, implementationSettings, matchesRepository } from "./implement.ts";
+import { createImplementation, implementationExtension, implementationSettings, matchesRepository, validationDiagnostic } from "./implement.ts";
 import { implementationProcess, ImplementationCommandError, type ImplementationProcess } from "./implementation-process.ts";
 
 const exec = promisify(execFile);
@@ -107,7 +107,7 @@ test("implements in an isolated worktree, records final checks, pushes and verif
   expect((await exec("git", ["--git-dir", f.remote, "show", `${result.branch}:example.txt`])).stdout).toBe("fixed\n");
   expect(updates).toContainEqual(expect.objectContaining({ type: "finding", text: expect.stringContaining("validation passed") }));
   expect(updates).toContainEqual({ type: "output", text: "Worker commentary for the supervisor" });
-  expect(updates).toContainEqual({ type: "state", value: { phase: "validating", currentCheck: "mise x -- pnpm run test",
+  expect(updates).toContainEqual({ type: "state", activity: "Validating · mise x -- pnpm run test", value: { phase: "validating", currentCheck: "mise x -- pnpm run test",
     completedChecks: ["mise x -- pnpm run check"], pendingChecks: ["mise x -- pnpm run test"] } });
   expect(updates).toContainEqual({ type: "state", value: { phase: "published", prUrl: result.prUrl,
     completedChecks: ["mise x -- pnpm run check", "mise x -- pnpm run test"], pendingChecks: [] } });
@@ -199,6 +199,7 @@ test.each(["failed-check", "source-changing-check"])("bounds repairs for %s and 
     return f.execute(command, args, options);
   } })(createWorkflowContext(), { request: "Fix" });
   expect(result).toMatchObject({ outcome: "blocked", summary: expect.stringContaining("three attempts") });
+  if (mode === "failed-check") expect(result.checks).toEqual([{ command: "mise x -- pnpm run check", passed: false, diagnostic: "Assertion failed" }]);
   expect(turns).toBe(3);
   expect(createAgent).toHaveBeenCalledOnce();
   expect(f.calls.some(call => call.args.includes("push"))).toBe(false);
@@ -260,6 +261,23 @@ test("notifications cannot restart a failed implementation; a new human request 
     expect(JSON.parse((await call("implementChatto", input)).content[0]!.text!).status).toBe("running");
     await vi.waitFor(() => expect(tasks.list().some(task => task.status === "running")).toBe(false));
     expect(tasks.list()).toHaveLength(2);
+  } finally { await tasks.dispose(); }
+});
+
+test("notification refusal says no implementation started and has no side effects", async () => {
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx);
+  const announce = vi.fn();
+  const onBlocked = vi.fn();
+  const extension = implementationExtension(ctx, { directory: "/does-not-exist", repository: "example/chatto" }, announce, tasks,
+    { requestVersion: () => undefined, onBlocked });
+  const call = await workerTools({ cwd: "/unused", model: "test/model", extensions: [extension] });
+  try {
+    const result = JSON.parse((await call("implementChatto", { request: "Fix", announcement: "Starting now", investigationId: "missing" })).content[0]!.text!);
+    expect(result).toMatchObject({ outcome: "blocked", summary: expect.stringContaining("Implementation was not started") });
+    expect(onBlocked).toHaveBeenCalledExactlyOnceWith(result.summary);
+    expect(announce).not.toHaveBeenCalled();
+    expect(tasks.list()).toEqual([]);
   } finally { await tasks.dispose(); }
 });
 
@@ -374,17 +392,23 @@ test("the tool waits for its announcement, returns a handle, accepts steering, a
   const finish = Promise.withResolvers<void>();
   const announce = vi.fn(async () => delivered.promise);
   const steer = vi.fn(async () => true);
-  const createAgent = vi.fn(async (options: AgentOptions) => ({ steer, dispose: () => {}, async runOutcome() {
+  const plan = { baseCommit: await f.git("rev-parse", "HEAD"), goal: "Fix the value", steps: [{ files: ["example.txt"], change: "Replace original with fixed" }], acceptanceCriteria: ["Value is fixed"], checks: ["Check value"], openQuestions: [] };
+  const createAgent = vi.fn(async (options: AgentOptions) => ({ steer, dispose: () => {}, async runOutcome(_ctx: unknown, prompt: string) {
+    expect(JSON.parse(prompt).plan).toEqual(plan);
     started.resolve();
     await finish.promise;
     const call = await workerTools(options);
     await call("apply_patch", { patch }); await call("preparePullRequest", proposal);
     return { outcome: "completed" as const, summary: "Done", usage: emptyTokenUsage() };
   } }));
-  const extension = implementationExtension(ctx, f.settings, announce, tasks, { execute: f.execute, createAgent });
+  const extension = implementationExtension(ctx, f.settings, announce, tasks, {
+    execute: f.execute, createAgent, plans: new Map([["investigation", plan]]),
+  });
   const call = await workerTools({ cwd: f.settings.directory, model: "test/model", extensions: [extension] });
   try {
-    const pending = call("implementChatto", { request: "Fix the value", announcement: "I'll implement the fix and run its checks." });
+    await expect(call("implementChatto", { request: "Fix the value", investigationId: "unknown", announcement: "Starting" })).rejects.toThrow("No completed implementation plan");
+    expect(announce).not.toHaveBeenCalled();
+    const pending = call("implementChatto", { request: "Fix the value", investigationId: "investigation", announcement: "I'll implement the fix and run its checks." });
     await vi.waitFor(() => expect(announce).toHaveBeenCalledOnce());
     expect(createAgent).not.toHaveBeenCalled();
     expect(f.calls).toEqual([]);
@@ -400,6 +424,15 @@ test("the tool waits for its announcement, returns a handle, accepts steering, a
     expect(JSON.parse(notification.task.result)).toMatchObject({ outcome: "completed", prUrl: "https://github.com/example/chatto/pull/7" });
     expect(announce).toHaveBeenCalledOnce();
   } finally { delivered.resolve(); finish.resolve(); await tasks.dispose(); }
+});
+
+test("validation diagnostics retain failure detail without credentials, URLs, or unbounded output", () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "private-api-value");
+  const diagnostic = validationDiagnostic("x".repeat(10_000) + "\nFAIL navigation.spec.ts: expected 1, received 0\n/worktree/file.ts private-api-value person@example.invalid https://example.invalid/?token=abc Bearer secret", "/worktree");
+  expect(diagnostic).toContain("FAIL navigation.spec.ts: expected 1, received 0");
+  expect(diagnostic).toContain("<worktree>/file.ts");
+  expect(diagnostic).not.toMatch(/private-api-value|person@|token=abc|Bearer secret/);
+  expect(diagnostic.length).toBeLessThanOrEqual(8000);
 });
 
 test.skipIf(!process.env.CHATTO_EVAL_MODEL)("live worker edits a fixture and passes real host setup and validation", async () => {

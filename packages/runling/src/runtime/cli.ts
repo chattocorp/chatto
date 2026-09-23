@@ -12,6 +12,8 @@ export interface ServeOptions {
   host: string;
   port: number;
   open: boolean;
+  /** Reload project configuration and sources when files change. Disabled by default. */
+  watch: boolean;
 }
 
 function parsePort(value: string): number {
@@ -30,6 +32,7 @@ export function createServeCommand(): Command {
     .option("--config <path>", "Configuration file", "runling.config.ts")
     .option("--host <host>", "Hostname to listen on", "localhost")
     .option("--port <port>", "Port to listen on", parsePort, 5173)
+    .option("--watch", "Reload configuration and sources when project files change", false)
     .option("--open", "Open the app in a browser", false);
 }
 

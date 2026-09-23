@@ -2,6 +2,17 @@ import { expect, test } from "vitest";
 import { buildTimeline, isActivityActive, activityStatus, type Activity } from "./timeline.ts";
 import type { RunlingEvent } from "runling";
 
+test("a resume boundary stops unfinished activities from the old attempt", () => {
+  const events: RunlingEvent[] = [
+    { type: "step.started", id: "old", label: "Old attempt", timestamp: 0 },
+    { type: "workflow.resumed", attempt: 2, timestamp: 20 },
+    { type: "step.started", id: "new", label: "Recovered attempt", timestamp: 20 },
+  ];
+  const timeline = buildTimeline(events, "running");
+  expect(timeline[0]).toMatchObject({ status: "interrupted", durationMs: 20 });
+  expect(timeline[1]).toMatchObject({ status: "running", startedAt: 20 });
+});
+
 const task = (overrides: Partial<Activity> = {}): Activity => ({
   id: "task", label: "Task", kind: "step", status: "running", startedAt: 0,
   logs: [], children: [], ...overrides,

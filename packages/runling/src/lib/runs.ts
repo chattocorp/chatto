@@ -14,6 +14,9 @@ export interface RunSummary {
   id: string;
   /** Human-readable, journal-local reference. Older journals use their UUID. */
   reference?: string;
+  /** Read-only compatibility with journals written by the removed resume feature. */
+  recovery?: { name: string; version: number };
+  attempt?: number;
   webhook: string;
   workflow: string;
   source: "webhook" | "web" | "source";
@@ -33,6 +36,7 @@ export interface RunDetail extends RunSummary {
 }
 export type RunRecord =
   | { type: "started"; run: RunDetail }
+  | { type: "resumed"; attempt: number; resumedAt: number }
   | { type: "event"; event: RunlingEvent }
   | {
       type: "finished";
@@ -46,6 +50,8 @@ export type RunRecord =
 
 export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
   if (record.type === "started") return record.run;
+  if (record.type === "resumed") return { ...run, status: "running", attempt: record.attempt, finishedAt: undefined, error: null, output: null,
+    events: [...run.events, { type: "workflow.resumed", attempt: record.attempt, timestamp: run.durationMs ?? 0 }] };
   if (record.type === "event") {
     return {
       ...run,

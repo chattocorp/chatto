@@ -233,7 +233,7 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
   const origin = `http://127.0.0.1:${port}`;
   server = spawn(
     "npm",
-    ["run", "runling", "--", "serve", "--host", "127.0.0.1", "--port", String(port)],
+    ["run", "runling", "--", "serve", "--watch", "--host", "127.0.0.1", "--port", String(port)],
     {
       cwd: project,
       detached: process.platform !== "win32",
@@ -308,7 +308,10 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
   );
   const waitForPage = async (text) => {
     for (let attempt = 0; attempt < 100; attempt++) {
-      if ((await (await fetch(origin)).text()).includes(text)) return;
+      if (server?.exitCode !== null) throw new Error(`Server stopped:\n${serverOutput}`);
+      try {
+        if ((await (await fetch(origin)).text()).includes(text)) return;
+      } catch { /* The replacement process may not have opened its listener yet. */ }
       await delay(100);
     }
     throw new Error(`Config did not reload: ${text}\n${serverOutput}`);
@@ -450,6 +453,74 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
     const generation = index / 2 + 1;
     assert.equal(sourceLifecycle[index], `start:${generation}`);
     assert.equal(sourceLifecycle[index + 1], `stop:${generation}`, "Old source must stop before replacement starts");
+  }
+
+  // Default serving must stay on its initial configuration, even if an old
+  // environment setting requests watching. Only Commander --watch enables it.
+  server = spawn("npm", ["run", "runling", "--", "serve", "--host", "127.0.0.1", "--port", String(port)], {
+    cwd: project,
+    env: { ...process.env, RUNLING_WATCH: "1" },
+    detached: process.platform !== "win32",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  server.stdout.on("data", chunk => { serverOutput += chunk; });
+  server.stderr.on("data", chunk => { serverOutput += chunk; });
+  await waitForPage("/api/webhooks/echo");
+  const beforeEdit = await readFile(resolve(project, "source-lifecycle.txt"), "utf8");
+  await writeFile(configPath, "export default { invalid: true };\n");
+  await delay(500);
+  assert.equal((await fetch(`${origin}/api/webhooks/echo`)).status, 200);
+  assert(!((await configState()).error), "Default serving does not reload invalid edits");
+  assert.equal(await readFile(resolve(project, "source-lifecycle.txt"), "utf8"), beforeEdit,
+    "Default serving does not replace sources on file changes");
+  await stopConsumer(server);
+  server = undefined;
+
+  // Restart preserves history, but never restarts a workflow or restores its state.
+  await writeFile(configPath, `
+    import { defineWebConfig } from "runling/web";
+    const work = async (ctx, input) => {
+      if (!input.wait) return input.message;
+      await new Promise(resolve => ctx.signal.addEventListener("abort", resolve, { once: true }));
+    };
+    export default defineWebConfig({
+      webhooks: { example: (ctx, input) => ctx.start(work, { input }) },
+    });
+  `);
+  let previous;
+  for (const restarted of [false, true]) {
+    server = spawn("npm", ["run", "runling", "--", "serve", "--host", "127.0.0.1", "--port", String(port)], {
+      cwd: project, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"],
+    });
+    server.stdout.on("data", chunk => { serverOutput += chunk; });
+    server.stderr.on("data", chunk => { serverOutput += chunk; });
+    await waitForPage("/api/webhooks/example");
+    if (!restarted) {
+      const response = await post("/api/webhooks/example", { wait: true });
+      previous = (await response.json()).runs[0].id;
+      const detail = await (await fetch(`${origin}/api/runs/${previous}`)).json();
+      assert.equal(detail.status, "running");
+    } else {
+      const before = await (await fetch(`${origin}/api/runs/${previous}`)).json();
+      assert.equal(before.status, "interrupted");
+      const journalPath = resolve(project, ".runling/runs", `${previous}.jsonl`);
+      const journal = await readFile(journalPath, "utf8");
+      assert.equal((await post(`/api/runs/${previous}/resume`, {})).status, 404);
+      const response = await post("/api/webhooks/example", { message: "fresh input" });
+      const current = (await response.json()).runs[0].id;
+      assert.notEqual(current, previous);
+      let after;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        after = await (await fetch(`${origin}/api/runs/${current}`)).json();
+        if (after.status === "completed") break;
+        await delay(50);
+      }
+      assert.equal(after.output, "fresh input");
+      assert.notEqual(after.reference, before.reference);
+      assert.equal(await readFile(journalPath, "utf8"), journal);
+      assert(!after.events.some(event => event.type === "workflow.resumed"));
+    }
+    await stopConsumer(server); server = undefined;
   }
 
   if (process.env.RUNLING_RELEASE_DIR) {

@@ -14,6 +14,7 @@ export async function runRunlingWeb(options: ServeOptions): Promise<void> {
   const appRoot = resolve(import.meta.dirname, "../..");
   const configPath = resolve(options.config);
   process.env.RUNLING_WEB_CONFIG = configPath;
+  process.env.RUNLING_WATCH = options.watch ? "1" : "0";
 
   serverLog("info", "server.starting", { config: configPath, logFile: serverLogPath(), port: options.port });
 
