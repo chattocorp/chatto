@@ -45,7 +45,8 @@ dormant until the user opens them. The saved viewer does not authorize
 transport work.
 The coordinator starts realtime only after the server confirms that viewer.
 The saved projection has no resume cursor; realtime supplies a fresh snapshot
-and replaces the view after its resource and permission checks finish.
+and replaces the view after its resource, membership, and permission checks
+finish. Retained room member lists are reread at the replacement cursor.
 
 The experimental iOS shell under `apps/mobile/` bundles the shared frontend
 with Capacitor at `capacitor://localhost`. Its persistent webview store owns

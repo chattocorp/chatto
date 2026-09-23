@@ -1890,10 +1890,13 @@ describe('ServerStateStore unified realtime resources', () => {
   it('reconciles latest-value resources and snapshot timelines at catch-up', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
+    const members = store.membersForRoom('R1');
     const timelineRead = deferred<boolean>();
+    const membershipRead = deferred<void>();
     const hydrate = vi
       .spyOn(messages, 'hydrateRealtimeProjection')
       .mockReturnValue(timelineRead.promise);
+    const refreshMembers = vi.spyOn(members, 'refresh').mockReturnValue(membershipRead.promise);
     await flushPromises();
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
     store.projection.users.set(
@@ -1926,6 +1929,10 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(completed).toBe(false);
 
     timelineRead.resolve(true);
+    await flushPromises();
+    expect(refreshMembers).toHaveBeenCalledWith({ minimumCursor: 'opaque-reset-cursor' });
+    expect(completed).toBe(false);
+    membershipRead.resolve();
     await bootstrap;
   });
 
