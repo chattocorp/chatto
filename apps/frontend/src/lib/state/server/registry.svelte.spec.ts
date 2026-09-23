@@ -179,6 +179,20 @@ describe('ServerRegistry', () => {
 			expect(registry.firstAuthenticatedServerId()).toBe('origin');
 			expect(registry.firstAuthenticatedServerId('origin')).toBe('remote');
 		});
+
+		it('can navigate to a dormant remote session after origin sign-out', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.addServer(
+				makeServer({ id: 'remote', url: 'https://remote.example.com', token: 'remote-token' })
+			);
+			registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
+			registry.getStore('remote').networkStartupDeferred = true;
+
+			expect(registry.firstAuthenticatedServerId('origin')).toBe('remote');
+			registry.handleAuthenticationRequired('remote');
+			expect(registry.firstAuthenticatedServerId('origin')).toBeUndefined();
+		});
 	});
 
 	describe('addServer', () => {

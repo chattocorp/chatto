@@ -8,7 +8,8 @@ import Harness from './UseRoomUnreadHarness.svelte';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     markRoomAsRead: vi.fn(),
-    roomUnread: null as RoomUnreadStore | null
+    roomUnread: null as RoomUnreadStore | null,
+    authenticated: true
   }
 }));
 
@@ -19,6 +20,9 @@ vi.mock('$lib/api-client/readState', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     store: {
+      get isAuthenticated() {
+        return mocks.authenticated;
+      },
       get roomUnread() {
         return mocks.roomUnread;
       }
@@ -56,6 +60,7 @@ function setPresent(): void {
 describe('useRoomUnread', () => {
   beforeEach(() => {
     mocks.roomUnread = new RoomUnreadStore();
+    mocks.authenticated = true;
     mocks.markRoomAsRead.mockReset();
     setPresent();
   });
@@ -144,6 +149,21 @@ describe('useRoomUnread', () => {
 
     const rendered = render(Harness, {
       props: { roomId: 'room-1', canReadMessages: false, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true);
+    rendered.unmount();
+  });
+
+  it('does not mark a saved room as read before viewer verification', async () => {
+    mocks.authenticated = false;
+    mocks.roomUnread!.setRoomUnread('room-1', true);
+
+    const rendered = render(Harness, {
+      props: { roomId: 'room-1', onReady: () => {} }
     });
     flushSync();
     await Promise.resolve();

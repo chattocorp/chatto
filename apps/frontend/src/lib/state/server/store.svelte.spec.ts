@@ -362,6 +362,9 @@ import type { RegisteredServer } from './registry.svelte';
 
 class FakeServerConnection {
   invalidatePrivateData = vi.fn();
+  pausePrivateRequests = vi.fn();
+  resumePrivateRequests = vi.fn();
+  cancelPrivateRequests = vi.fn();
   serverId = 'store-event-test';
   connectBaseUrl = 'https://store-event.test';
   reconnectCount = $state(0);
@@ -700,6 +703,40 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.projection.rooms.get('R1')?.room?.name).toBe('general');
     expect(store.messagesForRoom('R1').rootEvents[0]?.event).toMatchObject({ body: 'Saved message' });
     expect(store.currentUser.user?.displayName).toBe('Alice');
+    expect(store.startupPresentationOnly).toBe(true);
+    expect(store.isAuthenticated).toBe(false);
+    const timeline = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)?.value;
+    expect(timeline?.getRoomEvents).not.toHaveBeenCalled();
+  });
+
+  it('shows a disk view before viewer loading but keeps transport unauthorized', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.restoreSavedView({
+      version: 1,
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    }, true);
+
+    expect(store.currentUser.user?.id).toBe('U1');
+    expect(store.realtimeSync.phase).toBe('stale');
+    expect(store.startupPresentationOnly).toBe(true);
+    expect(store.isAuthenticated).toBe(false);
+    store.verifyStartupViewer('other-viewer');
+    expect(store.isAuthenticated).toBe(false);
+    store.verifyStartupViewer('U1');
+    expect(store.isAuthenticated).toBe(true);
+  });
+
+  it('keeps a dormant registered server unauthenticated until network startup', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.networkStartupDeferred = true;
+
+    expect(store.isAuthenticated).toBe(false);
+    store.networkStartupDeferred = false;
+    expect(store.isAuthenticated).toBe(true);
   });
 });
 
@@ -938,6 +975,23 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('keeps retained room members reactive after the route that created them closes', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    let members!: ReturnType<typeof store.membersForRoom>;
+    const closeRoute = $effect.root(() => {
+      members = store.membersForRoom('a');
+      expect(members.members).toEqual([]);
+    });
+
+    closeRoute();
+    members.replaceProjection('a', [{
+      id: 'U2', login: 'two', displayName: 'Two', presenceStatus: 1
+    }]);
+
+    expect(members.members.map((member) => member.id)).toEqual(['U2']);
+    store.dispose();
+  });
+
   it('keeps presence current in inactive and newly opened rooms', () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.membersForRoom('a');
@@ -1860,10 +1914,13 @@ describe('ServerStateStore unified realtime resources', () => {
   it('reconciles latest-value resources and snapshot timelines at catch-up', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
+    const members = store.membersForRoom('R1');
     const timelineRead = deferred<boolean>();
+    const membershipRead = deferred<void>();
     const hydrate = vi
       .spyOn(messages, 'hydrateRealtimeProjection')
       .mockReturnValue(timelineRead.promise);
+    const refreshMembers = vi.spyOn(members, 'refresh').mockReturnValue(membershipRead.promise);
     await flushPromises();
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
     store.projection.users.set(
@@ -1896,6 +1953,10 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(completed).toBe(false);
 
     timelineRead.resolve(true);
+    await flushPromises();
+    expect(refreshMembers).toHaveBeenCalledWith({ minimumCursor: 'opaque-reset-cursor' });
+    expect(completed).toBe(false);
+    membershipRead.resolve();
     await bootstrap;
   });
 

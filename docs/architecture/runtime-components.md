@@ -37,6 +37,21 @@ one server. Browser visibility, network return, and Capacitor resume events
 trigger recovery. Hidden, paused, or offline clients do not start attempts.
 The registry fences viewer-summary writes against server removal and credential
 changes. Realtime connection ownership remains with the existing event buses.
+On a cold chat launch with a matching saved view, route loading creates the
+registered stores without network work and restores the selected server's
+presentation data first. The root layout starts viewer and discovery checks
+for the selected server after the first paint. Other remote servers remain
+dormant until the user opens them. The saved viewer does not authorize
+transport work. `ServerConnection` holds private Connect reads during this
+interval and rejects server actions. It allows the viewer request to pass.
+It releases held reads only after the same viewer is verified and cancels them
+if the saved projection is cleared.
+Chat-wide pages without a selected saved view start the origin server alongside
+the public shell requests. Unopened remote servers stay dormant.
+The coordinator starts realtime only after the server confirms that viewer.
+The saved projection has no resume cursor; realtime supplies a fresh snapshot
+and replaces the view after its resource, membership, and permission checks
+finish. Retained room member lists are reread at the replacement cursor.
 
 The experimental iOS shell under `apps/mobile/` bundles the shared frontend
 with Capacitor at `capacitor://localhost`. Its persistent webview store owns

@@ -117,3 +117,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-100](ADR-100-shared-chatto-integration-client.md) | Share Chatto Integration Client Helpers | Accepted | 2026-09-21 |
 | [ADR-101](ADR-101-shared-client-user-profiles.md) | Share Public User Profiles Within Each Client Connection | Accepted | 2026-09-21 |
 | [ADR-102](ADR-102-turborepo-workspace-tasks.md) | Order Workspace Tasks with Turborepo | Accepted | 2026-09-21 |
+| [ADR-103](ADR-103-cached-first-client-startup.md) | Open a Saved Chat View Before Client Connection | Accepted | 2026-09-23 |

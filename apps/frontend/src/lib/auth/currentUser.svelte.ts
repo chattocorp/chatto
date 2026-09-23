@@ -27,6 +27,8 @@ interface AuthFailureOptions {
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
   loading = $state(true);
+  /** Identity confirmed by the latest successful viewer request, excluding a disk view. */
+  verifiedUserId = $state<string | null>(null);
   #cookieAuth: boolean;
   #apiConfig?: ViewerAPIConfig;
   #loadCurrentUser: (config: ViewerAPIConfig) => Promise<CurrentUser>;
@@ -62,9 +64,12 @@ export class CurrentUserState {
       if (!this.#apiConfig) {
         throw new Error('current user Connect API config is not configured');
       }
-      this.user = await this.#loadCurrentUser(this.#apiConfig);
+      const user = await this.#loadCurrentUser(this.#apiConfig);
+      this.user = user;
+      this.verifiedUserId = user.id;
     } catch (err) {
       if (isAuthenticationRequiredError(err)) {
+        this.verifiedUserId = null;
         this.#onAuthenticationRequired?.();
         this.loading = false;
         return;
@@ -90,6 +95,7 @@ export class CurrentUserState {
 
     if (!this.#cookieAuth) {
       console.warn('Remote server auth failure — marking reauthentication required');
+      this.verifiedUserId = null;
       this.#onAuthenticationRequired?.();
       this.loading = false;
       return;
@@ -107,6 +113,7 @@ export class CurrentUserState {
         body: '{}'
       }).catch(() => {});
       this.user = undefined;
+      this.verifiedUserId = null;
       clearCachedUser();
       this.loading = false;
       this.#isLoggingOut = false;
@@ -114,6 +121,7 @@ export class CurrentUserState {
     }
 
     console.warn('[auth] handleAuthFailure: marking reauthentication required');
+    this.verifiedUserId = null;
     this.#onAuthenticationRequired?.();
 
     this.#isLoggingOut = false;

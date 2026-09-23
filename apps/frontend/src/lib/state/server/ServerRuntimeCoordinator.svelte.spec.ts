@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   servers: [{ id: 'origin' }, { id: 'remote' }],
   stores: null as unknown as SvelteMap<string, StoreMock>,
   synchronizeAuthenticatedServers: vi.fn(),
+  needsRecovery: vi.fn(() => false),
   onSessionTerminated: vi.fn<(id: string, handler: (reason: string) => void) => () => void>(() => vi.fn()),
   clearServerAuthentication: vi.fn(),
   getClient: vi.fn((serverId: string) => ({ serverId }))
@@ -33,7 +34,7 @@ vi.mock('$app/state', () => ({
 
 vi.mock('./registry.svelte', () => ({
   serverRegistry: {
-    needsRecovery: () => false,
+    needsRecovery: mocks.needsRecovery,
     recoverServer: async () => {},
     get originServer() {
       return mocks.originServerId ? { id: mocks.originServerId } : undefined;
@@ -148,6 +149,15 @@ describe('ServerRuntimeCoordinator', () => {
         null
       ])
     );
+  });
+
+  it('defers recovery and transport work while the saved view first paints', async () => {
+    render(ServerRuntimeCoordinator, { props: { user: null, deferConnections: true } });
+
+    await vi.waitFor(() =>
+      expect(mocks.synchronizeAuthenticatedServers).toHaveBeenCalledWith([], null)
+    );
+    expect(mocks.needsRecovery).not.toHaveBeenCalled();
   });
 
   it('clears a remote session when its server confirms termination', async () => {

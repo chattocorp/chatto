@@ -19,7 +19,7 @@ import type {
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import { Code, isConnectCode } from '$lib/api-client/connect';
+import { Code, isConnectCode, StaleResponseError } from '$lib/api-client/connect';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { getActorId, unmask } from './helpers';
@@ -1499,7 +1499,8 @@ export class MessagesStore {
       return true;
     } catch (error: unknown) {
       if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
-      if (!isConnectCode(error, Code.PermissionDenied) && !isConnectCode(error, Code.NotFound)) {
+      if (!(error instanceof StaleResponseError) &&
+        !isConnectCode(error, Code.PermissionDenied) && !isConnectCode(error, Code.NotFound)) {
         console.error('MessagesStore: fetchCurrent failed:', error);
       }
       this.#pendingAuthoritativeLoadId = null;

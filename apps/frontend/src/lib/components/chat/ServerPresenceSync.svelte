@@ -39,4 +39,8 @@
   });
 </script>
 
-<div data-testid="server-subscription-active" class="hidden"></div>
+<div
+  data-testid="server-subscription-active"
+  data-projection-ready={serverScope.store.realtimeSync.phase === 'ready'}
+  class="hidden"
+></div>

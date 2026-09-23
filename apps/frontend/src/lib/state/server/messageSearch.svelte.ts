@@ -43,7 +43,10 @@ export class MessageSearchStore {
     (matches: (result: MessageSearchResult) => boolean, force: boolean) => void
   >();
 
-  constructor(private readonly api: MessageSearchAPI) {}
+  constructor(
+    private readonly api: MessageSearchAPI,
+    private readonly canLoad: () => boolean = () => true
+  ) {}
 
   get available(): boolean {
     return (
@@ -53,6 +56,7 @@ export class MessageSearchStore {
   }
 
   async ensureStatus(): Promise<void> {
+    if (!this.canLoad()) return;
     if (this.statusLoaded || this.statusPromise) return this.statusPromise ?? Promise.resolve();
     const requestId = ++this.statusRequestId;
     this.statusLoading = true;
@@ -60,7 +64,7 @@ export class MessageSearchStore {
     const promise = Promise.resolve()
       .then(() => this.api.getStatus())
       .then((status) => {
-        if (requestId !== this.statusRequestId) return;
+        if (requestId !== this.statusRequestId || !this.canLoad()) return;
         this.status = status;
         this.statusLoaded = true;
       })
@@ -85,6 +89,7 @@ export class MessageSearchStore {
     input: Omit<MessageSearchInput, 'cursor'>,
     { preserveQuery = false }: MessageSearchOptions = {}
   ): Promise<void> {
+    if (!this.canLoad()) return;
     const requestId = ++this.requestId;
     this.activeInput = { ...input };
     this.hasSearched = true;
@@ -97,7 +102,7 @@ export class MessageSearchStore {
     this.error = false;
     try {
       const page = await this.api.searchMessages(input);
-      if (requestId !== this.requestId) return;
+      if (requestId !== this.requestId || !this.canLoad()) return;
       this.results = page.results;
       this.nextCursor = page.nextCursor;
     } catch {
@@ -108,6 +113,7 @@ export class MessageSearchStore {
   }
 
   async loadMore(): Promise<void> {
+    if (!this.canLoad()) return;
     if (this.loading || this.loadingMore || !this.nextCursor || !this.activeInput) return;
     const requestId = ++this.requestId;
     const cursor = this.nextCursor;
@@ -115,7 +121,7 @@ export class MessageSearchStore {
     this.error = false;
     try {
       const page = await this.api.searchMessages({ ...this.activeInput, cursor });
-      if (requestId !== this.requestId) return;
+      if (requestId !== this.requestId || !this.canLoad()) return;
       const seen = new SvelteSet(this.results.map((result) => result.id));
       this.results = [...this.results, ...page.results.filter((result) => !seen.has(result.id))];
       this.nextCursor = page.nextCursor;

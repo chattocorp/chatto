@@ -3,11 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     saveReturnUrl: vi.fn(),
+    loadSavedView: vi.fn(),
+    startServerNetwork: vi.fn(),
     serverId: 'origin' as string | null,
     origin: true,
     reauthRequiredAt: null as number | null,
     store: {
       restoreSavedView: vi.fn(),
+      networkStartupDeferred: false,
+      savedView: null as { serverId: string; userId: string; rooms: unknown[] } | null,
       currentUser: {
         loading: false,
         user: { id: 'viewer-1' } as { id: string } | undefined,
@@ -25,12 +29,15 @@ vi.mock('$lib/auth/returnNavigation', () => ({
   saveReturnUrl: mocks.saveReturnUrl
 }));
 
+vi.mock('$lib/storage/savedViews', () => ({ loadSavedView: mocks.loadSavedView }));
+
 vi.mock('$lib/navigation', () => ({
   segmentToServerId: () => mocks.serverId
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
+    startServerNetwork: mocks.startServerNetwork,
     tryGetStore: () => (mocks.serverId ? mocks.store : undefined),
     getServer: () =>
       mocks.serverId ? { id: mocks.serverId, reauthRequiredAt: mocks.reauthRequiredAt } : undefined,
@@ -40,10 +47,11 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 import { load } from './+layout';
 
-function routeLoad(user: { id: string } | null = { id: 'viewer-1' }, setupRequired = false) {
+function routeLoad(user: { id: string } | null = { id: 'viewer-1' }, setupRequired = false,
+  startupServerId?: string) {
   return load({
     params: { serverId: '-' },
-    parent: async () => ({ user, serverInfo: { setupRequired } }),
+    parent: async () => ({ user, serverInfo: { setupRequired }, startupServerId }),
     url: new URL('https://chat.example.test/chat/-/overview')
   } as never);
 }
@@ -62,6 +70,9 @@ describe('server route layout load', () => {
     mocks.store.currentUser.loading = false;
     mocks.store.currentUser.user = { id: 'viewer-1' };
     mocks.store.currentUser.load.mockResolvedValue(undefined);
+    mocks.store.savedView = null;
+    mocks.store.networkStartupDeferred = false;
+    mocks.loadSavedView.mockResolvedValue(null);
   });
 
   it('opens setup for the origin before requiring authentication', async () => {
@@ -105,6 +116,44 @@ describe('server route layout load', () => {
 
     expect(mocks.store.currentUser.load).toHaveBeenCalledOnce();
     expect(mocks.saveReturnUrl).not.toHaveBeenCalled();
+  });
+
+  it('opens a saved remote view without waiting for its viewer request', async () => {
+    mocks.serverId = 'remote';
+    mocks.origin = false;
+    mocks.store.currentUser.loading = true;
+    mocks.store.currentUser.user = undefined;
+    const savedView = { serverId: 'remote', userId: 'remote-viewer', rooms: [] };
+    mocks.loadSavedView.mockResolvedValue(savedView);
+
+    await expect(routeLoad(null)).resolves.toMatchObject({ serverSegment: '-' });
+    expect(mocks.store.restoreSavedView).toHaveBeenCalledWith(savedView, false);
+    expect(mocks.store.currentUser.load).not.toHaveBeenCalled();
+  });
+
+  it('restores a dormant server before starting its requests', async () => {
+    mocks.serverId = 'remote';
+    mocks.origin = false;
+    mocks.store.networkStartupDeferred = true;
+    mocks.store.currentUser.loading = true;
+    mocks.store.currentUser.user = undefined;
+    const savedView = { serverId: 'remote', userId: 'viewer-1', rooms: [] };
+    mocks.loadSavedView.mockResolvedValue(savedView);
+
+    await expect(routeLoad(null)).resolves.toMatchObject({ serverSegment: '-' });
+
+    expect(mocks.store.restoreSavedView).toHaveBeenCalledWith(savedView, true);
+    expect(mocks.store.restoreSavedView.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.startServerNetwork.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('leaves network startup to the root layout after the first saved paint', async () => {
+    mocks.store.savedView = { serverId: 'origin', userId: 'viewer-1', rooms: [] };
+
+    await expect(routeLoad(null, false, 'origin')).resolves.toMatchObject({ serverSegment: '-' });
+
+    expect(mocks.startServerNetwork).not.toHaveBeenCalled();
   });
 
   it('keeps the shell mounted for reauthentication recovery', async () => {
