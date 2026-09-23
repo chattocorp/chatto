@@ -116,7 +116,15 @@ func TestImportHistoricalMessageRejectsInvalidInputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	otherRoom, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "historical-other-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	created := time.Now().UTC()
+	otherMessage, err := chatto.ImportHistoricalMessage(ctx, HistoricalMessageInput{RoomID: otherRoom.Id, AuthorID: author.Id, CreatedAt: created, Body: "other room"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	base := HistoricalMessageInput{RoomID: room.Id, AuthorID: author.Id, CreatedAt: created, Body: "hello"}
 	badTime := created.Add(-time.Second)
 	cases := []struct {
@@ -126,9 +134,14 @@ func TestImportHistoricalMessageRejectsInvalidInputs(t *testing.T) {
 		{"missing room", func(v *HistoricalMessageInput) { v.RoomID = "missing" }},
 		{"missing author", func(v *HistoricalMessageInput) { v.AuthorID = "missing" }},
 		{"missing reply", func(v *HistoricalMessageInput) { v.InReplyTo = "missing" }},
+		{"cross-room reply", func(v *HistoricalMessageInput) { v.InReplyTo = otherMessage.Id }},
 		{"bad edit time", func(v *HistoricalMessageInput) { v.EditedAt = &badTime }},
+		{"missing creation time", func(v *HistoricalMessageInput) { v.CreatedAt = time.Time{} }},
 		{"no content", func(v *HistoricalMessageInput) { v.Body = "" }},
 		{"oversize body", func(v *HistoricalMessageInput) { v.Body = strings.Repeat("x", MaxMessageBodyLength+1) }},
+		{"oversize preview", func(v *HistoricalMessageInput) {
+			v.LinkPreview = &evtv1.LinkPreview{Url: strings.Repeat("x", MaxLinkPreviewURLLength+1)}
+		}},
 		{"missing asset", func(v *HistoricalMessageInput) { v.AttachmentAssetIDs = []string{"missing"} }},
 		{"duplicate asset", func(v *HistoricalMessageInput) { v.AttachmentAssetIDs = []string{"same", "same"} }},
 	}
@@ -140,6 +153,12 @@ func TestImportHistoricalMessageRejectsInvalidInputs(t *testing.T) {
 				t.Fatal("invalid import succeeded")
 			}
 		})
+	}
+	if _, err := chatto.ArchiveRoom(ctx, SystemActorID, KindChannel, room.Id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := chatto.ImportHistoricalMessage(ctx, base); err == nil {
+		t.Fatal("import into archived room succeeded")
 	}
 }
 
