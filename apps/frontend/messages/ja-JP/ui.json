@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "前の画像",
       "next": "次の画像",
-      "fallback_alt": "画像"
+      "fallback_alt": "画像",
+      "zoom_in": "拡大",
+      "zoom_out": "縮小",
+      "fit": "画面に合わせる",
+      "details": "詳細",
+      "file_type": "ファイルの種類"
     },
     "toast": {
       "dismiss": "通知を閉じる"

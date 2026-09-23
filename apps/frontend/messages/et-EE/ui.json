@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Eelmine pilt",
       "next": "Järgmine pilt",
-      "fallback_alt": "Pilt"
+      "fallback_alt": "Pilt",
+      "zoom_in": "Suurenda",
+      "zoom_out": "Vähenda",
+      "fit": "Mahuta",
+      "details": "Üksikasjad",
+      "file_type": "Faili tüüp"
     },
     "toast": {
       "dismiss": "Loobu teatisest"

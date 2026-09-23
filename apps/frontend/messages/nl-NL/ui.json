@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Vorige afbeelding",
       "next": "Volgende afbeelding",
-      "fallback_alt": "Afbeelding"
+      "fallback_alt": "Afbeelding",
+      "zoom_in": "Inzoomen",
+      "zoom_out": "Uitzoomen",
+      "fit": "Passend maken",
+      "details": "Details",
+      "file_type": "Bestandstype"
     },
     "toast": {
       "dismiss": "Melding sluiten"

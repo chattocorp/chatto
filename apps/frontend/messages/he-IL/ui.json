@@ -70,7 +70,12 @@
     "image_modal": {
       "previous": "תמונה קודמת",
       "next": "התמונה הבאה",
-      "fallback_alt": "תמונה"
+      "fallback_alt": "תמונה",
+      "zoom_in": "הגדלה",
+      "zoom_out": "הקטנה",
+      "fit": "התאמה",
+      "details": "פרטים",
+      "file_type": "סוג קובץ"
     },
     "toast": {
       "dismiss": "בטל הודעה"

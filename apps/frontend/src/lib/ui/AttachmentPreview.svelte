@@ -7,6 +7,7 @@ component on selection changes so playback and consent cannot cross items.
   import { expoOutTransition } from './motion';
   import { m } from '$lib/i18n/messages';
   import SkeletonImg from './SkeletonImg.svelte';
+  import ZoomableImage from './ZoomableImage.svelte';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import { isHtmlAttachment } from '$lib/render/messageAttachments';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
@@ -16,6 +17,7 @@ component on selection changes so playback and consent cannot cross items.
     serverId,
     url,
     busy,
+    zoomable = false,
     onpreview,
     onerror
   }: {
@@ -23,6 +25,8 @@ component on selection changes so playback and consent cannot cross items.
     serverId: string;
     url: string | null;
     busy: boolean;
+    /** Static image previews can use the viewer's zoom surface. */
+    zoomable?: boolean;
     onpreview: () => void;
     onerror: () => Promise<string | null>;
   } = $props();
@@ -83,14 +87,24 @@ component on selection changes so playback and consent cannot cross items.
     <p role="alert">{m('room.attachment.html_viewer.preview_failed')}</p>
   {/await}
 {:else if url && type.startsWith('image/')}
-  <SkeletonImg
-    src={url}
-    alt={item.description || item.filename}
-    class="h-full w-full bg-surface object-contain outline-none"
-    onerror={() => {
-      void onerror();
-    }}
-  />
+  {#if zoomable}
+    <ZoomableImage
+      src={url}
+      alt={item.description || item.filename}
+      onerror={() => {
+        void onerror();
+      }}
+    />
+  {:else}
+    <SkeletonImg
+      src={url}
+      alt={item.description || item.filename}
+      class="h-full w-full bg-surface object-contain outline-none"
+      onerror={() => {
+        void onerror();
+      }}
+    />
+  {/if}
 {:else if url && type.startsWith('video/')}
   <video
     src={url}

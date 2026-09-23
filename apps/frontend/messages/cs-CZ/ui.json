@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Předchozí obrázek",
       "next": "Další obrázek",
-      "fallback_alt": "Obrázek"
+      "fallback_alt": "Obrázek",
+      "zoom_in": "Přiblížit",
+      "zoom_out": "Oddálit",
+      "fit": "Přizpůsobit",
+      "details": "Podrobnosti",
+      "file_type": "Typ souboru"
     },
     "toast": {
       "dismiss": "Zavřít oznámení"

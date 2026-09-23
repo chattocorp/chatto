@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Iepriekšējais attēls",
       "next": "Nākamais attēls",
-      "fallback_alt": "Attēls"
+      "fallback_alt": "Attēls",
+      "zoom_in": "Tuvināt",
+      "zoom_out": "Tālināt",
+      "fit": "Ietilpināt",
+      "details": "Informācija",
+      "file_type": "Faila tips"
     },
     "toast": {
       "dismiss": "Noraidīt paziņojumu"
