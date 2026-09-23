@@ -492,7 +492,6 @@
       "create_failed": "Det gick inte att skapa bot",
       "created": "Botten skapad",
       "username": "Användarnamn",
-      "username_hint": "Botanvändarnamn måste sluta på _bot.",
       "display_name": "Visningsnamn",
       "owner": "Ägare",
       "reassign_owner": "Tilldela ägare på nytt",

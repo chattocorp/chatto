@@ -3,6 +3,7 @@ import type { Run } from "../spawn.ts";
 import { Type } from "typebox";
 import { defineAgentExtension } from "../agent.ts";
 import type { AgentStatus, AgentActivity } from "../agent.ts";
+import { emitRunlingEvent } from "../events.ts";
 
 /** JSON state published by a workflow, independent of its transport or domain. */
 export type AgentTaskData = null | boolean | number | string | AgentTaskData[] | { [key: string]: AgentTaskData };
@@ -26,6 +27,9 @@ export type AgentTaskUpdate = string | AgentStatus | AgentActivity | {
   /** Replaces the previous workflow state. Must be JSON and at most 16,000 characters. Does not wake the owner. */
   type: "state";
   value: { [key: string]: AgentTaskData };
+  /** Optional public operational message for the server console. Supply static,
+   * host-owned text only: no prompts, model output, paths, credentials, or personal data. */
+  activity?: string;
 } | {
   /** Explicit substantive progress, retained across later tool activity.
    * The application must validate this text; Runling does not verify evidence. */
@@ -186,11 +190,13 @@ export function observeAgentTasks(ctx: WorkflowContext<any, any>, {
               if (!encoded || encoded.length > 16_000) throw new Error("Task state exceeds the JSON size limit");
               state.state = JSON.parse(encoded);
               state.stateAt = Date.now();
+              if (text.activity) emitRunlingEvent({ type: "task.activity", channelId: handle.id, message: text.activity.slice(0, 200) });
               continue;
             }
             if (typeof text !== "string" && text.type !== "finding") {
               if (text.type === "tool") {
                 state.activity = { type: "tool", operation: text.operation, phase: text.phase, failures: text.failures,
+                  ...(text.toolName ? { toolName: text.toolName } : {}),
                   ...(text.error ? { error: text.error } : {}),
                 };
                 state.activityAt = Date.now();

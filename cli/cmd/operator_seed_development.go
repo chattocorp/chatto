@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"syscall"
 	"time"
@@ -42,20 +41,19 @@ func operatorSeedCmd() *cobra.Command {
 			if err := options.Validate(); err != nil {
 				return err
 			}
-			resolved, err := resolveOperatorAPIClientConfig()
+			httpClient, baseURL, err := newOperatorHTTPClient()
 			if err != nil {
 				return err
 			}
-			transport := newOperatorSocketTransport(resolved.socketPath)
-			defer transport.CloseIdleConnections()
-			client := operatorv1connect.NewOperatorSeedServiceClient(&http.Client{Transport: transport}, resolved.connectBaseURL)
+			defer httpClient.CloseIdleConnections()
+			client := operatorv1connect.NewOperatorSeedServiceClient(httpClient, baseURL)
 			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 			defer cancel()
 			result, err := client.SeedData(ctx, connect.NewRequest(&request))
 			if err != nil {
 				return seedCommandError(err)
 			}
-			return printAdminOutput(cmd.OutOrStdout(), result.Msg, func() {
+			return printOperatorOutput(cmd.OutOrStdout(), result.Msg, func() {
 				fmt.Fprintf(cmd.OutOrStdout(), "Created %d users, %d rooms, and %d messages (seed %d, %s).\n", len(result.Msg.Users), len(result.Msg.Rooms), len(result.Msg.Messages), result.Msg.Seed, result.Msg.Version)
 			})
 		},

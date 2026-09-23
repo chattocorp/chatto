@@ -17,6 +17,8 @@ a webhook endpoint. Webhooks and sources can coexist or be configured separately
   rejects dispatch; successful registrations from the same delivery remain.
 - A valid reload aborts and awaits old sources before starting replacements.
   Invalid configuration leaves current sources running.
+- File watching is opt-in through `runling serve --watch`. Without the flag,
+  configuration loads once and code changes require a server restart.
 - Retained state survives a valid reload for unchanged names. Removing or renaming
   a source starts a separate state lifetime. The adapter must scope state to its
   connection identity and handle changes to its retained data format.
@@ -24,8 +26,9 @@ a webhook endpoint. Webhooks and sources can coexist or be configured separately
   active conversation handlers must account for their original code remaining live.
 - An unhandled source failure produces a safe log entry and leaves that source
   stopped until reload. The source owns transport retries.
-- Shutdown stops sources and awaits pending dispatches before cancelling active
-  runs and flushing journals. Cleanup is cooperative.
+- Shutdown stops sources and awaits pending dispatches before interrupting active
+  runs and flushing journals. Explicit user cancellation remains cancelled.
+  Cleanup is cooperative. Runs cannot continue after a process restart.
 - Run records identify source origin and name. Older journals remain readable;
   run history does not restore source state or active execution.
 

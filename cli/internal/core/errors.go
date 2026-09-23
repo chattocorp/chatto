@@ -160,14 +160,6 @@ var (
 	// outside the allowed set (letters, digits, periods, underscores, hyphens).
 	ErrLoginInvalidCharacter = errors.New("username can only contain letters, numbers, periods, underscores, and hyphens")
 
-	// ErrHumanLoginReservedForBot is returned when a human account attempts to
-	// claim the reserved `_bot` suffix.
-	ErrHumanLoginReservedForBot = errors.New("human usernames cannot end in _bot")
-
-	// ErrBotLoginSuffixRequired is returned when a bot login omits the reserved
-	// `_bot` suffix.
-	ErrBotLoginSuffixRequired = errors.New("bot usernames must end in _bot")
-
 	// ErrHumanAccountRequired is returned when a human-only operation targets a bot.
 	ErrHumanAccountRequired = errors.New("operation requires a human account")
 	// ErrPrivilegedModeUnavailable means the current user has no

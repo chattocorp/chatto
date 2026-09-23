@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-21
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -16,11 +16,14 @@ exercise more authority than its human owner currently possesses.
   `owner_user_id`. It is absent for humans and deleted-account references.
   The stored account model keeps its existing bot fields.
 
-- The client shows a small **BOT** label after each bot display name, including
-  messages, direct-message lists, profiles, and account pickers. Each bot in a
-  group direct message has its own label. Plain-text references use **Name (BOT)**.
-  The label stays visible when a long name is shortened. Deleted accounts do not
-  have the label. Avatars keep their presence and custom-status indicators.
+- The client shows a small **BOT** badge after each bot display name. This
+  includes messages, direct-message lists, profiles, account pickers, typing
+  indicators, notifications, reaction details, and confirmation text. Each bot
+  in a group direct message has its own badge. Selected account pickers show
+  the badge beside the text field. Plain-text values, such as accessibility
+  labels and page titles, use **Name (BOT)** when they must identify the bot.
+  The badge stays visible when a long name is shortened. Deleted accounts do
+  not have it. Avatars keep their presence and custom-status indicators.
   This makes account type clear without covering the avatar or implying verification.
 
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
@@ -70,14 +73,9 @@ exercise more authority than its human owner currently possesses.
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission
   row.
-- Bot status and ownership are explicit, durable account properties. A login
-  suffix is a naming rule, not the source of truth for whether an account is a
-  bot.
-- Bot logins must end in `_bot`, matched case-insensitively. New human accounts
-  and human login changes cannot claim that suffix.
-- Existing human accounts that already use an `_bot` login remain human
-  accounts. They are not silently converted into bots, but other human
-  accounts cannot newly claim or rename into the reserved suffix.
+- Bot status and ownership are explicit, durable account properties. Human and
+  bot accounts use the same username rules. A username does not identify the
+  account kind.
 - Bot accounts are visible wherever ordinary users are visible, including
   messages, profiles, directories, mentions, direct messages, and member
   management. User identity displays mark them as bots with an accessible
@@ -230,14 +228,12 @@ exercise more authority than its human owner currently possesses.
 
 ## Design Decisions
 
-### 1. Explicit account kind, independent of the login suffix
+### 1. Explicit account kind
 
-**Decision:** Bot status is an immutable account kind. The `_bot` suffix is a
-separate validation rule for current bot and human logins.
+**Decision:** Bot status is an immutable account kind. Human and bot usernames
+use the same rules.
 **Why:** Clients and authorization rules need a stable way to distinguish bots
-from people. Inferring identity from a name would make existing accounts
-ambiguous and would prevent the suffix rule from changing or becoming
-operator-configurable later.
+from people. Inferring identity from a name would make accounts ambiguous.
 **Tradeoff:** Account creation, profile projection, public user shapes, and
 identity rendering all need to carry the account kind explicitly.
 

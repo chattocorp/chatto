@@ -492,7 +492,6 @@
       "create_failed": "Kunne ikke opprette bot",
       "created": "Bote opprettet",
       "username": "Brukernavn",
-      "username_hint": "Botebrukernavn må ende på _bot.",
       "display_name": "Visningsnavn",
       "owner": "Eier",
       "reassign_owner": "Tilordne eier på nytt",

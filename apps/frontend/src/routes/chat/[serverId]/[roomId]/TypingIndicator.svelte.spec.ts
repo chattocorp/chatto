@@ -21,7 +21,7 @@ function member(id: string, displayName: string): RoomMember {
 const members = [member('alice', 'Alice'), member('bob', 'Bob'), member('carol', 'Carol')];
 
 function indicatorText(container: HTMLElement): string | undefined {
-  return q(container, '.typing-label')?.textContent?.replace(/[\u2068\u2069]/g, '') ?? undefined;
+  return q(container, '.typing-label')?.textContent ?? undefined;
 }
 
 afterEach(async () => {
@@ -29,11 +29,28 @@ afterEach(async () => {
 });
 
 describe('TypingIndicator', () => {
-  it('identifies a bot in the plain-text typing label', () => {
+  it('shows the shared badge beside a bot in the typing label', () => {
     const { container } = render(TypingIndicator, {
       props: { typingUserIds: ['helper'], members: [{ ...member('helper', 'Helper'), isBot: true }] }
     });
-    expect(indicatorText(container)).toContain('Helper (BOT)');
+    expect(q(container, '.typing-label [data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Helper');
+    expect(indicatorText(container)).toBe('HelperBOT is typing');
+    expect(indicatorText(container)).not.toContain('(BOT)');
+  });
+
+  it('keeps badges with both named bots when it aggregates typers', () => {
+    const { container } = render(TypingIndicator, {
+      props: {
+        typingUserIds: ['helper', 'assistant', 'alice'],
+        members: [
+          { ...member('helper', 'Helper'), isBot: true },
+          { ...member('assistant', 'Assistant'), isBot: true },
+          members[0]
+        ]
+      }
+    });
+    expect(container.querySelectorAll('.typing-label [data-testid="bot-badge"]')).toHaveLength(2);
+    expect(indicatorText(container)).toContain('1 other');
   });
   it('renders nothing when nobody is typing', () => {
     const { container } = render(TypingIndicator, { props: { typingUserIds: [], members } });
@@ -116,11 +133,12 @@ describe('TypingIndicator', () => {
     expect(indicatorText(container)).toBe('Unknown user is typing');
 
     profiles.set('late', new DirectoryMember({
-      user: { id: 'late', login: 'late', displayName: 'Late Member' }
+      user: { id: 'late', login: 'late', displayName: 'Late Member', bot: {} }
     }));
 
-    await expect.poll(() => indicatorText(container)).toBe('Late Member is typing');
+    await expect.poll(() => indicatorText(container)).toBe('Late MemberBOT is typing');
     expect(container.querySelectorAll('[data-testid="typing-avatar"]')).toHaveLength(1);
+    expect(container.querySelectorAll('.typing-label [data-testid="bot-badge"]')).toHaveLength(1);
     profiles.dispose();
   });
 
@@ -159,9 +177,7 @@ describe('TypingIndicator', () => {
     const { container } = render(TypingIndicator, {
       props: { typingUserIds: ['alice', 'bob'], members: [member('alice', 'علي'), members[1]] }
     });
-    const text = q(container, '.typing-label')?.textContent ?? '';
-    expect([...text].filter((char) => char.codePointAt(0) === 0x2068)).toHaveLength(2);
-    expect([...text].filter((char) => char.codePointAt(0) === 0x2069)).toHaveLength(2);
+    expect(container.querySelectorAll('.typing-label bdi')).toHaveLength(2);
     expect(indicatorText(container)).toBe('علي and Bob are typing');
   });
 

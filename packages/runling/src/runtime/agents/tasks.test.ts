@@ -2,6 +2,7 @@ import { expect, test, vi } from "vitest";
 import { createWorkflowContext, type WorkflowContext } from "../context.ts";
 import { agentTasksExtension, createAgentTasks, type AgentTaskUpdate } from "./tasks.ts";
 import type { AgentExtensionAPI } from "../agent.ts";
+import { observeRunlingEvents, type RunlingEvent } from "../events.ts";
 
 test("agent supervision observes an ordinary run without replacing its identity or typed result", async () => {
   const ctx = createWorkflowContext();
@@ -23,6 +24,34 @@ test("agent supervision observes an ordinary run without replacing its identity 
   expect(tasks.get(run.id).output[0]?.text).toBe("Checked the source");
   expect(tasks.get(run.id).status).toBe(run.status);
   await tasks.dispose();
+});
+
+test("explicit host activity reaches operational events without copying task state or waking the owner", async () => {
+  const events: RunlingEvent[] = [];
+  await observeRunlingEvents(event => events.push(event), async () => {
+    const ctx = createWorkflowContext();
+    const tasks = createAgentTasks(ctx, { notifyActivity: false });
+    const finish = Promise.withResolvers<void>();
+    const run = ctx.spawn(async (ctx: WorkflowContext<string, AgentTaskUpdate>) => {
+      await ctx.emit({ type: "state", value: { phase: "validating", private: "secret" }, activity: "Validating change" });
+      await finish.promise;
+    });
+    tasks.observe("Worker", run);
+    const next = vi.fn();
+    const reader = tasks.notifications[Symbol.asyncIterator]();
+    const notice = reader.next().then(next);
+    try {
+      await vi.waitFor(() => expect(events.some(event => event.type === "task.activity")).toBe(true));
+      expect(events.filter(event => event.type === "task.activity")).toEqual([
+        expect.objectContaining({ channelId: run.id, message: "Validating change" }),
+      ]);
+      expect(JSON.stringify(events.filter(event => event.type === "task.activity"))).not.toContain("secret");
+      expect(next).not.toHaveBeenCalled();
+      finish.resolve();
+      await notice;
+      expect(JSON.parse(next.mock.calls[0]![0].value).type).toBe("task.completed");
+    } finally { finish.resolve(); await tasks.dispose(); }
+  });
 });
 
 test("cancelling an observed run directly reports cancellation and awaits its cleanup", async () => {

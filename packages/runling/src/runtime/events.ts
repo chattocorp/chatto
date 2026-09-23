@@ -2,8 +2,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { TokenUsage } from "./usage.ts";
 
 export type RunlingEventPayload =
+  | { type: "workflow.resumed"; attempt: number }
   | { type: "conversation.started" }
   | { type: "task.linked"; channelId: string; taskId: string }
+  | { type: "task.activity"; channelId: string; message: string }
   | {
       type: "message.sent";
       id: string;
@@ -71,6 +73,7 @@ export type RunlingEventPayload =
   | {
       type: "agent.started";
       agentId: string;
+      label?: string;
       model: string;
       color: string;
     }
@@ -83,6 +86,8 @@ export type RunlingEventPayload =
       /** Safe tool lifecycle metadata; excludes arguments, paths, and output. */
       type: "agent.tool";
       agentId: string;
+      /** Registered identifier, never tool arguments. */
+      toolName?: string;
       operation: "read" | "search" | "edit" | "command" | "other";
       phase: "started" | "succeeded" | "failed";
     }

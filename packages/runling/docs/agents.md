@@ -22,6 +22,11 @@ the final response in `summary`. An empty response or provider error produces a
 failed outcome; `run()` throws for that outcome. If `onText` already sends replies
 to the user, do not send the returned summary again.
 
+Set `textDelivery: "final"` to exclude tool-call preambles and failed or aborted
+assistant messages from `onText`. Intermediate text remains in agent logs.
+This lets tools announce accepted work without first sending the model's promise
+to do it. The default, `"all"`, preserves delivery of intermediate assistant text.
+
 The default, `output: "report"`, retains structured outcome reporting for coding
 and specialist tasks. Both modes support steering, cancellation, and connections.
 `runOutcome()` results can include a host-owned `failureReason`: `provider_error`
@@ -167,6 +172,12 @@ pass values by reference, and the observer copies state when it receives it.
 It is application-owned data, not a schema that Runling interprets. `stateAt`
 and `stateAgeMs` identify its age. Terminal task status takes precedence over
 the last phase; a completed task can also return a blocked result.
+
+State updates can include an optional `activity` string for the server console.
+Use a brief, host-owned operational message such as `Validating change`. Never
+include prompts, model output, credentials, paths, or personal data. This message
+does not wake the supervisor. Agent options also accept a static `label` for the
+console prefix; full agent and task IDs remain in structured logs.
 
 `output` silently buffers published agent text. It does not collect reasoning
 or raw tool output. The buffer retains the last 16 messages, with at most 4,000

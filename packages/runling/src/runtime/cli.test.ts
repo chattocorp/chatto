@@ -16,6 +16,12 @@ function harness() {
 }
 
 describe("CLI commands", () => {
+  test("does not expose the removed resume command", async () => {
+    const h = harness();
+    await expect(h.parse(["resume", "bright-foxes-1234"])).rejects.toThrow();
+    expect(h.run).not.toHaveBeenCalled();
+    expect(h.serve).not.toHaveBeenCalled();
+  });
   test("passes a file, prompt, and defaults to the runner", async () => {
     const h = harness();
     await h.parse(["run", "workflow.ts", "make the change"]);
@@ -60,14 +66,14 @@ describe("CLI commands", () => {
   test("passes server defaults", async () => {
     const h = harness();
     await h.parse(["serve"]);
-    expect(h.serve).toHaveBeenCalledWith({ config: "runling.config.ts", host: "localhost", port: 5173, open: false });
+    expect(h.serve).toHaveBeenCalledWith({ config: "runling.config.ts", host: "localhost", port: 5173, open: false, watch: false });
     expect(h.run).not.toHaveBeenCalled();
   });
 
   test("passes parsed server options", async () => {
     const h = harness();
-    await h.parse(["serve", "--port=3000", "--host", "::1", "--config", "custom.ts", "--open"]);
-    expect(h.serve).toHaveBeenCalledWith({ config: "custom.ts", host: "::1", port: 3000, open: true });
+    await h.parse(["serve", "--port=3000", "--host", "::1", "--config", "custom.ts", "--open", "--watch"]);
+    expect(h.serve).toHaveBeenCalledWith({ config: "custom.ts", host: "::1", port: 3000, open: true, watch: true });
   });
 
   test.each(["nope", "0", "65536", "1.5", "1e3", "", "-1"])("rejects invalid port %j before starting the server", async (port) => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatAccountName } from '$lib/render/accountName';
+  import { accountNameToken } from '$lib/render/accountName';
   import { startDMWith } from '$lib/dm/startDM';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -98,7 +98,6 @@
 
     banningMemberId = member.id;
     banError = null;
-    const displayName = formatAccountName(member.displayName || member.login, member);
     try {
       const api = serverScope.connection.getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
@@ -113,7 +112,13 @@
     if (!serverScope.isCurrent()) return;
     banningMemberId = null;
 
-    toast.success(m('room.sidebar.ban_success', { name: displayName }));
+    toast.success({
+      text: m('room.sidebar.ban_success', { name: accountNameToken(0) }),
+      accounts: [{
+        name: member.displayName || member.login,
+        identity: { isBot: member.isBot, deleted: member.deleted }
+      }]
+    });
     banDialogUser = null;
   }
 </script>

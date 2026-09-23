@@ -1,11 +1,11 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
-The Operator API gives server operators a local, root-equivalent user administration surface outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where the action should be attributed to Chatto's system actor rather than a human account.
+The Operator API gives server operators local, root-equivalent user administration and channel room lookup outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where an action should be attributed to Chatto's system actor rather than a human account.
 
 ## Behavior
 
@@ -18,6 +18,8 @@ The Operator API gives server operators a local, root-equivalent user administra
 - Operator actions are attributed to the system actor. They are not tied to a Chatto user account, cookie session, bearer session, or RBAC role.
 - The user-administration surface lives in `chatto.operator.v1.OperatorUserService` and can list and look up users, create users, update login/display name, set passwords, delete users, add verified email addresses, assign roles, and revoke roles.
 - The CLI groups these commands under `chatto operator user ...`, for example `chatto operator user create`, `chatto operator user set-password`, and `chatto operator user role add`.
+- `chatto operator room list` shows active and archived channel rooms without a user session or room membership. Operators can filter by the exact stored name. Each result includes the room ID, name, description, group ID, and archived state.
+- Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
@@ -78,6 +80,12 @@ relationships are reproducible; IDs and timestamps are not fixed.
 including thread state and live updates.
 **Tradeoff:** This costs more than direct event injection. The fixed performance
 fixture remains separate so its workload stays comparable.
+
+### 7. Operator channel lookup
+
+**Decision:** Channel lookup includes archived rooms and retains distinct results when names match. It uses room ID order for pages.
+**Why:** A script must recover stable IDs after an interrupted operation. Archived rooms and names that match more than one room must not be hidden or guessed away.
+**Tradeoff:** Offset pages can shift when rooms change during a scan. Scripts can repeat the read and compare IDs.
 
 ## Permissions
 

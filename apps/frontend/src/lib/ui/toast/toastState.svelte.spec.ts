@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { toast, getToasts } from './toastState.svelte';
+import { accountNameToken } from '$lib/render/accountName';
 
 describe('toast', () => {
   beforeEach(() => {
@@ -20,6 +21,16 @@ describe('toast', () => {
     const toasts = getToasts();
     expect(toasts).toHaveLength(1);
     expect(toasts[0].tone).toBe('success');
+  });
+
+  it('keeps badge data alongside a string message', () => {
+    const message = {
+      text: `Added ${accountNameToken(0)} to the room`,
+      accounts: [{ name: 'Helper', identity: { isBot: true } }]
+    };
+    toast.success(message);
+    expect(getToasts()[0].message).toBe(message.text);
+    expect(getToasts()[0].accounts).toEqual(message.accounts);
   });
 
   it('adds an info toast', () => {

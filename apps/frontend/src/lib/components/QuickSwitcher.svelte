@@ -1,5 +1,6 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
+  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -177,7 +178,12 @@
                       <span
                         data-testid="message-search-provenance"
                         dir="auto"
-                        class="mt-0.5 block truncate text-muted">{item.detail}</span
+                        class="mt-0.5 block truncate text-muted"><AccountNameTokens
+                          text={item.detail}
+                          accounts={item.message?.actor
+                            ? [{ name: item.message.actor.displayName || item.message.actor.login, identity: item.message.actor }]
+                            : []}
+                        /></span
                       >
                     {/if}
                   </span>

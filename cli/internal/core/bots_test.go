@@ -1419,27 +1419,33 @@ func TestDeletingOwnerCascadesOwnedBots(t *testing.T) {
 	}
 }
 
-func TestHumanAndBotUsernameSuffixRules(t *testing.T) {
+func TestHumanAndBotUsernamesShareValidation(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
-	if _, err := c.CreateUser(ctx, SystemActorID, "reserved_bot", "Reserved", "password123"); !errors.Is(err, ErrHumanLoginReservedForBot) {
-		t.Fatalf("human _bot suffix err = %v", err)
+	human, err := c.CreateUser(ctx, SystemActorID, "human_bot", "Human", "password123")
+	if err != nil || human.GetIsBot() {
+		t.Fatalf("human with _bot login = %+v, %v", human, err)
 	}
-	owner, err := c.CreateUser(ctx, SystemActorID, "suffix-owner", "Suffix Owner", "password123")
+	owner, err := c.CreateUser(ctx, SystemActorID, "bot-owner", "Bot Owner", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser owner: %v", err)
 	}
-	if _, err := c.UpdateUserLogin(ctx, owner.GetId(), "human_bot"); !errors.Is(err, ErrHumanLoginReservedForBot) {
-		t.Fatalf("human rename to _bot err = %v, want ErrHumanLoginReservedForBot", err)
+	updatedHuman, err := c.UpdateUserLogin(ctx, owner.GetId(), "renamed_bot")
+	if err != nil || updatedHuman.GetIsBot() {
+		t.Fatalf("human rename to _bot = %+v, %v", updatedHuman, err)
 	}
-	if _, err := c.CreateBot(ctx, owner.GetId(), "missing-suffix", "Missing Suffix"); !errors.Is(err, ErrBotLoginSuffixRequired) {
-		t.Fatalf("bot missing suffix err = %v", err)
+	bot, err := c.CreateBot(ctx, owner.GetId(), "helper", "Helper")
+	if err != nil || !bot.User.GetIsBot() {
+		t.Fatalf("bot without suffix = %+v, %v", bot, err)
 	}
-	uppercase, err := c.CreateBot(ctx, owner.GetId(), "uppercase_BOT", "Uppercase Bot")
-	if err != nil {
-		t.Fatalf("case-insensitive suffix CreateBot: %v", err)
+	updatedBot, err := c.UpdateUserLogin(ctx, bot.User.GetId(), "renamed-helper")
+	if err != nil || !updatedBot.GetIsBot() {
+		t.Fatalf("bot rename without suffix = %+v, %v", updatedBot, err)
 	}
-	if _, err := c.UpdateUserLogin(ctx, uppercase.User.GetId(), "lost-suffix"); !errors.Is(err, ErrBotLoginSuffixRequired) {
-		t.Fatalf("bot rename without suffix err = %v, want ErrBotLoginSuffixRequired", err)
+	if _, err := c.CreateBot(ctx, owner.GetId(), "HUMAN_BOT", "Collision"); !errors.Is(err, ErrLoginAlreadyTaken) {
+		t.Fatalf("bot login collision with human = %v, want ErrLoginAlreadyTaken", err)
+	}
+	if _, err := c.CreateUser(ctx, SystemActorID, "RENAMED-HELPER", "Collision", "password123"); !errors.Is(err, ErrLoginAlreadyTaken) {
+		t.Fatalf("human login collision with bot = %v, want ErrLoginAlreadyTaken", err)
 	}
 }

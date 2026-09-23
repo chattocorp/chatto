@@ -28,7 +28,10 @@ receive selected updates while that workflow runs.
 - A completed workflow can return a blocked agent outcome. Completion alone
   does not establish that the requested work succeeded.
 - The server terminal reports live task, agent, and tool activity with a run
-  reference and a task number. Activity records omit message and tool content.
+  reference and a static agent label or task number. Successful tools are grouped
+  into periodic counts; failures appear immediately. State updates can explicitly
+  supply a public host-owned `activity` message without waking the supervisor.
+  State values, message content, and tool arguments remain out of these logs.
 
 ## Design Decisions
 

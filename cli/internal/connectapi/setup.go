@@ -35,7 +35,7 @@ func setupConnectError(err error) error {
 	var field string
 	switch {
 	case errors.Is(err, core.ErrLoginTooShort), errors.Is(err, core.ErrLoginTooLong),
-		errors.Is(err, core.ErrLoginInvalidCharacter), errors.Is(err, core.ErrHumanLoginReservedForBot),
+		errors.Is(err, core.ErrLoginInvalidCharacter),
 		errors.Is(err, core.ErrUsernameBlocked), errors.Is(err, core.ErrLoginAlreadyTaken):
 		field = "login"
 	case errors.Is(err, core.ErrDisplayNameTooLong), errors.Is(err, core.ErrDisplayNameInvalidCharacter), errors.Is(err, core.ErrDisplayNameInvalidStart):

@@ -1,11 +1,11 @@
 ---
 title: Operator CLI
-description: Create and recover accounts with the local chatto operator CLI.
+description: Manage accounts and find channel rooms with the local chatto operator CLI.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-`chatto operator` provides local, root-equivalent account administration. Use it to create the first account on a server, recover access, or automate user administration when the in-app Server Admin interface is unavailable or unsuitable.
+`chatto operator` provides local, root-equivalent account administration and channel room lookup. Use it to create the first account on a server, recover access, or find channel IDs for a script.
 
 The CLI talks to the running Chatto server over a Unix socket. It does not connect directly to NATS and does not use a Chatto login, bearer token, cookie, or RBAC role.
 
@@ -79,14 +79,17 @@ When the command is not attached to a terminal and you provide no password optio
 
 ## Find and inspect users
 
-List users before running a command that requires `USER_ID`:
+List users or inspect one account:
 
 ```sh
 chatto operator user list
 chatto operator user list --search alice
 chatto operator user list --search alice@example.com
 chatto operator user get USER_ID
+chatto operator user get --login alice
 ```
+
+Use `user get --login` to find one account by its login. This helps a script recover the user ID after an interrupted run. Supply either a user ID or `--login`, not both.
 
 Search matches logins and display names, or an exact verified email address. `list` returns 20 users by default and supports offset pagination:
 
@@ -96,6 +99,27 @@ chatto operator user list --limit 100 --offset 100
 ```
 
 The maximum limit is 100. Human-readable output ends with `total` and `has_more` values so you can tell whether another page exists.
+
+## Find channel rooms
+
+List channel rooms, including archived rooms:
+
+```sh
+chatto operator room list
+chatto operator room list --name general
+chatto operator room list --name general --json
+```
+
+`--name` matches the exact stored channel name. If more than one room has that name, the command returns each room with its own ID. Results include the room ID, name, group ID, description, and archived state. Use the ID to identify a room in later commands.
+
+The command returns 20 rooms by default. Use `--limit` and `--offset` to read more, up to 100 rooms per page:
+
+```sh
+chatto operator room list --limit 100 --offset 0
+chatto operator room list --limit 100 --offset 100
+```
+
+Rooms appear in room ID order. Human-readable output ends with `total` and `has_more`. Pages are live reads, so room changes between requests can shift offsets. You can repeat the command safely.
 
 ## Update a user
 

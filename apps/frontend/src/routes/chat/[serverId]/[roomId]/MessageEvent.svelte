@@ -341,7 +341,11 @@
       replyInRoomLabel: replyInRoomActionLabel,
       replyThreadLabel: replyThreadActionLabel,
       replyInRoom: canUseReplyAction ? handleReply : undefined,
-      replyThread: canUseThreadAction ? handleOpenThread : undefined,
+      replyThread: canUseThreadAction
+        ? isEcho || threadingMode === RoomThreadingMode.DISABLED
+          ? handleOpenThread
+          : handleReplyInThread
+        : undefined,
       secondaryReplyInRoomLabel: canUseSecondaryRoomReply
         ? m('room.message.actions.reply_room')
         : undefined,
@@ -409,7 +413,9 @@
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
   const hasThreadUnread = $derived(
-    hasReplies && event && messageEvent?.viewerHasUnreadThread === true &&
+    hasReplies &&
+      event &&
+      messageEvent?.viewerHasUnreadThread === true &&
       !stores.readViews.covers(roomId, event.id)
   );
   const hasMessageFooter = $derived(
@@ -516,19 +522,9 @@
     if (
       isRootMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
-        (threadingMode === RoomThreadingMode.ENCOURAGED &&
-          canReplyInThread &&
-          !!onOpenThread))
+        (threadingMode === RoomThreadingMode.ENCOURAGED && canReplyInThread && !!onOpenThread))
     ) {
-      onOpenThread?.(event.id, {
-        quoteText: quote ?? undefined,
-        reply: {
-          eventId: roomReplyTargetEventId(event),
-          actorDisplayName: displayName,
-          actorIdentity: actor ?? undefined,
-          excerpt
-        }
-      });
+      startReplyInThread(quote);
       return;
     }
 
@@ -547,6 +543,22 @@
     }
   }
 
+  function handleReplyInThread() {
+    startReplyInThread(takeSelectedReplyQuote());
+  }
+
+  function startReplyInThread(quote: QuoteInsertionContent | null) {
+    onOpenThread?.(permalinkThreadRootEventId ?? event.id, {
+      quoteText: quote ?? undefined,
+      reply: {
+        eventId: roomReplyTargetEventId(event),
+        actorDisplayName: displayName,
+        actorIdentity: actor ?? undefined,
+        excerpt: (msg?.body ?? '').slice(0, 80)
+      }
+    });
+  }
+
   function handleOpenThread() {
     if (onOpenThread) {
       // For echoes, use the original thread root event ID (not the echo's wrapper event ID)
@@ -554,13 +566,8 @@
         (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ??
         permalinkThreadRootEventId ??
         event.id;
-      if (isEcho) {
-        selectedReplyQuoteSnapshot = null;
-        onOpenThread(threadRoot);
-        return;
-      }
-      const quote = takeSelectedReplyQuote();
-      onOpenThread(threadRoot, { quoteText: quote ?? undefined });
+      selectedReplyQuoteSnapshot = null;
+      onOpenThread(threadRoot);
       // Note: Thread notifications are dismissed by ThreadPane's $effect when it mounts,
       // which also handles direct URL navigation to threads.
     }

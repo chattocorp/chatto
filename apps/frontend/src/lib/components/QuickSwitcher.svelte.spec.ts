@@ -732,7 +732,7 @@ describe('QuickSwitcher', () => {
             roomName: 'search',
             roomKind: RoomKind.CHANNEL,
             actorId: 'user-teammate',
-            actor: teammate,
+            actor: { ...teammate, isBot: true },
             body: 'The highest ranked result has enough text to wrap naturally across multiple lines in the palette',
             createdAt: '2026-07-29T12:00:00.000Z',
             threadRootEventId: 'thread-root',
@@ -756,7 +756,8 @@ describe('QuickSwitcher', () => {
     expect(messageExcerpt?.getAttribute('dir')).toBe('auto');
     expect(
       buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.textContent
-    ).toBe('River Teammate · #search · Workspace Server');
+    ).toBe('River TeammateBOT · #search · Workspace Server');
+    expect(buttons[0]!.querySelector('[data-testid="message-search-provenance"] [data-testid="bot-badge"]')).not.toBeNull();
     expect(
       buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.getAttribute('dir')
     ).toBe('auto');

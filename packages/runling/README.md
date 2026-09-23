@@ -106,6 +106,19 @@ export default defineWebConfig({
 
 Run `pnpm runling serve`, then open `http://localhost:5173`.
 
+Configuration and source code load once by default. Restart the server to load
+changes, or use `runling serve --watch` to enable project file watching and reload.
+Server shutdown marks active runs interrupted. Runs are process-local: restart
+preserves their history, but does not restore workflows, state, or agent sessions.
+New inputs start new runs.
+
+Select **Activity** in a run to read events in time order, with elapsed times and
+task prefixes. Agent text, task updates, and command output appear directly in
+the log. The view follows new events until you scroll up; select **Follow latest**
+to return to the bottom.
+Large histories initially show the latest 500 rows. Select **Show earlier activity**
+to read more. Timeline remains the default view.
+
 The terminal shows compact, colored diagnostics and a single ready line with
 the console URL. Set `NO_COLOR` to disable colors in server and workflow logs. Structured server
 records remain in `.runling/logs/server.jsonl` beside the configuration file.

@@ -25,6 +25,8 @@
     clearLabel = m('ui.combobox.clear'),
     class: className,
     item,
+    selectionAdornment,
+    selectionDescription,
     ontextchange,
     onselect,
     onclear
@@ -48,6 +50,10 @@
     clearLabel?: string;
     class?: ClassValue;
     item?: Snippet<[{ item: T; selected: boolean }]>;
+    /** Passive content beside a selected value, such as an account badge. */
+    selectionAdornment?: Snippet;
+    /** Text announced with the selected value when the adornment is visual. */
+    selectionDescription?: string;
     ontextchange?: (text: string) => void;
     onselect?: (item: T) => void;
     onclear?: () => void;
@@ -150,13 +156,21 @@
       aria-autocomplete="list"
       aria-controls={`${id}-listbox`}
       aria-invalid={error ? 'true' : undefined}
-      aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
-      class={['input pe-16', loading && 'pe-20']}
+      aria-describedby={[
+        error ? `${id}-error` : description ? `${id}-description` : undefined,
+        value && selectionDescription ? `${id}-selection-description` : undefined
+      ]
+        .filter(Boolean)
+        .join(' ') || undefined}
+      class={['input pe-16', loading && 'pe-20', selectionAdornment && value && 'pe-28']}
       onfocus={openMenu}
       oninput={handleInput}
       onkeydown={handleKeydown}
     />
     <div class="absolute end-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+      {#if selectionAdornment && value}
+        <span class="pointer-events-none">{@render selectionAdornment()}</span>
+      {/if}
       {#if loading}
         <span
           class="iconify icon-[uil--spinner] animate-spin text-base text-muted"
@@ -176,6 +190,9 @@
         </button>
       {/if}
     </div>
+    {#if value && selectionDescription}
+      <span id={`${id}-selection-description`} class="sr-only">{selectionDescription}</span>
+    {/if}
   </div>
 </FormField>
 

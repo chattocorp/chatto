@@ -11,7 +11,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | # | Feature | Status | Last reviewed |
 |---|---------|--------|---------------|
 | [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-09-19 |
-| [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-09-20 |
+| [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-09-23 |
 | [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-09-18 |
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-09-18 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-09-15 |
@@ -31,13 +31,13 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-09-17 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-09-18 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-27 |
-| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-21 |
+| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-23 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-09-19 |
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-08-27 |
 | [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-09-23 |
 | [FDR-026](FDR-026-last-room-memory.md) | Last-Room Memory | Active | 2026-06-16 |
 | [FDR-027](FDR-027-pwa-and-service-worker.md) | PWA & Service Worker | Active | 2026-09-21 |
-| [FDR-028](FDR-028-operator-api-and-cli.md) | Operator API & CLI | Active | 2026-09-14 |
+| [FDR-028](FDR-028-operator-api-and-cli.md) | Operator API & CLI | Active | 2026-09-23 |
 | [FDR-029](FDR-029-chatto-shields.md) | Chatto Shields | Active | 2026-08-23 |
 | [FDR-030](FDR-030-inline-message-timestamps.md) | Inline Message Timestamps | Active | 2026-07-12 |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-08-30 |
@@ -47,7 +47,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-30 |
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
 | [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-09-01 |
-| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-20 |
+| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-23 |
 | [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-09-20 |
 | [FDR-040](FDR-040-backup-and-restore.md) | Backup and Restore | Active | 2026-08-27 |
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |

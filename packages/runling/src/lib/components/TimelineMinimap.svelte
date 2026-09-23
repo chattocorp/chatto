@@ -188,7 +188,7 @@
                   : node.kind === "command"
                     ? "fill-accent light:fill-teal-300"
                     : node.kind === "input"
-                      ? "fill-warning light:fill-amber-300"
+                      ? "fill-base-content/20"
                       : "fill-primary light:fill-blue-300",
             node.id === selected &&
               "stroke-base-content stroke-1 [vector-effect:non-scaling-stroke]",
@@ -206,7 +206,7 @@
         />
         {#each node.segments ?? [] as segment (segment.id)}
           <rect
-            class={segment.kind === "input" ? "fill-warning" : "fill-secondary"}
+            class={segment.kind === "input" ? "fill-base-300" : "fill-secondary"}
             x={(segment.startedAt / total) * 1000}
             y={top + height * 0.2}
             width={Math.max(1, ((segment.durationMs ?? Math.max(0, elapsed - segment.startedAt)) / total) * 1000)}

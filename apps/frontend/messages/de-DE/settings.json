@@ -492,7 +492,6 @@
       "create_failed": "Bot konnte nicht erstellt werden",
       "created": "Bot erstellt",
       "username": "Benutzername",
-      "username_hint": "Bot-Benutzernamen müssen auf _bot enden.",
       "display_name": "Anzeigename",
       "owner": "Owner",
       "reassign_owner": "Owner neu zuweisen",

@@ -26,7 +26,7 @@
     <span
       class={[
         "absolute inset-y-0 flex items-center justify-center overflow-hidden text-xs whitespace-nowrap",
-        segment.kind === "input" ? "bg-warning text-warning-content" : "bg-secondary text-secondary-content",
+        segment.kind === "input" ? "bg-base-300 text-base-content/60" : "bg-secondary text-secondary-content",
       ]}
       style:left={`${((from - visibleStart) / span) * 100}%`}
       style:width={`${((to - from) / span) * 100}%`}

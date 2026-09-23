@@ -10,6 +10,7 @@
   import RunValue from "./RunValue.svelte";
   import RunOutput from "./RunOutput.svelte";
   import ActivityInspector from "./ActivityInspector.svelte";
+  import ActivityFeed from "./ActivityFeed.svelte";
   let { run, connection }: { run: RunDetail; connection: string } = $props();
   let cancelling = $state(false);
   let cancelError = $state("");
@@ -46,7 +47,7 @@
 
   let now = $state(Date.now());
   let selected = $state("");
-  let tab = $state<"timeline" | "input" | "output" | "logs">("timeline");
+  let tab = $state<"timeline" | "activity" | "input" | "output" | "logs">("timeline");
   let pendingInputs = $derived(summarizeRunActivity(run)?.pendingInputs ?? 0);
   let nodes = $derived(buildTimeline(run.events, run.status));
   let activity = $derived(findActivity(nodes, selected));
@@ -144,6 +145,7 @@
         >{run.events.filter((e) => e.type === "step.started").length}</span
       ></button
     >
+    <button class="tab gap-2 text-sm" class:tab-active={tab === "activity"} onclick={() => (tab = "activity")}>Activity</button>
     <button
       class="tab gap-2 text-sm"
       class:tab-active={tab === "input"}
@@ -189,6 +191,8 @@
       {#if activity}
         <ActivityInspector {activity} {elapsed} onclose={() => (selected = "")} />
       {/if}
+    {:else if tab === "activity"}
+      <ActivityFeed {run} />
     {:else if tab === "input"}
       {#key run.id}<RunValue value={run.input} kind="input" />{/key}
     {:else if tab === "output"}

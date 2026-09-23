@@ -525,7 +525,7 @@
                           : node.kind === "command"
                             ? "bg-accent border-accent text-accent-content light:bg-teal-100 light:border-teal-200 light:text-teal-950"
                             : node.kind === "input"
-                              ? "bg-warning border-warning text-warning-content light:bg-amber-100 light:border-amber-200 light:text-amber-950"
+                              ? "bg-base-300 border-base-content/15 text-base-content/60"
                               : "bg-primary border-primary text-primary-content light:bg-blue-100 light:border-blue-200 light:text-blue-950",
                     selected === node.id &&
                       "outline-2 outline-base-content -outline-offset-2 z-2",

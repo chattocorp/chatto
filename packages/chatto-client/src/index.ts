@@ -1,6 +1,6 @@
 export { startTyping, withTyping, type TypingUpdate } from "./typing.js";
 import { messageHelpers } from "./messages.js";
-export type { ChattoMessage, AddressedMessage, AddressingReason } from "./messages.js";
+export type { ChattoMessage } from "./messages.js";
 import { consumeRealtime, type ConsumeRealtimeOptions, type WebSocketFactory } from "./realtime.js";
 export type { ConsumeRealtimeOptions, RealtimeCheckpoint, RealtimeStatus, WebSocketFactory } from "./realtime.js";
 export { RealtimeEvent } from "@chatto/api-types/realtime/v1/realtime_pb";
@@ -30,19 +30,16 @@ export type ChattoPost = (destination: Destination, body: string, signal: AbortS
 /** Refresh a thread's typing indicator once. */
 export type ChattoTyping = (destination: Destination, signal: AbortSignal) => Promise<void>;
 
-/** Fields needed to locate a webhook's triggering message and its thread. */
-export interface ThreadDelivery {
-  room_id: string;
-  thread_root_id: string | null;
-  bot_id: string;
-  message: { id: string };
+/** Locate a thread independently of a bot or webhook delivery. */
+export interface ThreadLocation {
+  roomId: string;
+  threadRootId: string;
 }
 
 /** A textual thread message; attachments and non-message events are omitted. */
 export interface ThreadMessage {
   id: string;
   authorId?: string;
-  role: "bot" | "human";
   body: string;
 }
 
@@ -124,8 +121,8 @@ export function createChattoClient(options: ChattoClientOptions) {
   }
 
   /** Read all history pages with a 30-second total limit, preserving root-first order. */
-  async function readThread(delivery: ThreadDelivery, signal?: AbortSignal): Promise<ThreadMessage[]> {
-    const rootId = delivery.thread_root_id ?? delivery.message.id;
+  async function readThread(location: ThreadLocation, signal?: AbortSignal): Promise<ThreadMessage[]> {
+    const rootId = location.threadRootId;
     const readSignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(30_000)]);
     let root: ThreadEvent | undefined;
     let replies: ThreadEvent[] = [];
@@ -135,7 +132,7 @@ export function createChattoClient(options: ChattoClientOptions) {
       const { page } = await rpc<{
         page?: { events?: ThreadEvent[]; hasOlder?: boolean; startCursor?: string };
       }>("ThreadService/GetThreadEvents", {
-        roomId: delivery.room_id, threadRootEventId: rootId, limit: 100,
+        roomId: location.roomId, threadRootEventId: rootId, limit: 100,
         ...(before ? { before } : {}),
       }, readSignal);
       if (!page) throw new Error("Chatto did not return the thread page");
@@ -156,7 +153,6 @@ export function createChattoClient(options: ChattoClientOptions) {
       if (!message?.body) return [];
       return [{
         id: event.id, authorId: message.actorId,
-        role: message.actorId === delivery.bot_id ? "bot" as const : "human" as const,
         body: message.body,
       }];
     });

@@ -64,6 +64,13 @@ export function buildTimeline(
     (parent?.children ?? roots).push(node);
   };
   for (const [index, event] of events.entries()) {
+    if (event.type === "workflow.resumed") {
+      for (const node of nodes.values()) if (node.status === "running") {
+        node.status = "interrupted";
+        node.durationMs = Math.max(0, event.timestamp - node.startedAt);
+      }
+      agents.clear();
+    }
     const base = {
       parent: event.activityId,
       status: "running",

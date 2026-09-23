@@ -10,6 +10,7 @@ import { createAgentTasks } from "runling/agents";
 import { createInvestigation, investigationExtension, investigationSettings } from "./investigate.ts";
 import type { Finding } from "./evidence.ts";
 import { responsePolicy } from "./response-policy.ts";
+import type { InvestigationPlans } from "./plan.ts";
 
 const mocks = vi.hoisted(() => ({ agent: vi.fn() }));
 vi.mock("runling/agents", async importOriginal => ({
@@ -41,7 +42,7 @@ test("parallel investigations use detached worktrees and expose only read-only t
   const investigate = createInvestigation(settings, async options => {
     paths.push(options.cwd);
     expect(await readFile(join(options.cwd, "example.txt"), "utf8")).toBe("original\n");
-    expect(options.tools).toEqual(["read", "grep", "find", "ls", "recordFinding"]);
+    expect(options.tools).toEqual(["read", "grep", "find", "ls", "recordFinding", "prepareImplementationPlan"]);
     expect(options.resources).toMatchObject({ extensions: false, skills: false, promptTemplates: false });
     expect(options.instructions?.join("\n")).toContain("You cannot edit files.");
     let record!: (id: string, finding: Finding) => Promise<unknown>;
@@ -101,6 +102,77 @@ test("source access is opt-in and captures host settings", () => {
   const settings = investigationSettings();
   vi.stubEnv("CHATTO_SOURCE_DIRECTORY", "/different/repo");
   expect(settings).toMatchObject({ directory: "/configured/repo", baseRef: "origin/main" });
+});
+
+test.each(["direct", "tool"])("%s investigation defaults to assessment without requiring a plan", async entry => {
+  const settings = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const prompts: string[] = [];
+  const factory = async (options: AgentOptions) => {
+    let record!: (id: string, finding: Finding) => Promise<unknown>;
+    const extension = options.extensions![0]!;
+    const install = typeof extension === "function" ? extension : extension.factory;
+    await install({ registerTool(tool: { execute: typeof record }) { record = tool.execute; } } as unknown as AgentExtensionAPI);
+    return { dispose: () => {}, async runOutcome(_ctx: unknown, prompt: string) {
+      prompts.push(prompt);
+      await record("finding", { claim: "Contains original", kind: "observation", evidence: [{ path: "example.txt", startLine: 1, endLine: 1 }] });
+      return { outcome: "completed" as const, summary: "Checked", usage: emptyTokenUsage() };
+    } };
+  };
+  try {
+    let result;
+    if (entry === "direct") result = await createInvestigation(settings, factory)(ctx, { question: "Read the fixture" });
+    else {
+      mocks.agent.mockImplementation(factory);
+      let call!: (id: string, input: unknown) => Promise<{ content: { text: string }[] }>;
+      const extension = investigationExtension(ctx, settings, async () => {}, tasks);
+      const install = typeof extension === "function" ? extension : extension.factory;
+      await install({ registerTool(tool: { execute: typeof call }) { call = tool.execute; } } as unknown as AgentExtensionAPI);
+      const handle = JSON.parse((await call("call", { question: "Read the fixture", announcement: "Checking" })).content[0]!.text);
+      await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe("completed"));
+      result = JSON.parse(tasks.get(handle.id).result!);
+    }
+    expect(result).toMatchObject({ outcome: "completed" });
+    expect(result.plan).toBeUndefined();
+    expect(prompts).toHaveLength(1);
+    expect(JSON.parse(prompts[0]!)).toMatchObject({ purpose: "assessment" });
+  } finally { await tasks.dispose(); }
+});
+
+test.each([true, false])("implementation investigations retain a typed plan only after successful delivery: %s", async withPlan => {
+  const settings = await fixture();
+  const ctx = createWorkflowContext();
+  const tasks = createAgentTasks(ctx, { notifyActivity: false });
+  const plans: InvestigationPlans = new Map();
+  const plan = { goal: "Fix the fixture", steps: [{ files: ["example.txt"], change: "Replace original with fixed" }],
+    acceptanceCriteria: ["Value is fixed"], checks: ["Read the value"], openQuestions: [] };
+  mocks.agent.mockImplementation(async (options: AgentOptions) => {
+    const tools = new Map<string, (id: string, input: unknown) => Promise<unknown>>();
+    for (const extension of options.extensions ?? []) {
+      const factory = typeof extension === "function" ? extension : extension.factory;
+      await factory({ registerTool(tool: { name: string; execute: (id: string, input: unknown) => Promise<unknown> }) { tools.set(tool.name, tool.execute); } } as unknown as AgentExtensionAPI);
+    }
+    return { dispose: () => {}, async runOutcome() {
+      await tools.get("recordFinding")!("finding", { claim: "Contains original", kind: "observation", evidence: [{ path: "example.txt", startLine: 1, endLine: 1 }] });
+      if (withPlan) await tools.get("prepareImplementationPlan")!("plan", plan);
+      return { outcome: "completed", summary: "Done", usage: emptyTokenUsage() };
+    } };
+  });
+  let call!: (id: string, input: unknown) => Promise<{ content: { text: string }[] }>;
+  const extension = investigationExtension(ctx, settings, async () => {}, tasks, plans);
+  const factory = typeof extension === "function" ? extension : extension.factory;
+  await factory({ registerTool(tool: { execute: typeof call }) { call = tool.execute; } } as unknown as AgentExtensionAPI);
+  try {
+    const handle = JSON.parse((await call("call", { question: "Plan a fix", purpose: "implementation", announcement: "Investigating" })).content[0]!.text);
+    await vi.waitFor(() => expect(tasks.get(handle.id).status).toBe("completed"));
+    const result = JSON.parse(tasks.get(handle.id).result!);
+    expect(result.outcome).toBe(withPlan ? "completed" : "blocked");
+    if (withPlan) {
+      expect(plans.get(handle.id)).toEqual({ ...plan, baseCommit: result.baseCommit });
+      expect(result.findings[0].evidence[0].quote).toBe("original");
+    } else expect(plans.size).toBe(0);
+  } finally { await tasks.dispose(); }
 });
 
 test("repairs the loud-waves handoff in the same worker before the owner receives completion", async () => {
@@ -181,7 +253,7 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)("live worker hands checked evidence 
     question: "This synthetic test repository contains only example.txt. There are no AGENTS.md files. What exact value does example.txt contain?",
   });
   expect(result.outcome).toBe("completed");
-  expect(result.findings.some(finding => finding.evidence.some(citation => citation.path === "example.txt" && citation.quote.trim() === "original"))).toBe(true);
+  expect(result.findings.some(finding => finding.evidence.some(citation => citation.path === "example.txt" && citation.quote?.trim() === "original"))).toBe(true);
   const owner = await real.agent({ cwd: settings.directory, model, output: "text", tools: [],
     resources: { extensions: false, skills: false, contextFiles: false, promptTemplates: false, themes: false },
     instructions: ["You are ChattoBot. Briefly answer the user's question from the completed investigation.", ...responsePolicy],
@@ -198,7 +270,7 @@ test.skipIf(!process.env.CHATTO_EVAL_MODEL)("live worker hands checked evidence 
   } finally { owner.dispose(); }
 }, 160_000);
 
-test("background investigations send progress and accept supervisor steering", async () => {
+test("background investigations retain findings without chat notifications and accept supervisor steering", async () => {
   const settings = await fixture();
   const tasks = createAgentTasks(createWorkflowContext(), { progressIntervalMs: 0 });
   const reader = tasks.notifications[Symbol.asyncIterator]();
@@ -225,11 +297,10 @@ test("background investigations send progress and accept supervisor steering", a
   const handle = tasks.start("Investigate", async (ctx, question: string) => JSON.stringify(await investigate(ctx, { question })), "Compare pages");
   try {
     await started.promise;
-    expect(JSON.parse((await reader.next()).value!)).toMatchObject({ type: "task.progress",
-      progress: expect.stringContaining("The fixture contains the original value.") });
+    await vi.waitFor(() => expect(tasks.get(handle.id).output.some(item => item.text.includes("The fixture contains the original value."))).toBe(true));
+    expect(tasks.get(handle.id).progress).toBeUndefined();
     workerOptions!.onStatus!({ type: "retrying", attempt: 1, maxAttempts: 3, delayMs: 2000 });
     expect(JSON.parse((await reader.next()).value!)).toMatchObject({ type: "task.retrying", task: {
-      progress: expect.stringContaining("The fixture contains the original value."),
       provider: { type: "retrying", attempt: 1 },
     } });
     workerOptions!.onActivity!({ type: "tool", operation: "edit", phase: "failed", failures: 2 });
@@ -237,7 +308,7 @@ test("background investigations send progress and accept supervisor steering", a
       activity: { operation: "edit", phase: "failed", failures: 2 },
       lastToolFailure: { operation: "edit", phase: "failed" },
     } });
-    expect(tasks.get(handle.id).progress).toContain("The fixture contains the original value.");
+    expect(tasks.get(handle.id).output.some(item => item.text.includes("The fixture contains the original value."))).toBe(true);
     await tasks.send(handle.id, "Only check private channels");
     await vi.waitFor(() => expect(steer).toHaveBeenCalledWith("Only check private channels"));
     finish.resolve();
