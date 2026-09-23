@@ -74,7 +74,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/** Serve a cached shell when navigation fails offline; compiled assets are immutable. */
+/** Serve a complete versioned shell immediately; compiled assets are immutable. */
 self.addEventListener('fetch', (event) => {
   if (!ownsAppShell) return;
   const request = event.request;
@@ -93,12 +93,8 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/chat' || url.pathname.startsWith('/chat/');
   if (request.mode === 'navigate' && appNavigation) {
     event.respondWith((async () => {
-      try {
-        return await fetch(request);
-      } catch {
-        const cached = await (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
-        return cached ?? Response.error();
-      }
+      const cached = await (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
+      return cached ?? fetch(request);
     })());
   }
 });

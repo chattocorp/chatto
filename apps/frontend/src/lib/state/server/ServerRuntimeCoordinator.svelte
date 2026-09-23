@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { onDestroy, onMount, untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { page } from '$app/state';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -10,9 +10,15 @@
   import { startServerRecovery } from './serverRecovery';
   import { onSessionTerminated } from '$lib/eventBus.svelte';
 
-  let { user }: { user?: CurrentUser | null } = $props();
+  let { user, deferConnections = false }: {
+    user?: CurrentUser | null;
+    deferConnections?: boolean;
+  } = $props();
 
-  onMount(() => startServerRecovery(serverRegistry));
+  $effect(() => {
+    if (deferConnections) return;
+    return startServerRecovery(serverRegistry);
+  });
 
   // The root layout keys this coordinator by origin viewer identity, so the
   // optional origin viewer is stable for this component lifetime.
@@ -40,6 +46,7 @@
   }
 
   function realtimeRegistrations() {
+    if (deferConnections) return [];
     return serverRegistry.servers.flatMap((server) => {
       const store = serverRegistry.tryGetStore(server.id);
       return store?.isAuthenticated

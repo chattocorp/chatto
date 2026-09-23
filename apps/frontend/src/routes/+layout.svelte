@@ -1,6 +1,6 @@
 <script lang="ts">
   import { initialPageReveal } from '$lib/attachments/initialPageReveal';
-  import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
+  import { afterNavigate, beforeNavigate, goto, invalidateAll } from '$app/navigation';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -38,6 +38,20 @@
       void navigator.serviceWorker.register('/service-worker.js').catch(() => {});
     }, 7_000);
     return () => clearTimeout(timer);
+  });
+
+  onMount(() => {
+    if (!data.startupPending) return;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        void invalidateAll();
+      });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
   });
 
   function loadModalContainer() {
@@ -103,9 +117,11 @@
   <GlobalKeyboardShortcuts />
 {/if}
 {#key data.user?.id}
-  <ServerRuntimeCoordinator user={data.user} />
+  <ServerRuntimeCoordinator user={data.user} deferConnections={data.startupPending} />
 {/key}
-<NotificationSync />
+{#if !data.startupPending}
+  <NotificationSync />
+{/if}
 <UpdateNotifier />
 
 <svelte:head>

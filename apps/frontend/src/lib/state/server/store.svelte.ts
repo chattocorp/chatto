@@ -165,6 +165,10 @@ export class ServerStateStore {
   readonly realtimeSync = new RealtimeProjectionSyncState();
   /** Last authorized text view for read-only reconnect and offline presentation. */
   savedView = $state.raw<SavedView | null>(null);
+  /** A cold disk view can render before its session has been verified. */
+  startupPresentationOnly = $state(false);
+  /** A registered background server has not started discovery or viewer checks. */
+  networkStartupDeferred = $state(false);
   #recentSavedRoomIds: string[] = [];
   #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
@@ -678,18 +682,28 @@ export class ServerStateStore {
   }
 
   /** Restore a device snapshot only for the same local viewer. */
-  restoreSavedView(view: SavedView | null): void {
+  restoreSavedView(view: SavedView | null, beforeConnection = false): void {
     if (!view || view.serverId !== this.serverId || view.userId !== this.#getSession().userId) return;
     if (!this.savedView || view.savedAt > this.savedView.savedAt) this.savedView = view;
     this.#recentSavedRoomIds = view.rooms.filter((room) => room.messages.length > 0).map((room) => room.id);
-    if (this.realtimeSync.phase === 'empty' && !this.currentUser.loading && !this.currentUser.user)
+    if (this.realtimeSync.phase === 'empty' &&
+      (beforeConnection || (!this.currentUser.loading && !this.currentUser.user))) {
+      if (beforeConnection) this.startupPresentationOnly = true;
       this.restoreSavedProjection(view);
+    }
+  }
+
+  /** Permit transport work only after the server confirms the saved viewer. */
+  verifyStartupViewer(userId: string): void {
+    if (this.startupPresentationOnly && this.savedView?.userId === userId)
+      this.startupPresentationOnly = false;
   }
 
   /** Remove saved device content, including a normal view restored from that content. */
   clearSavedPresentation(): void {
     this.savedView = null;
     this.#recentSavedRoomIds = [];
+    this.startupPresentationOnly = false;
     if (!this.realtimeSync.restoredFromDisk) return;
     this.#realtimeProjectionGeneration++;
     this.#permissionCheckGeneration++;
@@ -1857,6 +1871,8 @@ export class ServerStateStore {
    */
   get isAuthenticated(): boolean {
     if (this.#getSession().reauthRequiredAt !== null) return false;
+    if (this.networkStartupDeferred) return false;
+    if (this.startupPresentationOnly) return false;
     if (this.#cookieAuth) {
       return this.currentUser.user != null;
     }

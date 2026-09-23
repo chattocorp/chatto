@@ -344,6 +344,8 @@ class ServerRegistry {
 	#renewalPromises = new Map<string, Promise<string | null>>();
 	#originProbe: Promise<void> | null = null;
 	#cacheChannel: BroadcastChannel | null = null;
+	/** Stores whose discovery and viewer startup has been scheduled. */
+	#startedServerNetwork = new Set<string>();
 
 	constructor() {
 		const persisted = restorePersistedServerState();
@@ -557,6 +559,7 @@ class ServerRegistry {
 		const previousUserId = origin.userId ?? this.tryGetStore(origin.id)?.currentUser.user?.id;
 		if (user && previousUserId && previousUserId !== user.id) {
 			this.#replaceServerAuth(origin.id, cookieSession);
+			this.tryGetStore(origin.id)?.verifyStartupViewer(user.id);
 			return;
 		}
 		if (
@@ -574,6 +577,7 @@ class ServerRegistry {
 			this.#replaceServerAuth(origin.id, cookieSession);
 		}
 		this.originProbed = true;
+		if (user) this.tryGetStore(origin.id)?.verifyStartupViewer(user.id);
 	}
 
 	/** Settle the origin cookie-auth store when root load found no user. */
@@ -788,7 +792,7 @@ class ServerRegistry {
 	 * Bootstrap the registry: create stores for all registered servers.
 	 * Call once from the root layout's script init (before any $derived reads stores).
 	 */
-	init(): void {
+	init(deferNetwork = false): void {
 		if (!this.#cacheChannel && typeof BroadcastChannel !== 'undefined') {
 			this.#cacheChannel = new BroadcastChannel('chatto-private-cache');
 			this.#cacheChannel.onmessage = (event: MessageEvent) => {
@@ -816,9 +820,51 @@ class ServerRegistry {
 		}
 		for (const registration of this.registrations) {
 			if (!this.#stores.has(registration.id)) {
-				this.#createStore(registration.id);
+				this.#createStore(registration.id, !deferNetwork);
 			}
+			else if (!deferNetwork) this.startServerNetwork(registration.id);
 		}
+	}
+
+	/** Start discovery and remote viewer recovery after a saved view has painted. */
+	startServerNetwork(serverId: string): void {
+		const store = this.#stores.get(serverId);
+		if (!store || this.#startedServerNetwork.has(serverId)) return;
+		this.#startedServerNetwork.add(serverId);
+		store.networkStartupDeferred = false;
+		void store.serverInfo.init().catch(() => {
+			// Recovery observes the discovery error on the store.
+		});
+
+		const session = this.sessions.ensure(serverId);
+		if (session.token === null) {
+			if (!this.isOriginServer(serverId)) {
+				store.currentUser.user = undefined;
+				store.currentUser.loading = false;
+			}
+			return;
+		}
+		void store.currentUser.load().then(() => {
+			if (this.#stores.get(serverId) !== store) return;
+			const user = store.currentUser.user;
+			if (!user || store.currentUser.verifiedUserId !== user.id) return;
+			const currentSession = this.sessions.get(serverId);
+			if (currentSession?.userId && currentSession.userId !== user.id) {
+				this.#replaceServerAuth(serverId, {
+					...currentSession, userId: user.id, userLogin: user.login,
+					userDisplayName: user.displayName, userAvatarUrl: user.avatarUrl ?? null
+				});
+				return;
+			}
+			store.verifyStartupViewer(user.id);
+			this.sessions.update(serverId, {
+				userId: user.id, userLogin: user.login,
+				userDisplayName: user.displayName, userAvatarUrl: user.avatarUrl
+			});
+			this.#persist();
+		}).catch(() => {
+			store.currentUser.loading = false;
+		});
 	}
 
 	/** Add a server and create its retained state store. Transport ownership is centralized. */
@@ -854,6 +900,7 @@ class ServerRegistry {
 		// Dispose state store
 		this.#stores.get(id)?.dispose();
 		this.#stores.delete(id);
+		this.#startedServerNetwork.delete(id);
 
 		// Dispose connection state
 		serverConnectionManager.destroyClient(id);
@@ -901,6 +948,7 @@ class ServerRegistry {
 			eventBusManager.stopBus(id);
 			this.#stores.get(id)?.dispose();
 			this.#stores.delete(id);
+			this.#startedServerNetwork.delete(id);
 			serverConnectionManager.destroyClient(id);
 		}
 	}
@@ -959,6 +1007,7 @@ class ServerRegistry {
 		eventBusManager.stopBus(id);
 		this.#stores.get(id)?.dispose();
 		this.#stores.delete(id);
+		this.#startedServerNetwork.delete(id);
 		serverConnectionManager.destroyClient(id);
 
 		this.sessions.replace(id, data);
@@ -1033,9 +1082,10 @@ class ServerRegistry {
 		const store = this.#stores.get(id);
 		const session = this.sessions.get(id);
 		if (!store || !session) return false;
-		return store.serverInfo.error !== null || Boolean(
+		return store.serverInfo.error !== null ||
+			(this.isOriginServer(id) && store.startupPresentationOnly) || Boolean(
 			session.token && session.reauthRequiredAt === null &&
-			!store.currentUser.user && !store.currentUser.loading
+			(!store.currentUser.user || store.startupPresentationOnly) && !store.currentUser.loading
 		);
 	}
 
@@ -1043,16 +1093,35 @@ class ServerRegistry {
 	async recoverServer(id: string): Promise<void> {
 		const store = this.#stores.get(id);
 		if (!store) return;
+		this.startServerNetwork(id);
 		if (store.serverInfo.error !== null) await store.serverInfo.init();
 		if (this.#stores.get(id) !== store || store.serverInfo.error !== null) return;
+		if (this.isOriginServer(id) && store.startupPresentationOnly) {
+			const { loadCurrentUser } = await import('$lib/auth/loadAuth');
+			const user = await loadCurrentUser();
+			if (this.#stores.get(id) !== store || !user) return;
+			store.currentUser.user = user;
+			store.verifyStartupViewer(user.id);
+			const { invalidateAll } = await import('$app/navigation');
+			await invalidateAll();
+			return;
+		}
 		const session = this.sessions.get(id);
-		if (!session?.token || session.reauthRequiredAt !== null || store.currentUser.user) return;
+		if (!session?.token || session.reauthRequiredAt !== null ||
+			(store.currentUser.user && !store.startupPresentationOnly)) return;
 		await store.currentUser.load();
 		// A removed server or changed credential must not receive stale viewer data.
 		if (this.#stores.get(id) !== store || this.sessions.get(id)?.token !== session.token ||
 			this.sessions.get(id)?.reauthRequiredAt !== null) return;
 		const user = this.#stores.get(id)?.currentUser.user;
-		if (user) {
+		if (user && store.currentUser.verifiedUserId === user.id) {
+			if (session.userId && session.userId !== user.id) {
+				this.#replaceServerAuth(id, { ...session, userId: user.id,
+					userLogin: user.login, userDisplayName: user.displayName,
+					userAvatarUrl: user.avatarUrl ?? null });
+				return;
+			}
+			store.verifyStartupViewer(user.id);
 			this.sessions.update(id, {
 				userId: user.id, userLogin: user.login,
 				userDisplayName: user.displayName, userAvatarUrl: user.avatarUrl
@@ -1062,10 +1131,10 @@ class ServerRegistry {
 	}
 
 	/** Create a state store for a server and wire up remote user sync. */
-	#createStore(serverId: string): ServerStateStore {
+	#createStore(serverId: string, startNetwork = true): ServerStateStore {
 		const registration = this.catalog.get(serverId);
 		if (!registration) throw new Error(`Server "${serverId}" not found in catalogue`);
-		const session = this.sessions.ensure(serverId);
+		this.sessions.ensure(serverId);
 		const serverConnection = serverConnectionManager.getClient(serverId);
 		const store = new ServerStateStore(
 			registration,
@@ -1077,45 +1146,9 @@ class ServerRegistry {
 				this.handleAuthenticationRequired(serverId);
 			}
 		);
+		store.networkStartupDeferred = !startNetwork;
 		this.#stores.set(serverId, store);
-
-		const serverUrl = registration.url;
-		store.serverInfo.init().catch((err) => {
-			console.error(`[server:${serverUrl}] unexpected init() rejection`, err);
-		});
-
-		if (session.token === null) {
-			if (!this.isOriginServer(serverId)) {
-				// A remotely synchronized registration carries no credential. It is
-				// ready for the normal remote sign-in flow, not cookie discovery.
-				store.currentUser.user = undefined;
-				store.currentUser.loading = false;
-			}
-			// Cookie auth on the origin is settled by the root load/probe. Leave it
-			// loading here so route guards cannot observe a transient "no user" gap.
-		} else {
-			// Bearer auth (remote) — auto-load the authenticated user via the token.
-			// Catch failures (e.g. unreachable host, CORS) so they don't bubble up
-			// as an unhandled rejection and crash the entire client.
-			store.currentUser
-				.load()
-				.then(() => {
-					const user = store.currentUser.user;
-					if (user) {
-						this.sessions.update(serverId, {
-							userId: user.id,
-							userLogin: user.login,
-							userDisplayName: user.displayName,
-							userAvatarUrl: user.avatarUrl
-						});
-						this.#persist();
-					}
-				})
-				.catch((err) => {
-					console.error(`[server:${serverUrl}] failed to load current user`, err);
-					store.currentUser.loading = false;
-				});
-		}
+		if (startNetwork) this.startServerNetwork(serverId);
 
 		return store;
 	}

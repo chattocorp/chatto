@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearAllSavedViews, clearSavedView, loadSavedView, saveView, type SavedView } from './savedViews';
+import { clearAllSavedViews, clearSavedView, invalidateSavedViewWrites, loadSavedView, saveView, type SavedView } from './savedViews';
 
 function view(serverId: string, userId: string, savedAt = Date.now()): SavedView {
   return {
@@ -34,6 +34,14 @@ describe('device saved views', () => {
   it('expires a view seven days after its last sync', async () => {
     await saveView(view('old', 'alice', Date.now() - 8 * 24 * 60 * 60 * 1000));
     expect(await loadSavedView('old', 'alice')).toBeNull();
+  });
+
+  it('discards a disk read started before a private cache boundary', async () => {
+    await saveView(view('one', 'alice'));
+    const pending = loadSavedView('one', 'alice');
+    invalidateSavedViewWrites();
+
+    expect(await pending).toBeNull();
   });
 
   it('does not replace a newer view with an older tab snapshot', async () => {

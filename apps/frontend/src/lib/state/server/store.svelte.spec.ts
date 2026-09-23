@@ -701,6 +701,36 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.messagesForRoom('R1').rootEvents[0]?.event).toMatchObject({ body: 'Saved message' });
     expect(store.currentUser.user?.displayName).toBe('Alice');
   });
+
+  it('shows a disk view before viewer loading but keeps transport unauthorized', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.restoreSavedView({
+      version: 1,
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    }, true);
+
+    expect(store.currentUser.user?.id).toBe('U1');
+    expect(store.realtimeSync.phase).toBe('stale');
+    expect(store.startupPresentationOnly).toBe(true);
+    expect(store.isAuthenticated).toBe(false);
+    store.verifyStartupViewer('other-viewer');
+    expect(store.isAuthenticated).toBe(false);
+    store.verifyStartupViewer('U1');
+    expect(store.isAuthenticated).toBe(true);
+  });
+
+  it('keeps a dormant registered server unauthenticated until network startup', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.networkStartupDeferred = true;
+
+    expect(store.isAuthenticated).toBe(false);
+    store.networkStartupDeferred = false;
+    expect(store.isAuthenticated).toBe(true);
+  });
 });
 
 describe('ServerStateStore privileged mode', () => {

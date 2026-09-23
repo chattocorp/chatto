@@ -34,7 +34,7 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_TOTAL_BYTES = 8_000_000;
 let purgeGeneration = 0;
 
-/** Fence writes captured before a verified private-content change. */
+/** Fence reads and writes captured before a private-content change. */
 export function invalidateSavedViewWrites(): void {
   purgeGeneration++;
 }
@@ -96,11 +96,13 @@ function validRecord(value: unknown): value is SavedRecord {
 /** Read only a saved view for the exact local server and user. */
 export async function loadSavedView(serverId: string, userId: string | null): Promise<SavedView | null> {
   if (!userId) return null;
+  const generation = purgeGeneration;
   const db = await openDatabase();
   if (!db) return null;
   try {
     const transaction = db.transaction(STORE_NAME, 'readonly');
     const value: unknown = await requestResult(transaction.objectStore(STORE_NAME).get(keyFor(serverId, userId)));
+    if (generation !== purgeGeneration) return null;
     if (!validRecord(value) || value.serverId !== serverId || value.userId !== userId) return null;
     if (Date.now() - value.savedAt >= MAX_AGE_MS) {
       await clearSavedView(serverId, userId);
