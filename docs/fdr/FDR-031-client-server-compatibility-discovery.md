@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -25,6 +25,9 @@ Chatto's pre-1.0 API remains experimental.
 - Servers with non-standard or unparseable versions remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
+- The server context menu and touch sheet explain each active sign-in,
+  connection, and compatibility warning. When an unreachable status and a lost
+  connection describe the same failure, they appear as one warning.
 - Third-party clients own and test their own minimum supported server release.
 - The bundled client shows relative sidebar drag handles only when the server
   version supports relative room-group and sidebar-item moves. Other sidebar

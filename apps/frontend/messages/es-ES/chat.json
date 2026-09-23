@@ -55,6 +55,7 @@
       "version": "Versión {version}",
       "version_unknown": "Versión desconocida",
       "unreachable": "Servidor inaccesible",
+      "connection_unavailable": "Conexión no disponible",
       "compatibility_server_too_old": "Este servidor debe actualizarse a Chatto 0.5 o una versión posterior antes de que esta aplicación pueda conectarse.",
       "compatibility_unknown": "Esta aplicación no puede determinar la compatibilidad a partir de la versión del servidor."
     },
