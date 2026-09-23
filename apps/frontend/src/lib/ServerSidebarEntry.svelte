@@ -86,8 +86,9 @@
   );
   const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
   const compatibility = $derived(stores.serverInfo.compatibility);
+  const awaitingDiscovery = $derived(stores.networkStartupDeferred || stores.serverInfo.loading);
   const compatibilityMessage = $derived.by(() => {
-    if (stores.networkStartupDeferred) return null;
+    if (awaitingDiscovery) return null;
     switch (compatibility.reason) {
       case 'server-too-old':
         return m('chat.server_gutter.compatibility_server_too_old');
@@ -100,7 +101,7 @@
     }
   });
   const compatibilityWarning = $derived(
-    !stores.networkStartupDeferred && compatibility.status !== 'supported'
+    !awaitingDiscovery && compatibility.status !== 'supported'
   );
   const gutterWarning = $derived(compatibilityWarning || serverConnection.showConnectionLostIcon);
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
@@ -287,7 +288,7 @@
           {serverHost}
         </div>
       {/if}
-      {#if !stores.networkStartupDeferred}
+      {#if !awaitingDiscovery}
         <div class="mt-1 flex items-center gap-1.5 text-muted">
           {#if serverUnavailable}
             <span class="iconify icon-[uil--wifi-slash] shrink-0 text-warning" aria-hidden="true"
