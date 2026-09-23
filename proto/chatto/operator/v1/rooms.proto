@@ -21,10 +21,30 @@ message ListRoomsResponse {
   chatto.api.v1.PageInfo page = 2;
 }
 
-// Root-equivalent local room lookup commands.
+// Create one channel room through the local Operator API.
+message CreateRoomRequest {
+  // Required channel name. Chatto applies normal room-name validation.
+  string name = 1;
+  // Optional room description.
+  string description = 2;
+  // Optional group ID. Empty selects the current default group.
+  string group_id = 3;
+}
+
+// The room created by this request.
+message CreateRoomResponse {
+  // The created room, with its stable Chatto ID.
+  chatto.api.v1.Room room = 1;
+}
+
+// Root-equivalent local room commands.
 service OperatorRoomService {
   // Lists channel rooms, including archived rooms, without a user session or
   // room membership. Pages are live reads; changes between requests can shift
   // offsets. The service is available only on the Operator Unix socket.
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  // Creates a channel room as Chatto's system actor. A repeated request for
+  // an existing name returns ALREADY_EXISTS.
+  // The service is available only on the Operator Unix socket.
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
 }

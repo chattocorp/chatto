@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -12,12 +13,46 @@ import (
 
 var operatorRoomCmd = &cobra.Command{
 	Use:   "room",
-	Short: "Find channel rooms through the local operator API",
+	Short: "Find and create channel rooms through the local operator API",
 }
 
 func init() {
 	operatorCmd.AddCommand(operatorRoomCmd)
 	operatorRoomCmd.AddCommand(operatorRoomListCmd())
+	operatorRoomCmd.AddCommand(operatorRoomCreateCmd())
+}
+
+func operatorRoomCreateCmd() *cobra.Command {
+	var name, description, groupID string
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a channel room",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if strings.TrimSpace(name) == "" {
+				return errors.New("--name is required")
+			}
+			client, err := newOperatorRoomClient()
+			if err != nil {
+				return err
+			}
+			resp, err := client.CreateRoom(cmd.Context(), operatorRequest(&operatorv1.CreateRoomRequest{
+				Name: name, Description: description, GroupId: groupID,
+			}))
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			return printOperatorOutput(out, resp.Msg, func() {
+				room := resp.Msg.GetRoom()
+				fmt.Fprintf(out, "%s\t%s\tgroup=%s\tarchived=%t\tdescription=%q\n", room.GetId(), room.GetName(), room.GetGroupId(), room.GetArchived(), room.GetDescription())
+			})
+		},
+	}
+	cmd.Flags().StringVar(&name, "name", "", "channel name")
+	cmd.Flags().StringVar(&description, "description", "", "channel description")
+	cmd.Flags().StringVar(&groupID, "group-id", "", "room group ID (default: first group)")
+	return cmd
 }
 
 func newOperatorRoomClient() (operatorv1connect.OperatorRoomServiceClient, error) {

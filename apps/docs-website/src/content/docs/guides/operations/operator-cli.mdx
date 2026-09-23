@@ -1,11 +1,11 @@
 ---
 title: Operator CLI
-description: Manage accounts and find channel rooms with the local chatto operator CLI.
+description: Manage accounts and channel rooms with the local chatto operator CLI.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-`chatto operator` provides local, root-equivalent account administration and channel room lookup. Use it to create the first account on a server, recover access, or find channel IDs for a script.
+`chatto operator` provides local, root-equivalent account administration and channel room management. Use it to create the first account on a server, recover access, or manage channels from a script.
 
 The CLI talks to the running Chatto server over a Unix socket. It does not connect directly to NATS and does not use a Chatto login, bearer token, cookie, or RBAC role.
 
@@ -120,6 +120,19 @@ chatto operator room list --limit 100 --offset 100
 ```
 
 Rooms appear in room ID order. Human-readable output ends with `total` and `has_more`. Pages are live reads, so room changes between requests can shift offsets. You can repeat the command safely.
+
+## Create a channel room
+
+Create a channel in the first room group, or select a group by ID:
+
+```sh
+chatto operator room create --name "project-chat" --description "Project discussion"
+chatto operator room create --name "team-chat" --group-id GROUP_ID
+```
+
+The command returns the room ID, name, group ID, archived state, and description. Use `--json` when a script needs the full response. Chatto checks the name and description as it does for rooms created in the app.
+
+An import script can save the returned Chatto room ID alongside its source room ID. If the response is lost, use `room list --name` to find the room before creating it again. A repeated create request with the same name returns a conflict.
 
 ## Update a user
 

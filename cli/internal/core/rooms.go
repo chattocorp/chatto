@@ -326,7 +326,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	}
 	createdSeq := seqs[0]
 
-	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name, "group_id", groupID)
+	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "group_id", groupID)
 
 	createdSubject := evtstream.RoomAggregate(room_id).SubjectFor(createdEvent)
 	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(createdSubject, createdSeq)); err != nil {

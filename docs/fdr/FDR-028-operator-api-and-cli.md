@@ -5,7 +5,7 @@
 
 ## Overview
 
-The Operator API gives server operators local, root-equivalent user administration and channel room lookup outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where an action should be attributed to Chatto's system actor rather than a human account.
+The Operator API gives server operators local, root-equivalent user administration and channel room management outside the in-app RBAC model. It exists for bootstrap, recovery, and scripted operations where no suitable user session exists yet or where an action should be attributed to Chatto's system actor rather than a human account.
 
 ## Behavior
 
@@ -20,6 +20,7 @@ The Operator API gives server operators local, root-equivalent user administrati
 - The CLI groups these commands under `chatto operator user ...`, for example `chatto operator user create`, `chatto operator user set-password`, and `chatto operator user role add`.
 - `chatto operator room list` shows active and archived channel rooms without a user session or room membership. Operators can filter by the exact stored name. Each result includes the room ID, name, description, group ID, and archived state.
 - Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.
+- `chatto operator room create` creates a channel as the system actor with normal name and description checks. An omitted group selects the current default group.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
@@ -86,6 +87,12 @@ fixture remains separate so its workload stays comparable.
 **Decision:** Channel lookup includes archived rooms and retains distinct results when names match. It uses room ID order for pages.
 **Why:** A script must recover stable IDs after an interrupted operation. Archived rooms and names that match more than one room must not be hidden or guessed away.
 **Tradeoff:** Offset pages can shift when rooms change during a scan. Scripts can repeat the read and compare IDs.
+
+### 8. Channel creation and import scripts
+
+**Decision:** Channel creation accepts room fields and returns the created room ID. Import scripts keep their own mapping from source IDs to Chatto IDs and use channel lookup to recover from an uncertain response.
+**Why:** Source identity and retry policy belong to each import script. The Operator API provides room creation and lookup without storing external source keys.
+**Tradeoff:** A script must resolve name matches when recovering an ID after a lost response. A repeated create request with the same name returns a conflict.
 
 ## Permissions
 

@@ -32,6 +32,20 @@ func (s *operatorRoomService) ListRooms(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
+func (s *operatorRoomService) CreateRoom(ctx context.Context, req *connect.Request[operatorv1.CreateRoomRequest]) (*connect.Response[operatorv1.CreateRoomResponse], error) {
+	if err := core.ValidateRoomName(req.Msg.GetName()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := core.ValidateRoomDescription(req.Msg.GetDescription()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	room, err := s.api.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&operatorv1.CreateRoomResponse{Room: apiRoom(room)}), nil
+}
+
 // operatorRoomPage retains every exact-name match, including archived rooms,
 // and applies offsets only after ordering by stable room ID.
 func operatorRoomPage(rooms []*evtv1.Room, name string, limit, offset int) ([]*evtv1.Room, int, bool) {

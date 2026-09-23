@@ -81,6 +81,9 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		if _, err := roomClient.ListRooms(ctx, connect.NewRequest(&operatorv1.ListRoomsRequest{})); err != nil {
 			t.Fatalf("OperatorRoomService on operator server: %v", err)
 		}
+		if _, err := roomClient.CreateRoom(ctx, connect.NewRequest(&operatorv1.CreateRoomRequest{Name: "operator-connect-room"})); err != nil {
+			t.Fatalf("OperatorRoomService.CreateRoom on operator server: %v", err)
+		}
 
 		adminClient := adminv1connect.NewAdminUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
 		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
@@ -97,6 +100,9 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		roomClient := operatorv1connect.NewOperatorRoomServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
 		if _, err := roomClient.ListRooms(context.Background(), connect.NewRequest(&operatorv1.ListRoomsRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
 			t.Fatalf("OperatorRoomService on public server err = %v, want unimplemented", err)
+		}
+		if _, err := roomClient.CreateRoom(context.Background(), connect.NewRequest(&operatorv1.CreateRoomRequest{Name: "public-operator-room"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorRoomService.CreateRoom on public server err = %v, want unimplemented", err)
 		}
 	})
 }
