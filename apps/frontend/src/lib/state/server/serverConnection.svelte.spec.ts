@@ -148,6 +148,18 @@ describe('ServerConnection', () => {
     await expect(read).rejects.toMatchObject({ code: Code.Canceled });
   });
 
+  it('cancels an aborted read without sending it after viewer verification', async () => {
+    const client = new ServerConnection(makeConfig());
+    client.pausePrivateRequests();
+    const controller = new AbortController();
+    const read = client.apiConfig.beforePrivateRequest!('ListMembers', controller.signal);
+
+    controller.abort();
+    await expect(read).rejects.toMatchObject({ code: Code.Canceled });
+    client.resumePrivateRequests();
+    client.dispose();
+  });
+
   it('tracks realtime connection status and failed attempts', () => {
     const client = new ServerConnection(makeConfig());
 
