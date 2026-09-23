@@ -163,7 +163,17 @@ redirect_uris = ['${suite}/test/a/authling/callback']
   start(path.join(root, 'bin/authling'), ['run', '--config', path.join(state, 'authling.toml')]);
   console.log('Starting the pinned OpenID conformance suite (first run downloads Docker images)…');
   composeStarted = true;
-  await exec('docker', [...composeArgs, 'up', '-d'], { env, timeout: 300_000 });
+  try {
+    await exec('docker', [...composeArgs, 'up', '-d'], { env, timeout: 300_000 });
+  } catch (error) {
+    // Compose output can include deployment settings. Report only fixed failure
+    // categories so CI can identify an unavailable image without exposing them.
+    const detail = String(error.stderr ?? '');
+    const safeMessage = /manifest unknown|not found|pull access denied|unauthorized/i.test(detail)
+      ? 'A pinned conformance image is unavailable from its registry.'
+      : 'Conformance containers could not start. Check Docker Compose and pinned images.';
+    throw Object.assign(new Error(safeMessage), { safeMessage });
+  }
   await ready(`${suite}/api/plan?length=1`);
   await ready(`${issuer}/.well-known/openid-configuration`);
   if (automated) {

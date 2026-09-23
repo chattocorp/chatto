@@ -8,7 +8,7 @@ services:
     logging: {driver: none}
 
   server:
-    image: registry.gitlab.com/openid/conformance-suite@sha256:606dd8e8e0ba7610fbc40cb8e087b1742493dbb4f7bc1e789e319a0e4f02991d
+    image: registry.gitlab.com/openid/conformance-suite@sha256:51f331917f7193ae322636da664b39a1518727a1c67ef25817d1a33437dc0814
     environment:
       BASE_URL: https://conformance.localhost:8443
       MONGODB_HOST: mongodb
@@ -20,7 +20,7 @@ services:
     depends_on: [mongodb]
     logging: {driver: none}
   nginx:
-    image: registry.gitlab.com/openid/conformance-suite/nginx@sha256:1c2a0b96be21d2a3aad804157073c7a36b2addd9e32a04908ee0aa3bb7c76b4c
+    image: registry.gitlab.com/openid/conformance-suite/nginx@sha256:7cc20e018f6c42bbb5b24f67b2e971ad66e06bb25706f452ad22edd5f8dcc4c3
     extra_hosts: ['host.docker.internal:host-gateway']
     ports: ['127.0.0.1:8443:8443', '127.0.0.1:9443:9443']
     volumes:
