@@ -112,12 +112,12 @@ Server shutdown marks active runs interrupted. Runs are process-local: restart
 preserves their history, but does not restore workflows, state, or agent sessions.
 New inputs start new runs.
 
-Select **Activity** in a run to read events in time order, with elapsed times and
-task prefixes. Agent text, task updates, and command output appear directly in
-the log. The view follows new events until you scroll up; select **Follow latest**
-to return to the bottom.
-Large histories initially show the latest 500 rows. Select **Show earlier activity**
-to read more. Timeline remains the default view.
+Select a run to read its recorded log lines. The **Log** view opens by default
+and follows new lines. Scroll up to pause following, then select **Follow latest**
+to return to the bottom. Large logs first show the latest 500 lines; select
+**Show earlier logs** to read more. Use the **Timeline** tab to inspect task
+timing. Open **Run details** for the input, result, and token usage.
+Long log lines show up to four rows. Select a long line to expand or collapse it.
 
 The terminal shows compact, colored diagnostics and a single ready line with
 the console URL. Set `NO_COLOR` to disable colors in server and workflow logs. Structured server

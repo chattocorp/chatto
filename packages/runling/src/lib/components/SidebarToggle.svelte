@@ -1,7 +1,7 @@
 <script lang="ts">
   let { expanded, onclick }: { expanded: boolean; onclick: () => void } =
     $props();
-  let label = $derived(expanded ? "Collapse sidebars" : "Expand sidebars");
+  let label = $derived(expanded ? "Hide runs sidebar" : "Show runs sidebar");
 </script>
 
 <button
@@ -12,7 +12,7 @@
   title={`${label} (Cmd/Ctrl+B)`}
   aria-keyshortcuts="Meta+b Control+b"
   aria-expanded={expanded}
-  aria-controls="webhook-sidebar runs-sidebar"
+  aria-controls="runs-sidebar"
 >
   <svg
     class="stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]"

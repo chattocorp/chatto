@@ -5,7 +5,10 @@ import { flattenActivities } from "./timeline-layout.ts";
 export function summarizeRunActivity(run: RunDetail): RunActivity | null {
   if (run.status !== "running") return null;
   const rows = flattenActivities(buildTimeline(run.events, run.status), new Set());
-  const current = rows.map(({ node }) => node).filter((node) =>
+  // Conversation turns and input waits share a timeline lane, but remain
+  // separate activities when we decide whether the run is doing work.
+  const activities = rows.flatMap(({ node }) => [node, ...(node.segments ?? [])]);
+  const current = activities.filter((node) =>
     node.status === "running" && (isActivityActive(node) || node.kind === "input"),
   );
   // Prefer an input wait, then the activity with the latest update.
@@ -24,9 +27,9 @@ export function summarizeRunActivity(run: RunDetail): RunActivity | null {
     }
   }
   selected ??= current.at(-1);
-  let parent = rows.find(({ node }) => node.id === selected?.parent)?.node;
+  let parent = activities.find((node) => node.id === selected?.parent);
   while (parent && parent.kind !== "step") {
-    parent = rows.find(({ node }) => node.id === parent?.parent)?.node;
+    parent = activities.find((node) => node.id === parent?.parent);
   }
   return selected ? {
     label: selected.label,
@@ -36,4 +39,9 @@ export function summarizeRunActivity(run: RunDetail): RunActivity | null {
     pendingInputs: current.filter(node => node.kind === "input").length,
     parallel: current.filter(node => node.kind !== "input" && node !== selected).length,
   } : null;
+}
+
+/** An open input request is idle only when no other leaf activity is running. */
+export function isRunWaiting(activity: RunActivity | null | undefined): boolean {
+  return !!activity?.waiting && activity.pendingInputs > 0 && activity.parallel === 0;
 }

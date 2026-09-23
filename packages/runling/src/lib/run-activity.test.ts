@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { emptyTokenUsage, type RunlingEvent } from "runling";
-import { summarizeRunActivity } from "./run-activity.ts";
+import { isRunWaiting, summarizeRunActivity } from "./run-activity.ts";
 import type { RunDetail } from "./runs.ts";
 
 function run(events: RunlingEvent[]): RunDetail {
@@ -33,6 +33,27 @@ test("gives input waits priority over agent updates", () => {
     { type: "agent.progress", agentId: "b", text: "Still checking", timestamp: 50 },
   ]));
   expect(activity).toMatchObject({label: "Choose a target", step: "Review change", waiting: true, parallel: 2});
+  expect(isRunWaiting(activity)).toBe(false);
+});
+
+test("recognizes an idle input wait inside a conversation lane", () => {
+  const conversation: RunlingEvent[] = [
+    { type: "step.started", id: "chat", label: "Conversation", timestamp: 0 },
+    { type: "conversation.started", activityId: "chat", timestamp: 1 },
+    { type: "agent.started", agentId: "bot", model: "test", color: "blue", activityId: "chat", timestamp: 2 },
+    { type: "agent.finished", agentId: "bot", outcome: "completed", usage: emptyTokenUsage(), activityId: "chat", timestamp: 3 },
+    { type: "input.requested", id: "next", message: "Waiting for a message", activityId: "chat", timestamp: 4 },
+  ];
+  const waiting = summarizeRunActivity(run(conversation));
+  expect(waiting).toMatchObject({ label: "Waiting for a message", waiting: true, pendingInputs: 1, parallel: 0 });
+  expect(isRunWaiting(waiting)).toBe(true);
+
+  conversation.push({ type: "step.started", id: "other", label: "Parallel work", timestamp: 5 });
+  expect(isRunWaiting(summarizeRunActivity(run(conversation)))).toBe(false);
+  conversation.push({ type: "step.finished", id: "other", status: "completed", durationMs: 1, timestamp: 6 });
+  expect(isRunWaiting(summarizeRunActivity(run(conversation)))).toBe(true);
+  conversation.push({ type: "input.finished", id: "next", status: "answered", value: "New message", durationMs: 3, activityId: "chat", timestamp: 7 });
+  expect(isRunWaiting(summarizeRunActivity(run(conversation)))).toBe(false);
 });
 
 test("handles step-only work, startup, and finished runs", () => {
