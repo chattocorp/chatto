@@ -47,7 +47,7 @@ const (
 type AssetUploadCreateInput struct {
 	// ActorID is the authenticated user for a public upload or the mapped asset
 	// owner for an operator upload. The operator fact uses SystemActorID.
-	ActorID     string
+	ActorID string
 	// Operator is set only by the private Operator API handler.
 	Operator    bool
 	RoomID      string
@@ -58,7 +58,7 @@ type AssetUploadCreateInput struct {
 }
 
 type AssetUploadChunkInput struct {
-	ActorID     string
+	ActorID string
 	// Operator selects a private upload session and requires SystemActorID.
 	Operator    bool
 	UploadID    string
@@ -68,23 +68,23 @@ type AssetUploadChunkInput struct {
 }
 
 type AssetUploadCompleteInput struct {
-	ActorID  string
+	ActorID string
 	// Operator selects a private upload session and requires SystemActorID.
 	Operator bool
 	UploadID string
 }
 
 type AssetUploadCancelInput struct {
-	ActorID  string
+	ActorID string
 	// Operator selects a private upload session and requires SystemActorID.
 	Operator bool
 	UploadID string
 }
 
 type AssetUploadSession struct {
-	UploadID        string            `json:"upload_id"`
+	UploadID string `json:"upload_id"`
 	// ActorID owns the asset, including when the upload was started by an operator.
-	ActorID         string            `json:"actor_id"`
+	ActorID string `json:"actor_id"`
 	// Operator prevents public upload calls from using this session.
 	Operator        bool              `json:"operator,omitempty"`
 	RoomID          string            `json:"room_id"`
