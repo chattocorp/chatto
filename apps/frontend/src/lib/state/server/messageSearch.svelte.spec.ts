@@ -6,9 +6,6 @@ import type {
   MessageSearchStatus
 } from '$lib/api-client/messageSearch';
 import { RoomKind } from '$lib/api-client/roomDirectory';
-import { queryClient } from '$lib/query/client';
-import { refreshRegisteredServerQueries } from '$lib/query/cacheRegistry';
-import { onlineManager } from '@tanstack/svelte-query';
 import { MessageSearchOrder, MessageSearchState, MessageSearchStore } from './messageSearch.svelte';
 
 function result(id: string): MessageSearchResult {
@@ -61,20 +58,6 @@ describe('MessageSearchStore', () => {
     expect(client.searchMessages).toHaveBeenCalledOnce();
   });
 
-  it('ends loading when viewer access changes before search starts', async () => {
-    let canLoad = true;
-    const client = api();
-    const store = new MessageSearchStore(client, () => canLoad);
-
-    const search = store.search({ query: 'hello', order: MessageSearchOrder.RELEVANCE });
-    canLoad = false;
-    await search;
-
-    expect(client.searchMessages).not.toHaveBeenCalled();
-    expect(store.loading).toBe(false);
-    expect(store.results).toEqual([]);
-  });
-
   it('reauthorizes the active search and fences a late page without losing its input', async () => {
     let resolveOld!: (value: MessageSearchPage) => void;
     const oldPage = new Promise<MessageSearchPage>((resolve) => { resolveOld = resolve; });
@@ -99,9 +82,7 @@ describe('MessageSearchStore', () => {
     expect(store.results.map((item) => item.id)).toEqual(['permitted']);
     expect(store.query).toBe(' hello ');
     expect(store.nextCursor).toBeNull();
-    expect(client.searchMessages).toHaveBeenLastCalledWith(input, {
-      signal: expect.any(AbortSignal)
-    });
+    expect(client.searchMessages).toHaveBeenLastCalledWith(input);
   });
 
   it('loads availability only once', async () => {
@@ -131,12 +112,8 @@ describe('MessageSearchStore', () => {
     await store.search(input);
     await store.loadMore();
 
-    expect(client.searchMessages).toHaveBeenNthCalledWith(1, input, {
-      signal: expect.any(AbortSignal)
-    });
-    expect(client.searchMessages).toHaveBeenNthCalledWith(2, { ...input, cursor: 'next' }, {
-      signal: expect.any(AbortSignal)
-    });
+    expect(client.searchMessages).toHaveBeenNthCalledWith(1, input);
+    expect(client.searchMessages).toHaveBeenNthCalledWith(2, { ...input, cursor: 'next' });
     expect(store.results.map((item) => item.id)).toEqual(['one', 'two']);
     expect(store.nextCursor).toBeNull();
     expect(store.query).toBe('hello');
@@ -159,7 +136,6 @@ describe('MessageSearchStore', () => {
       query: 'old',
       order: MessageSearchOrder.RELEVANCE
     });
-    await vi.waitFor(() => expect(client.searchMessages).toHaveBeenCalledOnce());
     await store.search({ query: 'new', order: MessageSearchOrder.NEWEST });
     resolveFirst(page([result('old')], null));
     await older;
@@ -255,10 +231,10 @@ describe('MessageSearchStore', () => {
       { preserveQuery: true }
     );
 
-    expect(client.searchMessages).toHaveBeenCalledWith(
-      { query: 'hello', order: MessageSearchOrder.RELEVANCE },
-      { signal: expect.any(AbortSignal) }
-    );
+    expect(client.searchMessages).toHaveBeenCalledWith({
+      query: 'hello',
+      order: MessageSearchOrder.RELEVANCE
+    });
     expect(store.query).toBe('hello ');
   });
 
@@ -345,7 +321,6 @@ describe('MessageSearchStore', () => {
       roomId: 'room-1',
       order: MessageSearchOrder.RELEVANCE
     });
-    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledOnce());
 
     store.invalidateRoom('room-1');
     await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['fresh']));
@@ -374,7 +349,6 @@ describe('MessageSearchStore', () => {
     expect(store.nextCursor).toBeNull();
 
     store.invalidateAuthor('user-1');
-    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledTimes(3));
     await vi.waitFor(() => expect(store.results).toEqual([]));
     expect(store.query).toBe('hello');
     expect(searchMessages).toHaveBeenCalledTimes(3);
@@ -393,7 +367,6 @@ describe('MessageSearchStore', () => {
       query: 'hello',
       order: MessageSearchOrder.RELEVANCE
     });
-    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledOnce());
     store.invalidateMessage('room-1', 'new-message');
     await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['fresh']));
     resolveSearch(page([result('stale')], null));
@@ -417,7 +390,6 @@ describe('MessageSearchStore', () => {
       query: 'hello',
       order: MessageSearchOrder.RELEVANCE
     });
-    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledOnce());
     store.refreshRetainedResults();
 
     await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['fresh']));
@@ -426,88 +398,5 @@ describe('MessageSearchStore', () => {
 
     expect(store.results.map((item) => item.id)).toEqual(['fresh']);
     expect(searchMessages).toHaveBeenCalledTimes(2);
-  });
-
-  it('keeps transient pages in the session query and removes them on clear', async () => {
-    const store = new MessageSearchStore(api(), () => true, {
-      serverId: 'remote', queryScope: 'connection-1'
-    });
-    await store.search({ query: 'hello', order: MessageSearchOrder.RELEVANCE });
-
-    const key = queryClient.getQueryCache().findAll({
-      queryKey: ['server', 'remote', 'session', 'connection-1', 'message-search']
-    })[0]?.queryKey;
-    expect(key).toBeDefined();
-    expect(queryClient.getQueryData(key!)).toMatchObject({ pages: [{ results: [{ id: 'one' }] }] });
-
-    store.clearResults();
-    expect(queryClient.getQueryData(key!)).toBeUndefined();
-  });
-
-  it('removes cached plaintext before refreshing permissions', async () => {
-    let finishRefresh!: (value: MessageSearchPage) => void;
-    const refreshedPage = new Promise<MessageSearchPage>((resolve) => { finishRefresh = resolve; });
-    const searchMessages = vi.fn()
-      .mockResolvedValueOnce(page([result('private')], null))
-      .mockReturnValueOnce(refreshedPage);
-    const store = new MessageSearchStore(api({ searchMessages }), () => true, {
-      serverId: 'remote', queryScope: 'connection-2'
-    });
-    await store.search({ query: 'private', order: MessageSearchOrder.RELEVANCE });
-    const key = queryClient.getQueryCache().findAll({
-      queryKey: ['server', 'remote', 'session', 'connection-2', 'message-search']
-    })[0]?.queryKey;
-    expect(queryClient.getQueryData(key!)).toBeDefined();
-
-    store.refreshPermissions();
-    expect(store.results).toEqual([]);
-    expect(queryClient.getQueryData(key!)).toBeUndefined();
-    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledTimes(2));
-    finishRefresh(page([], null));
-    await vi.waitFor(() => expect(store.loading).toBe(false));
-    store.reset();
-  });
-
-  it('keeps newly authorized search results when snapshot queries also refresh', async () => {
-    const searchMessages = vi.fn()
-      .mockResolvedValueOnce(page([result('old')], null))
-      .mockResolvedValueOnce(page([result('current')], null));
-    const store = new MessageSearchStore(api({ searchMessages }), () => true, {
-      serverId: 'remote', queryScope: 'connection-3'
-    });
-    await store.search({ query: 'hello', order: MessageSearchOrder.RELEVANCE });
-
-    store.refreshPermissions();
-    await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['current']));
-    await refreshRegisteredServerQueries('remote');
-
-    expect(store.results.map((item) => item.id)).toEqual(['current']);
-    expect(searchMessages).toHaveBeenCalledTimes(2);
-    store.reset();
-  });
-
-  it('does not report no results while the first page is paused offline', async () => {
-    const client = api();
-    const store = new MessageSearchStore(client, () => true, {
-      serverId: 'remote', queryScope: 'connection-4'
-    });
-    queryClient.mount();
-    onlineManager.setOnline(false);
-    try {
-      const search = store.search({ query: 'hello', order: MessageSearchOrder.RELEVANCE });
-      await vi.waitFor(() => expect(queryClient.getQueryCache().findAll({
-        queryKey: ['server', 'remote', 'session', 'connection-4', 'message-search']
-      })).toHaveLength(1));
-      expect(client.searchMessages).not.toHaveBeenCalled();
-      expect(store.loading).toBe(true);
-
-      onlineManager.setOnline(true);
-      await search;
-      expect(store.results.map((item) => item.id)).toEqual(['one']);
-    } finally {
-      onlineManager.setOnline(true);
-      store.reset();
-      queryClient.unmount();
-    }
   });
 });

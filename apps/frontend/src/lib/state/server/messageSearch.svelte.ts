@@ -7,20 +7,18 @@ import {
   type MessageSearchStatus
 } from '$lib/api-client/messageSearch';
 import { SvelteSet } from 'svelte/reactivity';
-import type { MessageSearchQueryHandle } from '$lib/query/messageSearch';
 
 const EMPTY_STATUS: MessageSearchStatus = {
   state: MessageSearchState.UNSPECIFIED,
   retryAfterMs: null
 };
-let nextSearchId = 0;
 
 type MessageSearchOptions = {
   /** Keep the raw, user-visible query while submitting a normalized value. */
   preserveQuery?: boolean;
 };
 
-/** Server-scoped search input, availability, and privacy fences for transient query results. */
+/** Server-scoped search availability and transient query results. */
 export class MessageSearchStore {
   status = $state<MessageSearchStatus>(EMPTY_STATUS);
   statusLoading = $state(false);
@@ -41,18 +39,13 @@ export class MessageSearchStore {
   private statusRequestId = 0;
   private activeInput: Omit<MessageSearchInput, 'cursor'> | null = null;
   private statusPromise: Promise<void> | null = null;
-  private searchQuery: MessageSearchQueryHandle | null = null;
-  private readonly searchId = ++nextSearchId;
   private privacyInvalidationListeners = new SvelteSet<
     (matches: (result: MessageSearchResult) => boolean, force: boolean) => void
   >();
 
   constructor(
     private readonly api: MessageSearchAPI,
-    private readonly canLoad: () => boolean = () => true,
-    private readonly scope: { serverId: string; queryScope: string } = {
-      serverId: 'isolated', queryScope: 'isolated'
-    }
+    private readonly canLoad: () => boolean = () => true
   ) {}
 
   get available(): boolean {
@@ -98,8 +91,6 @@ export class MessageSearchStore {
   ): Promise<void> {
     if (!this.canLoad()) return;
     const requestId = ++this.requestId;
-    this.searchQuery?.dispose();
-    this.searchQuery = null;
     this.activeInput = { ...input };
     this.hasSearched = true;
     if (!preserveQuery) this.query = input.query;
@@ -110,48 +101,39 @@ export class MessageSearchStore {
     this.loadingMore = false;
     this.error = false;
     try {
-      // Keep TanStack out of the app shell until a user opens search.
-      const { startMessageSearchQuery } = await import('$lib/query/messageSearch');
-      if (requestId !== this.requestId) return;
-      if (!this.canLoad()) {
-        this.loading = false;
-        return;
-      }
-      const searchQuery = startMessageSearchQuery(
-        this.api,
-        this.scope.serverId,
-        this.scope.queryScope,
-        this.searchId,
-        input,
-        (state) => {
-          if (requestId !== this.requestId || !this.canLoad()) return;
-          this.results = state.results;
-          this.nextCursor = state.nextCursor;
-          this.loading = state.loading;
-          this.loadingMore = state.loadingMore;
-          this.error = state.error;
-        }
-      );
-      this.searchQuery = searchQuery;
-      await searchQuery.refetch();
+      const page = await this.api.searchMessages(input);
+      if (requestId !== this.requestId || !this.canLoad()) return;
+      this.results = page.results;
+      this.nextCursor = page.nextCursor;
     } catch {
-      if (requestId === this.requestId) {
-        this.error = true;
-        this.loading = false;
-      }
+      if (requestId === this.requestId) this.error = true;
+    } finally {
+      if (requestId === this.requestId) this.loading = false;
     }
   }
 
   async loadMore(): Promise<void> {
     if (!this.canLoad()) return;
-    if (this.loading || this.loadingMore || !this.nextCursor || !this.searchQuery) return;
-    await this.searchQuery.fetchNextPage();
+    if (this.loading || this.loadingMore || !this.nextCursor || !this.activeInput) return;
+    const requestId = ++this.requestId;
+    const cursor = this.nextCursor;
+    this.loadingMore = true;
+    this.error = false;
+    try {
+      const page = await this.api.searchMessages({ ...this.activeInput, cursor });
+      if (requestId !== this.requestId || !this.canLoad()) return;
+      const seen = new SvelteSet(this.results.map((result) => result.id));
+      this.results = [...this.results, ...page.results.filter((result) => !seen.has(result.id))];
+      this.nextCursor = page.nextCursor;
+    } catch {
+      if (requestId === this.requestId) this.error = true;
+    } finally {
+      if (requestId === this.requestId) this.loadingMore = false;
+    }
   }
 
   clearResults(): void {
     this.requestId++;
-    this.searchQuery?.dispose();
-    this.searchQuery = null;
     this.activeInput = null;
     this.results = [];
     this.nextCursor = null;
@@ -166,8 +148,6 @@ export class MessageSearchStore {
   /** Fence older responses and hide results while a replacement query is being composed. */
   prepareQueryChange(): void {
     this.requestId++;
-    this.searchQuery?.dispose();
-    this.searchQuery = null;
     this.activeInput = null;
     this.results = [];
     this.nextCursor = null;
@@ -228,8 +208,6 @@ export class MessageSearchStore {
     if (!force && remaining.length === this.results.length && !hasInFlightRequest) return;
     const input = this.activeInput;
     this.requestId++;
-    this.searchQuery?.dispose();
-    this.searchQuery = null;
     this.results = remaining;
     this.nextCursor = null;
     this.activeInput = null;

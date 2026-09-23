@@ -60,10 +60,7 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async searchMessages(
-      input: MessageSearchInput,
-      options: { signal?: AbortSignal } = {}
-    ): Promise<MessageSearchPage> {
+    async searchMessages(input: MessageSearchInput): Promise<MessageSearchPage> {
       try {
         const response = await search.searchMessages(
           {
@@ -74,9 +71,8 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
             pageSize: input.pageSize ?? 50,
             cursor: input.cursor ?? ''
           },
-          { headers: headers(), signal: options.signal }
+          { headers: headers() }
         );
-        options.signal?.throwIfAborted();
 
         const scoredMessages = response.results.flatMap((result) =>
           result.message ? [{ message: result.message, relevanceScore: result.relevanceScore }] : []
@@ -86,10 +82,9 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
           ...new Set(scoredMessages.map(({ message }) => message.actorId).filter(Boolean))
         ];
         const [roomRows, userRows] = await Promise.all([
-          rooms.batchGetRooms(roomIds, { signal: options.signal }).catch(() => []),
+          rooms.batchGetRooms(roomIds).catch(() => []),
           users.batchGetUsers(actorIds).catch(() => [])
         ]);
-        options.signal?.throwIfAborted();
         const roomsById = new Map(roomRows.map((room) => [room.id, room]));
         const actors = new Map(userRows.map((user) => [user.id, user]));
 

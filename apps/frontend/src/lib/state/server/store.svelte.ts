@@ -326,9 +326,7 @@ export class ServerStateStore {
       roomCommandAPI
     );
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
-    this.messageSearch = new MessageSearchStore(messageSearchAPI, () => this.isAuthenticated, {
-      serverId: this.serverId, queryScope: serverConnection.queryScope
-    });
+    this.messageSearch = new MessageSearchStore(messageSearchAPI, () => this.isAuthenticated);
     this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
 
     // Apply the canonical projection delivered by this server's bus. Transient
@@ -628,9 +626,7 @@ export class ServerStateStore {
         delete this.#roomMessageSearch[oldestRoomId];
       }
     }
-    store = new MessageSearchStore(this.#messageSearchAPI, () => this.isAuthenticated, {
-      serverId: this.serverId, queryScope: this.#serverConnection.queryScope
-    });
+    store = new MessageSearchStore(this.#messageSearchAPI, () => this.isAuthenticated);
     this.#roomMessageSearch[roomId] = store;
     this.#roomMessageSearchRecency.push(roomId);
     return store;
