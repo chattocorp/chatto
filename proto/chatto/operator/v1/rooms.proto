@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package chatto.operator.v1;
+
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/rooms.proto";
+
+// Request a page of channel rooms through the local Operator API.
+message ListRoomsRequest {
+  // Exact stored channel name. Empty lists all channel names.
+  string name = 1;
+  // Offset page. The default limit is 20 and the maximum is 100.
+  chatto.api.v1.PageRequest page = 2;
+}
+
+// Channel rooms and page metadata for an operator lookup.
+message ListRoomsResponse {
+  // Active and archived channel rooms, ordered by stable room ID.
+  repeated chatto.api.v1.Room rooms = 1;
+  // Count and next-page status after the name filter.
+  chatto.api.v1.PageInfo page = 2;
+}
+
+// Root-equivalent local room lookup commands.
+service OperatorRoomService {
+  // Lists channel rooms, including archived rooms, without a user session or
+  // room membership. Pages are live reads; changes between requests can shift
+  // offsets. The service is available only on the Operator Unix socket.
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+}

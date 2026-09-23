@@ -206,8 +206,10 @@ func (a *API) publicHandlerOptions(readMaxBytes int) []connect.HandlerOption {
 func (a *API) OperatorHandlers() []Handler {
 	options := HandlerOptionsForWebserver(a.config.Webserver)
 	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, options...)
+	roomPath, roomHandler := operatorv1connect.NewOperatorRoomServiceHandler(&operatorRoomService{api: a}, options...)
 	handlers := []Handler{
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: roomPath, Handler: roomHandler, AuthPolicy: AuthPolicyPublic},
 	}
 	return append(handlers, a.operatorSeedHandlers(options)...)
 }
