@@ -581,11 +581,10 @@ describe('RoomSidebar', () => {
     await waitForRoomSearchDebounce();
 
     await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledOnce());
-    expect(searchMessages).toHaveBeenCalledWith({
-      query: 'roadmap',
-      roomId: 'room-1',
-      order: MessageSearchOrder.RELEVANCE
-    });
+    expect(searchMessages).toHaveBeenCalledWith(
+      { query: 'roadmap', roomId: 'room-1', order: MessageSearchOrder.RELEVANCE },
+      { signal: expect.any(AbortSignal) }
+    );
     await vi.waitFor(() =>
       expect(container.querySelector('[data-room-search-result-id="message-1"]')).toBeTruthy()
     );
@@ -607,11 +606,10 @@ describe('RoomSidebar', () => {
     await userEvent.fill(input, 'roadmap ');
     await waitForRoomSearchDebounce();
     expect(searchMessages).toHaveBeenCalledOnce();
-    expect(searchMessages).toHaveBeenLastCalledWith({
-      query: 'roadmap',
-      roomId: 'room-1',
-      order: MessageSearchOrder.RELEVANCE
-    });
+    expect(searchMessages).toHaveBeenLastCalledWith(
+      { query: 'roadmap', roomId: 'room-1', order: MessageSearchOrder.RELEVANCE },
+      { signal: expect.any(AbortSignal) }
+    );
     expect(input.value).toBe('roadmap ');
 
     await userEvent.clear(input);
