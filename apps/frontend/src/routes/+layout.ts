@@ -26,7 +26,7 @@ export const load: LayoutLoad = async ({ url, params }) => {
   const routeServerId = params?.serverId ? segmentToServerId(params.serverId) : null;
   const serverId = coldStart ? routeServerId : null;
   const savedUserId = serverId ? serverRegistry.getServer(serverId)?.userId ?? null : null;
-  if (coldStart && params.serverId && serverId && savedUserId &&
+  if (coldStart && params?.serverId && serverId && savedUserId &&
     url.pathname === resolve('/chat/[serverId]', { serverId: params.serverId })) {
     const lastRoomId = getLastRoom(serverId);
     if (lastRoomId) redirect(302, `${resolve('/chat/[serverId]/[roomId]', {

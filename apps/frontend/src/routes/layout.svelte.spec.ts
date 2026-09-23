@@ -9,6 +9,7 @@ import { sidebarNav } from '$lib/state/globals.svelte';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
+    invalidateAll: vi.fn(),
     afterNavigate: vi.fn(),
     beforeNavigate: vi.fn(),
     onNavigate: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('$app/navigation', () => ({
   afterNavigate: mocks.afterNavigate,
   beforeNavigate: mocks.beforeNavigate,
   goto: mocks.goto,
+  invalidateAll: mocks.invalidateAll,
   onNavigate: mocks.onNavigate,
   pushState: vi.fn()
 }));
