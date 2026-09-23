@@ -143,8 +143,8 @@ async function ensureServiceWorkerIsActive(page: Page): Promise<ServiceWorkerReg
       return new Promise((resolve, reject) => {
         const timeout = window.setTimeout(() => {
           navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-          reject(new Error('SvelteKit did not register the service worker'));
-        }, 10_000);
+          reject(new Error('Chatto did not register the service worker'));
+        }, 20_000);
 
         async function onControllerChange() {
           const changed = await navigator.serviceWorker.getRegistration('/');

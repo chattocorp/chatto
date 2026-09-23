@@ -45,7 +45,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 **Decision:** The foreground app registers the root worker after a short startup delay. Push setup reuses that registration for the serving server and registers the same worker script under stable, server-specific narrow scopes for remote-server subscriptions.
 **Why:** Preloading the complete shell during the first navigation delays the page. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let remote servers retain their own VAPID keys without changing which worker controls the application page.
-**Tradeoff:** The offline shell can be unavailable for the first few seconds after a new install. Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. Only the root worker handles shell requests.
+**Tradeoff:** The offline shell becomes available only after the startup delay and cache installation finish. Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. Only the root worker handles shell requests.
 
 ### 4. Protected assets bypass the worker
 

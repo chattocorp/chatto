@@ -36,7 +36,7 @@
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     const timer = setTimeout(() => {
       void navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-    }, 3_000);
+    }, 7_000);
     return () => clearTimeout(timer);
   });
 
