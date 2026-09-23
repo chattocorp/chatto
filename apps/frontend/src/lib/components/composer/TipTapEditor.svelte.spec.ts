@@ -5,6 +5,7 @@ import '../../../app.css';
 import TipTapEditor from './TipTapEditor.svelte';
 import MarkdownEditor from './MarkdownEditor.svelte';
 import type { ComposerEditorApi } from './editorTypes';
+import { renderInlineMarkdown } from '$lib/markdown';
 
 function selectEditorContents(editor: Element) {
   editor.dispatchEvent(
@@ -78,6 +79,120 @@ describe('TipTapEditor accessibility', () => {
     expect(style.userSelect).toBe('text');
     expect(style.caretColor).toBe(style.color);
     expect(container.querySelector('.tiptap-editor')?.classList).toContain('select-text');
+  });
+});
+
+describe('TipTapEditor literal Markdown text', () => {
+  it('preserves typed mentions and backslashes as source text', async () => {
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a message' });
+
+    await userEvent.click(editor);
+    await userEvent.type(editor, '@chatto_bot \\o/');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('@chatto_bot \\o/'));
+  });
+
+  it.each(['@chatto_bot', '\\o/', 'C:\\Users\\foo', '¯\\_(ツ)_/¯'])(
+    'preserves %s when restoring and editing a draft',
+    async (source) => {
+      const readyApis: ComposerEditorApi[] = [];
+      const updates: string[] = [];
+      render(TipTapEditor, {
+        props: {
+          placeholder: 'Write a message',
+          onReady: (api: ComposerEditorApi) => readyApis.push(api),
+          onUpdate: (markdown: string) => updates.push(markdown)
+        }
+      });
+      await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+      const api = readyApis[0]!;
+
+      api.setContent(source);
+      expect(api.getText()).toBe(source);
+      api.focus('end');
+      api.insertText('!');
+
+      await vi.waitFor(() => expect(updates.at(-1)).toBe(`${source}!`));
+      expect(renderInlineMarkdown(updates.at(-1)!)).toContain(`${source}!`);
+    }
+  );
+
+  it('keeps literal emphasis markers visible without creating formatting', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+
+    api.insertText('*literal*');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('&#42;literal&#42;'));
+    expect(renderInlineMarkdown(updates.at(-1)!)).toContain('*literal*');
+    expect(renderInlineMarkdown(updates.at(-1)!)).not.toContain('<em>');
+    expect(container.querySelector('em')).toBeNull();
+    api.setContent(updates.at(-1)!);
+    expect(api.getText()).toBe('*literal*');
+  });
+
+  it('keeps formatting and code while normalizing adjacent literal text', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const source = '**bold** `code_with_underscore` @chatto_bot \\o/';
+
+    api.setContent(source);
+    api.focus('end');
+    api.insertText('!');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe(`${source}!`));
+    const html = renderInlineMarkdown(updates.at(-1)!);
+    expect(html).toContain('<strong>bold</strong>');
+    expect(html).toContain('@chatto_bot \\o/');
+    expect(html).toContain('<code>code_with_underscore</code>');
+  });
+
+  it('preserves literal text pasted into the Visual editor', async () => {
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a message' }).element();
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', '@chatto_bot \\o/');
+
+    editor.dispatchEvent(
+      new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dataTransfer
+      })
+    );
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('@chatto_bot \\o/'));
   });
 });
 
