@@ -147,6 +147,25 @@ describe('TipTapEditor literal Markdown text', () => {
     expect(api.getText()).toBe('*literal*');
   });
 
+  it('keeps literal asterisks inside words from becoming emphasis', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+
+    api.insertText('foo*bar*');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('foo&#42;bar&#42;'));
+    expect(renderInlineMarkdown(updates.at(-1)!)).not.toContain('<em>');
+  });
+
   it('keeps formatting and code while normalizing adjacent literal text', async () => {
     const readyApis: ComposerEditorApi[] = [];
     const updates: string[] = [];
@@ -170,6 +189,30 @@ describe('TipTapEditor literal Markdown text', () => {
     expect(html).toContain('<strong>bold</strong>');
     expect(html).toContain('@chatto_bot \\o/');
     expect(html).toContain('<code>code_with_underscore</code>');
+  });
+
+  it('preserves a Markdown link with underscores in its label and URL', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const source = '[chatto_bot](https://example.com/chatto_bot)';
+
+    api.setContent(source);
+    api.focus('end');
+    api.insertText(' after');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe(`${source} after`));
+    expect(renderInlineMarkdown(updates.at(-1)!)).toContain(
+      'href="https://example.com/chatto_bot"'
+    );
   });
 
   it('preserves literal text pasted into the Visual editor', async () => {
@@ -355,6 +398,30 @@ describe('TipTapEditor wrapping', () => {
 });
 
 describe('TipTapEditor Markdown autolinks', () => {
+  it('preserves underscores in restored Markdown autolinks', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent('<https://example.com/chatto_bot>');
+    api.focus('end');
+    api.insertText(' after');
+
+    await vi.waitFor(() =>
+      expect(updates.at(-1)).toBe('<https://example.com/chatto_bot> after')
+    );
+    expect(renderInlineMarkdown(updates.at(-1)!)).toContain(
+      'href="https://example.com/chatto_bot"'
+    );
+  });
+
   it('preserves a restored angle-bracket autolink after a later edit', async () => {
     const readyApis: ComposerEditorApi[] = [];
     const updates: string[] = [];

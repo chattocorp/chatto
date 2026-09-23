@@ -43,7 +43,8 @@ function decodeSerializedTextEntities(text: string): string {
 
 function transformOutsideMarkdownLinkDestinations(
   text: string,
-  transformText: (text: string) => string
+  transformText: (text: string) => string,
+  transformAutolink?: (autolink: string) => string
 ): string {
   let result = '';
   let index = 0;
@@ -89,26 +90,36 @@ function transformOutsideMarkdownLinkDestinations(
     }
 
     if (destinationEnd >= text.length) {
-      result += transformOutsideMarkdownAutolinks(text.slice(textStart), transformText);
+      result += transformOutsideMarkdownAutolinks(
+        text.slice(textStart),
+        transformText,
+        transformAutolink
+      );
       return result;
     }
 
     result += transformOutsideMarkdownAutolinks(
       text.slice(textStart, destinationContentStart),
-      transformText
+      transformText,
+      transformAutolink
     );
     result += text.slice(destinationContentStart, destinationEnd + 1);
     index = destinationEnd + 1;
     textStart = index;
   }
 
-  result += transformOutsideMarkdownAutolinks(text.slice(textStart), transformText);
+  result += transformOutsideMarkdownAutolinks(
+    text.slice(textStart),
+    transformText,
+    transformAutolink
+  );
   return result;
 }
 
 function transformOutsideMarkdownAutolinks(
   text: string,
-  transformText: (text: string) => string
+  transformText: (text: string) => string,
+  transformAutolink?: (autolink: string) => string
 ): string {
   let result = '';
   let index = 0;
@@ -116,7 +127,7 @@ function transformOutsideMarkdownAutolinks(
 
   for (const match of text.matchAll(autolinkPattern)) {
     result += transformText(text.slice(index, match.index));
-    result += match[0];
+    result += transformAutolink?.(match[0]) ?? match[0];
     index = match.index + match[0].length;
   }
 
@@ -128,15 +139,16 @@ type MarkdownTransformOptions = {
   skipLinkDestinations?: boolean;
   preserveInlineCode?: boolean;
   recognizeEscapedBackticks?: boolean;
+  transformAutolink?: (autolink: string) => string;
 };
 
 function transformMarkdownTextSegment(
   text: string,
   transformText: (text: string) => string,
-  { skipLinkDestinations = false }: MarkdownTransformOptions = {}
+  { skipLinkDestinations = false, transformAutolink }: MarkdownTransformOptions = {}
 ): string {
   return skipLinkDestinations
-    ? transformOutsideMarkdownLinkDestinations(text, transformText)
+    ? transformOutsideMarkdownLinkDestinations(text, transformText, transformAutolink)
     : transformText(text);
 }
 
@@ -384,7 +396,7 @@ function normalizeSerializedTextEscapes(text: string): string {
     if (next === '\\') {
       result += '\\';
     } else if (
-      (next === '_' || next === '*') &&
+      next === '_' &&
       alphanumeric.test(text[index - 1] ?? '') === alphanumeric.test(text[index + 2] ?? '') &&
       text[index - 1] !== next &&
       text[index + 2] !== next
@@ -403,7 +415,8 @@ function normalizeSerializedTextEscapes(text: string): string {
 function normalizeSerializedMarkdownText(markdown: string): string {
   return transformMarkdownOutsideCode(markdown, normalizeSerializedTextEscapes, {
     skipLinkDestinations: true,
-    recognizeEscapedBackticks: true
+    recognizeEscapedBackticks: true,
+    transformAutolink: (autolink) => autolink.replace(/\\([\\`*_[\]~])/g, '$1')
   });
 }
 
