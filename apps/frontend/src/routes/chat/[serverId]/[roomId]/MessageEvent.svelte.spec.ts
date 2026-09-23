@@ -3,11 +3,13 @@ import { flushSync, tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import type { MessageAttachmentView } from '$lib/render/messageAttachments';
 import { q } from '$lib/test-utils';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 
 const mocks = vi.hoisted(() => ({
+  copyImageToClipboard: vi.fn(),
   actions: {
     addReaction: vi.fn(),
     removeReaction: vi.fn(),
@@ -17,6 +19,10 @@ const mocks = vi.hoisted(() => ({
     copyMessageText: vi.fn(),
     copyMessageLink: vi.fn()
   }
+}));
+
+vi.mock('$lib/attachments/copyImage', () => ({
+  copyImageToClipboard: mocks.copyImageToClipboard
 }));
 
 vi.mock('$lib/hooks', async (importOriginal) => {
@@ -54,6 +60,7 @@ type MessageOverrides = Partial<{
   id: string;
   actorId: string;
   body: string;
+  attachments: MessageAttachmentView[];
   threadRootEventId: string | null;
   echoOfEventId: string | null;
   echoFromThreadRootEventId: string | null;
@@ -80,7 +87,7 @@ function messageEvent(overrides: MessageOverrides = {}): TimelineEventView {
       kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: overrides.body ?? 'Hello from this message',
-      attachments: [],
+      attachments: overrides.attachments ?? [],
       linkPreview: null,
       reactions: [
         {
@@ -154,6 +161,56 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('shows Copy Image only for a right-clicked image attachment', async () => {
+    const imageUrl = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+    mocks.copyImageToClipboard.mockResolvedValue(undefined);
+    const image: MessageAttachmentView = {
+      id: 'image-1',
+      filename: 'image.jpg',
+      contentType: 'image/jpeg',
+      width: 800,
+      height: 600,
+      assetUrl: { url: imageUrl, expiresAt: '2027-05-29T15:00:00Z' },
+      thumbnailAssetUrl: null,
+      videoProcessing: null
+    };
+    const firstMessage = messageEvent({ attachments: [image] });
+    const rendered = render(MessageEventTestHarness, { props: { event: firstMessage } });
+    const imageElement = q(rendered.container, '[data-message-image-attachment] img')!;
+    const click = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+
+    imageElement.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeTruthy());
+    expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy();
+    expect(menuButton(rendered.container, 'Copy link')).toBeUndefined();
+
+    menuButton(rendered.container, 'Copy image')!.click();
+    await vi.waitFor(() => expect(mocks.copyImageToClipboard).toHaveBeenCalledWith(imageUrl));
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeUndefined());
+
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Copy image')).toBeUndefined();
+
+    imageElement.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeTruthy());
+    (q(rendered.container, 'button[aria-label="More actions"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeUndefined());
+
+    imageElement.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeTruthy());
+    await rendered.rerender({ event: messageEvent({ id: 'next-message' }) });
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeUndefined());
+
+    await rendered.rerender({ event: firstMessage });
+    expect(menuButton(rendered.container, 'Copy image')).toBeUndefined();
+  });
+
   it('shows Copy Link only for a right-clicked message-body link', async () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });

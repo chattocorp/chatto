@@ -105,8 +105,11 @@
         "copy_text_failed": "Neizdevās nokopēt tekstu",
         "copy_link": "Kopēt saiti",
         "copy_message_link": "Kopēt ziņojuma saiti",
+        "copy_image": "Kopēt attēlu",
         "link_copied": "Saite nokopēta",
-        "copy_link_failed": "Neizdevās nokopēt saiti"
+        "copy_link_failed": "Neizdevās nokopēt saiti",
+        "image_copied": "Attēls nokopēts",
+        "copy_image_failed": "Neizdevās nokopēt attēlu"
       },
       "meta": {
         "echo": "Atbalss",

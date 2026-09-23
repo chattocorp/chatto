@@ -105,8 +105,11 @@
         "copy_text_failed": "Text konnte nicht kopiert werden",
         "copy_link": "Link kopieren",
         "copy_message_link": "Nachrichtenlink kopieren",
+        "copy_image": "Bild kopieren",
         "link_copied": "Link kopiert",
-        "copy_link_failed": "Link konnte nicht kopiert werden"
+        "copy_link_failed": "Link konnte nicht kopiert werden",
+        "image_copied": "Bild kopiert",
+        "copy_image_failed": "Bild konnte nicht kopiert werden"
       },
       "meta": {
         "echo": "Echo",

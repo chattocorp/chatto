@@ -105,8 +105,11 @@
         "copy_text_failed": "Failed to copy text",
         "copy_link": "Copy link",
         "copy_message_link": "Copy message link",
+        "copy_image": "Copy image",
         "link_copied": "Link copied",
-        "copy_link_failed": "Failed to copy link"
+        "copy_link_failed": "Failed to copy link",
+        "image_copied": "Image copied",
+        "copy_image_failed": "Failed to copy image"
       },
       "meta": {
         "echo": "Echo",

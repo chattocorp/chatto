@@ -136,10 +136,13 @@
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
   let contextLink = $state<{ eventId: string; url: string } | null>(null);
+  let contextImage = $state<{ eventId: string; url: string } | null>(null);
   const contextLinkUrl = $derived(contextLink?.eventId === event?.id ? contextLink.url : null);
+  const contextImageUrl = $derived(contextImage?.eventId === event?.id ? contextImage.url : null);
   // Virtualized rows can receive another message while their menu is still open.
   $effect(() => {
     if (contextLink && contextLink.eventId !== event?.id) contextLink = null;
+    if (contextImage && contextImage.eventId !== event?.id) contextImage = null;
   });
 
   const messageActions = useMessageActions();
@@ -195,6 +198,7 @@
   // positioned to cover the toolbar exactly.
   function openMenuFromToolbar(e: MouseEvent) {
     contextLink = null;
+    contextImage = null;
     selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
     interactions.openContextMenuFromToolbar(e);
   }
@@ -209,6 +213,10 @@
       anchor instanceof HTMLAnchorElement && messageBodySelectionRoot?.contains(anchor)
         ? { eventId: event.id, url: anchor.href }
         : null;
+    const imageButton =
+      e.target instanceof Element ? e.target.closest('[data-message-image-attachment]') : null;
+    const image = imageButton?.querySelector('img');
+    contextImage = image?.src ? { eventId: event.id, url: image.currentSrc || image.src } : null;
     selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
     interactions.openContextMenuAtPointer(e);
   }
@@ -776,8 +784,10 @@
       {interactions}
       action={actionModel}
       linkUrl={contextLinkUrl}
+      imageUrl={contextImageUrl}
       onClose={() => {
         contextLink = null;
+        contextImage = null;
         discardSelectedReplyQuote();
       }}
     />

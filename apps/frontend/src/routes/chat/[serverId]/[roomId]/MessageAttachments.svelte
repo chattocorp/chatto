@@ -463,6 +463,7 @@
       <button
         type="button"
         onclick={() => openAttachmentModal(attachment)}
+        data-message-image-attachment
         aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
