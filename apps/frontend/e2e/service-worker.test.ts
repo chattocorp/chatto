@@ -85,8 +85,15 @@ test('offline reload restores saved text in the normal chat view', async ({ page
   let releaseViewer: () => void = () => {};
   const viewerHeld = new Promise<void>((resolve) => { releaseViewer = resolve; });
   const realtimeSockets: string[] = [];
+  const privateRequests: string[] = [];
   page.on('websocket', (socket) => {
     if (socket.url().includes('/api/realtime')) realtimeSockets.push(socket.url());
+  });
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/api/connect/') &&
+      !path.endsWith('/ViewerService/GetViewer') &&
+      !path.endsWith('/ServerDiscoveryService/GetServer')) privateRequests.push(path);
   });
   await page.route('**/ViewerService/GetViewer', async (route) => {
     await viewerHeld;
@@ -97,6 +104,7 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     await expect(page.getByText(message)).toBeVisible();
     expect(realtimeSockets).toHaveLength(0);
+    expect(privateRequests).toHaveLength(0);
   } finally {
     releaseViewer();
     await page.unroute('**/ViewerService/GetViewer');

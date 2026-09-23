@@ -1081,7 +1081,7 @@ class ServerRegistry {
 	needsRecovery(id: string): boolean {
 		const store = this.#stores.get(id);
 		const session = this.sessions.get(id);
-		if (!store || !session) return false;
+		if (!store || !session || store.networkStartupDeferred) return false;
 		return store.serverInfo.error !== null ||
 			(this.isOriginServer(id) && store.startupPresentationOnly) || Boolean(
 			session.token && session.reauthRequiredAt === null &&

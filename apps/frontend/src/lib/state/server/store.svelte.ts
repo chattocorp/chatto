@@ -325,8 +325,8 @@ export class ServerStateStore {
       roomCommandAPI
     );
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
-    this.messageSearch = new MessageSearchStore(messageSearchAPI);
-    this.mentionRoles = new MentionRolesStore(roleAPI);
+    this.messageSearch = new MessageSearchStore(messageSearchAPI, () => this.isAuthenticated);
+    this.mentionRoles = new MentionRolesStore(roleAPI, () => this.isAuthenticated);
 
     // Apply the canonical projection delivered by this server's bus. Transient
     // envelopes are consumed only by components that need one-shot signals.
@@ -533,12 +533,13 @@ export class ServerStateStore {
     if (!room || room.archived) throw new Error('Conversation is unavailable');
   }
 
-  /** Stable room timeline owner used by routes as a rendering selector. */
-  messagesForRoom(roomId: string): MessagesStore {
+  /** Stable room timeline owner. Disk projection restoration skips the initial API read. */
+  messagesForRoom(roomId: string, fromSavedProjection = false): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
     store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.setRoom(roomId);
+    if (fromSavedProjection) store.awaitRoomProjection(roomId);
+    else store.setRoom(roomId);
     this.#roomMessages[roomId] = store;
     return store;
   }
@@ -624,7 +625,7 @@ export class ServerStateStore {
         delete this.#roomMessageSearch[oldestRoomId];
       }
     }
-    store = new MessageSearchStore(this.#messageSearchAPI);
+    store = new MessageSearchStore(this.#messageSearchAPI, () => this.isAuthenticated);
     this.#roomMessageSearch[roomId] = store;
     this.#roomMessageSearchRecency.push(roomId);
     return store;
@@ -694,19 +695,23 @@ export class ServerStateStore {
     this.#recentSavedRoomIds = view.rooms.filter((room) => room.messages.length > 0).map((room) => room.id);
     if (this.realtimeSync.phase === 'empty' &&
       (beforeConnection || (!this.currentUser.loading && !this.currentUser.user))) {
-      if (beforeConnection) this.startupPresentationOnly = true;
+      this.startupPresentationOnly = true;
+      this.#serverConnection.pausePrivateRequests();
       this.restoreSavedProjection(view);
     }
   }
 
   /** Permit transport work only after the server confirms the saved viewer. */
   verifyStartupViewer(userId: string): void {
-    if (this.startupPresentationOnly && this.savedView?.userId === userId)
+    if (this.startupPresentationOnly && this.savedView?.userId === userId) {
       this.startupPresentationOnly = false;
+      this.#serverConnection.resumePrivateRequests();
+    }
   }
 
   /** Remove saved device content, including a normal view restored from that content. */
   clearSavedPresentation(): void {
+    this.#serverConnection.cancelPrivateRequests();
     this.savedView = null;
     this.#recentSavedRoomIds = [];
     this.startupPresentationOnly = false;
@@ -763,7 +768,7 @@ export class ServerStateStore {
           }) }
         });
       });
-      this.messagesForRoom(room.id).replaceRoomProjectionPage(room.id, new RoomTimelinePage({
+      this.messagesForRoom(room.id, true).replaceRoomProjectionPage(room.id, new RoomTimelinePage({
         events,
         includes: { users }
       }));

@@ -2,7 +2,30 @@
 
 import { Code, ConnectError } from '@connectrpc/connect';
 import { describe, expect, it, vi } from 'vitest';
-import { bearerRenewalInterceptor, dataGenerationInterceptor, StaleResponseError } from './connect';
+import {
+  bearerRenewalInterceptor,
+  dataGenerationInterceptor,
+  privateRequestInterceptor,
+  StaleResponseError
+} from './connect';
+
+describe('saved-view private request boundary', () => {
+  it('allows viewer verification and gates other private calls', async () => {
+    const beforeRequest = vi.fn(async () => {});
+    const next = vi.fn(async () => ({ message: {} }));
+    const invoke = privateRequestInterceptor(beforeRequest)(next as never);
+    const signal = new AbortController().signal;
+
+    await invoke({ service: { typeName: 'chatto.api.v1.ViewerService' },
+      method: { name: 'GetViewer' }, signal } as never);
+    expect(beforeRequest).not.toHaveBeenCalled();
+
+    await invoke({ service: { typeName: 'chatto.api.v1.RoomService' },
+      method: { name: 'ListMembers' }, signal } as never);
+    expect(beforeRequest).toHaveBeenCalledOnce();
+    expect(beforeRequest).toHaveBeenCalledWith('ListMembers', signal);
+  });
+});
 
 describe('private data response boundary', () => {
   it('discards a delayed read while allowing another connection to finish', async () => {

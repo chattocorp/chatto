@@ -29,9 +29,10 @@ export const load: LayoutLoad = async ({ url, params }) => {
   if (coldStart && params?.serverId && serverId && savedUserId &&
     url.pathname === resolve('/chat/[serverId]', { serverId: params.serverId })) {
     const lastRoomId = getLastRoom(serverId);
-    if (lastRoomId) redirect(302, `${resolve('/chat/[serverId]/[roomId]', {
-      serverId: params.serverId, roomId: lastRoomId
-    })}${url.search}`);
+    const landing = lastRoomId
+      ? resolve('/chat/[serverId]/[roomId]', { serverId: params.serverId, roomId: lastRoomId })
+      : resolve('/chat/[serverId]/overview', { serverId: params.serverId });
+    redirect(302, `${landing}${url.search}`);
   }
   initialLoad = false;
   let startupSavedView: SavedView | null = null;
@@ -63,7 +64,7 @@ export const load: LayoutLoad = async ({ url, params }) => {
   // This is idempotent across SPA navigations.
   const savedStartupServerId = routeServerId &&
     serverRegistry.tryGetStore(routeServerId)?.startupPresentationOnly ? routeServerId : null;
-  serverRegistry.init(Boolean(savedStartupServerId));
+  serverRegistry.init(true);
   if (savedStartupServerId) serverRegistry.startServerNetwork(savedStartupServerId);
   const [, serverInfo, user] = await Promise.all([
     publicLocalePromise ?? preloadPublicLocaleMessages(),

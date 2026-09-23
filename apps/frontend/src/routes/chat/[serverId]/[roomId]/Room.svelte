@@ -202,6 +202,7 @@
   });
 
   $effect(() => {
+    if (!stores.isAuthenticated) return;
     void stores.mentionRoles.refresh();
   });
 
@@ -388,7 +389,8 @@
           stores.messageSearch.status.state !== MessageSearchState.DISABLED))
   );
   $effect(() => {
-    if (supportsMessageSearch) void stores.messageSearch.ensureStatus();
+    if (supportsMessageSearch && stores.isAuthenticated)
+      void stores.messageSearch.ensureStatus();
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);

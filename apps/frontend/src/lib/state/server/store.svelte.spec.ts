@@ -362,6 +362,9 @@ import type { RegisteredServer } from './registry.svelte';
 
 class FakeServerConnection {
   invalidatePrivateData = vi.fn();
+  pausePrivateRequests = vi.fn();
+  resumePrivateRequests = vi.fn();
+  cancelPrivateRequests = vi.fn();
   serverId = 'store-event-test';
   connectBaseUrl = 'https://store-event.test';
   reconnectCount = $state(0);
@@ -700,6 +703,10 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.projection.rooms.get('R1')?.room?.name).toBe('general');
     expect(store.messagesForRoom('R1').rootEvents[0]?.event).toMatchObject({ body: 'Saved message' });
     expect(store.currentUser.user?.displayName).toBe('Alice');
+    expect(store.startupPresentationOnly).toBe(true);
+    expect(store.isAuthenticated).toBe(false);
+    const timeline = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)?.value;
+    expect(timeline?.getRoomEvents).not.toHaveBeenCalled();
   });
 
   it('shows a disk view before viewer loading but keeps transport unauthorized', () => {

@@ -17,17 +17,19 @@ On an initial chat route with a saved view for the registered server and user,
 the client creates its stores without network work and restores that view into
 the normal chat layout. It starts discovery and viewer checks after the first
 paint for the selected server. Other registered servers start discovery when
-the user opens them. The saved viewer remains display data and cannot authorize
-server actions or a realtime connection. A successful viewer check releases this
-startup gate only for the same user. An account change clears the old private
-view through the existing session replacement boundary.
+the user opens them. The saved viewer remains display data. While its viewer
+check is pending, the connection holds private reads and rejects server
+actions. It allows the viewer check to proceed. A successful check releases
+the held reads and realtime startup only for the same user. An account change
+clears the old private view through the existing session replacement boundary.
 
 Message permalinks use live startup because their target can be outside the
 bounded saved window. The client resolves that target after the live viewer
 and room state are ready.
 
 The installed app opens the origin chat route so an offline launch can use
-that saved view and the last room saved on the device.
+that saved view. It opens the last room saved on the device, or the overview
+when no last room exists.
 
 The service worker serves its complete, versioned shell document first on a
 later app navigation. It fetches the document from the network when the cache

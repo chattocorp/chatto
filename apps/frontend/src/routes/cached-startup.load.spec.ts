@@ -79,6 +79,19 @@ describe('saved startup route load', () => {
     expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
   });
 
+  it('keeps the cold saved-view path when the landing has no remembered room', async () => {
+    const { load } = await import('./+layout');
+
+    await expect(load(route('/chat/-'))).rejects.toMatchObject({
+      status: 302, location: '/chat/-/overview'
+    });
+    expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
+
+    await expect(load(route('/chat/-/overview'))).resolves.toMatchObject({ startupPending: true });
+    expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+  });
+
   it('restores the normal view before starting discovery or viewer requests', async () => {
     const { load } = await import('./+layout');
     const first = await load(route());
@@ -98,6 +111,16 @@ describe('saved startup route load', () => {
     expect(mocks.startServerNetwork).toHaveBeenCalledWith('origin');
     expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
     expect(mocks.loadCurrentUser).toHaveBeenCalledOnce();
+  });
+
+  it('does not start unopened registered servers on later route loads', async () => {
+    const { load } = await import('./+layout');
+    await load(route());
+    mocks.startupPresentationOnly = false;
+
+    await load(route('/chat/-/overview'));
+
+    expect(mocks.init).toHaveBeenLastCalledWith(true);
   });
 
   it('uses live startup for a message permalink outside the saved window', async () => {

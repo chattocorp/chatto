@@ -42,7 +42,10 @@ registered stores without network work and restores the selected server's
 presentation data first. The root layout starts viewer and discovery checks
 for the selected server after the first paint. Other registered servers remain
 dormant until the user opens them. The saved viewer does not authorize
-transport work.
+transport work. `ServerConnection` holds private Connect reads during this
+interval and rejects server actions. It allows the viewer request to pass.
+It releases held reads only after the same viewer is verified and cancels them
+if the saved projection is cleared.
 The coordinator starts realtime only after the server confirms that viewer.
 The saved projection has no resume cursor; realtime supplies a fresh snapshot
 and replaces the view after its resource, membership, and permission checks
