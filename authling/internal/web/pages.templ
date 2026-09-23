@@ -6,6 +6,7 @@ import (
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/sessions"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 )
@@ -221,15 +222,23 @@ templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID str
 			<p class="font-medium">This application will be able to:</p>
 			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-neutral-600 dark:text-neutral-300">
 				<li>Know your stable account ID: <span class="break-all font-medium">{ accountID }</span>.</li>
-				<li>Read your username: <span class="break-all font-medium">{ profile.PreferredUsername }</span>.</li>
-				if profile.FullName != "" {
-					<li>Read your full name: <span class="break-all font-medium">{ profile.FullName }</span>.</li>
-				} else {
-					<li>Read your full name if you add one to your profile.</li>
+				if slices.Contains(request.Scopes, "profile") {
+					<li>Read your username: <span class="break-all font-medium">{ profile.PreferredUsername }</span>.</li>
+					if profile.FullName != "" {
+						<li>Read your full name: <span class="break-all font-medium">{ profile.FullName }</span>.</li>
+					} else {
+						<li>Read your full name if you add one to your profile.</li>
+					}
+				}
+				if slices.Contains(request.Scopes, "email") {
+					<li>Read your verified email address: <span class="break-all font-medium">{ signedInAs }</span>.</li>
 				}
 			</ul>
 		</div>
-		<p class="mt-4 text-sm text-neutral-600 dark:text-neutral-300">This access includes future changes to your username and full name. You can revoke this access from your account page.</p>
+		if slices.Contains(request.Scopes, "profile") || slices.Contains(request.Scopes, "email") {
+			<p class="mt-4 text-sm text-neutral-600 dark:text-neutral-300">This access includes future changes to the information listed above.</p>
+		}
+		<p class="mt-4 text-sm text-neutral-600 dark:text-neutral-300">You can revoke this access from your account page.</p>
 		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">
 			<input type="hidden" name="consent_version" value={ strconv.FormatUint(uint64(authorizations.ConsentVersion), 10) }/>
 			<input type="hidden" name="id" value={ request.ID }/>
@@ -351,7 +360,7 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 		</section>
 		<section class="settings-section">
 			<h2 class="settings-heading">Connected apps</h2>
-			<p class="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Apps you allowed to access your { siteFromContext(ctx).Name } account. Access can include your account ID, username, and full name. Revoking access makes the app ask again next time. It does not sign you out of the app or invalidate tokens it already has.</p>
+			<p class="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Apps you allowed to access your { siteFromContext(ctx).Name } account. Each app can read the information listed below. Revoking access makes the app ask again next time. It does not sign you out of the app or invalidate tokens it already has.</p>
 			if len(authorizationGrants) == 0 {
 				<p class="mt-4 text-sm text-neutral-500 dark:text-neutral-400">You haven’t authorized any apps yet.</p>
 			} else {
@@ -362,6 +371,14 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 								<div class="min-w-0">
 									<p class="font-semibold">{ grant.ClientName }</p>
 									<p class="mt-1 break-words text-sm text-neutral-500 dark:text-neutral-400">{ grant.ClientHost }</p>
+									<p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Account ID
+										if slices.Contains(grant.Scopes, "profile") {
+											<span>, username and full name</span>
+										}
+										if slices.Contains(grant.Scopes, "email") {
+											<span>, verified email address</span>
+										}
+									</p>
 									<p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Authorized { formatSessionTime(grant.AuthorizedAt) }</p>
 								</div>
 								<form class="w-full sm:w-auto" method="post" action="/account/authorizations/revoke">
@@ -437,7 +454,7 @@ func formatSessionTime(value time.Time) string {
 templ profilePage(profile accounts.Profile, message, signedInAs string) {
 	@layout("Edit your profile", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Edit your profile</h1>
-		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Connected apps can see your username and full name. Other people can use the same names.</p>
+		<p class="mt-3 text-neutral-600 dark:text-neutral-300">Connected apps with profile access can see your username and full name. Other people can use the same names.</p>
 		if message != "" {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}

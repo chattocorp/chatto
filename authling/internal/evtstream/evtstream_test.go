@@ -426,7 +426,7 @@ func TestGrantMetadataEnvelopeValidation(t *testing.T) {
 	for name, mutate := range map[string]func(*corev1.OIDCGrantAuthorizedEvent){
 		"valid protected":      func(g *corev1.OIDCGrantAuthorizedEvent) {},
 		"unknown envelope":     func(g *corev1.OIDCGrantAuthorizedEvent) { g.MetadataEnvelopeVersion = 2 },
-		"unknown disclosure":   func(g *corev1.OIDCGrantAuthorizedEvent) { g.ConsentVersion = 2 },
+		"unknown disclosure":   func(g *corev1.OIDCGrantAuthorizedEvent) { g.ConsentVersion = 3 },
 		"missing disclosure":   func(g *corev1.OIDCGrantAuthorizedEvent) { g.ConsentVersion = 0 },
 		"plaintext name":       func(g *corev1.OIDCGrantAuthorizedEvent) { g.ClientName = "Private Name" },
 		"plaintext host":       func(g *corev1.OIDCGrantAuthorizedEvent) { g.ClientHost = "private.example" },

@@ -320,6 +320,23 @@ func (c *ChattoConfig) Validate() error {
 		if provider.ClientSecret == "" && provider.Type != AuthProviderTypeOpenIDConnect {
 			errs = append(errs, prefix+".client_secret is required")
 		}
+		if method := provider.TokenEndpointAuthMethod; method != "" {
+			if provider.Type != AuthProviderTypeOpenIDConnect {
+				errs = append(errs, prefix+".token_endpoint_auth_method is only supported for OIDC")
+			}
+			switch method {
+			case "client_secret_basic", "client_secret_post":
+				if provider.ClientSecret == "" {
+					errs = append(errs, prefix+".client_secret is required for the token authentication method")
+				}
+			case "none":
+				if provider.ClientSecret != "" {
+					errs = append(errs, prefix+".client_secret must be empty for token authentication method none")
+				}
+			default:
+				errs = append(errs, prefix+".token_endpoint_auth_method must be client_secret_basic, client_secret_post, or none")
+			}
+		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
 			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")
 		}

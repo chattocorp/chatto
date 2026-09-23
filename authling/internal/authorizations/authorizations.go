@@ -23,9 +23,9 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// ConsentVersion identifies disclosure of sub, preferred_username, and name.
+// ConsentVersion identifies scope-gated subject, profile, and verified email disclosure.
 // Increase it before expanding the claim-release policy.
-const ConsentVersion uint32 = 1
+const ConsentVersion uint32 = 2
 
 // ErrNotFound indicates that an account or active authorization grant is not
 // available to the command.

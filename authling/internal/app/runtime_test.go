@@ -532,12 +532,12 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 		t.Fatalf("first consent status/body = %d %s", firstPage.Code, firstPage.Body.String())
 	}
 	firstURL, _ := url.Parse(firstLocation)
-	for _, disclosure := range []string{account.ID, "Read your username:", "Read your full name if you add one", "This access includes future changes to your username and full name"} {
+	for _, disclosure := range []string{account.ID, "You can revoke this access"} {
 		if !strings.Contains(firstPage.Body.String(), disclosure) {
 			t.Fatalf("consent omits %q", disclosure)
 		}
 	}
-	for _, version := range []string{"", "0", "2"} {
+	for _, version := range []string{"", "0", "1", "3"} {
 		stale := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
 			"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {version},
 		}.Encode(), cookie)
@@ -549,7 +549,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 		t.Fatalf("stale consent created grants: %d, %v", len(grants), err)
 	}
 	allow := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
-		"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"1"},
+		"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"2"},
 	}.Encode(), cookie)
 	if allow.Code != http.StatusSeeOther {
 		t.Fatalf("allow status/body = %d %s", allow.Code, allow.Body.String())
@@ -625,7 +625,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 	}
 	afterRevokeURL, _ := url.Parse(afterRevokeLocation)
 	reauthorize := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
-		"id": {afterRevokeURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"1"},
+		"id": {afterRevokeURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"2"},
 	}.Encode(), cookie)
 	if reauthorize.Code != http.StatusSeeOther {
 		t.Fatalf("reauthorization status/body = %d %s", reauthorize.Code, reauthorize.Body.String())
@@ -834,7 +834,7 @@ func completeAuthorizationForScopes(t *testing.T, handler http.Handler, verifier
 		}
 		cookie = cookies[0]
 	}
-	consent := requestHandler(t, handler, http.MethodPost, "http://localhost:8080/oidc/consent", url.Values{"id": {requestID}, "decision": {"allow"}, "consent_version": {"1"}}.Encode(), cookie)
+	consent := requestHandler(t, handler, http.MethodPost, "http://localhost:8080/oidc/consent", url.Values{"id": {requestID}, "decision": {"allow"}, "consent_version": {"2"}}.Encode(), cookie)
 	if consent.Code != http.StatusSeeOther {
 		t.Fatalf("consent status/body = %d %s", consent.Code, consent.Body.String())
 	}
@@ -2465,7 +2465,7 @@ func TestOIDCFreshnessEnforcedAcrossHTTPAndRestart(t *testing.T) {
 			target, body := path, ""
 			if method == http.MethodPost {
 				target = "/oidc/consent"
-				body = url.Values{"id": {id}, "decision": {"allow"}, "consent_version": {"1"}}.Encode()
+				body = url.Values{"id": {id}, "decision": {"allow"}, "consent_version": {"2"}}.Encode()
 			}
 			response := requestHandler(t, handler, method, target, body, cookie)
 			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login?id="+id {
@@ -2482,7 +2482,7 @@ func TestOIDCFreshnessEnforcedAcrossHTTPAndRestart(t *testing.T) {
 		t.Fatalf("valid existing session = %d", response.Code)
 	}
 	parsed, _ := url.Parse(recentEnough)
-	approved := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{"id": {parsed.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"1"}}.Encode(), cookie)
+	approved := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{"id": {parsed.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"2"}}.Encode(), cookie)
 	callback := requestHandler(t, handler, http.MethodGet, approved.Header().Get("Location"), "", cookie)
 	redirect, _ := url.Parse(callback.Header().Get("Location"))
 	tokens := issueOIDCTokens(t, handler, redirect.Query().Get("code"), strings.Repeat("v", 43))

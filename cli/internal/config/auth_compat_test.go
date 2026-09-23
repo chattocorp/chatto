@@ -29,6 +29,7 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ISSUER_URL", "https://id.example")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_CLIENT_ID", "chatto")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET", "secret")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_TOKEN_ENDPOINT_AUTH_METHOD", "client_secret_post")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_SCOPES", "openid, profile, groups")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL", "false")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION", "true")
@@ -44,6 +45,9 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	}
 	if len(cfg.Auth.Providers) != 2 {
 		t.Fatalf("Auth.Providers len = %d, want 2", len(cfg.Auth.Providers))
+	}
+	if cfg.Auth.Providers[0].TokenEndpointAuthMethod != "client_secret_post" {
+		t.Fatal("token authentication override was not loaded")
 	}
 	if got := cfg.Auth.Providers[0]; got.ID != "hub" || got.Type != AuthProviderTypeOpenIDConnect || got.Label != "Chatto Hub" || got.IssuerURL != "https://id.example" || got.ClientID != "chatto" || got.ClientSecret != "secret" {
 		t.Fatalf("Auth.Providers[0] = %+v", got)

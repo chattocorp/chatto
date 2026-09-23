@@ -32,9 +32,9 @@ current runtime in `docs/architecture/`.
 - [ ] Add authenticated emergency signing-key rotation and compromise-response controls
 - [ ] Add rotating refresh tokens bound to durable authorization-grant generations
 - [ ] Add token-revocation and RP-initiated logout behavior
-- [ ] Define identity-claim release policies before adding further scopes and claims
+- [ ] Define release policies before adding scopes beyond `openid`, `profile`, and `email`
 - [ ] Assess conformance warnings for extra ID Token claims, requested claims, and token revocation after code reuse
-- [ ] Automate browser flows and CI for the official OpenID Provider suite; `mise test-conformance` provides a local interactive session
+- [ ] Extend automated official-suite coverage to the remaining Basic OP modules and screenshot-review flows
 - [ ] Add version-skew fixtures for CIMD-aware Chatto consumers
 
 ## Later user interface work

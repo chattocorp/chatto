@@ -18,6 +18,19 @@ providers, and a bootstrap path for first-boot operator setup.
 
 ## Behavior
 
+- OIDC token authentication can use an explicit Basic, POST, or public-client
+  method. Without an override, confidential clients prefer advertised Basic,
+  then POST; omitted metadata defaults to Basic. Unsupported advertised methods
+  fail before exchange. Each code is submitted once, with PKCE.
+- UserInfo fills missing names or requested email only after its subject matches
+  the verified ID token. Populated ID-token claims win, and email verification
+  stays paired with its address. An unavailable or malformed UserInfo response
+  does not discard valid ID-token hints. Suggestions keep their existing order
+  and normalization; linked accounts retain their existing names.
+- OIDC key sets can contain key types or curves that Chatto does not support.
+  Chatto ignores these keys and verifies signatures with supported keys. A set
+  without a usable signing key still fails verification. The official suite
+  checks this behavior and selected positive and negative client flows in CI.
 - **Remote reconnection** — the bundled client gives every remote API read, including the first viewer read, the active connection's bearer-renewal hook. A temporary network failure leaves renewal retryable and keeps the normal chat view visible. A confirmed authentication rejection asks the user to sign in to reconnect; a cold offline launch restores matching saved text in the normal chat view. Explicit sign-out or verified account deletion clears that saved text. Refresh rejection logs contain only a fixed reason code; they contain no credential or user identifier.
 
 - **Consent identity display** — the consent page shows the host for a URL-based

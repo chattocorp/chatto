@@ -1,7 +1,7 @@
 # FDR-010: OIDC Authorization Grants
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -29,16 +29,16 @@ sessions.
   still runs.
 - `prompt=consent` always displays consent. Allowing it renews the active grant
   and records a new authorization fact without changing the active grant ID.
-- Consent disclosure version 1 lists the stable account ID (`sub`), preferred
-  username (`preferred_username`), and optional full name (`name`). It shows
-  current values and explains that access includes future profile changes,
-  including a full name added later. The `openid` claim contract does
-  not change. An expanded claim policy must use a new disclosure version.
+- Consent disclosure version 2 lists the stable account ID (`sub`), names for
+  `profile`, and the current verified address for `email`. It explains that
+  access includes later changes to the requested profile and email information.
+- Explicit approval replaces the grant with exactly the approved scopes.
+  Subsets can reuse a covering grant; expanded requests require consent.
 - Approval forms carry the disclosure version. The server rejects an outdated
   approval form and asks the person to reload it. Denial remains available.
 - Denying a forced-consent request does not revoke an existing grant.
 - The account page lists active grants with their client name, display host,
-  and latest explicit authorization time. Same-origin POST is required to
+  recorded scopes, and latest explicit authorization time. Same-origin POST is required to
   revoke one.
 - Revocation affects future authorization decisions immediately after the
   durable write. Existing relying-party sessions, authorization codes, ID
@@ -70,6 +70,13 @@ Only metadata envelope version 1 is supported. The unused plaintext protobuf
 fields retain their original tags but must be empty. Authling has not been
 deployed; this implementation does not provide a migration from plaintext
 grant history.
+
+Disclosure versions 1 and 2 can replay and decrypt with their original
+associated data. Only version 2 permits consent reuse. Version-1 grants remain
+visible and revocable, but require fresh approval. Old approval forms fail.
+Upgrade all replicas together. Older binaries cannot replay version-2 grants;
+rollback to those binaries is not supported after a new grant is recorded.
+No protobuf field or envelope shape changes are required.
 
 The authorization projection consumes `authling.evt.account.*`, rebuilds the
 active grant inventory in memory, and is disposable. Commands synchronize it
@@ -142,10 +149,9 @@ durable grouping or grant migration fact.
 
 ### Additional scopes and metadata changes
 
-Future incremental authorization should compare requested scopes with the
-active set and show consent for newly requested access. It should define
-whether an explicit authorization replaces or unions scope sets. Client
-display-metadata refresh should remain separate from protocol client
+Incremental authorization compares requested scopes with the active set and
+shows consent for new access. Explicit approval replaces the scope set. Client
+display-metadata refresh must remain separate from protocol client
 validation and must not let a changed document silently broaden a grant.
 
 ## Related

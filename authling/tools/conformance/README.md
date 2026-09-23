@@ -5,6 +5,66 @@ Run `mise test-conformance` from `authling/`. See the main
 The task runs discovery and starts one interactive PKCE test. The full Basic
 OP plan still needs browser interaction and screenshot evidence.
 
+## Automated regression checks
+
+The local run on 2026-09-20 used suite 5.3.1. The selected checks produced
+12 passes, four warnings covered by the policy below, and one expected
+unsigned-token skip with a successful client rejection assertion. No selected
+check failed. These counts describe this selection, not the full Basic plans.
+
+Run `mise test-conformance-ci` from `authling/` for the provider checks.
+Run `mise test-oidc-conformance` from the repository root to include Chatto's
+client checks. CI runs the latter when either product changes.
+
+The runner reuses the pinned suite, TLS proxy, and Mailpit configuration. Each
+automated run uses a fresh Authling data directory and Docker database volume.
+It creates a synthetic account with distinct username, name, and email values.
+It runs modules one at a time and removes test state on exit. The proxy uses a
+short-lived certificate with a DNS subject alternative name; the client driver
+trusts that certificate only within its process. No system trust or DNS changes
+are required.
+
+The provider selection covers discovery, `openid`, `profile`, `email`, the
+combined supported scopes, POST authentication, and valid S256 PKCE. The
+suite's `scope-all` module also requires phone and address; it is not selected
+because Authling does not support those scopes.
+
+The client selection uses Chatto's production login and callback handlers. It
+covers Basic, discovery-selected POST, explicit POST, profile retrieval, and
+rejection of invalid issuer, audience, signature, unsigned tokens, and UserInfo
+subject mismatch. Negative cases must pass both the suite's checks and the
+Chatto rejection assertion. It does not cover the frontend UI or every Basic
+RP module. Existing browser and mock tests provide separate coverage.
+
+The following Authling warning conditions are accepted and remain visible:
+
+| Module | Condition | Reason |
+| --- | --- | --- |
+| `oidcc-server` | `EnsureIdTokenDoesNotContainNonRequestedClaims` | Authling includes the library's `client_id` claim. |
+| `oidcc-scope-profile` | `VerifyScopesReturnedInUserInfoClaims` | Authling exposes username and optional full name, not every standard profile field. |
+| `oidcc-scope-email` | `EnsureIdTokenDoesNotContainEmailForScopeEmail` | Authling deliberately includes authorized email in both ID tokens and UserInfo. |
+
+Any other warning condition fails the run. Failures, unexpected skips, review
+results, interruptions, and timeouts also fail. The summary file contains
+module names, outcomes, condition names, and fixed client assertion results only. Do not upload raw suite logs
+or state: they contain test credentials and tokens.
+
+The unsigned-ID-token client module is one explicit skip exception: the suite
+labels rejection of unsigned tokens `SKIPPED` because support is optional.
+The harness requires Chatto's rejection assertion to pass and preserves the
+suite's `SKIPPED` result. It does not count this as a suite pass.
+
+The suite and proxy pins used for the historical baseline are no longer available
+from the registry. `compose.yml` pins their replacements. Historical results
+do not establish results for the new images. This automated selection is a
+regression check, not a complete conformance run or certification submission.
+
+The optional `--client-driver` argument accepts an absolute path to a trusted
+local JavaScript module. Its `runClientChecks` export receives suite API and
+module-run functions, a private state directory, the suite URL, and process
+environment. Application-specific client registration and assertions belong
+in that module. Authling has no dependency on a particular client product.
+
 ## Full Basic OP rerun after fixes: 2026-09-16
 
 All 35 modules reached `FINISHED` in a new Basic OP plan with the same pinned

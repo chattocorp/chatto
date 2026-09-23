@@ -80,7 +80,7 @@ func (s *Service) Initialize(ctx context.Context) error {
 	}
 	provider, err := op.NewProvider(&op.Config{
 		CryptoKey: tokenKey, CryptoKeyId: "authling-oidc-token-v1", CodeMethodS256: true, AuthMethodPost: true,
-		SupportedClaims: []string{"sub", "preferred_username", "name", "auth_time"}, SupportedScopes: []string{liboidc.ScopeOpenID},
+		SupportedClaims: []string{"sub", "preferred_username", "name", "email", "email_verified", "auth_time"}, SupportedScopes: []string{liboidc.ScopeOpenID, liboidc.ScopeProfile, liboidc.ScopeEmail},
 	}, s.storage, op.StaticIssuer(state.Issuer), options...)
 	if err != nil {
 		return fmt.Errorf("construct OIDC provider: %w", err)
@@ -373,14 +373,14 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 		"token_endpoint":                        issuer + "/oauth/token",
 		"userinfo_endpoint":                     issuer + "/oauth/userinfo",
 		"jwks_uri":                              issuer + "/oauth/jwks",
-		"scopes_supported":                      []string{"openid"},
+		"scopes_supported":                      []string{"openid", "profile", "email"},
 		"response_types_supported":              []string{"code"},
 		"response_modes_supported":              []string{"query"},
 		"grant_types_supported":                 []string{"authorization_code"},
 		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"none", "client_secret_basic", "client_secret_post"},
-		"claims_supported":                      []string{"sub", "preferred_username", "name", "auth_time"},
+		"claims_supported":                      []string{"sub", "preferred_username", "name", "email", "email_verified", "auth_time"},
 		"code_challenge_methods_supported":      []string{"S256"},
 		"request_parameter_supported":           false,
 		"client_id_metadata_document_supported": s.storage != nil && s.storage.clients != nil && s.storage.clients.cimd != nil,
@@ -464,12 +464,12 @@ func validateAuthorizeRequest(r *http.Request, requirePKCE bool) *authorizationR
 
 func validAuthorizeScopes(raw string) bool {
 	scopes := strings.Fields(raw)
-	if len(scopes) != 1 {
+	if len(scopes) == 0 {
 		return false
 	}
 	seen := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
-		if scope != liboidc.ScopeOpenID {
+		if scope != liboidc.ScopeOpenID && scope != liboidc.ScopeProfile && scope != liboidc.ScopeEmail {
 			return false
 		}
 		if _, duplicate := seen[scope]; duplicate {

@@ -116,10 +116,14 @@ type Storage struct {
 	issuer  *issuer.Service
 	now     func() time.Time
 	profile func(context.Context, string) (string, string, error)
+	active  func(context.Context, string) error
+	email   func(context.Context, string) (string, error)
 }
 
-func NewStorage(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, clients *Resolver, issuerService *issuer.Service, profile func(context.Context, string) (string, string, error)) *Storage {
-	return &Storage{kv: kv, js: js, key: append([]byte(nil), key...), clients: clients, issuer: issuerService, now: time.Now, profile: profile}
+// NewStorage receives account read boundaries. Email must return the current
+// verified address; no account PII is retained in protocol state.
+func NewStorage(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, clients *Resolver, issuerService *issuer.Service, profile func(context.Context, string) (string, string, error), active func(context.Context, string) error, email func(context.Context, string) (string, error)) *Storage {
+	return &Storage{kv: kv, js: js, key: append([]byte(nil), key...), clients: clients, issuer: issuerService, now: time.Now, profile: profile, active: active, email: email}
 }
 
 // admitAuthRequest runs at HTTP admission before client lookup or state creation.
@@ -397,17 +401,18 @@ func (s *Storage) GetClientByClientID(ctx context.Context, id string) (op.Client
 func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, id, secret string) error {
 	return s.clients.AuthorizeSecret(ctx, id, secret)
 }
-func (s *Storage) SetUserinfoFromScopes(ctx context.Context, info *liboidc.UserInfo, subject, _ string, _ []string) error {
-	info.Subject = subject
-	if s.profile == nil {
-		return nil
-	}
-	username, name, err := s.profile(ctx, subject)
+func (s *Storage) SetUserinfoFromScopes(ctx context.Context, info *liboidc.UserInfo, subject, _ string, scopes []string) error {
+	claims, err := s.accountClaims(ctx, subject, scopes)
 	if err != nil {
 		return err
 	}
-	info.PreferredUsername = username
-	info.Name = name
+	info.Subject = subject
+	info.PreferredUsername, _ = claims["preferred_username"].(string)
+	info.Name, _ = claims["name"].(string)
+	info.Email, _ = claims["email"].(string)
+	if info.Email != "" {
+		info.EmailVerified = liboidc.Bool(true)
+	}
 	return nil
 }
 func (s *Storage) SetUserinfoFromToken(ctx context.Context, info *liboidc.UserInfo, tokenID, subject, _ string) error {
@@ -415,37 +420,52 @@ func (s *Storage) SetUserinfoFromToken(ctx context.Context, info *liboidc.UserIn
 	if err := s.read(s.tokenKey(tokenID), ctx, &state); err != nil || state.Subject != subject || !state.Expires.After(s.now().UTC()) {
 		return errOIDCStateNotFound
 	}
-	info.Subject = subject
-	if s.profile != nil {
-		username, name, err := s.profile(ctx, subject)
-		if err != nil {
-			return err
-		}
-		info.PreferredUsername = username
-		info.Name = name
-	}
-	return nil
+	return s.SetUserinfoFromScopes(ctx, info, subject, state.ClientID, state.Scopes)
 }
 func (*Storage) SetIntrospectionFromToken(context.Context, *liboidc.IntrospectionResponse, string, string, string) error {
 	return errOIDCStateNotFound
 }
-func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, subject, _ string, _ []string) (map[string]any, error) {
-	if s.profile == nil {
-		return map[string]any{}, nil
+func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, subject, _ string, scopes []string) (map[string]any, error) {
+	return s.accountClaims(ctx, subject, scopes)
+}
+
+// accountClaims enforces the stored authorization scopes at both claim-release
+// boundaries. Even subject-only responses require a currently active account.
+func (s *Storage) accountClaims(ctx context.Context, subject string, scopes []string) (map[string]any, error) {
+	if s.active == nil {
+		return nil, errors.New("account service unavailable")
 	}
-	username, name, err := s.profile(ctx, subject)
-	if err != nil {
+	if err := s.active(ctx, subject); err != nil {
 		return nil, err
 	}
 	claims := map[string]any{}
-	if username != "" {
-		claims["preferred_username"] = username
+	if slices.Contains(scopes, liboidc.ScopeProfile) {
+		if s.profile == nil {
+			return nil, errors.New("profile service unavailable")
+		}
+		username, name, err := s.profile(ctx, subject)
+		if err != nil {
+			return nil, err
+		}
+		if username != "" {
+			claims["preferred_username"] = username
+		}
+		if name != "" {
+			claims["name"] = name
+		}
 	}
-	if name != "" {
-		claims["name"] = name
-	}
-	if len(claims) == 0 {
-		return map[string]any{}, nil
+	if slices.Contains(scopes, liboidc.ScopeEmail) {
+		if s.email == nil {
+			return nil, errors.New("email service unavailable")
+		}
+		email, err := s.email(ctx, subject)
+		if err != nil {
+			return nil, err
+		}
+		if email != "" {
+			claims["email"] = email
+			claims["email_verified"] = true
+		}
 	}
 	return claims, nil
 }

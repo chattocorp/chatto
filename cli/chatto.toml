@@ -65,6 +65,8 @@ type = 'oidc'
 label = 'Chatto Hub'
 issuer_url = 'https://chatto.id/realms/chatto-hub'
 client_id = 'chatto-dev'
+# Optional OIDC override; otherwise select Basic or POST from discovery.
+# token_endpoint_auth_method = 'client_secret_basic'
 client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
 # request_email defaults to false and keeps the OIDC flow email-less; Chatto
 # will still match accounts by issuer + subject. Set true to request email.

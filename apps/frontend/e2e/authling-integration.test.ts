@@ -26,7 +26,6 @@ const test = base.extend<{ authling: TestStack; server: ServerInfo }>({
         CHATTO_AUTH_PROVIDERS_0_LABEL: 'Authling',
         CHATTO_AUTH_PROVIDERS_0_ISSUER_URL: authling.baseURL,
         CHATTO_AUTH_PROVIDERS_0_CLIENT_ID: `${chattoURL}/oauth/client-metadata.json`,
-        CHATTO_AUTH_PROVIDERS_0_SCOPES: 'openid',
         CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION: 'true'
       }
     });

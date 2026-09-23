@@ -387,6 +387,25 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		}
 	})
 
+	for _, tc := range []struct {
+		method, secret, kind string
+		valid                bool
+	}{
+		{"", "", "oidc", true}, {"none", "", "oidc", true},
+		{"client_secret_basic", "secret", "oidc", true}, {"client_secret_post", "secret", "oidc", true},
+		{"none", "secret", "oidc", false}, {"client_secret_basic", "", "oidc", false},
+		{"client_secret_post", "", "oidc", false}, {"unknown", "secret", "oidc", false},
+		{"client_secret_post", "secret", "github", false},
+	} {
+		t.Run("token auth/"+tc.kind+"/"+tc.method+"/"+tc.secret, func(t *testing.T) {
+			cfg := baseConfig()
+			cfg.Auth.Providers = []AuthProviderConfig{{ID: "test", Type: tc.kind, ClientID: "id", ClientSecret: tc.secret, IssuerURL: "https://issuer.example", TokenEndpointAuthMethod: tc.method}}
+			if err := cfg.Validate(); (err == nil) != tc.valid {
+				t.Fatalf("Validate() = %v, valid %v", err, tc.valid)
+			}
+		})
+	}
+
 	t.Run("accepts public oidc client without secret", func(t *testing.T) {
 		cfg := baseConfig()
 		cfg.Auth.Providers = []AuthProviderConfig{{

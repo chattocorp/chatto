@@ -402,7 +402,7 @@ func validate(event *corev1.Event) error {
 		if !validSubjectToken(grant.GetAccountId()) || !validSubjectToken(grant.GetGrantId()) || len(grant.GetClientIdDigest()) != sha256.Size || !validScopes(grant.GetScopes()) {
 			return fmt.Errorf("OIDC grant authorization is incomplete or invalid")
 		}
-		if grant.GetMetadataEnvelopeVersion() != 1 || grant.GetClientName() != "" || grant.GetClientHost() != "" || !validSubjectToken(grant.GetUserKeyRef()) || !validSubjectToken(grant.GetCredentialKeyRef()) || len(grant.GetMetadataNonce()) != 24 || len(grant.GetMetadataCiphertext()) < 16 || len(grant.GetMetadataCiphertext()) > 4096 || grant.GetConsentVersion() != 1 {
+		if grant.GetMetadataEnvelopeVersion() != 1 || grant.GetClientName() != "" || grant.GetClientHost() != "" || !validSubjectToken(grant.GetUserKeyRef()) || !validSubjectToken(grant.GetCredentialKeyRef()) || len(grant.GetMetadataNonce()) != 24 || len(grant.GetMetadataCiphertext()) < 16 || len(grant.GetMetadataCiphertext()) > 4096 || (grant.GetConsentVersion() != 1 && grant.GetConsentVersion() != 2) {
 			return fmt.Errorf("protected OIDC grant metadata is invalid")
 		}
 		if priorID := grant.GetPriorAuthorizationEventId(); priorID != "" && !validSubjectToken(priorID) {

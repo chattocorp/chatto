@@ -30,13 +30,13 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     token_endpoint: `${stack.baseURL}/oauth/token`,
     userinfo_endpoint: `${stack.baseURL}/oauth/userinfo`,
     jwks_uri: `${stack.baseURL}/oauth/jwks`,
-    scopes_supported: ['openid'],
+    scopes_supported: ['openid', 'profile', 'email'],
     code_challenge_methods_supported: ['S256'],
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code'],
     client_id_metadata_document_supported: false
   });
-  expect(discovery.claims_supported).toEqual(['sub', 'preferred_username', 'name', 'auth_time']);
+  expect(discovery.claims_supported).toEqual(['sub', 'preferred_username', 'name', 'email', 'email_verified', 'auth_time']);
   expect(discovery).not.toHaveProperty('registration_endpoint');
   expect(discovery).not.toHaveProperty('revocation_endpoint');
 
@@ -48,7 +48,7 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     client_id: 'authling-e2e',
     redirect_uri: redirectURI,
     response_type: 'code',
-    scope: 'openid',
+    scope: 'openid profile',
     state: 'browser-state',
     nonce: 'browser-nonce',
     code_challenge: challenge,
@@ -64,7 +64,7 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   await expect(page.getByText(accountID, { exact: true })).toBeVisible();
   await expect(page.getByText(preferredUsername, { exact: true })).toBeVisible();
   await expect(page.getByText(fullName, { exact: true })).toBeVisible();
-  await expect(page.getByText('This access includes future changes to your username and full name.', { exact: false })).toBeVisible();
+  await expect(page.getByText('This access includes future changes to the information listed above.', { exact: false })).toBeVisible();
 
   const callbackRequest = page.waitForRequest((request) =>
     request.url().startsWith(`${stack.callbackURL}?`)
