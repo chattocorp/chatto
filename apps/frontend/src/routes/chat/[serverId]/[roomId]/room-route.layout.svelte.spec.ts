@@ -148,6 +148,7 @@ function renderLayout() {
         user: null,
         serverInfo: null,
         serverInfoLoaded: true,
+        savedView: null,
         serverSegment: '-',
         roomId: 'room-1'
       },

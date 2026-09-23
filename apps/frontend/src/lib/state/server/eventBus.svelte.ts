@@ -437,9 +437,14 @@ class EventBusManager {
                 }
                 snapshotReceived = true;
                 try {
+                  const retainView = sync.hasUsableProjection;
                   sync.acceptProjectionEvent(undefined, true);
                   dispatchProjectionUpdate(
-                    new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
+                    new RealtimeProjectionUpdate({
+                      reset: true,
+                      privacyReset: !retainView,
+                      retainView
+                    })
                   );
                   const resources = [
                     { case: 'server' as const, value: frame.frame.value.server },

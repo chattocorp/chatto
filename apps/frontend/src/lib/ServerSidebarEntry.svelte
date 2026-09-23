@@ -21,6 +21,8 @@
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
   import { toast } from '$lib/ui/toast';
+  import { onMount } from 'svelte';
+  import { loadSavedView } from '$lib/storage/savedViews';
 
   let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
     $props();
@@ -31,6 +33,12 @@
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const stores = serverRegistry.getStore(serverId);
+  onMount(() => {
+    const userId = serverRegistry.getServer(serverId)?.userId ?? null;
+    void loadSavedView(serverId, userId).then((view) => {
+      if (view && serverRegistry.getServer(serverId)?.userId === userId) stores.restoreSavedView(view);
+    });
+  });
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const appUi = getAppUiState();
@@ -72,7 +80,10 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
-  const needsSignIn = $derived(!setupRequired && !stores.isAuthenticated);
+  const needsSignIn = $derived(
+    !setupRequired && !stores.isAuthenticated && !stores.savedView &&
+    (!registeredServer?.token || needsReauth)
+  );
   const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
   const compatibility = $derived(stores.serverInfo.compatibility);
   const compatibilityMessage = $derived.by(() => {
@@ -88,6 +99,7 @@
     }
   });
   const compatibilityWarning = $derived(compatibility.status !== 'supported');
+  const gutterWarning = $derived(compatibilityWarning || serverConnection.showConnectionLostIcon);
   const serverUnavailable = $derived(compatibility.status === 'unreachable');
   const recoveryNeeded = $derived(serverUnavailable || serverRegistry.needsRecovery(serverId));
   const serverActionsAvailable = $derived(
@@ -96,13 +108,15 @@
       compatibility.status === 'supported' &&
       !serverConnection.showConnectionLostIcon
   );
-  const iconDimmed = $derived(signInRequired || !loaded || serverConnection.showConnectionLostIcon);
+  const iconDimmed = $derived(
+    !privateDataLoaded && (signInRequired || !loaded || serverConnection.showConnectionLostIcon)
+  );
   const iconTitle = $derived(
     signInRequired
       ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
       : compatibilityWarning && compatibilityMessage
         ? `${iconServer.name} — ${compatibilityMessage}`
-        : iconDimmed
+        : serverConnection.showConnectionLostIcon
           ? `${iconServer.name} (connection unavailable)`
           : iconServer.name
   );
@@ -146,7 +160,7 @@
   }
 
   async function handleServerClick(event: MouseEvent): Promise<void> {
-    if (recoveryNeeded) {
+    if (recoveryNeeded && !stores.savedView) {
       event.preventDefault();
       await serverRegistry.recoverServer(serverId);
       if (stores.isAuthenticated && stores.serverInfo.compatibility.status === 'supported') {
@@ -154,7 +168,7 @@
       }
       return;
     }
-    if (!needsSignIn) return;
+    if (!needsSignIn || stores.savedView) return;
     event.preventDefault();
     if (signingIn || !registeredServer) return;
 
@@ -237,7 +251,7 @@
   title={iconTitle}
   dimmed={iconDimmed}
   {signInRequired}
-  {compatibilityWarning}
+  compatibilityWarning={gutterWarning}
 />
 
 {#if contextMenu}

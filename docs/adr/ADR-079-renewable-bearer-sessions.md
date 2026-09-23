@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-22
 
-**Updated:** 2026-08-26
+**Updated:** 2026-09-23
 
 **Status:** Partially superseded
 
@@ -162,11 +162,16 @@ It refreshes shortly before access expiry, including when access expiry reaches
 the end of the current session window. A successful refresh in the final
 quarter advances that window without user action. The client also retries one
 unary ConnectRPC request after an `Unauthenticated` response when forced
-renewal succeeds. Transient network and server failures keep the credentials
+renewal succeeds. This renewal hook also applies to the initial remote viewer
+read after a tab starts. Transient network and server failures keep the credentials
 and request ID for retry. An `invalid_grant` response is permanent: the
 frontend marks only that server as requiring authentication, keeps the user's
 current route and other connected servers intact, and exposes the existing
 explicit reconnect action. It never starts OAuth automatically.
+
+The token endpoint logs a fixed rejection reason for invalid request IDs,
+missing credentials, reuse, client mismatch, and blocked clients. The reason
+contains no token, client ID, user identity, or request metadata.
 
 Realtime sockets are authenticated for the lifetime of the presented access
 token. At expiry the server cancels authorized work, sends a reconnecting

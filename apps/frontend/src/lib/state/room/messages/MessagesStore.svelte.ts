@@ -542,12 +542,17 @@ export class MessagesStore {
   }
 
   /** Reload this mounted timeline at the resource boundary for a reset. */
-  hydrateRealtimeProjection(minimumCursor: string, acceptResult: () => boolean): Promise<boolean> {
+  hydrateRealtimeProjection(
+    minimumCursor: string,
+    acceptResult: () => boolean,
+    replaceWindow = false
+  ): Promise<boolean> {
     if (!this.source) return Promise.resolve(false);
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
-    this.isInitialLoading = true;
-    return this.fetchCurrent(thisLoad, minimumCursor, acceptResult, this.recoveryViewport?.eventId);
+    // Keep the retained timeline visible until its replacement read settles.
+    this.isInitialLoading = this.events.length === 0;
+    return this.fetchCurrent(thisLoad, minimumCursor, acceptResult, this.recoveryViewport?.eventId, replaceWindow);
   }
 
   /**
@@ -1450,7 +1455,8 @@ export class MessagesStore {
     thisLoad: number,
     minimumCursor?: string,
     acceptResult: () => boolean = () => true,
-    anchorEventId?: string
+    anchorEventId?: string,
+    replaceWindow = false
   ): Promise<boolean> {
     const source = this.source;
     if (!source) return false;
@@ -1470,7 +1476,9 @@ export class MessagesStore {
       }
       if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
       if (source.scope === 'room') {
-        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, { preserveExistingWindow: true });
+        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+          preserveExistingWindow: !replaceWindow
+        });
         this.hasReachedStart = !page.hasOlder;
         if (!minimumCursor) await this.backfillInitialRoomWindow(thisLoad);
       } else {
@@ -1499,7 +1507,8 @@ export class MessagesStore {
       if (
         isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)
       ) {
-        this.clearViewport();
+        if (minimumCursor) this.clearForAccessRevocation();
+        else this.clearViewport();
       }
       if (
         minimumCursor &&

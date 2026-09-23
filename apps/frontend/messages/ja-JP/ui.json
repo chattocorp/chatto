@@ -5,6 +5,7 @@
     "open_quick_switcher": "クイックスイッチャーを開く",
     "quick_switcher_shortcut": "クイックスイッチャー (Cmd+K)",
     "realtime_paused": "リアルタイム更新が一時停止されました。再接続中...",
+    "saved_view": {"cache_title":"ローカルキャッシュ","cache_description":"このデバイスはオフライン閲覧用にチャットの限定的なテキスト表示を保存します。","clear_cache":"保存したチャットを消去","cache_cleared":"保存したチャットを消去しました。"},
     "update_available": "新しいバージョンが利用可能です",
     "reload": "リロード",
     "sign_out": "サインアウト",

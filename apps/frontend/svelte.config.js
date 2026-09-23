@@ -35,6 +35,9 @@ const config = {
       fallback: '200.html',
       precompress
     }),
+    serviceWorker: {
+      register: false
+    },
     csp: {
       // The static SPA cannot receive a per-request nonce. SvelteKit adds hashes
       // for the app template and bootstrap scripts to the generated CSP meta tag.

@@ -1,5 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { authHeaders, createChattoClient } from './connect.js';
+import { authHeaders, createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import {
   TimeFormat,
@@ -11,12 +11,7 @@ import {
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
-export type ViewerAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type ViewerAPIConfig = ConnectAPIConfig;
 
 export type CurrentUser = {
   id: string;

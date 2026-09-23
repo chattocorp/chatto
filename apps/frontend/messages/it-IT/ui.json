@@ -5,6 +5,7 @@
     "open_quick_switcher": "Apri il cambio rapido",
     "quick_switcher_shortcut": "Cambio rapido (Cmd+K)",
     "realtime_paused": "Aggiornamenti in tempo reale sospesi. Riconnessione...",
+    "saved_view": {"cache_title":"Cache locale","cache_description":"Questo dispositivo salva una vista testuale limitata delle chat per la lettura offline.","clear_cache":"Cancella le chat salvate","cache_cleared":"Le chat salvate sono state cancellate."},
     "update_available": "Una nuova versione è disponibile",
     "reload": "Ricarica",
     "sign_out": "Esci",

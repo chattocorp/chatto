@@ -5,6 +5,7 @@
     "open_quick_switcher": "פתח את המחליף המהיר",
     "quick_switcher_shortcut": "מחליף מהיר (Cmd+K)",
     "realtime_paused": "עדכונים בזמן אמת הושהו. מתחבר מחדש...",
+    "saved_view": {"cache_title":"מטמון מקומי","cache_description":"המכשיר שומר תצוגת טקסט מוגבלת של צ׳אטים לקריאה ללא חיבור.","clear_cache":"מחיקת צ׳אטים שמורים","cache_cleared":"הצ׳אטים השמורים נמחקו."},
     "update_available": "זמינה גרסה חדשה",
     "reload": "טען מחדש",
     "sign_out": "צא",

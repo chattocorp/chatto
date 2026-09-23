@@ -1069,6 +1069,30 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps a warm timeline visible until its replacement window arrives', async () => {
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const replacement = deferred<RoomPage>();
+    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('old-row')))
+      .mockImplementationOnce(() => replacement.promise);
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    store.setRoom('room-1');
+    await settle();
+
+    const hydration = store.hydrateRealtimeProjection('replacement-cursor', () => true, true);
+    expect(store.isInitialLoading).toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['old-row']);
+
+    replacement.resolve(pageFromEvent(threadMessageEvent('new-row')));
+    await hydration;
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['new-row']);
+    store.dispose();
+  });
+
   it('purges plaintext but restores a fresh window around the viewport after a reset', async () => {
     const getRoomEventsAround = vi.fn<RoomTimelineAPI['getRoomEventsAround']>()
       .mockResolvedValue({ ...pageFromEvent(threadMessageEvent('anchor')), hasNewer: true });

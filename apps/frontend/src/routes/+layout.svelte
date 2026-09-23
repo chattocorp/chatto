@@ -4,6 +4,7 @@
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { onMount } from 'svelte';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
@@ -28,6 +29,16 @@
 
   let { data, children } = $props();
   let modalContainerModule: Promise<typeof import('./chat/ModalContainer.svelte')> | null = null;
+
+  // Shell precaching fetches the full compiled build. Delay registration so
+  // those requests do not contend with the page's initial navigation.
+  onMount(() => {
+    if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+    const timer = setTimeout(() => {
+      void navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }, 7_000);
+    return () => clearTimeout(timer);
+  });
 
   function loadModalContainer() {
     modalContainerModule ??= import('./chat/ModalContainer.svelte');

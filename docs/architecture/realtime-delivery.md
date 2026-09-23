@@ -492,8 +492,9 @@ outstanding read can replace it. These recovery reads use the existing refresh
 scheduler without requiring a realtime invalidation.
 This read does not replace the open thread's loaded message window.
 
-The bundled frontend selects `SNAPSHOT`. It resets its server projection when
-it receives a snapshot and applies all resource families from that one frame.
+The bundled frontend selects `SNAPSHOT`. A cold snapshot resets its server
+projection. A warm replacement keeps the prior room and timeline view while
+it applies the resource families from the new snapshot frame.
 After every `caught_up`, including a successful resume, it replaces the server
 runtime state, viewer, visible rooms, room groups, notifications, and displayed user
 presence with cursor-bounded ConnectRPC results. It replaces mounted timelines
@@ -506,13 +507,14 @@ not one refresh per event.
 If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
 
-A replacement snapshot clears private rows and invalidates pending reads, but
-does not unmount an already open route. The route stays hidden and inert until
-catch-up completes. Room and thread timelines retain only a viewport event ID
-and pixel offset across this boundary. Fresh cursor-bounded reads restore that
-window; a missing event falls back to the latest window. Access revocation
-clears the saved position. Session and explicit resync resets still unmount
-private routes. No cached plaintext is used to restore a snapshot.
+A warm replacement keeps the normal route visible. Fresh room permissions
+remove access to affected rooms; cursor-bounded timeline reads replace retained
+message windows when they complete. An interrupted replacement leaves the
+prior view visible while the client requests another snapshot. A cold offline
+launch restores bounded saved text in the normal chat route. Verified access
+revocation clears affected saved text and position. Explicit sign-out clears
+the saved data. The saved text never supplies a realtime cursor or current
+authorization.
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for

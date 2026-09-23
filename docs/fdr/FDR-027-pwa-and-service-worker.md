@@ -1,23 +1,24 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-09-21
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
-Chatto ships a service worker so the installed web app can handle push notifications and notification clicks. The worker does not intercept network requests or cache frontend resources, chat data, API responses, live-event traffic, or protected uploaded asset bodies. Content-hashed frontend build resources instead use the browser's normal HTTP cache.
+Chatto ships a service worker for push notifications, notification clicks, and an offline application shell. The root worker caches versioned frontend build files and a public login document. IndexedDB keeps limited text data for the normal chat view during an offline launch.
 
-Offline launches are not supported. The PWA expects a network connection for normal use.
+Offline launches show saved rooms and messages without server actions. The view is read only and can be out of date. A device cannot learn of a remote revocation while it is offline.
 
-Reconnect catch-up is owned by the foreground web app, not the service worker. When a controlled PWA tab wakes or reconnects, server-scoped stores refresh current state. A replacement snapshot preserves the open room and thread UI and restores the reading position from fresh data. Private route content stays hidden and disabled until recovery completes. If the saved message no longer exists, the timeline returns to the latest window. The worker must not cache or replay messages, API responses, or live-event traffic.
+Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps the normal chat layout and its retained data visible while fresh resources arrive. A cold offline launch restores saved rooms and messages in the same layout. The worker does not cache or replay API responses or live-event traffic.
 
 ## Behavior
 
-- The root service worker is registered by SvelteKit in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
-- A new worker activates promptly so an older request-intercepting worker does not remain attached to long-lived Chatto tabs.
-- The worker does not intercept frontend, navigation, API, authentication, live, webhook, or uploaded-asset requests.
-- Content-hashed JavaScript, CSS, and bundled font resources use normal immutable HTTP caching. Other frontend resources follow their server-provided cache policy.
-- On activation, the worker removes Cache Storage left by earlier Chatto workers.
+- The foreground app registers the root service worker shortly after startup in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
+- The root worker caches the current version of the application shell. It serves that shell on a failed navigation and serves cached compiled frontend files. Narrow push-worker registrations do not manage the shell.
+- API, authentication, live, webhook, and uploaded-asset requests use the network.
+- The foreground app saves the room list and up to 50 text messages from each of 10 recently viewed rooms per server and user. Saved views expire seven days after the last successful sync. The current offline storage budget is 20 MB: at most 12 MB for the shell and 8 MB for saved text.
+- The app clears affected saved content on sign-out, account switch, server removal, account deletion, and verified room access loss. App preferences include a control to clear saved chats on the device.
+- On activation, the root worker removes older shell caches after the new shell is installed.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
@@ -28,23 +29,23 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 ## Design Decisions
 
-### 1. No service-worker request interception
+### 1. Versioned offline shell
 
-**Decision:** The service worker handles push-related events but does not handle fetches or provide an offline shell.
-**Why:** Chatto is a real-time application that requires the network for useful state. Request interception adds cache policy and worker-lifecycle complexity without making the application meaningfully usable offline.
-**Tradeoff:** The browser cannot launch Chatto offline through a worker-provided shell. A network error is presented directly instead of rendering an app shell whose data requests cannot succeed.
+**Decision:** The root worker caches only compiled frontend files and a public login document. It uses the document as a navigation fallback when the network fails.
+**Why:** The normal chat view must remain available after an offline PWA launch.
+**Tradeoff:** The shell uses device storage. A browser can evict it under storage pressure.
 
-### 2. HTTP caching for frontend build resources
+### 2. Saved text in the normal view
 
-**Decision:** Content-hashed frontend JavaScript, CSS, and bundled fonts use immutable HTTP caching rather than being copied into Cache Storage. This policy applies only to public frontend build resources, not to uploaded assets.
-**Why:** A content hash gives each build resource a new URL when its bytes change, so normal browser caching can reuse it safely without duplicating the response in a worker-managed cache.
-**Tradeoff:** Cache retention is left to the browser, and non-hashed frontend resources are only reused according to their server-provided cache headers.
+**Decision:** IndexedDB stores bounded, presentation-only text data under the server and user identity. The foreground app restores it into the normal chat view for the matching identity. It never stores a realtime cursor with that data and clears saved data at explicit privacy boundaries.
+**Why:** People can read saved text in the familiar chat layout while offline. The saved data does not establish current authorization.
+**Tradeoff:** Automatic saving puts private text on the device. A remote revocation takes effect on this copy only after the device reconnects and verifies it.
 
-### 3. SvelteKit owns the root registration
+### 3. Foreground app owns the root registration
 
-**Decision:** The frontend relies on SvelteKit's production service-worker registration for the root worker. Push setup reuses that registration for the serving server and registers the same worker script under stable, server-specific narrow scopes for remote-server subscriptions.
-**Why:** The root worker and its updates belong to the installed PWA lifecycle. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let remote servers retain their own VAPID keys without changing which worker controls the application page.
-**Tradeoff:** Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. None of these workers intercept requests.
+**Decision:** The foreground app registers the root worker after a short startup delay. Push setup reuses that registration for the serving server and registers the same worker script under stable, server-specific narrow scopes for remote-server subscriptions.
+**Why:** Preloading the complete shell during the first navigation delays the page. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let remote servers retain their own VAPID keys without changing which worker controls the application page.
+**Tradeoff:** The offline shell becomes available only after the startup delay and cache installation finish. Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. Only the root worker handles shell requests.
 
 ### 4. Protected assets bypass the worker
 

@@ -248,6 +248,73 @@ describe('ServerRegistry', () => {
 		});
 	});
 
+	it('clears a remote session when another tab signs out', async () => {
+		const registry = await createRegistry();
+		registry.removeAll();
+		registry.init();
+		registry.addServer(makeServer({ id: 'other-tab', token: 'access', userId: 'U1' }));
+		const channel = new BroadcastChannel('chatto-private-cache');
+		try {
+			channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
+			await vi.waitFor(() => {
+				expect(registry.getServer('other-tab')?.token).toBeNull();
+				expect(registry.getServer('other-tab')?.userId).toBeNull();
+			});
+		} finally {
+			channel.close();
+		}
+	});
+
+	it('clears a disk-restored projection when saved chats are cleared', async () => {
+		const registry = await createRegistry();
+		registry.removeAll();
+		registry.init();
+		registry.addServer(makeServer({ id: 'offline', token: 'access', userId: 'U1' }));
+		const store = registry.getStore('offline');
+		store.currentUser.loading = false;
+		store.restoreSavedView({
+			version: 1,
+			serverId: 'offline',
+			userId: 'U1',
+			serverName: 'Saved server',
+			savedAt: Date.now(),
+			rooms: [{ id: 'R1', name: 'general', messages: [] }]
+		});
+		expect(store.projection.rooms.has('R1')).toBe(true);
+
+		await registry.clearDeviceSavedViews();
+
+		expect(store.savedView).toBeNull();
+		expect(store.projection.rooms.has('R1')).toBe(false);
+		expect(store.projection.viewer).toBeNull();
+		expect(store.currentUser.user).toBeUndefined();
+		expect(store.realtimeSync.phase).toBe('empty');
+	});
+
+	it('keeps an authorized live projection when saved chats are cleared', async () => {
+		const registry = await createRegistry();
+		registry.removeAll();
+		registry.init();
+		registry.addServer(makeServer({ id: 'live', token: 'access', userId: 'U1' }));
+		const store = registry.getStore('live');
+		store.currentUser.loading = false;
+		store.restoreSavedView({
+			version: 1,
+			serverId: 'live',
+			userId: 'U1',
+			serverName: 'Live server',
+			savedAt: Date.now(),
+			rooms: [{ id: 'R1', name: 'general', messages: [] }]
+		});
+		store.realtimeSync.markCaughtUp('authorized');
+
+		await registry.clearDeviceSavedViews();
+
+		expect(store.savedView).toBeNull();
+		expect(store.projection.rooms.has('R1')).toBe(true);
+		expect(store.realtimeSync.phase).toBe('ready');
+	});
+
 	describe('handleAuthenticationRequired', () => {
 		it('marks remote instances as needing reauth without removing them', async () => {
 			const registry = await createRegistry();
@@ -359,7 +426,7 @@ describe('ServerRegistry', () => {
 			expect(registry.getStore('remote')).toBe(remoteStore);
 		});
 
-		it('keeps the origin store when cookie auth is already active', async () => {
+		it('replaces the origin store when the cookie changes accounts', async () => {
 			const registry = await createRegistry();
 			registry.removeAll();
 			registry.addServer(
@@ -374,12 +441,25 @@ describe('ServerRegistry', () => {
 
 			registry.authenticateOriginCookie({ id: 'new-user', login: 'new-login' });
 
-			expect(registry.getStore('origin')).toBe(originStore);
+			expect(registry.getStore('origin')).not.toBe(originStore);
 			expect(registry.getServer('origin')).toMatchObject({
 				token: null,
 				userId: 'new-user',
 				userLogin: 'new-login'
 			});
+		});
+
+		it('keeps the origin store when the cookie still belongs to the same account', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.addServer(makeServer({
+				id: 'origin', url: window.location.origin, userId: 'same-user'
+			}));
+			const originStore = registry.getStore('origin');
+
+			registry.authenticateOriginCookie({ id: 'same-user', login: 'same-login' });
+
+			expect(registry.getStore('origin')).toBe(originStore);
 		});
 	});
 
