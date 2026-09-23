@@ -74,6 +74,48 @@ func TestResolveOperatorAPIClientConfigEnvOverridesConfigSocket(t *testing.T) {
 	}
 }
 
+func TestResolveOperatorAPIClientConfigOverridesSkipInvalidConfig(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		set  func(*testing.T)
+		want string
+	}{
+		{"flag", func(t *testing.T) {
+			t.Setenv("CHATTO_OPERATOR_API_SOCKET_PATH", "/tmp/env-operator.sock")
+			operatorSocketPath = "/tmp/flag-operator.sock"
+		}, "/tmp/flag-operator.sock"},
+		{"environment", func(t *testing.T) { t.Setenv("CHATTO_OPERATOR_API_SOCKET_PATH", "/tmp/env-operator.sock") }, "/tmp/env-operator.sock"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetOperatorGlobals(t)
+			operatorConfigFile = t.TempDir() + "/chatto.toml"
+			if err := os.WriteFile(operatorConfigFile, []byte("[broken"), 0o600); err != nil {
+				t.Fatalf("write invalid config: %v", err)
+			}
+			tc.set(t)
+
+			got, err := resolveOperatorAPIClientConfig()
+			if err != nil {
+				t.Fatalf("resolveOperatorAPIClientConfig(): %v", err)
+			}
+			if got.socketPath != tc.want {
+				t.Fatalf("socketPath = %q, want %q", got.socketPath, tc.want)
+			}
+		})
+	}
+}
+
+func TestResolveOperatorAPIClientConfigInvalidFallbackConfig(t *testing.T) {
+	resetOperatorGlobals(t)
+	operatorConfigFile = t.TempDir() + "/chatto.toml"
+	if err := os.WriteFile(operatorConfigFile, []byte("[broken"), 0o600); err != nil {
+		t.Fatalf("write invalid config: %v", err)
+	}
+	if _, err := resolveOperatorAPIClientConfig(); err == nil {
+		t.Fatal("resolveOperatorAPIClientConfig() error = nil, want invalid config error")
+	}
+}
+
 func TestOperatorOutputUsesProvidedWriter(t *testing.T) {
 	originalJSON := operatorOutputJSON
 	t.Cleanup(func() { operatorOutputJSON = originalJSON })

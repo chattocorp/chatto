@@ -54,16 +54,19 @@ func resolveOperatorAPIClientConfig() (resolvedOperatorAPIConfig, error) {
 		connectBaseURL: "http://chatto-operator" + connectapi.Prefix,
 		socketPath:     strings.TrimSpace(operatorSocketPath),
 	}
-	if envSocketPath := strings.TrimSpace(os.Getenv("CHATTO_OPERATOR_API_SOCKET_PATH")); resolved.socketPath == "" && envSocketPath != "" {
+	if resolved.socketPath != "" {
+		return resolved, nil
+	}
+	if envSocketPath := strings.TrimSpace(os.Getenv("CHATTO_OPERATOR_API_SOCKET_PATH")); envSocketPath != "" {
 		resolved.socketPath = envSocketPath
+		return resolved, nil
 	}
-	cfg, cfgErr := readOperatorConfigFile(operatorConfigFile)
-	if cfgErr != nil {
-		return resolved, cfgErr
+	// Read TOML only when it must supply the socket path.
+	cfg, err := readOperatorConfigFile(operatorConfigFile)
+	if err != nil {
+		return resolved, err
 	}
-	if resolved.socketPath == "" {
-		resolved.socketPath = cfg.OperatorAPI.SocketPathOrDefault()
-	}
+	resolved.socketPath = cfg.OperatorAPI.SocketPathOrDefault()
 	return resolved, nil
 }
 
