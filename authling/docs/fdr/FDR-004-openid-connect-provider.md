@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -36,7 +36,8 @@ and returns to the relying party with an Authorization Code.
   access token. The issuer is Authling's immutable public URL, `sub` is the
   Authling account ID. The `profile` scope permits non-empty `preferred_username`
   and `name` hints. The `email` scope permits the current verified `email` and
-  `email_verified`. Both ID tokens and UserInfo omit unrequested claims.
+  `email_verified`. ID tokens and UserInfo omit these account claims when their
+  scopes are absent. ID tokens also include a `client_id` claim.
   UserInfo uses stored access-token scopes; request parameters cannot add access.
   Each response checks that the account is active. Account and decryption
   failures fail closed. Email is read through the account service only when

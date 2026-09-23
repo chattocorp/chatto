@@ -11,7 +11,7 @@ record planned behavior as active functionality.
 | [FDR-001](FDR-001-standalone-account-runtime.md) | Standalone Account Runtime | Experimental | 2026-09-15 |
 | [FDR-002](FDR-002-verified-email-signup.md) | Verified Email Signup | Experimental | 2026-09-15 |
 | [FDR-003](FDR-003-local-login-and-browser-sessions.md) | Local Login and Browser Sessions | Experimental | 2026-09-15 |
-| [FDR-004](FDR-004-openid-connect-provider.md) | OpenID Connect Provider | Experimental | 2026-09-20 |
+| [FDR-004](FDR-004-openid-connect-provider.md) | OpenID Connect Provider | Experimental | 2026-09-23 |
 | [FDR-005](FDR-005-account-data-sync.md) | Account Data Synchronization | Retired | 2026-08-14 |
 | [FDR-006](FDR-006-password-reset.md) | Password Reset | Experimental | 2026-09-15 |
 | [FDR-007](FDR-007-verified-email-change.md) | Verified Email Change | Experimental | 2026-09-15 |
