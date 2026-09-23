@@ -356,6 +356,12 @@ export class RoomMembersStore {
       return;
     }
     if (exists || !this.hasFirstPage) return;
+    if (this.#users) {
+      // Realtime owns profile hydration. Membership can publish its ID now.
+      this.#memberIds = [...this.#memberIds, userId];
+      this.totalCount++;
+      return;
+    }
     const loadId = this.#loadId;
     let users: DirectoryMember[];
     try {

@@ -1,7 +1,10 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
+import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { disposeUserStore, getUserStore } from '$lib/state/server/users.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 
 class FakeMemberDirectoryAPI {
@@ -219,6 +222,39 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(1);
     expect(api.listRoomMembers).toHaveBeenCalledTimes(1);
     expect(api.batchGetUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it('publishes a join ID while the shared profile loads without a second member request', async () => {
+    const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);
+    const profiles = getUserStore('member-join-test', 'connection');
+    profiles.set('first', new DirectoryMember({
+      user: { id: 'first', login: 'first', displayName: 'First' }
+    }));
+    const connection = {
+      serverId: 'member-join-test', queryScope: 'connection', getAPI: () => api
+    } as unknown as ServerConnection;
+    const store = new RoomMembersStore(connection);
+    store.setRoom('room');
+    await store.loadInitial();
+
+    await store.applyMembership('second', true, 'join-cursor');
+    expect(store.members.map((member) => member.id)).toEqual(['first', 'second']);
+    expect(store.members[1]?.login).toBe('');
+    expect(api.batchGetUsers).not.toHaveBeenCalled();
+
+    profiles.set('second', new DirectoryMember({
+      user: { id: 'second', login: 'second', displayName: 'Second' }
+    }));
+    expect(store.members[1]?.login).toBe('second');
+
+    await store.applyMembership('third', true, 'later-cursor');
+    await store.applyMembership('third', false);
+    profiles.set('third', new DirectoryMember({
+      user: { id: 'third', login: 'third', displayName: 'Third' }
+    }));
+    expect(store.members.map((member) => member.id)).toEqual(['first', 'second']);
+
+    disposeUserStore('member-join-test', 'connection');
   });
 
   it('discards a pending join after that member leaves', async () => {

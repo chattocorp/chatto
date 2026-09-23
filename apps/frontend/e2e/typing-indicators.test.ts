@@ -18,17 +18,22 @@ test.describe('Typing indicators', () => {
     browser,
     serverURL
   }) => {
-    // User 1: Create account and enter room
+    // Create the second account before the viewer starts its user store.
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    const user1 = await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    // User 2: Join the same server and room
+    const runtimeErrors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') runtimeErrors.push(message.text());
+    });
+    page.on('pageerror', (error) => runtimeErrors.push(error.message));
     await withServerUser(
       browser!,
       serverURL,
       async ({ user: user2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        const user1 = await createAndLoginTestUser(page);
+        await chatPage.goto();
+        await chatPage.enterRoom('general');
+
+        // The second user joins only after the viewer has loaded the room.
         await chatPage2.goto();
         await chatPage2.enterRoom('general');
 
@@ -37,6 +42,15 @@ test.describe('Typing indicators', () => {
         await roomPage2.expectMemberVisible(user1.displayName, {
           timeout: TIMEOUTS.REALTIME_EVENT
         });
+
+        // The viewer loaded this room before the second user joined.
+        await roomPage.messageInput.click();
+        await roomPage.messageInput.pressSequentially(`@${user2.login}`);
+        await expect(page.getByTestId('mention-autocomplete')).toContainText(`@${user2.login}`, {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await roomPage.messageInput.press('Escape');
+        await roomPage.messageInput.fill('');
 
         // Verify no typing indicator initially (no avatar for user2 in typing indicator)
         await expect(page.locator('.typing-dots')).not.toBeVisible();
@@ -65,6 +79,7 @@ test.describe('Typing indicators', () => {
       },
       { viewport: { width: 1280, height: 720 } }
     );
+    expect(runtimeErrors).toEqual([]);
   });
 
   test('typing indicator disappears after timeout when user stops typing', async ({
@@ -124,7 +139,7 @@ test.describe('Typing indicators', () => {
     await withServerUser(
       browser!,
       serverURL,
-      async ({ chatPage: chatPage2, roomPage: roomPage2 }) => {
+      async ({ user: user2, chatPage: chatPage2, roomPage: roomPage2 }) => {
         await chatPage2.goto();
         await chatPage2.enterRoom('general');
 
@@ -148,7 +163,7 @@ test.describe('Typing indicators', () => {
         const threadTypingDots = roomPage.threadPane.locator('.typing-dots');
         await expect(threadTypingDots).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
         await expect(roomPage.threadPane.getByTestId('typing-indicator')).toContainText(
-          'is typing'
+          user2.displayName
         );
 
         // User 1: Should NOT see typing indicator in the MAIN room

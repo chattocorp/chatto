@@ -1,6 +1,7 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
+import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { useTypingEvent, type TypingEventData } from './useEvent.svelte';
 
 /** How long to display typing indicator after receiving an event (ms) */
@@ -39,6 +40,8 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
 
   /** Map of userId -> TypingUser for users currently typing */
   const typingUsers = new SvelteMap<string, TypingUser>();
+  /** Limit missing-profile reads to one attempt during each typing burst. */
+  const profileReadAttempts = new SvelteSet<string>();
 
   /** Version counter to force reactivity updates */
   const state = $state({ version: 0 });
@@ -66,6 +69,16 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastTypingAt: Date.now()
     });
     state.version++;
+
+    const profiles = serverScope.store.projection.users;
+    if (!profiles.has(data.userId) && !profiles.isDeleted(data.userId) &&
+      !profileReadAttempts.has(data.userId)) {
+      profileReadAttempts.add(data.userId);
+      void serverScope.connection.getAPI(createMemberDirectoryAPI)
+        .batchGetUsers([data.userId])
+        // Typing is transient. A later burst can retry without failing this one.
+        .catch(() => undefined);
+    }
   }
 
   function cleanupExpired() {
@@ -74,6 +87,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
     for (const [userId, user] of typingUsers) {
       if (now - user.lastTypingAt >= TYPING_TIMEOUT_MS) {
         typingUsers.delete(userId);
+        profileReadAttempts.delete(userId);
         changed = true;
       }
     }
@@ -96,6 +110,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       (configRoomId !== config.roomId || configThreadRootEventId !== config.threadRootEventId)
     ) {
       typingUsers.clear();
+      profileReadAttempts.clear();
     }
 
     configRoomId = config.roomId;
@@ -108,6 +123,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
     return () => {
       clearInterval(cleanupInterval);
       typingUsers.clear();
+      profileReadAttempts.clear();
     };
   });
 
@@ -123,6 +139,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
     removeTypingUser(userId: string) {
       if (typingUsers.has(userId)) {
         typingUsers.delete(userId);
+        profileReadAttempts.delete(userId);
         state.version++;
       }
     },

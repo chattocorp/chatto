@@ -1347,7 +1347,10 @@ export class ServerStateStore {
         if (payload.case === 'roomUniversalChanged' && roomId)
           this.#roomMembers[roomId]?.resetProjectionState();
         if (payload.case === 'userJoinedRoom') {
-          if (roomId && event.actorId) this.updateRoomMembership(roomId, event.actorId, true);
+          if (roomId && event.actorId) {
+            this.updateRoomMembership(roomId, event.actorId, true);
+            this.refreshRealtimeUsers([event.actorId]);
+          }
           this.refreshLoadedMessageWindows(roomId, event.id || null);
         }
         if (payload.case === 'roomThreadingModeChanged') {

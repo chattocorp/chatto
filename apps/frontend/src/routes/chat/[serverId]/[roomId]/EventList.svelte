@@ -780,7 +780,7 @@
     </div>
   </ScrollFader>
 
-  <TypingIndicator {typingUserIds} members={typingMembers} />
+  <TypingIndicator {typingUserIds} members={typingMembers} profiles={stores.projection.users} />
 
   {#if !viewport.shouldScrollToBottom && (reloadsTimelineOnReturn || !alwaysScrollToBottom)}
     <button

@@ -1,7 +1,7 @@
 # FDR-010: Typing Indicators
 
 **Status:** Active
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-23
 
 ## Overview
 
@@ -15,7 +15,7 @@ When a user composes a message, others see avatars, names, and animated dots in 
   that thread. Room membership is also required.
 - Current clients refresh typing state through ConnectRPC
   `RoomService.RefreshTypingIndicator`.
-- The bundled client shows up to three avatars and two names. Larger groups show the two names and a count of the other people. Missing profiles use the translated unknown-user label and still count toward the group size. A missing display name falls back to the login.
+- The bundled client shows up to three avatars and two names. Larger groups show the two names and a count of the other people. If a typing user's profile is missing, the client loads it and replaces the translated unknown-user label when the name arrives. The unknown user still counts toward the group size. A missing display name falls back to the login.
 - The indicator floats at the lower inline-end edge of its pane. The complete block fades and scales between 96% and 100% over 150 ms with easing. Long labels truncate to fit the pane without moving messages. The complete label stays available to assistive technology.
 - A bright dot moves clockwise around a 3×3 grid with a fading trail beside the label. A persistent polite status region announces text changes. Avatars and dots are decorative. Reduced motion disables the fade, scale, and dot animation.
 - The indicator is removed immediately when the user actually posts a message.

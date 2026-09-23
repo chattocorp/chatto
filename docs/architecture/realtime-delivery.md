@@ -377,6 +377,12 @@ The hub and public event mapper both check this boundary.
 Room navigation selects an existing store. Public join and leave events update
 its membership, and canonical user reads update its profiles. These updates also
 apply while the room is not mounted.
+Each join event also starts a profile read at the event cursor, even if no room
+store exists. A retained room records the new member ID and resolves its name
+from the shared user store. It does not start a second profile read. Member-list
+reads at that cursor use the same boundary when they load profiles. An unknown
+typing user starts one shared profile read during a typing burst. Room and
+thread labels can use that profile before member-list loading finishes.
 The session store also retains presence updates for inactive rooms and rooms
 opened later. Catch-up refreshes profiles and presence for retained members.
 An event during offset pagination restarts
