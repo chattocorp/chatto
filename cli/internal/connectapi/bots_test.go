@@ -186,15 +186,15 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	}
 }
 
-func TestBotServiceRejectsInvalidSuffixAndOwnerCeiling(t *testing.T) {
+func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "no-suffix", DisplayName: "No Suffix"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("CreateBot invalid suffix code = %v", connect.CodeOf(err))
+	if _, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "invalid!", DisplayName: "Invalid"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("CreateBot invalid login code = %v", connect.CodeOf(err))
 	}
-	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "ceiling_bot", DisplayName: "Ceiling Bot"}))
+	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "no-suffix", DisplayName: "Ceiling Bot"}))
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}

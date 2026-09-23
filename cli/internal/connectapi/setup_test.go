@@ -50,17 +50,21 @@ func TestServerSetupPublicAPI(t *testing.T) {
 			}
 			requireConnectCode(t, err, connect.CodeInvalidArgument)
 
-			_, err = client.CompleteSetup(ctx, connect.NewRequest(&authv1.CompleteSetupRequest{ServerName: "API community", Login: "founder_bot", DisplayName: "Founder", Password: "correct-password"}))
+			_, err = client.CompleteSetup(ctx, connect.NewRequest(&authv1.CompleteSetupRequest{ServerName: "API community", Login: "invalid!", DisplayName: "Founder", Password: "correct-password"}))
 			var validationError *connect.Error
 			if !errors.As(err, &validationError) || validationError.Meta().Get("Chatto-Error-Field") != "login" {
 				t.Fatalf("expected login field error, got %v", err)
 			}
-			_, err = client.CompleteSetup(ctx, connect.NewRequest(&authv1.CompleteSetupRequest{ServerName: "API community", Login: "founder", DisplayName: "Founder", Password: "correct-password"}))
+			_, err = client.CompleteSetup(ctx, connect.NewRequest(&authv1.CompleteSetupRequest{ServerName: "API community", Login: "founder_bot", DisplayName: "Founder", Password: "correct-password"}))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := c.VerifyPassword(ctx, "founder", "correct-password"); err != nil {
+			if _, err := c.VerifyPassword(ctx, "founder_bot", "correct-password"); err != nil {
 				t.Fatal(err)
+			}
+			founder, err := c.GetUserByLogin(ctx, "founder_bot")
+			if err != nil || founder.GetIsBot() {
+				t.Fatalf("setup account with _bot login = %+v, %v", founder, err)
 			}
 			info, err = discovery.GetServer(ctx, connect.NewRequest(&discoveryv1.GetServerRequest{}))
 			if err != nil {
