@@ -831,22 +831,7 @@ func shouldIndexRoomTimelineEvent(event *evtv1.Event) bool {
 }
 
 func isIndexedRoomTimelineEventType(eventType string) bool {
-	switch eventType {
-	case evtstream.EventMessagePosted,
-		evtstream.EventRoomCreated,
-		evtstream.EventRoomUpdated,
-		evtstream.EventRoomDeleted,
-		evtstream.EventRoomArchived,
-		evtstream.EventRoomUnarchived,
-		evtstream.EventRoomThreadingModeChanged,
-		evtstream.EventUserJoinedRoom,
-		evtstream.EventUserLeftRoom,
-		evtstream.EventCallStarted,
-		evtstream.EventCallEnded:
-		return true
-	default:
-		return false
-	}
+	return timelineKind(eventType) != timelineUnknown
 }
 
 // Get returns a single timeline entry by its envelope id, or
