@@ -7,7 +7,7 @@ Rows are notification causes. Columns follow the current navigation layout.
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
-  import { SvelteMap } from 'svelte/reactivity';
+  import { SvelteSet } from 'svelte/reactivity';
   import Panel from '$lib/ui/Panel.svelte';
   import { MatrixCellButton, MatrixTable } from '$lib/ui/matrix';
   import { HelpTooltip, Hint } from '$lib/ui';
@@ -46,10 +46,9 @@ Rows are notification causes. Columns follow the current navigation layout.
   const serverScope = useServerScope();
   let scopeFilter = $state('');
   let saveError = $state<string | null>(null);
-  const pendingCells = new SvelteMap<string, symbol>();
+  const pendingCells = new SvelteSet<string>();
   // Cache removal can outlive a pending save; its generation fences the result.
   let privacyGeneration = 0;
-  let active = true;
   const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
     if (serverId !== serverScope.serverId) return;
     privacyGeneration++;
@@ -57,7 +56,6 @@ Rows are notification causes. Columns follow the current navigation layout.
     saveError = null;
   });
   onDestroy(() => {
-    active = false;
     privacyGeneration++;
     removeCacheRemovalListener();
   });
@@ -166,19 +164,17 @@ Rows are notification causes. Columns follow the current navigation layout.
   ): Promise<void> {
     const key = cellKey(scope, field);
     if (pendingCells.has(key)) return;
-    const token = Symbol();
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const generation = privacyGeneration;
     const queryRoot = settingsQueryKeys.notificationPoliciesRoot(serverId, connection);
     const isCurrent = () =>
-      active &&
       generation === privacyGeneration &&
       serverScope.isCurrent() &&
       serverScope.serverId === serverId &&
       serverScope.connection.queryScope === connection.queryScope;
 
-    pendingCells.set(key, token);
+    pendingCells.add(key);
     saveError = null;
     try {
       const updated = await connection
@@ -202,7 +198,7 @@ Rows are notification causes. Columns follow the current navigation layout.
     } catch (error) {
       if (isCurrent()) saveError = error instanceof Error ? error.message : String(error);
     } finally {
-      if (pendingCells.get(key) === token) pendingCells.delete(key);
+      if (generation === privacyGeneration) pendingCells.delete(key);
     }
   }
 

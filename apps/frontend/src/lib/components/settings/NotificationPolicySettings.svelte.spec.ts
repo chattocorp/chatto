@@ -5,7 +5,7 @@ import { flushSync } from 'svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { queryClient } from '$lib/query/client';
 import { settingsQueryKeys } from '$lib/query/settings';
-import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import { refreshRegisteredServerQueries, removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {
@@ -442,5 +442,26 @@ describe('NotificationPolicySettings', () => {
     expect(queryClient.getQueriesData({
       queryKey: settingsQueryKeys.notificationPoliciesRoot('test-server', mocks.connection)
     })).toEqual([]);
+  });
+
+  it('keeps a new save pending when an old save finishes after a privacy refresh', async () => {
+    const oldSave = deferred<ScopedNotificationPolicy>();
+    const newSave = deferred<ScopedNotificationPolicy>();
+    mocks.update.mockReturnValueOnce(oldSave.promise).mockReturnValueOnce(newSave.promise);
+    const { container } = render(NotificationPolicySettings);
+    const button = () => container.querySelector(
+      'td[data-notification-scope="server"][data-notification-field="directMessages"] button'
+    ) as HTMLButtonElement;
+
+    button().click();
+    await refreshRegisteredServerQueries('test-server');
+    await vi.waitFor(() => expect(button()).not.toBeNull());
+    button().click();
+    expect(mocks.update).toHaveBeenCalledTimes(2);
+
+    oldSave.resolve(policy({ kind: 'server' }));
+    await oldSave.promise;
+    expect(button().getAttribute('aria-disabled')).toBe('true');
+    newSave.resolve(policy({ kind: 'server' }));
   });
 });
