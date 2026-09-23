@@ -41,6 +41,7 @@ and cannot be combined with semantic actions.
 		footer,
 		footerDetails,
 		mediaViewer = false,
+		imageViewer = false,
 		visible = $bindable(false),
 		title,
 		titleContent,
@@ -58,6 +59,8 @@ and cannot be combined with semantic actions.
 		children: Snippet;
 		/** Full-screen media area on small viewports. */
 		mediaViewer?: boolean;
+		/** Image-first viewer uses a larger desktop stage. */
+		imageViewer?: boolean;
 		onclose?: () => void;
 	} & ActionContent = $props();
 	const narrowTouch = new MediaQuery(NARROW_TOUCH_QUERY, false);
@@ -181,10 +184,12 @@ and cannot be combined with semantic actions.
 				sheet
 					? 'task-sheet sheet-frame w-full'
 					: mediaViewer
-						? 'h-dvh max-h-dvh w-full md:h-[85dvh] md:max-h-[85dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
+						? imageViewer
+							? 'h-dvh max-h-dvh w-full md:h-[92dvh] md:max-h-[92dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
+							: 'h-dvh max-h-dvh w-full md:h-[85dvh] md:max-h-[85dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
 						: 'max-h-[78vh] w-max rounded-lg border border-text/10 floating-frame p-2'
 			]}
-			style:--dialog-baseline-width={widths[size]}
+			style:--dialog-baseline-width={imageViewer ? 'min(96vw, 1600px)' : widths[size]}
 		>
 			{@render handle()}
 			<div

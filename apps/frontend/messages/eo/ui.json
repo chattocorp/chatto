@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Antaŭa bildo",
       "next": "Sekva bildo",
-      "fallback_alt": "Bildo"
+      "fallback_alt": "Bildo",
+      "zoom_in": "Zomi en",
+      "zoom_out": "Zomi el",
+      "fit": "Adapti",
+      "details": "Detaloj",
+      "file_type": "Dosiertipo"
     },
     "toast": {
       "dismiss": "Forĵeti sciigon"

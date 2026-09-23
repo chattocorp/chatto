@@ -109,7 +109,9 @@ describe('HTML viewer', () => {
       const caption = document.getElementById(captionId)!;
       expect(caption.textContent?.trim()).toBe(description);
       expect(caption.querySelector('strong')).toBeNull();
-      await expect.element(view.getByRole('dialog')).toHaveAttribute('aria-describedby', caption.id);
+      await expect
+        .element(view.getByRole('dialog'))
+        .toHaveAttribute('aria-describedby', caption.id);
       await expect.element(view.getByRole('link', { name: 'Download', exact: true })).toBeVisible();
       expect(view.container.querySelector('iframe')).toBeNull();
       if (contentType === 'text/html') {
@@ -282,6 +284,8 @@ describe('shared attachment previews', () => {
   it('navigates image galleries and updates original download and metadata together', async () => {
     const view = mount(gallery());
     await expect.element(view.getByAltText('first.gif')).toHaveAttribute('src', pixel);
+    await view.getByRole('button', { name: 'Details' }).click();
+    await expect.element(view.getByText('File type')).toBeVisible();
     await expect.element(view.getByText('1 KiB', { exact: true })).toBeVisible();
     await view.getByRole('button', { name: 'Next image' }).click();
     await expect.element(view.getByAltText('second.gif')).toBeVisible();
@@ -296,12 +300,65 @@ describe('shared attachment previews', () => {
     await expect.element(view.getByAltText('first.gif')).toBeVisible();
   });
 
+  it('resets zoom on gallery selection and keeps it during an image URL refresh', async () => {
+    const view = mount(gallery());
+    await expect.element(view.getByAltText('first.gif')).toBeVisible();
+    await view.getByRole('button', { name: 'Zoom in' }).click();
+    await expect.element(view.getByText('125%')).toBeVisible();
+
+    view.container.querySelector('img')!.dispatchEvent(new Event('error'));
+    await expect.poll(() => mocks.refreshUrls.mock.calls.length).toBe(2);
+    await expect.element(view.getByText('125%')).toBeVisible();
+
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByText('100%')).toBeVisible();
+    await expect.element(view.getByAltText('second.gif')).toBeVisible();
+  });
+
+  it('supports zoom keys without changing gallery navigation', async () => {
+    const view = mount(gallery());
+    await expect.element(view.getByAltText('first.gif')).toBeVisible();
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '+', bubbles: true, cancelable: true })
+    );
+    await expect.element(view.getByText('125%')).toBeVisible();
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '-', bubbles: true, cancelable: true })
+    );
+    await expect.element(view.getByText('100%')).toBeVisible();
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '+', bubbles: true, cancelable: true })
+    );
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '0', bubbles: true, cancelable: true })
+    );
+    await expect.element(view.getByText('100%')).toBeVisible();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await expect.element(view.getByAltText('second.gif')).toBeVisible();
+  });
+
+  it('mirrors gallery arrow keys in RTL', async () => {
+    document.documentElement.dir = 'rtl';
+    try {
+      const view = mount(gallery());
+      await expect.element(view.getByAltText('first.gif')).toBeVisible();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+      await expect.element(view.getByAltText('second.gif')).toBeVisible();
+    } finally {
+      document.documentElement.dir = 'ltr';
+    }
+  });
+
   it('preserves gallery descriptions as alt text and visible captions', async () => {
     const modal = gallery();
     modal.items[0].description = 'Blue line rising across the chart.';
     modal.items[1].description = 'Red line falling across the chart.';
     const view = mount(modal);
     await expect.element(view.getByAltText(modal.items[0].description)).toBeVisible();
+    await expect
+      .element(view.getByRole('button', { name: 'Details' }))
+      .toHaveAttribute('aria-expanded', 'false');
+    await view.getByRole('button', { name: 'Details' }).click();
     await expect.element(view.getByText(modal.items[0].description, { exact: true })).toBeVisible();
     await view.getByRole('button', { name: 'Next image' }).click();
     await expect.element(view.getByAltText(modal.items[1].description)).toBeVisible();
@@ -312,6 +369,7 @@ describe('shared attachment previews', () => {
     const modal = gallery();
     modal.items[0].description = 'Blue line rising across the chart.';
     const view = mount(modal);
+    await view.getByRole('button', { name: 'Details' }).click();
     await expect.element(view.getByText(modal.items[0].description, { exact: true })).toBeVisible();
     await view.getByRole('button', { name: 'Next image' }).click();
     await expect.element(view.getByAltText('second.gif')).toBeVisible();

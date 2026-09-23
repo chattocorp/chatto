@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Föregående bild",
       "next": "Nästa bild",
-      "fallback_alt": "Bild"
+      "fallback_alt": "Bild",
+      "zoom_in": "Zooma in",
+      "zoom_out": "Zooma ut",
+      "fit": "Anpassa",
+      "details": "Detaljer",
+      "file_type": "Filtyp"
     },
     "toast": {
       "dismiss": "Avvisa meddelande"

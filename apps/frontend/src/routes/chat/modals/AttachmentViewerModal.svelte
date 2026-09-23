@@ -37,6 +37,7 @@ media. HTML consent is never stored in history or carried to another selection.
   const html = $derived(isHtmlAttachment(item.contentType));
   const type = $derived(item.contentType.split(';', 1)[0].trim().toLowerCase());
   const previewable = $derived(html || /^(image|audio|video)\//.test(type));
+  const zoomable = $derived(type.startsWith('image/') && !item.videoProcessing);
   const downloadUrl = $derived(
     attachmentDownloadUrl(assetUrlForServer(modal.serverId, item.assetUrl?.url))
   );
@@ -218,6 +219,7 @@ media. HTML consent is never stored in history or carried to another selection.
   onnavigate={navigate}
   {downloadUrl}
   {busy}
+  imageViewer={zoomable}
   {error}
   ondownload={download}
   onretry={!html && previewable
@@ -234,6 +236,7 @@ media. HTML consent is never stored in history or carried to another selection.
       serverId={modal.serverId}
       url={previewUrl}
       {busy}
+      {zoomable}
       onpreview={() => {
         recoveryUsed = false;
         void showPreview();

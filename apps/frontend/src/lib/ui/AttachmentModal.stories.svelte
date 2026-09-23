@@ -43,6 +43,7 @@
       contentType={images[index].contentType}
       description="A white circle on a coloured background."
       size={24000}
+      imageViewer
       downloadUrl={images[index].url}
       {index}
       count={images.length}
@@ -50,14 +51,17 @@
       ondownload={() => {}}
       onclose={() => (open = false)}
     >
-      <AttachmentPreview
-        item={images[index]}
-        serverId="story"
-        url={images[index].url}
-        busy={false}
-        onpreview={() => {}}
-        onerror={async () => null}
-      />
+      {#key images[index].id}
+        <AttachmentPreview
+          item={images[index]}
+          serverId="story"
+          url={images[index].url}
+          busy={false}
+          zoomable
+          onpreview={() => {}}
+          onerror={async () => null}
+        />
+      {/key}
     </AttachmentModal>
   {/if}
 </Story>

@@ -73,7 +73,12 @@
     "image_modal": {
       "previous": "الصورة السابقة",
       "next": "الصورة التالية",
-      "fallback_alt": "صورة"
+      "fallback_alt": "صورة",
+      "zoom_in": "تكبير",
+      "zoom_out": "تصغير",
+      "fit": "ملاءمة",
+      "details": "التفاصيل",
+      "file_type": "نوع الملف"
     },
     "toast": {
       "dismiss": "تجاهل الإشعار"

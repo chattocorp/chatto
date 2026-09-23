@@ -275,8 +275,10 @@ dialogs, and `lg` for dense content such as screen selection. Footer actions
 can make each size wider on desktop. Keep the desktop viewport gutter. Do not add a
 feature-specific width to a task dialog.
 
-`ImageModal`, fullscreen video, `QuickSwitcher`, and popovers remain specialized
-overlays. Media viewers keep their full-screen mobile presentation. Context
+The attachment image viewer, fullscreen video, `QuickSwitcher`, and popovers
+remain specialized overlays. The image viewer keeps its zoom controls outside
+the pan surface and its details panel closed until the user opens it. Media
+viewers keep their full-screen mobile presentation. Context
 menus retain input-capability selection between floating menus and sheets.
 `Dialog` and `BottomSheet` share the internal `ModalSurface` for native modal
 lifecycle, focus restoration, backdrop handling, animation, and handle gestures.

@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "上一張圖片",
       "next": "下一張圖片",
-      "fallback_alt": "圖片"
+      "fallback_alt": "圖片",
+      "zoom_in": "放大",
+      "zoom_out": "縮小",
+      "fit": "符合視窗",
+      "details": "詳細資料",
+      "file_type": "檔案類型"
     },
     "toast": {
       "dismiss": "關閉通知"

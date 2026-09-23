@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Poprzedni obraz",
       "next": "Następny obraz",
-      "fallback_alt": "Obraz"
+      "fallback_alt": "Obraz",
+      "zoom_in": "Powiększ",
+      "zoom_out": "Pomniejsz",
+      "fit": "Dopasuj",
+      "details": "Szczegóły",
+      "file_type": "Typ pliku"
     },
     "toast": {
       "dismiss": "Odrzuć powiadomienie"

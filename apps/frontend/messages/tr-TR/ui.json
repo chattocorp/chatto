@@ -69,7 +69,12 @@
     "image_modal": {
       "previous": "Önceki resim",
       "next": "Sonraki resim",
-      "fallback_alt": "Resim"
+      "fallback_alt": "Resim",
+      "zoom_in": "Yakınlaştır",
+      "zoom_out": "Uzaklaştır",
+      "fit": "Sığdır",
+      "details": "Ayrıntılar",
+      "file_type": "Dosya türü"
     },
     "toast": {
       "dismiss": "Bildirimi reddet"
