@@ -60,7 +60,7 @@ func (s *AssetModel) RecordUploadedAsset(ctx context.Context, actorID, roomID st
 	if actorID == "" {
 		return fmt.Errorf("asset creation missing actor id")
 	}
-	return s.recordAssetCreated(ctx, actorID, roomID, attachment, nil, assetCreatedMetadata{})
+	return s.recordAssetCreated(ctx, actorID, actorID, roomID, attachment, nil, assetCreatedMetadata{})
 }
 
 // RecordUploadedPendingAttachmentAsset writes the AssetCreatedEvent for an
@@ -70,7 +70,13 @@ func (s *AssetModel) RecordUploadedPendingAttachmentAsset(ctx context.Context, a
 	if actorID == "" {
 		return fmt.Errorf("asset creation missing actor id")
 	}
-	return s.recordAssetCreated(ctx, actorID, roomID, attachment, nil, assetCreatedMetadata{
+	return s.recordUploadedPendingAttachmentAsset(ctx, actorID, actorID, roomID, attachment, sha256, pendingExpiresAt, needsVideoProcessing)
+}
+
+// recordUploadedPendingAttachmentAsset can record a system action while
+// retaining the mapped author as the asset owner for later attachment.
+func (s *AssetModel) recordUploadedPendingAttachmentAsset(ctx context.Context, actorID, ownerID, roomID string, attachment *evtv1.Attachment, sha256 string, pendingExpiresAt time.Time, needsVideoProcessing bool) error {
+	return s.recordAssetCreated(ctx, actorID, ownerID, roomID, attachment, nil, assetCreatedMetadata{
 		sha256:               sha256,
 		pendingExpiresAt:     pendingExpiresAt,
 		needsVideoProcessing: needsVideoProcessing,
@@ -84,7 +90,7 @@ func (s *AssetModel) RecordDerivativeAsset(ctx context.Context, parentAssetID st
 		return fmt.Errorf("derivative asset creation missing parent asset id")
 	}
 	deriv := &derivativeContext{parentAssetID: parentAssetID, derivativeRole: derivativeRole}
-	return s.recordAssetCreated(ctx, SystemActorID, roomID, attachment, deriv, assetCreatedMetadata{})
+	return s.recordAssetCreated(ctx, SystemActorID, "", roomID, attachment, deriv, assetCreatedMetadata{})
 }
 
 type assetCreatedMetadata struct {
@@ -93,7 +99,7 @@ type assetCreatedMetadata struct {
 	needsVideoProcessing bool
 }
 
-func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID string, attachment *evtv1.Attachment, deriv *derivativeContext, metadata assetCreatedMetadata) error {
+func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, ownerID, roomID string, attachment *evtv1.Attachment, deriv *derivativeContext, metadata assetCreatedMetadata) error {
 	created := &evtv1.AssetCreatedEvent{
 		Asset:                   assetFromAttachment(attachment),
 		OriginalBinaryAvailable: true,
@@ -103,7 +109,7 @@ func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID str
 		created.ParentAssetId = deriv.parentAssetID
 		created.DerivativeRole = deriv.derivativeRole
 	} else {
-		created.UserId = actorID
+		created.UserId = ownerID
 	}
 	if metadata.sha256 != "" {
 		created.Sha256 = metadata.sha256

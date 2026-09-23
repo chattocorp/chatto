@@ -100,6 +100,26 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 				t.Fatalf("OperatorRoomService.AddMember empty ID error = %v, want invalid argument", err)
 			}
 		}
+		assetClient := operatorv1connect.NewOperatorAssetServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		for _, request := range []*operatorv1.CreateUploadRequest{
+			{AuthorId: user.GetId(), Filename: "empty.txt", Sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+			{RoomId: created.Msg.GetRoom().GetId(), Filename: "empty.txt", Sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+		} {
+			if _, err := assetClient.CreateUpload(ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("OperatorAssetService.CreateUpload empty ID error = %v, want invalid argument", err)
+			}
+		}
+		assetUpload, err := assetClient.CreateUpload(ctx, connect.NewRequest(&operatorv1.CreateUploadRequest{
+			RoomId: created.Msg.GetRoom().GetId(), AuthorId: user.GetId(), Filename: "empty.txt",
+			Sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		}))
+		if err != nil {
+			t.Fatalf("OperatorAssetService.CreateUpload: %v", err)
+		}
+		assetDone, err := assetClient.CompleteUpload(ctx, connect.NewRequest(&operatorv1.CompleteUploadRequest{UploadId: assetUpload.Msg.GetUpload().GetUploadId()}))
+		if err != nil || assetDone.Msg.GetAssetId() == "" {
+			t.Fatalf("OperatorAssetService.CompleteUpload = %+v, err = %v", assetDone, err)
+		}
 
 		adminClient := adminv1connect.NewAdminUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
 		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
@@ -122,6 +142,10 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 		}
 		if _, err := roomClient.AddMember(context.Background(), connect.NewRequest(&operatorv1.AddMemberRequest{RoomId: "room", UserId: "user"})); connect.CodeOf(err) != connect.CodeUnimplemented {
 			t.Fatalf("OperatorRoomService.AddMember on public server err = %v, want unimplemented", err)
+		}
+		assetClient := operatorv1connect.NewOperatorAssetServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		if _, err := assetClient.CreateUpload(context.Background(), connect.NewRequest(&operatorv1.CreateUploadRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorAssetService on public server err = %v, want unimplemented", err)
 		}
 	})
 }
