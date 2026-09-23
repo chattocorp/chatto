@@ -175,8 +175,9 @@ describe('renderMarkdown', () => {
     it('converts tabs to spaces in code blocks for consistent rendering', async () => {
       const html = await renderMarkdown('```go\nconst (\n\tFoo = 1\n)\n```');
       // Tabs should be converted to spaces to avoid CSS tab-stop issues with line numbers
-      expect(html).not.toContain('\t');
-      expect(html).toContain('    Foo');
+      const displayedCode = html.match(/<code[^>]*>(.*?)<\/code>/s)?.[1];
+      expect(displayedCode).not.toContain('\t');
+      expect(displayedCode).toContain('    Foo');
     });
 
     it('renders code blocks with language hint', async () => {

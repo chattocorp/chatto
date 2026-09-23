@@ -20,7 +20,7 @@
       aria-haspopup="dialog"
       {onclick}
     ></button>
-    <span
+    <div
       data-testid="motd-preview"
       class="prose prose-compact pointer-events-none min-w-0 max-w-none truncate [&_a]:pointer-events-auto [&_a]:relative"
     >
@@ -31,6 +31,6 @@
       {:catch}
         {motd}
       {/await}
-    </span>
+    </div>
   </div>
 </div>

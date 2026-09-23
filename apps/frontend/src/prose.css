@@ -23,6 +23,10 @@
     margin-top: 0.75em;
   }
 
+  & > .markdown-html > * + * {
+    margin-top: 0.75em;
+  }
+
   /* Headings: inherited font size, bold, underlined. */
   & h1,
   & h2,
@@ -40,10 +44,18 @@
     margin-top: 0;
   }
 
+  & > .markdown-html > :first-child {
+    margin-top: 0;
+  }
+
   /* Blockquotes keep their top margin even as the first child, so the
      start border has breathing room from whatever sits above (e.g. the
      message header). */
   & > blockquote:first-child {
+    margin-top: 0.25em;
+  }
+
+  & > .markdown-html > blockquote:first-child {
     margin-top: 0.25em;
   }
 
@@ -61,7 +73,9 @@
 
   /* Lists */
   & > ul,
-  & > ol {
+  & > ol,
+  & > .markdown-html > ul,
+  & > .markdown-html > ol {
     margin-bottom: 0.75em;
   }
 
@@ -140,8 +154,7 @@
     unicode-bidi: isolate;
   }
 
-  /* Highlighted code block styling - overflow moved to code element so the
-	   language label (positioned on pre) stays fixed during horizontal scroll */
+  /* Keep code scrolling inside the block so the controls stay fixed. */
   & pre.hljs {
     @apply relative overflow-hidden border border-surface-emphasized py-2 shadow-xs;
     background-color: transparent !important;
@@ -149,10 +162,23 @@
     line-height: 1.5;
   }
 
-  /* Language label */
-  & pre.hljs[data-language]::after {
-    content: attr(data-language);
-    @apply absolute right-0 bottom-0 rounded-tl-md bg-surface-emphasized px-2 py-0.5 text-xs tracking-wide text-muted uppercase;
+  & pre.markdown-code {
+    @apply relative overflow-hidden border border-surface-emphasized shadow-xs;
+    padding-block-end: 1.5rem;
+  }
+
+  & pre.markdown-code > code {
+    display: block;
+    overflow-x: auto;
+  }
+
+  & pre.markdown-code > .markdown-code-actions {
+    @apply absolute right-0 bottom-0 z-10 flex items-center gap-1.5 rounded-tl-md bg-surface-emphasized px-2 py-1;
+    white-space: normal;
+  }
+
+  & pre.markdown-code .markdown-code-language {
+    @apply text-xs tracking-wide text-muted uppercase;
   }
 
   /* Line numbers */
@@ -292,6 +318,10 @@
   }
 
   & > * + * {
+    margin-top: 0;
+  }
+
+  & > .markdown-html > * + * {
     margin-top: 0;
   }
 

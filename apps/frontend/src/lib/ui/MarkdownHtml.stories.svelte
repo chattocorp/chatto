@@ -25,6 +25,7 @@
   const orderedListHtml = renderMarkdown(
     `Short list\n\n${shortOrderedList}\n\nLong list\n\n${longOrderedList}`
   );
+  const codeHtml = renderMarkdown('```js\nconst answer = 42;\n```\n\n    Indented code');
 </script>
 
 <Story name="GFM table" asChild>
@@ -32,6 +33,18 @@
     <div class="prose max-w-none min-w-0">
       {#await tableHtml}
         <span class="text-muted">Rendering table…</span>
+      {:then html}
+        <MarkdownHtml {html} />
+      {/await}
+    </div>
+  </div>
+</Story>
+
+<Story name="Copy code blocks" asChild>
+  <div class="w-96 rounded-md border border-border bg-surface p-3">
+    <div class="prose max-w-none min-w-0">
+      {#await codeHtml}
+        <span class="text-muted">Rendering code…</span>
       {:then html}
         <MarkdownHtml {html} />
       {/await}
