@@ -107,7 +107,10 @@
         "edit_short": "تعديل",
         "copy_text": "نسخ النص",
         "copy_text_failed": "فشل في نسخ النص",
-        "copy_link": "انسخ الرابط"
+        "copy_link": "انسخ الرابط",
+        "copy_message_link": "نسخ رابط الرسالة",
+        "link_copied": "تم نسخ الرابط",
+        "copy_link_failed": "تعذر نسخ الرابط"
       },
       "meta": {
         "echo": "صدى",

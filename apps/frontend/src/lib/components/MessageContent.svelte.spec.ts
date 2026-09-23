@@ -377,6 +377,18 @@ describe('renderMarkdown', () => {
 });
 
 describe('MessageContent component', () => {
+  it('lets a right-click on a rendered link reach the message row', async () => {
+    const rendered = renderMessage('[Example **site**](https://example.com/path)');
+    await expect.poll(() => q(rendered.container, 'a strong')).toBeTruthy();
+    const nestedText = q(rendered.container, 'a strong')!;
+    const contextMenu = vi.fn();
+    rendered.container.addEventListener('contextmenu', contextMenu);
+
+    nestedText.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+    expect(contextMenu).toHaveBeenCalledOnce();
+  });
+
   it('does not render encoded non-breaking spaces as tall message content', async () => {
     const body = `Magnets, how\n\ndo they work?\n\n- ONCE\n- TWICE\n- THRICE\n\nA haiku by a professional chef,\n\nthis was\n${'&nbsp;\n'.repeat(500)}`;
     const { container } = renderMessage(body);

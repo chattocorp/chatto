@@ -103,7 +103,10 @@
         "edit_short": "Rediģēt",
         "copy_text": "Kopēt tekstu",
         "copy_text_failed": "Neizdevās nokopēt tekstu",
-        "copy_link": "Kopēt saiti"
+        "copy_link": "Kopēt saiti",
+        "copy_message_link": "Kopēt ziņojuma saiti",
+        "link_copied": "Saite nokopēta",
+        "copy_link_failed": "Neizdevās nokopēt saiti"
       },
       "meta": {
         "echo": "Atbalss",

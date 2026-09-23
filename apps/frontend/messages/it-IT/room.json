@@ -103,7 +103,10 @@
         "edit_short": "Modifica",
         "copy_text": "Copia testo",
         "copy_text_failed": "Impossibile copiare il testo",
-        "copy_link": "Copia collegamento"
+        "copy_link": "Copia collegamento",
+        "copy_message_link": "Copia link al messaggio",
+        "link_copied": "Link copiato",
+        "copy_link_failed": "Impossibile copiare il link"
       },
       "meta": {
         "echo": "Eco",

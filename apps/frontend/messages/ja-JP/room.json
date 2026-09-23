@@ -103,7 +103,10 @@
         "edit_short": "編集",
         "copy_text": "テキストをコピー",
         "copy_text_failed": "テキストをコピーできませんでした",
-        "copy_link": "リンクをコピー"
+        "copy_link": "リンクをコピー",
+        "copy_message_link": "メッセージのリンクをコピー",
+        "link_copied": "リンクをコピーしました",
+        "copy_link_failed": "リンクをコピーできませんでした"
       },
       "meta": {
         "echo": "エコー",

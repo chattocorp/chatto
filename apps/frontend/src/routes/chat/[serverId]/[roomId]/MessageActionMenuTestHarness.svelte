@@ -6,11 +6,13 @@
   let {
     presentation = 'menu',
     action,
+    linkUrl = null,
     onOpenEmojiPicker,
     onClose
   }: {
     presentation?: 'menu' | 'sheet';
     action: MessageActionModel;
+    linkUrl?: string | null;
     onOpenEmojiPicker?: () => void;
     onClose: () => void;
   } = $props();
@@ -21,4 +23,4 @@
   });
 </script>
 
-<MessageActionMenu {presentation} {action} {onOpenEmojiPicker} {onClose} />
+<MessageActionMenu {presentation} {action} {linkUrl} {onOpenEmojiPicker} {onClose} />

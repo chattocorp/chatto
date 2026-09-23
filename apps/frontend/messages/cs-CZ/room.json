@@ -103,7 +103,10 @@
         "edit_short": "Upravit",
         "copy_text": "Zkopírujte text",
         "copy_text_failed": "Text se nepodařilo zkopírovat",
-        "copy_link": "Zkopírujte odkaz"
+        "copy_link": "Zkopírujte odkaz",
+        "copy_message_link": "Zkopírovat odkaz na zprávu",
+        "link_copied": "Odkaz zkopírován",
+        "copy_link_failed": "Odkaz se nepodařilo zkopírovat"
       },
       "meta": {
         "echo": "Ozvěna",

@@ -103,7 +103,10 @@
         "edit_short": "Muuda",
         "copy_text": "Kopeeri tekst",
         "copy_text_failed": "Teksti kopeerimine ebaõnnestus",
-        "copy_link": "Kopeeri link"
+        "copy_link": "Kopeeri link",
+        "copy_message_link": "Kopeeri sõnumi link",
+        "link_copied": "Link kopeeritud",
+        "copy_link_failed": "Lingi kopeerimine nurjus"
       },
       "meta": {
         "echo": "Kaja",

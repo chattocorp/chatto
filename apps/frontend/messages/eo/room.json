@@ -103,7 +103,10 @@
         "edit_short": "Redaktu",
         "copy_text": "Kopiu tekston",
         "copy_text_failed": "Malsukcesis kopii tekston",
-        "copy_link": "Kopiu ligilon"
+        "copy_link": "Kopiu ligilon",
+        "copy_message_link": "Kopiu mesaĝan ligilon",
+        "link_copied": "Ligilo kopiita",
+        "copy_link_failed": "Ne eblis kopii ligilon"
       },
       "meta": {
         "echo": "Eĥo",

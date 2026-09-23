@@ -103,7 +103,10 @@
         "edit_short": "Bearbeiten",
         "copy_text": "Text kopieren",
         "copy_text_failed": "Text konnte nicht kopiert werden",
-        "copy_link": "Link kopieren"
+        "copy_link": "Link kopieren",
+        "copy_message_link": "Nachrichtenlink kopieren",
+        "link_copied": "Link kopiert",
+        "copy_link_failed": "Link konnte nicht kopiert werden"
       },
       "meta": {
         "echo": "Echo",

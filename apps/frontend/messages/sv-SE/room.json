@@ -103,7 +103,10 @@
         "edit_short": "Redigera",
         "copy_text": "Kopiera text",
         "copy_text_failed": "Det gick inte att kopiera texten",
-        "copy_link": "Kopiera länk"
+        "copy_link": "Kopiera länk",
+        "copy_message_link": "Kopiera meddelandelänk",
+        "link_copied": "Länk kopierad",
+        "copy_link_failed": "Det gick inte att kopiera länken"
       },
       "meta": {
         "echo": "Eko",

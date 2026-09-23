@@ -12,16 +12,20 @@ surface-specific sizing and menu semantics.
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
+  import { toast } from '$lib/ui/toast';
   import type { MessageActionModel } from './messageActionModel';
 
   let {
     presentation = 'menu',
     action,
+    linkUrl = null,
     onOpenEmojiPicker,
     onClose
   }: {
     presentation?: 'menu' | 'sheet';
     action: MessageActionModel;
+    /** Resolved URL of the message-body link that opened this context menu. */
+    linkUrl?: string | null;
     onOpenEmojiPicker?: () => void;
     onClose: () => void;
   } = $props();
@@ -62,6 +66,17 @@ surface-specific sizing and menu semantics.
 
   async function handleCopyLink() {
     await action.copyLink();
+    onClose();
+  }
+
+  async function handleCopyTargetLink() {
+    if (!linkUrl) return;
+    try {
+      await navigator.clipboard.writeText(linkUrl);
+      toast.success(m('room.message.actions.link_copied'));
+    } catch {
+      toast.error(m('room.message.actions.copy_link_failed'));
+    }
     onClose();
   }
 
@@ -214,7 +229,10 @@ surface-specific sizing and menu semantics.
       handleCopyText
     )}
   {/if}
-  {@render actionButton(m('room.message.actions.copy_link'), 'icon-[uil--link]', handleCopyLink)}
+  {#if !isSheet && linkUrl}
+    {@render actionButton(m('room.message.actions.copy_link'), 'icon-[uil--link]', handleCopyTargetLink)}
+  {/if}
+  {@render actionButton(m('room.message.actions.copy_message_link'), 'icon-[uil--link]', handleCopyLink)}
 {/snippet}
 
 {#snippet deleteAction()}

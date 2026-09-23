@@ -28,10 +28,13 @@
   let {
     interactions,
     action,
+    linkUrl = null,
     onClose
   }: {
     interactions: MessageEventInteractionState;
     action: MessageActionModel;
+    /** URL of the message-body link that opened the desktop context menu. */
+    linkUrl?: string | null;
     onClose?: () => void;
   } = $props();
 
@@ -76,6 +79,7 @@
     <MessageActionMenu
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
       {action}
+      linkUrl={presentation === 'menu' ? linkUrl : null}
       onOpenEmojiPicker={action.canReact
         ? presentation === 'sheet'
           ? openSheetEmojiPicker

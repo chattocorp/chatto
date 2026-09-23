@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
+import { toast } from '$lib/ui/toast';
 import MessageActionMenuTestHarness from './MessageActionMenuTestHarness.svelte';
 import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
 import { MessageEventInteractionState } from './messageEventInteractions.svelte';
@@ -75,16 +76,19 @@ function buildAction(overrides: ActionOverrides = {}) {
 
 function renderMenu({
   presentation,
+  linkUrl,
   onOpenEmojiPicker,
   ...overrides
 }: ActionOverrides & {
   presentation?: 'menu' | 'sheet';
+  linkUrl?: string | null;
   onOpenEmojiPicker?: () => void;
 } = {}) {
   return render(MessageActionMenuTestHarness, {
     props: {
       action: buildAction(overrides),
       presentation,
+      linkUrl,
       onOpenEmojiPicker,
       onClose: baseProps.onClose
     }
@@ -102,7 +106,40 @@ beforeEach(() => {
   baseProps.onClose.mockClear();
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('MessageActionMenu', () => {
+  it('copies the clicked link in the desktop menu and keeps the message permalink action', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    const success = vi.spyOn(toast, 'success').mockImplementation(() => 'toast');
+    const { container } = renderMenu({ linkUrl: 'https://example.com/path?q=1' });
+
+    expect(actionLabels(container)).toEqual(['Copy text', 'Copy link', 'Copy message link']);
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.trim() === 'Copy link')!
+      .click();
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('https://example.com/path?q=1'));
+    expect(success).toHaveBeenCalledWith('Link copied');
+    expect(baseProps.onClose).toHaveBeenCalledOnce();
+    expect(mocks.actions.copyMessageLink).not.toHaveBeenCalled();
+  });
+
+  it('reports a clipboard failure and closes the menu', async () => {
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('Clipboard unavailable'));
+    const error = vi.spyOn(toast, 'error').mockImplementation(() => 'toast');
+    const { container } = renderMenu({ linkUrl: 'https://example.com/path' });
+
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.trim() === 'Copy link')!
+      .click();
+
+    await vi.waitFor(() => expect(error).toHaveBeenCalledWith('Failed to copy link'));
+    expect(baseProps.onClose).toHaveBeenCalledOnce();
+  });
+
   it('renders reaction buttons when reactions are allowed', async () => {
     const { container } = renderMenu({ canReact: true });
 
@@ -123,7 +160,7 @@ describe('MessageActionMenu', () => {
     expect(container.textContent).toContain('Reply in thread');
     expect(container.textContent).toContain('Edit');
     expect(container.textContent).toContain('Copy text');
-    expect(container.textContent).toContain('Copy link');
+    expect(container.textContent).toContain('Copy message link');
     expect(container.textContent).toContain('Delete');
     expect(
       Array.from(container.querySelectorAll('.menu-section')).map((section) =>
@@ -131,7 +168,7 @@ describe('MessageActionMenu', () => {
           button.textContent?.trim()
         )
       )
-    ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy link'], ['Delete']]);
+    ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy message link'], ['Delete']]);
   });
 
   it('uses custom reply action labels when provided', () => {
@@ -148,7 +185,7 @@ describe('MessageActionMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy text', 'Copy link']);
+    expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy text', 'Copy message link']);
     const replyIcon = container.querySelector('[role="menuitem"] .iconify');
     expect(replyIcon?.classList).toContain('icon-[uil--corner-up-left]');
     expect(replyIcon?.classList).toContain('rtl:-scale-x-100');
@@ -167,7 +204,7 @@ describe('MessageActionMenu', () => {
       'Reply in thread',
       'Reply in room',
       'Copy text',
-      'Copy link'
+      'Copy message link'
     ]);
   });
 
@@ -183,7 +220,7 @@ describe('MessageActionMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Edit', 'Copy text', 'Copy link', 'Delete']);
+    expect(actionLabels).toEqual(['Edit', 'Copy text', 'Copy message link', 'Delete']);
   });
 
   it('renders no empty actions section for a non-author thread reply', () => {
@@ -208,7 +245,7 @@ describe('MessageActionMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Copy text', 'Copy link']);
+    expect(actionLabels).toEqual(['Copy text', 'Copy message link']);
   });
 
   it('omits copy text when the message has no text body', () => {
@@ -220,7 +257,7 @@ describe('MessageActionMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Copy link']);
+    expect(actionLabels).toEqual(['Copy message link']);
   });
 
   it('closes after invoking menu actions', async () => {
@@ -275,7 +312,7 @@ describe('MessageActionMenu', () => {
 
     baseProps.onClose.mockClear();
     Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
-      .find((button) => button.textContent?.includes('Copy link'))!
+      .find((button) => button.textContent?.includes('Copy message link'))!
       .click();
     expect(mocks.actions.copyMessageLink).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -303,6 +340,7 @@ describe('MessageActionMenu', () => {
     it('preserves action order, grouping, sizing, and non-menu semantics', () => {
       const { container } = renderMenu({
         presentation: 'sheet',
+        linkUrl: 'https://example.com/path',
         canReact: true,
         canEdit: true,
         canDelete: true,
@@ -315,7 +353,7 @@ describe('MessageActionMenu', () => {
         'Reply in thread',
         'Edit',
         'Copy text',
-        'Copy link',
+        'Copy message link',
         'Delete'
       ]);
       expect(
@@ -326,7 +364,7 @@ describe('MessageActionMenu', () => {
               button.textContent?.trim()
             )
           )
-      ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy link'], ['Delete']]);
+      ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy message link'], ['Delete']]);
       expect(container.querySelector('[role="menuitem"]')).toBeNull();
       expect(container.querySelector('.menu-entry')).toHaveClass('menu-entry-sheet');
       expect(q(container, '[aria-label="React with 👍"]')).toHaveClass('rounded-full', 'text-xl');
