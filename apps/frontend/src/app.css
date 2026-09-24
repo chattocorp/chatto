@@ -529,60 +529,35 @@
   @apply rounded-md border border-border bg-surface-emphasized/60;
 }
 
-/* Pending content uses the same soft radial motion as the startup screen. */
+/* Pending content uses seeded simplex-noise paths for three soft light clouds. */
 .loading-fog {
   display: block;
   position: relative;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-surface), var(--color-background) 35%);
-}
-
-.loading-fog::before,
-.loading-fog::after {
-  content: '';
-  position: absolute;
-  inset: -35%;
-  pointer-events: none;
+  background: color-mix(in srgb, var(--color-surface), var(--color-background) 42%);
 }
 
 .loading-fog::before {
+  content: '';
+  position: absolute;
+  inset: -25%;
+  pointer-events: none;
   background:
     radial-gradient(
-      ellipse at 30% 40%,
-      color-mix(in srgb, var(--color-surface-strong) 76%, transparent),
-      transparent 50%
+      ellipse at var(--fog-first-x, 30%) var(--fog-first-y, 40%),
+      color-mix(in srgb, var(--color-surface-strong) 52%, transparent),
+      transparent var(--fog-first-size, 52%)
     ),
     radial-gradient(
-      ellipse at 72% 62%,
-      color-mix(in srgb, var(--color-surface-emphasized) 75%, transparent),
-      transparent 48%
+      ellipse at var(--fog-second-x, 70%) var(--fog-second-y, 60%),
+      color-mix(in srgb, var(--color-surface-emphasized) 50%, transparent),
+      transparent var(--fog-second-size, 52%)
+    ),
+    radial-gradient(
+      ellipse at var(--fog-third-x, 52%) var(--fog-third-y, 48%),
+      color-mix(in srgb, var(--color-background) 44%, transparent),
+      transparent var(--fog-third-size, 52%)
     );
-  animation: loading-fog-drift 3.2s ease-in-out infinite alternate;
-}
-
-.loading-fog::after {
-  background: radial-gradient(
-    ellipse at 55% 45%,
-    color-mix(in srgb, var(--color-background) 72%, transparent),
-    transparent 46%
-  );
-  animation: loading-fog-drift 4.1s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes loading-fog-drift {
-  from {
-    transform: translate(-12%, -6%) scale(0.95);
-  }
-  to {
-    transform: translate(12%, 6%) scale(1.05);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .loading-fog::before,
-  .loading-fog::after {
-    animation: none;
-  }
 }
 
 /* Panel and table header — one surface with a hairline divider. Typography,

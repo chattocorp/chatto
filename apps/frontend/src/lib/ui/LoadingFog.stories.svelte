@@ -16,3 +16,11 @@
 <Story name="Compact content" asChild>
   <LoadingFog class="h-10 w-48" />
 </Story>
+
+<Story name="Several panels" asChild>
+  <div class="grid w-full max-w-3xl gap-4 sm:grid-cols-2">
+    <LoadingFog class="h-40" />
+    <LoadingFog class="h-40" />
+    <LoadingFog class="h-24 sm:col-span-2" />
+  </div>
+</Story>

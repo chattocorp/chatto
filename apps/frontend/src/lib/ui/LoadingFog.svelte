@@ -2,6 +2,7 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import type { ClassValue } from 'svelte/elements';
+  import { attachFogGradients } from './fogGradients';
 
   let { class: className = '', label = m('common.loading') }: { class?: ClassValue; label?: string } =
     $props();
@@ -13,4 +14,5 @@
   aria-busy="true"
   aria-label={label}
   data-loading-fog
+  {@attach attachFogGradients}
 ></div>
