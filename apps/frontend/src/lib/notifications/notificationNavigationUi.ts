@@ -1,7 +1,7 @@
 import { segmentToServerId } from '$lib/navigation';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 
-type NotificationUiController = Pick<AppUiState, 'disableRoomCallWideFor' | 'requestSidebarReveal'>;
+type NotificationUiController = Pick<AppUiState, 'disableRoomCallWideFor'>;
 
 export function notificationRoomTargetFromPathname(
   pathname: string
@@ -19,24 +19,20 @@ export function notificationRoomTargetFromPathname(
   return { serverId, roomId };
 }
 
-/** Prepare room UI before following a push notification URL. */
 export function prepareUiForNotificationPath(
   appUi: NotificationUiController,
   pathname: string
 ): void {
   const target = notificationRoomTargetFromPathname(pathname);
-  if (target) prepareUiForNotificationTarget(appUi, target.serverId, target);
+  if (target) appUi.disableRoomCallWideFor(target.serverId, target.roomId);
 }
 
-/** Prepare room UI before opening an in-app notification target. */
 export function prepareUiForNotificationTarget(
   appUi: NotificationUiController,
   serverId: string,
   target: { roomId: string | null }
 ): void {
-  if (!target.roomId) return;
-  appUi.disableRoomCallWideFor(serverId, target.roomId);
-  appUi.requestSidebarReveal(serverId, target.roomId);
+  if (target.roomId) appUi.disableRoomCallWideFor(serverId, target.roomId);
 }
 
 function decodePathSegment(segment: string): string | null {

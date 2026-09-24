@@ -641,39 +641,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return sections;
   });
 
-  let isRoomListEmpty = $derived(
-    channels.length === 0 &&
-      dmRooms.length === 0 &&
-      visibleSets.length === 0 &&
-      !navigation.isInitialLoading
-  );
-
-  /** Svelte reruns this attachment when the request, room list, or sidebar visibility changes. */
-  const revealNotificationRoom: Attachment<HTMLElement> = (nav) => {
-    const request = appUi.sidebarRevealRequest;
-    if (
-      !request ||
-      request.serverId !== activeServerId ||
-      request.roomId !== activeRoomId ||
-      navigation.isInitialLoading
-    ) {
-      return;
-    }
-
-    const hasRow = navigationSections.some((section) =>
-      section.items.some((item) => item.type === 'room' && item.roomId === request.roomId)
-    );
-    if (!hasRow) {
-      appUi.finishSidebarReveal(request.id);
-      return;
-    }
-
+  /** Reveal the selected row when it renders or the desktop sidebar opens. */
+  const revealCurrentRoom: Attachment<HTMLAnchorElement> = (row) => {
     if (!sidebarNav.isMobile && !sidebarNav.isOpen) return;
-    const row = nav.querySelector<HTMLAnchorElement>('a[aria-current="page"]');
-    if (!row) return;
-
     row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    appUi.finishSidebarReveal(request.id);
   };
 
   let groupByRoomId = $derived.by(() => {
@@ -885,6 +856,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
     {@attach roomMenuTrigger(room)}
+    {@attach isCurrentRoom && revealCurrentRoom}
   >
     {#if presentation}
       <div class="flex shrink-0 -space-x-1">
@@ -1127,19 +1099,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </MenuSection>
 {/snippet}
 
-<nav
-  class={isRoomListEmpty ? 'flex flex-1 flex-col' : 'room-list md:w-full'}
-  {@attach revealNotificationRoom}
->
-  {#if isRoomListEmpty}
-    <EmptyState icon="icon-[uil--comments]" title={m('room_list.empty_title')}>
-      {m('room_list.empty_prefix')}
-      <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
-        >{m('room_list.empty_overview')}</a
-      >
-      {m('room_list.empty_suffix')}
-    </EmptyState>
-  {:else}
+{#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !navigation.isInitialLoading}
+  <EmptyState icon="icon-[uil--comments]" title={m('room_list.empty_title')}>
+    {m('room_list.empty_prefix')}
+    <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
+      >{m('room_list.empty_overview')}</a
+    >
+    {m('room_list.empty_suffix')}
+  </EmptyState>
+{:else}
+  <nav class="room-list md:w-full">
     <div
       class={supportsRelativeSidebarMoves && canReorderGroups ? 'sidebar-drop-target' : undefined}
       data-testid={supportsRelativeSidebarMoves && canReorderGroups
@@ -1192,8 +1161,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         separated={renderManagedSections.length > 0 || i > 0}
       />
     {/each}
-  {/if}
-</nav>
+  </nav>
+{/if}
 
 {#if canShowCreationMenu && creationMenu && creationGroup}
   <ContextMenu

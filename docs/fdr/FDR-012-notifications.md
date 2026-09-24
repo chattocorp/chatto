@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-09-20
 
 ## Overview
 
@@ -40,9 +40,6 @@ targets, unread counts, read state, or deletion semantics.
   Reaction rows show the emoji that were given.
 - Opening a row navigates to the selected occurrence's exact room, thread, and
   event. The occurrence is marked Read only after the target is displayed.
-  In an open app, notification navigation brings the destination room or direct
-  message into view in the server sidebar when it has a sidebar entry. It does
-  not open a closed sidebar.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
 - While a thread is visible in a focused app, its loaded unread notifications

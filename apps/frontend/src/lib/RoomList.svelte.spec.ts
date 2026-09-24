@@ -43,18 +43,7 @@ const { mocks } = vi.hoisted(() => ({
     },
     appUi: {
       disableRoomCallWideFor: vi.fn(),
-      requestRoomSidebarPanel: vi.fn(),
-      get sidebarRevealRequest() {
-        return sidebarRevealRequests.get('request') ?? null;
-      },
-      requestSidebarReveal: vi.fn((serverId: string, roomId: string) => {
-        sidebarRevealRequests.set('request', { serverId, roomId, id: ++sidebarRevealId });
-      }),
-      finishSidebarReveal: vi.fn((id: number) => {
-        if (sidebarRevealRequests.get('request')?.id === id) {
-          sidebarRevealRequests.delete('request');
-        }
-      })
+      requestRoomSidebarPanel: vi.fn()
     },
     store: {
       currentUser: { user: { id: 'me' } },
@@ -115,18 +104,14 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-const sidebarRevealRequests = new SvelteMap<
-  string,
-  { serverId: string; roomId: string; id: number }
->();
-let sidebarRevealId = 0;
+const activeRoomRoute = new SvelteMap<string, string>();
 
 vi.mock('$app/state', () => ({
   page: {
     params: {
       serverId: '-',
       get roomId() {
-        return mocks.activeRoomId;
+        return activeRoomRoute.get('roomId') ?? mocks.activeRoomId;
       }
     }
   }
@@ -309,7 +294,7 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   mocks.activeRoomId = undefined;
-  sidebarRevealRequests.clear();
+  activeRoomRoute.clear();
   sidebarNav.setMobile(false);
   if (!sidebarNav.isOpen) sidebarNav.toggle();
   mocks.activeCallRoomIds = new Set();
@@ -1061,24 +1046,22 @@ describe('RoomList', () => {
     expect(row.querySelector('.sidebar-icon')?.classList.contains('text-muted')).toBe(true);
   });
 
-  it('reveals a notified channel row with the browser nearest alignment', async () => {
+  it('reveals the selected channel row with the browser nearest alignment', async () => {
     mocks.activeRoomId = 'channel-1';
-    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
       render(RoomList);
 
-      await vi.waitFor(() => {
-        expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
-        expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1);
-      });
+      await vi.waitFor(() =>
+        expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+      );
     } finally {
       scrollIntoView.mockRestore();
     }
   });
 
-  it('reveals a notified row when the room list finishes loading', async () => {
+  it('reveals the selected row when the room list finishes loading', async () => {
     const navigation = mocks.store.navigation;
     const roomDescriptor = Object.getOwnPropertyDescriptor(navigation, 'rooms')!;
     const loadingDescriptor = Object.getOwnPropertyDescriptor(navigation, 'isInitialLoading')!;
@@ -1094,7 +1077,6 @@ describe('RoomList', () => {
       get: () => loading.get('value') ?? false
     });
     mocks.activeRoomId = 'channel-1';
-    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
@@ -1115,24 +1097,28 @@ describe('RoomList', () => {
     }
   });
 
-  it('does not scroll for ordinary room navigation', async () => {
+  it('reveals a room selected through route navigation', async () => {
     mocks.activeRoomId = 'channel-1';
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
       const { container } = render(RoomList);
       await expect.element(q(container, 'a[aria-current="page"]')).toBeInTheDocument();
-      await tick();
-      expect(scrollIntoView).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+
+      activeRoomRoute.set('roomId', 'dm-phone-only');
+      const dmRow = q(container, '[href="/chat/-/dm-phone-only"]');
+      await expect.element(dmRow).toHaveAttribute('aria-current', 'page');
+      await vi.waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(2));
+      expect(scrollIntoView.mock.instances[1]).toBe(dmRow);
     } finally {
       scrollIntoView.mockRestore();
     }
   });
 
-  it('reveals a notified DM in a collapsed section', async () => {
+  it('reveals the selected DM in a collapsed section', async () => {
     mocks.activeRoomId = 'dm-with-participants';
     localStorage.setItem('chatto:i:origin:collapsible:dms', '1');
-    mocks.appUi.requestSidebarReveal('origin', 'dm-with-participants');
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
@@ -1147,38 +1133,37 @@ describe('RoomList', () => {
     }
   });
 
-  it('leaves an already visible notified row at its current scroll position', async () => {
+  it('leaves an already visible selected row at its current scroll position', async () => {
     mocks.activeRoomId = 'channel-1';
     const { container } = render(RoomList);
     container.style.height = '800px';
     container.style.overflowY = 'auto';
     expect(container.scrollTop).toBe(0);
 
-    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
-
-    await vi.waitFor(() => expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1));
+    activeRoomRoute.set('roomId', 'dm-with-participants');
+    await expect
+      .element(q(container, '[href="/chat/-/dm-with-participants"]'))
+      .toHaveAttribute('aria-current', 'page');
     expect(container.scrollTop).toBe(0);
   });
 
-  it('scrolls an offscreen notified DM into the sidebar viewport', async () => {
-    mocks.activeRoomId = 'dm-phone-only';
+  it('scrolls an offscreen selected DM into the sidebar viewport', async () => {
+    mocks.activeRoomId = 'channel-1';
     const { container } = render(RoomList);
     container.style.height = '72px';
     container.style.overflowY = 'auto';
     const pageScroll = window.scrollY;
     expect(container.scrollHeight).toBeGreaterThan(container.clientHeight);
 
-    mocks.appUi.requestSidebarReveal('origin', 'dm-phone-only');
+    activeRoomRoute.set('roomId', 'dm-phone-only');
 
-    await vi.waitFor(() => expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1));
-    expect(container.scrollTop).toBeGreaterThan(0);
+    await vi.waitFor(() => expect(container.scrollTop).toBeGreaterThan(0));
     expect(window.scrollY).toBe(pageScroll);
   });
 
   it('waits while a desktop sidebar is closed', async () => {
     mocks.activeRoomId = 'channel-1';
     sidebarNav.toggle();
-    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
@@ -1197,7 +1182,6 @@ describe('RoomList', () => {
   it('positions a mobile drawer without opening it', async () => {
     mocks.activeRoomId = 'dm-with-participants';
     sidebarNav.setMobile(true);
-    mocks.appUi.requestSidebarReveal('origin', 'dm-with-participants');
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
@@ -1210,36 +1194,30 @@ describe('RoomList', () => {
     }
   });
 
-  it('discards a notification reveal when the destination has no sidebar row', async () => {
+  it('does not scroll when the selected room has no sidebar row', async () => {
     mocks.activeRoomId = 'missing-room';
-    mocks.appUi.requestSidebarReveal('origin', 'missing-room');
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
       render(RoomList);
 
-      await vi.waitFor(() => {
-        expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1);
-        expect(scrollIntoView).not.toHaveBeenCalled();
-      });
+      await tick();
+      expect(scrollIntoView).not.toHaveBeenCalled();
     } finally {
       scrollIntoView.mockRestore();
     }
   });
 
-  it('discards a notification reveal when the room list is empty', async () => {
+  it('does not scroll when the room list is empty', async () => {
     mocks.store.navigation.rooms = [];
     mocks.activeRoomId = 'missing-room';
-    mocks.appUi.requestSidebarReveal('origin', 'missing-room');
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
 
     try {
       render(RoomList);
 
-      await vi.waitFor(() => {
-        expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1);
-        expect(scrollIntoView).not.toHaveBeenCalled();
-      });
+      await tick();
+      expect(scrollIntoView).not.toHaveBeenCalled();
     } finally {
       scrollIntoView.mockRestore();
     }

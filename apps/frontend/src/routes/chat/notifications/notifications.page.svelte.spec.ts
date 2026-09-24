@@ -23,7 +23,7 @@ const { mocks } = vi.hoisted(() => ({
     },
     servers: [{ id: 'origin', url: 'https://chat.example.test' }],
     stores: new Map<string, unknown>(),
-    appUi: { disableRoomCallWideFor: vi.fn(), requestSidebarReveal: vi.fn() },
+    appUi: { disableRoomCallWideFor: vi.fn() },
     occurrence: {
       id: 'mention-1',
       createdAt: new Date().toISOString(),
@@ -275,7 +275,6 @@ describe('notifications page', () => {
 
     await vi.waitFor(() => {
       expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('origin', 'room-1');
-      expect(mocks.appUi.requestSidebarReveal).toHaveBeenCalledWith('origin', 'room-1');
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'room-1',
         'thread-1',
