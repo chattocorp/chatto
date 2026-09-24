@@ -1111,7 +1111,7 @@
 
 /* Mention styling in messages */
 .mention {
-  @apply cursor-pointer rounded-sm bg-surface-emphasized px-0.5 font-semibold;
+  @apply cursor-pointer rounded-sm bg-action/20 px-0.5 font-semibold text-action;
 }
 
 .mention-self {

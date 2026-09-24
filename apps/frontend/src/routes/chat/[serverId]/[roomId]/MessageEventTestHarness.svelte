@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerStateStore } from '$lib/state/server/store.svelte';
@@ -73,7 +74,15 @@
   });
   const composerContext = createComposerContext({ scroll: true });
   createMentionRoles();
-  createRoomMembers();
+  const roomMembers = createRoomMembers();
+  roomMembers.members = [
+    {
+      id: 'target-user',
+      login: 'target',
+      displayName: 'Target User',
+      presenceStatus: PresenceStatus.OFFLINE
+    }
+  ];
   createRoomPermissions(() => ({
     ...DEFAULT_ROOM_PERMISSIONS,
     canPostMessage,

@@ -814,6 +814,28 @@ describe('MessageContent component', () => {
       expect(span.getAttribute('data-user-id')).toBe('u_alice');
     });
 
+    it('shows a member display name without changing the mention target', async () => {
+      const { container } = renderMessage('Hello @alice!', [
+        { ...member('alice'), displayName: 'Alice Smith' }
+      ]);
+      await expect.poll(() => q(container, 'span.mention')?.textContent).toBe('@Alice Smith');
+      const span = q(container, 'span.mention')!;
+      expect(span.getAttribute('data-user-id')).toBe('u_alice');
+      expect(span.getAttribute('dir')).toBe('auto');
+    });
+
+    it('opens the target user menu callback when a mention is clicked', async () => {
+      const onMentionClick = vi.fn();
+      const { container } = render(MessageContent, {
+        props: { body: 'Hello @alice!', members: [member('alice')], onMentionClick }
+      });
+      await expect.poll(() => q(container, 'span.mention')).toBeTruthy();
+
+      q(container, 'span.mention')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      expect(onMentionClick).toHaveBeenCalledWith('u_alice', expect.any(DOMRect));
+    });
+
     it('uses the supplied viewer identity for self-mention highlighting', async () => {
       const { container } = renderMessage('Hello @alice!', [member('alice')], [], 'alice');
       await expect.poll(() => q(container, 'span.mention-self')).toBeTruthy();
