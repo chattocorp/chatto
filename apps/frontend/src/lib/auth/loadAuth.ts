@@ -23,6 +23,17 @@ export type { CurrentUser };
 // navigation, but keeps this value as a fallback when the check itself fails.
 let cachedUser: CurrentUser | null = null;
 
+/** Saved-view recovery can verify the viewer without running this route loader. */
+function retainedUser(): CurrentUser | null {
+  const originId = serverRegistry.originServer?.id;
+  const store = originId ? serverRegistry.tryGetStore(originId) : undefined;
+  const current = store?.currentUser;
+  if (store?.isAuthenticated && current?.user && current.verifiedUserId === current.user.id) {
+    cachedUser = current.user;
+  }
+  return cachedUser;
+}
+
 /**
  * Load the current user from the ConnectRPC API.
  * Returns null if not authenticated.
@@ -91,10 +102,10 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
               await new Promise((resolveRetry) => setTimeout(resolveRetry, 200));
               continue;
             }
-            return cachedUser;
+            return retainedUser();
           }
         }
-        const cached = cachedUser;
+        const cached = retainedUser();
         if (cached) {
           const originId = serverRegistry.originServer?.id;
           if (originId) {
@@ -118,7 +129,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
         await new Promise((r) => setTimeout(r, 200));
         continue;
       }
-      return cachedUser;
+      return retainedUser();
     }
   }
 }
