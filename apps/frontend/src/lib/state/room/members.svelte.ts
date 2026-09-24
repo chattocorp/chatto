@@ -55,7 +55,7 @@ function pageIds(page: MemberDirectoryPage): string[] {
  *
  * The store publishes the first paginated Connect response immediately, then fills `members` with
  * the remaining pages in the background. `hasFirstPage` marks interactive readiness while
- * `hasLoadedAll` marks complete membership for mention rendering and other exhaustive consumers.
+ * `hasLoadedAll` marks complete membership IDs; profile resolution can finish later.
  * Searches use a separate cache until their matching directory page enters canonical order.
  */
 export class RoomMembersStore {
@@ -314,8 +314,9 @@ export class RoomMembersStore {
         return;
 
       this.recordPageProfiles(page.members);
-      ids = appendPageIds(ids, pageIds(page));
-      const consumed = page.consumedCount ?? pageIds(page).length;
+      const pageMemberIds = pageIds(page);
+      ids = appendPageIds(ids, pageMemberIds);
+      const consumed = page.consumedCount ?? pageMemberIds.length;
       hasMore = page.hasMore && consumed > 0;
       offset += consumed;
       this.#searchCache.set(query, { ids, complete: !hasMore });
