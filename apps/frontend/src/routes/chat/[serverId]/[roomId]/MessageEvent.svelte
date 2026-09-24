@@ -208,6 +208,21 @@
     // Browsers may synthesize this event during a touch long press, including
     // on hybrid devices; that gesture already owns the action sheet.
     if (interactions.hasActiveLongPressGesture) return;
+    const mention =
+      e.target instanceof Element ? e.target.closest<HTMLElement>('.mention[data-user-id]') : null;
+    const mentionedUserId = mention?.dataset.userId;
+    if (
+      mention &&
+      messageBodySelectionRoot?.contains(mention) &&
+      mentionedUserId &&
+      userInteractions.hasCurrentMember(mentionedUserId)
+    ) {
+      interactions.closeContextMenu();
+      contextLink = null;
+      contextImage = null;
+      showPopoverForMember(mentionedUserId, mention.getBoundingClientRect());
+      return;
+    }
     const anchor = e.target instanceof Element ? e.target.closest('a[href]') : null;
     contextLink =
       anchor instanceof HTMLAnchorElement && messageBodySelectionRoot?.contains(anchor)

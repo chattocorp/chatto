@@ -19,10 +19,32 @@ function member(login: string, displayName?: string): RoomMember {
 
 describe('wrapValidMentions', () => {
   const members = [member('alice', 'Alice'), member('bob', 'Bob')];
+  const aliceMention = '<span class="mention" data-user-id="alice" dir="auto">@Alice</span>';
+  const bobMention = '<span class="mention" data-user-id="bob" dir="auto">@Bob</span>';
+  const selfMention = '<span class="mention mention-self" data-user-id="alice" dir="auto">@Alice</span>';
 
   it('wraps valid mention in span tag', () => {
     const result = wrapValidMentions('<p>Hello @alice!</p>', members);
-    expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+    expect(result).toContain(aliceMention);
+  });
+
+  it('shows the current display name while keeping the original member target', () => {
+    const result = wrapValidMentions('<p>Hello @hendrik!</p>', [
+      member('hendrik', 'Hendrik Mans')
+    ]);
+    expect(result).toContain(
+      '<span class="mention" data-user-id="hendrik" dir="auto">@Hendrik Mans</span>'
+    );
+    expect(result).not.toContain('@hendrik</span>');
+  });
+
+  it('escapes display names and falls back to the login when the name is empty', () => {
+    const result = wrapValidMentions('<p>@alice @bob</p>', [
+      member('alice', '<Alice & Bob>'),
+      member('bob', '')
+    ]);
+    expect(result).toContain('@&lt;Alice &amp; Bob&gt;</span>');
+    expect(result).toContain('<span class="mention" data-user-id="bob" dir="auto">@bob</span>');
   });
 
   it('does not wrap invalid mentions', () => {
@@ -33,14 +55,14 @@ describe('wrapValidMentions', () => {
 
   it('wraps multiple valid mentions', () => {
     const result = wrapValidMentions('<p>Hey @alice and @bob</p>', members);
-    expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
-    expect(result).toContain('<span class="mention" data-user-id="bob">@bob</span>');
+    expect(result).toContain(aliceMention);
+    expect(result).toContain(bobMention);
   });
 
   it('handles mixed valid and invalid mentions', () => {
     const result = wrapValidMentions('<p>@alice @charlie @bob</p>', members);
-    expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
-    expect(result).toContain('<span class="mention" data-user-id="bob">@bob</span>');
+    expect(result).toContain(aliceMention);
+    expect(result).toContain(bobMention);
     expect(result).toContain('@charlie');
     expect((result.match(/<span class="mention"/g) || []).length).toBe(2);
   });
@@ -65,7 +87,7 @@ describe('wrapValidMentions', () => {
 
     it('styles mentions outside code but not inside', () => {
       const result = wrapValidMentions('<p>@alice says <code>@bob</code></p>', members);
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
       // bob inside code should not be styled
       expect(result).not.toContain('data-user-id="bob"');
     });
@@ -73,7 +95,7 @@ describe('wrapValidMentions', () => {
     it('styles mentions immediately after inline code', () => {
       const result = wrapValidMentions('<p><code>cmd</code>@alice</p>', members);
       expect(result).toContain('<code>cmd</code>');
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
     });
   });
 
@@ -94,7 +116,7 @@ describe('wrapValidMentions', () => {
         '<p>@alice wrote:</p><blockquote>@bob is great</blockquote>',
         members
       );
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
       // bob inside blockquote should not be styled
       expect(result).not.toContain('data-user-id="bob"');
     });
@@ -122,22 +144,22 @@ describe('wrapValidMentions', () => {
       const result = wrapValidMentions('<p>Hey <em>@alice</em> how are you?</p>', members);
       expect(result).toContain('Hey');
       expect(result).toContain('how are you?');
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
     });
 
     it('handles mention at start of paragraph', () => {
       const result = wrapValidMentions('<p>@alice hello</p>', members);
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
     });
 
     it('handles mention after punctuation', () => {
       const result = wrapValidMentions('<p>Hi, @alice!</p>', members);
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
     });
 
     it('is case-insensitive for member matching', () => {
       const result = wrapValidMentions('<p>Hello @ALICE!</p>', members);
-      expect(result).toContain('<span class="mention" data-user-id="alice">@ALICE</span>');
+      expect(result).toContain(aliceMention);
     });
 
     it('handles multiple mentions in same text node', () => {
@@ -148,7 +170,7 @@ describe('wrapValidMentions', () => {
     it('preserves other HTML elements', () => {
       const result = wrapValidMentions('<p>Check <a href="#">this link</a> @alice</p>', members);
       expect(result).toContain('<a href="#">this link</a>');
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
     });
 
     it('wraps known role mention handles', () => {
@@ -182,35 +204,29 @@ describe('wrapValidMentions', () => {
   describe('self-mention highlighting', () => {
     it('adds mention-self class when current user is mentioned', () => {
       const result = wrapValidMentions('<p>Hello @alice!</p>', members, 'alice');
-      expect(result).toContain(
-        '<span class="mention mention-self" data-user-id="alice">@alice</span>'
-      );
+      expect(result).toContain(selfMention);
     });
 
     it('does not add mention-self class for other users', () => {
       const result = wrapValidMentions('<p>Hello @bob!</p>', members, 'alice');
-      expect(result).toContain('<span class="mention" data-user-id="bob">@bob</span>');
+      expect(result).toContain(bobMention);
       expect(result).not.toContain('mention-self');
     });
 
     it('handles mixed self and other mentions', () => {
       const result = wrapValidMentions('<p>@alice and @bob</p>', members, 'alice');
-      expect(result).toContain(
-        '<span class="mention mention-self" data-user-id="alice">@alice</span>'
-      );
-      expect(result).toContain('<span class="mention" data-user-id="bob">@bob</span>');
+      expect(result).toContain(selfMention);
+      expect(result).toContain(bobMention);
     });
 
     it('is case-insensitive for current user matching', () => {
       const result = wrapValidMentions('<p>Hello @ALICE!</p>', members, 'alice');
-      expect(result).toContain(
-        '<span class="mention mention-self" data-user-id="alice">@ALICE</span>'
-      );
+      expect(result).toContain(selfMention);
     });
 
     it('works without currentUserLogin parameter', () => {
       const result = wrapValidMentions('<p>Hello @alice!</p>', members);
-      expect(result).toContain('<span class="mention" data-user-id="alice">@alice</span>');
+      expect(result).toContain(aliceMention);
       expect(result).not.toContain('mention-self');
     });
   });

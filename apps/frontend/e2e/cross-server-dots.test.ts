@@ -277,7 +277,7 @@ test.describe('Cross-instance dots', () => {
     );
     await expect(page.getByRole('heading', { name: '# general', exact: true })).toBeVisible();
     await roomPage.expectThreadPaneVisible();
-    await roomPage.expectTextInThreadPane(remoteReplyBody);
+    await roomPage.expectTextInThreadPane(`@User ${viewerLogin} remote thread reply ${suffix}`);
 
     const mainRoomTimeline = page.locator('[data-testid="messages-container"]').first();
     await expect(mainRoomTimeline.locator('[role="article"]')).not.toHaveCount(0);

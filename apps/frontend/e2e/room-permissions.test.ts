@@ -351,7 +351,8 @@ test.describe('Room-Level Permission Overrides', () => {
           memberPage.getByText('This is the beginning of this conversation.')
         ).toHaveCount(0);
 
-        const mentionBody = `@${member.login} interaction access ${Date.now()}`;
+        const mentionSuffix = `interaction access ${Date.now()}`;
+        const mentionBody = `@${member.login} ${mentionSuffix}`;
         const mentionReply = await replyToMessageViaAPI(page, roomId, root!.id, mentionBody);
         expect(mentionReply).not.toBeNull();
 
@@ -376,7 +377,7 @@ test.describe('Room-Level Permission Overrides', () => {
         await memberPage.goto(routes.thread(roomId, root!.id));
         await expect(memberPage.getByTestId('thread-pane').getByText(rootBody)).toBeVisible();
         await expect(memberPage.getByText(earlierBody)).toBeVisible();
-        await expect(memberPage.getByText(mentionBody)).toBeVisible();
+        await expect(memberPage.getByText(`@${member.displayName} ${mentionSuffix}`)).toBeVisible();
         await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
         await expect(memberPage.getByTestId('limited-message-access')).toBeVisible();
 

@@ -222,6 +222,7 @@ describe('createMemberDirectoryAPI', () => {
           createdAt: null
         }
       ],
+      memberIds: ['U2'],
       totalCount: 1,
       consumedCount: 1,
       hasMore: false
@@ -231,6 +232,23 @@ describe('createMemberDirectoryAPI', () => {
       { roomId: 'room-1', search: 'bob', page: { limit: 5, offset: 0 } },
       { headers: undefined }
     );
+  });
+
+  it('keeps room member IDs when profile hydration returns no users', async () => {
+    mocks.listRoomMembers.mockResolvedValue({
+      userIds: ['U2'],
+      page: { totalCount: 1n, hasMore: false }
+    });
+    mocks.batchGetUsers.mockResolvedValue({ users: [] });
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.listRoomMembers('room-1')).resolves.toEqual({
+      members: [],
+      memberIds: ['U2'],
+      consumedCount: 1,
+      totalCount: 1,
+      hasMore: false
+    });
   });
 
   it('waits for the join cursor when hydrating IDs from a room member page', async () => {

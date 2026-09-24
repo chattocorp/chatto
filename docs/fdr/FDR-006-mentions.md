@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-24
 
 ## Overview
 
@@ -25,7 +25,8 @@ the message body.
 - `@all` mentions every current room member, regardless of presence.
 - `@here` mentions current room members whose presence is not offline.
 - `@everyone` is not a message mention handle. Use `@all` for room-wide delivery; `everyone` remains the implicit RBAC role.
-- Valid user, role, and virtual mentions render with highlight styling in the posted message. Self-mentions get additional styling.
+- Valid user, role, and virtual mentions render with highlight styling in the posted message. User mentions show the current display name, with `@` before it; role and virtual mentions keep their handles. Self-mentions get additional styling.
+- Clicking or right-clicking a user mention opens that user's menu.
 - Mentions inside code spans, code blocks, pre-formatted text, and blockquotes do not resolve, notify, or receive mention styling.
 - Mentioning yourself does not produce a notification.
 - Mentioning a user who isn't a room member leaves the `@name` as plain text — the mention is not delivered.

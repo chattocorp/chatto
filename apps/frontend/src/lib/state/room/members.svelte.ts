@@ -51,9 +51,24 @@ function memberMatchesSearch(member: RoomMember, search: string): boolean {
   );
 }
 
-function mapPage(page: MemberDirectoryPage): RoomMembersPage {
+function missingProfileMember(id: string): RoomMember {
   return {
-    members: page.members.map(memberFromDirectory),
+    id,
+    login: '',
+    displayName: '',
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.OFFLINE
+  };
+}
+
+function mapPage(page: MemberDirectoryPage, retainMissingProfiles: boolean): RoomMembersPage {
+  const members = page.members.map(memberFromDirectory);
+  const byId = new Map(members.map((member) => [member.id, member]));
+  return {
+    members:
+      retainMissingProfiles && page.memberIds
+        ? page.memberIds.map((id) => byId.get(id) ?? missingProfileMember(id))
+        : members,
     totalCount: page.totalCount,
     hasMore: page.hasMore,
     consumedCount: page.consumedCount
@@ -142,10 +157,9 @@ export class RoomMembersStore {
     const member = this.#users?.get(id);
     // A profile invalidation must not erase membership when another page or
     // profile update arrives before the replacement profile.
-    return member ? memberFromDirectory(mapDirectoryMember(member)) : {
-      id, login: '', displayName: '', deleted: this.#users?.isDeleted(id), avatarUrl: null,
-      presenceStatus: PresenceStatus.OFFLINE
-    };
+    return member
+      ? memberFromDirectory(mapDirectoryMember(member))
+      : { ...missingProfileMember(id), deleted: this.#users?.isDeleted(id) };
   }
 
   /** Compatibility alias for consumers that only care whether hydration is complete. */
@@ -496,7 +510,8 @@ export class RoomMembersStore {
         ? this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset, {
             minimumCursor: this.#minimumCursor
           })
-        : this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset))
+        : this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset)),
+      !!this.#users
     );
   }
 
