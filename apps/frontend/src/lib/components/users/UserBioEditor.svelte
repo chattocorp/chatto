@@ -8,6 +8,7 @@ external value changes, such as a successful save, update the mounted editor.
 <script lang="ts">
   import type { Component } from 'svelte';
   import { m } from '$lib/i18n/messages';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import type { ComposerEditorKind } from '$lib/state/userPreferences.svelte';
   import ComposerFormattingToolbar from '$lib/components/composer/ComposerFormattingToolbar.svelte';
   import type {
@@ -90,7 +91,7 @@ external value changes, such as a successful save, update the mounted editor.
   <div class="input min-w-0 [--composer-min-height:8rem] [&_.ProseMirror]:min-h-32">
     {#key editorKind}
       {#await editorModule}
-        <p aria-busy="true">{m('common.loading')}</p>
+        <LoadingFog class="h-32 w-full" />
       {:then { default: Editor }}
         <Editor
           placeholder={m('settings.profile.bio.placeholder')}

@@ -142,8 +142,8 @@ describe('RoomSidebarProfile', () => {
 
     const { container } = renderProfile();
 
-    expect(container.textContent).toContain('Loading');
-    expect(q(container, '[aria-busy="true"]')).toBeTruthy();
+    expect(q(container, '[data-loading-fog][aria-busy="true"]')).toBeTruthy();
+    expect(container.textContent).not.toContain('Loading');
   });
 
   it('uses the viewer preferred 12-hour time format', () => {

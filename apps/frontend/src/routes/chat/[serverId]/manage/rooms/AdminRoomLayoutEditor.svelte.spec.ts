@@ -158,7 +158,7 @@ describe('AdminRoomLayoutEditor', () => {
     const loading = makeLayout();
     loading.isRefreshing = true;
     const loadingRender = renderEditor(loading);
-    await expect.element(q(loadingRender.container, 'div')).toHaveTextContent('Loading rooms...');
+    expect(q(loadingRender.container, '[data-loading-fog][aria-busy="true"]')).not.toBeNull();
 
     const error = makeLayout();
     error.error = 'Server not found';

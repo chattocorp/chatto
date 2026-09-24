@@ -9,7 +9,7 @@ URL when its source changes or leaves the DOM.
   import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
   import type { NativeScreenShareSource } from '$lib/desktop/nativeScreenShare';
-  import { Dialog } from '$lib/ui';
+  import { Dialog, LoadingFog } from '$lib/ui';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import SegmentedControl from '$lib/ui/SegmentedControl.svelte';
   import { Button } from '$lib/ui/form';
@@ -94,7 +94,7 @@ URL when its source changes or leaves the DOM.
   </div>
 
   {#if loading}
-    <div class="mt-4 min-h-64 rounded-lg bg-background" aria-busy="true"></div>
+    <LoadingFog class="mt-4 min-h-64" />
   {:else if failed}
     <div class="mt-4 flex min-h-64 flex-col rounded-lg bg-background" role="alert">
       <EmptyState icon="icon-[uil--exclamation-circle]" title={m('voice.share_sources_failed')}>

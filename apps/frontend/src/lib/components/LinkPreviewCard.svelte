@@ -21,6 +21,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { toast } from '$lib/ui/toast';
   import YouTubeEmbed from './YouTubeEmbed.svelte';
   import SocialPostEmbed from './SocialPostEmbed.svelte';
@@ -45,6 +46,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 
   const isYouTube = $derived(preview.embedType === 'youtube' && Boolean(preview.embedId));
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
+  let settledImageUrl = $state<string | null>(null);
 
   function openDeleteConfirmation() {
     if (!serverId || !roomId || !eventId) return;
@@ -115,16 +117,25 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     oncontextmenu={handleContextMenu}
   >
     {#if preview.imageUrl}
-      <img
-        src={preview.imageUrl}
-        alt=""
-        class="aspect-[1.91/1] w-full rounded-sm object-cover"
-        onload={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = '')}
-        onerror={(e) => {
-          // Keep the image frame in the virtualized message row.
-          (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-        }}
-      />
+      <div class="relative aspect-[1.91/1] w-full overflow-hidden rounded-sm">
+        {#if settledImageUrl !== preview.imageUrl}
+          <LoadingFog class="h-full w-full rounded-none" />
+        {/if}
+        <img
+          src={preview.imageUrl}
+          alt=""
+          class="absolute inset-0 h-full w-full object-cover"
+          onload={(event) => {
+            (event.currentTarget as HTMLImageElement).style.visibility = '';
+            settledImageUrl = event.currentTarget.getAttribute('src');
+          }}
+          onerror={(e) => {
+            // Keep the image frame in the virtualized message row.
+            (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+            settledImageUrl = e.currentTarget.getAttribute('src');
+          }}
+        />
+      </div>
     {/if}
     <div class="flex min-w-0 flex-col gap-0.5 px-3 pt-3 pb-2">
       {#if preview.siteName}

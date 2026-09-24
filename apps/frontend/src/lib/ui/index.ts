@@ -21,6 +21,7 @@ export { default as HeaderIconButton } from './HeaderIconButton.svelte';
 export { default as HelpTooltip } from './HelpTooltip.svelte';
 export { default as Hint } from './Hint.svelte';
 export { default as LoadingPage } from './LoadingPage.svelte';
+export { default as LoadingFog } from './LoadingFog.svelte';
 export { default as MarkdownHtml } from './MarkdownHtml.svelte';
 export { default as MenuItem } from './MenuItem.svelte';
 export { default as MenuSection } from './MenuSection.svelte';

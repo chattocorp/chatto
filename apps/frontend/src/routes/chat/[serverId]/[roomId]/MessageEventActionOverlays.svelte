@@ -1,5 +1,6 @@
 <script lang="ts">
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { m } from '$lib/i18n/messages';
   import type { MessageActionModel } from './messageActionModel';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
@@ -77,7 +78,7 @@
 
 {#snippet actionMenu(presentation: 'menu' | 'sheet' = 'menu')}
   {#await loadMessageActionMenu(messageActionMenuLoadAttempt)}
-    <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
+    <LoadingFog class="m-2 h-28 w-64 max-w-full" />
   {:then { default: MessageActionMenu }}
     <MessageActionMenu
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
@@ -114,7 +115,7 @@
     onclose={closeEmojiPicker}
   >
     {#await loadEmojiPicker(emojiPickerLoadAttempt)}
-      <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
+      <LoadingFog class="m-2 h-28 w-64 max-w-full" />
     {:then { default: EmojiPicker }}
       <EmojiPicker
         serverId={action.serverId}

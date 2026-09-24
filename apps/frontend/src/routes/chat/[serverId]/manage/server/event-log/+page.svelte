@@ -334,9 +334,8 @@
         <DataTable
           items={eventLog.entries}
           columns={5}
-          emptyMessage={eventLog.loading
-            ? m('admin.common.loading')
-            : m('admin.event_log.no_matches')}
+          loading={eventLog.loading}
+          emptyMessage={m('admin.event_log.no_matches')}
           hasMore={eventLog.hasOlder && !eventLog.scanLimited && !eventLog.error}
           loadingMore={eventLog.loadingMore}
           onLoadMore={() => eventLog.loadMore()}

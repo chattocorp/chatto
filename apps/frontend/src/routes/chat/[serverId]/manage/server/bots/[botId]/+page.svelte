@@ -28,7 +28,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ConfirmDialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { ConfirmDialog, FormDialog, Hint, LoadingFog, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -406,7 +406,7 @@
                   viewerSettings={serverScope.store.currentUser.user?.settings}
                 />
               {:else if ownerQuery.isPending}
-                <span aria-busy="true"></span>
+                <LoadingFog class="h-5 w-28" />
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
               {/if}

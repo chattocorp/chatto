@@ -7,6 +7,7 @@ component on selection changes so playback and consent cannot cross items.
   import { expoOutTransition } from './motion';
   import { m } from '$lib/i18n/messages';
   import ZoomableImage from './ZoomableImage.svelte';
+  import LoadingFog from './LoadingFog.svelte';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import { isHtmlAttachment } from '$lib/render/messageAttachments';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
@@ -60,7 +61,7 @@ component on selection changes so playback and consent cannot cross items.
   ></iframe>
 {:else if url && item.videoProcessing?.status === 'COMPLETED' && (type.startsWith('video/') || type === 'image/gif')}
   {#await import('$lib/components/chat/VideoPlayer.svelte')}
-    <p class="text-muted" role="status">{m('common.loading')}</p>
+    <LoadingFog class="h-full min-h-32 w-full" />
   {:then { default: VideoPlayer }}
     <VideoPlayer
       viewer
@@ -126,7 +127,7 @@ component on selection changes so playback and consent cannot cross items.
     }}>{item.filename}</audio
   >
 {:else if busy}
-  <p class="text-muted" role="status">{m('common.loading')}</p>
+  <LoadingFog class="h-full min-h-32 w-full" />
 {:else}
   <div class="flex flex-col items-center gap-3 p-4 text-center text-muted">
     <span class="iconify icon-[uil--file-alt] text-4xl" aria-hidden="true"></span>

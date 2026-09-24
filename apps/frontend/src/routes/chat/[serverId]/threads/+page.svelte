@@ -12,6 +12,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
 
   import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
   import { createReadStateAPI } from '$lib/api-client/readState';
@@ -346,10 +347,10 @@
         onRetry={() => void searchStatus.refreshStatus()}
         checkingClass="p-6 text-muted"
       >
-        <div class="p-6 text-muted">{m('search.checking')}</div>
+        <LoadingFog class="m-6 h-32" label={m('search.checking')} />
       </SearchAvailability>
     {:else if waitingForSearch || (loading && threads.length === 0)}
-      <div class="p-6 text-muted">{m('common.loading')}</div>
+      <LoadingFog class="m-6 h-48" />
     {:else if error}
       <div class="m-6">
         <Hint tone="danger">{error}</Hint>

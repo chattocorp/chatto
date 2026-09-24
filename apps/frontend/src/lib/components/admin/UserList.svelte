@@ -11,6 +11,7 @@ and supplies an optional row-navigation callback.
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { CopyId } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import DataTable from '$lib/ui/DataTable.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -65,7 +66,7 @@ and supplies an optional row-navigation callback.
 </script>
 
 {#if loading}
-  <div class="p-5 text-muted">{m('admin.users.loading')}</div>
+  <LoadingFog class="m-5 h-32" label={m('admin.users.loading')} />
 {:else}
   <DataTable
     items={users}

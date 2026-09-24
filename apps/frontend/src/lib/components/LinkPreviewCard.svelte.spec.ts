@@ -72,7 +72,7 @@ describe('LinkPreviewCard', () => {
     expect(container.querySelector('[data-testid="link-preview-card"]')).not.toBeNull();
   });
 
-  it('keeps the generic image frame when the image fails', () => {
+  it('shows fog in the reserved image frame, then clears it on failure', async () => {
     const { container } = render(LinkPreviewCard, {
       props: { preview: preview({ imageUrl: 'data:image/png;base64,invalid' }) }
     });
@@ -80,9 +80,11 @@ describe('LinkPreviewCard', () => {
     const image = card.querySelector<HTMLImageElement>('img')!;
     const height = card.getBoundingClientRect().height;
     expect(height).toBeGreaterThan(0);
+    expect(card.querySelector('[data-loading-fog]')).not.toBeNull();
 
     image.dispatchEvent(new Event('error'));
     expect(image.style.visibility).toBe('hidden');
+    await vi.waitFor(() => expect(card.querySelector('[data-loading-fog]')).toBeNull());
     expect(card.getBoundingClientRect().height).toBe(height);
   });
 

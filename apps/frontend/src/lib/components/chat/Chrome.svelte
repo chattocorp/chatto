@@ -6,7 +6,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
-  import { ScrollFader } from '$lib/ui';
+  import { LoadingFog, ScrollFader } from '$lib/ui';
   import {
     createChromePermissions,
     type ChromePermissions
@@ -236,7 +236,7 @@
     />
   {:else if !serverData}
     <ServerHeader serverName={activeStore.serverInfo.name} />
-    <div class="min-h-0 flex-1" aria-busy="true"></div>
+    <LoadingFog class="m-3 min-h-0 flex-1" />
   {:else}
     <!-- Server header - fixed at top -->
     <ServerHeader serverName={serverName ?? ''} />

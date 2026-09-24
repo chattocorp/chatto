@@ -10,6 +10,7 @@ while mounted and discards cached data when the profile closes. -->
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { Button } from '$lib/ui/form';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import {
     groupBotPermissions,
     compactEffectivePermissions,
@@ -123,7 +124,7 @@ while mounted and discards cached data when the profile closes. -->
       <p role="alert" class="text-muted">{m('chat.profile.permissions.error')}</p>
       <Button variant="secondary" onclick={() => query.refetch()}>{m('common.retry')}</Button>
     {:else if query.isPending}
-      <p class="text-muted" aria-busy="true">{m('common.loading')}</p>
+      <LoadingFog class="h-24 w-full" />
     {:else}
       {#if active.length > 0}
         {@render permissionGroups(active)}

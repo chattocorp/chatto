@@ -382,7 +382,7 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('w-full');
   });
 
-  it('reserves a stable single-image frame without recorded dimensions', () => {
+  it('keeps a stable fog frame until an image without recorded dimensions loads', async () => {
     const { container } = renderAttachment(
       imageAttachment({ filename: 'unknown-size.jpg', width: 0, height: 0 })
     );
@@ -392,6 +392,11 @@ describe('MessageAttachments', () => {
     expect(button.style.aspectRatio).toBe('320 / 200');
     expect(button.getBoundingClientRect().height).toBeCloseTo(200, 0);
     expect(image.className).toContain('object-contain');
+    expect(button.querySelector('[data-loading-fog]')).not.toBeNull();
+
+    image.dispatchEvent(new Event('load'));
+    await vi.waitFor(() => expect(button.querySelector('[data-loading-fog]')).toBeNull());
+    expect(button.getBoundingClientRect().height).toBeCloseTo(200, 0);
   });
 
   it('scales a single image with the message width and preserves its proportions', async () => {

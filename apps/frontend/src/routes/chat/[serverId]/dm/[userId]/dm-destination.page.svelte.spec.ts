@@ -59,7 +59,7 @@ describe('DM destination', () => {
     mocks.startDM.mockReturnValue(command.promise);
     mocks.ensureRoomAvailable.mockReturnValue(refresh.promise);
     mounted = render(Destination);
-    await expect.element(mounted.getByText('Loading...')).toBeVisible();
+    await expect.element(mounted.getByRole('status', { name: 'Loading...' })).toBeInTheDocument();
     expect(mocks.startDM).toHaveBeenCalledWith(['recipient']);
     expect(mocks.goto).not.toHaveBeenCalled();
     command.resolve({ id: 'dm-room' });

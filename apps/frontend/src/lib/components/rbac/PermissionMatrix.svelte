@@ -388,7 +388,8 @@ focusing a cell highlights its permission row and role column.
       getRowKey={(permission) => permission}
       getColumnKey={(role) => role.roleName}
       getGroupKey={(permission) => getPermissionCategory(permission)}
-      emptyMessage={m(loading ? 'rbac.permissions.loading' : 'rbac.permissions.no_filter_matches')}
+      loading={loading}
+      emptyMessage={m('rbac.permissions.no_filter_matches')}
       compact
       columnHeaderHeight="10rem"
       stickyHeader={scrollContents}

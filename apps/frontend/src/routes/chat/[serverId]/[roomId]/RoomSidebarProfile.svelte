@@ -29,7 +29,7 @@ realtime changes arrive.
     getLiveLogin,
     getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
-  import { Hint } from '$lib/ui';
+  import { Hint, LoadingFog } from '$lib/ui';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
   let {
@@ -106,7 +106,7 @@ realtime changes arrive.
 
 <div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" data-testid="room-sidebar-profile">
   {#if loading}
-    <div class="text-muted" aria-busy="true">{m('common.loading')}</div>
+    <LoadingFog class="h-40 w-full" />
   {:else if notFound || !baseUser || !avatarUser}
     <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
   {:else}

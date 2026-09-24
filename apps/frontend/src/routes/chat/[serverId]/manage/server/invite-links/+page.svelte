@@ -8,7 +8,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { ConfirmDialog, Hint, PaneContent, Pill } from '$lib/ui';
+  import { ConfirmDialog, Hint, LoadingFog, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, Select, TextInput } from '$lib/ui/form';
@@ -229,7 +229,7 @@
           {/snippet}
         </DataTable>
         {#if loading && invitations.length === 0}
-          <div class="p-5 text-muted">{m('admin.common.loading')}</div>
+          <LoadingFog class="m-5 h-32" />
         {/if}
       </Panel>
     </div>

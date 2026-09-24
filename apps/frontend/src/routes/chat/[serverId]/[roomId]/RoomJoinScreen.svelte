@@ -5,6 +5,7 @@
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
 
@@ -77,7 +78,7 @@
       {/if}
 
       {#await stores.roomDirectory.loadJoinPreview(room.id)}
-        <div aria-busy="true" aria-label={m('room.join.member_preview_label')}></div>
+        <LoadingFog class="mt-6 h-20 w-full" label={m('room.join.member_preview_label')} />
       {:then preview}
         {#if preview}
           <div

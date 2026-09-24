@@ -1,5 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { type MessageAttachmentView } from '$lib/render/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
@@ -55,6 +56,8 @@
   const assetRetrySalts = new SvelteMap<string, number>();
   let refreshPromise: Promise<Map<string, RefreshedAttachmentUrls>> | null = null;
   const failedAssetRefreshKeys = new SvelteSet<string>();
+  // Retain only the latest settled URL per attachment as signed URLs rotate.
+  const settledImageUrls = new SvelteMap<string, string>();
   const retainAssetUrl = createAssetUrlRetainer();
   let galleryEdges = $state<ScrollEdges>({ start: false, end: false });
 
@@ -476,19 +479,28 @@
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
         style={imageButtonStyle(display, variant)}
-        class="embed-frame block min-w-0 cursor-pointer"
+        class="embed-frame relative block min-w-0 cursor-pointer overflow-hidden"
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
         {/if}
         {#if imageAttachmentUrl(attachment)}
+          {@const imageUrl = imageAttachmentUrl(attachment)!}
+          {#if settledImageUrls.get(attachment.id) !== imageUrl}
+            <span class="pointer-events-none absolute inset-0" aria-hidden="true">
+              <LoadingFog class="h-full w-full rounded-none" />
+            </span>
+          {/if}
           <img
             loading="lazy"
-            src={imageAttachmentUrl(attachment)}
+            src={imageUrl}
             alt={attachment.description || attachment.filename}
             class={['h-full w-full', display.fit === 'contain' ? 'object-contain' : 'object-cover']}
-            onerror={() =>
-              refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
+            onload={() => settledImageUrls.set(attachment.id, imageUrl)}
+            onerror={() => {
+              settledImageUrls.set(attachment.id, imageUrl);
+              refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset');
+            }}
           />
         {:else}
           <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
@@ -528,12 +540,7 @@
         {@const autoLoop = attachment.contentType === 'image/gif'}
         <div class="group/attachment attachment-video-frame" data-attachment-media>
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-            <div
-              class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
-              aria-busy="true"
-            >
-              {m('common.loading')}
-            </div>
+            <LoadingFog class="embed-frame min-h-32 min-w-48" />
           {:then { default: VideoPlayer }}
             <VideoPlayer
               status={attachment.videoProcessing.status}

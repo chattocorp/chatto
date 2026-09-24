@@ -8,7 +8,7 @@ mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
   import type { MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, LoadingFog } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let {
@@ -39,10 +39,7 @@ mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
       {m('search.error.description')}
     </EmptyState>
   {:else if compact && store.loading && store.results.length === 0}
-    <div class="flex min-h-32 flex-1 items-center justify-center p-4 text-sm text-muted">
-      <span class="iconify me-2 icon-[uil--spinner-alt] animate-spin" aria-hidden="true"></span>
-      {m('search.searching')}
-    </div>
+    <LoadingFog class="m-3 min-h-32 flex-1" label={m('search.searching')} />
   {:else if store.hasSearched && !store.loading && store.results.length === 0 && !store.nextCursor}
     <EmptyState icon="icon-[uil--search-minus]" title={m('search.no_results.title')}>
       {m('search.no_results.description')}
@@ -64,10 +61,7 @@ mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
         {@attach loadMoreWhenVisible}
         class={['flex h-12 items-center justify-center text-muted', compact && 'text-sm']}
       >
-        {#if store.loadingMore}
-          <span class="iconify me-2 icon-[uil--spinner-alt] animate-spin" aria-hidden="true"></span>
-          {m('search.loading_more')}
-        {/if}
+        {#if store.loadingMore}<LoadingFog class="h-10 w-full" label={m('search.loading_more')} />{/if}
       </div>
     {/if}
   {/if}

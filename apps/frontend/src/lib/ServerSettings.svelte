@@ -23,6 +23,7 @@
   import { m } from '$lib/i18n/messages';
 
   import Panel from '$lib/ui/Panel.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
   import FormError from '$lib/ui/form/FormError.svelte';
   import { toast } from '$lib/ui/toast';
@@ -389,7 +390,7 @@
 </script>
 
 {#if loading}
-  <div class="text-muted">{m('server_settings.loading')}</div>
+  <LoadingFog class="h-64 w-full" label={m('server_settings.loading')} />
 {:else if loaded}
   <div class="flex flex-col gap-6">
     <!-- Server Details Form -->

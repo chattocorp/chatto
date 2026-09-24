@@ -125,6 +125,24 @@ describe('DataTable.hoverable', () => {
     expect(container.textContent).not.toContain('No records');
   });
 
+  it('shows a sized fog block while the first page loads', () => {
+    const { container } = render(DataTable, {
+      props: {
+        items: [],
+        columns: 1,
+        loading: true,
+        emptyMessage: 'No records',
+        header: testSnippet('<th>Name</th>'),
+        row: testSnippet('<td>row</td>')
+      }
+    });
+
+    const fog = container.querySelector('[data-loading-fog]');
+    expect(fog).not.toBeNull();
+    expect(fog?.getAttribute('aria-busy')).toBe('true');
+    expect(container.textContent).not.toContain('No records');
+  });
+
   it('uses the shared table viewport beneath the surface header', async () => {
     const { container } = renderTable();
     const table = container.querySelector('table') as HTMLTableElement;
