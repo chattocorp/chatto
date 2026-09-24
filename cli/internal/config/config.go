@@ -57,6 +57,10 @@ func (c *ChattoConfig) ApplyDefaults() {
 		}
 	}
 
+	if c.Video.Enabled && !c.AssetProcessing.Enabled {
+		c.AssetProcessing.Enabled = true
+	}
+
 	if c.LiveKit.ServerID == "" {
 		c.LiveKit.ServerID = c.LiveKit.InstanceID
 	}

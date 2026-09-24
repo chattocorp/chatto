@@ -99,7 +99,7 @@ func (c *PushConfig) IsConfigured() bool {
 
 // VideoConfig controls whether video uploads are accepted and their upload limit.
 type VideoConfig struct {
-	Enabled       bool              `toml:"enabled" env:"CHATTO_VIDEO_ENABLED" comment:"Allow video uploads and enqueue derivative processing. Requires at least one asset-processing worker."`
+	Enabled       bool              `toml:"enabled" env:"CHATTO_VIDEO_ENABLED" comment:"Allow video uploads and enqueue derivative processing. Enabling this also starts the asset-processing worker."`
 	MaxUploadSize datasize.ByteSize `toml:"max_upload_size,commented" env:"CHATTO_VIDEO_MAX_UPLOAD_SIZE" comment:"Maximum size for video uploads. Supports human-readable formats like '100 MB'. Default: 100 MB."`
 }
 
