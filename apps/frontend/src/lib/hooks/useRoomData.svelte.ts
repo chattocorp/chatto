@@ -57,12 +57,13 @@ export function useRoomData(getProps: () => { roomId: string }) {
 
   const roomData = $derived.by<RoomData | null | undefined>(() => {
     const currentStore = store;
-    if (!currentStore.realtimeSync.hasUsableProjection) return undefined;
+    if (!currentStore.realtimeSync.hasDisplayableView) return undefined;
     const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
     const room = mapDirectoryRoomDetails(projectedRoom);
     // A stale projection can render known rooms immediately, but absence is
     // not authoritative until the activation catch-up reaches caught_up.
     if (!room) return currentStore.realtimeSync.phase === 'ready' ? null : undefined;
+    const canAct = currentStore.isAuthenticated;
     return {
       room: {
         id: room.id,
@@ -77,15 +78,15 @@ export function useRoomData(getProps: () => { roomId: string }) {
       spaceName: currentStore.serverInfo.name ?? null,
       canReadMessages: room.canReadMessages,
       hasLimitedMessageAccess: room.hasLimitedMessageAccess,
-      canPostMessage: room.canPostMessage,
-      canPostInThread: room.canPostInThread,
-      canPostInteractions: room.canPostInteractions,
-      canAttach: room.canAttach,
-      canReact: room.canReact,
-      canManageOthersMessage: room.canManageOthersMessage,
-      canEchoMessage: room.canEchoMessage,
-      canManageRoom: room.canManageRoom,
-      canBanRoomMembers: room.canBanRoomMembers,
+      canPostMessage: canAct && room.canPostMessage,
+      canPostInThread: canAct && room.canPostInThread,
+      canPostInteractions: canAct && room.canPostInteractions,
+      canAttach: canAct && room.canAttach,
+      canReact: canAct && room.canReact,
+      canManageOthersMessage: canAct && room.canManageOthersMessage,
+      canEchoMessage: canAct && room.canEchoMessage,
+      canManageRoom: canAct && room.canManageRoom,
+      canBanRoomMembers: canAct && room.canBanRoomMembers,
       slowModeNextPostAt: room.slowModeNextPostAt
     };
   });
@@ -93,7 +94,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const isDM = $derived(roomData?.room.type === RoomKind.DM);
   const dmData = $derived.by<DMData | null>(() => {
     const currentStore = store;
-    if (!isDM || !currentStore.realtimeSync.hasUsableProjection) return null;
+    if (!isDM || !currentStore.realtimeSync.hasDisplayableView) return null;
     const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
     return {
       participantIds: projectedRoom?.memberUserIds ?? [],

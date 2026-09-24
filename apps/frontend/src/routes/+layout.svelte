@@ -1,6 +1,6 @@
 <script lang="ts">
   import { initialPageReveal } from '$lib/attachments/initialPageReveal';
-  import { afterNavigate, beforeNavigate, goto, invalidateAll } from '$app/navigation';
+  import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -22,6 +22,7 @@
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
   import ServerRuntimeCoordinator from '$lib/state/server/ServerRuntimeCoordinator.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { ToastContainer } from '$lib/ui/toast';
   import AppHeader from '$lib/ui/AppHeader.svelte';
   import Frame from '$lib/ui/Frame.svelte';
@@ -41,11 +42,11 @@
   });
 
   onMount(() => {
-    if (!data.startupPending) return;
+    if (!data.startupPending || !data.startupServerId) return;
     let secondFrame = 0;
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => {
-        void invalidateAll();
+        void serverRegistry.recoverServer(data.startupServerId);
       });
     });
     return () => {
@@ -66,6 +67,12 @@
   usePinchZoomPrevention();
 
   const activeServerId = $derived(getActiveServer());
+  const startupPending = $derived(
+    data.startupPending &&
+      !!data.startupServerId &&
+      !!serverRegistry.getServer(data.startupServerId) &&
+      serverRegistry.tryGetStore(data.startupServerId)?.startupPresentationOnly === true
+  );
   const activeRoomId = $derived(chatRoomIdFromRoute(page.route.id, page.params.roomId));
 
   // OAuth windows keep their page content and branding without app navigation.
@@ -117,9 +124,9 @@
   <GlobalKeyboardShortcuts />
 {/if}
 {#key data.user?.id}
-  <ServerRuntimeCoordinator user={data.user} deferConnections={data.startupPending} />
+  <ServerRuntimeCoordinator user={data.user} deferConnections={startupPending} />
 {/key}
-{#if !data.startupPending}
+{#if !startupPending}
   <NotificationSync />
 {/if}
 <UpdateNotifier />
@@ -139,7 +146,7 @@
   <div
     {@attach initialPageReveal}
     use:sidebarSwipe
-    class="flex h-full w-full flex-col overscroll-y-contain bg-surface desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3 pt-[env(safe-area-inset-top,0px)]"
+    class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3"
   >
     <AppHeader />
 

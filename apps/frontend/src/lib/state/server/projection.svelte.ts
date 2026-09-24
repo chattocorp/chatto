@@ -52,17 +52,10 @@ export class ServerProjectionStore {
           }
           break;
         case 'users': {
-          if (update.replaceResource) this.users.clear();
-          const nextIds = new SvelteSet<string>();
           for (const member of chunk.value.users) {
             const userId = member.user?.id;
             if (!userId) continue;
-            nextIds.add(userId);
             this.users.set(userId, member);
-          }
-          if (update.replaceResource) {
-            for (const userId of this.users.keys())
-              if (!nextIds.has(userId)) this.removeUser(userId);
           }
           break;
         }

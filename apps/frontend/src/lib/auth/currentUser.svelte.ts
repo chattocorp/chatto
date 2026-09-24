@@ -34,6 +34,7 @@ export class CurrentUserState {
   #loadCurrentUser: (config: ViewerAPIConfig) => Promise<CurrentUser>;
   #onAuthenticationRequired?: () => void;
   #loadPromise: Promise<void> | null = null;
+  #startupVerificationPromise: Promise<CurrentUser | null> | null = null;
   #isLoggingOut = false;
 
   constructor(
@@ -59,14 +60,32 @@ export class CurrentUserState {
     return promise;
   }
 
+  /** Read a saved view's viewer without publishing a changed identity over private data. */
+  verifyRetainedViewer(): Promise<CurrentUser | null> {
+    if (this.#startupVerificationPromise) return this.#startupVerificationPromise;
+    const promise = this.#requestViewer().finally(() => {
+      this.loading = false;
+      if (this.#startupVerificationPromise === promise) this.#startupVerificationPromise = null;
+    });
+    this.#startupVerificationPromise = promise;
+    return promise;
+  }
+
   async #loadViewer(): Promise<void> {
+    const user = await this.#requestViewer();
+    if (user) {
+      this.user = user;
+      this.verifiedUserId = user.id;
+    }
+    this.loading = false;
+  }
+
+  async #requestViewer(): Promise<CurrentUser | null> {
     try {
       if (!this.#apiConfig) {
         throw new Error('current user Connect API config is not configured');
       }
-      const user = await this.#loadCurrentUser(this.#apiConfig);
-      this.user = user;
-      this.verifiedUserId = user.id;
+      return await this.#loadCurrentUser(this.#apiConfig);
     } catch (err) {
       if (isAuthenticationRequiredError(err)) {
         this.verifiedUserId = null;
@@ -74,8 +93,7 @@ export class CurrentUserState {
         // rejected, the registry marked reauthentication required. A 401
         // after a successful refresh is not proof that the session was revoked.
         if (!this.#apiConfig?.renewBearerToken) this.#onAuthenticationRequired?.();
-        this.loading = false;
-        return;
+        return null;
       }
       // Surface network failures (CORS, DNS, server down) as a console
       // error so unreachable instances are visible in the dev console.
@@ -83,8 +101,7 @@ export class CurrentUserState {
       // failure, not a global crash.
       console.error('[auth] failed to load current user', err);
     }
-
-    this.loading = false;
+    return null;
   }
 
   /**

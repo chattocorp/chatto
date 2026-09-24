@@ -25,7 +25,7 @@
 <!-- Origin login/logout changes replace the origin-scoped effects while the
      chat-wide coordinator remains available to remote-only sessions. -->
 {#key data.user?.id}
-  <ChatRoot user={data.user} {presenceCache}>
+  <ChatRoot {presenceCache}>
     {@render children?.()}
   </ChatRoot>
 {/key}

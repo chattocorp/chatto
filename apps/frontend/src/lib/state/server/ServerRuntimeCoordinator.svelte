@@ -10,14 +10,18 @@
   import { startServerRecovery } from './serverRecovery';
   import { onSessionTerminated } from '$lib/eventBus.svelte';
 
-  let { user, deferConnections = false }: {
+  let {
+    user,
+    deferConnections = false
+  }: {
     user?: CurrentUser | null;
     deferConnections?: boolean;
   } = $props();
 
   $effect(() => {
-    if (deferConnections) return;
-    return startServerRecovery(serverRegistry);
+    // A failed viewer check must retry while realtime connections stay deferred.
+    // Each store's networkStartupDeferred gate holds recovery until its first paint.
+    return untrack(() => startServerRecovery(serverRegistry));
   });
 
   // The root layout keys this coordinator by origin viewer identity, so the
@@ -108,9 +112,11 @@
       .filter((server) => !serverRegistry.isOriginServer(server.id))
       .map((server) => server.id);
     return untrack(() => {
-      const disposers = remoteIds.map((id) => onSessionTerminated(id, () => {
-        queueMicrotask(() => serverRegistry.clearServerAuthentication(id));
-      }));
+      const disposers = remoteIds.map((id) =>
+        onSessionTerminated(id, () => {
+          queueMicrotask(() => serverRegistry.clearServerAuthentication(id));
+        })
+      );
       return () => disposers.forEach((dispose) => dispose());
     });
   });

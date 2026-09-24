@@ -19,7 +19,9 @@ const mocks = vi.hoisted(() => ({
   stores: null as unknown as SvelteMap<string, StoreMock>,
   synchronizeAuthenticatedServers: vi.fn(),
   needsRecovery: vi.fn(() => false),
-  onSessionTerminated: vi.fn<(id: string, handler: (reason: string) => void) => () => void>(() => vi.fn()),
+  onSessionTerminated: vi.fn<(id: string, handler: (reason: string) => void) => () => void>(() =>
+    vi.fn()
+  ),
   clearServerAuthentication: vi.fn(),
   getClient: vi.fn((serverId: string) => ({ serverId }))
 }));
@@ -151,18 +153,21 @@ describe('ServerRuntimeCoordinator', () => {
     );
   });
 
-  it('defers recovery and transport work while the saved view first paints', async () => {
+  it('defers transport while keeping recovery available for the saved view', async () => {
     render(ServerRuntimeCoordinator, { props: { user: null, deferConnections: true } });
 
     await vi.waitFor(() =>
       expect(mocks.synchronizeAuthenticatedServers).toHaveBeenCalledWith([], null)
     );
-    expect(mocks.needsRecovery).not.toHaveBeenCalled();
+    expect(mocks.needsRecovery).toHaveBeenCalled();
+    expect(mocks.getClient).not.toHaveBeenCalled();
   });
 
   it('clears a remote session when its server confirms termination', async () => {
     render(ServerRuntimeCoordinator, { props: { user: originUser } });
-    await vi.waitFor(() => expect(mocks.onSessionTerminated).toHaveBeenCalledWith('remote', expect.any(Function)));
+    await vi.waitFor(() =>
+      expect(mocks.onSessionTerminated).toHaveBeenCalledWith('remote', expect.any(Function))
+    );
     const handler = mocks.onSessionTerminated.mock.calls.find(([id]) => id === 'remote')?.[1];
     handler?.('revoked');
     await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote'));

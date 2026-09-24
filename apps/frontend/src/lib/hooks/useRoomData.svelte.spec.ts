@@ -12,8 +12,10 @@ const { mocks } = vi.hoisted(() => ({
     store: undefined as unknown as {
       realtimeSync: {
         phase: 'empty' | 'hydrating' | 'ready' | 'stale';
-        hasUsableProjection: boolean;
+        isRecoveringSnapshot: boolean;
+        hasDisplayableView: boolean;
       };
+      isAuthenticated: boolean;
       projection: { rooms: SvelteMap<string, unknown> };
       projectedMembersForRoom: ReturnType<typeof vi.fn>;
       currentUser: { user: { id: string } | undefined };
@@ -72,12 +74,14 @@ describe('useRoomData projection selector', () => {
   beforeEach(() => {
     const realtimeSync = $state({
       phase: 'empty' as 'empty' | 'hydrating' | 'ready' | 'stale',
-      get hasUsableProjection() {
-        return this.phase === 'ready' || this.phase === 'stale';
+      isRecoveringSnapshot: false,
+      get hasDisplayableView() {
+        return this.phase === 'ready' || this.phase === 'stale' || this.isRecoveringSnapshot;
       }
     });
     mocks.store = {
       realtimeSync,
+      isAuthenticated: true,
       projection: { rooms: new SvelteMap() },
       projectedMembersForRoom: vi.fn((roomId: string) => [member(roomId)]),
       currentUser: { user: { id: 'viewer' } },
@@ -217,6 +221,49 @@ describe('useRoomData projection selector', () => {
     try {
       expect(known.roomData?.room.id).toBe('known');
       expect(missing.roomData).toBeUndefined();
+    } finally {
+      destroy();
+    }
+  });
+
+  it('keeps room and DM selectors readable while a warm snapshot hydrates', () => {
+    mocks.store.projection.rooms.set('dm-a', projectedRoom('dm-a'));
+    mocks.store.realtimeSync.phase = 'ready';
+    let room!: ReturnType<typeof useRoomData>;
+    const destroy = $effect.root(() => {
+      room = useRoomData(() => ({ roomId: 'dm-a' }));
+      flushSync();
+    });
+
+    try {
+      const retainedRoom = room.roomData;
+      mocks.store.realtimeSync.isRecoveringSnapshot = true;
+      mocks.store.realtimeSync.phase = 'hydrating';
+      flushSync();
+      expect(room.roomData?.room.id).toBe('dm-a');
+      expect(room.dmData?.participantIds).toEqual(['dm-a']);
+      expect(room.isRoomLoading).toBe(false);
+      expect(room.roomData).toEqual(retainedRoom);
+    } finally {
+      destroy();
+    }
+  });
+
+  it('keeps a saved room visible but disables actions before viewer verification', () => {
+    mocks.store.projection.rooms.set('channel', projectedRoom('channel', RoomKind.CHANNEL));
+    mocks.store.realtimeSync.phase = 'stale';
+    mocks.store.isAuthenticated = false;
+    let room!: ReturnType<typeof useRoomData>;
+    const destroy = $effect.root(() => {
+      room = useRoomData(() => ({ roomId: 'channel' }));
+      flushSync();
+    });
+
+    try {
+      expect(room.roomData?.room.id).toBe('channel');
+      expect(room.roomData?.canReadMessages).toBe(true);
+      expect(room.roomData?.canPostMessage).toBe(false);
+      expect(room.roomData?.canManageRoom).toBe(false);
     } finally {
       destroy();
     }

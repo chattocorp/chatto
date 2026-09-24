@@ -64,7 +64,6 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
         return null;
       }
       serverRegistry.authenticateOriginCookie(cachedUser);
-      serverConnectionManager.originClient.maintainBrowserSession();
       const originId = serverRegistry.originServer?.id;
       if (originId) {
         serverRegistry.clearAuthenticationRequired(originId);

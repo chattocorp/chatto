@@ -20,7 +20,9 @@ the stream to build and maintain its local server projection.
   unresolved. The message row updates when the shared user store receives the
   profile. Only an explicit deletion reference shows the deleted-user label.
   A timeline reference does not mark an account as deleted in the shared user
-  store. The server snapshot or a realtime deletion event does that.
+  store. A realtime deletion event or a cursor-bounded check of requested
+  cached user IDs confirms deletion. A partial snapshot user list cannot
+  confirm deletion by omission.
 
 - A client opens one authenticated realtime subscription for a server.
 - A subscription selects `SNAPSHOT` or `LIVE_ONLY` initial state. Snapshot
@@ -58,6 +60,11 @@ the stream to build and maintain its local server projection.
 - A client must discard an incomplete snapshot. A new snapshot also starts a
   new local projection generation. Late reads from an earlier generation must
   not replace newer state.
+- The bundled client keeps the same viewer's saved room and timeline mounted
+  while it verifies the viewer and hydrates a warm snapshot. It updates the
+  view in place after fresh resources arrive. The saved view is read-only
+  until the server verifies its viewer. A changed or rejected viewer clears
+  that private view.
 - The stream does not guarantee every intermediate transition after a client
   is offline beyond the bounded resume window.
 - ConnectRPC remains the normal API for commands, explicit resource reads,

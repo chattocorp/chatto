@@ -7,7 +7,6 @@ const {
   handleAuthenticationRequiredMock,
   clearAuthenticationRequiredMock,
   authenticateOriginCookieMock,
-  maintainBrowserSessionMock,
   revokeLegacyOriginBearerSessionMock,
   migrateLegacyOriginCookieSessionMock
 } = vi.hoisted(() => ({
@@ -16,7 +15,6 @@ const {
   handleAuthenticationRequiredMock: vi.fn(),
   clearAuthenticationRequiredMock: vi.fn(),
   authenticateOriginCookieMock: vi.fn(),
-  maintainBrowserSessionMock: vi.fn(),
   revokeLegacyOriginBearerSessionMock: vi.fn(),
   migrateLegacyOriginCookieSessionMock: vi.fn()
 }));
@@ -36,7 +34,7 @@ vi.mock('$lib/api-client/viewer', () => ({
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     originConnectBaseUrl: '/api/connect',
-    originClient: { maintainBrowserSession: maintainBrowserSessionMock }
+    originClient: {}
   }
 }));
 
@@ -96,16 +94,18 @@ describe('loadCurrentUser', () => {
       bearerToken: null
     });
     expect(authenticateOriginCookieMock).toHaveBeenCalledTimes(2);
-    expect(maintainBrowserSessionMock).toHaveBeenCalledTimes(2);
   });
 
   it('does not restore origin auth after sign-out starts during a viewer request', async () => {
     const { loadCurrentUser } = await loadModule();
-    const { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } = await import('./signOut');
+    const { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } =
+      await import('./signOut');
     let resolveViewer: (value: typeof user) => void = () => {};
-    getCurrentUserViaConnectMock.mockReturnValue(new Promise((resolve) => {
-      resolveViewer = resolve;
-    }));
+    getCurrentUserViaConnectMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveViewer = resolve;
+      })
+    );
 
     try {
       const pending = loadCurrentUser();
