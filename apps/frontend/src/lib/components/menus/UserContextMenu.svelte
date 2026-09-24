@@ -15,9 +15,9 @@ keep the compact menu without a navigation action.
 - `presentation` - Optional floating/sheet presentation selected by the trigger
 - `canSendMessage` - Whether to show the "Send Message" button
 - `onSendMessage` - Callback when "Send Message" is clicked
-- `canBanFromRoom` - Whether to show the room-ban action
-- `banningFromRoom` - Whether the room-ban action is currently running
-- `onBanFromRoom` - Callback when "Ban from room" is clicked
+- `canBanFromRoom` - Whether to show the room removal action
+- `banningFromRoom` - Whether the room removal action is currently running
+- `onBanFromRoom` - Callback when "Remove from room" is clicked
 - `onOpenProfile` - Optional callback that opens the full room-sidebar profile
 - `viewerSettings` - Optional viewer preferences for the user's local-time display
 - `onClose` - Callback to close the popover/sheet
