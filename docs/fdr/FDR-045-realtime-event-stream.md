@@ -19,6 +19,8 @@ the stream to build and maintain its local server projection.
   use the same behaviour. Timeline pages also leave a missing author profile
   unresolved. The message row updates when the shared user store receives the
   profile. Only an explicit deletion reference shows the deleted-user label.
+  A timeline reference does not mark an account as deleted in the shared user
+  store. The server snapshot or a realtime deletion event does that.
 
 - A client opens one authenticated realtime subscription for a server.
 - A subscription selects `SNAPSHOT` or `LIVE_ONLY` initial state. Snapshot

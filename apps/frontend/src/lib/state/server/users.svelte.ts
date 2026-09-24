@@ -48,10 +48,19 @@ export class UserStore {
     return this;
   }
 
-  /** Seed incidental response data only when no profile, read, or tombstone exists. */
+  /** Seed live incidental response data only when no profile, read, or tombstone exists.
+   * Deletion requires an authoritative write; a timeline include can be stale. */
   seed(member: DirectoryMember): void {
     const id = member.user?.id;
-    if (id && !this.has(id) && !this.#deleted.has(id) && !this.#pending.has(id)) this.set(id, member);
+    if (
+      id &&
+      !member.user?.deleted &&
+      !this.has(id) &&
+      !this.#deleted.has(id) &&
+      !this.#pending.has(id)
+    ) {
+      this.set(id, member);
+    }
   }
 
   /** Account removal is a tombstone until the next authoritative reset or write. */
