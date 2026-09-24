@@ -32,7 +32,6 @@
   provideUserProfiles();
 </script>
 
-<Story name="Loading author" args={{ authorLoading: true, missingActorIsDeleted: false }} />
 <Story name="Unknown author" args={{ missingActorIsDeleted: false }} />
 <Story name="Deleted author" />
 <Story name="Loaded author" args={{ actor, displayName: actor.displayName }} />
