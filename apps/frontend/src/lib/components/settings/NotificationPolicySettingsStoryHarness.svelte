@@ -1,3 +1,7 @@
+<script module lang="ts">
+  let nextStoryQueryScope = 0;
+</script>
+
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
   import { RoomKind } from '$lib/api-client/roomDirectory';
@@ -14,7 +18,6 @@
   } from '$lib/api-client/notifications';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { NotificationPolicyMatrixState } from '$lib/state/server/notificationPolicies.svelte';
   import type { ServerStateStore } from '$lib/state/server/store.svelte';
   import NotificationPolicySettings from './NotificationPolicySettings.svelte';
 
@@ -120,12 +123,13 @@
     }
   } as unknown as NotificationAPI;
 
-  const matrixState = new NotificationPolicyMatrixState(api);
   provideServerScope({
     serverId: 'storybook',
-    connection: {} as ServerConnection,
+    connection: {
+      queryScope: `storybook-${++nextStoryQueryScope}`,
+      getAPI: () => api
+    } as unknown as ServerConnection,
     store: {
-      notifications: { notificationPolicies: matrixState },
       serverInfo: { name: 'Example server' },
       navigation: {
         roomGroups: [

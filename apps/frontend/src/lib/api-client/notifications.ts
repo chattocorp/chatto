@@ -214,7 +214,8 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     },
 
     async batchGetNotificationPolicies(
-      scopes: NotificationPolicyScope[]
+      scopes: NotificationPolicyScope[],
+      options?: { signal?: AbortSignal }
     ): Promise<ScopedNotificationPolicy[]> {
       const uniqueScopes = [
         ...new Map(scopes.map((scope) => [notificationPolicyScopeKey(scope), scope])).values()
@@ -223,7 +224,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       for (let offset = 0; offset < uniqueScopes.length; offset += 100) {
         const response = await policyClient.batchGetNotificationPolicies(
           { scopes: uniqueScopes.slice(offset, offset + 100).map(apiNotificationPolicyScope) },
-          { headers: headers() }
+          { headers: headers(), signal: options?.signal }
         );
         policies.push(...response.policies.map(scopedNotificationPolicy));
       }
