@@ -531,6 +531,8 @@ the saved data. The saved text never supplies a realtime cursor or current
 authorization.
 After the saved view paints, the registry starts server discovery and verifies
 the viewer through the existing connection. The root route does not reload.
+This saved startup applies to room and overview routes. Settings and management
+routes load the live viewer before forms mount. Message permalinks use the live timeline.
 The runtime coordinator starts realtime and notification sync when viewer
 verification succeeds. Room and DM selectors keep retained data displayable
 during warm snapshot hydration and retry. Actions stay gated by verified

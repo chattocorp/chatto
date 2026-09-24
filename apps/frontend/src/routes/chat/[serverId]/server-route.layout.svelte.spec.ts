@@ -11,20 +11,33 @@ type RegisteredState = {
   checkingPermissions?: boolean;
   userId?: string;
   connectionStatus?: 'connected' | 'disconnected';
+  startupPresentationOnly?: boolean;
 };
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
+    routeId: '/chat/[serverId]/[roomId]',
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
+      get startupPresentationOnly(): boolean {
+        return mocks.servers?.get('origin')?.startupPresentationOnly ?? false;
+      },
       get checkingPermissions(): boolean {
         return mocks.servers?.get('origin')?.checkingPermissions ?? false;
       },
       realtimeSync: null as RealtimeProjectionSyncState | null,
       savedView: null as null | {
-        version: 1; serverId: string; userId: string; serverName: string; savedAt: number;
-        rooms: Array<{ id: string; name: string; messages: Array<{ id: string; createdAt: string; author: string; body: string }> }>;
+        version: 1;
+        serverId: string;
+        userId: string;
+        serverName: string;
+        savedAt: number;
+        rooms: Array<{
+          id: string;
+          name: string;
+          messages: Array<{ id: string; createdAt: string; author: string; body: string }>;
+        }>;
       },
       currentUser: {
         loading: false,
@@ -48,6 +61,11 @@ vi.mock('$app/paths', () => ({
 
 vi.mock('$app/state', () => ({
   page: {
+    route: {
+      get id() {
+        return mocks.routeId;
+      }
+    },
     params: { serverId: '-', roomId: 'room' },
     url: new URL('https://chat.example.test/chat/-/manage/server/members')
   }
@@ -76,7 +94,9 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     getClient: () => ({
       queryScope: 'layout-test',
-      get status() { return mocks.servers?.get('origin')?.connectionStatus ?? 'connected'; }
+      get status() {
+        return mocks.servers?.get('origin')?.connectionStatus ?? 'connected';
+      }
     })
   }
 }));
@@ -99,6 +119,7 @@ import Layout from './+layout.svelte';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.routeId = '/chat/[serverId]/[roomId]';
   mocks.servers = new SvelteMap([['origin', { reauthRequiredAt: null, userId: 'viewer-1' }]]);
   mocks.store.realtimeSync = new RealtimeProjectionSyncState();
   mocks.store.savedView = null;
@@ -106,6 +127,22 @@ beforeEach(() => {
 });
 
 describe('server route authentication privacy', () => {
+  it.each(['settings/profile', 'manage/server/members'])(
+    'waits for the saved viewer before mounting %s',
+    async (path) => {
+      mocks.routeId = `/chat/[serverId]/${path}`;
+      mocks.servers!.set('origin', { reauthRequiredAt: null, startupPresentationOnly: true });
+      const { container } = render(Layout, {
+        props: { children: testSnippet('<input data-testid="live-form" />') }
+      });
+
+      expect(container.querySelector('[data-testid="live-form"]')).toBeNull();
+      mocks.servers!.set('origin', { reauthRequiredAt: null, startupPresentationOnly: false });
+      await tick();
+      expect(container.querySelector('[data-testid="live-form"]')).not.toBeNull();
+    }
+  );
+
   it('keeps the normal chat view and its draft visible during snapshot replacement', async () => {
     const savedView = {
       version: 1 as const,
@@ -113,7 +150,13 @@ describe('server route authentication privacy', () => {
       userId: 'viewer-1',
       serverName: 'Home',
       savedAt: Date.now(),
-      rooms: [{ id: 'room', name: 'Room', messages: [{ id: 'm', createdAt: '', author: 'Member', body: 'Earlier message' }] }]
+      rooms: [
+        {
+          id: 'room',
+          name: 'Room',
+          messages: [{ id: 'm', createdAt: '', author: 'Member', body: 'Earlier message' }]
+        }
+      ]
     };
     mocks.store.savedView = savedView;
     const { container } = render(Layout, {
@@ -172,7 +215,11 @@ describe('server route authentication privacy', () => {
     const { container } = render(Layout, {
       props: { children: testSnippet('<main data-testid="normal-chat">Chat</main>') }
     });
-    mocks.servers!.set('origin', { reauthRequiredAt: null, userId: 'viewer-1', connectionStatus: 'disconnected' });
+    mocks.servers!.set('origin', {
+      reauthRequiredAt: null,
+      userId: 'viewer-1',
+      connectionStatus: 'disconnected'
+    });
     await tick();
     const chat = container.querySelector('[data-testid="normal-chat"]');
     expect(chat).not.toBeNull();
