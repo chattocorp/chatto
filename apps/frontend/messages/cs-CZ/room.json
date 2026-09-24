@@ -226,8 +226,8 @@
       "view_profile": "Zobrazit profil uživatele {name}",
       "in_voice_call": "V hlasovém hovoru",
       "in_video_call": "Ve videohovoru",
-      "ban_failed": "Členovi se nepodařilo zakázat přístup do místnosti",
-      "ban_success": "{name} zakázán přístup do místnosti"
+      "remove_failed": "Uživatele se nepodařilo odebrat z místnosti",
+      "remove_success": "{name} byl odebrán z místnosti"
     },
     "pins": {
       "show": "Zobrazit připnuté zprávy",

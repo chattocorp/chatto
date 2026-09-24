@@ -120,7 +120,7 @@
       "room_join": "Unirse a salas existentes",
       "room_list": "Ver salas en el directorio. A un usuario se le puede permitir ver una sala (por ejemplo, para solicitar acceso) sin que se le permita unirse a ella.",
       "room_manage": "Editar la configuración y los permisos de una sala y eliminar salas",
-      "room_ban_member": "Prohibir el ingreso de miembros a las salas",
+      "room_remove_member": "Quitar miembros de salas y suspender su reingreso si es necesario",
       "message_read": "Leer todos los mensajes de las salas. Quitar este permiso sigue permitiendo el acceso limitado si message.read-interactions se concede por separado.",
       "message_read_interactions": "Leer hilos completos que creaste o en los que otro usuario te mencionó directamente",
       "message_post": "Publicar mensajes y respuestas en hilos e iniciar mensajes directos",

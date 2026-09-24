@@ -219,7 +219,7 @@ active-room scope.
 managers, bot owners, and human bot managers. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.
 Without either override, a bot manager needs the bot's effective `room.join`,
-including its owner's ceiling. Bans and archived rooms prevent adding.
+including its owner's ceiling. Suspensions and archived rooms prevent adding.
 Removal does not require join permission and works in archived rooms.
 Both operations recheck authorization within room aggregate OCC retries and
 reuse the existing membership and audit events. Neither changes grants.

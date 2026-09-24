@@ -226,8 +226,8 @@
       "view_profile": "Ver perfil de {name}",
       "in_voice_call": "Em uma chamada de voz",
       "in_video_call": "Em uma videochamada",
-      "ban_failed": "Falha ao banir membro da sala",
-      "ban_success": "{name} banido da sala"
+      "remove_failed": "Não foi possível remover o usuário da sala",
+      "remove_success": "{name} foi removido da sala"
     },
     "pins": {
       "show": "Mostrar mensagens fixadas",

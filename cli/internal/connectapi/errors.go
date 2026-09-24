@@ -76,7 +76,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrCustomStatusEmojiTooLong) ||
 		errors.Is(err, core.ErrCustomStatusTextTooLong) ||
 		errors.Is(err, core.ErrCustomStatusExpiryInPast) ||
-		errors.Is(err, core.ErrCannotBanDMRoomMember) ||
+		errors.Is(err, core.ErrCannotRemoveDMRoomMember) ||
 		errors.Is(err, core.ErrExternalIdentityFlowWrongKind) ||
 		errors.Is(err, core.ErrExternalIdentityFlowUserBound) ||
 		errors.Is(err, core.ErrCurrentPasswordRequired) ||

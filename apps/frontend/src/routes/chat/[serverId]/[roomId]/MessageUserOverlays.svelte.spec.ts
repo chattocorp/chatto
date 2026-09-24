@@ -93,7 +93,7 @@ describe('MessageUserOverlays', () => {
     await vi.waitFor(() => {
       banButton =
         Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
-          (button) => button.textContent?.trim() === 'Ban from room'
+          (button) => button.textContent?.trim() === 'Remove from room'
         ) ?? null;
       expect(banButton).not.toBeNull();
     });

@@ -24,11 +24,11 @@ const mocks = vi.hoisted(() => ({
   leaveRoom: vi.fn(),
   addMember: vi.fn(),
   removeMember: vi.fn(),
-  listBans: vi.fn(),
+  listSuspensions: vi.fn(),
   joinRoomGroup: vi.fn(),
   refreshTypingIndicator: vi.fn(),
-  banMember: vi.fn(),
-  unbanMember: vi.fn()
+  removeUser: vi.fn(),
+  liftSuspension: vi.fn()
 }));
 
 describe('room name helpers', () => {
@@ -112,11 +112,11 @@ describe('createRoomCommandAPI', () => {
     mocks.leaveRoom.mockReset();
     mocks.addMember.mockReset();
     mocks.removeMember.mockReset();
-    mocks.listBans.mockReset();
+    mocks.listSuspensions.mockReset();
     mocks.joinRoomGroup.mockReset();
     mocks.refreshTypingIndicator.mockReset();
-    mocks.banMember.mockReset();
-    mocks.unbanMember.mockReset();
+    mocks.removeUser.mockReset();
+    mocks.liftSuspension.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       createRoom: mocks.createRoom,
@@ -126,11 +126,11 @@ describe('createRoomCommandAPI', () => {
       leaveRoom: mocks.leaveRoom,
       addMember: mocks.addMember,
       removeMember: mocks.removeMember,
-      listBans: mocks.listBans,
+      listSuspensions: mocks.listSuspensions,
       joinRoomGroup: mocks.joinRoomGroup,
       refreshTypingIndicator: mocks.refreshTypingIndicator,
-      banMember: mocks.banMember,
-      unbanMember: mocks.unbanMember
+      removeUser: mocks.removeUser,
+      liftSuspension: mocks.liftSuspension
     });
   });
 
@@ -323,9 +323,9 @@ describe('createRoomCommandAPI', () => {
     );
   });
 
-  it('sends ban and unban commands through RoomService', async () => {
-    mocks.banMember.mockResolvedValue({});
-    mocks.unbanMember.mockResolvedValue({});
+  it('sends removal and suspension commands through RoomService', async () => {
+    mocks.removeUser.mockResolvedValue({});
+    mocks.liftSuspension.mockResolvedValue({});
 
     const api = createRoomCommandAPI({
       baseUrl: 'https://remote.example.test/api/connect',
@@ -333,35 +333,38 @@ describe('createRoomCommandAPI', () => {
     });
 
     await expect(
-      api.banMember({
+      api.removeUser({
         roomId: 'room-1',
         userId: 'user-1',
         reason: 'policy',
-        expiresAt: '2026-06-01T12:00:00.000Z'
+        suspension: { kind: 'until', expiresAt: '2026-06-01T12:00:00.000Z' }
       })
     ).resolves.toBe(true);
     await expect(
-      api.unbanMember({ roomId: 'room-1', userId: 'user-1', reason: 'appeal' })
+      api.liftSuspension({ roomId: 'room-1', userId: 'user-1', reason: 'appeal' })
     ).resolves.toBe(true);
 
-    expect(mocks.banMember).toHaveBeenCalledWith(
+    expect(mocks.removeUser).toHaveBeenCalledWith(
       {
         roomId: 'room-1',
         userId: 'user-1',
         reason: 'policy',
-        expiresAt: expect.objectContaining({ toDate: expect.any(Function) })
+        suspension: {
+          case: 'suspensionExpiresAt',
+          value: expect.objectContaining({ toDate: expect.any(Function) })
+        }
       },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
-    expect(mocks.unbanMember).toHaveBeenCalledWith(
+    expect(mocks.liftSuspension).toHaveBeenCalledWith(
       { roomId: 'room-1', userId: 'user-1', reason: 'appeal' },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
   });
 
-  it('lists active room bans through RoomService and maps hydrated references', async () => {
-    mocks.listBans.mockResolvedValue({
-      bans: [
+  it('lists active room suspensions through RoomService and maps hydrated references', async () => {
+    mocks.listSuspensions.mockResolvedValue({
+      suspensions: [
         {
           id: 'ban-1',
           roomId: 'room-1',
@@ -413,9 +416,9 @@ describe('createRoomCommandAPI', () => {
     const controller = new AbortController();
 
     await expect(
-      api.listBans({ roomId: 'room-1' }, { signal: controller.signal })
+      api.listSuspensions({ roomId: 'room-1' }, { signal: controller.signal })
     ).resolves.toEqual({
-      bans: [
+      suspensions: [
         {
           id: 'ban-1',
           roomId: 'room-1',
@@ -468,7 +471,7 @@ describe('createRoomCommandAPI', () => {
       hasMore: false
     });
 
-    expect(mocks.listBans).toHaveBeenCalledWith(
+    expect(mocks.listSuspensions).toHaveBeenCalledWith(
       { roomId: 'room-1', page: { limit: 100, offset: 0 } },
       { headers: { Authorization: 'Bearer remote-token' }, signal: controller.signal }
     );

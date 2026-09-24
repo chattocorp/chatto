@@ -50,7 +50,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { toast } from '$lib/ui/toast';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
-  import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
+  import RemoveRoomUserModal from '$lib/components/moderation/RemoveRoomUserModal.svelte';
+  import type { RoomSuspensionChoice } from '$lib/api-client/rooms';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
@@ -68,6 +69,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     maximized = false,
     hasActiveCall = false,
     canBanRoomMembers = false,
+    isUniversal = false,
     currentUserId = null,
     membersStore,
     searchStore,
@@ -93,6 +95,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     maximized?: boolean;
     hasActiveCall?: boolean;
     canBanRoomMembers?: boolean;
+    isUniversal?: boolean;
     currentUserId?: string | null;
     membersStore: RoomMembersStore;
     searchStore?: MessageSearchStore;
@@ -351,27 +354,27 @@ calls, and similar room-specific panels can plug into the same shell. See the
     closePopover();
   }
 
-  async function banFromRoom(member: RoomMember, reason: string, expiresAt: string | null) {
+  async function banFromRoom(member: RoomMember, reason: string, suspension: RoomSuspensionChoice) {
     if (banningMemberId) return;
 
     banningMemberId = member.id;
     banError = null;
     try {
       const api = connection().getAPI(createRoomCommandAPI);
-      await api.banMember({ roomId, userId: member.id, reason, expiresAt });
+      await api.removeUser({ roomId, userId: member.id, reason, suspension });
     } catch (error) {
       if (!serverScope.isCurrent()) return;
       banningMemberId = null;
-      banError = m('room.sidebar.ban_failed');
+      banError = m('room.sidebar.remove_failed');
       toast.error(banError);
-      console.error('Failed to ban member from room:', error);
+      console.error('Failed to remove user from room:', error);
       return;
     }
     if (!serverScope.isCurrent()) return;
     banningMemberId = null;
 
     toast.success({
-      text: m('room.sidebar.ban_success', { name: accountNameToken(0) }),
+      text: m('room.sidebar.remove_success', { name: accountNameToken(0) }),
       accounts: [
         {
           name: member.displayName || member.login,
@@ -578,11 +581,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {/if}
 
   {#if banDialogMember}
-    <BanRoomMemberModal
+    <RemoveRoomUserModal
       user={banDialogMember}
+      {isUniversal}
       submitting={banningMemberId === banDialogMember.id}
       error={banError}
-      onconfirm={(reason, expiresAt) => banFromRoom(banDialogMember!, reason, expiresAt)}
+      onconfirm={(reason, suspension) => banFromRoom(banDialogMember!, reason, suspension)}
       onclose={() => (banDialogMember = null)}
     />
   {/if}

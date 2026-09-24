@@ -5,7 +5,7 @@
 
 import { BatchGetRoomReadStatesRequest, BatchGetRoomReadStatesResponse, GetRoomReadStateRequest, GetRoomReadStateResponse, MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RefreshTypingIndicatorRequest, RefreshTypingIndicatorResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, LiftSuspensionRequest, LiftSuspensionResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, ListSuspensionsRequest, ListSuspensionsResponse, RefreshTypingIndicatorRequest, RefreshTypingIndicatorResponse, RemoveMemberRequest, RemoveMemberResponse, RemoveUserRequest, RemoveUserResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
 import { BatchGetMembersRequest, BatchGetMembersResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
 
@@ -189,7 +189,7 @@ export const RoomService = {
      * room or user.manage-accounts overrides the target's missing room.join.
      * Bot owners and bot.manage holders may also add bots, but without either
      * override the bot needs effective room.join, bounded by its owner's authority.
-     * Preserves permission grants. Bans, archived, universal, and DM rooms prevent adding.
+     * Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
      *
      * @generated from rpc chatto.api.v1.RoomService.AddMember
      */
@@ -214,15 +214,15 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists active channel room bans. The caller must be allowed to moderate room
-     * membership bans.
+     * Lists active channel room suspensions. Requires server-scope
+     * room.remove-member.
      *
-     * @generated from rpc chatto.api.v1.RoomService.ListBans
+     * @generated from rpc chatto.api.v1.RoomService.ListSuspensions
      */
-    listBans: {
-      name: "ListBans",
-      I: ListBansRequest,
-      O: ListBansResponse,
+    listSuspensions: {
+      name: "ListSuspensions",
+      I: ListSuspensionsRequest,
+      O: ListSuspensionsResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -341,27 +341,28 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Bans a member from a channel room. Direct-message rooms cannot be moderated
-     * this way, and the target must currently be a room member.
+     * Removes a current channel room member with a required reason. Requires
+     * room.remove-member. Without suspension, ordinary join rules apply afterward.
+     * Universal rooms require a suspension. Direct-message rooms are excluded.
      *
-     * @generated from rpc chatto.api.v1.RoomService.BanMember
+     * @generated from rpc chatto.api.v1.RoomService.RemoveUser
      */
-    banMember: {
-      name: "BanMember",
-      I: BanMemberRequest,
-      O: BanMemberResponse,
+    removeUser: {
+      name: "RemoveUser",
+      I: RemoveUserRequest,
+      O: RemoveUserResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Removes an active channel room ban. Calling this when no active ban exists
-     * is allowed and still returns success.
+     * Lifts an active channel room suspension. Requires room.remove-member.
+     * Calling this when no active suspension exists succeeds.
      *
-     * @generated from rpc chatto.api.v1.RoomService.UnbanMember
+     * @generated from rpc chatto.api.v1.RoomService.LiftSuspension
      */
-    unbanMember: {
-      name: "UnbanMember",
-      I: UnbanMemberRequest,
-      O: UnbanMemberResponse,
+    liftSuspension: {
+      name: "LiftSuspension",
+      I: LiftSuspensionRequest,
+      O: LiftSuspensionResponse,
       kind: MethodKind.Unary,
     },
   }

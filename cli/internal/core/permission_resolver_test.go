@@ -1080,7 +1080,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 				t.Errorf("expected owner override to allow %s", perm)
 			}
 		}
-		for _, perm := range []Permission{PermRoomManage, PermRoomMemberBan} {
+		for _, perm := range []Permission{PermRoomManage, PermRoomMemberRemove} {
 			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
 			if has {
 				t.Errorf("expected %s to remain outside the DM scope", perm)
@@ -1146,7 +1146,7 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}{
 		// Room permissions do not apply to direct messages.
 		{PermRoomManage, expected{false, false}, "DM rooms can't be managed channel-style"},
-		{PermRoomMemberBan, expected{false, false}, "DM participants can't be removed"},
+		{PermRoomMemberRemove, expected{false, false}, "DM participants can't be removed"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
 		{PermRoomJoin, expected{false, false}, "DM membership uses dedicated rules"},
 

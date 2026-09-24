@@ -226,8 +226,8 @@
       "view_profile": "檢視 {name} 的個人檔案",
       "in_voice_call": "正在語音通話",
       "in_video_call": "正在視訊通話",
-      "ban_failed": "無法將成員停權並移出聊天室",
-      "ban_success": "已將 {name} 停權並移出聊天室"
+      "remove_failed": "無法將使用者移出聊天室",
+      "remove_success": "已將 {name} 移出聊天室"
     },
     "pins": {
       "show": "顯示已釘選訊息",

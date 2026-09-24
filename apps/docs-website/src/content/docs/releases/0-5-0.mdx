@@ -31,6 +31,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   management actions directly beside rooms, groups, and servers.
 </ReleaseFeatureCard>
 
+<ReleaseFeatureCard title="Remove a user from a room">
+  Moderators can remove a user with a reason and let them rejoin when room
+  permissions allow it. A timed or indefinite suspension can prevent rejoining.
+  Universal rooms require a suspension.
+</ReleaseFeatureCard>
+
 <ReleaseFeatureCard title="Native social post previews">
   Bluesky and Mastodon links render as native cards with quoted posts, attached
   media, link cards, and concealed content warnings instead of relying on
@@ -385,6 +391,9 @@ scope, bot access, and the timing of in-call permission changes.
 - Custom delegated room managers that previously relied on `role.manage` need an effective
   `room.manage` grant for the resources they should administer. Non-owner role assignment is
   also limited to permissions the acting manager possesses.
+- Review grants of `room.ban-member` and grant `room.remove-member` where
+  moderated room removal is needed. Chatto does not migrate the old grants.
+  Existing active room bans continue as room suspensions.
 - The deprecated CLI `--passphrase` argument has been removed from backup, restore, key
   export, and key import commands. Update unattended scripts to use `--passphrase-file` or
   `--passphrase-stdin`.
@@ -463,6 +472,10 @@ scope, bot access, and the timing of in-call permission changes.
   `bot.owner_user_id`. Update custom clients for this alpha API change. Stored
   accounts and events need no migration. See
   [API Compatibility](/guides/integrations/api-compatibility/#bot-identity).
+- **API migration:** Replace room `BanMember`, `ListBans`, and `UnbanMember`
+  calls with `RemoveUser`, `ListSuspensions`, and `LiftSuspension`. A removal
+  can omit suspension to permit rejoining. See
+  [API Compatibility](/guides/integrations/api-compatibility/#room-removal-and-suspension-in-05).
 - **API migration:** Role and user permission matrix/decision reads now return
   scope pages: 20 scopes by default, capped at 100. Consume `page` metadata or
   request one typed `scope`. Offsets count scopes, not decisions. The editors

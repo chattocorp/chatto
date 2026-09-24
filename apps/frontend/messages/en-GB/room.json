@@ -226,8 +226,8 @@
       "view_profile": "View profile of {name}",
       "in_voice_call": "In a voice call",
       "in_video_call": "In a video call",
-      "ban_failed": "Failed to ban member from room",
-      "ban_success": "Banned {name} from room"
+      "remove_failed": "Failed to remove user from room",
+      "remove_success": "Removed {name} from room"
     },
     "pins": {
       "show": "Show pinned messages",

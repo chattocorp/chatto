@@ -48,3 +48,17 @@ func TestRoomBanProjectionStableOrder(t *testing.T) {
 		})
 	}
 }
+
+func TestRoomBanProjectionTimedSuspensionExpires(t *testing.T) {
+	now := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	p := NewRoomBanProjection()
+	require.NoError(t, p.Apply(&evtv1.Event{
+		Id: "suspension",
+		Event: &evtv1.Event_RoomMemberBanned{RoomMemberBanned: &evtv1.RoomMemberBannedEvent{
+			RoomId: "room", UserId: "user", Reason: "cooldown",
+			ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+		}},
+	}, 1))
+	require.True(t, p.IsActive("room", "user", now))
+	require.False(t, p.IsActive("room", "user", now.Add(time.Hour)))
+}

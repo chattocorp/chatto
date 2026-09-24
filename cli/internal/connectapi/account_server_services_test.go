@@ -1174,8 +1174,8 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermMessageManage); err != nil {
 		t.Fatalf("GrantUserPermission message.manage: %v", err)
 	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantUserPermission room.ban-member: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoomMemberRemove); err != nil {
+		t.Fatalf("GrantUserPermission room.remove-member: %v", err)
 	}
 	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
 	if _, err := env.adminUsers.GetMember(roleAssignerCtx, connect.NewRequest(&adminv1.GetMemberRequest{

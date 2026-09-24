@@ -120,7 +120,7 @@
       "room_join": "Join existing rooms",
       "room_list": "See rooms in the directory. A user can be allowed to see a room (e.g. to request access) without being allowed to join it.",
       "room_manage": "Edit a room's settings and permissions, and delete rooms",
-      "room_ban_member": "Ban members from rooms",
+      "room_remove_member": "Remove members from rooms and optionally suspend rejoining",
       "message_read": "Read all messages in rooms. Removing this permission still allows limited access if message.read-interactions is granted separately.",
       "message_read_interactions": "Read complete threads that you authored or where another user directly mentioned you",
       "message_post": "Post messages and thread replies, and start DMs",

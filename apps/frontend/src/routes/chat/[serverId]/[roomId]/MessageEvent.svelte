@@ -13,6 +13,7 @@
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { mapDirectoryRoomDetails } from '$lib/api-client/roomDirectory';
 
   const serverScope = useServerScope();
   const stores = $derived(serverScope.store);
@@ -77,6 +78,9 @@
   const activeServerId = $derived(serverScope.serverId);
   const currentUser = $derived(stores.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
+  const isUniversal = $derived(
+    mapDirectoryRoomDetails(stores.projection?.rooms?.get(roomId))?.isUniversal ?? false
+  );
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
@@ -776,6 +780,7 @@
     currentUserId={currentUser.user?.id}
     {canStartDMs}
     canBanRoomMembers={roomPermissions.canBanRoomMembers}
+    {isUniversal}
     {onOpenProfile}
   />
 

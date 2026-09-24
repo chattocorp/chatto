@@ -74,7 +74,7 @@ production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared
 content-view projector. Threads also derives channel-room and DM message-to-root
 mappings and account-to-thread interaction relationships from message-post
-facts. It also consumes room join, leave, and ban facts to derive DM-received
+facts. It also consumes room join, leave, and stored suspension facts to derive DM-received
 relationships for the other participants at the time of each post. Its v3
 snapshot contract records DM membership; the schema fingerprint selects a new
 cache namespace when this shape changes. The
@@ -361,7 +361,7 @@ the shared sequence after all matching component mutations commit.
 
 Permission resolution and permission explanation run inside one
 `ServerContentView` read transaction. Account state, bot ownership, room
-metadata, membership, bans, Room Group placement, and RBAC state therefore
+metadata, membership, suspensions, Room Group placement, and RBAC state therefore
 come from one applied EVT generation. Request-time authorization still uses
 the subject-tail validation and aggregate OCC procedure from ADR-087.
 

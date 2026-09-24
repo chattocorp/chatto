@@ -226,8 +226,8 @@
       "view_profile": "Voir le profil de {name}",
       "in_voice_call": "Lors d'un appel vocal",
       "in_video_call": "Lors d'un appel vidéo",
-      "ban_failed": "Échec de l'exclusion du membre de la salle",
-      "ban_success": "{name} banni de la salle"
+      "remove_failed": "Impossible de retirer l’utilisateur du salon",
+      "remove_success": "{name} a été retiré du salon"
     },
     "pins": {
       "show": "Afficher les messages épinglés",

@@ -135,46 +135,48 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom target: %v", err)
 	}
-	if _, err := commands.BanMember(ctx, RoomBanInput{
-		ActorID: actor.Id,
-		RoomID:  room.Id,
-		UserID:  target.Id,
-		Reason:  "test",
+	if err := commands.RemoveUser(ctx, RoomRemoveUserInput{
+		ActorID:    actor.Id,
+		RoomID:     room.Id,
+		UserID:     target.Id,
+		Reason:     "test",
+		Suspension: true,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("BanMember without room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("RemoveUser without room.remove-member error = %v, want ErrPermissionDenied", err)
 	}
-	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+	if _, err := commands.ListActiveRoomSuspensions(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("ListActiveRoomBans without room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("ListActiveRoomBans without room.remove-member error = %v, want ErrPermissionDenied", err)
 	}
 
-	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantRoomPermission room.ban-member: %v", err)
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomMemberRemove); err != nil {
+		t.Fatalf("GrantRoomPermission room.remove-member: %v", err)
 	}
-	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+	if _, err := commands.ListActiveRoomSuspensions(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("ListActiveRoomBans with only room-scoped room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("ListActiveRoomBans with only room-scoped room.remove-member error = %v, want ErrPermissionDenied", err)
 	}
-	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantServerPermission room.ban-member: %v", err)
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomMemberRemove); err != nil {
+		t.Fatalf("GrantServerPermission room.remove-member: %v", err)
 	}
-	if _, err := commands.BanMember(ctx, RoomBanInput{
-		ActorID: actor.Id,
-		RoomID:  room.Id,
-		UserID:  target.Id,
-		Reason:  "test",
+	if err := commands.RemoveUser(ctx, RoomRemoveUserInput{
+		ActorID:    actor.Id,
+		RoomID:     room.Id,
+		UserID:     target.Id,
+		Reason:     "test",
+		Suspension: true,
 	}); err != nil {
-		t.Fatalf("BanMember with room-scoped room.ban-member: %v", err)
+		t.Fatalf("RemoveUser with room-scoped room.remove-member: %v", err)
 	}
 	roomID := room.Id
-	bans, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+	bans, err := commands.ListActiveRoomSuspensions(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 		RoomID:  &roomID,
 	})
 	if err != nil {
-		t.Fatalf("ListActiveRoomBans with server-scoped room.ban-member: %v", err)
+		t.Fatalf("ListActiveRoomBans with server-scoped room.remove-member: %v", err)
 	}
 	if got := len(bans); got != 1 {
 		t.Fatalf("ListActiveRoomBans count = %d, want 1", got)

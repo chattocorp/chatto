@@ -233,8 +233,8 @@
       "view_profile": "Zobacz profil {name}",
       "in_voice_call": "Podczas połączenia głosowego",
       "in_video_call": "Podczas rozmowy wideo",
-      "ban_failed": "Nie udało się zablokować członka w pokoju",
-      "ban_success": "Zablokowano {name} w pokoju"
+      "remove_failed": "Nie udało się usunąć użytkownika z pokoju",
+      "remove_success": "Usunięto {name} z pokoju"
     },
     "pins": {
       "show": "Pokaż przypięte wiadomości",

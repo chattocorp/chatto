@@ -226,8 +226,8 @@
       "view_profile": "Visualizza il profilo di {name}",
       "in_voice_call": "In una chiamata vocale",
       "in_video_call": "In una videochiamata",
-      "ban_failed": "Impossibile escludere il membro dalla stanza",
-      "ban_success": "Bandito {name} dalla stanza"
+      "remove_failed": "Impossibile rimuovere l’utente dalla stanza",
+      "remove_success": "{name} è stato rimosso dalla stanza"
     },
     "pins": {
       "show": "Mostra i messaggi fissati",

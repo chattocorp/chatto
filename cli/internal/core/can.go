@@ -141,7 +141,7 @@ var adminPermissions = []Permission{
 	PermRoleManage,
 	PermRoleAssign,
 	PermRoomManage,
-	PermRoomMemberBan,
+	PermRoomMemberRemove,
 	PermUserDeleteAny,
 	PermUserManageAccounts,
 	PermUserManagePermissions,

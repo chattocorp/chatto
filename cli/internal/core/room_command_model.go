@@ -60,12 +60,15 @@ type RoomStartDMInput struct {
 	ParticipantIDs []string
 }
 
-type RoomBanInput struct {
-	ActorID   string
-	RoomID    string
-	UserID    string
-	Reason    string
-	ExpiresAt *time.Time
+// RoomRemoveUserInput describes a reasoned moderation removal. Suspension is
+// true for both a timed suspension and an indefinite one.
+type RoomRemoveUserInput struct {
+	ActorID    string
+	RoomID     string
+	UserID     string
+	Reason     string
+	Suspension bool
+	ExpiresAt  *time.Time
 }
 
 type RoomUnbanInput struct {
@@ -389,33 +392,43 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	return s.core.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
 }
 
-func (s *RoomCommandModel) BanMember(ctx context.Context, input RoomBanInput) (*RoomBan, error) {
-	kind, err := s.authorizeRoomBan(ctx, input.ActorID, input.RoomID)
-	if err != nil {
-		return nil, err
-	}
-	if err := validateRoomBanInput(input.Reason, input.ExpiresAt); err != nil {
-		return nil, err
-	}
-	return s.core.BanMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason, input.ExpiresAt)
-}
-
-func (s *RoomCommandModel) UnbanMember(ctx context.Context, input RoomUnbanInput) error {
-	kind, err := s.authorizeRoomBan(ctx, input.ActorID, input.RoomID)
+// RemoveUser removes a current member and optionally prevents rejoining.
+// It uses the room.remove-member permission at the target room.
+func (s *RoomCommandModel) RemoveUser(ctx context.Context, input RoomRemoveUserInput) error {
+	kind, err := s.authorizeRoomRemoval(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return err
 	}
-	if err := validateRoomBanReason(input.Reason); err != nil {
+	if err := validateRoomRemovalInput(input.Reason, input.Suspension, input.ExpiresAt); err != nil {
+		return err
+	}
+	authorize := func() error {
+		_, err := s.authorizeRoomRemoval(ctx, input.ActorID, input.RoomID)
+		return err
+	}
+	if input.Suspension {
+		_, err := s.core.banMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason, input.ExpiresAt, authorize)
+		return err
+	}
+	return s.core.removeUserWithoutSuspension(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason, authorize)
+}
+
+func (s *RoomCommandModel) LiftSuspension(ctx context.Context, input RoomUnbanInput) error {
+	kind, err := s.authorizeRoomRemoval(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return err
+	}
+	if err := validateRoomRemovalReason(input.Reason); err != nil {
 		return err
 	}
 	return s.core.UnbanMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason)
 }
 
-func (s *RoomCommandModel) ListActiveRoomBans(ctx context.Context, input RoomBanListInput) ([]RoomBan, error) {
+func (s *RoomCommandModel) ListActiveRoomSuspensions(ctx context.Context, input RoomBanListInput) ([]RoomBan, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
-	canModerate, err := s.core.HasServerPermission(ctx, input.ActorID, PermRoomMemberBan)
+	canModerate, err := s.core.HasServerPermission(ctx, input.ActorID, PermRoomMemberRemove)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +459,7 @@ func (s *RoomCommandModel) authorizeRoomManage(ctx context.Context, actorID, roo
 	return kind, nil
 }
 
-func (s *RoomCommandModel) authorizeRoomBan(ctx context.Context, actorID, roomID string) (RoomKind, error) {
+func (s *RoomCommandModel) authorizeRoomRemoval(ctx context.Context, actorID, roomID string) (RoomKind, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return KindChannel, err
 	}
@@ -455,9 +468,9 @@ func (s *RoomCommandModel) authorizeRoomBan(ctx context.Context, actorID, roomID
 		return KindChannel, err
 	}
 	if kind == KindDM {
-		return KindChannel, ErrCannotBanDMRoomMember
+		return KindChannel, ErrCannotRemoveDMRoomMember
 	}
-	can, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermRoomMemberBan)
+	can, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermRoomMemberRemove)
 	if err != nil {
 		return KindChannel, err
 	}
@@ -474,12 +487,15 @@ func (s *RoomCommandModel) resolveRoomKind(ctx context.Context, roomID string) (
 	return s.core.FindRoomKind(ctx, roomID)
 }
 
-func validateRoomBanInput(reason string, expiresAt *time.Time) error {
-	if err := validateRoomBanReason(reason); err != nil {
+func validateRoomRemovalInput(reason string, suspension bool, expiresAt *time.Time) error {
+	if err := validateRoomRemovalReason(reason); err != nil {
 		return err
 	}
+	if !suspension && expiresAt != nil {
+		return invalidArgument("suspension expiry requires a suspension")
+	}
 	if expiresAt != nil && !expiresAt.After(time.Now()) {
-		return invalidArgument("ban expiry must be in the future")
+		return invalidArgument("suspension expiry must be in the future")
 	}
 	return nil
 }
@@ -494,13 +510,13 @@ func validateRoomNameAndDescription(name, description string) error {
 	return nil
 }
 
-func validateRoomBanReason(reason string) error {
+func validateRoomRemovalReason(reason string) error {
 	trimmed := strings.TrimSpace(reason)
 	if trimmed == "" {
-		return invalidArgument("ban reason is required")
+		return invalidArgument("removal reason is required")
 	}
 	if len([]rune(trimmed)) > MaxRoomBanReasonLength {
-		return invalidArgument(fmt.Sprintf("ban reason exceeds %d characters", MaxRoomBanReasonLength))
+		return invalidArgument(fmt.Sprintf("removal reason exceeds %d characters", MaxRoomBanReasonLength))
 	}
 	return nil
 }

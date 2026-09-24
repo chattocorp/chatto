@@ -166,7 +166,7 @@ const deferredRoomInteractionSources = [
   'src/lib/components/EmojiPicker.svelte',
   'src/lib/components/chat/VideoPlayer.svelte',
   'src/lib/components/menus/UserContextMenu.svelte',
-  'src/lib/components/moderation/BanRoomMemberModal.svelte',
+  'src/lib/components/moderation/RemoveRoomUserModal.svelte',
   'src/routes/chat/[serverId]/[roomId]/MessageActionMenu.svelte',
   'src/routes/chat/[serverId]/[roomId]/RoomSidebar.svelte',
   'src/routes/chat/[serverId]/[roomId]/ThreadPane.svelte'

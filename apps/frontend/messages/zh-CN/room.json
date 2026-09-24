@@ -226,8 +226,8 @@
       "view_profile": "查看 {name} 的个人资料",
       "in_voice_call": "正在语音通话",
       "in_video_call": "正在视频通话",
-      "ban_failed": "禁止成员进入聊天室失败",
-      "ban_success": "已禁止 {name} 进入聊天室"
+      "remove_failed": "无法将用户移出聊天室",
+      "remove_success": "已将 {name} 移出聊天室"
     },
     "pins": {
       "show": "显示置顶消息",

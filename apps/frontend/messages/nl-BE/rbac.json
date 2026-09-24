@@ -120,7 +120,7 @@
       "room_join": "Sluit je aan bij bestaande kamers",
       "room_list": "Bekijk kamers in de directory. Een gebruiker kan toestemming krijgen om een ​​ruimte te zien (bijvoorbeeld om toegang aan te vragen) zonder dat hij er toegang toe mag hebben.",
       "room_manage": "Bewerk de instellingen en rechten van een kamer en verwijder kamers",
-      "room_ban_member": "Leden uit kamers weren",
+      "room_remove_member": "Leden uit kamers verwijderen en zo nodig opnieuw deelnemen blokkeren",
       "message_read": "Alle berichten in kamers lezen. Als je deze machtiging verwijdert, blijft beperkte toegang mogelijk als message.read-interactions apart is toegekend.",
       "message_read_interactions": "Volledige threads lezen die je hebt gemaakt of waarin een andere gebruiker je rechtstreeks heeft vermeld",
       "message_post": "Berichten en threadantwoorden plaatsen en privégesprekken starten",

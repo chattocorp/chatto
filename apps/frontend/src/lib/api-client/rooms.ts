@@ -9,7 +9,7 @@ import {
 } from './connect.js';
 import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import type { Room, RoomBan as APIRoomBan } from '@chatto/api-types/api/v1/rooms_pb';
+import type { Room, RoomSuspension as APIRoomSuspension } from '@chatto/api-types/api/v1/rooms_pb';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory.js';
 import {
   normalizeRoomName,
@@ -31,7 +31,7 @@ export type PublicRoom = {
   threadingMode: RoomThreadingMode;
 };
 
-export type RoomBanSummary = {
+export type RoomSuspensionSummary = {
   id: string;
   roomId: string;
   room: PublicRoom | null;
@@ -44,11 +44,16 @@ export type RoomBanSummary = {
   expiresAt: string | null;
 };
 
-export type RoomBanList = {
-  bans: RoomBanSummary[];
+export type RoomSuspensionList = {
+  suspensions: RoomSuspensionSummary[];
   totalCount: number;
   hasMore: boolean;
 };
+
+export type RoomSuspensionChoice =
+  | { kind: 'none' }
+  | { kind: 'indefinite' }
+  | { kind: 'until'; expiresAt: string };
 
 export type RoomCommandAPI = ReturnType<typeof createRoomCommandAPI>;
 
@@ -68,7 +73,7 @@ function publicRoom(room: Room | undefined): PublicRoom | null {
   };
 }
 
-function roomBan(ban: APIRoomBan): RoomBanSummary {
+function roomSuspension(ban: APIRoomSuspension): RoomSuspensionSummary {
   return {
     id: ban.id,
     roomId: ban.roomId,
@@ -228,12 +233,12 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async listBans(
+    async listSuspensions(
       input: { roomId?: string; limit?: number; offset?: number } = {},
       options: { signal?: AbortSignal } = {}
-    ): Promise<RoomBanList> {
+    ): Promise<RoomSuspensionList> {
       try {
-        const response = await rooms.listBans(
+        const response = await rooms.listSuspensions(
           {
             roomId: input.roomId ?? '',
             page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
@@ -241,7 +246,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
         );
         return {
-          bans: response.bans.map(roomBan),
+          suspensions: response.suspensions.map(roomSuspension),
           totalCount: Number(response.page?.totalCount ?? 0),
           hasMore: response.page?.hasMore ?? false
         };
@@ -277,19 +282,23 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async banMember(input: {
+    async removeUser(input: {
       roomId: string;
       userId: string;
       reason: string;
-      expiresAt?: string | null;
+      suspension: RoomSuspensionChoice;
     }): Promise<boolean> {
       try {
-        await rooms.banMember(
+        await rooms.removeUser(
           {
             roomId: input.roomId,
             userId: input.userId,
             reason: input.reason,
-            expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+            suspension: input.suspension.kind === 'none'
+              ? { case: undefined }
+              : input.suspension.kind === 'indefinite'
+                ? { case: 'suspendIndefinitely', value: true }
+                : { case: 'suspensionExpiresAt', value: Timestamp.fromDate(new Date(input.suspension.expiresAt)) }
           },
           { headers: headers() }
         );
@@ -299,9 +308,9 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async unbanMember(input: { roomId: string; userId: string; reason: string }): Promise<boolean> {
+    async liftSuspension(input: { roomId: string; userId: string; reason: string }): Promise<boolean> {
       try {
-        await rooms.unbanMember(input, {
+        await rooms.liftSuspension(input, {
           headers: headers()
         });
         return true;

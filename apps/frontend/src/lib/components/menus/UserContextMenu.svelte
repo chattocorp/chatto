@@ -227,12 +227,12 @@ keep the compact menu without a navigation action.
       {/if}
       {#if canBanFromRoom}
         <MenuItem
-          icon="icon-[uil--ban]"
+          icon="icon-[uil--user-minus]"
           tone="danger"
           onclick={handleBanFromRoom}
           disabled={banningFromRoom}
         >
-          {banningFromRoom ? m('admin.moderation.banning') : m('admin.moderation.ban_action')}
+          {banningFromRoom ? m('admin.moderation.removing') : m('admin.moderation.remove_action')}
         </MenuItem>
       {/if}
     </MenuSection>

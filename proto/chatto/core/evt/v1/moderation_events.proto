@@ -46,8 +46,9 @@ message RoomMemberAddedEvent {
 
 // RoomMemberRemovedEvent records a manager removing a user from a channel room.
 // The Event envelope actor_id is the manager. The payload user_id is the
-// target.
+// target. A moderated removal has a reason; ordinary member management does not.
 message RoomMemberRemovedEvent {
   string room_id = 1;
   string user_id = 2;
+  string reason = 3;
 }
