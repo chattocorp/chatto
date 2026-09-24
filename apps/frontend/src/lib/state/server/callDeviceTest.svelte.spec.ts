@@ -176,6 +176,26 @@ describe('CallDeviceTest', () => {
     expect(test.playbackBlocked).toBe(false);
   });
 
+  it('does not show playback as active when a short clip ends before play resolves', async () => {
+    const stream = makeStream();
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+    let finishPlay!: () => void;
+    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(
+      () => new Promise<void>((resolve) => (finishPlay = resolve))
+    );
+    const test = makeTest();
+    await test.start('');
+    test.stop();
+    await vi.waitFor(() => expect(finishPlay).toBeDefined());
+    const audio = vi.mocked(HTMLMediaElement.prototype.play).mock.contexts[0] as HTMLMediaElement;
+    Object.defineProperty(audio, 'ended', { configurable: true, value: true });
+    audio.dispatchEvent(new Event('ended'));
+    finishPlay();
+    await vi.waitFor(() => expect(test.playbackPending).toBe(false));
+    expect(test.playing).toBe(false);
+    expect(test.hasRecording).toBe(true);
+  });
+
   it('reports empty output without attempting playback', async () => {
     FakeRecorder.output = new Blob();
     const stream = makeStream();

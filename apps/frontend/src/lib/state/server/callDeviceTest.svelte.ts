@@ -71,8 +71,8 @@ export class CallDeviceTest {
         audio: {
           ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
           channelCount: { ideal: 1 },
-          // The test records the same signal the call would send. Playback starts
-          // only after capture ends, so it cannot feed into this microphone.
+          // Capture the selected raw or processed signal. Playback starts only
+          // after capture ends, so it cannot feed into this microphone.
           echoCancellation: false,
           noiseSuppression: processing,
           autoGainControl: false
@@ -233,7 +233,7 @@ export class CallDeviceTest {
       this.#audio.currentTime = 0;
       await this.#audio.play();
       if (generation !== this.#generation) return;
-      this.playing = true;
+      this.playing = !this.#audio.ended;
     } catch {
       if (generation === this.#generation) this.playbackBlocked = true;
     } finally {
