@@ -975,6 +975,31 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore room search state', () => {
+  it('keeps projected DM member IDs before their shared profiles arrive', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.rooms.set('dm', new RoomWithViewerState({
+      room: new Room({ id: 'dm', kind: RoomKind.DM }),
+      memberUserIds: ['U2', 'U3']
+    }));
+
+    const memberIds = store.projectedMemberIdsForRoom('dm');
+    expect(memberIds).toEqual(['U2', 'U3']);
+    const members = store.membersForRoom('dm');
+    members.replaceProjection('dm', memberIds);
+    expect(members.totalCount).toBe(2);
+    expect(members.members).toEqual([]);
+
+    store.projection.users.set('U2', new DirectoryMember({
+      user: { id: 'U2', login: 'alice', displayName: 'Alice' }
+    }));
+    expect(members.members.map((member) => member.displayName)).toEqual(['Alice']);
+    store.projection.users.set('U3', new DirectoryMember({
+      user: { id: 'U3', login: 'bob', displayName: 'Bob' }
+    }));
+    expect(members.members.map((member) => member.displayName)).toEqual(['Alice', 'Bob']);
+    store.dispose();
+  });
+
   it('keeps retained room members reactive after the route that created them closes', () => {
     const store = makeStore(new FakeServerConnection([]));
     let members!: ReturnType<typeof store.membersForRoom>;
@@ -987,9 +1012,7 @@ describe('ServerStateStore room search state', () => {
     store.projection.users.set('U2', new DirectoryMember({
       user: { id: 'U2', login: 'two', displayName: 'Two' }
     }));
-    members.replaceProjection('a', [{
-      id: 'U2', login: 'two', displayName: 'Two', presenceStatus: 1
-    }]);
+    members.replaceProjection('a', ['U2']);
 
     expect(members.members.map((member) => member.id)).toEqual(['U2']);
     store.dispose();
@@ -1031,7 +1054,7 @@ describe('ServerStateStore room search state', () => {
   it('applies a leave to an inactive retained room without relisting', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const a = store.membersForRoom('a');
-    a.replaceProjection('a', [{ id: 'U2', login: 'two', displayName: 'Two', presenceStatus: 1 }]);
+    a.replaceProjection('a', ['U2']);
     await store.membersForRoom('b').loadInitial();
     const requests = apiMocks.listRoomMembers.mock.calls.length;
     store.realtimeProjectionHandler(

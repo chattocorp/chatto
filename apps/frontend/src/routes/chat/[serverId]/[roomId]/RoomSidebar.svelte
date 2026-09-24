@@ -34,11 +34,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
   } from '$lib/state/room';
   import type { MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
-  import {
-    getLiveCustomStatus,
-    getLiveDisplayName,
-    getLiveLogin
-  } from '$lib/state/userProfiles.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
@@ -201,7 +196,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   // this stable ordering below, avoiding two full O(n log n) sorts per update.
   function sortByName(list: RoomMember[]): RoomMember[] {
     return [...list].sort((a, b) =>
-      getLiveDisplayName(a.id, a.displayName).localeCompare(getLiveDisplayName(b.id, b.displayName))
+      a.displayName.localeCompare(b.displayName)
     );
   }
 
@@ -611,7 +606,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     : activeCallRooms.getParticipantCallPresenceInAnyRoom(member.id)}
   <UserCard
     variant="row"
-    username={getLiveLogin(member.id, member.login)}
+    username={member.login}
     class={!member.isBot && !isOnline ? 'opacity-50' : undefined}
     secondaryTestId="room-member-login"
     testId="room-member-card"
@@ -619,7 +614,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       ? undefined
       : {
           label: m('room.sidebar.view_profile', {
-            name: formatAccountName(getLiveDisplayName(member.id, member.displayName), member)
+            name: formatAccountName(member.displayName, member)
           }),
           onclick: (event) => togglePopover(member.id, event),
           revealOnHover: true,
@@ -637,12 +632,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {#if member.deleted}
         <DeletedUserLabel />
       {:else}
-        <AccountName name={getLiveDisplayName(member.id, member.displayName)} identity={member} />
+        <AccountName name={member.displayName} identity={member} />
       {/if}
     {/snippet}
     {#snippet badges()}
       <UserCustomStatusBadge
-        status={getLiveCustomStatus(member.id, member.customStatus)}
+        status={member.customStatus}
         class="shrink-0 text-xs"
       />
       {@render callPresenceIcon(callPresence)}

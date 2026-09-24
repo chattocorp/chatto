@@ -490,13 +490,13 @@
     const selectedRoomId = roomId;
     const hasFirstPage = roomMembersStore.hasFirstPage;
     const hasCompleteMembership = stores.hasCompleteProjectedRoomMembership(selectedRoomId);
-    const projectedMembers = hasCompleteMembership
-      ? stores.projectedMembersForRoom(selectedRoomId)
+    const projectedMemberIds = hasCompleteMembership
+      ? stores.projectedMemberIdsForRoom(selectedRoomId)
       : [];
     untrack(() => {
       roomMembersStore.setRoom(selectedRoomId);
       if (hasCompleteMembership) {
-        roomMembersStore.replaceProjection(selectedRoomId, projectedMembers);
+        roomMembersStore.replaceProjection(selectedRoomId, projectedMemberIds);
       } else {
         if (!hasFirstPage) roomMembersStore.ensureLoaded();
       }
