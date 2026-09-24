@@ -29,7 +29,8 @@ const { mocks } = vi.hoisted(() => {
       toastError: vi.fn(),
       toastSuccess: vi.fn(),
       appUi: {
-        disableRoomCallWideFor: vi.fn()
+        disableRoomCallWideFor: vi.fn(),
+        requestSidebarReveal: vi.fn()
       },
       showConnectionLostIcon: false,
       server: {
@@ -266,6 +267,7 @@ describe('ServerSidebarEntry', () => {
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.appUi.disableRoomCallWideFor.mockClear();
+    mocks.appUi.requestSidebarReveal.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
     mocks.store.isAuthenticated = true;
@@ -1045,6 +1047,7 @@ describe('ServerSidebarEntry', () => {
 
     await vi.waitFor(() => {
       expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('remote', 'room-1');
+      expect(mocks.appUi.requestSidebarReveal).toHaveBeenCalledWith('remote', 'room-1');
       expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.goto.mock.invocationCallOrder[0]
       );

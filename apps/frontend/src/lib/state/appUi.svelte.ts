@@ -12,6 +12,9 @@ export type AppRoomScope = {
   roomId: string;
 };
 
+/** One notification navigation request to reveal a room in the server sidebar. */
+export type SidebarRevealRequest = AppRoomScope & { id: number };
+
 export type RoomSidebarPresentation = 'desktop' | 'mobile';
 
 /** Return the room sidebar presentation used at the current Tailwind `lg` breakpoint. */
@@ -57,6 +60,8 @@ export class AppUiState {
   #fullscreenSurface = $state<AppFullscreenSurface | null>(null);
   #roomSidebarPanelRequest: RoomSidebarPanelRequest | null = null;
   #roomSidebarProfileRequest: RoomSidebarProfileRequest | null = null;
+  #sidebarRevealRequest = $state<SidebarRevealRequest | null>(null);
+  #nextSidebarRevealId = 0;
 
   get activeRoomScope(): AppRoomScope | null {
     if (!this.#activeServerId || !this.#activeRoomId) return null;
@@ -69,6 +74,7 @@ export class AppUiState {
     this.#activeServerId = serverId;
     this.#activeRoomId = null;
     this.#roomSidebarProfile = null;
+    this.#sidebarRevealRequest = null;
     if (previousScope !== null) this.disableRoomCallWide();
   }
 
@@ -76,6 +82,13 @@ export class AppUiState {
     const previousScope = this.#activeRoomScopeKey;
     this.#activeServerId = serverId;
     this.#activeRoomId = roomId;
+    if (
+      this.#sidebarRevealRequest &&
+      (this.#sidebarRevealRequest.serverId !== serverId ||
+        this.#sidebarRevealRequest.roomId !== roomId)
+    ) {
+      this.#sidebarRevealRequest = null;
+    }
 
     const nextScope = this.#activeRoomScopeKey;
     if (previousScope !== null && previousScope !== nextScope) {
@@ -271,6 +284,21 @@ export class AppUiState {
   ): void {
     this.#roomSidebarProfileRequest = { serverId, roomId, userId, presentation };
     this.#applyRoomSidebarProfileRequest();
+  }
+
+  /** The pending notification reveal, consumed by the destination room list. */
+  get sidebarRevealRequest(): SidebarRevealRequest | null {
+    return this.#sidebarRevealRequest;
+  }
+
+  /** Request one sidebar reveal when notification navigation reaches a room. */
+  requestSidebarReveal(serverId: string, roomId: string): void {
+    this.#sidebarRevealRequest = { serverId, roomId, id: ++this.#nextSidebarRevealId };
+  }
+
+  /** Complete a reveal only if a newer notification has not replaced it. */
+  finishSidebarReveal(id: number): void {
+    if (this.#sidebarRevealRequest?.id === id) this.#sidebarRevealRequest = null;
   }
 
   get roomCallWideScope(): AppRoomScope | null {

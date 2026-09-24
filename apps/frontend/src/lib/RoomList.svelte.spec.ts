@@ -6,7 +6,10 @@ import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { userEvent } from 'vitest/browser';
+import { SvelteMap } from 'svelte/reactivity';
+import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
+import { sidebarNav } from '$lib/state/globals.svelte';
 import '../app.css';
 
 import { NotificationSignalKind } from '$lib/api-client/notifications';
@@ -40,7 +43,18 @@ const { mocks } = vi.hoisted(() => ({
     },
     appUi: {
       disableRoomCallWideFor: vi.fn(),
-      requestRoomSidebarPanel: vi.fn()
+      requestRoomSidebarPanel: vi.fn(),
+      get sidebarRevealRequest() {
+        return sidebarRevealRequests.get('request') ?? null;
+      },
+      requestSidebarReveal: vi.fn((serverId: string, roomId: string) => {
+        sidebarRevealRequests.set('request', { serverId, roomId, id: ++sidebarRevealId });
+      }),
+      finishSidebarReveal: vi.fn((id: number) => {
+        if (sidebarRevealRequests.get('request')?.id === id) {
+          sidebarRevealRequests.delete('request');
+        }
+      })
     },
     store: {
       currentUser: { user: { id: 'me' } },
@@ -100,6 +114,12 @@ const { mocks } = vi.hoisted(() => ({
     }
   }
 }));
+
+const sidebarRevealRequests = new SvelteMap<
+  string,
+  { serverId: string; roomId: string; id: number }
+>();
+let sidebarRevealId = 0;
 
 vi.mock('$app/state', () => ({
   page: {
@@ -289,6 +309,9 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   mocks.activeRoomId = undefined;
+  sidebarRevealRequests.clear();
+  sidebarNav.setMobile(false);
+  if (!sidebarNav.isOpen) sidebarNav.toggle();
   mocks.activeCallRoomIds = new Set();
   mocks.projectedCallParticipants = new Map();
   mocks.unreadRoomIds = new Set();
@@ -1036,6 +1059,153 @@ describe('RoomList', () => {
     expect(row.classList.contains('sidebar-item')).toBe(true);
     expect(row.classList.contains('sidebar-item-current')).toBe(false);
     expect(row.querySelector('.sidebar-icon')?.classList.contains('text-muted')).toBe(true);
+  });
+
+  it('reveals a notified channel row with the browser nearest alignment', async () => {
+    mocks.activeRoomId = 'channel-1';
+    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      render(RoomList);
+
+      await vi.waitFor(() => {
+        expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+        expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      scrollIntoView.mockRestore();
+    }
+  });
+
+  it('does not scroll for ordinary room navigation', async () => {
+    mocks.activeRoomId = 'channel-1';
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      const { container } = render(RoomList);
+      await expect.element(q(container, 'a[aria-current="page"]')).toBeInTheDocument();
+      await tick();
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      scrollIntoView.mockRestore();
+    }
+  });
+
+  it('reveals a notified DM in a collapsed section', async () => {
+    mocks.activeRoomId = 'dm-with-participants';
+    localStorage.setItem('chatto:i:origin:collapsible:dms', '1');
+    mocks.appUi.requestSidebarReveal('origin', 'dm-with-participants');
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      const { container } = render(RoomList);
+
+      await vi.waitFor(() => {
+        expect(q(container, '[href="/chat/-/dm-with-participants"]')).not.toBeNull();
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      scrollIntoView.mockRestore();
+    }
+  });
+
+  it('leaves an already visible notified row at its current scroll position', async () => {
+    mocks.activeRoomId = 'channel-1';
+    const { container } = render(RoomList);
+    container.style.height = '800px';
+    container.style.overflowY = 'auto';
+    expect(container.scrollTop).toBe(0);
+
+    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
+
+    await vi.waitFor(() => expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1));
+    expect(container.scrollTop).toBe(0);
+  });
+
+  it('scrolls an offscreen notified DM into the sidebar viewport', async () => {
+    mocks.activeRoomId = 'dm-phone-only';
+    const { container } = render(RoomList);
+    container.style.height = '72px';
+    container.style.overflowY = 'auto';
+    const pageScroll = window.scrollY;
+    expect(container.scrollHeight).toBeGreaterThan(container.clientHeight);
+
+    mocks.appUi.requestSidebarReveal('origin', 'dm-phone-only');
+
+    await vi.waitFor(() => expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1));
+    expect(container.scrollTop).toBeGreaterThan(0);
+    expect(window.scrollY).toBe(pageScroll);
+  });
+
+  it('waits while a desktop sidebar is closed', async () => {
+    mocks.activeRoomId = 'channel-1';
+    sidebarNav.toggle();
+    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      const { container } = render(RoomList);
+      await expect.element(q(container, 'a[aria-current="page"]')).toBeInTheDocument();
+      await tick();
+      expect(scrollIntoView).not.toHaveBeenCalled();
+
+      sidebarNav.toggle();
+      await vi.waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    } finally {
+      scrollIntoView.mockRestore();
+    }
+  });
+
+  it('positions a mobile drawer without opening it', async () => {
+    mocks.activeRoomId = 'dm-with-participants';
+    sidebarNav.setMobile(true);
+    mocks.appUi.requestSidebarReveal('origin', 'dm-with-participants');
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      render(RoomList);
+
+      await vi.waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+      expect(sidebarNav.isOpen).toBe(false);
+    } finally {
+      scrollIntoView.mockRestore();
+    }
+  });
+
+  it('discards a notification reveal when the destination has no sidebar row', async () => {
+    mocks.activeRoomId = 'missing-room';
+    mocks.appUi.requestSidebarReveal('origin', 'missing-room');
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      render(RoomList);
+
+      await vi.waitFor(() => {
+        expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1);
+        expect(scrollIntoView).not.toHaveBeenCalled();
+      });
+    } finally {
+      scrollIntoView.mockRestore();
+    }
+  });
+
+  it('discards a notification reveal when the room list is empty', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.activeRoomId = 'missing-room';
+    mocks.appUi.requestSidebarReveal('origin', 'missing-room');
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      render(RoomList);
+
+      await vi.waitFor(() => {
+        expect(mocks.appUi.finishSidebarReveal).toHaveBeenCalledTimes(1);
+        expect(scrollIntoView).not.toHaveBeenCalled();
+      });
+    } finally {
+      scrollIntoView.mockRestore();
+    }
   });
 
   it('uses the established globe icon for universal joined rooms', async () => {

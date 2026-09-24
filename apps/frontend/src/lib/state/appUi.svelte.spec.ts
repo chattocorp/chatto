@@ -19,6 +19,41 @@ describe('AppUiState', () => {
     expect(appUi.activeRoomScope).toEqual({ serverId: 'server-a', roomId: 'room-1' });
   });
 
+  it('keeps a notification reveal until the destination row consumes it', () => {
+    const appUi = new AppUiState();
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.requestSidebarReveal('server-b', 'room-2');
+    const request = appUi.sidebarRevealRequest;
+
+    expect(request).toMatchObject({ serverId: 'server-b', roomId: 'room-2' });
+    appUi.setActiveRoomScope('server-b', 'room-2');
+    expect(appUi.sidebarRevealRequest).toEqual(request);
+
+    appUi.finishSidebarReveal(request!.id);
+    expect(appUi.sidebarRevealRequest).toBeNull();
+  });
+
+  it('drops a notification reveal when navigation reaches another destination', () => {
+    const appUi = new AppUiState();
+    appUi.requestSidebarReveal('server-a', 'room-1');
+    appUi.setActiveRoomScope('server-a', 'room-2');
+    expect(appUi.sidebarRevealRequest).toBeNull();
+
+    appUi.requestSidebarReveal('server-a', 'room-1');
+    appUi.setActiveServer('server-a');
+    expect(appUi.sidebarRevealRequest).toBeNull();
+  });
+
+  it('does not let an earlier reveal consume a newer notification request', () => {
+    const appUi = new AppUiState();
+    appUi.requestSidebarReveal('server-a', 'room-1');
+    const firstId = appUi.sidebarRevealRequest!.id;
+    appUi.requestSidebarReveal('server-a', 'room-1');
+
+    appUi.finishSidebarReveal(firstId);
+    expect(appUi.sidebarRevealRequest?.id).toBeGreaterThan(firstId);
+  });
+
   it('clears room scope when the active route moves to a server page', () => {
     const appUi = new AppUiState();
 
