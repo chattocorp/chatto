@@ -132,7 +132,18 @@ export class RoomMembersStore {
   private resolveProfile(id: string): RoomMember | undefined {
     if (!this.#users) return this.#standaloneProfiles.get(id)?.member;
     const member = this.#users.get(id);
-    return member ? memberFromDirectory(mapDirectoryMember(member)) : undefined;
+    if (member) return memberFromDirectory(mapDirectoryMember(member));
+    if (this.#users.isDeleted(id)) {
+      return {
+        id,
+        login: '',
+        displayName: '',
+        deleted: true,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.OFFLINE
+      };
+    }
+    return undefined;
   }
 
   /** Standalone fixtures own page profiles locally; realtime updates win over stale pages. */
