@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -244,6 +245,34 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 		Body:   "hello",
 	}))
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
+}
+
+func TestUserServiceUploadAvatarRequestLimit(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	mux := http.NewServeMux()
+	for _, handler := range env.api.Handlers() {
+		if handler.ServicePath == "/"+apiv1connect.UserServiceName+"/" {
+			mux.Handle(handler.ServicePath, handler.Handler)
+		}
+	}
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	users := apiv1connect.NewUserServiceClient(server.Client(), server.URL)
+
+	t.Run("avatar reaches authentication at client size limit", func(t *testing.T) {
+		_, err := users.UploadAvatar(env.ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
+			UserId: env.viewer.Id,
+			Image:  &apiv1.ImageUpload{Image: bytes.Repeat([]byte{'a'}, 10<<20)},
+		}))
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	})
+
+	t.Run("other user methods retain the standard limit", func(t *testing.T) {
+		_, err := users.ListUsers(env.ctx, connect.NewRequest(&apiv1.ListUsersRequest{
+			Search: strings.Repeat("a", MaxRequestMessageBytes),
+		}))
+		requireConnectCode(t, err, connect.CodeResourceExhausted)
+	})
 }
 
 func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing.T) {
