@@ -70,13 +70,30 @@ describe('registered server recovery', () => {
     mocks.discovery.mockResolvedValue(profile);
     await register();
     expect(registry.needsRecovery('retry-test')).toBe(true);
-    mocks.viewer.mockRejectedValue(new ConnectError('authentication required', Code.Unauthenticated));
+    mocks.viewer.mockImplementation(async (config) => {
+      await config.renewBearerToken?.(true);
+      throw new ConnectError('authentication required', Code.Unauthenticated);
+    });
     await registry.recoverServer('retry-test');
     expect(registry.getServer('retry-test')?.reauthRequiredAt).not.toBeNull();
     expect(registry.needsRecovery('retry-test')).toBe(false);
     await registry.recoverServer('retry-test');
     expect(mocks.viewer).toHaveBeenCalledTimes(2);
     expect(mocks.discovery).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries viewer verification after an API rejection with retained bearer credentials', async () => {
+    mocks.discovery.mockResolvedValue(profile);
+    await register();
+    mocks.viewer.mockRejectedValueOnce(new ConnectError('authentication required', Code.Unauthenticated));
+    await registry.recoverServer('retry-test');
+    expect(registry.getServer('retry-test')?.reauthRequiredAt).toBeNull();
+    expect(registry.needsRecovery('retry-test')).toBe(true);
+
+    mocks.viewer.mockResolvedValue(user);
+    await registry.recoverServer('retry-test');
+    expect(registry.needsRecovery('retry-test')).toBe(false);
+    expect(registry.getStore('retry-test').currentUser.verifiedUserId).toBe(user.id);
   });
 
   it('deduplicates concurrent recovery and cannot restore a removed server', async () => {

@@ -95,6 +95,7 @@ export function createChattoClient<T extends ServiceType>(
   return createClient(service, createChattoTransport(config));
 }
 
+/** Refresh a bearer credential for unary requests without treating a later API 401 as revocation. */
 export function bearerRenewalInterceptor(config: {
   serverId?: string;
   bearerToken?: string | null;
@@ -125,18 +126,10 @@ export function bearerRenewalInterceptor(config: {
       const renewedToken = await config.renewBearerToken(true);
       if (!renewedToken) throw error;
       setAccessToken(renewedToken);
-      try {
-        return await next(request);
-      } catch (retryError) {
-        if (
-          retryError instanceof ConnectError &&
-          retryError.code === Code.Unauthenticated &&
-          config.serverId
-        ) {
-          notifyAuthenticationRequired(config.serverId);
-        }
-        throw retryError;
-      }
+      // A successful refresh proves the renewable session was accepted.
+      // A second API rejection can be transient or method-specific; only a
+      // rejected refresh grant proves that this pair needs a new sign-in.
+      return next(request);
     }
   };
 }
@@ -167,18 +160,20 @@ export function authHeaders(
   return config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 }
 
+/** Request sign-in for cookie or missing bearer credentials; renewable grants decide their own validity. */
 export function handleAuthError(
-  config: Pick<ConnectAPIConfig, 'serverId' | 'onAuthenticationRequired'>,
+  config: Pick<ConnectAPIConfig, 'serverId' | 'onAuthenticationRequired' | 'renewBearerToken'>,
   err: unknown
 ): never {
-  if (err instanceof ConnectError && err.code === Code.Unauthenticated && config.serverId) {
+  if (err instanceof ConnectError && err.code === Code.Unauthenticated &&
+    config.serverId && !config.renewBearerToken) {
     notifyAuthenticationRequired(config.serverId, config.onAuthenticationRequired);
   }
   throw err;
 }
 
 export async function withAuth<T>(
-  config: Pick<ConnectAPIConfig, 'serverId' | 'onAuthenticationRequired'>,
+  config: Pick<ConnectAPIConfig, 'serverId' | 'onAuthenticationRequired' | 'renewBearerToken'>,
   operation: () => Promise<T>
 ): Promise<T> {
   try {

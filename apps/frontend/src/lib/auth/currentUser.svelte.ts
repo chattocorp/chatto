@@ -70,7 +70,10 @@ export class CurrentUserState {
     } catch (err) {
       if (isAuthenticationRequiredError(err)) {
         this.verifiedUserId = null;
-        this.#onAuthenticationRequired?.();
+        // The bearer interceptor already tried a refresh. If that grant was
+        // rejected, the registry marked reauthentication required. A 401
+        // after a successful refresh is not proof that the session was revoked.
+        if (!this.#apiConfig?.renewBearerToken) this.#onAuthenticationRequired?.();
         this.loading = false;
         return;
       }
