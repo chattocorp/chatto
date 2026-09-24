@@ -18,6 +18,19 @@ const task = (overrides: Partial<Activity> = {}): Activity => ({
   logs: [], children: [], ...overrides,
 });
 
+test("shows the latest state of each task invocation", () => {
+  const events: RunlingEvent[] = [
+    { type: "step.started", id: "parent", label: "Parent", timestamp: 0 },
+    { type: "task.state", taskId: "parent", state: { phase: "waiting" }, activityId: "parent", timestamp: 1 },
+    { type: "step.started", id: "child", label: "Child", activityId: "parent", timestamp: 2 },
+    { type: "task.state", taskId: "child", state: { count: 1 }, activityId: "child", timestamp: 3 },
+    { type: "task.state", taskId: "child", state: { count: 2 }, activityId: "child", timestamp: 4 },
+  ];
+  const [parent] = buildTimeline(events, "running");
+  expect(parent?.state).toEqual({ phase: "waiting" });
+  expect(parent?.children[0]).toMatchObject({ state: { count: 2 }, stateAt: 4 });
+});
+
 test("indicates running leaf work but not input waits or finished tasks", () => {
   for (const kind of ["step", "agent", "command"] as const)
     expect(isActivityActive(task({ kind }))).toBe(true);

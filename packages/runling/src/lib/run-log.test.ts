@@ -30,6 +30,7 @@ test('shows recorded logs and task milestones in order', () => {
   expect(runLogRows(events)).toEqual([
     {
       id: 0,
+      activity: { id: 'task', reference: 'task-1', embedded: true },
       event: {
         type: 'log',
         level: 'info',
@@ -44,6 +45,7 @@ test('shows recorded logs and task milestones in order', () => {
     { id: 3, event: events[3] },
     {
       id: 5,
+      activity: { id: 'task', reference: 'task-1', embedded: true },
       event: {
         type: 'log',
         level: 'error',
@@ -56,6 +58,7 @@ test('shows recorded logs and task milestones in order', () => {
     },
     {
       id: 6,
+      activity: { id: 'task', reference: 'task-1', embedded: true },
       event: {
         type: 'log',
         level: 'error',
@@ -95,6 +98,115 @@ test('keeps nested task milestones at the depth of their parent task', () => {
     { depth: 1, joinsAbove: true, continuesBelow: false },
     { depth: 0, joinsAbove: true, continuesBelow: false }
   ]);
+});
+
+test('links log lines to the task that owns their activity', () => {
+  const events: RunlingEvent[] = [
+    { type: 'step.started', id: 'root', label: 'Root', timestamp: 0 },
+    { type: 'step.started', id: 'child', label: 'Child', activityId: 'root', timestamp: 1 },
+    {
+      type: 'log',
+      level: 'info',
+      message: 'From child',
+      depth: 1,
+      color: 'blue',
+      activityId: 'child',
+      timestamp: 2
+    },
+    { type: 'command.started', id: 'command', command: 'test', activityId: 'child', timestamp: 3 },
+    {
+      type: 'log',
+      level: 'info',
+      message: 'From command',
+      depth: 2,
+      color: 'blue',
+      activityId: 'command',
+      timestamp: 4
+    },
+    { type: 'log', level: 'info', message: 'Outside tasks', depth: 0, color: 'blue', timestamp: 5 }
+  ];
+  const rows = runLogRows(events);
+  expect(
+    rows
+      .filter((row) => row.event.type === 'log' && row.event.message.startsWith('From'))
+      .map((row) => row.activity)
+  ).toEqual([
+    { id: 'child', reference: 'task-2', embedded: false },
+    { id: 'child', reference: 'task-2', embedded: false }
+  ]);
+  expect(rows.at(-1)?.activity).toBeUndefined();
+});
+
+test('links bracketed agent names to their activity details', () => {
+  const events: RunlingEvent[] = [
+    { type: 'step.started', id: 'root', label: 'Root', timestamp: 0 },
+    {
+      type: 'agent.started',
+      agentId: 'bright-cats-1234',
+      model: 'example',
+      color: 'blue',
+      activityId: 'root',
+      timestamp: 1
+    },
+    {
+      type: 'log',
+      level: 'info',
+      message: '[bright-cats-1234] Working',
+      depth: 1,
+      color: 'blue',
+      source: 'agent',
+      sourceId: 'bright-cats-1234',
+      activityId: 'root',
+      timestamp: 2
+    }
+  ];
+  expect(runLogRows(events).at(-1)?.activity).toEqual({
+    id: 'bright-cats-1234:1',
+    reference: 'bright-cats-1234',
+    embedded: true
+  });
+});
+
+test('links a task label log line to the step that wrote it', () => {
+  const events: RunlingEvent[] = [
+    { type: 'step.started', id: 'root', label: 'Root', timestamp: 0 },
+    {
+      type: 'log',
+      level: 'info',
+      message: 'Root',
+      depth: 0,
+      color: 'blue',
+      source: 'step',
+      timestamp: 1
+    },
+    { type: 'step.started', id: 'child', label: 'accumulate', activityId: 'root', timestamp: 2 },
+    {
+      type: 'task.linked',
+      taskId: 'child',
+      channelId: 'channel',
+      activityId: 'root',
+      timestamp: 2.5
+    },
+    {
+      type: 'log',
+      level: 'info',
+      message: 'accumulate',
+      depth: 1,
+      color: 'blue',
+      source: 'step',
+      activityId: 'root',
+      timestamp: 3
+    }
+  ];
+  expect(
+    runLogRows(events)
+      .filter((row) => row.event.message === 'accumulate')
+      .at(-1)?.activity
+  ).toEqual({
+    id: 'child',
+    reference: 'accumulate',
+    embedded: true
+  });
 });
 
 test('follows at the bottom, pauses on upward scroll, and resumes there', () => {

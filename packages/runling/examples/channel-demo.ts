@@ -12,6 +12,7 @@ const accumulate = task(async function accumulate(
 ) {
   let total = initial;
   let label = "Counting";
+  ctx.publishState({ label, total });
 
   // Closing the inbox ends the loop after all queued commands are processed.
   for await (const command of ctx.inbox) {
@@ -21,6 +22,7 @@ const accumulate = task(async function accumulate(
       total += command.amount;
     }
 
+    ctx.publishState({ label, total });
     await ctx.emit({ label, total });
   }
 
