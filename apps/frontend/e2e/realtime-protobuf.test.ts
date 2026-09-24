@@ -432,7 +432,10 @@ test.describe('protobuf realtime stream', () => {
         mentionActorDisplayName = user.displayName;
         await chatPage.enterRoom('general');
         const messageText = `protobuf mention ${Date.now()}`;
-        await roomPage.sendMessage(`@${viewer.login} ${messageText}`, messageText);
+        await roomPage.sendMessage(
+          `@${viewer.login} ${messageText}`,
+          `@${viewer.displayName} ${messageText}`
+        );
       });
 
       await realtime.waitForEvent((event) => event.event.case === 'messagePosted');

@@ -94,13 +94,16 @@ export { withBootstrapAdminRequest } from './adminRequest';
 export async function postMentionFromServerUser(
   browser: Browser,
   serverURL: string,
-  mentionedLogin: string,
+  mentionedUser: Pick<TestUser, 'login' | 'displayName'>,
   message: string,
   roomName = 'general'
 ): Promise<void> {
   await withServerUser(browser, serverURL, async ({ chatPage, roomPage }) => {
     await chatPage.enterRoom(roomName);
-    await roomPage.sendMessage(`@${mentionedLogin} ${message}`, message);
+    await roomPage.sendMessage(
+      `@${mentionedUser.login} ${message}`,
+      `@${mentionedUser.displayName} ${message}`
+    );
   });
 }
 
