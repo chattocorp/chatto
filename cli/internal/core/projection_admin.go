@@ -396,14 +396,11 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		if state.currentSequence == 0 {
 			return
 		}
-		bodyStateBytes += int64(len(state.currentEventID) + len(state.authorID))
+		bodyStateBytes += int64(len(state.currentEventID))
 		if state.active {
 			activeBodyReferences++
-			activeBodyReferenceBytes += int64(len(state.currentEventID)+len(state.authorID)) + 17
+			activeBodyReferenceBytes += int64(len(state.currentEventID)+len(p.users[state.author])) + 17
 		}
-		supersededSeqs += int64(len(state.supersededSequences))
-		supersededSeqBytes += int64(cap(state.supersededSequences)) * 8
-		bodyStateBytes += int64(cap(state.supersededSequences)) * 8
 	}
 	for _, state := range p.bodyStates {
 		countBody(state)
@@ -411,6 +408,18 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	for eventID, state := range p.orphanBodyStates {
 		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)) + int64(unsafe.Sizeof(timelineBodyState{}))
 		countBody(state)
+	}
+	for _, history := range p.bodyHistory {
+		bytes := projectionMapEntryOverhead + 4 + int64(unsafe.Sizeof(history)) + int64(cap(history))*8
+		bodyStateBytes += bytes
+		supersededSeqs += int64(len(history))
+		supersededSeqBytes += bytes
+	}
+	for eventID, history := range p.orphanBodyHistory {
+		bytes := projectionMapEntryOverhead + int64(len(eventID)) + int64(unsafe.Sizeof(history)) + int64(cap(history))*8
+		bodyStateBytes += bytes
+		supersededSeqs += int64(len(history))
+		supersededSeqBytes += bytes
 	}
 	var retractedBytes int64
 	for eventID := range p.retractedFlags {

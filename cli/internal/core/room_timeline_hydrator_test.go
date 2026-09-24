@@ -153,6 +153,22 @@ func TestCurrentMessageBodyDoesNotReturnPayloadAfterConcurrentRetraction(t *test
 	require.Nil(t, body)
 }
 
+func TestCurrentMessageBodyRejectsBodyFromAnotherRoom(t *testing.T) {
+	body := bodyEvent("B1", "M1", "R2", "U2", "private R2 body", 1)
+	post := bodylessPostedEvent("M1", "R1", "U1", 2)
+	projection := NewRoomTimelineProjection()
+	require.NoError(t, projection.Apply(body, 1))
+	require.NoError(t, projection.Apply(post, 2))
+	core := &ChattoCore{
+		roomModel:        newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil),
+		timelineHydrator: newRoomTimelineHydrator(testTimelineEventReader([]*evtv1.Event{body, post})),
+	}
+
+	result, err := core.currentMessageBody(context.Background(), "M1")
+	require.Nil(t, result)
+	require.ErrorIs(t, err, ErrMessageBodyCorrupt)
+}
+
 func TestBatchGetMessagesHydratesBodiesAndEventsInBatches(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
