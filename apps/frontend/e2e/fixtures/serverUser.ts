@@ -100,7 +100,7 @@ export async function postMentionFromServerUser(
 ): Promise<void> {
   await withServerUser(browser, serverURL, async ({ chatPage, roomPage }) => {
     await chatPage.enterRoom(roomName);
-    await roomPage.sendMessage(`@${mentionedLogin} ${message}`);
+    await roomPage.sendMessage(`@${mentionedLogin} ${message}`, message);
   });
 }
 

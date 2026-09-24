@@ -50,7 +50,7 @@ test.describe('Mention autocomplete', () => {
     await roomPage.messageInput.pressSequentially('hello');
     await roomPage.messageInput.press('Control+Enter');
 
-    await expect(page.locator('[role="article"]', { hasText: `@${user.login} hello` })).toBeVisible(
+    await expect(page.locator('[role="article"]', { hasText: `@${user.displayName} hello` })).toBeVisible(
       { timeout: TIMEOUTS.UI_STANDARD }
     );
   });

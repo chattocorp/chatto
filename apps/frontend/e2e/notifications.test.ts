@@ -431,7 +431,7 @@ test.describe('Notification Page Display', () => {
       await chatPage.enterRoom(secondRoomName);
 
       // Create mention notification in the second room (User A is not in any room)
-      await roomPage.sendMessage(`@${userA.login} first notification`);
+      await roomPage.sendMessage(`@${userA.login} first notification`, 'first notification');
       await chatPage.enterRoom('general');
       const message2 = roomPage.getMessage(rootMessage);
       await message2.openThread();
@@ -458,8 +458,8 @@ test.describe('Notification Page Display', () => {
 
     await withServerUser(browser!, serverURL, async ({ chatPage: senderChat, roomPage }) => {
       await senderChat.enterRoom('general');
-      await roomPage.sendMessage(`@${userA.login} first same-room mention`);
-      await roomPage.sendMessage(`@${userA.login} second same-room mention`);
+      await roomPage.sendMessage(`@${userA.login} first same-room mention`, 'first same-room mention');
+      await roomPage.sendMessage(`@${userA.login} second same-room mention`, 'second same-room mention');
     });
 
     await notificationsPage.goto();
@@ -608,7 +608,7 @@ test.describe('Notification dismissal', () => {
       await chatPage.enterRoom(secondRoomName);
 
       // Create mention in the second room (User A is not in any room)
-      await roomPage.sendMessage(`@${userA.login} dismiss read test 1`);
+      await roomPage.sendMessage(`@${userA.login} dismiss read test 1`, 'dismiss read test 1');
       await chatPage.enterRoom('general');
       const message2 = roomPage.getMessage(rootMessage);
       await message2.openThread();
@@ -1041,7 +1041,7 @@ test.describe('Real-time Notification Updates', () => {
     await withServerUser(browser!, serverURL, async ({ chatPage, roomPage }) => {
       // First notification (mention) - User B posts in general since they can't post in announcements
       await chatPage.enterRoom('general');
-      await roomPage.sendMessage(`@${userA.login} count test 1`);
+      await roomPage.sendMessage(`@${userA.login} count test 1`, 'count test 1');
 
       // User A: Should see 1 notification
       await notificationsPage.expectNotificationCount(1);
@@ -1112,7 +1112,7 @@ test.describe('Page Title Notification Count', () => {
       await chatPage.enterRoom(secondRoomName);
 
       // First notification (mention in the second room)
-      await roomPage.sendMessage(`@${userA.login} title count 1`);
+      await roomPage.sendMessage(`@${userA.login} title count 1`, 'title count 1');
 
       // User A: Title should show (1)
       await expect(page).toHaveTitle(/^\(1\) /, { timeout: TIMEOUTS.REALTIME_EVENT });
@@ -1183,7 +1183,7 @@ test.describe('Page Title Notification Count', () => {
       await chatPage.enterRoom(secondRoomName);
 
       // First notification (mention in the second room)
-      await roomPage.sendMessage(`@${userA.login} title decrement 1`);
+      await roomPage.sendMessage(`@${userA.login} title decrement 1`, 'title decrement 1');
       await chatPage.enterRoom('general');
       const message2 = roomPage.getMessage(rootMessage);
       await message2.openThread();
