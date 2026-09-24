@@ -3,7 +3,6 @@ import { userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { OutputAudioContext } from '$lib/state/server/callDeviceTest.svelte';
 import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
 import CallDeviceSettings from './CallDeviceSettings.svelte';
@@ -20,9 +19,35 @@ const visibleMicrophone = {
   label: 'Microphone'
 } as MediaDeviceInfo;
 
+class StubRecorder {
+  state: RecordingState = 'inactive';
+  ondataavailable: ((event: BlobEvent) => void) | null = null;
+  onstop: ((event: Event) => void) | null = null;
+
+  constructor(readonly stream: MediaStream) {}
+
+  start(): void {
+    this.state = 'recording';
+  }
+
+  stop(): void {
+    this.state = 'inactive';
+    queueMicrotask(() => {
+      this.ondataavailable?.({ data: new Blob(['sample'], { type: 'audio/webm' }) } as BlobEvent);
+      this.onstop?.(new Event('stop'));
+    });
+  }
+}
+
 describe('Call device settings', () => {
-  beforeEach(() => localStorage.clear());
-  afterEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubGlobal('MediaRecorder', StubRecorder);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it.each([
     ['Microphone', 'microphone', 'microphone'],
@@ -182,7 +207,7 @@ describe('Call device settings', () => {
     expect(new CallPreferencesState('settings-test').microphone).toBe('');
   });
 
-  it('keeps live monitoring active when the device list refreshes', async () => {
+  it('keeps silent recording active when the device list refreshes', async () => {
     const enumerate = vi
       .spyOn(navigator.mediaDevices, 'enumerateDevices')
       .mockImplementation(async () => [visibleCamera, visibleMicrophone]);
@@ -196,29 +221,27 @@ describe('Call device settings', () => {
       return destination.stream;
     });
     const monitor = vi.spyOn(MicrophoneProcessor.prototype, 'connectMonitor');
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:microphone-test');
     const preferences = new CallPreferencesState('playback-refresh');
     preferences.setVoiceBoosting(true);
     const screen = render(CallDeviceSettings, { preferences });
     try {
       await screen.getByRole('button', { name: 'Start microphone test' }).click();
-      await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
-      await vi.waitFor(() => expect(monitor).toHaveBeenCalledOnce());
-      const output = monitor.mock.calls[0][0];
-      const analyser = output.context.createAnalyser();
-      (monitor.mock.contexts[0] as MicrophoneProcessor).connectMonitor(analyser);
-      const samples = new Float32Array(analyser.fftSize);
-      const expectOutput = () => {
-        expect(output.context.state).toBe('running');
-        analyser.getFloatTimeDomainData(samples);
-        expect(Math.max(...samples.map(Math.abs))).toBeGreaterThan(0.1);
-      };
-      await vi.waitFor(expectOutput);
+      await expect
+        .element(screen.getByRole('button', { name: 'Stop and play' }))
+        .toBeInTheDocument();
+      expect(monitor).not.toHaveBeenCalled();
+      expect(play).not.toHaveBeenCalled();
       const callsBefore = enumerate.mock.calls.length;
       navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
       await vi.waitFor(() => expect(enumerate.mock.calls.length).toBeGreaterThan(callsBefore));
       await tick();
       expect(destination.stream.getAudioTracks()[0].readyState).toBe('live');
-      await vi.waitFor(expectOutput);
+      expect(play).not.toHaveBeenCalled();
+      await screen.getByRole('button', { name: 'Stop and play' }).click();
+      await vi.waitFor(() => expect(play).toHaveBeenCalledOnce());
+      expect(destination.stream.getAudioTracks()[0].readyState).toBe('ended');
     } finally {
       await screen.unmount();
       oscillator.stop();
@@ -385,9 +408,11 @@ it('offers default-on voice boosting with a persistent keyboard opt-out and sepa
   const screen = render(CallDeviceSettings, { preferences });
   const checkbox = screen.getByRole('checkbox', { name: 'Voice Boosting' });
   await expect.element(checkbox).toBeChecked();
-  await expect.element(checkbox).toHaveAccessibleDescription(
-    'Enhance your microphone audio. Turn this off if it causes audio problems.'
-  );
+  await expect
+    .element(checkbox)
+    .toHaveAccessibleDescription(
+      'Enhance your microphone audio. Turn this off if it causes audio problems.'
+    );
   checkbox.element().focus();
   await userEvent.keyboard(' ');
   await expect.element(checkbox).not.toBeChecked();
@@ -420,9 +445,7 @@ it('switches the selected test output without stopping capture or requiring anot
   const preferences = new CallPreferencesState('live-output');
   preferences.setVoiceBoosting(true);
   const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
-  const sink = vi
-    .spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId')
-    .mockResolvedValue(undefined);
+  const sink = vi.spyOn(HTMLMediaElement.prototype, 'setSinkId').mockResolvedValue(undefined);
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
     visibleCamera,
     visibleMicrophone,
@@ -431,10 +454,10 @@ it('switches the selected test output without stopping capture or requiring anot
   const screen = render(CallDeviceSettings, { preferences });
   try {
     await screen.getByRole('button', { name: 'Start microphone test' }).click();
-    await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
-    // Stop is available during startup too. Switch output only once capture
-    // and the audio graph are ready; a pending device change restarts the test.
-    await expect.element(screen.getByText('Waiting for microphone access…')).not.toBeInTheDocument();
+    await expect.element(screen.getByRole('button', { name: 'Stop and play' })).toBeInTheDocument();
+    await expect
+      .element(screen.getByText('Waiting for microphone access…'))
+      .not.toBeInTheDocument();
     await screen
       .getByRole('combobox', { name: 'Speaker', exact: true })
       .selectOptions('headphones');
@@ -442,7 +465,7 @@ it('switches the selected test output without stopping capture or requiring anot
     await vi.waitFor(() => expect(preferences.speaker).toBe('headphones'));
     expect(capture).toHaveBeenCalledOnce();
     expect(stream.getAudioTracks()[0].readyState).toBe('live');
-    await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
+    await expect.element(screen.getByRole('button', { name: 'Stop and play' })).toBeInTheDocument();
     await screen.getByRole('combobox', { name: 'Speaker', exact: true }).selectOptions('');
     await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith(''));
     expect(capture).toHaveBeenCalledOnce();

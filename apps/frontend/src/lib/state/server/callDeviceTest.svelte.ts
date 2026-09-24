@@ -2,25 +2,37 @@ import { normalizeMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/m
 import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { GATE_OFF, microphoneMeter } from '$lib/audio/noiseGate';
 import type { Track } from 'livekit-client';
-/** Optional Web Audio output selection, absent from older browsers and DOM types. */
-export type OutputAudioContext = AudioContext & {
+
+const MAX_RECORDING_MS = 10_000;
+
+type SelectableAudioContext = AudioContext & {
   setSinkId?: (deviceId: string) => Promise<void>;
 };
 
-/** An explicitly started, page-owned microphone test. Audio is monitored locally without recording. */
+/** An explicitly started, page-owned microphone test. The recording stays in browser memory. */
 export class CallDeviceTest {
   active = $state(false);
   pending = $state(false);
+  finalizing = $state(false);
+  playing = $state(false);
+  playbackPending = $state(false);
+  hasRecording = $state(false);
+  playbackBlocked = $state(false);
   level = $state(0);
   error = $state(false);
   gateUnavailable = $state(false);
   #processor: MicrophoneProcessor | null = null;
   #generation = 0;
   #stream: MediaStream | null = null;
-  #context: OutputAudioContext | null = null;
+  #context: AudioContext | null = null;
+  #playbackContext: SelectableAudioContext | null = null;
   #audio: HTMLAudioElement | null = null;
+  #recordingUrl: string | null = null;
+  #recorder: MediaRecorder | null = null;
+  #chunks: Blob[] = [];
   #monitor: MediaStreamAudioSourceNode | null = null;
   #frame = 0;
+  #timeout: ReturnType<typeof setTimeout> | null = null;
   #outputChange: Promise<unknown> = Promise.resolve();
   #speakerId = '';
 
@@ -30,7 +42,7 @@ export class CallDeviceTest {
     threshold: () => number = () => -60,
     effects: () => MicrophoneEffects = normalizeMicrophoneEffects
   ): Promise<void> {
-    this.stop();
+    this.cancel();
     const generation = this.#generation;
     this.pending = true;
     this.error = false;
@@ -47,12 +59,20 @@ export class CallDeviceTest {
     };
     const processing = needsProcessing();
     try {
+      if (typeof MediaRecorder === 'undefined') throw new Error('Recording unavailable');
+      const audio = new Audio();
+      this.#audio = audio;
+      audio.onended = () => {
+        if (generation === this.#generation) this.playing = false;
+      };
+      if (speakerId) await this.#selectOutput(speakerId);
+      if (generation !== this.#generation) return;
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
           channelCount: { ideal: 1 },
-          // Local monitoring must not cancel the voice it is playing back.
-          // Live calls retain their own echo-cancellation capture defaults.
+          // The test records the same signal the call would send. Playback starts
+          // only after capture ends, so it cannot feed into this microphone.
           echoCancellation: false,
           noiseSuppression: processing,
           autoGainControl: false
@@ -68,51 +88,20 @@ export class CallDeviceTest {
         track.addEventListener(
           'ended',
           () => {
-            if (generation === this.#generation) {
-              this.stop();
+            if (generation === this.#generation && (this.active || this.pending)) {
+              this.cancel();
               this.error = true;
             }
           },
           { once: true }
         )
       );
+      const context = new AudioContext();
+      this.#context = context;
       let processor: MicrophoneProcessor | undefined;
       let readLevel: () => number;
-      const context: OutputAudioContext = new AudioContext();
-      this.#context = context;
-      if (!processing) {
-        // A real bypass: playback consumes the captured stream itself. The
-        // context only meters a parallel branch and never changes playback.
-        const audio = new Audio();
-        this.#audio = audio;
-        audio.srcObject = stream;
-        if (speakerId) {
-          if (typeof audio.setSinkId !== 'function')
-            throw new Error('Output selection unavailable');
-          await audio.setSinkId(speakerId);
-        }
-        if (generation !== this.#generation) return;
-        await audio.play();
-        if (generation !== this.#generation) {
-          audio.pause();
-          return;
-        }
-        await context.resume();
-        if (generation !== this.#generation) return;
-        const analyser = context.createAnalyser();
-        this.#monitor = context.createMediaStreamSource(stream);
-        this.#monitor.connect(analyser);
-        const samples = new Float32Array(analyser.fftSize);
-        readLevel = () => {
-          analyser.getFloatTimeDomainData(samples);
-          return Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
-        };
-      } else {
-        // Use one audio graph and clock for capture processing and monitoring.
-        // Older browsers retain the media-element output path below.
-        const selectOutput = context.setSinkId?.bind(context);
-        if (selectOutput) await selectOutput(speakerId);
-        if (generation !== this.#generation) return;
+      let recordedStream = stream;
+      if (processing) {
         processor = new MicrophoneProcessor(threshold());
         this.#processor = processor;
         processor.setEffects(effects());
@@ -123,35 +112,43 @@ export class CallDeviceTest {
         });
         if (generation !== this.#generation) return;
         this.gateUnavailable = processor.unavailable;
-        if (selectOutput) {
-          if (!processor.connectMonitor(context.destination)) {
-            this.#monitor = context.createMediaStreamSource(stream);
-            this.#monitor.connect(context.destination);
-          }
-        } else {
-          const audio = new Audio();
-          this.#audio = audio;
-          audio.srcObject = new MediaStream([
-            processor.processedTrack ?? stream.getAudioTracks()[0]
-          ]);
-          if (speakerId) {
-            if (!('setSinkId' in audio)) throw new Error('Output selection unavailable');
-            await audio.setSinkId(speakerId);
-          }
-          if (generation !== this.#generation) return;
-          await audio.play();
-          if (generation !== this.#generation) {
-            audio.pause();
-            return;
-          }
-        }
-        // Start the clock after asynchronous worklet setup and output wiring.
-        await context.resume();
-        if (generation !== this.#generation) return;
+        recordedStream = new MediaStream([processor.processedTrack ?? stream.getAudioTracks()[0]]);
         readLevel = () => processor!.level;
+      } else {
+        const analyser = context.createAnalyser();
+        this.#monitor = context.createMediaStreamSource(stream);
+        this.#monitor.connect(analyser);
+        const samples = new Float32Array(analyser.fftSize);
+        readLevel = () => {
+          analyser.getFloatTimeDomainData(samples);
+          return Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+        };
       }
+      await context.resume();
+      if (generation !== this.#generation) return;
+      const recorder = new MediaRecorder(recordedStream);
+      this.#recorder = recorder;
+      recorder.ondataavailable = ({ data }) => {
+        if (generation === this.#generation && data.size) this.#chunks.push(data);
+      };
+      recorder.onerror = () => {
+        if (generation === this.#generation) {
+          this.cancel();
+          this.error = true;
+        }
+      };
+      recorder.onstop = () => {
+        recorder.ondataavailable = null;
+        recorder.onerror = null;
+        recorder.onstop = null;
+        if (generation === this.#generation && this.finalizing)
+          void this.#finishPlayback(generation);
+      };
+      recorder.start();
+      this.active = true;
+      this.#timeout = setTimeout(() => this.stop(), MAX_RECORDING_MS);
       const sample = () => {
-        if (generation !== this.#generation) return;
+        if (generation !== this.#generation || !this.active) return;
         if (processing !== needsProcessing()) {
           void this.start(deviceId, this.#speakerId, threshold, effects);
           return;
@@ -162,11 +159,10 @@ export class CallDeviceTest {
         this.level = microphoneMeter(readLevel());
         this.#frame = requestAnimationFrame(sample);
       };
-      this.active = true;
       sample();
     } catch {
       if (generation === this.#generation) {
-        this.stop();
+        this.cancel();
         this.error = true;
       }
     } finally {
@@ -174,27 +170,99 @@ export class CallDeviceTest {
     }
   }
 
-  /** Switch only playback, serializing requests without reopening the microphone. */
+  /** Stop recording, release the microphone, and replay the completed sample. */
+  stop(): void {
+    if (this.pending) {
+      this.cancel();
+      return;
+    }
+    if (!this.active) return;
+    this.active = false;
+    this.finalizing = true;
+    const recorder = this.#recorder;
+    this.#recorder = null;
+    try {
+      if (recorder?.state !== 'recording') throw new Error('Recording stopped');
+      recorder.stop();
+    } catch {
+      this.cancel();
+      this.error = true;
+      return;
+    }
+    this.#releaseCapture();
+  }
+
+  async #finishPlayback(generation: number): Promise<void> {
+    const chunks = this.#chunks;
+    this.#chunks = [];
+    if (!chunks.length || chunks.every((chunk) => chunk.size === 0)) {
+      this.finalizing = false;
+      this.error = true;
+      return;
+    }
+    try {
+      const blob = new Blob(chunks, { type: chunks[0].type });
+      this.#recordingUrl = URL.createObjectURL(blob);
+      this.#audio!.src = this.#recordingUrl;
+      this.hasRecording = true;
+      await this.playAgain(generation);
+    } catch {
+      if (generation === this.#generation) {
+        this.cancel();
+        this.error = true;
+      }
+    }
+  }
+
+  /** Replay the sample after capture has ended; retain it if autoplay is blocked. */
+  async playAgain(generation = this.#generation): Promise<void> {
+    if (
+      generation !== this.#generation ||
+      !this.hasRecording ||
+      !this.#audio ||
+      this.playbackPending
+    )
+      return;
+    this.playbackPending = true;
+    this.playbackBlocked = false;
+    try {
+      await this.#outputChange;
+      if (generation !== this.#generation || !this.#audio) return;
+      await this.#playbackContext?.resume();
+      if (generation !== this.#generation || !this.#audio) return;
+      this.#audio.currentTime = 0;
+      await this.#audio.play();
+      if (generation !== this.#generation) return;
+      this.playing = true;
+    } catch {
+      if (generation === this.#generation) this.playbackBlocked = true;
+    } finally {
+      if (generation === this.#generation) {
+        this.playbackPending = false;
+        this.finalizing = false;
+      }
+    }
+  }
+
+  /** Stop sample playback without discarding the sample. */
+  stopPlayback(): void {
+    this.#audio?.pause();
+    this.playing = false;
+  }
+
+  /** Switch replay output without reopening the microphone. */
   setSpeaker(speakerId: string): Promise<boolean> {
     const generation = this.#generation;
     const change = this.#outputChange.then(async () => {
-      if (generation !== this.#generation || !this.active) return false;
+      if (generation !== this.#generation || !this.#audio) return false;
       try {
-        if (this.#audio) {
-          if (typeof this.#audio.setSinkId !== 'function')
-            throw new Error('Output selection unavailable');
-          await this.#audio.setSinkId(speakerId);
-        } else if (this.#context && typeof this.#context.setSinkId === 'function') {
-          await this.#context.setSinkId(speakerId);
-        } else {
-          throw new Error('Output selection unavailable');
-        }
+        await this.#selectOutput(speakerId);
         if (generation !== this.#generation) return false;
         this.#speakerId = speakerId;
         return true;
       } catch {
         if (generation === this.#generation) {
-          this.stop();
+          this.cancel();
           this.error = true;
         }
         return false;
@@ -204,25 +272,77 @@ export class CallDeviceTest {
     return change;
   }
 
-  /** Invalidate pending capture and stop monitoring on navigation or cancel. */
-  stop(): void {
-    this.#generation++;
-    this.#outputChange = Promise.resolve();
-    this.#processor?.dispose();
-    this.#processor = null;
-    this.gateUnavailable = false;
+  /** Route only replay audio; context-only sinks use a separate playback graph. */
+  async #selectOutput(speakerId: string): Promise<void> {
+    const audio = this.#audio!;
+    if (typeof audio.setSinkId === 'function') {
+      await audio.setSinkId(speakerId);
+      return;
+    }
+    if (!speakerId && !this.#playbackContext) return;
+    let context = this.#playbackContext;
+    if (!context) {
+      context = new AudioContext() as SelectableAudioContext;
+      if (typeof context.setSinkId !== 'function') {
+        void context.close().catch(() => {});
+        throw new Error('Output selection unavailable');
+      }
+      this.#playbackContext = context;
+      context.createMediaElementSource(audio).connect(context.destination);
+      await context.resume();
+    }
+    await context.setSinkId!(speakerId);
+  }
+
+  #releaseCapture(): void {
+    if (this.#timeout) clearTimeout(this.#timeout);
+    this.#timeout = null;
     cancelAnimationFrame(this.#frame);
     this.#monitor?.disconnect();
     this.#monitor = null;
-    this.#audio?.pause();
-    if (this.#audio) this.#audio.srcObject = null;
-    this.#audio = null;
+    this.#processor?.dispose();
+    this.#processor = null;
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null;
     void this.#context?.close().catch(() => {});
     this.#context = null;
+    this.level = 0;
+    this.gateUnavailable = false;
+  }
+
+  /** Cancel pending capture, recording, and playback on navigation or restart. */
+  cancel(): void {
+    this.#generation++;
+    this.#outputChange = Promise.resolve();
+    if (this.#recorder) {
+      this.#recorder.ondataavailable = null;
+      this.#recorder.onerror = null;
+      this.#recorder.onstop = null;
+      try {
+        if (this.#recorder.state === 'recording') this.#recorder.stop();
+      } catch {
+        // Capture must still be released if the recorder rejects stop.
+      }
+    }
+    this.#recorder = null;
+    this.#chunks = [];
+    this.#releaseCapture();
+    this.#audio?.pause();
+    if (this.#audio) {
+      this.#audio.onended = null;
+      this.#audio.removeAttribute('src');
+    }
+    this.#audio = null;
+    void this.#playbackContext?.close().catch(() => {});
+    this.#playbackContext = null;
+    if (this.#recordingUrl) URL.revokeObjectURL(this.#recordingUrl);
+    this.#recordingUrl = null;
     this.active = false;
     this.pending = false;
-    this.level = 0;
+    this.finalizing = false;
+    this.playing = false;
+    this.playbackPending = false;
+    this.hasRecording = false;
+    this.playbackBlocked = false;
   }
 }
