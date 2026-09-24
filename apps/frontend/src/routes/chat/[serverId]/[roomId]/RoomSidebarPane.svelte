@@ -5,6 +5,7 @@
   import { m } from '$lib/i18n/messages';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { expoOutTransition } from '$lib/ui/motion';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
 
   let roomSidebarModule: Promise<typeof import('./RoomSidebar.svelte')> | null = null;
   let roomSidebarLoadAttempt = $state(0);
@@ -30,12 +31,7 @@
 
 {#snippet sidebar(props: NonNullable<typeof sidebarProps>)}
   {#await loadRoomSidebar(roomSidebarLoadAttempt)}
-    <div
-      class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted"
-      aria-busy="true"
-    >
-      {m('common.loading')}
-    </div>
+    <LoadingFog class="m-4 min-h-0 flex-1" />
   {:then { default: RoomSidebar }}
     <RoomSidebar {...props} presentation={presentation === 'mobile' ? 'overlay' : 'desktop'} />
   {:catch}

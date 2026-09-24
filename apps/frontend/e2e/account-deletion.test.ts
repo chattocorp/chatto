@@ -242,6 +242,9 @@ test.describe('Account Deletion', () => {
       browser,
       serverURL
     }) => {
+      // Three user sessions and repeated room reloads can exceed the default CI deadline.
+      test.setTimeout(60_000);
+
       // User A loads the server
       const userA = await createAndLoginTestUser(page);
       await chatPage.goto();

@@ -6,6 +6,7 @@
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api-client/adminUsers';
   import Panel from '$lib/ui/Panel.svelte';
   import DataTable from '$lib/ui/DataTable.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { Hint, PaneContent, Pill } from '$lib/ui';
@@ -135,7 +136,7 @@
       </div>
 
       {#if loading && users.length === 0}
-        <div class="text-muted">{m('admin.members.loading')}</div>
+        <LoadingFog class="h-40 w-full" label={m('admin.members.loading')} />
       {:else}
         {#if error}
           <Hint tone="danger">{error}</Hint>

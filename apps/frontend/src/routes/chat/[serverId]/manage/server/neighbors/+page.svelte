@@ -8,7 +8,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState, Hint, PaneContent } from '$lib/ui';
+  import { ConfirmDialog, EmptyState, Hint, LoadingFog, PaneContent } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import Panel from '$lib/ui/Panel.svelte';
@@ -213,7 +213,7 @@
         {/if}
 
         {#if neighborsQuery.isPending && neighbors.length === 0}
-          <div class="text-muted">{m('admin.common.loading')}</div>
+          <LoadingFog class="h-40 w-full" />
         {:else if neighbors.length === 0}
           <EmptyState icon="icon-[uil--server-connection]" title={m('admin.neighbors.empty')} />
         {:else}

@@ -314,7 +314,7 @@ describe('room route layout access handling', () => {
     await expect.element(q(container, 'button')).toHaveTextContent('Join Room');
   });
 
-  it('removes the preview skeleton after a best-effort preview miss', async () => {
+  it('clears the pending room preview after a best-effort miss', async () => {
     let resolvePreview!: (value: null) => void;
     mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
     mocks.loadJoinPreview.mockReturnValue(
@@ -325,7 +325,8 @@ describe('room route layout access handling', () => {
 
     const { container } = renderLayout();
 
-    expect(q(container, '[aria-label="Room members"] .skeleton')).not.toBeNull();
+    expect(q(container, '[aria-label="Room members"][aria-busy="true"]')).not.toBeNull();
+    expect(q(container, '[aria-label="Room members"] .skeleton')).toBeNull();
     resolvePreview(null);
     await vi.waitFor(() => expect(q(container, '[aria-label="Room members"]')).toBeNull());
     await expect.element(q(container, 'button')).toHaveTextContent('Join Room');

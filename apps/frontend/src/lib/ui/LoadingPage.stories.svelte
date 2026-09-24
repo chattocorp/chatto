@@ -15,7 +15,7 @@
   </div>
 </Story>
 
-<Story name="Specific operation" asChild>
+<Story name="Specific accessible label" asChild>
   <div class="h-72">
     <LoadingPage message="Loading room history…" />
   </div>

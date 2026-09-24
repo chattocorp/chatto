@@ -158,4 +158,24 @@ describe('UserAvatar', () => {
 
     expect(q(container, '[data-testid="bot-badge"]')).toBeFalsy();
   });
+
+  it('uses initials when an avatar image fails', async () => {
+    const view = render(UserAvatar, {
+      props: {
+        user: {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice',
+          avatarUrl: '/missing-avatar.png',
+          presenceStatus: PresenceStatus.OFFLINE
+        },
+        useLiveProfile: false
+      }
+    });
+
+    const image = q(view.container, 'img[alt="alice"]');
+    expect(view.container.querySelector('.skeleton')).toBeNull();
+    image?.dispatchEvent(new Event('error'));
+    await expect.element(view.getByRole('img', { name: 'alice' })).toHaveTextContent('A');
+  });
 });

@@ -14,6 +14,7 @@ identity, body rendering, and row geometry consistent.
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -61,7 +62,7 @@ identity, body rendering, and row geometry consistent.
     actor: UserAvatarUserView | null;
     displayName: string;
     missingActorIsDeleted?: boolean;
-    /** Show a name skeleton while a realtime author lookup is pending. */
+    /** Keep the author name empty while a realtime lookup is pending. */
     authorLoading?: boolean;
     body?: string | null;
     deleted?: boolean;
@@ -190,10 +191,7 @@ identity, body rendering, and row geometry consistent.
               </strong>
             {/if}
           {:else if authorLoading && !actor?.deleted}
-            <span class="inline-flex h-4 w-24" aria-busy="true">
-              <span class="skeleton h-full w-full rounded" aria-hidden="true"></span>
-              <span class="sr-only">{m('common.loading')}</span>
-            </span>
+            <LoadingFog class="h-4 w-24 shrink-0" />
           {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
             <strong class="shrink-0 leading-tight font-semibold text-muted">
               <DeletedUserLabel />

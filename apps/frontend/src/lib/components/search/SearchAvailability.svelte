@@ -10,7 +10,7 @@ Request ownership stays with the caller.
   import type { ClassValue } from 'svelte/elements';
   import { MessageSearchState } from '$lib/api-client/messageSearch';
   import { m } from '$lib/i18n/messages';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, LoadingFog } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 
   let {
@@ -40,10 +40,7 @@ Request ownership stays with the caller.
 
 {#snippet statusContent()}
   {#if checking}
-    <div class={checkingClass} aria-live="polite">
-      <span class="iconify me-2 icon-[uil--spinner-alt] animate-spin" aria-hidden="true"></span>
-      {m('search.checking')}
-    </div>
+    <LoadingFog class={['min-h-32 w-full', checkingClass]} label={m('search.checking')} />
   {:else if unavailable}
     <EmptyState icon="icon-[uil--cloud-slash]" title={m('search.unavailable.title')}>
       <p>{m('search.unavailable.description')}</p>

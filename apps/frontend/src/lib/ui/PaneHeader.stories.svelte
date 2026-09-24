@@ -63,12 +63,6 @@
   </div>
 </Story>
 
-<Story name="Loading" asChild>
-  <div class="w-[480px] rounded-md border border-border">
-    <PaneHeader title="" loading skeletonButtons={2} />
-  </div>
-</Story>
-
 <Story name="Software keyboard open" asChild>
   <div data-keyboard-open class="max-w-full rounded-md border border-border">
     <PaneHeader title="#general" hideOnKeyboard />

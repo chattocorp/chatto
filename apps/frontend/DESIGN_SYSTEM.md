@@ -133,7 +133,8 @@ a side stripe or cast shadow for navigation selection.
 | Inline contextual notice                  | `Hint`                                                                     | A panel used as an alert                                     |
 | Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
 | Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
-| Loading image                             | `SkeletonImg`                                                              | `<img class="skeleton">`                                     |
+| Loading content                           | `LoadingFog` sized to the content area                                      | Rows shaped like future content                              |
+| Loading image                             | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                     |
 
 `Select` uses a native control and plain-text options. The shared
 `select-control` utility styles the picker where `appearance: base-select`
@@ -331,6 +332,11 @@ Follow these defaults:
 - Render loading, error, and empty states inside the panel whose content they
   replace. A single full-page availability state may use one untitled panel
   because there are no peer sections to distinguish.
+- Use one `LoadingFog` block for a pending content area. Give it a size that
+  keeps the surrounding layout stable. Each block has its own quiet simplex-noise
+  motion and an accessible busy state. It fades in briefly and leaves as soon as
+  content is ready. Motion pauses when the user requests less motion or the tab
+  is hidden; reduced motion also removes the fade.
 - Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
   dense table or editor should consume the remaining pane height. Ordinary
   forms and document-like pages should remain content-sized.

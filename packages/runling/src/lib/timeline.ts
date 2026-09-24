@@ -1,4 +1,4 @@
-import type { RunlingEvent, TokenUsage } from "runling";
+import type { JsonValue, RunlingEvent, TokenUsage } from "runling";
 import { mergeUsage } from "./usage.ts";
 import type { RunStatus } from "./runs.ts";
 
@@ -30,6 +30,9 @@ export interface Activity {
   usage?: TokenUsage;
   preview?: string;
   messages?: TaskMessage[];
+  /** Latest state explicitly published by this task invocation. */
+  state?: { [key: string]: JsonValue };
+  stateAt?: number;
   /** Model turns and input waits displayed on this conversation lane. */
   segments?: Activity[];
 }
@@ -81,6 +84,13 @@ export function buildTimeline(
     if (event.type === "conversation.started" && event.activityId) conversations.add(event.activityId);
     if (event.type === "step.started")
       add({ ...base, id: event.id, kind: "step", label: event.label });
+    if (event.type === "task.state") {
+      const node = nodes.get(event.taskId);
+      if (node?.kind === "step") {
+        node.state = event.state;
+        node.stateAt = event.timestamp;
+      }
+    }
     if (event.type === "command.started")
       add({ ...base, id: event.id, kind: "command", label: event.command });
     if (event.type === "input.requested")

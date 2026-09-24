@@ -4,6 +4,7 @@
   import DataTable from '$lib/ui/DataTable.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent, Pill, StatCard } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -127,7 +128,7 @@
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <div class="text-muted">{m('admin.system.loading')}</div>
+        <LoadingFog class="h-40 w-full" label={m('admin.system.loading')} />
       {:else if error}
         <Hint tone="danger">{error}</Hint>
       {:else if systemInfo}

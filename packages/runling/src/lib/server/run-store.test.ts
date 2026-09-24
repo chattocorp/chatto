@@ -124,6 +124,7 @@ test("streams ordered nested events and restores the completed run", async () =>
     { name: "Nested", input: Type.String(), output: Type.String() },
     async (ctx, input) => {
       log.info("Inside nested workflow");
+      ctx.publishState({ phase: "nested", input });
       return input.toUpperCase();
     },
   );
@@ -144,10 +145,44 @@ test("streams ordered nested events and restores the completed run", async () =>
   expect(timeline[0]?.children[0]?.label).toBe("Nested");
   expect(timeline[0]?.children[0]?.status).toBe("completed");
   expect(timeline[0]?.children[0]?.logs).toContain("Inside nested workflow");
+  expect(timeline[0]?.children[0]?.state).toEqual({ phase: "nested", input: "hello" });
+  expect(records.some(record => record.type === "event" && record.event.type === "task.state")).toBe(true);
   const restored = new RunStore(original.directory);
   await restored.init();
   expect(await restored.get(run.id)).toEqual(JSON.parse(JSON.stringify(result)));
   expect(await restored.get("../../outside")).toBeUndefined();
+});
+
+test("streams task state while a run is active and retains it in history", async () => {
+  const history = await store();
+  const published = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const records: RunRecord[] = [];
+  const unsubscribe = history.subscribe((_id, record) => {
+    records.push(record);
+    if (record.type === "event" && record.event.type === "task.state") published.resolve();
+  });
+  const work = task(async ctx => {
+    ctx.publishState({ phase: "working" });
+    await release.promise;
+    return "done";
+  });
+  const run = await history.start("test", work, undefined, "web");
+  try {
+    await published.promise;
+    const live = (await history.get(run.id))!;
+    expect(live.status).toBe("running");
+    expect(buildTimeline(live.events, live.status)[0]?.state).toEqual({ phase: "working" });
+    expect(records.some(record => record.type === "event" && record.event.type === "task.state")).toBe(true);
+  } finally {
+    release.resolve();
+    await run.completion;
+    unsubscribe();
+  }
+  const restored = new RunStore(history.directory);
+  await restored.init();
+  const saved = (await restored.get(run.id))!;
+  expect(buildTimeline(saved.events, saved.status)[0]?.state).toEqual({ phase: "working" });
 });
 
 test("records failures and keeps concurrent token totals separate", async () => {

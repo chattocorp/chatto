@@ -10,6 +10,7 @@
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { PaneContent } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';
@@ -144,7 +145,7 @@
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <div class="text-muted">{m('admin.common.loading')}</div>
+        <LoadingFog class="h-32 w-full" />
       {:else if !canManageRoles}
         <div class="text-danger">
           {m('admin.permissions.need_manage_create')}

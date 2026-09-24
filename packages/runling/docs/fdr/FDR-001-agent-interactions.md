@@ -33,8 +33,11 @@ outcomes. Connections deliver live input and ordered assistant output.
   show their position in the run. New lines keep the view at the bottom
   until the reader scrolls up. The reader can resume following and load older
   lines. Long lines show four rows until the reader expands them. Timeline is
-  the other run tab. Input, result, and usage are in Run details. A static icon
-  marks a run that waits for input with no other active work. A running run
+  the other run tab. On wide screens, a details pane sits beside the log.
+  Task references and agent names in the log select the activity shown there.
+  With no activity selected, the pane shows the run input, result, and usage.
+  Smaller screens use Run details and a task dialog. A static icon marks a run
+  that waits for input with no other active work. A running run
   with active work shows its quiet time after two minutes without a recorded event.
 
 ## Design Decisions

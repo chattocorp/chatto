@@ -12,6 +12,7 @@ provide all domain labels and cell content with snippets.
   import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
   import DataTable from '$lib/ui/DataTable.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import MatrixColumnHeading from './MatrixColumnHeading.svelte';
 
   const matrixId = $props.id();
@@ -50,6 +51,7 @@ provide all domain labels and cell content with snippets.
     cellAttributes,
     isCellInteractive = () => true,
     emptyMessage,
+    loading = false,
     stickyHeader = false,
     fillHeight = false,
     stickyHeaderFadeOffset = 'top-0',
@@ -83,6 +85,7 @@ provide all domain labels and cell content with snippets.
     cellAttributes?: (row: TRow, column: TColumn) => Record<string, string>;
     isCellInteractive?: (row: TRow, column: TColumn) => boolean;
     emptyMessage: string;
+    loading?: boolean;
     stickyHeader?: boolean;
     fillHeight?: boolean;
     stickyHeaderFadeOffset?: string;
@@ -198,6 +201,7 @@ provide all domain labels and cell content with snippets.
   getKey={(row) => getRowKey(row)}
   getGroupKey={groupContent ? getGroupKey : undefined}
   {emptyMessage}
+  {loading}
   {stickyHeader}
   {fillHeight}
   {stickyHeaderFadeOffset}
@@ -259,11 +263,7 @@ provide all domain labels and cell content with snippets.
     {@render trailingHeader?.()}
     <th class="w-full bg-background p-0" aria-hidden={!loadingMore} {@attach columnSentinel}>
       {#if loadingMore}
-        <span
-          role="status"
-          aria-label={m('ui.data_table.loading_more')}
-          class="iconify icon-[uil--spinner-alt] animate-spin text-muted"
-        ></span>
+        <LoadingFog class="h-8 w-8" label={m('ui.data_table.loading_more')} />
       {/if}
     </th>
   {/snippet}

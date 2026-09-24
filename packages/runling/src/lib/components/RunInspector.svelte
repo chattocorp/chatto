@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import type { RunDetail } from '$lib/runs.ts';
   import { isRunWaiting, summarizeRunActivity } from '$lib/run-activity.ts';
   import { duration } from '$lib/runs.ts';
@@ -12,6 +13,7 @@
   import RunOutput from './RunOutput.svelte';
   import RunLog from './RunLog.svelte';
   import ActivityInspector from './ActivityInspector.svelte';
+  import ActivityDetails from './ActivityDetails.svelte';
 
   let { run, connection }: { run: RunDetail; connection: string } = $props();
   let cancelling = $state(false);
@@ -29,6 +31,8 @@
   let elapsed = $derived(run.durationMs ?? Math.max(0, now - run.startedAt));
   let quietFor = $derived(Math.max(0, elapsed - (run.events.at(-1)?.timestamp ?? 0)));
   let logs = $derived(runLogRows(run.events));
+  const wide = new MediaQuery('(min-width: 96rem)', false);
+  const paneTitleId = $props.id();
 
   function handleTabKey(event: KeyboardEvent) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -166,7 +170,7 @@
     {#if failedReference === reference}<p class="text-xs text-error" role="alert">
         Could not copy. Select the reference and copy it manually.
       </p>{/if}
-    <details class="mt-2 text-sm">
+    <details class="mt-2 text-sm 2xl:hidden">
       <summary
         class="w-fit cursor-pointer text-xs text-base-content/65 hover:text-base-content focus-visible:outline-2 focus-visible:outline-primary"
         >Run details</summary
@@ -181,67 +185,107 @@
     </details>
   </header>
 
-  <div
-    class="tabs tabs-border shrink-0 border-b border-base-300 px-4 sm:px-6"
-    aria-label="Run views"
-    role="tablist"
-  >
-    <button
-      class="tab text-sm"
-      class:tab-active={tab === 'log'}
-      role="tab"
-      aria-selected={tab === 'log'}
-      aria-controls="run-log-panel"
-      tabindex={tab === 'log' ? 0 : -1}
-      onclick={() => (tab = 'log')}
-      onkeydown={handleTabKey}>Log</button
-    >
-    <button
-      class="tab text-sm"
-      class:tab-active={tab === 'timeline'}
-      role="tab"
-      aria-selected={tab === 'timeline'}
-      aria-controls="run-timeline-panel"
-      tabindex={tab === 'timeline' ? 0 : -1}
-      onclick={() => (tab = 'timeline')}
-      onkeydown={handleTabKey}>Timeline</button
-    >
-  </div>
-  {#if tab === 'log'}
-    <div id="run-log-panel" class="flex min-h-0 flex-1 flex-col" role="tabpanel" aria-label="Log">
-      <RunLog rows={logs} running={run.status === 'running'} />
-    </div>
-  {:else}
-    <div
-      id="run-timeline-panel"
-      class="min-h-0 flex-1 overflow-auto px-4 py-5 sm:px-6"
-      role="tabpanel"
-      aria-label="Timeline"
-    >
-      <div class="mb-3 flex justify-between text-xs text-base-content/60">
-        <span>Execution timeline</span><span>0 → {duration(elapsed)}</span>
+  <div class="flex min-h-0 min-w-0 flex-1">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        class="tabs tabs-border shrink-0 border-b border-base-300 px-4 sm:px-6"
+        aria-label="Run views"
+        role="tablist"
+      >
+        <button
+          class="tab text-sm"
+          class:tab-active={tab === 'log'}
+          role="tab"
+          aria-selected={tab === 'log'}
+          aria-controls="run-log-panel"
+          tabindex={tab === 'log' ? 0 : -1}
+          onclick={() => (tab = 'log')}
+          onkeydown={handleTabKey}>Log</button
+        >
+        <button
+          class="tab text-sm"
+          class:tab-active={tab === 'timeline'}
+          role="tab"
+          aria-selected={tab === 'timeline'}
+          aria-controls="run-timeline-panel"
+          tabindex={tab === 'timeline' ? 0 : -1}
+          onclick={() => (tab = 'timeline')}
+          onkeydown={handleTabKey}>Timeline</button
+        >
       </div>
-      {#if nodes.length}
-        <Timeline
-          {nodes}
-          {selected}
-          onselect={(id) => (selected = selected === id ? '' : id)}
-          {elapsed}
-          running={run.status === 'running'}
-        />
-        <p class="mt-3 text-xs leading-relaxed text-base-content/60">
-          Select a block to inspect its activity. Collapse a step to focus the timeline.
-        </p>
+      {#if tab === 'log'}
+        <div
+          id="run-log-panel"
+          class="flex min-h-0 flex-1 flex-col"
+          role="tabpanel"
+          aria-label="Log"
+        >
+          <RunLog
+            rows={logs}
+            running={run.status === 'running'}
+            selectedActivity={selected}
+            onselectActivity={(id) => (selected = id)}
+          />
+        </div>
       {:else}
         <div
-          class="rounded-lg border border-dashed border-base-300 px-5 py-9 text-center text-sm text-base-content/60"
+          id="run-timeline-panel"
+          class="min-h-0 flex-1 overflow-auto px-4 py-5 sm:px-6"
+          role="tabpanel"
+          aria-label="Timeline"
         >
-          {run.status === 'running'
-            ? 'Waiting for the first workflow event…'
-            : 'No activity events were recorded for this run.'}
+          <div class="mb-3 flex justify-between text-xs text-base-content/60">
+            <span>Execution timeline</span><span>0 → {duration(elapsed)}</span>
+          </div>
+          {#if nodes.length}
+            <Timeline
+              {nodes}
+              {selected}
+              onselect={(id) => (selected = selected === id ? '' : id)}
+              {elapsed}
+              running={run.status === 'running'}
+            />
+            <p class="mt-3 text-xs leading-relaxed text-base-content/60">
+              Select a block to inspect its activity. Collapse a step to focus the timeline.
+            </p>
+          {:else}
+            <div
+              class="rounded-lg border border-dashed border-base-300 px-5 py-9 text-center text-sm text-base-content/60"
+            >
+              {run.status === 'running'
+                ? 'Waiting for the first workflow event…'
+                : 'No activity events were recorded for this run.'}
+            </div>
+          {/if}
         </div>
       {/if}
-      {#if activity}<ActivityInspector {activity} {elapsed} onclose={() => (selected = '')} />{/if}
     </div>
-  {/if}
+    <aside
+      class="hidden min-h-0 min-w-[25rem] w-[40%] max-w-[48rem] flex-col border-l border-base-300 2xl:flex"
+      aria-label="Details pane"
+    >
+      {#if activity}
+        <ActivityDetails
+          {activity}
+          {elapsed}
+          titleId={paneTitleId}
+          onclose={() => (selected = '')}
+        />
+      {:else}
+        <div class="shrink-0 border-b border-base-300 px-5 py-4">
+          <h2 class="text-lg font-medium">Run details</h2>
+        </div>
+        <div class="min-h-0 space-y-5 overflow-auto px-5 py-5">
+          <Usage usage={run.usage} detail />
+          <RunValue value={run.input} kind="input" />
+          <RunOutput {run} />
+        </div>
+      {/if}
+    </aside>
+  </div>
+  {#if activity && !wide.current}<ActivityInspector
+      {activity}
+      {elapsed}
+      onclose={() => (selected = '')}
+    />{/if}
 </section>

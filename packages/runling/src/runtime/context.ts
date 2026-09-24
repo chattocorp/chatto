@@ -1,5 +1,7 @@
 import type { InputHandler } from "./input.ts";
 import { spawn, type Run } from "./spawn.ts";
+import { currentRunlingActivity, emitRunlingEvent } from "./events.ts";
+import { isJsonObject, type JsonValue } from "./runtime.ts";
 import {
   accumulateTokenUsage,
   emptyTokenUsage,
@@ -49,6 +51,9 @@ export interface WorkflowContext<Incoming = never, Update = unknown> {
 
   /** Add one usage increment, including any reported cost in US dollars. */
   recordUsage(usage: TokenUsageInput): void;
+
+  /** Publish a JSON snapshot for this task in the run inspector. This does not message its parent. */
+  publishState(state: { [key: string]: JsonValue }): void;
 }
 
 /** Create an independent context for direct task calls. */
@@ -110,6 +115,23 @@ export function createObservedWorkflowContext(
       if (!hasValidTokenCounts(usage)) return;
       accumulateTokenUsage(total, usage);
       onUsage?.({ ...total });
+    },
+
+    publishState(state) {
+      const taskId = currentRunlingActivity();
+      if (!taskId) throw new Error("Task state can only be published inside a task");
+      if (!isJsonObject(state)) {
+        throw new TypeError("Task state must be a JSON object");
+      }
+      const encoded = JSON.stringify(state);
+      if (!encoded) throw new TypeError("Task state must be a JSON object");
+      if (encoded.length > 16_000) throw new Error("Task state exceeds the JSON size limit");
+      const snapshot: unknown = JSON.parse(encoded);
+      if (!isJsonObject(snapshot)) {
+        throw new TypeError("Task state must be a JSON object");
+      }
+      // Detach the event from mutable task data before the journal writes it.
+      emitRunlingEvent({ type: "task.state", taskId, state: snapshot });
     },
   };
 }

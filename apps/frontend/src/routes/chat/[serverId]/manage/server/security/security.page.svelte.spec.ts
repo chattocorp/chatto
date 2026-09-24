@@ -192,7 +192,7 @@ describe('server security query lifecycle', () => {
     const view = render(SecurityPage);
     await settle();
 
-    expect(view.container.textContent).toContain('Loading');
+    expect(view.container.querySelector('[data-loading-fog][aria-busy="true"]')).not.toBeNull();
     expect(view.container.textContent).not.toContain('No OAuth clients have been authorised');
 
     listResult.resolve({ oauthClients: [], totalCount: 0, hasMore: false });

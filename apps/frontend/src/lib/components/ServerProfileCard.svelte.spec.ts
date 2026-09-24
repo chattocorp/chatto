@@ -27,18 +27,18 @@ afterEach(() => {
 
 describe('ServerProfileCard public images', () => {
   it('loads same-origin images through the private public-image path', async () => {
+    const png = Uint8Array.from(
+      atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='),
+      (character) => character.charCodeAt(0)
+    );
     const browserFetch = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
-        new Response(new Blob(['image'], { type: 'image/webp' }), {
+        new Response(new Blob([png], { type: 'image/png' }), {
           status: 200,
-          headers: { 'Content-Type': 'image/webp' }
+          headers: { 'Content-Type': 'image/png' }
         })
     );
     vi.stubGlobal('fetch', browserFetch);
-    vi.spyOn(URL, 'createObjectURL')
-      .mockReturnValueOnce('blob:banner')
-      .mockReturnValueOnce('blob:logo');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
     const { container } = render(ServerProfileCard, {
       origin: 'https://chat.example',
@@ -58,11 +58,11 @@ describe('ServerProfileCard public images', () => {
       });
     }
     await vi.waitFor(() => {
-      expect(
-        Array.from(container.querySelectorAll('img'))
-          .map(({ src }) => src)
-          .sort()
-      ).toEqual(['blob:banner', 'blob:logo']);
+      const images = Array.from(container.querySelectorAll('img'));
+      expect(images).toHaveLength(2);
+      expect(images.every((image) => image.src.startsWith('blob:') && image.naturalWidth > 0)).toBe(
+        true
+      );
     });
   });
 
@@ -81,5 +81,28 @@ describe('ServerProfileCard public images', () => {
     expect(browserFetch).not.toHaveBeenCalled();
     expect(container.querySelector('img')).toBeNull();
     expect(container.textContent).toContain('R');
+  });
+
+  it('falls back to plain branding when image data is invalid', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(new Blob(['invalid image'], { type: 'image/png' }), {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' }
+        })
+      )
+    );
+
+    const { container } = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile()
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('img')).toBeNull();
+      expect(container.querySelector('.bg-gradient-to-br')).not.toBeNull();
+      expect(container.textContent).toContain('R');
+    });
   });
 });

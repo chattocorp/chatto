@@ -9,10 +9,9 @@ URL when its source changes or leaves the DOM.
   import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
   import type { NativeScreenShareSource } from '$lib/desktop/nativeScreenShare';
-  import { Dialog } from '$lib/ui';
+  import { Dialog, LoadingFog } from '$lib/ui';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import SegmentedControl from '$lib/ui/SegmentedControl.svelte';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { Button } from '$lib/ui/form';
 
   let {
@@ -95,21 +94,7 @@ URL when its source changes or leaves the DOM.
   </div>
 
   {#if loading}
-    <div
-      class="mt-4 grid max-h-[52vh] grid-cols-1 gap-3 overflow-y-auto rounded-lg bg-background p-3 sm:grid-cols-2"
-      aria-label={m('common.loading')}
-      role="status"
-    >
-      {#each Array(4) as _, index (index)}
-        <div class="overflow-hidden rounded-md bg-surface">
-          <div class="skeleton aspect-video"></div>
-          <div class="flex flex-col gap-2 p-3">
-            <div class="skeleton h-4 w-2/3 rounded"></div>
-            <div class="skeleton h-4 w-1/3 rounded"></div>
-          </div>
-        </div>
-      {/each}
-    </div>
+    <LoadingFog class="mt-4 min-h-64" />
   {:else if failed}
     <div class="mt-4 flex min-h-64 flex-col rounded-lg bg-background" role="alert">
       <EmptyState icon="icon-[uil--exclamation-circle]" title={m('voice.share_sources_failed')}>
@@ -138,10 +123,12 @@ URL when its source changes or leaves the DOM.
               class="grid aspect-video w-full place-items-center overflow-hidden bg-black text-white/70"
             >
               {#if source.preview.byteLength > 0}
-                <SkeletonImg
+                <img
                   alt=""
                   class="size-full object-contain"
                   {@attach previewImage(source.preview)}
+                  onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+                  onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                 />
               {:else}
                 <span

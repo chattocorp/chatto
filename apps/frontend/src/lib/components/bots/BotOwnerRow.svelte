@@ -9,6 +9,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
 
   let {
     ownerId,
@@ -68,13 +69,11 @@
         {viewerSettings}
       />
     {/key}
+  {:else if query.isPending}
+    <LoadingFog class="h-5 w-28" />
   {:else}
-    <span class="text-muted" aria-busy={query.isPending}>
-      {query.isPending
-        ? m('common.loading')
-        : users.isDeleted(ownerId)
-          ? m('common.deleted_user')
-          : m('common.unknown_user')}
+    <span class="text-muted">
+      {users.isDeleted(ownerId) ? m('common.deleted_user') : m('common.unknown_user')}
     </span>
   {/if}
 </div>

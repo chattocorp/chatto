@@ -65,7 +65,7 @@ it('clears the previous owner while another owner loads', async () => {
   view = render(BotOwnerRow, { ownerId: 'owner' });
   await expect.element(page.getByText('Alice', { exact: true })).toBeVisible();
   await view.rerender({ ownerId: 'next-owner' });
-  await expect.element(page.getByText('Loading...')).toBeVisible();
+  await expect.element(page.getByRole('status', { name: 'Loading...' })).toBeInTheDocument();
   await expect.element(page.getByText('Alice', { exact: true })).not.toBeInTheDocument();
 });
 

@@ -185,7 +185,8 @@
   description={m('settings.bots.outbound.description')}
   testId="bot-outbound-webhooks"
   items={webhooks}
-  empty={query.isPending ? m('common.loading') : m('settings.bots.outbound.empty')}
+  empty={m('settings.bots.outbound.empty')}
+  loading={query.isPending}
 >
   {#snippet actions()}
     <Button

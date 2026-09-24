@@ -5,7 +5,6 @@
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
@@ -99,6 +98,7 @@
         : (user.avatarUrl ?? null)
       : null
   );
+  let failedAvatarUrl = $state<string | null>(null);
 
   // Use live presence from global cache if available, otherwise fall back to the initial value.
   // The global cache is populated by ServerPresenceSync, so all UserAvatar instances — including
@@ -159,12 +159,13 @@
 
 {#if user}
   <div class={wrapperClass}>
-    {#if avatarUrl}
-      <SkeletonImg
+    {#if avatarUrl && failedAvatarUrl !== avatarUrl}
+      <img
         loading="lazy"
         src={avatarUrl}
         alt={user.login}
         class="{avatarClass} object-cover"
+        onerror={() => (failedAvatarUrl = avatarUrl)}
       />
     {:else}
       <div class={placeholderClass} role="img" aria-label={user.login}>

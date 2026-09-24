@@ -9,6 +9,7 @@
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import DataTable from '$lib/ui/DataTable.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { ConfirmDialog } from '$lib/ui';
@@ -413,7 +414,7 @@
   {/if}
 
   {#if loading && members.length === 0}
-    <div class="p-5 text-muted">{m('admin.members.loading')}</div>
+    <LoadingFog class="m-5 h-32" label={m('admin.members.loading')} />
   {:else}
     <DataTable
       items={members}

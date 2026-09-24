@@ -29,6 +29,32 @@ const sources = [
 ];
 
 describe('NativeScreenShareDialog', () => {
+  it('keeps the source area empty while sources load', async () => {
+    const view = render(NativeScreenShareDialog, {
+      props: {
+        visible: true,
+        sources: [],
+        loading: true,
+        failed: false,
+        onretry: vi.fn(),
+        onselect: vi.fn()
+      }
+    });
+
+    expect(view.container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(view.container.querySelector('.skeleton')).toBeNull();
+    await expect.element(view.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    await view.rerender({
+      visible: true,
+      sources,
+      loading: false,
+      failed: false,
+      onretry: vi.fn(),
+      onselect: vi.fn()
+    });
+    await expect.element(view.getByText('Main Menu')).toBeInTheDocument();
+  });
+
   it('presents application windows and reports an explicit selection', async () => {
     const onselect = vi.fn();
     const ondismiss = vi.fn();

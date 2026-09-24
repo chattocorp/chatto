@@ -1,6 +1,7 @@
 <script lang="ts" generics="Item extends { id: string }">
   import type { Snippet } from 'svelte';
   import Panel from '$lib/ui/Panel.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
 
   let {
     title,
@@ -8,6 +9,7 @@
     testId,
     items,
     empty,
+    loading = false,
     actions,
     details,
     itemActions,
@@ -18,6 +20,8 @@
     testId: string;
     items: Item[];
     empty: string;
+    /** Show a pending content block before the first item is available. */
+    loading?: boolean;
     actions: Snippet;
     details: Snippet<[Item]>;
     itemActions: Snippet<[Item]>;
@@ -36,6 +40,8 @@
         </div>
       {/each}
     </div>
+  {:else if loading}
+    <LoadingFog class="m-5 h-32" />
   {:else}
     <div class="p-5 text-muted" data-testid={testId}>{empty}</div>
   {/if}
