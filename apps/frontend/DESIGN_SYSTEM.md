@@ -334,8 +334,9 @@ Follow these defaults:
   because there are no peer sections to distinguish.
 - Use one `LoadingFog` block for a pending content area. Give it a size that
   keeps the surrounding layout stable. Each block has its own quiet simplex-noise
-  motion and an accessible busy state. Motion pauses when the user requests less
-  motion or the tab is hidden.
+  motion and an accessible busy state. It fades in and out briefly. Motion pauses
+  when the user requests less motion or the tab is hidden; reduced motion also
+  removes the fade.
 - Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
   dense table or editor should consume the remaining pane height. Ordinary
   forms and document-like pages should remain content-sized.

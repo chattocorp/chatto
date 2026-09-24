@@ -2,6 +2,8 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import type { ClassValue } from 'svelte/elements';
+  import { fade } from 'svelte/transition';
+  import { expoOutTransition } from './motion';
 
   let { class: className = '', label = m('common.loading') }: { class?: ClassValue; label?: string } =
     $props();
@@ -29,4 +31,5 @@
   aria-label={label}
   data-loading-fog
   {@attach animateFog}
+  transition:fade|global={expoOutTransition(120)}
 ></div>

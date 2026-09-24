@@ -9,6 +9,10 @@
   });
 </script>
 
+<script lang="ts">
+  let showFog = $state(true);
+</script>
+
 <Story name="Content panel" asChild>
   <LoadingFog class="h-64 w-full max-w-xl" />
 </Story>
@@ -22,5 +26,16 @@
     <LoadingFog class="h-40" />
     <LoadingFog class="h-40" />
     <LoadingFog class="h-24 sm:col-span-2" />
+  </div>
+</Story>
+
+<Story name="Fade in and out" asChild>
+  <div class="flex w-full max-w-xl flex-col gap-4">
+    <button class="self-start rounded-md border px-3 py-1" onclick={() => (showFog = !showFog)}>
+      Toggle loading
+    </button>
+    {#if showFog}
+      <LoadingFog class="h-40 w-full" />
+    {/if}
   </div>
 </Story>
