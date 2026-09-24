@@ -66,8 +66,8 @@ preview-card styling. Its parent owns shared link-preview actions.
         src={post.author.avatarUrl}
         alt=""
         class="h-10 w-10 shrink-0 rounded-full object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+        onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+        onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
       />
     {:else}
       <div
@@ -128,8 +128,8 @@ onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = '
             src={image.url}
             alt={image.alt || ''}
             class="max-h-72 w-full object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+            onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+            onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
           />
         {/each}
       </div>
@@ -149,8 +149,8 @@ onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = '
             src={post.externalLink.imageUrl}
             alt=""
             class="h-20 w-28 shrink-0 rounded-sm object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+            onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+            onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
           />
         {/if}
         <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
@@ -184,8 +184,8 @@ onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = '
               src={post.quotedPost.author.avatarUrl}
               alt=""
               class="h-7 w-7 shrink-0 rounded-full object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+              onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+              onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
             />
           {:else}
             <div class="h-7 w-7 shrink-0 rounded-full bg-surface-strong"></div>
@@ -234,8 +234,8 @@ onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = '
                     src={image.url}
                     alt={image.alt || ''}
                     class="max-h-60 w-full object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                    onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+                    onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                   />
                 </a>
               {/each}
@@ -253,8 +253,8 @@ onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = '
                   src={post.quotedPost.externalLink.imageUrl}
                   alt=""
                   class="h-14 w-20 shrink-0 rounded-sm object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                  onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+                  onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                 />
               {/if}
               <div class="min-w-0 self-center">

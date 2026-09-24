@@ -117,8 +117,8 @@ network round trips are needed.
           src={bannerUrl}
           alt=""
           class="block aspect-[1200/630] w-full object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+          onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+          onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
         />
       {/if}
 

@@ -10,7 +10,7 @@
     src={url}
     alt={m('media.server_banner_alt')}
     class="block h-auto w-full"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+    onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+    onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
   />
 </div>

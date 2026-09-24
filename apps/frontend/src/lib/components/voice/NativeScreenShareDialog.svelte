@@ -127,8 +127,8 @@ URL when its source changes or leaves the DOM.
                   alt=""
                   class="size-full object-contain"
                   {@attach previewImage(source.preview)}
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                  onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+                  onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                 />
               {:else}
                 <span

@@ -157,8 +157,8 @@
                         src={logo.logoUrl}
                         alt={logo.name}
                         class="h-full w-full object-cover"
-onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                        onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+                        onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                       />
                     {:else}
                       <span class="text-white">{logo.name[0]?.toUpperCase() ?? '?'}</span>
