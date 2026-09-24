@@ -173,7 +173,7 @@ identity, body rendering, and row geometry consistent.
             {#if actorInteractive}
               <button
                 type="button"
-                class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
+                class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 leading-tight font-semibold hover:underline"
                 onclick={onActorClick}
                 ontouchstart={onActorTouchStart}
                 oncontextmenu={onActorContextMenu}
@@ -183,7 +183,7 @@ identity, body rendering, and row geometry consistent.
               </button>
             {:else}
               <strong
-                class="inline-flex max-w-full min-w-0 items-center gap-1.5 leading-none font-semibold"
+                class="inline-flex max-w-full min-w-0 items-center gap-1.5 leading-tight font-semibold"
               >
                 <AccountName name={displayName} identity={actor} badgeSize="md" />
                 {@render authorSuffix?.()}
@@ -195,11 +195,11 @@ identity, body rendering, and row geometry consistent.
               <span class="sr-only">{m('common.loading')}</span>
             </span>
           {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
-            <strong class="shrink-0 leading-none font-semibold text-muted">
+            <strong class="shrink-0 leading-tight font-semibold text-muted">
               <DeletedUserLabel />
             </strong>
           {:else}
-            <strong class="shrink-0 leading-none font-semibold text-muted"
+            <strong class="shrink-0 leading-tight font-semibold text-muted"
               ><bdi>{displayName}</bdi></strong
             >
           {/if}
