@@ -183,15 +183,15 @@ export class RoomMembersStore {
     this.isInitialLoading = true;
   }
 
-  /** Replace membership from the canonical server projection. */
-  replaceProjection(roomId: string, members: RoomMember[]): void {
+  /** Replace membership IDs from the canonical server projection. Profiles may arrive later. */
+  replaceProjection(roomId: string, memberIds: readonly string[]): void {
     if (this.roomId !== roomId) {
       this.roomId = roomId;
       this.reset();
     }
     this.#loadId++;
-    this.members = members;
-    this.totalCount = members.length;
+    this.#memberIds = [...memberIds];
+    this.totalCount = memberIds.length;
     this.hasFirstPage = true;
     this.hasLoadedAll = true;
     this.isInitialLoading = false;

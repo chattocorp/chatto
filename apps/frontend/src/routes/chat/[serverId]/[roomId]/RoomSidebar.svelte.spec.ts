@@ -772,6 +772,35 @@ describe('RoomSidebar', () => {
     });
   });
 
+  it('updates member labels and order when the shared profile changes', async () => {
+    mockRoomMembers([
+      { ...member(1), displayName: 'Zara' },
+      { ...member(2), displayName: 'Bella' }
+    ]);
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(memberGroup(container, 'Online (2)'))).toEqual([
+        'View profile of Bella',
+        'View profile of Zara'
+      ]);
+    });
+
+    getUserStore('test-server').set('user-1', userProfileFixture({
+      id: 'user-1', displayName: 'Aaron', login: 'aaron', deleted: false,
+      avatarUrl: null, presenceStatus: PresenceStatus.ONLINE
+    }));
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(memberGroup(container, 'Online (2)'))).toEqual([
+        'View profile of Aaron',
+        'View profile of Bella'
+      ]);
+      expect(container.textContent).toContain('@aaron');
+    });
+  });
+
   it('renders deleted members with an italicized placeholder', async () => {
     mockRoomMembers([{ ...member(1), deleted: true }]);
 

@@ -409,7 +409,8 @@ the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
 Room member state retains membership IDs and resolves profiles from the shared
-owner. Search results retain IDs too. Pending profiles do not create empty member
+owner. Complete DM projections pass their member IDs directly to room member
+state. Search results retain IDs too. Pending profiles do not create empty member
 rows; the rows appear when the shared owner receives those profiles. Deleted
 accounts retain a deleted-user row through the shared owner's tombstone. Connected
 rooms do not keep another profile copy. Typing labels prefer that owner when a

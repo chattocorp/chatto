@@ -45,8 +45,8 @@ import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { getUserStore } from './users.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
-import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
+import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
@@ -1857,11 +1857,14 @@ export class ServerStateStore {
     return complete;
   }
 
-  /** Complete current room membership resolved through the warm user cache. */
+  /** Complete current room membership from the projection, including pending profiles. */
+  projectedMemberIdsForRoom(roomId: string): string[] {
+    return this.projection.rooms.get(roomId)?.memberUserIds ?? [];
+  }
+
+  /** Resolved member rows for DM presentation outside the room member store. */
   projectedMembersForRoom(roomId: string): RoomMember[] {
-    const room = this.projection.rooms.get(roomId);
-    if (!room) return [];
-    return room.memberUserIds.flatMap((userId) => {
+    return this.projectedMemberIdsForRoom(roomId).flatMap((userId) => {
       const user = this.projection.users.get(userId);
       return user ? [avatarUserFromDirectoryMember(mapDirectoryMember(user))] : [];
     });
