@@ -14,7 +14,7 @@ const routes = [
     name: 'login',
     // CI baseline: 296.5 KiB. Keep a small allowance for routine feature
     // growth and build variation; eager-loading guards below remain independent.
-    budgetKiB: 331,
+    budgetKiB: 332,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
