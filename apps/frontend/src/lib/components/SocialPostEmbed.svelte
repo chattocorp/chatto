@@ -50,6 +50,11 @@ preview-card styling. Its parent owns shared link-preview actions.
   function displayHandle(post: SocialPostPreviewView) {
     return post.author?.handle ? `@${post.author.handle.replace(/^@/, '')}` : '';
   }
+
+  /** Keep social images at a measured height before their bytes arrive. */
+  function imageAspectRatio(image: SocialPostPreviewView['images'][number]): string {
+    return image.width && image.height ? `${image.width} / ${image.height}` : '16 / 9';
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -127,9 +132,9 @@ preview-card styling. Its parent owns shared link-preview actions.
           <img
             src={image.url}
             alt={image.alt || ''}
-            class="max-h-72 w-full object-cover"
-            onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-            onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+            class="block max-h-72 w-full object-cover"
+            style:aspect-ratio={imageAspectRatio(image)}
+            onerror={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = 'hidden')}
           />
         {/each}
       </div>
@@ -233,9 +238,9 @@ preview-card styling. Its parent owns shared link-preview actions.
                   <img
                     src={image.url}
                     alt={image.alt || ''}
-                    class="max-h-60 w-full object-cover"
-                    onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-                    onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                    class="block max-h-60 w-full object-cover"
+                    style:aspect-ratio={imageAspectRatio(image)}
+                    onerror={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = 'hidden')}
                   />
                 </a>
               {/each}

@@ -382,6 +382,18 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('w-full');
   });
 
+  it('reserves a stable single-image frame without recorded dimensions', () => {
+    const { container } = renderAttachment(
+      imageAttachment({ filename: 'unknown-size.jpg', width: 0, height: 0 })
+    );
+    const { image, button } = imageFrame(container, 'unknown-size.jpg');
+
+    expect(button.style.width).toBe('320px');
+    expect(button.style.aspectRatio).toBe('320 / 200');
+    expect(button.getBoundingClientRect().height).toBeCloseTo(200, 0);
+    expect(image.className).toContain('object-contain');
+  });
+
   it('scales a single image with the message width and preserves its proportions', async () => {
     const { container } = renderAttachment(
       imageAttachment({ filename: 'wide.jpg', width: 1600, height: 800 })

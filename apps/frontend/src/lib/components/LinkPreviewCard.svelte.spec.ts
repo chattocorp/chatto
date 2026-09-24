@@ -1,3 +1,4 @@
+import '../../app.css';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { LinkPreviewView } from '$lib/render/linkPreviews';
@@ -69,6 +70,34 @@ describe('LinkPreviewCard', () => {
       props: { preview: preview({ imageUrl: 'https://example.com/img.png' }) }
     });
     expect(container.querySelector('[data-testid="link-preview-card"]')).not.toBeNull();
+  });
+
+  it('reserves social image heights before load and after an image error', () => {
+    const { container } = render(LinkPreviewCard, {
+      props: {
+        preview: preview({
+          socialPost: {
+            provider: 'bluesky',
+            text: 'Two images',
+            images: [
+              { url: 'data:image/png;base64,broken', alt: 'Known size', width: 1200, height: 600 },
+              { url: 'data:image/png;base64,invalid', alt: 'Unknown size' }
+            ]
+          }
+        })
+      }
+    });
+
+    const known = container.querySelector<HTMLImageElement>('img[alt="Known size"]')!;
+    const unknown = container.querySelector<HTMLImageElement>('img[alt="Unknown size"]')!;
+    expect(known.style.aspectRatio).toBe('1200 / 600');
+    expect(unknown.style.aspectRatio).toBe('16 / 9');
+    const height = known.getBoundingClientRect().height;
+    expect(height).toBeGreaterThan(0);
+
+    known.dispatchEvent(new Event('error'));
+    expect(known.style.visibility).toBe('hidden');
+    expect(known.getBoundingClientRect().height).toBe(height);
   });
 
   it('renders the card when only a description is present', () => {

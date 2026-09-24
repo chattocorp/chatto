@@ -218,6 +218,15 @@
     };
   }
 
+  /** Reserve a stable frame when an older image has no recorded dimensions. */
+  function fallbackSingleThumbDisplay(): ThumbDisplay {
+    return {
+      width: PORTRAIT_THUMB_MAX_WIDTH,
+      height: SINGLE_THUMB_MAX_HEIGHT,
+      fit: 'contain'
+    };
+  }
+
   function isGalleryImageAttachment(attachment: Attachment): boolean {
     return (
       attachment.contentType.startsWith('image/') &&
@@ -452,7 +461,7 @@
           : thumbDisplay(attachment.width, attachment.height)
         : variant === 'gallery'
           ? fallbackGalleryThumbDisplay()
-          : null}
+          : fallbackSingleThumbDisplay()}
     <div
       class={[
         'group/attachment relative min-w-0',
@@ -466,8 +475,8 @@
         aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
-        style={display ? imageButtonStyle(display, variant) : undefined}
-        class={['embed-frame block min-w-0 cursor-pointer', !display && 'max-h-32']}
+        style={imageButtonStyle(display, variant)}
+        class="embed-frame block min-w-0 cursor-pointer"
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
@@ -477,10 +486,7 @@
             loading="lazy"
             src={imageAttachmentUrl(attachment)}
             alt={attachment.description || attachment.filename}
-            class={[
-              display?.fit === 'contain' ? 'object-contain' : 'object-cover',
-              display ? 'h-full w-full' : 'max-h-32 w-auto'
-            ]}
+            class={['h-full w-full', display.fit === 'contain' ? 'object-contain' : 'object-cover']}
             onerror={() =>
               refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
           />
