@@ -119,9 +119,10 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         src={preview.imageUrl}
         alt=""
         class="aspect-[1.91/1] w-full rounded-sm object-cover"
+        onload={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = '')}
         onerror={(e) => {
-          // Hide the image if it fails to load
-          (e.target as HTMLImageElement).style.display = 'none';
+          // Keep the image frame in the virtualized message row.
+          (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
         }}
       />
     {/if}

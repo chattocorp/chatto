@@ -55,6 +55,14 @@ preview-card styling. Its parent owns shared link-preview actions.
   function imageAspectRatio(image: SocialPostPreviewView['images'][number]): string {
     return image.width && image.height ? `${image.width} / ${image.height}` : '16 / 9';
   }
+
+  function showImage(event: Event): void {
+    (event.currentTarget as HTMLImageElement).style.visibility = '';
+  }
+
+  function hideImage(event: Event): void {
+    (event.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -71,8 +79,8 @@ preview-card styling. Its parent owns shared link-preview actions.
         src={post.author.avatarUrl}
         alt=""
         class="h-10 w-10 shrink-0 rounded-full object-cover"
-        onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-        onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+        onload={showImage}
+        onerror={hideImage}
       />
     {:else}
       <div
@@ -134,7 +142,8 @@ preview-card styling. Its parent owns shared link-preview actions.
             alt={image.alt || ''}
             class="block max-h-72 w-full object-cover"
             style:aspect-ratio={imageAspectRatio(image)}
-            onerror={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = 'hidden')}
+            onload={showImage}
+            onerror={hideImage}
           />
         {/each}
       </div>
@@ -154,8 +163,8 @@ preview-card styling. Its parent owns shared link-preview actions.
             src={post.externalLink.imageUrl}
             alt=""
             class="h-20 w-28 shrink-0 rounded-sm object-cover"
-            onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-            onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+            onload={showImage}
+            onerror={hideImage}
           />
         {/if}
         <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
@@ -189,8 +198,8 @@ preview-card styling. Its parent owns shared link-preview actions.
               src={post.quotedPost.author.avatarUrl}
               alt=""
               class="h-7 w-7 shrink-0 rounded-full object-cover"
-              onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-              onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+              onload={showImage}
+              onerror={hideImage}
             />
           {:else}
             <div class="h-7 w-7 shrink-0 rounded-full bg-surface-strong"></div>
@@ -240,7 +249,8 @@ preview-card styling. Its parent owns shared link-preview actions.
                     alt={image.alt || ''}
                     class="block max-h-60 w-full object-cover"
                     style:aspect-ratio={imageAspectRatio(image)}
-                    onerror={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = 'hidden')}
+                    onload={showImage}
+                    onerror={hideImage}
                   />
                 </a>
               {/each}
@@ -258,8 +268,8 @@ preview-card styling. Its parent owns shared link-preview actions.
                   src={post.quotedPost.externalLink.imageUrl}
                   alt=""
                   class="h-14 w-20 shrink-0 rounded-sm object-cover"
-                  onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-                  onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                  onload={showImage}
+                  onerror={hideImage}
                 />
               {/if}
               <div class="min-w-0 self-center">

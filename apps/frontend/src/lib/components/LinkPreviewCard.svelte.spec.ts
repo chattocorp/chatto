@@ -72,6 +72,20 @@ describe('LinkPreviewCard', () => {
     expect(container.querySelector('[data-testid="link-preview-card"]')).not.toBeNull();
   });
 
+  it('keeps the generic image frame when the image fails', () => {
+    const { container } = render(LinkPreviewCard, {
+      props: { preview: preview({ imageUrl: 'data:image/png;base64,invalid' }) }
+    });
+    const card = container.querySelector<HTMLElement>('[data-testid="link-preview-card"]')!;
+    const image = card.querySelector<HTMLImageElement>('img')!;
+    const height = card.getBoundingClientRect().height;
+    expect(height).toBeGreaterThan(0);
+
+    image.dispatchEvent(new Event('error'));
+    expect(image.style.visibility).toBe('hidden');
+    expect(card.getBoundingClientRect().height).toBe(height);
+  });
+
   it('reserves social image heights before load and after an image error', () => {
     const { container } = render(LinkPreviewCard, {
       props: {
@@ -79,6 +93,16 @@ describe('LinkPreviewCard', () => {
           socialPost: {
             provider: 'bluesky',
             text: 'Two images',
+            author: {
+              displayName: 'Alice',
+              handle: 'alice',
+              avatarUrl: 'data:image/png;base64,badavatar'
+            },
+            externalLink: {
+              url: 'https://example.com/article',
+              title: 'Article',
+              imageUrl: 'data:image/png;base64,badlink'
+            },
             images: [
               { url: 'data:image/png;base64,broken', alt: 'Known size', width: 1200, height: 600 },
               { url: 'data:image/png;base64,invalid', alt: 'Unknown size' }
@@ -90,14 +114,27 @@ describe('LinkPreviewCard', () => {
 
     const known = container.querySelector<HTMLImageElement>('img[alt="Known size"]')!;
     const unknown = container.querySelector<HTMLImageElement>('img[alt="Unknown size"]')!;
+    const avatar = container.querySelector<HTMLImageElement>(
+      'img[src="data:image/png;base64,badavatar"]'
+    )!;
+    const linkImage = container.querySelector<HTMLImageElement>(
+      'img[src="data:image/png;base64,badlink"]'
+    )!;
     expect(known.style.aspectRatio).toBe('1200 / 600');
     expect(unknown.style.aspectRatio).toBe('16 / 9');
     const height = known.getBoundingClientRect().height;
+    const card = container.querySelector<HTMLElement>('[data-testid="social-post-embed"]')!;
+    const cardHeight = card.getBoundingClientRect().height;
     expect(height).toBeGreaterThan(0);
 
     known.dispatchEvent(new Event('error'));
     expect(known.style.visibility).toBe('hidden');
     expect(known.getBoundingClientRect().height).toBe(height);
+    avatar.dispatchEvent(new Event('error'));
+    linkImage.dispatchEvent(new Event('error'));
+    expect(avatar.style.visibility).toBe('hidden');
+    expect(linkImage.style.visibility).toBe('hidden');
+    expect(card.getBoundingClientRect().height).toBe(cardHeight);
   });
 
   it('renders the card when only a description is present', () => {
