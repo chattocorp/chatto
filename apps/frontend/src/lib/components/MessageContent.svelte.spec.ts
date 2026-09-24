@@ -824,6 +824,28 @@ describe('MessageContent component', () => {
       expect(span.getAttribute('dir')).toBe('auto');
     });
 
+    it('updates a mention when members arrive and when their profile changes', async () => {
+      const rendered = render(MessageContent, { props: { body: 'Hello @alice!', members: [] } });
+      await expect.poll(() => rendered.container.textContent).toContain('Hello @alice!');
+      expect(q(rendered.container, 'span.mention')).toBeNull();
+
+      await rendered.rerender({
+        body: 'Hello @alice!',
+        members: [{ ...member('alice'), displayName: 'Alice Smith' }]
+      });
+      await expect.poll(() => q(rendered.container, 'span.mention')?.textContent).toBe(
+        '@Alice Smith'
+      );
+
+      await rendered.rerender({
+        body: 'Hello @alice!',
+        members: [{ ...member('alice'), displayName: 'Alice Jones' }]
+      });
+      await expect.poll(() => q(rendered.container, 'span.mention')?.textContent).toBe(
+        '@Alice Jones'
+      );
+    });
+
     it('opens the target user menu callback when a mention is clicked', async () => {
       const onMentionClick = vi.fn();
       const { container } = render(MessageContent, {
