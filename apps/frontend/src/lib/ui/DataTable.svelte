@@ -10,6 +10,7 @@ and optional incremental loading.
   import type { Attachment } from 'svelte/attachments';
   import ScrollFader from './ScrollFader.svelte';
   import { m } from '$lib/i18n/messages';
+  import LoadingFog from './LoadingFog.svelte';
 
   let {
     items,
@@ -19,6 +20,7 @@ and optional incremental loading.
     beforeRow,
     emptyMessage = m('ui.data_table.empty'),
     empty,
+    loading = false,
     onRowClick,
     getKey,
     getGroupKey,
@@ -44,6 +46,8 @@ and optional incremental loading.
     /** Optional rich empty-state content. Takes precedence over `emptyMessage`. */
     emptyMessage?: string;
     empty?: Snippet;
+    /** Show a pending content block when the first page has no rows yet. */
+    loading?: boolean;
     onRowClick?: (item: T) => void;
     getKey?: (item: T, index: number) => unknown;
     getGroupKey?: (item: T, index: number) => string | null | undefined;
@@ -170,8 +174,10 @@ and optional incremental loading.
         </tr>
       {:else}
         <tr>
-          <td colspan={columns} class={empty ? 'p-0' : 'px-4 py-8 text-center text-muted'}>
-            {#if empty}
+          <td colspan={columns} class={empty || loading ? 'p-0' : 'px-4 py-8 text-center text-muted'}>
+            {#if loading}
+              <LoadingFog class="m-4 h-32" />
+            {:else if empty}
               {@render empty()}
             {:else}
               {emptyMessage}
@@ -190,13 +196,7 @@ and optional incremental loading.
             colspan={columns}
             class={loadingMore ? 'px-4 py-3 text-center text-sm text-muted' : 'h-px p-0'}
           >
-            {#if loadingMore}
-              <span class="inline-flex items-center gap-2" aria-live="polite">
-                <span class="iconify icon-[uil--spinner] animate-spin text-base" aria-hidden="true"
-                ></span>
-                {loadingMoreMessage}
-              </span>
-            {/if}
+            {#if loadingMore}<LoadingFog class="h-10 w-full" label={loadingMoreMessage} />{/if}
           </td>
         </tr>
       {/if}

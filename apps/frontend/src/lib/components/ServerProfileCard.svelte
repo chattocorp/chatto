@@ -10,7 +10,7 @@ card. Callers supply trusted badges and actions through explicit props.
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import { m } from '$lib/i18n/messages';
   import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
-  import { Pill, SkeletonImg } from '$lib/ui';
+  import { Pill } from '$lib/ui';
 
   let {
     origin,
@@ -55,6 +55,7 @@ card. Callers supply trusted badges and actions through explicit props.
     logoUrl: profile?.iconUrl
   });
   const bannerURL = $derived(publicServerImageURL(origin, profile?.bannerUrl ?? null));
+  let failedBannerURL = $state<string | null>(null);
   const accessibleIconActionLabel = $derived(
     iconActionLabel ? `${iconActionLabel}: ${logoServer.name}` : logoServer.name
   );
@@ -65,11 +66,12 @@ card. Callers supply trusted badges and actions through explicit props.
   data-testid={testId}
   data-origin={origin}
 >
-  {#if bannerURL}
-    <SkeletonImg
+  {#if bannerURL && failedBannerURL !== bannerURL}
+    <img
       alt=""
       class="h-32 w-full object-cover"
       {@attach loadPublicServerImage(bannerURL)}
+      onerror={() => (failedBannerURL = bannerURL)}
     />
   {:else}
     <div

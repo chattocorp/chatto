@@ -275,9 +275,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
           getColumnKey={(scope) => scope.id}
           getGroupKey={(permission) =>
             permission === membershipRow ? null : getPermissionCategory(permission)}
-          emptyMessage={m(
-            loading ? 'rbac.permissions.loading' : 'rbac.permissions.no_filter_matches'
-          )}
+          {loading}
+          emptyMessage={m('rbac.permissions.no_filter_matches')}
           compact
           columnHeaderHeight="10rem"
           columnClass={(scope) => scopeColumnClass(scope.kind)}

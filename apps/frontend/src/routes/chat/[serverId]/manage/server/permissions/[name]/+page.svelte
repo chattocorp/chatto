@@ -12,6 +12,7 @@
   import { UserList } from '$lib/components/admin';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { toast } from '$lib/ui/toast';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -259,6 +260,14 @@
   });
 </script>
 
+{#snippet roleSubtitle()}
+  {#if role}
+    <span class="block truncate">{role.displayName}</span>
+  {:else}
+    <LoadingFog class="h-4 w-28" label={m('admin.permissions.loading_role')} />
+  {/if}
+{/snippet}
+
 <PageTitle
   title={m('admin.common.server_admin_page_title', {
     title: role?.displayName ?? m('admin.permissions.edit_role_title')
@@ -268,7 +277,8 @@
 <div class="pane-page">
   <PaneHeader
     title={m('admin.permissions.edit_role_title')}
-    subtitle={role?.displayName ?? m('common.loading')}
+    subtitle={role?.displayName ?? m('admin.permissions.loading_role')}
+    subtitleContent={roleSubtitle}
     backHref={permissionsHref}
     backLabel={m('admin.permissions.back_to_permissions')}
     showMobileNav
@@ -277,7 +287,7 @@
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <div class="text-muted">{m('admin.permissions.loading_role')}</div>
+        <LoadingFog class="h-40 w-full" label={m('admin.permissions.loading_role')} />
       {:else if !role}
         <div class="text-danger">{m('admin.permissions.role_not_found')}</div>
       {:else if !canManageRoles}

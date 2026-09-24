@@ -7,6 +7,7 @@
   import Panel from '$lib/ui/Panel.svelte';
   import JsonCode from '$lib/ui/JsonCode.svelte';
   import { Hint, PaneContent, Pill } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import {
@@ -63,7 +64,7 @@
   <PaneContent>
     <div class="flex min-h-0 flex-col gap-6">
       {#if entryQuery.isPending}
-        <div class="text-muted">{m('admin.event_log.loading_event')}</div>
+        <LoadingFog class="h-40 w-full" label={m('admin.event_log.loading_event')} />
       {:else if entryQuery.error}
         <Hint tone="danger">
           {entryQuery.error instanceof Error

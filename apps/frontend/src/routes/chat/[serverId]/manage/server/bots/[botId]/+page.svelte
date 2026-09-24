@@ -28,7 +28,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ConfirmDialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { ConfirmDialog, FormDialog, Hint, LoadingFog, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -364,11 +364,10 @@
   })}
 />
 <PaneHeader
-  title={bot?.displayName ?? m('settings.bots.title')}
-  titleContent={botName}
+  title={botQuery.isPending ? '' : (bot?.displayName ?? m('settings.bots.title'))}
+  titleContent={bot ? botName : undefined}
   subtitle={bot ? `@${bot.login}` : undefined}
   {backHref}
-  loading={botQuery.isPending}
 />
 
 <PaneContent>
@@ -407,8 +406,7 @@
                   viewerSettings={serverScope.store.currentUser.user?.settings}
                 />
               {:else if ownerQuery.isPending}
-                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
-                ></span>
+                <LoadingFog class="h-5 w-28" />
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
               {/if}

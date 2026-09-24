@@ -5,7 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { RoomMember } from '$lib/state/room';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { Dialog } from '$lib/ui';
+  import { Dialog, LoadingFog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';
@@ -139,7 +139,7 @@
       ariaLabel={m('common.loading')}
       onclose={() => interactions.close()}
     >
-      <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
+      <LoadingFog class="m-2 h-28 w-64 max-w-full" />
     </ContextMenu>
   {:then { default: UserContextMenu }}
     <UserContextMenu
@@ -169,7 +169,7 @@
 {#if banDialogUser}
   {#await loadBanRoomMemberModal(banRoomMemberModalLoadAttempt)}
     <Dialog visible title={m('admin.moderation.ban_action')} onclose={() => (banDialogUser = null)}>
-      <p class="text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
+      <LoadingFog class="h-24 w-full" />
     </Dialog>
   {:then { default: BanRoomMemberModal }}
     <BanRoomMemberModal

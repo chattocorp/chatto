@@ -37,11 +37,15 @@ describe('SearchResults', () => {
       compact: true,
       children
     });
-    await expect.element(view.getByText(m('search.searching'))).toBeVisible();
+    await expect
+      .element(view.getByRole('status', { name: m('search.searching') }))
+      .toBeInTheDocument();
     await expect.element(view.getByText(m('search.no_results.title'))).not.toBeInTheDocument();
     await view.rerender({ store: searchStore({ hasSearched: true, loading: true, error: true }) });
     await expect.element(view.getByText(m('search.error.title'))).toBeVisible();
-    await expect.element(view.getByText(m('search.searching'))).not.toBeInTheDocument();
+    await expect
+      .element(view.getByRole('status', { name: m('search.searching') }))
+      .not.toBeInTheDocument();
   });
 
   it('loads a visible continuation even when the first page has no visible results', async () => {

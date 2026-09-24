@@ -93,6 +93,23 @@ async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
 }
 
 describe('VideoPlayer', () => {
+  it.each([
+    [VideoProcessingStatus.Pending, 'Video queued for processing...'],
+    [VideoProcessingStatus.Processing, 'Processing video...']
+  ])('keeps the %s fog inside the reserved video frame', async (status, label) => {
+    const { container } = render(VideoPlayer, {
+      props: { status, filename: 'clip.mp4', width: 1280, height: 720 }
+    });
+    const videoFrame = frame(container);
+    const fog = container.querySelector<HTMLElement>('[data-loading-fog]');
+
+    expect(videoFrame.getAttribute('style')).toContain('aspect-ratio: 480 / 270');
+    expect(fog?.getAttribute('aria-label')).toBe(label);
+    await expect.poll(() => fog?.getBoundingClientRect().width).toBeGreaterThan(0);
+    expect(fog?.getBoundingClientRect().width).toBeCloseTo(videoFrame.clientWidth, 0);
+    expect(fog?.getBoundingClientRect().height).toBeCloseTo(videoFrame.clientHeight, 0);
+  });
+
   it('plays a newly processed HLS-only video', async () => {
     const canPlayType = vi
       .spyOn(HTMLMediaElement.prototype, 'canPlayType')

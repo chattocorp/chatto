@@ -85,8 +85,8 @@ describe('realtime message author', () => {
       const event = pendingEvent();
       const view = render(MessageEventTestHarness, { event });
       await expect.element(view.getByText('Incoming message')).toBeVisible();
-      await expect.element(view.getByText('Loading...')).toBeInTheDocument();
-      expect(view.container.querySelector('.skeleton')).not.toBeNull();
+      expect(view.container.querySelector('[aria-busy="true"]')).not.toBeNull();
+      expect(view.container.querySelector('.skeleton')).toBeNull();
       expect(view.container.textContent).not.toContain('[deleted user]');
       expect(view.container.querySelector('[aria-label="[deleted user]"]')).toBeNull();
       await view.rerender({

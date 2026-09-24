@@ -25,7 +25,7 @@
   import { serverDirectoryDiscoveryConsent } from '$lib/serverDirectoryConsent';
   import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
-  import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
+  import { EmptyState, Hint, LoadingFog, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
 
   let customInput = $state('');
@@ -386,11 +386,7 @@
             </div>
           </EmptyState>
         {:else if !directoryState || directoryState.isInitialLoading}
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
-            {#each Array(3) as _, index (index)}
-              <div class="skeleton h-64 rounded-xl bg-surface"></div>
-            {/each}
-          </div>
+          <LoadingFog class="h-56 w-full" />
         {:else if allSourcesFailed}
           <EmptyState
             icon="icon-[uil--exclamation-triangle]"

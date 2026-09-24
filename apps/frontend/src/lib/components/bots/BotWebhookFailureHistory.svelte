@@ -8,6 +8,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import BotWebhookFailureDetails from './BotWebhookFailureDetails.svelte';
   import { Button } from '$lib/ui/form';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
 
   let { botId, webhookId }: { botId: string; webhookId: string } = $props();
   const scope = useServerScope();
@@ -38,7 +39,7 @@
     <p role="alert">{m('settings.bots.outbound.load_error')}</p>
     <Button variant="secondary" onclick={() => query.refetch()}>{m('common.retry')}</Button>
   {:else if query.isPending}
-    <p class="text-muted">{m('common.loading')}</p>
+    <LoadingFog class="h-24 w-full" />
   {:else if failures.length === 0}
     <p class="text-muted">{m('settings.bots.outbound.no_failures')}</p>
   {/if}

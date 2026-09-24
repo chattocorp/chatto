@@ -1,13 +1,7 @@
 <script lang="ts">
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
 
-  let {
-    serverName,
-    loading = false
-  }: {
-    serverName: string;
-    loading?: boolean;
-  } = $props();
+  let { serverName }: { serverName: string } = $props();
 </script>
 
-<PaneHeader title={serverName} {loading} skeletonButtons={0} />
+<PaneHeader title={serverName} />

@@ -16,7 +16,7 @@
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { FormDialog, Hint, LoadingFog, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { SvelteSet } from 'svelte/reactivity';
@@ -233,9 +233,8 @@
         <DataTable
           items={bots}
           columns={3}
-          emptyMessage={botsQuery.isPending
-            ? m('settings.bots.loading')
-            : m('settings.bots.empty_body')}
+          loading={botsQuery.isPending}
+          emptyMessage={m('settings.bots.empty_body')}
           hasMore={botsQuery.hasNextPage && !botsQuery.error}
           loadingMore={botsQuery.isFetchingNextPage}
           onLoadMore={loadMore}
@@ -287,8 +286,7 @@
                   viewerSettings={serverScope.store.currentUser.user?.settings}
                 />
               {:else if ownersQuery.isPending}
-                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
-                ></span>
+                <LoadingFog class="h-5 w-28" />
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
               {/if}
