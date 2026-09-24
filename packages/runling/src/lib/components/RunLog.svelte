@@ -139,9 +139,10 @@
   >
 {/snippet}
 
+<!-- The negative margin covers each row's vertical padding so adjacent strokes meet. -->
 {#snippet treeGuide(depth: number, joinsAbove: boolean, continuesBelow: boolean)}
   <span
-    class="pointer-events-none flex shrink-0 self-stretch text-base-content/20"
+    class="pointer-events-none -my-0.5 flex shrink-0 self-stretch text-base-content/20"
     aria-hidden="true"
     data-tree-guide
   >
@@ -151,15 +152,11 @@
       >
     {/each}
     <span class="relative w-3 shrink-0">
-      {#if joinsAbove}<span class="absolute top-0 left-1.5 h-2.5 border-l border-current"
-        ></span>{/if}
+      {#if joinsAbove}<span class="absolute top-0 left-1.5 h-3 border-l border-current"></span>{/if}
       <span
-        class={[
-          'absolute top-2.5 right-0 border-t border-current',
-          depth ? '-left-1.5' : 'left-1.5'
-        ]}
+        class={['absolute top-3 right-0 border-t border-current', depth ? '-left-1.5' : 'left-1.5']}
       ></span>
-      {#if continuesBelow}<span class="absolute top-2.5 bottom-0 left-1.5 border-l border-current"
+      {#if continuesBelow}<span class="absolute top-3 bottom-0 left-1.5 border-l border-current"
         ></span>{/if}
     </span>
   </span>
