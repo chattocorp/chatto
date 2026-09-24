@@ -160,13 +160,13 @@ A separate read-only agent reads and searches files in a new detached worktree.
 It has no edit, write, or shell tools. It cannot change files or execute tests;
 implementation requests produce an assessment and suggested changes. Its report returns to
 the chat agent with findings, source references, test coverage inspected, limitations, and the base
-commit. Progress and completion notifications wake the owning chat agent. It
-decides which developments need a short user update and explains the final result.
-Worker progress is coalesced over two-minute intervals; raw shell output is not
+commit. Completion and requested-answer notifications wake the owning chat
+agent. Worker progress is retained for later user questions; raw shell output is not
 posted to Chatto. Accepted findings and worker commentary stay in the task buffer
-without a notification for each finding. Completion and important blockers wake
-the owner. A newer host phase supersedes an older progress announcement.
-Provider retries and blockers notify the owner immediately. Each incoming prompt
+without a notification for each finding. A direct host notice replaces the
+completion notification for a stopped implementation. A newer host phase
+supersedes older progress. Provider retries and blockers remain visible in the
+console. Each incoming prompt
 includes task status and the age of the latest finding, so the owner can distinguish
 old findings from current activity. No status polling tool is exposed.
 Each delegated task retains a bounded local buffer of worker commentary and
@@ -192,8 +192,11 @@ prose. Plans live only in the active conversation.
 
 After a process restart, old runs remain history only. A new addressed message
 starts a new run with a fresh agent and the current thread as context. It does
-not restore plans, inboxes, or in-flight work. If an implementation was interrupted,
-inspect its worktree, branch, and any PR before asking for another attempt.
+not restore plans, inboxes, or in-flight work. A new request to continue an
+unfinished implementation can reuse that conversation's retained worktree.
+The host checks its branch and base commit, then reruns setup and final checks.
+It does not resume a result with uncertain publication; inspect GitHub first.
+Worktrees created before this recovery metadata was added need manual review.
 Old experimental checkpoint files are ignored; no workflow is resumed at startup.
 
 The implementer verifies the plan against its current base commit, preserves
@@ -289,31 +292,79 @@ implementation worker. Questions and investigation requests do not authorize
 implementation. The investigator stays read-only. Follow-up messages can steer
 the implementation through the same `task_send` channel. If the worker does not
 consume a forwarded clarification, publication stops. Use `/cancel` to stop the
-whole flow, including after the worker finishes editing. The owner reports check
-results and publication progress, then posts the verified PR URL, a change
-summary, checks, and remaining review notes.
+whole flow, including after the worker finishes editing. The host reports check
+and publication progress. It posts the verified PR link as soon as publication
+is confirmed, then posts a separate CI result.
 
-Each implementation fetches the configured base branch and creates a new
+When a user asks the owner to ask the implementation worker a question, the owner
+uses `askImplementation`. The worker's answer wakes the owner, which can reply
+while implementation continues. Queue acceptance alone does not mean the worker
+answered. The worker uses `answerOwner` with the question ID to send its answer.
+Ordinary clarifications still use `task_send`.
+
+Each new implementation fetches the configured base branch and creates a new
 `chattobot/<id>` branch in a separate worktree. It does not include uncommitted
 changes from the supplied checkout. The host first runs
 `mise x -- pnpm install --frozen-lockfile` in that worktree. The worker uses
-`apply_patch` for source changes and has no shell tool. Patch failures return
-Git diagnostics to the worker.
+`apply_patch` for source changes and has no shell tool. It can use `reviewDiff`
+to read the current diff, including new files, or select one changed path when
+the complete diff is too long. `runCheck` runs an approved repository check,
+including frontend lint and build. `runFocusedTests` runs selected existing
+frontend test or spec files in one Vitest project. The worker can save brief
+handoff notes for a later attempt.
+Patch and check failures return bounded diagnostics to the worker. After a
+worker-requested check fails, the host runs it on the base commit and reports
+whether the base passed, failed, or could not be checked. A failed base check
+does not establish the cause. Worker checks are recorded separately from the
+final host checks because edits can make earlier results stale. Repository
+setup and check commands do not inherit the bot's Chatto,
+Authling, model-provider, or GitHub token variables. The host repeats final
+checks before publication. To continue, ask the bot to resume the exact
+`implementation-<id>` artifact from its stopped result. The host verifies that
+it belongs to the conversation and reuses its branch and worktree. The next
+worker receives the original request and saved handoff, and must check the
+handoff against the retained diff.
 
 After the worker reports its edits, the host runs `check:frontend` and
 `test:frontend` for changes limited to `apps/frontend/`; other changes run the
 root `check` and `test` scripts. Commands run through `mise x -- pnpm run`.
 Changes to Go source or module files also run `mise run test-cli`.
-Validation failures return bounded diagnostic output to the same worker, with
-at most two repair turns. The final result also retains failed-check diagnostics
+The worker must finish its edits before it requests final validation. For a
+large, actionable change, it can save progress with `checkpointWork` and get
+another work turn in the same implementation. A checkpoint does not start
+validation or publication. Three checkpoints with no source changes stop the
+attempt and retain the handoff for review. A proposed
+human review can be recorded as a PR review need unless the user requires that
+review before publication. A blocked or failed worker report ends the attempt
+and requires a new user request. The host reports the worker's bounded,
+redacted reason and the number of worker checks it ran. It says when final host
+validation did not run. After a failed final check, the host runs the same
+command on a clean worktree at the base commit. If it also fails, the host
+stops and reports that the cause is not known. If it passes, the host sends
+bounded diagnostic output to the same
+worker, with at most two repair turns. If the base check cannot run, the host
+reports that the comparison is unknown and lets the worker try to repair.
+The final result also retains failed-check diagnostics
 for supervisor questions, with known host credentials, URLs, email addresses,
 and IPv4 addresses removed. These private diagnostics are not operational logs
 and must not be copied verbatim into chat or PR descriptions.
 Every check must pass on the final Git tree. If a
 check changes source files, validation must run again. Setup and each check
-have a ten-minute limit; the complete flow has a thirty-minute limit.
+have a ten-minute limit. The complete implementation has no fixed deadline;
+use `/cancel` to stop it.
+The Runling console Log view and server terminal show implementation stages,
+check starts and results, and repair attempts. If an agent produces no events
+for two minutes, the console shows how long the run has been quiet. The server
+terminal reports that the agent remains active without claiming progress.
 The owner cannot start a replacement implementation from a task notification.
-After a failed attempt, ask explicitly before starting another one.
+After a failed attempt, ask explicitly to continue the retained worktree or
+start another implementation.
+If implementation stops, the host posts the result to the conversation directly
+and retains any worktree for review. If that post fails, the owner receives the
+task result and reports the blocker. The bot waits for user direction before it
+starts another attempt.
+Unexpected worker or host errors also produce a stopped result when the
+conversation remains available.
 The host checks for an empty diff, protected instruction or environment files,
 changed Git history, and whitespace errors before publication. Passing commands
 does not establish that test coverage is sufficient; review is still required.
@@ -322,6 +373,11 @@ The host commits the changes with a Conventional Commit title, pushes only the
 new branch, and creates a ready-for-review PR. Its body describes what changed,
 why, verification, and limitations. It does not merge or deploy. The host reads
 back the PR URL, branch, base branch, state, and commit before reporting success.
+It watches GitHub checks for up to 30 minutes and posts a second message when
+they pass, fail, are all skipped, stay pending, or cannot be read. It verifies
+that the PR still points to ChattoBot's published commit before it reports a
+CI result. If the head changes, it reports that change instead. CI failure
+does not undo the published PR. Review the PR Checks tab for individual failures.
 If a publication response is lost, it checks for the existing PR rather than
 creating another one. An unverified result is reported as uncertain and is not
 automatically retried.

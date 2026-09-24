@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { tick } from "svelte";
-  import { ansiTokens } from "$lib/ansi.ts";
-  import { logTime, nextLogFollow, type LogRow } from "$lib/run-log.ts";
-  import AnsiText from "./AnsiText.svelte";
+  import { tick } from 'svelte';
+  import { ansiTokens } from '$lib/ansi.ts';
+  import { logTime, logTreeRows, nextLogFollow, type LogRow } from '$lib/run-log.ts';
+  import AnsiText from './AnsiText.svelte';
 
   let { rows, running }: { rows: LogRow[]; running: boolean } = $props();
   let viewport: HTMLDivElement;
@@ -10,19 +10,26 @@
   let wrap = $state(true);
   let following = $state(true);
   let seen = $state(0);
-  let copyState = $state<"idle" | "copied" | "failed">("idle");
+  let copyState = $state<'idle' | 'copied' | 'failed'>('idle');
   let expandable = $state.raw(new Set<number>());
   let expanded = $state.raw(new Set<number>());
   let previousTop = 0;
   const measuredLines = new Map<Element, number>();
   let lineObserver: ResizeObserver | undefined;
   let visible = $derived(rows.slice(-limit));
+  let treeRows = $derived(logTreeRows(visible));
   let unread = $derived(Math.max(0, rows.length - seen));
 
-  const marker = (level: LogRow["event"]["level"]) =>
-    level === "success" ? "✓" : level === "error" ? "✕" : level === "debug" ? "·" : "•";
-  const markerClass = (level: LogRow["event"]["level"]) =>
-    level === "success" ? "text-success" : level === "error" ? "text-error" : level === "debug" ? "text-base-content/35" : "text-info";
+  const marker = (level: LogRow['event']['level']) =>
+    level === 'success' ? '✓' : level === 'error' ? '✕' : level === 'debug' ? '·' : '•';
+  const markerClass = (level: LogRow['event']['level']) =>
+    level === 'success'
+      ? 'text-success'
+      : level === 'error'
+        ? 'text-error'
+        : level === 'debug'
+          ? 'text-base-content/35'
+          : 'text-info';
 
   function measureLine(node: HTMLElement, id: number) {
     lineObserver ??= new ResizeObserver((entries) => {
@@ -46,7 +53,7 @@
       destroy() {
         lineObserver?.unobserve(node);
         measuredLines.delete(node);
-      },
+      }
     };
   }
 
@@ -84,8 +91,13 @@
     if (node.firstElementChild) observer.observe(node.firstElementChild);
     void refresh();
     return {
-      update() { void refresh(); },
-      destroy() { alive = false; observer.disconnect(); },
+      update() {
+        void refresh();
+      },
+      destroy() {
+        alive = false;
+        observer.disconnect();
+      }
     };
   }
 
@@ -102,11 +114,17 @@
   async function copy() {
     try {
       await navigator.clipboard.writeText(
-        rows.map(({ event }) => ansiTokens(event.message).map((token) => token.text).join("")).join("\n"),
+        rows
+          .map(({ event }) =>
+            ansiTokens(event.message)
+              .map((token) => token.text)
+              .join('')
+          )
+          .join('\n')
       );
-      copyState = "copied";
+      copyState = 'copied';
     } catch {
-      copyState = "failed";
+      copyState = 'failed';
     }
   }
 </script>
@@ -114,20 +132,69 @@
 {#snippet message(row: LogRow)}
   <span
     use:measureLine={row.id}
-    class={["block min-w-0 text-base-content/90", wrap ? "whitespace-pre-wrap wrap-anywhere" : "whitespace-pre"]}
-  ><AnsiText text={row.event.message} /></span>
+    class={[
+      'block min-w-0 text-base-content/90',
+      wrap ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'
+    ]}><AnsiText text={row.event.message} /></span
+  >
+{/snippet}
+
+<!-- The negative margin covers each row's vertical padding so adjacent strokes meet. -->
+{#snippet treeGuide(depth: number, joinsAbove: boolean, continuesBelow: boolean)}
+  <span
+    class="pointer-events-none -my-0.5 mr-1 flex shrink-0 self-stretch text-base-content/20"
+    aria-hidden="true"
+    data-tree-guide
+  >
+    {#each Array.from({ length: depth }) as _, level (level)}
+      <span class="relative w-3 shrink-0"
+        ><span class="absolute inset-y-0 left-1.5 border-l border-current"></span></span
+      >
+    {/each}
+    <span class="relative w-3 shrink-0">
+      {#if joinsAbove && !continuesBelow}
+        <span
+          class="absolute top-0 right-0 left-1.5 h-[13px] rounded-bl-[5px] border-b border-l border-current"
+        ></span>
+      {:else}
+        {#if joinsAbove}<span class="absolute top-0 left-1.5 h-3 border-l border-current"
+          ></span>{/if}
+        <span
+          class={[
+            'absolute top-3 right-0 border-t border-current',
+            depth && !joinsAbove ? '-left-1.5' : 'left-1.5'
+          ]}
+        ></span>
+        {#if continuesBelow}<span class="absolute top-3 bottom-0 left-1.5 border-l border-current"
+          ></span>{/if}
+      {/if}
+    </span>
+  </span>
 {/snippet}
 
 <section class="flex min-h-0 flex-1 flex-col" aria-label="Run log">
-  <div class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 bg-base-200/35 px-4 py-1.5 sm:px-6">
-    <span class="text-xs text-base-content/50 tabular-nums">{rows.length} {rows.length === 1 ? "line" : "lines"}</span>
+  <div
+    class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 bg-base-200/35 px-4 py-1.5 sm:px-6"
+  >
+    <span class="text-xs text-base-content/50 tabular-nums"
+      >{rows.length} {rows.length === 1 ? 'line' : 'lines'}</span
+    >
     <div class="flex items-center gap-1">
-      <button class="btn btn-ghost btn-xs gap-1.5" aria-pressed={wrap} onclick={() => (wrap = !wrap)}>
+      <button
+        class="btn btn-ghost btn-xs gap-1.5"
+        aria-pressed={wrap}
+        onclick={() => (wrap = !wrap)}
+      >
         <span class="icon-[lucide--wrap-text] size-3.5" aria-hidden="true"></span>Wrap
       </button>
       <button class="btn btn-ghost btn-xs gap-1.5" onclick={copy}>
-        <span class={copyState === "copied" ? "icon-[lucide--check] size-3.5" : "icon-[lucide--copy] size-3.5"} aria-hidden="true"></span>
-        {copyState === "copied" ? "Copied" : "Copy log"}
+        <span
+          class={copyState === 'copied'
+            ? 'icon-[lucide--check] size-3.5'
+            : 'icon-[lucide--copy] size-3.5'}
+          aria-hidden="true"
+        ></span>
+        {copyState === 'copied' ? 'Copied' : 'Copy log'}
       </button>
     </div>
   </div>
@@ -141,22 +208,37 @@
   >
     <div class="min-h-full px-2 py-3 sm:px-4">
       {#if rows.length > limit}
-        <button class="btn btn-ghost btn-sm mb-3 ml-2" onclick={earlier}>Show earlier logs ({rows.length - limit})</button>
+        <button class="btn btn-ghost btn-sm mb-3 ml-2" onclick={earlier}
+          >Show earlier logs ({rows.length - limit})</button
+        >
       {/if}
       <ol class="m-0 list-none p-0 font-mono text-[13px] leading-5">
-        {#each visible as row (row.id)}
-          <li class="grid grid-cols-[4.5rem_1rem_minmax(0,1fr)] gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55 sm:grid-cols-[5rem_1rem_minmax(0,1fr)]" data-log-row={row.id}>
-            <time class="select-none text-base-content/40 tabular-nums" title="Elapsed run time">{logTime(row.event.timestamp)}</time>
-            <span class={markerClass(row.event.level)} title={row.event.level} aria-label={row.event.level}>{marker(row.event.level)}</span>
+        {#each treeRows as { row, depth, joinsAbove, continuesBelow } (row.id)}
+          <li
+            class="grid grid-cols-[4.5rem_1rem_minmax(0,1fr)] gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55 sm:grid-cols-[5rem_1rem_minmax(0,1fr)]"
+            data-log-row={row.id}
+          >
+            <time class="select-none text-base-content/40 tabular-nums" title="Elapsed run time"
+              >{logTime(row.event.timestamp)}</time
+            >
+            <span
+              class={markerClass(row.event.level)}
+              title={row.event.level}
+              aria-label={row.event.level}>{marker(row.event.level)}</span
+            >
             {#if expandable.has(row.id)}
               <button
-                class="block min-w-0 w-full cursor-pointer font-mono text-left text-[13px] leading-5 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
+                class="flex min-w-0 w-full cursor-pointer font-mono text-left text-[13px] leading-5 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
                 class:cursor-zoom-out={expanded.has(row.id)}
                 aria-expanded={expanded.has(row.id)}
                 onclick={() => toggleLine(row.id)}
-                style:padding-left={`${Math.min(Math.max(row.event.depth, 0), 6) * 0.75}rem`}
               >
-                <span class={expanded.has(row.id) ? "block" : "block max-h-15 overflow-y-clip overflow-x-visible"}>
+                {@render treeGuide(depth, joinsAbove, continuesBelow)}
+                <span
+                  class={expanded.has(row.id)
+                    ? 'block min-w-0 flex-1'
+                    : 'block min-w-0 flex-1 max-h-15 overflow-y-clip overflow-x-visible'}
+                >
                   {@render message(row)}
                 </span>
                 {#if expanded.has(row.id)}
@@ -166,14 +248,18 @@
                 {/if}
               </button>
             {:else}
-              <span class="min-w-0 max-h-20 overflow-y-clip overflow-x-visible" style:padding-left={`${Math.min(Math.max(row.event.depth, 0), 6) * 0.75}rem`}>
-                {@render message(row)}
+              <span class="flex min-w-0">
+                {@render treeGuide(depth, joinsAbove, continuesBelow)}
+                <!-- Clipping this outer span would cut the guide at each row boundary. -->
+                <span class="block min-w-0 max-h-20 flex-1 overflow-y-clip overflow-x-visible">
+                  {@render message(row)}
+                </span>
               </span>
             {/if}
           </li>
         {:else}
           <li class="px-4 py-12 text-center font-sans text-sm text-base-content/50">
-            {running ? "Waiting for log lines…" : "No log lines were recorded."}
+            {running ? 'Waiting for log lines…' : 'No log lines were recorded.'}
           </li>
         {/each}
       </ol>
@@ -181,9 +267,15 @@
   </div>
   {#if !following}
     <div class="flex shrink-0 justify-center border-t border-base-300 bg-base-200/50 p-2">
-      <button class="btn btn-sm btn-ghost gap-2" onclick={jump}><span aria-hidden="true">↓</span>{unread ? `${unread} new ${unread === 1 ? "line" : "lines"}` : "Follow latest"}</button>
+      <button class="btn btn-sm btn-ghost gap-2" onclick={jump}
+        ><span aria-hidden="true">↓</span>{unread
+          ? `${unread} new ${unread === 1 ? 'line' : 'lines'}`
+          : 'Follow latest'}</button
+      >
     </div>
   {/if}
-  <p class="sr-only" role="status">{copyState === "copied" ? "Log copied to clipboard." : ""}</p>
-  {#if copyState === "failed"}<p class="px-4 py-2 text-xs text-error" role="alert">Could not copy the log. Select and copy the text manually.</p>{/if}
+  <p class="sr-only" role="status">{copyState === 'copied' ? 'Log copied to clipboard.' : ''}</p>
+  {#if copyState === 'failed'}<p class="px-4 py-2 text-xs text-error" role="alert">
+      Could not copy the log. Select and copy the text manually.
+    </p>{/if}
 </section>

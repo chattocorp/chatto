@@ -20,6 +20,9 @@ receive selected updates while that workflow runs.
 - Notifications have one consumer and at most one pending entry per task.
   Completion replaces stale progress. Progress notices are coalesced; selected
   provider and tool failures can request attention sooner.
+- A child can mark an answer to an owner question as a reply. That answer enters
+  the bounded output buffer and wakes the owner at once. The application must
+  identify which child output answers the question.
 - The manager stays active while a task runs or an unread notification remains.
   The host must connect notifications to its conversation loop.
 - Completed and cancelled task snapshots remain available for the manager's
@@ -30,8 +33,9 @@ receive selected updates while that workflow runs.
 - The server terminal reports live task, agent, and tool activity with a run
   reference and a static agent label or task number. Successful tools are grouped
   into periodic counts; failures appear immediately. State updates can explicitly
-  supply a public host-owned `activity` message without waking the supervisor.
+  supply a public host-owned `activity` message and severity without waking the supervisor.
   State values, message content, and tool arguments remain out of these logs.
+  The terminal reports prolonged silence from a running agent without claiming progress.
 
 ## Design Decisions
 

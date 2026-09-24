@@ -104,6 +104,18 @@ To check SPDX/REUSE license metadata:
 mise license-check
 ```
 
+To format changed JavaScript or TypeScript files in the root pnpm workspace,
+pass their paths to Prettier. Use the check command to verify the result:
+
+```sh
+mise x -- pnpm format -- path/to/file.ts
+mise x -- pnpm format:check -- path/to/file.ts
+```
+
+Prettier uses the nearest configuration file. The frontend keeps its Svelte and
+Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
+pnpm workspace and toolchain.
+
 `mise dev` uses Conductor's allocated port block and falls back to base port
 `4000` outside Conductor. `mise dev-docs-website` also uses `4000` when
 `CONDUCTOR_PORT` and `CHATTO_DOCS_WEBSITE_PORT` are unset.

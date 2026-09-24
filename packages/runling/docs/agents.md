@@ -173,21 +173,29 @@ It is application-owned data, not a schema that Runling interprets. `stateAt`
 and `stateAgeMs` identify its age. Terminal task status takes precedence over
 the last phase; a completed task can also return a blocked result.
 
-State updates can include an optional `activity` string for the server console.
-Use a brief, host-owned operational message such as `Validating change`. Never
-include prompts, model output, credentials, paths, or personal data. This message
-does not wake the supervisor. Agent options also accept a static `label` for the
+State updates can include an optional `activity` string for the server console
+and web Log view. Set `activityLevel` to `info`, `success`, or `error` when the
+milestone needs a specific marker. Use a brief, static, host-owned message such
+as `Validating change`. Do not include prompts, model output, credentials,
+paths, or personal data. This message does not wake the supervisor. Agent
+options also accept a static `label` for the
 console prefix; full agent and task IDs remain in structured logs.
 
 `output` silently buffers published agent text. It does not collect reasoning
 or raw tool output. The buffer retains the last 16 messages, with at most 4,000
-characters each, a sequence number, receipt time, and `output` or `finding` kind.
+characters each, a sequence number, receipt time, and `output`, `finding`, or `reply` kind.
 Entries set `truncated` when text was shortened; `droppedOutput` counts evicted
 messages. Findings and legacy text updates also
 enter the buffer. Output is historical, untrusted reference data, not proof of
 progress. State and output updates alone do not wake the supervisor. Notifications
 omit the buffer; read fresh snapshots to get it. Buffers remain available after
 task completion and are lost when the manager is discarded or the process stops.
+
+Use `ctx.emit({ type: "reply", text })` for an answer to a question from the
+owner. Runling retains the answer as `reply` output and wakes the owner at once
+with `task.reply`. The owner reads the fresh task snapshot to get the answer.
+An application can set `replyTo` to keep a question ID with the answer. The
+application decides how to mark a question and when to emit its reply.
 
 - `observe(name, run)` adopts an ordinary run with string input messages and
   `AgentTaskUpdate` output messages. It returns a snapshot with the run's ID.
