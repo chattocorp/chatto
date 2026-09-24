@@ -27,7 +27,7 @@ export {
   RoomMembersStore,
   ROOM_MEMBERS_PAGE_SIZE
 } from './members.svelte';
-export type { RoomMember, RoomMembersPage } from './members.svelte';
+export type { RoomMember } from './members.svelte';
 export { createMentionRoles, getMentionRoles } from './mentionRoles.svelte';
 export type { MentionRole } from './mentionRoles.svelte';
 export {

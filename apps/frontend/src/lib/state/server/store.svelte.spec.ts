@@ -984,6 +984,9 @@ describe('ServerStateStore room search state', () => {
     });
 
     closeRoute();
+    store.projection.users.set('U2', new DirectoryMember({
+      user: { id: 'U2', login: 'two', displayName: 'Two' }
+    }));
     members.replaceProjection('a', [{
       id: 'U2', login: 'two', displayName: 'Two', presenceStatus: 1
     }]);
