@@ -14,6 +14,7 @@ import type { InputHandler } from "./input.ts";
 import { log } from "./log.ts";
 import { renderMarkdown } from "./markdown.ts";
 import {
+  isJsonValue,
   type JsonValue,
   type WorkflowResult,
   type WorkflowReturn,
@@ -92,42 +93,6 @@ export function formatWorkflowDetails(
   return terminal.isTTY
     ? renderMarkdown(details, terminal.columns ?? 80)
     : details;
-}
-
-function isJsonValue(
-  value: unknown,
-  ancestors = new Set<object>(),
-): value is JsonValue {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (typeof value === "number") {
-    return Number.isFinite(value);
-  }
-  if (typeof value !== "object" || ancestors.has(value)) {
-    return false;
-  }
-
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    !Array.isArray(value) &&
-    prototype !== Object.prototype &&
-    prototype !== null
-  ) {
-    return false;
-  }
-
-  ancestors.add(value);
-  // JSON omits undefined object properties. Array entries must remain valid values.
-  const valid = Object.values(value).every((entry) =>
-    (entry === undefined && !Array.isArray(value)) || isJsonValue(entry, ancestors),
-  );
-  ancestors.delete(value);
-  return valid;
 }
 
 export function normalizeWorkflowResult(

@@ -88,6 +88,31 @@ hold data only in memory.
 See the [task channel example](../examples/channel-demo.md) and
 [Chatto coordinator example](../examples/chatto-coordinator-demo.md).
 
+## State in the run inspector
+
+A task can publish a JSON object for people who inspect the run in the web app:
+
+```ts
+const scan = task(async (ctx: WorkflowContext, files: string[]) => {
+  ctx.publishState({ phase: "scanning", checked: 0 });
+  // Scan files and publish a new snapshot when the visible state changes.
+  ctx.publishState({ phase: "done", checked: files.length });
+});
+```
+
+Select the task in the timeline to see its latest snapshot. Each call replaces
+that task's visible state. Runling copies the object at the time of the call;
+later changes to the original object need another call. The snapshot must be a
+JSON object of at most 16,000 serialized characters. A call outside a task, or
+one with an invalid snapshot, throws an error.
+
+Published state appears in the run journal and web app. Do not publish secrets
+or private working data. It does not send a message to the parent or change the
+task result. Use task channels and results to communicate between tasks.
+
+If you implement `WorkflowContext` yourself, add `publishState`. If you use an
+exhaustive switch over `RunlingEvent`, handle the new `task.state` event.
+
 ## Timeline messages
 
 Spawned tasks record queued messages, task reads, and agent consumption receipts.

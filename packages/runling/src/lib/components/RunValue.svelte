@@ -1,6 +1,6 @@
 <script lang="ts">
-  let { value, kind }: { value: unknown; kind: "input" | "output" } = $props();
-  let title = $derived(kind === "input" ? "Input" : "Result");
+  let { value, kind }: { value: unknown; kind: "input" | "output" | "state" } = $props();
+  let title = $derived(kind === "input" ? "Input" : kind === "state" ? "State" : "Result");
   let wrap = $state(true);
   let copyState = $state<"idle" | "copied" | "failed">("idle");
   let text = $derived(
@@ -17,10 +17,10 @@
   }
 </script>
 
-<section class="overflow-hidden rounded-lg border border-base-300" aria-label={`Workflow ${kind}`}>
+<section class="overflow-hidden rounded-lg border border-base-300" aria-label={kind === "state" ? "Task state" : `Workflow ${kind}`}>
   <header class="flex flex-wrap items-center justify-between gap-2 border-b border-base-300 bg-base-200/50 px-4 py-2">
     <div class="flex items-center gap-2">
-      <span class="icon-[lucide--file-text] size-4 text-base-content/50" aria-hidden="true"></span>
+      <span class={kind === "state" ? "icon-[lucide--braces] size-4 text-base-content/50" : "icon-[lucide--file-text] size-4 text-base-content/50"} aria-hidden="true"></span>
       <h2 class="text-sm font-medium">{title}</h2>
       <span class="badge badge-ghost badge-sm text-xs">{typeof value === "string" ? "Text" : "JSON"}</span>
     </div>
@@ -37,12 +37,12 @@
   </header>
   <div class="max-h-[70vh] overflow-auto p-5">
     {#if text === ""}
-      <p class="text-sm text-base-content/60">{kind === "input" ? "The workflow received an empty string." : "The workflow returned an empty string."}</p>
+      <p class="text-sm text-base-content/60">{kind === "input" ? "The workflow received an empty string." : kind === "state" ? "The task published an empty string." : "The workflow returned an empty string."}</p>
     {:else}
       <pre class="m-0 font-mono text-sm leading-7 {wrap ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'}">{text}</pre>
     {/if}
   </div>
-  <p role="status" class="sr-only">{copyState === "copied" ? `${kind === "input" ? "Input" : "Output"} copied to clipboard.` : ""}</p>
+  <p role="status" class="sr-only">{copyState === "copied" ? `${title} copied to clipboard.` : ""}</p>
   {#if copyState === "failed"}
     <p role="alert" class="border-t border-base-300 px-4 py-2 text-xs text-error">Could not copy to the clipboard. Select the {kind} and copy it manually.</p>
   {/if}

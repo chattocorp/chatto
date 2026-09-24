@@ -28,6 +28,7 @@
   let selectedHook = $derived(data.webhooks.find((hook) => hook.name === filter));
   let selected = $state("");
   let detail = $state<RunDetail | null>(null);
+  let selectedSummary = $derived(runs.find((run) => run.id === selected));
   let connection = $state("Connecting…");
   let detailError = $state("");
   let listConnected = $state(false);
@@ -37,6 +38,16 @@
   let runsWidth = $state<number>();
   let runsExpanded = $state(true);
   let runStream: EventSource | undefined;
+  let detailRequest: AbortController | undefined;
+  let loadingRun = "";
+  const detailCache = new Map<string, RunDetail>();
+
+  function rememberDetail(run: RunDetail) {
+    detailCache.delete(run.id);
+    detailCache.set(run.id, run);
+    // Keep recent run switches quick without retaining every full journal in memory.
+    if (detailCache.size > 5) detailCache.delete(detailCache.keys().next().value!);
+  }
 
   function handleSidebarShortcut(event: KeyboardEvent) {
     if (!listConnected || !isSidebarShortcut(event)) return;
@@ -57,47 +68,77 @@
   }
 
   async function selectRun(id: string) {
+    if (selected === id && !detailError && (loadingRun === id || (detail?.id === id && (connection === "Live" || connection === "Saved")))) return;
+    detailRequest?.abort();
     runStream?.close();
+    runStream = undefined;
+    const request = new AbortController();
+    detailRequest = request;
+    loadingRun = id;
     selected = id;
-    detail = null;
+    detail = detailCache.get(id) ?? null;
     detailError = "";
-    connection = "Connecting…";
+    connection = detail ? "Refreshing…" : "Connecting…";
     const url = new URL(location.href);
     url.searchParams.set("run", id);
-    history.replaceState(null, "", url);
     try {
-      const response = await fetch(`/api/runs/${encodeURIComponent(id)}`);
+      history.replaceState(history.state, "", url);
+    } catch {
+      // Browser history must not block loading the selected run.
+    }
+    if (detail && detail.status !== "running") {
+      connection = "Saved";
+      detailRequest = undefined;
+      loadingRun = "";
+      return;
+    }
+    const timeout = setTimeout(() => request.abort(new Error("Run details timed out")), 10_000);
+    try {
+      const response = await fetch(`/api/runs/${encodeURIComponent(id)}`, { signal: request.signal });
       if (!response.ok)
         throw new Error(response.status === 404 ? "Run not found." : "Could not load this run.");
       const saved = (await response.json()) as RunDetail;
-      if (selected !== id) return;
+      if (selected !== id || detailRequest !== request) return;
       detail = saved;
+      rememberDetail(saved);
       if (saved.status !== "running") {
         connection = "Saved";
         return;
       }
     } catch (cause) {
-      if (selected === id) detailError = cause instanceof Error ? cause.message : String(cause);
+      if (selected !== id || detailRequest !== request) return;
+      if (detail) connection = "Could not refresh. Showing cached run.";
+      else detailError = request.signal.aborted
+        ? "Loading this run took too long. Try again."
+        : cause instanceof Error ? cause.message : String(cause);
       return;
+    } finally {
+      clearTimeout(timeout);
+      if (detailRequest === request) {
+        detailRequest = undefined;
+        loadingRun = "";
+      }
     }
     const stream = new EventSource(`/api/runs/${encodeURIComponent(id)}/events`);
     runStream = stream;
     stream.addEventListener("snapshot", (event) => {
-      if (selected !== id) return;
+      if (selected !== id || runStream !== stream) return;
       detail = JSON.parse(event.data) as RunDetail;
+      rememberDetail(detail);
       connection = detail.status === "running" ? "Live" : "Saved";
       if (detail.status !== "running") stream.close();
     });
     stream.addEventListener("record", (event) => {
-      if (!detail || selected !== id) return;
+      if (!detail || selected !== id || runStream !== stream) return;
       detail = applyRecord(detail, JSON.parse(event.data) as RunRecord);
+      rememberDetail(detail);
       if (detail.status !== "running") {
         connection = "Saved";
         stream.close();
       }
     });
-    stream.onopen = () => { connection = "Live"; };
-    stream.onerror = () => { connection = "Connection lost. Retrying…"; };
+    stream.onopen = () => { if (runStream === stream) connection = "Live"; };
+    stream.onerror = () => { if (runStream === stream) connection = "Connection lost. Retrying…"; };
   }
 
   onMount(() => {
@@ -132,6 +173,7 @@
       configs.close();
       stream.close();
       runStream?.close();
+      detailRequest?.abort();
     };
   });
 </script>
@@ -244,14 +286,24 @@
       {#if detail}
         {#key detail.id}<RunInspector run={detail} {connection} />{/key}
       {:else if selected}
-        <div class="hero h-full p-8">
-          <div class="hero-content flex-col text-center">
-            {#if !detailError}<span class="loading loading-spinner loading-lg text-primary"></span>{/if}
-            <h1 class="text-2xl font-semibold">{detailError ? "Run unavailable" : "Loading run"}</h1>
-            <p class="text-base-content/60">{detailError || connection}</p>
-            {#if detailError}<button class="btn btn-sm" onclick={() => selectRun(selected)}>Retry</button>{/if}
+        <section class="flex h-full min-h-0 flex-col" aria-label="Run details">
+          <header class="shrink-0 border-b border-base-300 px-4 py-4 sm:px-6">
+            <h1 class="text-xl font-semibold sm:text-2xl">{selectedSummary?.workflow ?? "Run"}</h1>
+            <p class="mt-1 text-xs text-base-content/60">{selectedSummary?.reference ?? selected}</p>
+          </header>
+          <div class="flex min-h-0 flex-1">
+            <div class="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+              {#if !detailError}<span class="loading loading-spinner loading-md text-primary"></span>{/if}
+              <h2 class="text-lg font-medium">{detailError ? "Run unavailable" : "Loading log"}</h2>
+              <p class="max-w-sm text-sm text-base-content/60">{detailError || connection}</p>
+              {#if detailError}<button class="btn btn-sm" onclick={() => selectRun(selected)}>Retry</button>{/if}
+            </div>
+            <aside class="hidden w-[40%] min-w-[25rem] max-w-[48rem] flex-col border-l border-base-300 2xl:flex" aria-label="Details pane">
+              <h2 class="border-b border-base-300 px-5 py-4 text-lg font-medium">Run details</h2>
+              <p class="px-5 py-5 text-sm text-base-content/60">{detailError ? "Details are unavailable." : "Loading details…"}</p>
+            </aside>
           </div>
-        </div>
+        </section>
       {:else}
         <div class="hero h-full p-8">
           <div class="hero-content flex-col text-center">

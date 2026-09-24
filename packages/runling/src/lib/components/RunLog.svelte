@@ -4,7 +4,17 @@
   import { logTime, logTreeRows, nextLogFollow, type LogRow } from '$lib/run-log.ts';
   import AnsiText from './AnsiText.svelte';
 
-  let { rows, running }: { rows: LogRow[]; running: boolean } = $props();
+  let {
+    rows,
+    running,
+    selectedActivity,
+    onselectActivity
+  }: {
+    rows: LogRow[];
+    running: boolean;
+    selectedActivity: string;
+    onselectActivity: (id: string) => void;
+  } = $props();
   let viewport: HTMLDivElement;
   let limit = $state(500);
   let wrap = $state(true);
@@ -30,6 +40,18 @@
         : level === 'debug'
           ? 'text-base-content/35'
           : 'text-info';
+
+  function splitActivityMessage(row: LogRow) {
+    const reference = row.activity!.reference;
+    const start = row.event.message.indexOf(reference);
+    return {
+      before: row.event.message.slice(0, start).replace(/\[$/, '').trimEnd(),
+      after: row.event.message
+        .slice(start + reference.length)
+        .replace(/^\](?:\x1b\[[0-9;]*m)*/, '')
+        .trimStart()
+    };
+  }
 
   function measureLine(node: HTMLElement, id: number) {
     lineObserver ??= new ResizeObserver((entries) => {
@@ -130,13 +152,38 @@
 </script>
 
 {#snippet message(row: LogRow)}
+  {@const parts = row.activity?.embedded ? splitActivityMessage(row) : undefined}
   <span
     use:measureLine={row.id}
     class={[
       'block min-w-0 text-base-content/90',
       wrap ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'
-    ]}><AnsiText text={row.event.message} /></span
+    ]}
   >
+    {#if row.activity}
+      {#if parts}<AnsiText text={parts.before} />{/if}
+      <button
+        class={[
+          'rounded-sm px-1 -mx-1 font-mono text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary',
+          selectedActivity === row.activity.id &&
+            'bg-primary/15 font-semibold ring-1 ring-inset ring-primary/50'
+        ]}
+        aria-label={`Inspect ${row.activity.reference}`}
+        aria-pressed={selectedActivity === row.activity.id}
+        onclick={() => onselectActivity(row.activity!.id)}
+        >{parts && row.event.source !== 'agent'
+          ? row.activity.reference
+          : `[${row.activity.reference}]`}</button
+      >
+      {#if parts}
+        <AnsiText text={parts.after} />
+      {:else}
+        <AnsiText text={row.event.message} />
+      {/if}
+    {:else}
+      <AnsiText text={row.event.message} />
+    {/if}
+  </span>
 {/snippet}
 
 <!-- The negative margin covers each row's vertical padding so adjacent strokes meet. -->
@@ -227,12 +274,7 @@
               aria-label={row.event.level}>{marker(row.event.level)}</span
             >
             {#if expandable.has(row.id)}
-              <button
-                class="flex min-w-0 w-full cursor-pointer font-mono text-left text-[13px] leading-5 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
-                class:cursor-zoom-out={expanded.has(row.id)}
-                aria-expanded={expanded.has(row.id)}
-                onclick={() => toggleLine(row.id)}
-              >
+              <span class="flex min-w-0 w-full font-mono text-[13px] leading-5">
                 {@render treeGuide(depth, joinsAbove, continuesBelow)}
                 <span
                   class={expanded.has(row.id)
@@ -241,12 +283,14 @@
                 >
                   {@render message(row)}
                 </span>
-                {#if expanded.has(row.id)}
-                  <span class="mt-1 block text-right text-[11px] text-primary">Show less ↑</span>
-                {:else}
-                  <span class="block text-right text-[11px] text-primary">Show more ↓</span>
-                {/if}
-              </button>
+                <button
+                  class="ml-2 shrink-0 self-end text-[11px] text-primary hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-primary"
+                  aria-expanded={expanded.has(row.id)}
+                  aria-label={`${expanded.has(row.id) ? 'Collapse' : 'Expand'} log line`}
+                  onclick={() => toggleLine(row.id)}
+                  >{expanded.has(row.id) ? 'Less ↑' : 'More ↓'}</button
+                >
+              </span>
             {:else}
               <span class="flex min-w-0">
                 {@render treeGuide(depth, joinsAbove, continuesBelow)}

@@ -1,11 +1,13 @@
 /** Define the journal events shared by workflows, the server, and the console. */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TokenUsage } from './usage.ts';
+import type { JsonValue } from './runtime.ts';
 
 export type RunlingEventPayload =
   | { type: 'workflow.resumed'; attempt: number }
   | { type: 'conversation.started' }
   | { type: 'task.linked'; channelId: string; taskId: string }
+  | { type: 'task.state'; taskId: string; state: { [key: string]: JsonValue } }
   | {
       type: 'task.activity';
       channelId: string;
@@ -142,6 +144,9 @@ export const observeRunlingEvents = <T>(listener: RunlingEventListener, work: ()
   listeners.run([...(listeners.getStore() ?? []), listener], work);
 
 export const withRunlingActivity = <T>(id: string, work: () => T): T => activity.run(id, work);
+
+/** Return the active task ID for context-bound observations. */
+export const currentRunlingActivity = (): string | undefined => activity.getStore();
 
 export const bindRunlingContext = <Args extends unknown[], Result>(
   work: (...args: Args) => Result

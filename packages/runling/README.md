@@ -116,8 +116,11 @@ Select a run to read its recorded log lines and task milestones. The **Log** vie
 and follows new lines. Scroll up to pause following, then select **Follow latest**
 to return to the bottom. Large logs first show the latest 500 lines; select
 **Show earlier logs** to read more. Use the **Timeline** tab to inspect task
-timing. Open **Run details** for the input, result, and token usage.
-Long log lines show up to four rows. Select a long line to expand or collapse it.
+timing. On wide screens, the log and details appear side by side. Select a task
+reference or agent name in the log to show its details on the right. Close those
+details to see the run input, result, and token usage. On smaller screens, open
+**Run details** for that data. Long log lines show up to four rows. Select **More** or **Less**
+to expand or collapse a line.
 For a running run with active work, the console shows how long it has been
 since the last recorded event once that gap reaches two minutes.
 
