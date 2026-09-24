@@ -427,7 +427,7 @@ func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 	}
 	h.userMu.Unlock()
 
-	coreUsers, err := h.api.core.GetUsers(h.ctx, ids)
+	coreUsers, err := h.api.core.GetUserReferences(h.ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +441,9 @@ func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 	for i, id := range ids {
 		user := coreUsers[i]
 		if user == nil {
-			user = core.DeletedUserReference(id)
+			// An absent profile can be a projection catch-up gap. Only the user
+			// projection can identify an account-deletion tombstone.
+			continue
 		}
 		summary, err := userSummaryWithPresence(h.ctx, h.api, user, &apiv1.ImageTransformOptions{
 			Width:  int32(avatarWidth),
