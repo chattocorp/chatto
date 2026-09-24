@@ -8,6 +8,15 @@ import {
 } from './registry.svelte';
 import { queryClient } from '$lib/query/client';
 import { serverStorageKey } from '$lib/storage/serverStorage';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+
+const accountFields = {
+	displayName: 'Account',
+	presenceStatus: PresenceStatus.ONLINE,
+	hasVerifiedEmail: false,
+	hasPassword: true,
+	viewerCanDeleteAccount: true
+};
 
 const STORAGE_KEY = 'chatto:instances';
 
@@ -174,7 +183,11 @@ describe('ServerRegistry', () => {
 			);
 			registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
 			registry.getStore('remote').currentUser.user = { id: 'remote-user' } as never;
-			registry.getStore('origin').currentUser.user = { id: 'origin-user' } as never;
+			registry.getStore('origin').currentUser.accept({
+				...accountFields,
+				id: 'origin-user',
+				login: 'origin'
+			});
 
 			expect(registry.firstAuthenticatedServerId()).toBe('origin');
 			expect(registry.firstAuthenticatedServerId('origin')).toBe('remote');
@@ -418,6 +431,7 @@ describe('ServerRegistry', () => {
 			const remoteStore = registry.getStore('remote');
 
 			registry.authenticateOriginCookie({
+				...accountFields,
 				id: 'new-origin-user',
 				login: 'new-origin-login'
 			});
@@ -453,7 +467,7 @@ describe('ServerRegistry', () => {
 			);
 			const originStore = registry.getStore('origin');
 
-			registry.authenticateOriginCookie({ id: 'new-user', login: 'new-login' });
+			registry.authenticateOriginCookie({ ...accountFields, id: 'new-user', login: 'new-login' });
 
 			expect(registry.getStore('origin')).not.toBe(originStore);
 			expect(registry.getServer('origin')).toMatchObject({
@@ -466,12 +480,16 @@ describe('ServerRegistry', () => {
 		it('keeps the origin store when the cookie still belongs to the same account', async () => {
 			const registry = await createRegistry();
 			registry.removeAll();
-			registry.addServer(makeServer({
-				id: 'origin', url: window.location.origin, userId: 'same-user'
-			}));
+			registry.addServer(
+				makeServer({
+					id: 'origin',
+					url: window.location.origin,
+					userId: 'same-user'
+				})
+			);
 			const originStore = registry.getStore('origin');
 
-			registry.authenticateOriginCookie({ id: 'same-user', login: 'same-login' });
+			registry.authenticateOriginCookie({ ...accountFields, id: 'same-user', login: 'same-login' });
 
 			expect(registry.getStore('origin')).toBe(originStore);
 		});
@@ -637,15 +655,18 @@ describe('ServerRegistry', () => {
 			const refreshStarted = new Promise<void>((resolve) => {
 				signalRefreshStarted = resolve;
 			});
-			vi.stubGlobal('fetch', vi.fn((input: string | URL | Request) => {
-				if (!String(input).endsWith('/oauth/token')) {
-					return Promise.resolve(new Response('', { status: 503 }));
-				}
-				signalRefreshStarted?.();
-				return new Promise<Response>((resolve) => {
-					finishRefresh = resolve;
-				});
-			}));
+			vi.stubGlobal(
+				'fetch',
+				vi.fn((input: string | URL | Request) => {
+					if (!String(input).endsWith('/oauth/token')) {
+						return Promise.resolve(new Response('', { status: 503 }));
+					}
+					signalRefreshStarted?.();
+					return new Promise<Response>((resolve) => {
+						finishRefresh = resolve;
+					});
+				})
+			);
 			serverRegistry.addServer(renewableServer());
 
 			const renewal = serverRegistry.renewServerAuthentication('renewable', true);
@@ -658,8 +679,9 @@ describe('ServerRegistry', () => {
 				token: null,
 				refreshToken: null
 			});
-			expect(JSON.parse(localStorage.getItem(authenticationStorageKey('renewable')) ?? 'null'))
-				.toMatchObject({ token: null, refreshToken: null });
+			expect(
+				JSON.parse(localStorage.getItem(authenticationStorageKey('renewable')) ?? 'null')
+			).toMatchObject({ token: null, refreshToken: null });
 		});
 
 		it("does not renew another tab's signed-out bearer session", async () => {
@@ -673,8 +695,9 @@ describe('ServerRegistry', () => {
 			});
 
 			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBeNull();
-			expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token')))
-				.toHaveLength(0);
+			expect(
+				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
+			).toHaveLength(0);
 			expect(serverRegistry.getServer('renewable')).toMatchObject({
 				token: null,
 				refreshToken: null

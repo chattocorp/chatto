@@ -3,7 +3,6 @@
   import { resolve } from '$app/paths';
   import { createPresenceAPI } from '$lib/api-client/presence';
   import { createAccountAPI } from '$lib/api-client/account';
-  import { clearCachedUser } from '$lib/auth/loadAuth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
   import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
@@ -57,7 +56,6 @@
       if (!serverId || !userId) return;
       const current = serverRegistry.tryGetStore(serverId)?.currentUser;
       if (current?.user?.id !== userId || current.verifiedUserId !== userId) return;
-      clearCachedUser();
       serverRegistry.clearServerAuthentication(serverId);
       const remainingServerId = serverRegistry.firstAuthenticatedServerId(serverId);
       hardRedirectAfterSignOut(

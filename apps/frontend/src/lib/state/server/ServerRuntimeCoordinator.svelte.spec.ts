@@ -115,13 +115,14 @@ describe('ServerRuntimeCoordinator', () => {
     });
   });
 
-  it('installs the origin viewer before the initial transport reconciliation', async () => {
-    const { unmount } = render(ServerRuntimeCoordinator, { props: { user: originUser } });
+  it('uses the account owner without changing it on mount or unmount', async () => {
     const origin = mocks.stores.get('origin')!;
+    origin.currentUser = { user: originUser, loading: false };
+    const { unmount } = render(ServerRuntimeCoordinator);
 
     expect(origin.currentUser.user).toMatchObject({
       id: 'origin-user',
-      presenceStatus: PresenceStatus.ONLINE
+      presenceStatus: PresenceStatus.AWAY
     });
     expect(origin.currentUser.loading).toBe(false);
     await vi.waitFor(() =>
@@ -135,7 +136,7 @@ describe('ServerRuntimeCoordinator', () => {
     );
 
     unmount();
-    expect(origin.currentUser.user).toBeUndefined();
+    expect(origin.currentUser.user).toBe(originUser);
   });
 
   it('hydrates a restored remote-only session without an active chat route', async () => {
@@ -143,7 +144,7 @@ describe('ServerRuntimeCoordinator', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.stores.delete('origin');
 
-    render(ServerRuntimeCoordinator, { props: { user: null } });
+    render(ServerRuntimeCoordinator);
 
     await vi.waitFor(() =>
       expect(mocks.synchronizeAuthenticatedServers.mock.calls[0]).toEqual([
@@ -154,7 +155,7 @@ describe('ServerRuntimeCoordinator', () => {
   });
 
   it('defers transport while keeping recovery available for the saved view', async () => {
-    render(ServerRuntimeCoordinator, { props: { user: null, deferConnections: true } });
+    render(ServerRuntimeCoordinator, { props: { deferConnections: true } });
 
     await vi.waitFor(() =>
       expect(mocks.synchronizeAuthenticatedServers).toHaveBeenCalledWith([], null)
@@ -164,7 +165,7 @@ describe('ServerRuntimeCoordinator', () => {
   });
 
   it('clears a remote session when its server confirms termination', async () => {
-    render(ServerRuntimeCoordinator, { props: { user: originUser } });
+    render(ServerRuntimeCoordinator);
     await vi.waitFor(() =>
       expect(mocks.onSessionTerminated).toHaveBeenCalledWith('remote', expect.any(Function))
     );
@@ -177,7 +178,7 @@ describe('ServerRuntimeCoordinator', () => {
     mocks.originServerId = null;
     mocks.servers = [{ id: 'remote' }];
     mocks.stores = new SvelteMap([['remote', store('remote')]]);
-    render(ServerRuntimeCoordinator, { props: { user: null } });
+    render(ServerRuntimeCoordinator);
     mocks.synchronizeAuthenticatedServers.mockClear();
 
     mocks.stores.set(

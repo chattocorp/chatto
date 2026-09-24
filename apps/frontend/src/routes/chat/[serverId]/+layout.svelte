@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { supportsSavedViewRoute } from '$lib/navigation/chatRoomRoute';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
@@ -28,7 +26,7 @@
       store={serverStore}
     >
       <Chrome>
-        {#if serverStore.realtimeSync.hasDisplayableView && (!serverStore.startupPresentationOnly || supportsSavedViewRoute(page.route.id))}
+        {#if serverStore.realtimeSync.hasDisplayableView}
           <div class="contents" aria-busy={serverStore.realtimeSync.isRecoveringSnapshot}>
             {@render children?.()}
           </div>

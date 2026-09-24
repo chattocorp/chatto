@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { render } from 'vitest-browser-svelte';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 
 const mocks = vi.hoisted(() => ({
   viewer: vi.fn()
@@ -8,6 +12,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('$app/state', () => ({
   page: { route: { id: '/chat/[serverId]/[roomId]' }, params: { serverId: '-' } }
+}));
+vi.mock('$lib/auth/legacyCookieMigration', () => ({
+  migrateLegacyOriginCookieSession: async () => false
 }));
 
 vi.mock('$lib/api-client/viewer', async (original) => ({
@@ -86,7 +93,15 @@ describe('origin startup recovery', () => {
         expect(serverRegistry.getStore('origin').currentUser.verifiedUserId).toBeNull();
       }
 
-      serverRegistry.authenticateOriginCookie({ id: 'U1', login: 'one' });
+      serverRegistry.authenticateOriginCookie({
+        id: 'U1',
+        login: 'one',
+        displayName: 'One',
+        presenceStatus: PresenceStatus.ONLINE,
+        hasVerifiedEmail: false,
+        hasPassword: true,
+        viewerCanDeleteAccount: true
+      });
 
       const origin = serverRegistry.originServer!;
       expect(serverRegistry.getStore(origin.id).currentUser.verifiedUserId).toBe('U1');
@@ -102,20 +117,21 @@ describe('origin startup recovery', () => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
       mocks.viewer
         .mockRejectedValueOnce(new Error('offline'))
+        .mockRejectedValueOnce(new Error('offline'))
         .mockResolvedValueOnce({ id: 'U1', login: 'one', displayName: 'One' });
       const view = render(ServerRuntimeCoordinator, {
-        props: { user: null, deferConnections: true }
+        props: { deferConnections: true }
       });
       try {
         await serverRegistry.recoverServer('origin');
         expect(store.startupPresentationOnly).toBe(true);
         expect(store.isAuthenticated).toBe(false);
-        expect(mocks.viewer).toHaveBeenCalledOnce();
+        expect(mocks.viewer).toHaveBeenCalledTimes(2);
 
         if (trigger === 'online') window.dispatchEvent(new Event('online'));
 
         await vi.waitFor(() => expect(store.isAuthenticated).toBe(true), { timeout: 4_000 });
-        expect(mocks.viewer).toHaveBeenCalledTimes(2);
+        expect(mocks.viewer).toHaveBeenCalledTimes(3);
         expect(store.currentUser.verifiedUserId).toBe('U1');
         expect(store.projection.rooms.has('R1')).toBe(true);
       } finally {
@@ -126,7 +142,7 @@ describe('origin startup recovery', () => {
 
   it('keeps a disk view read-only after a transient viewer failure', async () => {
     const store = retainedStore();
-    mocks.viewer.mockRejectedValueOnce(new Error('offline'));
+    mocks.viewer.mockRejectedValue(new Error('offline'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await serverRegistry.recoverServer('origin');
@@ -155,6 +171,47 @@ describe('origin startup recovery', () => {
     expect(renew).toHaveBeenCalledOnce();
   });
 
+  it('shares the account request between route loading and saved-view recovery', async () => {
+    const store = retainedStore();
+    const { loadCurrentUser } = await import('$lib/auth/loadAuth');
+    let finish!: (user: { id: string; login: string; displayName: string }) => void;
+    mocks.viewer.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    vi.spyOn(ServerConnection.prototype, 'maintainBrowserSession').mockImplementation(() => {});
+    const route = loadCurrentUser();
+    const recovery = serverRegistry.recoverServer('origin');
+    expect(mocks.viewer).toHaveBeenCalledOnce();
+    expect(store.currentUser.user).toBeUndefined();
+    finish({ id: 'U1', login: 'one', displayName: 'One' });
+    const [user] = await Promise.all([route, recovery]);
+    expect(user).toBe(store.currentUser.user);
+    expect(store.isAuthenticated).toBe(true);
+    expect(mocks.viewer).toHaveBeenCalledOnce();
+  });
+
+  it('does not publish a response after the server account is cleared', async () => {
+    const store = retainedStore();
+    let finish!: (user: { id: string; login: string; displayName: string }) => void;
+    mocks.viewer.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const pending = serverRegistry.recoverServer('origin');
+    await vi.waitFor(() => expect(mocks.viewer).toHaveBeenCalledOnce());
+    serverRegistry.clearServerAuthentication('origin');
+    finish({ id: 'U1', login: 'one', displayName: 'One' });
+    await pending;
+    expect(store.currentUser.user).toBeUndefined();
+    expect(serverRegistry.getStore('origin').currentUser.user).toBeUndefined();
+    expect(serverRegistry.getStore('origin').isAuthenticated).toBe(false);
+  });
+
   it('discards the previous account view when the verified viewer differs', async () => {
     const store = retainedStore();
     const renew = vi
@@ -170,6 +227,47 @@ describe('origin startup recovery', () => {
     expect(serverRegistry.getStore('origin').currentUser.verifiedUserId).toBe('U2');
     expect(serverRegistry.getStore('origin').isAuthenticated).toBe(true);
     expect(renew).toHaveBeenCalledOnce();
+  });
+
+  it('does not let an older successful account response undo authentication loss', async () => {
+    const store = retainedStore();
+    let finish!: (user: { id: string; login: string; displayName: string }) => void;
+    mocks.viewer.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const pending = serverRegistry.recoverServer('origin');
+    await vi.waitFor(() => expect(mocks.viewer).toHaveBeenCalledOnce());
+    serverRegistry.handleAuthenticationRequired('origin');
+    finish({ id: 'U1', login: 'one', displayName: 'One' });
+    await pending;
+    expect(store.currentUser.user).toBeUndefined();
+    expect(store.isAuthenticated).toBe(false);
+    expect(serverRegistry.getServer('origin')?.reauthRequiredAt).not.toBeNull();
+  });
+
+  it('applies the same account boundary to live viewer resources', () => {
+    const previous = retainedStore();
+    vi.spyOn(ServerConnection.prototype, 'maintainBrowserSession').mockImplementation(() => {});
+    previous.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        resource: new RealtimeResourceUpdate({
+          resource: {
+            case: 'viewer',
+            value: new GetViewerResponse({
+              user: { profile: { id: 'U2', login: 'two', displayName: 'Two' } }
+            })
+          }
+        })
+      })
+    );
+    const current = serverRegistry.getStore('origin');
+    expect(current).not.toBe(previous);
+    expect(previous.currentUser.user).toBeUndefined();
+    expect(current.currentUser.user?.id).toBe('U2');
+    expect(current.projection.rooms.has('R1')).toBe(false);
   });
 
   it('clears the saved private view after the viewer is rejected', async () => {

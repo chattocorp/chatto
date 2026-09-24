@@ -99,7 +99,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
     return {
       participantIds: projectedRoom?.memberUserIds ?? [],
       participants: currentStore.projectedMembersForRoom(getProps().roomId),
-      currentUserId: currentStore.currentUser.user?.id ?? null
+      currentUserId: currentStore.currentUser.user?.id ?? currentStore.savedView?.userId ?? null
     };
   });
 

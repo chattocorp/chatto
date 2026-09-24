@@ -22,6 +22,19 @@ their existing owners. Timeline rows can contain render snapshots, but they do
 not form another profile cache. Server-scoped profile views resolve current
 fields from the shared store. Private admin fields are outside this store.
 
+The signed-in account has a separate owner: one `CurrentUserState` per server.
+Only complete live viewer responses populate it. Public profiles and saved
+chat text cannot supply account data, mark it loaded, or establish session
+validity. Routes and recovery share its pending account request. The registry
+checks account changes and clears the previous account's private state before
+publishing a new account. Reset and disposal reject late account responses.
+Route loaders and mounted transport components do not keep another account
+cache or clear account data when they unmount.
+
+Account settings wait for this owner's data before they initialise edit buffers.
+A refresh preserves those buffers. A failed refresh can retain the complete
+account for display; an authentication rejection still disables private actions.
+
 Profile contexts are read-only views of that owner. API adapters write directly
 to it; there are no separate summary caches or profile-priming hooks.
 

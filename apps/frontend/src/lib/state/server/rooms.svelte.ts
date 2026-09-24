@@ -9,6 +9,7 @@ import { SvelteSet } from 'svelte/reactivity';
 type ProjectionReadiness = {
   hasUsableProjection: boolean;
   isRecoveringSnapshot?: boolean;
+  restoredFromDisk?: boolean;
 };
 
 type NotificationCountState = {
@@ -93,8 +94,11 @@ export function avatarUserFromDirectoryMember(
  */
 export class NavigationStore {
   get #readable(): boolean {
-    return this.readiness.hasUsableProjection ||
-      (this.readiness.isRecoveringSnapshot === true && this.projection.viewer !== null);
+    return (
+      this.readiness.hasUsableProjection ||
+      (this.readiness.isRecoveringSnapshot === true &&
+        (this.projection.viewer !== null || this.readiness.restoredFromDisk === true))
+    );
   }
 
   readonly #rooms = $derived.by((): RoomsListItem[] => {

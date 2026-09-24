@@ -1,315 +1,74 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Code, ConnectError } from '@connectrpc/connect';
 
-const {
-  getCurrentUserViaConnectMock,
-  clearOriginAuthenticationMock,
-  handleAuthenticationRequiredMock,
-  clearAuthenticationRequiredMock,
-  authenticateOriginCookieMock,
-  tryGetStoreMock,
-  revokeLegacyOriginBearerSessionMock,
-  migrateLegacyOriginCookieSessionMock
-} = vi.hoisted(() => ({
-  getCurrentUserViaConnectMock: vi.fn(),
-  clearOriginAuthenticationMock: vi.fn(),
-  handleAuthenticationRequiredMock: vi.fn(),
-  clearAuthenticationRequiredMock: vi.fn(),
-  authenticateOriginCookieMock: vi.fn(),
-  tryGetStoreMock: vi.fn(),
-  revokeLegacyOriginBearerSessionMock: vi.fn(),
-  migrateLegacyOriginCookieSessionMock: vi.fn()
+const mocks = vi.hoisted(() => ({
+  load: vi.fn(),
+  clear: vi.fn(),
+  store: { currentUser: { user: undefined as { id: string } | undefined } }
 }));
-
-vi.mock('$app/environment', () => ({
-  browser: true
-}));
-
-vi.mock('$app/paths', () => ({
-  resolve: (path: string) => path
-}));
-
-vi.mock('$lib/api-client/viewer', () => ({
-  getCurrentUserViaConnect: getCurrentUserViaConnectMock
-}));
-
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    originConnectBaseUrl: '/api/connect',
-    originClient: {}
-  }
-}));
-
+vi.mock('$app/environment', () => ({ browser: true }));
+vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    originServer: { id: 'origin', token: 'legacy-origin-token' },
-    tryGetStore: tryGetStoreMock,
-    authenticateOriginCookie: authenticateOriginCookieMock,
-    clearOriginAuthentication: clearOriginAuthenticationMock,
-    handleAuthenticationRequired: handleAuthenticationRequiredMock,
-    clearAuthenticationRequired: clearAuthenticationRequiredMock
+    originServer: { id: 'origin' },
+    getStore: () => ({ currentUser: { load: mocks.load } }),
+    tryGetStore: () => mocks.store,
+    clearOriginAuthentication: mocks.clear
   }
 }));
 
-vi.mock('./originBearerMigration', () => ({
-  revokeLegacyOriginBearerSession: revokeLegacyOriginBearerSessionMock
-}));
+import { loadCurrentUser } from './loadAuth';
+import { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } from './signOut';
 
-vi.mock('./legacyCookieMigration', () => ({
-  migrateLegacyOriginCookieSession: migrateLegacyOriginCookieSessionMock
-}));
-
-const user = {
-  id: 'U1',
-  login: 'alice',
-  displayName: 'Alice',
-  avatarUrl: null,
-  bio: null,
-  presenceStatus: 'ONLINE',
-  hasVerifiedEmail: true,
-  settings: { timezone: 'UTC', timeFormat: '24h' }
-};
-
-async function loadModule() {
-  vi.resetModules();
-  return import('./loadAuth');
-}
-
-describe('loadCurrentUser', () => {
+describe('route account loading', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    tryGetStoreMock.mockReset();
-    revokeLegacyOriginBearerSessionMock.mockResolvedValue(undefined);
-    migrateLegacyOriginCookieSessionMock.mockResolvedValue(false);
+    mocks.load.mockResolvedValue(undefined);
+    mocks.store = { currentUser: { user: undefined } };
+    cancelExplicitSignOutRedirect();
   });
 
-  it('refreshes from the server on each call', async () => {
-    const { loadCurrentUser } = await loadModule();
-    getCurrentUserViaConnectMock
-      .mockResolvedValueOnce(user)
-      .mockResolvedValueOnce({ ...user, displayName: 'Alice Fresh' });
+  it('reads the shared account, including data recovered without a route load', async () => {
+    mocks.store.currentUser.user = { id: 'U1' };
+    expect(await loadCurrentUser()).toEqual({ id: 'U1' });
+    expect(mocks.load).toHaveBeenCalledOnce();
+  });
 
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(await loadCurrentUser()).toEqual({ ...user, displayName: 'Alice Fresh' });
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledTimes(2);
-    expect(clearAuthenticationRequiredMock).toHaveBeenCalledWith('origin');
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledWith({
-      baseUrl: '/api/connect',
-      bearerToken: null
+  it('reads the replacement store after an account switch', async () => {
+    mocks.store.currentUser.user = { id: 'U1' };
+    mocks.load.mockImplementationOnce(async () => {
+      mocks.store = { currentUser: { user: { id: 'U2' } } };
     });
-    expect(authenticateOriginCookieMock).toHaveBeenCalledTimes(2);
+    expect(await loadCurrentUser()).toEqual({ id: 'U2' });
   });
 
-  it('does not restore origin auth after sign-out starts during a viewer request', async () => {
-    const { loadCurrentUser } = await loadModule();
-    const { beginExplicitSignOutRedirect, cancelExplicitSignOutRedirect } =
-      await import('./signOut');
-    let resolveViewer: (value: typeof user) => void = () => {};
-    getCurrentUserViaConnectMock.mockReturnValue(
-      new Promise((resolve) => {
-        resolveViewer = resolve;
-      })
-    );
+  it('has no route cache that can restore an account after the owner clears it', async () => {
+    mocks.store.currentUser.user = { id: 'U1' };
+    expect(await loadCurrentUser()).toEqual({ id: 'U1' });
+    mocks.store.currentUser.user = undefined;
+    expect(await loadCurrentUser()).toBeNull();
+  });
 
+  it('does not request an account during explicit sign-out', async () => {
+    beginExplicitSignOutRedirect();
     try {
-      const pending = loadCurrentUser();
-      beginExplicitSignOutRedirect();
-      resolveViewer(user);
-
-      expect(await pending).toBeNull();
-      expect(authenticateOriginCookieMock).not.toHaveBeenCalled();
-      expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
+      expect(await loadCurrentUser()).toBeNull();
+      expect(mocks.load).not.toHaveBeenCalled();
+      expect(mocks.clear).toHaveBeenCalledOnce();
     } finally {
       cancelExplicitSignOutRedirect();
     }
   });
 
-  it('discards a legacy origin bearer after cookie authentication succeeds', async () => {
-    getCurrentUserViaConnectMock.mockResolvedValueOnce(user);
-    const { loadCurrentUser } = await loadModule();
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledOnce();
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledWith(
-      expect.objectContaining({ bearerToken: null })
-    );
-    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
-    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledOnce();
-  });
-
-  it('keeps legacy bearer state when server-side revocation fails', async () => {
-    getCurrentUserViaConnectMock.mockResolvedValueOnce(user).mockResolvedValueOnce(user);
-    revokeLegacyOriginBearerSessionMock
-      .mockRejectedValueOnce(new Error('unavailable'))
-      .mockResolvedValueOnce(undefined);
-    const { loadCurrentUser } = await loadModule();
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledTimes(2);
-    expect(authenticateOriginCookieMock).toHaveBeenCalledOnce();
-    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
-  });
-
-  it('revokes a stored origin bearer instead of using it after cookie authentication fails', async () => {
-    getCurrentUserViaConnectMock.mockRejectedValueOnce({ message: 'authentication required' });
-    const { loadCurrentUser } = await loadModule();
-
-    expect(await loadCurrentUser()).toBeNull();
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledOnce();
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledWith({
-      baseUrl: '/api/connect',
-      bearerToken: null
+  it('does not return a retained account when sign-out starts during loading', async () => {
+    mocks.store.currentUser.user = { id: 'U1' };
+    mocks.load.mockImplementationOnce(async () => {
+      beginExplicitSignOutRedirect();
     });
-    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledOnce();
-    expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
-  });
-
-  it('migrates the previous browser cookie and retries authentication once', async () => {
-    getCurrentUserViaConnectMock
-      .mockRejectedValueOnce({ message: 'authentication required' })
-      .mockResolvedValueOnce(user);
-    migrateLegacyOriginCookieSessionMock.mockResolvedValueOnce(true);
-    const { loadCurrentUser } = await loadModule();
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(migrateLegacyOriginCookieSessionMock).toHaveBeenCalledOnce();
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledTimes(2);
-    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
-    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
-  });
-
-  it('still verifies a migrated cookie after an earlier transient viewer error', async () => {
-    getCurrentUserViaConnectMock
-      .mockRejectedValueOnce(new Error('network'))
-      .mockRejectedValueOnce({ message: 'authentication required' })
-      .mockResolvedValueOnce(user);
-    migrateLegacyOriginCookieSessionMock.mockResolvedValueOnce(true);
-    const { loadCurrentUser } = await loadModule();
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(getCurrentUserViaConnectMock).toHaveBeenCalledTimes(3);
-    expect(migrateLegacyOriginCookieSessionMock).toHaveBeenCalledOnce();
-    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
-  });
-
-  it('retains local authority when legacy cookie migration is temporarily unavailable', async () => {
-    getCurrentUserViaConnectMock.mockRejectedValue({ message: 'authentication required' });
-    migrateLegacyOriginCookieSessionMock.mockRejectedValue(new Error('unavailable'));
-    const { loadCurrentUser } = await loadModule();
-
-    expect(await loadCurrentUser()).toBeNull();
-    expect(migrateLegacyOriginCookieSessionMock).toHaveBeenCalledTimes(2);
-    expect(revokeLegacyOriginBearerSessionMock).not.toHaveBeenCalled();
-    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
-  });
-
-  it('keeps stored bearer authority when revocation after a failed cookie probe is unavailable', async () => {
-    getCurrentUserViaConnectMock.mockRejectedValueOnce({ message: 'authentication required' });
-    revokeLegacyOriginBearerSessionMock.mockRejectedValueOnce(new Error('unavailable'));
-    const { loadCurrentUser } = await loadModule();
-
-    expect(await loadCurrentUser()).toBeNull();
-    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledOnce();
-    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
-  });
-
-  it('keeps the cached user when a later refresh errors', async () => {
-    const { loadCurrentUser } = await loadModule();
-    getCurrentUserViaConnectMock
-      .mockResolvedValueOnce(user)
-      .mockRejectedValueOnce(new Error('not found'))
-      .mockRejectedValueOnce(new Error('still not found'));
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(await loadCurrentUser()).toEqual(user);
-  });
-
-  it.each([true, false])(
-    'uses a recovered viewer as a fallback only when verified: %s',
-    async (verified) => {
-      const { loadCurrentUser } = await loadModule();
-      tryGetStoreMock.mockReturnValue({
-        isAuthenticated: verified,
-        currentUser: { user, verifiedUserId: verified ? user.id : null }
-      });
-      getCurrentUserViaConnectMock.mockRejectedValue(new Error('offline'));
-
-      expect(await loadCurrentUser()).toEqual(verified ? user : null);
-      expect(authenticateOriginCookieMock).not.toHaveBeenCalled();
+    try {
+      expect(await loadCurrentUser()).toBeNull();
+      expect(mocks.clear).toHaveBeenCalledOnce();
+    } finally {
+      cancelExplicitSignOutRedirect();
     }
-  );
-
-  it('keeps the cached user and marks reauth required on authentication-required errors', async () => {
-    const { loadCurrentUser } = await loadModule();
-    getCurrentUserViaConnectMock
-      .mockResolvedValueOnce(user)
-      .mockRejectedValueOnce({ message: 'authentication required' });
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(handleAuthenticationRequiredMock).toHaveBeenCalledWith('origin');
-    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
-  });
-
-  it('retains a recovered viewer across repeated reauthentication failures', async () => {
-    const { loadCurrentUser } = await loadModule();
-    const store = {
-      isAuthenticated: true,
-      currentUser: { user, verifiedUserId: user.id }
-    };
-    tryGetStoreMock.mockReturnValue(store);
-    handleAuthenticationRequiredMock.mockImplementationOnce(() => {
-      store.isAuthenticated = false;
-    });
-    getCurrentUserViaConnectMock.mockRejectedValue({ message: 'authentication required' });
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(store.isAuthenticated).toBe(false);
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
-    expect(authenticateOriginCookieMock).not.toHaveBeenCalled();
-  });
-
-  it('clears origin auth on first-load authentication-required errors', async () => {
-    const { loadCurrentUser } = await loadModule();
-    getCurrentUserViaConnectMock.mockRejectedValueOnce({ message: 'authentication required' });
-
-    expect(await loadCurrentUser()).toBeNull();
-    expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
-    expect(handleAuthenticationRequiredMock).not.toHaveBeenCalled();
-  });
-
-  it('returns null when the first load cannot determine a user', async () => {
-    const { loadCurrentUser } = await loadModule();
-    getCurrentUserViaConnectMock.mockRejectedValue(new Error('unreachable'));
-
-    expect(await loadCurrentUser()).toBeNull();
-  });
-
-  it('does not clear origin auth for transient errors after retry', async () => {
-    const { loadCurrentUser } = await loadModule();
-    getCurrentUserViaConnectMock
-      .mockRejectedValueOnce(new Error('network'))
-      .mockResolvedValueOnce(user);
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
-  });
-
-  it('keeps cached auth state for typed unavailable errors containing auth wording', async () => {
-    const { loadCurrentUser } = await loadModule();
-    const unavailable = new ConnectError(
-      'authentication required: storage unavailable',
-      Code.Unavailable
-    );
-    getCurrentUserViaConnectMock
-      .mockResolvedValueOnce(user)
-      .mockRejectedValueOnce(unavailable)
-      .mockRejectedValueOnce(unavailable);
-
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(await loadCurrentUser()).toEqual(user);
-    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
-    expect(handleAuthenticationRequiredMock).not.toHaveBeenCalled();
   });
 });

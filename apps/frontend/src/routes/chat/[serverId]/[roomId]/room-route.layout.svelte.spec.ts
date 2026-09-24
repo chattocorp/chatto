@@ -60,8 +60,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
@@ -174,6 +174,14 @@ beforeEach(() => {
 });
 
 describe('room route layout access handling', () => {
+  it('renders saved rooms without constructing a current account', () => {
+    mocks.currentUserId = '';
+    mocks.roomsStore.currentUserId = '';
+    mocks.realtimeSync!.reset();
+    mocks.realtimeSync!.restoreSavedProjection();
+    const { container } = renderLayout();
+    expect(q(container, '[data-testid="room-layout-room"]')).not.toBeNull();
+  });
   it('keeps the room instance mounted while the snapshot viewer is unavailable', async () => {
     const { container } = renderLayout();
     const roomElement = q(container, '[data-testid="room-layout-room"]');

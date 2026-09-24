@@ -123,9 +123,7 @@
 {#if !standaloneOAuth}
   <GlobalKeyboardShortcuts />
 {/if}
-{#key data.user?.id}
-  <ServerRuntimeCoordinator user={data.user} deferConnections={startupPending} />
-{/key}
+<ServerRuntimeCoordinator deferConnections={startupPending} />
 {#if !startupPending}
   <NotificationSync />
 {/if}

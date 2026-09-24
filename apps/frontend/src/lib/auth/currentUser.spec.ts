@@ -1,14 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrentUserState, type CurrentUser } from './currentUser.svelte';
-
-const { clearCachedUserMock } = vi.hoisted(() => ({
-  clearCachedUserMock: vi.fn()
-}));
-
-vi.mock('./loadAuth', () => ({
-  clearCachedUser: clearCachedUserMock
-}));
+vi.mock('./originViewer', () => ({ getOriginViewer: vi.fn() }));
 
 /**
  * CurrentUserState class structure tests.
@@ -78,10 +71,11 @@ describe('CurrentUserState', () => {
     expect(state.loading).toBe(false);
   });
 
-  it('reads a retained viewer without publishing a changed identity', async () => {
+  it('lets the owner check an account change before publishing it', async () => {
     const savedViewer = { id: 'U1', login: 'alice', displayName: 'Alice' } as CurrentUser;
     const otherViewer = { id: 'U2', login: 'bob', displayName: 'Bob' } as CurrentUser;
     const loadViewer = vi.fn().mockResolvedValue(otherViewer);
+    const onLoaded = vi.fn();
     const state = new CurrentUserState(
       true,
       {
@@ -89,13 +83,15 @@ describe('CurrentUserState', () => {
         baseUrl: 'https://chat.example.test',
         bearerToken: null
       },
-      loadViewer
+      loadViewer,
+      undefined,
+      onLoaded
     );
     state.user = savedViewer;
 
-    const verified = await state.verifyRetainedViewer();
+    await state.load();
 
-    expect(verified).toBe(otherViewer);
+    expect(onLoaded).toHaveBeenCalledWith(otherViewer);
     expect(state.user).toBe(savedViewer);
     expect(state.verifiedUserId).toBeNull();
   });
@@ -128,6 +124,56 @@ describe('CurrentUserState', () => {
     }
   });
 
+  it.each(['reset', 'accept'] as const)('discards a late response after %s', async (boundary) => {
+    let finish!: (user: CurrentUser) => void;
+    const request = new Promise<CurrentUser>((resolve) => {
+      finish = resolve;
+    });
+    const state = new CurrentUserState(
+      false,
+      { baseUrl: '/api/connect', bearerToken: null },
+      () => request
+    );
+    const stale = { id: 'U1', login: 'old' } as CurrentUser;
+    const fresh = { id: 'U2', login: 'new' } as CurrentUser;
+    const pending = state.load();
+    if (boundary === 'reset') state.reset();
+    else state.accept(fresh);
+    finish(stale);
+    await pending;
+    expect(state.user).toBe(boundary === 'reset' ? undefined : fresh);
+  });
+
+  it('retains complete account data on failure and revokes verification on rejection', async () => {
+    const { Code, ConnectError } = await import('@connectrpc/connect');
+    const account = { id: 'U1', login: 'alice' } as CurrentUser;
+    const loader = vi
+      .fn()
+      .mockResolvedValueOnce(account)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new ConnectError('rejected', Code.Unauthenticated));
+    const rejected = vi.fn();
+    const state = new CurrentUserState(
+      false,
+      { baseUrl: '/api/connect', bearerToken: null },
+      loader,
+      rejected
+    );
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await state.load();
+      await state.load();
+      expect(state.user).toBe(account);
+      expect(state.verifiedUserId).toBe('U1');
+      await state.load();
+      expect(state.user).toBe(account);
+      expect(state.verifiedUserId).toBeNull();
+      expect(rejected).toHaveBeenCalledOnce();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('marks auth required without revoking the server session by default', async () => {
     const onAuthenticationRequired = vi.fn();
     const state = new CurrentUserState(true, undefined, undefined, onAuthenticationRequired);
@@ -137,7 +183,6 @@ describe('CurrentUserState', () => {
 
     expect(state.verifiedUserId).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
-    expect(clearCachedUserMock).not.toHaveBeenCalled();
     expect(onAuthenticationRequired).toHaveBeenCalledOnce();
   });
 
@@ -167,7 +212,6 @@ describe('CurrentUserState', () => {
     expect(headers.get('Content-Type')).toBe('application/json');
     expect(headers.get('X-Chatto-Authentication-Mode')).toBe('cookie');
     expect(state.user).toBeUndefined();
-    expect(clearCachedUserMock).toHaveBeenCalledOnce();
     expect(onAuthenticationRequired).not.toHaveBeenCalled();
   });
 });

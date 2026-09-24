@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { onDestroy, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import { page } from '$app/state';
-  import type { CurrentUser } from '$lib/auth/loadAuth';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { eventBusManager } from './eventBus.svelte';
   import { serverRegistry } from './registry.svelte';
@@ -11,10 +9,8 @@
   import { onSessionTerminated } from '$lib/eventBus.svelte';
 
   let {
-    user,
     deferConnections = false
   }: {
-    user?: CurrentUser | null;
     deferConnections?: boolean;
   } = $props();
 
@@ -23,31 +19,6 @@
     // Each store's networkStartupDeferred gate holds recovery until its first paint.
     return untrack(() => startServerRecovery(serverRegistry));
   });
-
-  // The root layout keys this coordinator by origin viewer identity, so the
-  // optional origin viewer is stable for this component lifetime.
-  const originUser = untrack(() => user);
-  const originServerId = serverRegistry.originServer?.id ?? null;
-  const originCurrentUser = originServerId
-    ? serverRegistry.getStore(originServerId).currentUser
-    : null;
-
-  if (originUser && originCurrentUser) {
-    // Install the root-load viewer before creating buses so synchronous
-    // consumers always find the origin server's transport registration.
-    originCurrentUser.user = {
-      ...originUser,
-      presenceStatus: PresenceStatus.ONLINE
-    };
-    originCurrentUser.loading = false;
-
-    onDestroy(() => {
-      if (originCurrentUser.user?.id === originUser.id) {
-        originCurrentUser.user = undefined;
-        originCurrentUser.loading = false;
-      }
-    });
-  }
 
   function realtimeRegistrations() {
     if (deferConnections) return [];

@@ -85,10 +85,23 @@ export const load: LayoutLoad = async ({ url, params, route }) => {
   if (knownOriginServerId && knownOriginServerId !== savedStartupServerId) {
     serverRegistry.startServerNetwork(knownOriginServerId);
   }
+  const serverInfoPromise = originHasBackend
+    ? getPublicServerInfo(url.origin).catch(() => null)
+    : Promise.resolve(null);
+  const userPromise = originHasBackend
+    ? (async () => {
+        if (!serverRegistry.originServer) {
+          const info = await serverInfoPromise;
+          if (!info) return null;
+          await serverRegistry.probeOrigin(false, undefined, info);
+        }
+        return loadCurrentUser();
+      })()
+    : Promise.resolve(null);
   const [, serverInfo, user] = await Promise.all([
     publicLocalePromise ?? preloadPublicLocaleMessages(),
-    originHasBackend ? getPublicServerInfo(url.origin).catch(() => null) : null,
-    originHasBackend ? loadCurrentUser() : null
+    serverInfoPromise,
+    userPromise
   ]);
 
   // Child route loads need a settled origin registry to resolve the "-" URL
@@ -101,7 +114,6 @@ export const load: LayoutLoad = async ({ url, params, route }) => {
     undefined,
     serverInfo ?? undefined
   );
-  if (!user && !retainSavedOrigin) serverRegistry.settleOriginUnauthenticated();
   // A first visit can discover the origin only after the shell requests.
   if (serverRegistry.originServer?.id && serverRegistry.originServer.id !== knownOriginServerId) {
     serverRegistry.startServerNetwork(serverRegistry.originServer.id);

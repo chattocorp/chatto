@@ -12,14 +12,15 @@
   const serverScope = useServerScope();
   const activeServerId = $derived(serverScope.serverId);
 
-  // Wait for the active server projection to contain its viewer prefix before
-  // treating room absence as authoritative.
+  // Saved rooms are display data and do not need an account object. Live room
+  // access waits for the projection and account to belong to the same viewer.
   const serverStore = $derived(serverScope.store);
   const navigation = $derived(serverStore.navigation);
   const ready = $derived(
     !navigation.isInitialLoading &&
-      !!serverStore.currentUser.user?.id &&
-      navigation.currentUserId === serverStore.currentUser.user.id
+      (serverStore.realtimeSync.restoredFromDisk ||
+        (!!serverStore.currentUser.user?.id &&
+          navigation.currentUserId === serverStore.currentUser.user.id))
   );
 
   let threadId = $derived(page.params.threadId);

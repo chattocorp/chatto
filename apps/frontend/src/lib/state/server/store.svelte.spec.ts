@@ -721,7 +721,8 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.messagesForRoom('R1').rootEvents[0]?.event).toMatchObject({
       body: 'Saved message'
     });
-    expect(store.currentUser.user?.displayName).toBe('Alice');
+    expect(store.currentUser.user).toBeUndefined();
+    expect(store.projection.viewer).toBeNull();
     expect(store.startupPresentationOnly).toBe(true);
     expect(store.isAuthenticated).toBe(false);
     const timeline = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)?.value;
@@ -742,7 +743,9 @@ describe('ServerStateStore viewer restoration', () => {
       true
     );
 
-    expect(store.currentUser.user?.id).toBe('U1');
+    expect(store.currentUser.user).toBeUndefined();
+    expect(store.currentUser.loading).toBe(true);
+    expect(store.projection.viewer).toBeNull();
     expect(store.realtimeSync.phase).toBe('stale');
     expect(store.startupPresentationOnly).toBe(true);
     expect(store.isAuthenticated).toBe(false);
@@ -759,6 +762,35 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.isAuthenticated).toBe(false);
     store.networkStartupDeferred = false;
     expect(store.isAuthenticated).toBe(true);
+  });
+
+  it('keeps the complete account separate from saved content and public profiles', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    await store.currentUser.load();
+    const account = store.currentUser.user;
+    store.restoreSavedView(
+      {
+        version: 1,
+        serverId: store.serverId,
+        userId: 'U1',
+        viewerName: 'Old display name',
+        serverName: 'Saved server',
+        savedAt: Date.now(),
+        rooms: [{ id: 'R1', name: 'general', messages: [] }]
+      },
+      true
+    );
+    expect(store.currentUser.user).toBe(account);
+    store.projection.users.set(
+      'U1',
+      new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Public profile' }) })
+    );
+    expect(store.currentUser.user).toBe(account);
+    store.projection.users.delete('U1');
+    expect(store.currentUser.user).toBe(account);
+    store.clearSavedPresentation();
+    expect(store.currentUser.user).toBe(account);
+    expect(store.currentUser.verifiedUserId).toBe(account?.id);
   });
 });
 

@@ -8,6 +8,7 @@ import type { PublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 import { clearAllSavedViews, clearSavedView } from '$lib/storage/savedViews';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
+import type { CurrentUser } from '$lib/api-client/viewer';
 import {
 	ServerCatalog,
 	type ServerRegistration,
@@ -430,9 +431,6 @@ class ServerRegistry {
 		}
 		if (this.originServer) {
 			this.originProbed = true;
-			if (!knownServer) {
-				this.settleOriginUnauthenticated();
-			}
 			return; // Already registered
 		}
 
@@ -527,17 +525,18 @@ class ServerRegistry {
 	}
 
 	/** Install a verified origin viewer and discard any legacy origin bearer session. */
-	authenticateOriginCookie(user: AuthenticatedUserSummary | null = null): void {
+	authenticateOriginCookie(user: CurrentUser): void {
 		if (typeof window === 'undefined') return;
 		this.#installOriginCookie(user);
 		const origin = this.originServer;
-		if (user && origin) {
-			this.getStore(origin.id).currentUser.verifiedUserId = user.id;
+		if (origin) {
+			this.getStore(origin.id).currentUser.accept(user);
+			this.clearAuthenticationRequired(origin.id);
 			serverConnectionManager.originClient.maintainBrowserSession();
 		}
 	}
 
-	#installOriginCookie(user: AuthenticatedUserSummary | null): void {
+	#installOriginCookie(user: CurrentUser): void {
 		const origin = this.originServer;
 		if (!origin) {
 			const originUrl = window.location.origin;
@@ -557,16 +556,16 @@ class ServerRegistry {
 			refreshTokenExpiresAt: null,
 			oauthClientId: null,
 			refreshRequestId: null,
-			userId: user?.id ?? origin.userId,
-			userLogin: user?.login ?? origin.userLogin,
-			userDisplayName: user?.displayName ?? user?.login ?? origin.userDisplayName,
-			userAvatarUrl: user?.avatarUrl ?? origin.userAvatarUrl,
+			userId: user.id,
+			userLogin: user.login,
+			userDisplayName: user.displayName,
+			userAvatarUrl: user.avatarUrl ?? null,
 			reauthRequiredAt: null
 		};
 		// A new cookie viewer must not inherit the previous account's projection
 		// or its realtime cursor, even though both accounts use cookie auth.
 		const previousUserId = origin.userId ?? this.tryGetStore(origin.id)?.currentUser.user?.id;
-		if (user && previousUserId && previousUserId !== user.id) {
+		if (previousUserId && previousUserId !== user.id) {
 			this.#replaceServerAuth(origin.id, cookieSession);
 			this.tryGetStore(origin.id)?.verifyStartupViewer(user.id);
 			return;
@@ -586,7 +585,7 @@ class ServerRegistry {
 			this.#replaceServerAuth(origin.id, cookieSession);
 		}
 		this.originProbed = true;
-		if (user) this.tryGetStore(origin.id)?.verifyStartupViewer(user.id);
+		this.tryGetStore(origin.id)?.verifyStartupViewer(user.id);
 	}
 
 	/** Settle the origin cookie-auth store when root load found no user. */
@@ -596,8 +595,7 @@ class ServerRegistry {
 		if (origin.token !== null) return;
 		const store = this.tryGetStore(origin.id);
 		if (!store) return;
-		store.currentUser.user = undefined;
-		store.currentUser.loading = false;
+		store.currentUser.reset();
 	}
 
 	clearServerAuthentication(id: string, notifyTabs = true): void {
@@ -620,8 +618,7 @@ class ServerRegistry {
 		});
 		const store = this.tryGetStore(id);
 		if (store) {
-			store.currentUser.user = undefined;
-			store.currentUser.loading = false;
+			store.currentUser.reset();
 		}
 	}
 
@@ -651,6 +648,7 @@ class ServerRegistry {
 		this.#persist();
 		const store = this.tryGetStore(id);
 		if (store) {
+			store.currentUser.invalidateVerification();
 			if (store.startupPresentationOnly) {
 				store.clearSavedPresentation();
 				void clearSavedView(id, session.userId ?? undefined);
@@ -873,42 +871,12 @@ class ServerRegistry {
 		});
 
 		const session = this.sessions.ensure(serverId);
+		if (this.isOriginServer(serverId)) return;
 		if (session.token === null) {
-			if (!this.isOriginServer(serverId)) {
-				store.currentUser.user = undefined;
-				store.currentUser.loading = false;
-			}
+			store.currentUser.reset();
 			return;
 		}
-		void store.currentUser
-			.load()
-			.then(() => {
-				if (this.#stores.get(serverId) !== store) return;
-				const user = store.currentUser.user;
-				if (!user || store.currentUser.verifiedUserId !== user.id) return;
-				const currentSession = this.sessions.get(serverId);
-				if (currentSession?.userId && currentSession.userId !== user.id) {
-					this.#replaceServerAuth(serverId, {
-						...currentSession,
-						userId: user.id,
-						userLogin: user.login,
-						userDisplayName: user.displayName,
-						userAvatarUrl: user.avatarUrl ?? null
-					});
-					return;
-				}
-				store.verifyStartupViewer(user.id);
-				this.sessions.update(serverId, {
-					userId: user.id,
-					userLogin: user.login,
-					userDisplayName: user.displayName,
-					userAvatarUrl: user.avatarUrl
-				});
-				this.#persist();
-			})
-			.catch(() => {
-				store.currentUser.loading = false;
-			});
+		if (!store.currentUser.user) void store.currentUser.load();
 	}
 
 	/** Add a server and create its retained state store. Transport ownership is centralized. */
@@ -1049,7 +1017,8 @@ class ServerRegistry {
 			| 'userDisplayName'
 			| 'userAvatarUrl'
 			| 'reauthRequiredAt'
-		>
+		>,
+		startNetwork = true
 	): boolean {
 		if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
 		const previousUserId =
@@ -1072,7 +1041,7 @@ class ServerRegistry {
 		this.sessions.replace(id, data);
 		this.#persistAuthentication(id);
 		this.#persist();
-		this.#createStore(id);
+		this.#createStore(id, startNetwork);
 		return true;
 	}
 
@@ -1162,23 +1131,10 @@ class ServerRegistry {
 		this.startServerNetwork(id);
 		if (store.serverInfo.error !== null) await store.serverInfo.init();
 		if (this.#stores.get(id) !== store || store.serverInfo.error !== null) return;
-		if (this.isOriginServer(id) && store.startupPresentationOnly) {
-			const user = await store.currentUser.verifyRetainedViewer();
-			if (this.#stores.get(id) !== store || !user) return;
-			if (store.savedView?.userId === user.id) {
-				store.currentUser.user = user;
-			}
-			this.authenticateOriginCookie(user);
-			const replacement = this.tryGetStore(id);
-			if (replacement && replacement !== store) {
-				replacement.currentUser.user = user;
-				replacement.currentUser.loading = false;
-			}
-			return;
-		}
 		const session = this.sessions.get(id);
 		if (
-			!session?.token ||
+			!session ||
+			(!this.isOriginServer(id) && !session.token) ||
 			session.reauthRequiredAt !== null ||
 			(store.currentUser.user &&
 				store.currentUser.verifiedUserId !== null &&
@@ -1186,26 +1142,34 @@ class ServerRegistry {
 		)
 			return;
 		await store.currentUser.load();
-		// A removed server or changed credential must not receive stale viewer data.
-		if (
-			this.#stores.get(id) !== store ||
-			this.sessions.get(id)?.token !== session.token ||
-			this.sessions.get(id)?.reauthRequiredAt !== null
-		)
-			return;
-		const user = this.#stores.get(id)?.currentUser.user;
-		if (user && store.currentUser.verifiedUserId === user.id) {
+	}
+
+	/** Check the private-data boundary before publishing a complete account response. */
+	#acceptViewer(id: string, owner: ServerStateStore, user: CurrentUser): void {
+		if (this.#stores.get(id) !== owner) return;
+		if (this.isOriginServer(id)) {
+			this.authenticateOriginCookie(user);
+		} else {
+			const session = this.sessions.get(id);
+			if (!session || session.reauthRequiredAt !== null) return;
 			if (session.userId && session.userId !== user.id) {
-				this.#replaceServerAuth(id, {
-					...session,
-					userId: user.id,
-					userLogin: user.login,
-					userDisplayName: user.displayName,
-					userAvatarUrl: user.avatarUrl ?? null
-				});
-				return;
+				this.#replaceServerAuth(
+					id,
+					{
+						...session,
+						userId: user.id,
+						userLogin: user.login,
+						userDisplayName: user.displayName,
+						userAvatarUrl: user.avatarUrl ?? null
+					},
+					false
+				);
 			}
+			const store = this.#stores.get(id);
+			if (!store) return;
+			store.currentUser.accept(user);
 			store.verifyStartupViewer(user.id);
+			this.startServerNetwork(id);
 			this.sessions.update(id, {
 				userId: user.id,
 				userLogin: user.login,
@@ -1229,8 +1193,15 @@ class ServerRegistry {
 			serverConnection,
 			undefined,
 			() => {
-				this.handleAuthenticationRequired(serverId);
-			}
+				if (
+					this.isOriginServer(serverId) &&
+					!store.currentUser.user &&
+					!store.startupPresentationOnly
+				) {
+					this.clearOriginAuthentication();
+				} else this.handleAuthenticationRequired(serverId);
+			},
+			(user) => this.#acceptViewer(serverId, store, user)
 		);
 		store.networkStartupDeferred = !startNetwork;
 		this.#stores.set(serverId, store);

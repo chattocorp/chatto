@@ -532,7 +532,8 @@ authorization.
 After the saved view paints, the registry starts server discovery and verifies
 the viewer through the existing connection. The root route does not reload.
 This saved startup applies to room and overview routes. Settings and management
-routes load the live viewer before forms mount. Message permalinks use the live timeline.
+routes require live account data or permissions before forms mount. Message
+permalinks use the live timeline.
 The runtime coordinator starts realtime and notification sync when viewer
 verification succeeds. Room and DM selectors keep retained data displayable
 during warm snapshot hydration and retry. Actions stay gated by verified
@@ -540,6 +541,16 @@ authority. Verified origin authentication also starts browser-session renewal.
 The chat root installs origin-session termination handling from the registry's
 verified viewer, even when the route still has no loaded viewer. A changed or
 rejected viewer clears the saved private view.
+
+`CurrentUserState` owns the complete account and one pending account request for
+each server. Route loading and recovery use that owner. Cookie migration and
+transient retries are request policy, with no separate account cache. The
+registry checks identity changes before it publishes the response. Account
+reset, newer live viewer data, and store disposal reject older responses.
+Saved-view restoration populates rooms and message display data only. It never
+constructs a viewer response or changes account data or permissions. Settings
+wait for complete account data; the transport coordinator does not populate
+or clear it. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for

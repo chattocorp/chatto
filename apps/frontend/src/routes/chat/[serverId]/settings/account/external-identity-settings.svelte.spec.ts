@@ -24,7 +24,6 @@ const { mocks } = vi.hoisted(() => ({
     beginExplicitSignOutRedirect: vi.fn(),
     cancelExplicitSignOutRedirect: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
-    clearCachedUser: vi.fn(),
     notifyLogout: vi.fn(),
     clearServerAuthentication: vi.fn()
   }
@@ -71,7 +70,6 @@ vi.mock('$lib/auth/signOut', async (importOriginal) => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
-vi.mock('$lib/auth/loadAuth', () => ({ clearCachedUser: mocks.clearCachedUser }));
 vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
@@ -208,7 +206,6 @@ describe('external identity settings query lifecycle', () => {
 
     await vi.waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
     expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
-    expect(mocks.clearCachedUser).not.toHaveBeenCalled();
     expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
@@ -303,7 +300,6 @@ describe('external identity settings query lifecycle', () => {
     expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
     expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
     expect(mocks.list).toHaveBeenCalledOnce();
-    expect(mocks.clearCachedUser).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
 });

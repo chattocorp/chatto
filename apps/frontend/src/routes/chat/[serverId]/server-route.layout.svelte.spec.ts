@@ -127,22 +127,6 @@ beforeEach(() => {
 });
 
 describe('server route authentication privacy', () => {
-  it.each(['settings/profile', 'manage/server/members'])(
-    'waits for the saved viewer before mounting %s',
-    async (path) => {
-      mocks.routeId = `/chat/[serverId]/${path}`;
-      mocks.servers!.set('origin', { reauthRequiredAt: null, startupPresentationOnly: true });
-      const { container } = render(Layout, {
-        props: { children: testSnippet('<input data-testid="live-form" />') }
-      });
-
-      expect(container.querySelector('[data-testid="live-form"]')).toBeNull();
-      mocks.servers!.set('origin', { reauthRequiredAt: null, startupPresentationOnly: false });
-      await tick();
-      expect(container.querySelector('[data-testid="live-form"]')).not.toBeNull();
-    }
-  );
-
   it('keeps the normal chat view and its draft visible during snapshot replacement', async () => {
     const savedView = {
       version: 1 as const,

@@ -9,7 +9,7 @@ import { createMessageResourcesAPI } from '$lib/api-client/messageResources';
 import { refreshPresencePreference } from '$lib/presenceTracking';
 import { affectsViewerPermissions } from './permissionEvents';
 import { runResetHandlers } from './resetHandlers';
-import { CurrentUserState } from '$lib/auth/currentUser.svelte';
+import { CurrentUserState, type CurrentUser } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPermissions, ViewerData } from './permissions';
@@ -273,7 +273,8 @@ export class ServerStateStore {
     originServer: boolean,
     serverConnection: ServerConnection,
     publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>,
-    onAuthenticationRequired?: () => void
+    onAuthenticationRequired?: () => void,
+    onViewerLoaded?: (user: CurrentUser) => void
   ) {
     this.serverId = registration.id;
     this.#getSession = getSession;
@@ -282,7 +283,6 @@ export class ServerStateStore {
     this.projection = new ServerProjectionStore(
       getUserStore(this.serverId, serverConnection.queryScope)
     );
-    const cookieAuth = this.#cookieAuth;
 
     const notificationAPI = serverConnection.getAPI(createNotificationAPI);
     const voiceCallAPI = serverConnection.getAPI(createVoiceCallAPI);
@@ -294,10 +294,11 @@ export class ServerStateStore {
     const roleAPI = serverConnection.getAPI(createRoleAPI);
     this.#privilegedModeAPI = serverConnection.getAPI(createPrivilegedModeAPI);
     this.currentUser = new CurrentUserState(
-      cookieAuth,
+      originServer,
       serverConnection.apiConfig,
       undefined,
-      onAuthenticationRequired
+      onAuthenticationRequired,
+      onViewerLoaded
     );
     this.serverInfo = new ServerInfoState(registration.url, publicServerInfoLoader);
     this.notifications = new NotificationStore(notificationAPI, (roomId, threadRootId) =>
@@ -414,8 +415,7 @@ export class ServerStateStore {
     this.checkingPermissions = false;
     this.projection.viewer = response;
     const viewer = viewerResponseToState(response);
-    this.currentUser.user = viewer.user;
-    this.currentUser.loading = false;
+    if (!this.currentUser.apply(viewer.user)) return;
     // Mutation and expiry responses are authoritative. Refresh snapshots now,
     // including room-only grants, without waiting for the realtime reconnect.
     this.reconcilePermissions(viewer, true);
@@ -783,7 +783,6 @@ export class ServerStateStore {
     this.#permissionCheckGeneration++;
     this.#messageReconciler.reset();
     this.#serverConnection.invalidatePrivateData();
-    this.currentUser.user = undefined;
     this.permissions = EMPTY_PERMISSIONS;
     this.projection.reset();
     this.resetProjectionMirrors();
@@ -792,14 +791,6 @@ export class ServerStateStore {
 
   /** Populate the normal chat selectors with presentation-only disk data. */
   private restoreSavedProjection(view: SavedView): void {
-    const viewer = new GetViewerResponse({
-      user: { profile: new User({ id: view.userId, displayName: view.viewerName ?? '' }) }
-    });
-    this.projection.viewer = viewer;
-    const viewerState = viewerResponseToState(viewer);
-    this.currentUser.user = viewerState.user;
-    this.currentUser.loading = false;
-    this.setPermissions(viewerState);
     this.serverInfo.name = view.serverName;
     for (const room of view.rooms) {
       this.projection.rooms.set(
@@ -1085,8 +1076,7 @@ export class ServerStateStore {
             removeRegisteredAdminQueries(this.serverId);
           }
           const viewer = viewerResponseToState(response);
-          this.currentUser.user = viewer.user;
-          this.currentUser.loading = false;
+          if (!this.currentUser.apply(viewer.user)) return;
           this.setPermissions(viewer);
           this.roomUnread.acknowledgeViewerProjection();
           break;
@@ -2031,7 +2021,7 @@ export class ServerStateStore {
 
   /**
    * Whether this server currently has an authenticated user.
-   * - Cookie auth (origin): true when `currentUser.user` is set.
+   * - Cookie auth (origin): true when the current account is verified.
    * - Bearer auth (remote): true when an access token is registered.
    */
   get isAuthenticated(): boolean {
@@ -2039,7 +2029,10 @@ export class ServerStateStore {
     if (this.networkStartupDeferred) return false;
     if (this.startupPresentationOnly) return false;
     if (this.#cookieAuth) {
-      return this.currentUser.user != null;
+      return (
+        this.currentUser.user != null &&
+        this.currentUser.verifiedUserId === this.currentUser.user.id
+      );
     }
     return this.#getSession().token != null;
   }
@@ -2144,6 +2137,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.currentUser.reset();
     this.#messageReconciler.reset();
     this.projection.users.clear();
     this.readViews.clear();

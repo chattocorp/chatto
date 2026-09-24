@@ -128,21 +128,25 @@
   // projection renders the loading branch below.
   const serverData = $derived.by<ServerChromeData | null>(() => {
     const viewerResponse = activeStore.projection.viewer;
-    if (!viewerResponse || !activeStore.permissions.loaded) return null;
-    const viewer = viewerResponseToState(viewerResponse);
-    const can = (permission: string) => viewer.viewerPermissions[permission] ?? false;
+    if (
+      !activeStore.realtimeSync.restoredFromDisk &&
+      (!viewerResponse || !activeStore.permissions.loaded)
+    )
+      return null;
+    const viewer = viewerResponse ? viewerResponseToState(viewerResponse) : null;
+    const can = (permission: string) => viewer?.viewerPermissions[permission] ?? false;
     return {
       name: activeStore.serverInfo.name,
       bannerUrl: activeStore.serverInfo.bannerUrl,
-      canViewAdmin: viewer.canViewAdmin,
+      canViewAdmin: viewer?.canViewAdmin ?? false,
       canManage: can('server.manage'),
       canManageNeighbors: can('server.manage-neighbors'),
       canManageRooms: can('room.manage'),
       canModerate: can('room.ban-member'),
-      canManageRoles: viewer.canAdminManageRoles,
-      canAssignRoles: viewer.canAssignRoles,
-      canManageUserAccounts: viewer.canAdminManageAccounts,
-      canManageUserPermissions: viewer.canManageUserPermissions
+      canManageRoles: viewer?.canAdminManageRoles ?? false,
+      canAssignRoles: viewer?.canAssignRoles ?? false,
+      canManageUserAccounts: viewer?.canAdminManageAccounts ?? false,
+      canManageUserPermissions: viewer?.canManageUserPermissions ?? false
     };
   });
 

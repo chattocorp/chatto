@@ -65,6 +65,10 @@ the stream to build and maintain its local server projection.
   view in place after fresh resources arrive. The saved view is read-only
   until the server verifies its viewer. A changed or rejected viewer clears
   that private view.
+- Saved text and public user profiles remain separate from the signed-in
+  account. Restoring saved text does not complete account loading. Account
+  settings wait for complete live account data before they initialise drafts;
+  later refreshes preserve edits. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 - The stream does not guarantee every intermediate transition after a client
   is offline beyond the bounded resume window.
 - ConnectRPC remains the normal API for commands, explicit resource reads,

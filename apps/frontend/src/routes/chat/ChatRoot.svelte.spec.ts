@@ -52,7 +52,6 @@ const mocks = vi.hoisted(() => {
     stopSessionTermination: vi.fn(),
     firstAuthenticatedServerId: vi.fn(() => 'remote'),
     clearServerAuthentication: vi.fn(),
-    clearCachedUser: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
     presenceCacheUpdate: vi.fn(),
     deviceTimezone: vi.fn<() => string | null>(() => null),
@@ -143,10 +142,6 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBio: () => null,
   getLiveTimezone: () => null,
   scheduleCustomStatusExpiry: vi.fn()
-}));
-
-vi.mock('$lib/auth/loadAuth', () => ({
-  clearCachedUser: mocks.clearCachedUser
 }));
 
 vi.mock('$lib/auth/returnNavigation', () => ({
@@ -313,7 +308,6 @@ describe('ChatRoot', () => {
 
     const handler = mocks.onSessionTerminated.mock.calls[0][1] as (reason: string) => void;
     handler('revoked');
-    expect(mocks.clearCachedUser).toHaveBeenCalledOnce();
     expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
     expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/chat/remote.example.test');
 
