@@ -16,7 +16,6 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 -->
 <script lang="ts">
   import type { LinkPreviewView } from '$lib/render/linkPreviews';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
@@ -116,7 +115,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     oncontextmenu={handleContextMenu}
   >
     {#if preview.imageUrl}
-      <SkeletonImg
+      <img
         src={preview.imageUrl}
         alt=""
         class="aspect-[1.91/1] w-full rounded-sm object-cover"

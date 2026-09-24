@@ -7,7 +7,6 @@ preview-card styling. Its parent owns shared link-preview actions.
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
   let {
     url,
@@ -63,10 +62,12 @@ preview-card styling. Its parent owns shared link-preview actions.
   <!-- eslint-disable svelte/no-navigation-without-resolve -- url is a third-party social-post URL -->
   <a href={url} target="_blank" rel="noopener noreferrer" class="flex min-w-0 items-center gap-2.5">
     {#if post.author?.avatarUrl}
-      <SkeletonImg
+      <img
         src={post.author.avatarUrl}
         alt=""
         class="h-10 w-10 shrink-0 rounded-full object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
       />
     {:else}
       <div
@@ -123,7 +124,13 @@ preview-card styling. Its parent owns shared link-preview actions.
         ]}
       >
         {#each post.images as image (image.url)}
-          <SkeletonImg src={image.url} alt={image.alt || ''} class="max-h-72 w-full object-cover" />
+          <img
+            src={image.url}
+            alt={image.alt || ''}
+            class="max-h-72 w-full object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+          />
         {/each}
       </div>
     {/if}
@@ -138,10 +145,12 @@ preview-card styling. Its parent owns shared link-preview actions.
         onclick={(event) => event.stopPropagation()}
       >
         {#if post.externalLink.imageUrl}
-          <SkeletonImg
+          <img
             src={post.externalLink.imageUrl}
             alt=""
             class="h-20 w-28 shrink-0 rounded-sm object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
           />
         {/if}
         <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
@@ -171,10 +180,12 @@ preview-card styling. Its parent owns shared link-preview actions.
           class="flex min-w-0 items-center gap-2"
         >
           {#if post.quotedPost.author?.avatarUrl}
-            <SkeletonImg
+            <img
               src={post.quotedPost.author.avatarUrl}
               alt=""
               class="h-7 w-7 shrink-0 rounded-full object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
             />
           {:else}
             <div class="h-7 w-7 shrink-0 rounded-full bg-surface-strong"></div>
@@ -219,10 +230,12 @@ preview-card styling. Its parent owns shared link-preview actions.
             >
               {#each post.quotedPost.images as image (image.url)}
                 <a href={post.quotedPost.url} target="_blank" rel="noopener noreferrer">
-                  <SkeletonImg
+                  <img
                     src={image.url}
                     alt={image.alt || ''}
                     class="max-h-60 w-full object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                   />
                 </a>
               {/each}
@@ -236,10 +249,12 @@ preview-card styling. Its parent owns shared link-preview actions.
               class="flex min-w-0 gap-2 overflow-hidden rounded-sm bg-surface-strong p-2"
             >
               {#if post.quotedPost.externalLink.imageUrl}
-                <SkeletonImg
+                <img
                   src={post.quotedPost.externalLink.imageUrl}
                   alt=""
                   class="h-14 w-20 shrink-0 rounded-sm object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                 />
               {/if}
               <div class="min-w-0 self-center">

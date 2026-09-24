@@ -796,7 +796,6 @@
             ? directMessageTitle
             : undefined}
           subtitle={presentation.description}
-          loading={!room.roomData}
           collapseActions
           hideOnKeyboard
           actionsLabel={m('room_list.room_actions', { room: room.roomData?.room.name ?? '' })}

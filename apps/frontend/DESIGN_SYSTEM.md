@@ -133,7 +133,7 @@ a side stripe or cast shadow for navigation selection.
 | Inline contextual notice                  | `Hint`                                                                     | A panel used as an alert                                     |
 | Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
 | Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
-| Loading image                             | `SkeletonImg`                                                              | `<img class="skeleton">`                                     |
+| Loading image                             | Plain `<img>` with the existing image frame or fallback                    | Animated placeholder                                         |
 
 `Select` uses a native control and plain-text options. The shared
 `select-control` utility styles the picker where `appearance: base-select`

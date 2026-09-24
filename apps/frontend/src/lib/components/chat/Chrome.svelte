@@ -125,7 +125,7 @@
 
   // Server chrome is part of the canonical retained projection. Switching a
   // warm server selects this state synchronously; only a genuinely cold
-  // projection renders the loading branch below.
+  // projection renders the quiet loading branch below.
   const serverData = $derived.by<ServerChromeData | null>(() => {
     const viewerResponse = activeStore.projection.viewer;
     if (!viewerResponse || !activeStore.permissions.loaded) return null;
@@ -235,28 +235,8 @@
       backLabel={m('settings.nav.back_to_server')}
     />
   {:else if !serverData}
-    <!-- Skeleton sidebar while server data is loading -->
-    <ServerHeader serverName="" loading />
-
-    <ScrollFader top bottom>
-      <div class="p-2">
-        <div class="skeleton h-40 w-full rounded-md"></div>
-      </div>
-
-      {#each Array(2) as _, i (i)}
-        <div class="flex items-center gap-2 rounded-md px-4 py-2">
-          <div class="skeleton h-5 w-5 shrink-0 rounded"></div>
-          <div class="skeleton h-5 flex-1 rounded"></div>
-        </div>
-      {/each}
-      <hr class="my-2 border-border" />
-      {#each Array(5) as _, i (i)}
-        <div class="flex items-center gap-2 rounded-md px-4 py-2">
-          <div class="skeleton h-5 w-5 shrink-0 rounded"></div>
-          <div class="skeleton h-5 flex-1 rounded"></div>
-        </div>
-      {/each}
-    </ScrollFader>
+    <ServerHeader serverName={activeStore.serverInfo.name} />
+    <div class="min-h-0 flex-1" aria-busy="true"></div>
   {:else}
     <!-- Server header - fixed at top -->
     <ServerHeader serverName={serverName ?? ''} />

@@ -6,7 +6,6 @@ component on selection changes so playback and consent cannot cross items.
   import { scale } from 'svelte/transition';
   import { expoOutTransition } from './motion';
   import { m } from '$lib/i18n/messages';
-  import SkeletonImg from './SkeletonImg.svelte';
   import ZoomableImage from './ZoomableImage.svelte';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import { isHtmlAttachment } from '$lib/render/messageAttachments';
@@ -96,7 +95,7 @@ component on selection changes so playback and consent cannot cross items.
       }}
     />
   {:else}
-    <SkeletonImg
+    <img
       src={url}
       alt={item.description || item.filename}
       class="h-full w-full bg-surface object-contain outline-none"

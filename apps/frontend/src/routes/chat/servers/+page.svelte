@@ -386,11 +386,7 @@
             </div>
           </EmptyState>
         {:else if !directoryState || directoryState.isInitialLoading}
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
-            {#each Array(3) as _, index (index)}
-              <div class="skeleton h-64 rounded-xl bg-surface"></div>
-            {/each}
-          </div>
+          <div aria-busy="true"></div>
         {:else if allSourcesFailed}
           <EmptyState
             icon="icon-[uil--exclamation-triangle]"

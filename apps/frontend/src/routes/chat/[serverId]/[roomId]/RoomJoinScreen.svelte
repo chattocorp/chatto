@@ -77,19 +77,7 @@
       {/if}
 
       {#await stores.roomDirectory.loadJoinPreview(room.id)}
-        <div
-          class="mt-6 flex min-h-20 w-full flex-col items-center justify-center surface-box rounded-lg px-4 py-4"
-          aria-label={m('room.join.member_preview_label')}
-        >
-          <div class="flex flex-col items-center gap-3" aria-hidden="true">
-            <div class="skeleton h-4 w-24 rounded"></div>
-            <div class="flex -space-x-2">
-              <div class="skeleton h-8 w-8 rounded-full ring-2 ring-surface"></div>
-              <div class="skeleton h-8 w-8 rounded-full ring-2 ring-surface"></div>
-              <div class="skeleton h-8 w-8 rounded-full ring-2 ring-surface"></div>
-            </div>
-          </div>
-        </div>
+        <div aria-busy="true" aria-label={m('room.join.member_preview_label')}></div>
       {:then preview}
         {#if preview}
           <div

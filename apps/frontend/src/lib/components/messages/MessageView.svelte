@@ -61,7 +61,7 @@ identity, body rendering, and row geometry consistent.
     actor: UserAvatarUserView | null;
     displayName: string;
     missingActorIsDeleted?: boolean;
-    /** Show a name skeleton while a realtime author lookup is pending. */
+    /** Keep the author name empty while a realtime lookup is pending. */
     authorLoading?: boolean;
     body?: string | null;
     deleted?: boolean;
@@ -190,10 +190,7 @@ identity, body rendering, and row geometry consistent.
               </strong>
             {/if}
           {:else if authorLoading && !actor?.deleted}
-            <span class="inline-flex h-4 w-24" aria-busy="true">
-              <span class="skeleton h-full w-full rounded" aria-hidden="true"></span>
-              <span class="sr-only">{m('common.loading')}</span>
-            </span>
+            <span aria-busy="true"></span>
           {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
             <strong class="shrink-0 leading-tight font-semibold text-muted">
               <DeletedUserLabel />

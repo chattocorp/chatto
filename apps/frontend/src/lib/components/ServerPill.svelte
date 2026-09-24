@@ -17,7 +17,6 @@ network round trips are needed.
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Pill } from '$lib/ui';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
   let {
     serverId
@@ -114,7 +113,13 @@ network round trips are needed.
   >
     <div class="overflow-hidden menu-section p-0">
       {#if bannerUrl}
-        <SkeletonImg src={bannerUrl} alt="" class="block aspect-[1200/630] w-full object-cover" />
+        <img
+          src={bannerUrl}
+          alt=""
+          class="block aspect-[1200/630] w-full object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+        />
       {/if}
 
       <div class="flex items-start gap-3 p-3">

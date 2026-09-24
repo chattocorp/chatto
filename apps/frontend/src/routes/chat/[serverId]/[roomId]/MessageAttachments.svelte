@@ -3,7 +3,6 @@
   import { type MessageAttachmentView } from '$lib/render/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { pushState } from '$app/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -474,7 +473,7 @@
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
         {/if}
         {#if imageAttachmentUrl(attachment)}
-          <SkeletonImg
+          <img
             loading="lazy"
             src={imageAttachmentUrl(attachment)}
             alt={attachment.description || attachment.filename}

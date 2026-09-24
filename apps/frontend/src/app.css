@@ -1156,28 +1156,6 @@
   }
 }
 
-/* Skeleton loading utility */
-@utility skeleton {
-  @apply relative overflow-hidden opacity-30;
-  background: linear-gradient(
-    90deg,
-    var(--color-surface) 0%,
-    var(--color-surface-emphasized) 50%,
-    var(--color-surface) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 2s linear infinite;
-}
-
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 @utility notification-dot {
   @apply transition-colors;
 }

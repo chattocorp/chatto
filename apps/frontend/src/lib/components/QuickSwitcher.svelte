@@ -6,7 +6,6 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { quickSwitcher } from '$lib/state/globals.svelte';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
 
@@ -154,10 +153,12 @@
                     style:background={logo.logoUrl ? undefined : getGradientForName(logo.name)}
                   >
                     {#if logo.logoUrl}
-                      <SkeletonImg
+                      <img
                         src={logo.logoUrl}
                         alt={logo.name}
                         class="h-full w-full object-cover"
+onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
+onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                       />
                     {:else}
                       <span class="text-white">{logo.name[0]?.toUpperCase() ?? '?'}</span>

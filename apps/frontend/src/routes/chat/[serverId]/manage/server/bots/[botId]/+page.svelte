@@ -364,11 +364,10 @@
   })}
 />
 <PaneHeader
-  title={bot?.displayName ?? m('settings.bots.title')}
-  titleContent={botName}
+  title={botQuery.isPending ? '' : (bot?.displayName ?? m('settings.bots.title'))}
+  titleContent={bot ? botName : undefined}
   subtitle={bot ? `@${bot.login}` : undefined}
   {backHref}
-  loading={botQuery.isPending}
 />
 
 <PaneContent>
@@ -407,8 +406,7 @@
                   viewerSettings={serverScope.store.currentUser.user?.settings}
                 />
               {:else if ownerQuery.isPending}
-                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
-                ></span>
+                <span aria-busy="true"></span>
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
               {/if}
