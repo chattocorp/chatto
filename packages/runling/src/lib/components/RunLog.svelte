@@ -152,12 +152,22 @@
       >
     {/each}
     <span class="relative w-3 shrink-0">
-      {#if joinsAbove}<span class="absolute top-0 left-1.5 h-3 border-l border-current"></span>{/if}
-      <span
-        class={['absolute top-3 right-0 border-t border-current', depth ? '-left-1.5' : 'left-1.5']}
-      ></span>
-      {#if continuesBelow}<span class="absolute top-3 bottom-0 left-1.5 border-l border-current"
-        ></span>{/if}
+      {#if joinsAbove && !continuesBelow}
+        <span
+          class="absolute top-0 right-0 left-1.5 h-[13px] rounded-bl-[5px] border-b border-l border-current"
+        ></span>
+      {:else}
+        {#if joinsAbove}<span class="absolute top-0 left-1.5 h-3 border-l border-current"
+          ></span>{/if}
+        <span
+          class={[
+            'absolute top-3 right-0 border-t border-current',
+            depth && !joinsAbove ? '-left-1.5' : 'left-1.5'
+          ]}
+        ></span>
+        {#if continuesBelow}<span class="absolute top-3 bottom-0 left-1.5 border-l border-current"
+          ></span>{/if}
+      {/if}
     </span>
   </span>
 {/snippet}
