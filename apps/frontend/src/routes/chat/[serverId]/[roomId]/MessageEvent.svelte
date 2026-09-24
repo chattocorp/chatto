@@ -97,27 +97,30 @@
   // arrive before profiles catch up after a reconnect.
   const actorId = $derived(event?.actorId || event?.actor?.id || '');
   const users = $derived(stores.projection.users);
-  const actorDeleted = $derived(
-    event?.actorResolution === 'deleted' || !!event?.actor?.deleted || (!!actorId && users.isDeleted(actorId))
+  const deletedActor = $derived(
+    event?.actorResolution === 'deleted' ||
+      !!event?.actor?.deleted ||
+      (!!actorId && users.isDeleted(actorId))
   );
   const actor = $derived.by(() => {
-    if (actorDeleted) return null;
+    if (deletedActor) return null;
     const current = actorId ? users.get(actorId) : undefined;
-    return current ? avatarUserFromDirectoryMember(mapDirectoryMember(current)) : (event?.actor ?? null);
+    return current
+      ? avatarUserFromDirectoryMember(mapDirectoryMember(current))
+      : (event?.actor ?? null);
   });
   const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
-  const deletedActor = $derived(actorDeleted || !!actor?.deleted);
 
-  // Display name with live updates from profile cache
+  // The actor already uses the live profile when one is available.
   const displayName = $derived(
-    !deletedActor && actor
-      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
+    actor
+      ? actor.displayName || actor.login
       : deletedActor
         ? m('common.deleted_user')
         : m('common.unknown_user')
   );
   const actorCallPresence = $derived(
-    !deletedActor && actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
+    actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
   );
 
   // Permission checks for message actions. Authors can always edit (within

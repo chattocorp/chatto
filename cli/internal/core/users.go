@@ -442,44 +442,6 @@ func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*evtv
 	return nil, ErrNotFound
 }
 
-// GetUsers retrieves multiple users by ID from the user projection.
-// Returns users in the same order as userIDs. nil entries indicate not-found users.
-// More efficient than calling GetUser() in a loop for batched operations.
-func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
-	if len(userIDs) == 0 {
-		return []*evtv1.User{}, nil
-	}
-
-	// Deduplicate IDs to avoid redundant fetches
-	seen := make(map[string]bool, len(userIDs))
-	uniqueIDs := make([]string, 0, len(userIDs))
-	for _, id := range userIDs {
-		if !seen[id] {
-			seen[id] = true
-			uniqueIDs = append(uniqueIDs, id)
-		}
-	}
-
-	userMap := make(map[string]*evtv1.User, len(uniqueIDs))
-	for _, id := range uniqueIDs {
-		user, ok, err := c.userModel.user(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			userMap[id] = user
-		}
-	}
-
-	// Return in original order (nil for not-found users)
-	result := make([]*evtv1.User, len(userIDs))
-	for i, id := range userIDs {
-		result[i] = userMap[id] // nil if not found
-	}
-
-	return result, nil
-}
-
 // GetUserReferences returns public user references in request order. A deleted
 // account has an explicit tombstone; an unknown or not-yet-projected ID is nil.
 func (c *ChattoCore) GetUserReferences(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {

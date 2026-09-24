@@ -32,11 +32,22 @@ describe('realtime message author', () => {
     const view = render(MessageEventTestHarness, { event, userStore });
 
     await expect.element(view.getByText('Unknown user', { exact: true })).toBeVisible();
-    userStore.set('author', new DirectoryMember({
-      user: { id: 'author', login: 'author', displayName: 'Resolved author' }
-    }));
+    userStore.set(
+      'author',
+      new DirectoryMember({
+        user: { id: 'author', login: 'author', displayName: 'Resolved author' }
+      })
+    );
     await expect.element(view.getByText('Resolved author', { exact: true })).toBeVisible();
     expect(view.container.textContent).not.toContain('[deleted user]');
+
+    userStore.set(
+      'author',
+      new DirectoryMember({
+        user: { id: 'author', login: 'author', displayName: 'Updated author' }
+      })
+    );
+    await expect.element(view.getByText('Updated author', { exact: true })).toBeVisible();
 
     userStore.delete('author');
     await expect.element(view.getByText('[deleted user]', { exact: true })).toBeVisible();
@@ -44,15 +55,22 @@ describe('realtime message author', () => {
 
   it('keeps an explicit deletion private even with a stale live profile', async () => {
     const userStore = new UserStore();
-    userStore.set('author', new DirectoryMember({
-      user: { id: 'author', login: 'author', displayName: 'Current author' }
-    }));
+    userStore.set(
+      'author',
+      new DirectoryMember({
+        user: { id: 'author', login: 'author', displayName: 'Current author' }
+      })
+    );
     const event = {
       ...pendingEvent(),
       actorResolution: undefined,
       actor: {
-        id: 'author', login: '', displayName: 'Deleted User', deleted: true,
-        avatarUrl: null, presenceStatus: PresenceStatus.OFFLINE
+        id: 'author',
+        login: '',
+        displayName: 'Deleted User',
+        deleted: true,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.OFFLINE
       }
     };
     const view = render(MessageEventTestHarness, { event, userStore });
