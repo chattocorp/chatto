@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
@@ -119,6 +119,11 @@
   } = $props();
 
   const viewport = new TimelineViewportController();
+  let destroyed = false;
+  onDestroy(() => {
+    destroyed = true;
+    viewport.cancelBottomScroll();
+  });
   const expandedSystemEventIds = new SvelteSet<string>();
 
   function isSystemGroupExpanded(groupEvents: TimelineEventView[]): boolean {
@@ -361,6 +366,8 @@
     const token = viewport.beginBottomScroll(roomId);
     return convergeAtBottom({
       continueWhile: () =>
+        // Check lifetime before reading derived props from the old room.
+        !destroyed &&
         !stores.realtimeSync.isRecoveringSnapshot &&
         !messageStore.recoveryViewport &&
         viewport.canContinueBottomScroll(token, roomId, isJumpedMode, alwaysScrollToBottom) &&
@@ -603,7 +610,13 @@
   // virtua's shift=true handles scroll restoration during pagination automatically,
   // eliminating the need for manual scrollHeight capture/restore and overflow-anchor toggling.
   function handleVirtuaScroll(offset: number) {
-    if (!virtualizerHandle || isLoading || stores.realtimeSync.isRecoveringSnapshot || messageStore.recoveryViewport) return;
+    if (
+      !virtualizerHandle ||
+      isLoading ||
+      stores.realtimeSync.isRecoveringSnapshot ||
+      messageStore.recoveryViewport
+    )
+      return;
 
     const scrollSize = virtualizerHandle.getScrollSize();
     const viewportSize = virtualizerHandle.getViewportSize();
@@ -628,12 +641,19 @@
     // A separator can be the first visible item. Anchor to the next event so
     // dates and unread markers do not discard the reading position.
     let anchorIndex = idx;
-    while (anchorIndex < virtualItems.length &&
-      virtualItems[anchorIndex].type !== 'event' && virtualItems[anchorIndex].type !== 'system-group') anchorIndex++;
+    while (
+      anchorIndex < virtualItems.length &&
+      virtualItems[anchorIndex].type !== 'event' &&
+      virtualItems[anchorIndex].type !== 'system-group'
+    )
+      anchorIndex++;
     const anchor = virtualItems[anchorIndex];
-    const anchorEvent = anchor?.type === 'event'
-      ? anchor.event
-      : anchor?.type === 'system-group' ? anchor.events[0] : undefined;
+    const anchorEvent =
+      anchor?.type === 'event'
+        ? anchor.event
+        : anchor?.type === 'system-group'
+          ? anchor.events[0]
+          : undefined;
     messageStore.setViewport(
       !viewport.shouldScrollToBottom && anchorEvent
         ? { eventId: anchorEvent.id, offset: offset - virtualizerHandle.getItemOffset(anchorIndex) }

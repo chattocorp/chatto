@@ -1149,14 +1149,45 @@ describe('ServerStateStore room search state', () => {
     expect(store.messageSearch.query).toBe('');
   });
 
-  it('bounds retained room search plaintext', () => {
+  it('bounds retained room search plaintext', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const oldestSearch = store.messageSearchForRoom('R1');
     oldestSearch.query = 'sensitive result scope';
     for (let index = 2; index <= 11; index++) store.messageSearchForRoom(`R${index}`);
 
+    await Promise.resolve();
     expect(oldestSearch.query).toBe('');
     expect(store.messageSearchForRoom('R1')).not.toBe(oldestSearch);
+  });
+
+  it('can select the eleventh room search from a render derivation', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const oldestSearch = store.messageSearchForRoom('R1');
+    oldestSearch.query = 'old room query';
+    for (let index = 2; index <= 10; index++) store.messageSearchForRoom(`R${index}`);
+
+    const closeRoute = $effect.root(() => {
+      const selectedSearch = $derived(store.messageSearchForRoom('R11'));
+      const renderQuery = () => selectedSearch.query;
+      expect(renderQuery()).toBe('');
+    });
+    await Promise.resolve();
+    expect(oldestSearch.query).toBe('');
+    closeRoute();
+  });
+
+  it('does not clear a replacement search while cleaning up its evicted owner', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const oldestSearch = store.messageSearchForRoom('R1');
+    oldestSearch.query = 'old query';
+    for (let index = 2; index <= 11; index++) store.messageSearchForRoom(`R${index}`);
+    const replacement = store.messageSearchForRoom('R1');
+    replacement.query = 'new query';
+
+    await Promise.resolve();
+
+    expect(oldestSearch.query).toBe('');
+    expect(replacement.query).toBe('new query');
   });
 });
 

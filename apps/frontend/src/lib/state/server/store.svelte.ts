@@ -673,8 +673,12 @@ export class ServerStateStore {
     if (this.#roomMessageSearchRecency.length >= MAX_RETAINED_ROOM_SEARCHES) {
       const oldestRoomId = this.#roomMessageSearchRecency.shift();
       if (oldestRoomId) {
-        this.#roomMessageSearch[oldestRoomId]?.reset();
+        const evicted = this.#roomMessageSearch[oldestRoomId];
         delete this.#roomMessageSearch[oldestRoomId];
+        // Selectors can allocate this store during rendering. Release the
+        // evicted store immediately, then clear its reactive state after render.
+        // Capture the old owner so this cannot reset a replacement for that room.
+        if (evicted) queueMicrotask(() => evicted.reset());
       }
     }
     store = new MessageSearchStore(this.#messageSearchAPI, () => this.isAuthenticated);
