@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-09-20
+**Last reviewed:** 2026-09-24
 
 ## Overview
 
@@ -89,19 +89,19 @@ Rooms support real-time voice conversations with optional camera video and scree
   a speaker can be selected.
 - Device choices use compact dropdowns so long device lists do not expand the
   settings page. The controls follow the app's depth preference where browser
-  support permits. During a local test, output changes keep
-  capture active. A failed explicit output selection stops the test instead of
-  silently playing through another device. An explicit local microphone test shows
-  an input meter and plays the microphone immediately through the selected
-  speaker. It does not record audio, connect to LiveKit, or verify network
-  connectivity. Testing is unavailable during the selected server's call.
-  Stop and navigation release capture and stop playback. Input changes restart
-  an active test; output changes keep capture active. Camera choices do not
-  interrupt the microphone test. Late capture results are stopped.
-  With Voice Boosting off and the gate Off, the test plays the original capture stream,
-  disables browser noise suppression, and does not initialize custom processing.
-  Switching between this bypass and processing restarts capture and keeps the
-  selected speaker. Use headphones for local monitoring to avoid feedback.
+  support permits. A local microphone test shows an input meter and records a
+  sample without playing live audio. Stop or the 10-second limit ends capture
+  before replay starts through the selected speaker. The sample stays in browser
+  memory until the next test, microphone change, or navigation. Users can replay
+  it. The test does not connect to LiveKit or verify network connectivity.
+  Testing is unavailable during the selected server's call. Output changes
+  keep capture active. A failed explicit output selection stops the test instead
+  of silently playing through another device. Input changes restart an active
+  test. Camera choices do not interrupt it. Navigation discards the sample,
+  and late capture results are stopped. With Voice Boosting off and the gate
+  Off, the test records the original capture stream. It disables browser noise
+  suppression and does not initialize custom processing. Switching between
+  this bypass and processing starts a new sample and keeps the selected speaker.
 - Opening the settings page requests microphone and camera access separately
   when their device names are unavailable and no call is active on the selected
   server. The browser may show permission dialogs. Each successful request
