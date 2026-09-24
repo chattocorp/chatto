@@ -1,7 +1,7 @@
 # FDR-001: Agent interactions and steering
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-24
 
 ## Overview
 
@@ -28,8 +28,9 @@ outcomes. Connections deliver live input and ordered assistant output.
 - Abort signals and disposal cancel pending work. Cancellation cannot undo a
   tool's external effects or stop uncooperative code.
 - The console opens each run on its recorded Log view. It shows log lines and
-  task milestones in journal order, with time,
-  level, indentation, and ANSI colors. New lines keep the view at the bottom
+  task milestones in journal order, with time, level, indentation, branch
+  guides, and ANSI colors. Task milestones use their task depth so the guides
+  show their position in the run. New lines keep the view at the bottom
   until the reader scrolls up. The reader can resume following and load older
   lines. Long lines show four rows until the reader expands them. Timeline is
   the other run tab. Input, result, and usage are in Run details. A static icon

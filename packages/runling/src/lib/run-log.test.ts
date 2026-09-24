@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { RunlingEvent } from 'runling';
-import { logTime, nextLogFollow, runLogRows } from './run-log.ts';
+import { logTime, logTreeRows, nextLogFollow, runLogRows } from './run-log.ts';
 
 test('shows recorded logs and task milestones in order', () => {
   const events: RunlingEvent[] = [
@@ -48,7 +48,7 @@ test('shows recorded logs and task milestones in order', () => {
         type: 'log',
         level: 'error',
         message: 'task-1 · Validation failed',
-        depth: 0,
+        depth: 1,
         color: 'dodgerblue',
         source: 'step',
         timestamp: 50
@@ -69,6 +69,32 @@ test('shows recorded logs and task milestones in order', () => {
   ]);
   expect(JSON.stringify(runLogRows(events))).not.toContain('private task label');
   expect(logTime(3_723_999)).toBe('01:02:03');
+});
+
+test('keeps nested task milestones at the depth of their parent task', () => {
+  const events: RunlingEvent[] = [
+    { type: 'step.started', id: 'root', label: 'Root', timestamp: 0 },
+    { type: 'step.started', id: 'child', label: 'Child', activityId: 'root', timestamp: 1 },
+    { type: 'task.linked', taskId: 'child', channelId: 'channel', timestamp: 2 },
+    { type: 'task.activity', channelId: 'channel', message: 'Working', timestamp: 3 },
+    { type: 'step.finished', id: 'child', status: 'completed', durationMs: 3, timestamp: 4 },
+    { type: 'step.finished', id: 'root', status: 'completed', durationMs: 5, timestamp: 5 }
+  ];
+  const rows = runLogRows(events);
+  expect(rows.map((row) => row.event.depth)).toEqual([0, 1, 2, 1, 0]);
+  expect(
+    logTreeRows(rows).map(({ depth, joinsAbove, continuesBelow }) => ({
+      depth,
+      joinsAbove,
+      continuesBelow
+    }))
+  ).toEqual([
+    { depth: 0, joinsAbove: false, continuesBelow: true },
+    { depth: 1, joinsAbove: false, continuesBelow: true },
+    { depth: 2, joinsAbove: false, continuesBelow: false },
+    { depth: 1, joinsAbove: true, continuesBelow: false },
+    { depth: 0, joinsAbove: true, continuesBelow: false }
+  ]);
 });
 
 test('follows at the bottom, pauses on upward scroll, and resumes there', () => {
