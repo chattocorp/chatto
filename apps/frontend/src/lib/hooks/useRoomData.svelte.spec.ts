@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { useRoomData } from './useRoomData.svelte';
+import type { SavedView } from '$lib/storage/savedViews';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -16,6 +17,8 @@ const { mocks } = vi.hoisted(() => ({
         hasDisplayableView: boolean;
       };
       isAuthenticated: boolean;
+      savedView: SavedView | null;
+      readonly savedRooms: SavedView['rooms'];
       projection: { rooms: SvelteMap<string, unknown> };
       projectedMembersForRoom: ReturnType<typeof vi.fn>;
       currentUser: { user: { id: string } | undefined };
@@ -82,6 +85,10 @@ describe('useRoomData projection selector', () => {
     mocks.store = {
       realtimeSync,
       isAuthenticated: true,
+      savedView: null,
+      get savedRooms() {
+        return this.savedView?.rooms ?? [];
+      },
       projection: { rooms: new SvelteMap() },
       projectedMembersForRoom: vi.fn((roomId: string) => [member(roomId)]),
       currentUser: { user: { id: 'viewer' } },
@@ -90,6 +97,40 @@ describe('useRoomData projection selector', () => {
   });
 
   afterEach(() => vi.restoreAllMocks());
+
+  it('uses saved metadata for display and live data for every permission', () => {
+    mocks.store.realtimeSync.phase = 'stale';
+    mocks.store.savedView = {
+      version: 1,
+      serverId: 'S1',
+      userId: 'viewer',
+      serverName: 'Saved',
+      savedAt: 1,
+      rooms: [{ id: 'channel', name: 'Saved room', messages: [] }]
+    };
+    const destroy = $effect.root(() => {
+      const selected = useRoomData(() => ({ roomId: 'channel' }));
+      // Even a verified account does not give cached room labels authority.
+      expect(selected.roomData).toMatchObject({
+        room: { name: 'Saved room' },
+        canReadMessages: null,
+        canPostMessage: false,
+        canReact: false,
+        canManageRoom: false
+      });
+      const live = projectedRoom('channel', RoomKind.CHANNEL);
+      mocks.store.projection.rooms.set('channel', live);
+      expect(selected.roomData).toMatchObject({
+        room: { name: 'channel' },
+        canReadMessages: true,
+        canPostMessage: true
+      });
+      live.viewerState.permissions = [{ permission: 'message.read', granted: false }];
+      mocks.store.projection.rooms.set('channel', { ...live });
+      expect(selected.roomData?.canReadMessages).toBe(false);
+    });
+    destroy();
+  });
 
   it('reactively distinguishes limited, broad, denied, and unknown message access', () => {
     mocks.store.realtimeSync.phase = 'ready';

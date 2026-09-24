@@ -31,6 +31,10 @@ publishing a new account. Reset and disposal reject late account responses.
 Route loaders and mounted transport components do not keep another account
 cache or clear account data when they unmount.
 
+Saved author labels belong to timeline display rows and do not populate the
+public profile store. Saved room labels also remain outside the live projection.
+Their membership and permissions are unknown until a server response arrives.
+
 Account settings wait for this owner's data before they initialise edit buffers.
 A refresh preserves those buffers. A failed refresh can retain the complete
 account for display; an authentication rejection still disables private actions.

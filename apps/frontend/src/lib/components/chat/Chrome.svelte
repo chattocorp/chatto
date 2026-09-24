@@ -128,11 +128,7 @@
   // projection renders the loading branch below.
   const serverData = $derived.by<ServerChromeData | null>(() => {
     const viewerResponse = activeStore.projection.viewer;
-    if (
-      !activeStore.realtimeSync.restoredFromDisk &&
-      (!viewerResponse || !activeStore.permissions.loaded)
-    )
-      return null;
+    if (!activeStore.realtimeSync.hasDisplayableView) return null;
     const viewer = viewerResponse ? viewerResponseToState(viewerResponse) : null;
     const can = (permission: string) => viewer?.viewerPermissions[permission] ?? false;
     return {

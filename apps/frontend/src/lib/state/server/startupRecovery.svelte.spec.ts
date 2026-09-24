@@ -133,7 +133,8 @@ describe('origin startup recovery', () => {
         await vi.waitFor(() => expect(store.isAuthenticated).toBe(true), { timeout: 4_000 });
         expect(mocks.viewer).toHaveBeenCalledTimes(3);
         expect(store.currentUser.verifiedUserId).toBe('U1');
-        expect(store.projection.rooms.has('R1')).toBe(true);
+        expect(store.navigation.rooms.some((room) => room.id === 'R1')).toBe(true);
+        expect(store.projection.rooms.size).toBe(0);
       } finally {
         view.unmount();
       }
@@ -149,7 +150,7 @@ describe('origin startup recovery', () => {
 
     expect(store.startupPresentationOnly).toBe(true);
     expect(store.isAuthenticated).toBe(false);
-    expect(store.projection.rooms.has('R1')).toBe(true);
+    expect(store.navigation.rooms.some((room) => room.id === 'R1')).toBe(true);
     vi.restoreAllMocks();
   });
 
@@ -158,14 +159,14 @@ describe('origin startup recovery', () => {
     const renew = vi
       .spyOn(ServerConnection.prototype, 'maintainBrowserSession')
       .mockImplementation(() => {});
-    const room = store.projection.rooms.get('R1');
+    const rooms = store.navigation.rooms;
     mocks.viewer.mockResolvedValueOnce({ id: 'U1', login: 'one', displayName: 'One' });
 
     await serverRegistry.recoverServer('origin');
 
     expect(mocks.viewer).toHaveBeenCalledOnce();
     expect(serverRegistry.getStore('origin')).toBe(store);
-    expect(store.projection.rooms.get('R1')).toBe(room);
+    expect(store.navigation.rooms).toEqual(rooms);
     expect(store.startupPresentationOnly).toBe(false);
     expect(store.isAuthenticated).toBe(true);
     expect(renew).toHaveBeenCalledOnce();

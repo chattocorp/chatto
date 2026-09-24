@@ -48,16 +48,7 @@ import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '
 import type { RoomMember } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import {
-  RoomTimelineEvent,
-  RoomTimelinePage,
-  RoomMessagePosted
-} from '@chatto/api-types/api/v1/room_timeline_pb';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
@@ -174,6 +165,10 @@ export class ServerStateStore {
   readonly realtimeSync = new RealtimeProjectionSyncState();
   /** Last authorized text view for read-only reconnect and offline presentation. */
   savedView = $state.raw<SavedView | null>(null);
+  /** Display fallback until live catch-up completes; never membership or permission input. */
+  get savedRooms() {
+    return this.realtimeSync.restoredFromDisk ? (this.savedView?.rooms ?? []) : [];
+  }
   /** A cold disk view can render before its session has been verified. */
   startupPresentationOnly = $state(false);
   /** A registered background server has not started discovery or viewer checks. */
@@ -327,14 +322,19 @@ export class ServerStateStore {
     );
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
     const notifications = this.notifications;
-    this.navigation = new NavigationStore(this.projection, this.realtimeSync, {
-      get roomUnreadCounts() {
-        return notifications.attention.roomUnreadCounts;
+    this.navigation = new NavigationStore(
+      this.projection,
+      this.realtimeSync,
+      {
+        get roomUnreadCounts() {
+          return notifications.attention.roomUnreadCounts;
+        },
+        get roomImportantUnreadCounts() {
+          return notifications.attention.roomImportantUnreadCounts;
+        }
       },
-      get roomImportantUnreadCounts() {
-        return notifications.attention.roomImportantUnreadCounts;
-      }
-    });
+      () => this.savedRooms
+    );
     this.roomDirectory = new RoomDirectoryStore(
       this.navigation,
       memberDirectoryAPI,
@@ -573,7 +573,7 @@ export class ServerStateStore {
     if (!room || room.archived) throw new Error('Conversation is unavailable');
   }
 
-  /** Stable room timeline owner. Disk projection restoration skips the initial API read. */
+  /** Stable timeline owner; saved restoration waits for verified live catch-up. */
   messagesForRoom(roomId: string, fromSavedProjection = false): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
@@ -764,7 +764,11 @@ export class ServerStateStore {
     ) {
       this.startupPresentationOnly = true;
       this.#serverConnection.pausePrivateRequests();
-      this.restoreSavedProjection(view);
+      this.serverInfo.name = view.serverName;
+      for (const room of view.rooms) {
+        this.messagesForRoom(room.id, true).restoreSavedRoom(room, view.savedAt);
+      }
+      this.realtimeSync.restoreSavedProjection();
     }
   }
 
@@ -791,62 +795,6 @@ export class ServerStateStore {
     this.projection.reset();
     this.resetProjectionMirrors();
     this.realtimeSync.reset();
-  }
-
-  /** Populate the normal chat selectors with presentation-only disk data. */
-  private restoreSavedProjection(view: SavedView): void {
-    this.serverInfo.name = view.serverName;
-    for (const room of view.rooms) {
-      this.projection.rooms.set(
-        room.id,
-        new RoomWithViewerState({
-          room: new Room({
-            id: room.id,
-            name: room.name,
-            kind: room.kind ?? RoomKind.CHANNEL,
-            universal: room.universal ?? false
-          }),
-          viewerState: {
-            isMember: true,
-            permissions: [{ permission: 'message.read', granted: true }]
-          }
-        })
-      );
-      const users: Record<string, User> = {};
-      const events = room.messages.map((saved) => {
-        const actorId = saved.authorId ?? `saved:${saved.id}`;
-        users[actorId] ??= new User({ id: actorId, displayName: saved.author });
-        const date = new SvelteDate(saved.createdAt);
-        const createdAt = Timestamp.fromDate(
-          Number.isNaN(date.getTime()) ? new SvelteDate(view.savedAt) : date
-        );
-        return new RoomTimelineEvent({
-          id: saved.id,
-          actorId,
-          createdAt,
-          event: {
-            case: 'messagePosted',
-            value: new RoomMessagePosted({
-              message: new Message({
-                id: saved.id,
-                roomId: room.id,
-                actorId,
-                createdAt,
-                body: saved.body
-              })
-            })
-          }
-        });
-      });
-      this.messagesForRoom(room.id, true).replaceRoomProjectionPage(
-        room.id,
-        new RoomTimelinePage({
-          events,
-          includes: { users }
-        })
-      );
-    }
-    this.realtimeSync.restoreSavedProjection();
   }
 
   /** Keep the latest viewed room first in the bounded offline text cache. */
@@ -1028,6 +976,8 @@ export class ServerStateStore {
       this.checkingPermissions = false;
       if (update.privacyReset) {
         this.#serverConnection.invalidatePrivateData();
+        this.savedView = null;
+        void clearSavedView(this.serverId, this.currentUserId() ?? undefined);
         this.permissions = EMPTY_PERMISSIONS;
         // Clear authority first; optional mirrors must not prevent this boundary.
         this.projection.reset();
@@ -1242,7 +1192,8 @@ export class ServerStateStore {
       ...Object.keys(this.#roomFiles),
       ...Object.keys(this.#roomPins),
       ...Object.keys(this.#roomMembers),
-      ...this.projection.rooms.keys()
+      ...this.projection.rooms.keys(),
+      ...(this.savedView?.rooms.map((room) => room.id) ?? [])
     ]);
     for (const key of Object.keys(this.#threadMessages)) ids.add(key.split('\u0000')[0]);
     for (const roomId of ids) {
@@ -1271,10 +1222,8 @@ export class ServerStateStore {
         (grant) => grant.permission === 'message.read' && grant.granted
       );
       if (!canReadAllMessages) this.scrubSavedRoom(roomId);
-      // Saved rooms contain display hints, not the previous live permissions.
-      // Confirmed full read access keeps their text visible until snapshot
-      // catch-up replaces it. Missing posting hints are not access revocation.
-      if (this.realtimeSync.restoredFromDisk && canReadAllMessages) continue;
+      // Snapshot catch-up owns the first full-access timeline read.
+      if (!previous && canReadAllMessages && this.#realtimeSnapshotPending) continue;
       if (previous && messageAccess(previous) === messageAccess(next)) continue;
       // Rebuild only affected plaintext stores. Their owners and surrounding
       // page stay mounted, and their request generations fence old responses.

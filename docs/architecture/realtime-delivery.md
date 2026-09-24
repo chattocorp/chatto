@@ -547,8 +547,15 @@ each server. Route loading and recovery use that owner. Cookie migration and
 transient retries are request policy, with no separate account cache. The
 registry checks identity changes before it publishes the response. Account
 reset, newer live viewer data, and store disposal reject older responses.
-Saved-view restoration populates rooms and message display data only. It never
-constructs a viewer response or changes account data or permissions. Settings
+Saved-view restoration keeps room labels in the saved view. Navigation and room
+selectors use those labels only while live catch-up is pending. They do not
+insert rooms, membership, permissions, or profiles into the live projection.
+Timeline stores convert saved text directly to display rows, without API
+response objects or a pagination cursor. These stores wait for verified live
+catch-up before they read history. Live room responses take precedence;
+access loss and omitted rooms remove the saved fallback before it can reappear.
+Snapshot catch-up replaces retained rows through the normal timeline read.
+Saved data never constructs a viewer response or changes account data. Settings
 wait for complete account data; the transport coordinator does not populate
 or clear it. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 

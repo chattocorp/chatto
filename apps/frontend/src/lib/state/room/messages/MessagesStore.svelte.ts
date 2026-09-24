@@ -10,13 +10,11 @@ import {
 import {
   createRoomTimelineAPI,
   roomTimelineEventToView,
-  roomTimelinePageToEventConnectionPage,
   type RoomTimelineAPI
 } from '$lib/api-client/roomTimeline';
 import type {
   RoomTimelineEvent,
-  RoomTimelineIncludes,
-  RoomTimelinePage
+  RoomTimelineIncludes
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { Code, isConnectCode, StaleResponseError } from '$lib/api-client/connect';
@@ -24,6 +22,8 @@ import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { getActorId, unmask } from './helpers';
 import { MessageTimelineSource } from './MessageTimelineSource';
+import type { SavedRoom } from '$lib/storage/savedViews';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 import {
   beginOptimisticReaction as beginOptimisticReactionPatch,
@@ -141,7 +141,9 @@ export class MessagesStore {
   isLoadingMore = $state(false);
   hasReachedStart = $state(false);
   /** Viewport coordinates only; never retain message bodies across a reset. */
-  recoveryViewport = $state.raw<{ eventId: string; offset: number; hasNewer?: boolean } | null>(null);
+  recoveryViewport = $state.raw<{ eventId: string; offset: number; hasNewer?: boolean } | null>(
+    null
+  );
   #viewport: { eventId: string; offset: number } | null = null;
 
   /** Record the mounted viewport. A null position means it follows the latest message. */
@@ -283,8 +285,12 @@ export class MessagesStore {
     const ids = new SvelteSet<string>();
     for (const row of [...this.events, ...this.previewEvents.values()]) {
       if (!row || !isMessagePostedPayload(row.event)) continue;
-      if (row.id !== messageEventId && row.event.echoOfEventId !== messageEventId &&
-        row.event.channelEchoEventId !== messageEventId) continue;
+      if (
+        row.id !== messageEventId &&
+        row.event.echoOfEventId !== messageEventId &&
+        row.event.channelEchoEventId !== messageEventId
+      )
+        continue;
       ids.add(row.id);
       if (row.event.threadRootEventId) ids.add(row.event.threadRootEventId);
       if (row.event.echoOfEventId) ids.add(row.event.echoOfEventId);
@@ -298,7 +304,11 @@ export class MessagesStore {
    * response wins over that read. Only new posts may insert off-window rows;
    * resource updates do not change pagination cursors or loaded continuity.
    */
-  captureMessageReconciliation(): (id: string, event: TimelineEventView | null, insert: boolean) => void {
+  captureMessageReconciliation(): (
+    id: string,
+    event: TimelineEventView | null,
+    insert: boolean
+  ) => void {
     const source = this.source;
     const before = snapshotEventFingerprints(this.events);
     const previews = snapshotEventFingerprints(
@@ -320,7 +330,8 @@ export class MessagesStore {
         this.sortEvents();
       } else if (insert) this.ingestEvent(hydrated);
       const preview = this.previewEvents.get(id);
-      if (preview && eventFingerprint(preview) === previews.get(id)) this.previewEvents.set(id, hydrated);
+      if (preview && eventFingerprint(preview) === previews.get(id))
+        this.previewEvents.set(id, hydrated);
     };
   }
 
@@ -467,29 +478,36 @@ export class MessagesStore {
     this.isInitialLoading = true;
   }
 
-  /** Replace this room's recent retained window from the realtime projection stream. */
-  replaceRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
-    // A message deep-link may start its around-window read while the lazy
-    // latest-page hydration is still in flight. Install the useful fallback
-    // page, but do not let its late delivery cancel the newer navigation intent.
-    const preservePendingJump = !!(
-      this.#pendingJumpId !== null && this.source?.matches('room', roomId)
-    );
-    this.startLoad();
-    if (!preservePendingJump) {
-      this.#jumpId++;
-      this.#pendingJumpId = null;
-    }
-    this.selectRoom(roomId);
-    this.#pendingAuthoritativeLoadId = null;
-    const connection = roomTimelinePageToEventConnectionPage(page);
-    this.#needsLatestWindow = false;
-    // Reset already purged the pre-prefix state. Preserve writes ingested
-    // after that reset: the snapshot page was captured before those writes
-    // and its later arrival must not erase read-your-writes.
-    this.replaceWithFetchedAndUpdateCursors(connection);
-    this.hasReachedStart = !connection.hasOlder;
-    this.isInitialLoading = preservePendingJump;
+  /** Seed a cold timeline with display rows only; saved text has no cursor or reply authority. */
+  restoreSavedRoom(room: SavedRoom, savedAt: number): void {
+    this.awaitRoomProjection(room.id);
+    this.events = room.messages.map((message) => {
+      const actorId = message.authorId ?? `saved:${message.id}`;
+      const date = new SvelteDate(message.createdAt);
+      return {
+        id: message.id,
+        createdAt: (Number.isNaN(date.getTime()) ? new SvelteDate(savedAt) : date).toISOString(),
+        actorId,
+        actor: {
+          id: actorId,
+          login: '',
+          displayName: message.author,
+          deleted: false,
+          presenceStatus: PresenceStatus.UNSPECIFIED
+        },
+        event: {
+          kind: TimelineEventKind.MessagePosted,
+          roomId: room.id,
+          body: message.body,
+          attachments: [],
+          reactions: [],
+          replyCount: 0,
+          threadParticipants: []
+        }
+      };
+    });
+    this.seenIds = new SvelteSet(this.events.map((event) => event.id));
+    this.isInitialLoading = false;
   }
 
   /** Supersede a historical jump when this room crosses a route boundary. */
@@ -509,24 +527,6 @@ export class MessagesStore {
       return Promise.resolve(false);
     }
     return this.resetAndFetchLatest();
-  }
-
-  /** Restore this retained room's canonical latest projection at a route boundary. */
-  restoreRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
-    this.cancelPendingHistoricalJump();
-    this.startLoad();
-    const source = this.selectRoom(roomId);
-    this.#pendingAuthoritativeLoadId = null;
-    const connection = roomTimelinePageToEventConnectionPage(page);
-    const projected = this.unmaskEvents(connection.events);
-    for (const event of projected) this.clearOptimisticVersionForEvent(event.id);
-    this.events = source.sort(projected);
-    this.seenIds = new SvelteSet(projected.map((event) => event.id));
-    this.#needsLatestWindow = false;
-    this.oldestCursor = connection.startCursor ?? undefined;
-    this.newestCursor = connection.endCursor ?? undefined;
-    this.hasReachedStart = !connection.hasOlder;
-    this.isInitialLoading = false;
   }
 
   /** Purge retained rows without starting a read outside a realtime boundary. */
@@ -552,7 +552,13 @@ export class MessagesStore {
     this.#pendingAuthoritativeLoadId = thisLoad;
     // Keep the retained timeline visible until its replacement read settles.
     this.isInitialLoading = this.events.length === 0;
-    return this.fetchCurrent(thisLoad, minimumCursor, acceptResult, this.recoveryViewport?.eventId, replaceWindow);
+    return this.fetchCurrent(
+      thisLoad,
+      minimumCursor,
+      acceptResult,
+      this.recoveryViewport?.eventId,
+      replaceWindow
+    );
   }
 
   /**
@@ -861,7 +867,8 @@ export class MessagesStore {
       const parsed = this.unmaskEvents(rawEvents).map((event) => {
         const current = this.events.find((row) => row.id === event.id);
         return current && eventFingerprint(current) !== existingBeforeFetch.get(event.id)
-          ? current : event;
+          ? current
+          : event;
       });
       if (!parsed.some((event) => event.id === eventId)) {
         if (this.events.some((event) => event.id === eventId)) {
@@ -1218,35 +1225,6 @@ export class MessagesStore {
     return newOnes.length;
   }
 
-  /**
-   * Replace the buffer with fetched events but preserve any subscription
-   * events that arrived during the in-flight query. Always the right
-   * choice when a paginated query result replaces the timeline: the
-   * projection subscription has been live since layout mount, so any
-   * timeline event for this room that lands while the query is in flight
-   * has already been added to {@link events} via {@link ingestEvent} and
-   * must not be wiped by the result.
-   */
-  private replaceMergingExisting(events: readonly TimelineEventView[]): void {
-    const fetched = this.unmaskEvents(events);
-    const newSeen = new SvelteSet<string>();
-    const merged: TimelineEventView[] = [];
-    for (const e of fetched) {
-      if (newSeen.has(e.id)) continue;
-      this.clearOptimisticVersionForEvent(e.id);
-      newSeen.add(e.id);
-      merged.push(e);
-    }
-    for (const e of this.events) {
-      if (newSeen.has(e.id)) continue;
-      newSeen.add(e.id);
-      merged.push(e);
-    }
-    this.events = merged;
-    if (this.scope === 'room') this.sortEvents();
-    this.seenIds = newSeen;
-  }
-
   private resetState(): void {
     this.events = [];
     this.seenIds = new SvelteSet();
@@ -1305,17 +1283,6 @@ export class MessagesStore {
       const sanitised = this.applyPrivacyBoundaries(event);
       return sanitised ? [sanitised] : [];
     });
-  }
-
-  private replaceWithFetchedAndUpdateCursors(connection: {
-    events: readonly TimelineEventView[];
-    startCursor?: string | null;
-    endCursor?: string | null;
-  }): void {
-    this.replaceMergingExisting(connection.events);
-    this.oldestCursor = connection.startCursor ?? undefined;
-    this.newestCursor = connection.endCursor ?? undefined;
-    this.hasReachedStart = false;
   }
 
   private replaceWithSnapshotAndUpdateCursors(
@@ -1489,7 +1456,8 @@ export class MessagesStore {
       }
       if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
       this.#pendingAuthoritativeLoadId = null;
-      this.isInitialLoading = false;
+      // A concurrent historical jump still owns its loading state.
+      this.isInitialLoading = this.#pendingJumpId !== null;
       if (anchorEventId) {
         this.#needsLatestWindow = page.hasNewer;
         if (this.recoveryViewport) {
@@ -1499,15 +1467,16 @@ export class MessagesStore {
       return true;
     } catch (error: unknown) {
       if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
-      if (!(error instanceof StaleResponseError) &&
-        !isConnectCode(error, Code.PermissionDenied) && !isConnectCode(error, Code.NotFound)) {
+      if (
+        !(error instanceof StaleResponseError) &&
+        !isConnectCode(error, Code.PermissionDenied) &&
+        !isConnectCode(error, Code.NotFound)
+      ) {
         console.error('MessagesStore: fetchCurrent failed:', error);
       }
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
-      if (
-        isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)
-      ) {
+      if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
         if (minimumCursor) this.clearForAccessRevocation();
         else this.clearViewport();
       }

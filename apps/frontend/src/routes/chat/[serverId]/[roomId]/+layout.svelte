@@ -12,15 +12,12 @@
   const serverScope = useServerScope();
   const activeServerId = $derived(serverScope.serverId);
 
-  // Saved rooms are display data and do not need an account object. Live room
-  // access waits for the projection and account to belong to the same viewer.
   const serverStore = $derived(serverScope.store);
   const navigation = $derived(serverStore.navigation);
+  // Unknown membership can display saved content. Live rooms must match the account.
   const ready = $derived(
     !navigation.isInitialLoading &&
-      (serverStore.realtimeSync.restoredFromDisk ||
-        (!!serverStore.currentUser.user?.id &&
-          navigation.currentUserId === serverStore.currentUser.user.id))
+      (!navigation.currentUserId || navigation.currentUserId === serverStore.currentUser.user?.id)
   );
 
   let threadId = $derived(page.params.threadId);
