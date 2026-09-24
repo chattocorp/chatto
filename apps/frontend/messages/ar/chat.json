@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "إضافة خادم",
+      "log_in": "تسجيل الدخول إلى هذا الخادم",
+      "sign_out": "تسجيل الخروج من هذا الخادم",
       "version": "الإصدار {version}",
       "version_unknown": "الإصدار غير معروف",
       "unreachable": "تعذر الوصول إلى الخادم",

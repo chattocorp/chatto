@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Přidat server",
+      "log_in": "Přihlásit se k tomuto serveru",
+      "sign_out": "Odhlásit se z tohoto serveru",
       "version": "Verze {version}",
       "version_unknown": "Verze neznámá",
       "unreachable": "Server je nedostupný",

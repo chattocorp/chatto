@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "サーバーの追加",
+      "log_in": "このサーバーにログイン",
+      "sign_out": "このサーバーからログアウト",
       "version": "バージョン {version}",
       "version_unknown": "バージョン不明",
       "unreachable": "サーバーに接続できません",

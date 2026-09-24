@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Pievienot serveri",
+      "log_in": "Pieteikties šajā serverī",
+      "sign_out": "Izrakstīties no šī servera",
       "version": "Versija {version}",
       "version_unknown": "Versija nav zināma",
       "unreachable": "Serveris nav sasniedzams",

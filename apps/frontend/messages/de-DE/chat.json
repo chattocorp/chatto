@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Server hinzufügen",
+      "log_in": "Bei diesem Server anmelden",
+      "sign_out": "Von diesem Server abmelden",
       "version": "Version {version}",
       "version_unknown": "Version unbekannt",
       "unreachable": "Server nicht erreichbar",

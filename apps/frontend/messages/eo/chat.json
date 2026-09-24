@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Aldonu Servilon",
+      "log_in": "Ensaluti al ĉi tiu servilo",
+      "sign_out": "Elsaluti el ĉi tiu servilo",
       "version": "Versio {version}",
       "version_unknown": "Nekonata versio",
       "unreachable": "Servilo neatingebla",

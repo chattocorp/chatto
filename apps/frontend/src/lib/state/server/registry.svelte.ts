@@ -677,8 +677,9 @@ class ServerRegistry {
 		return this.#withRefreshLock(id, async () => {
 			this.#adoptPersistedBearerSession(id);
 			let session = this.sessions.get(id);
+			if (!session?.token) return null;
 			const registration = this.catalog.get(id);
-			if (!session || !registration || !session.token || !session.refreshToken) {
+			if (!registration || !session.refreshToken) {
 				this.handleAuthenticationRequired(id);
 				return null;
 			}
@@ -721,6 +722,16 @@ class ServerRegistry {
 				signal: AbortSignal.timeout(10_000)
 			});
 			const body: Record<string, unknown> = await response.json().catch(() => ({}));
+			// Sign-out or another tab's rotation can finish while this request is
+			// in flight. A stale response must not change the new local session.
+			const current = this.sessions.get(id);
+			const persisted = readPersistedAuthentication(id);
+			if (
+				current?.refreshToken !== session.refreshToken ||
+				current?.refreshRequestId !== requestId ||
+				persisted?.refreshToken !== session.refreshToken ||
+				persisted?.refreshRequestId !== requestId
+			) return null;
 			if (!response.ok) {
 				if (response.status === 400 && body.error === 'invalid_grant') {
 					this.handleAuthenticationRequired(id);
@@ -752,9 +763,12 @@ class ServerRegistry {
 
 	#adoptPersistedBearerSession(id: string): void {
 		const persisted = readPersistedAuthentication(id);
-		if (!persisted) return;
 		const current = this.sessions.get(id);
-		if (!current || !persisted.token) return;
+		if (!current) return;
+		if (!persisted?.token) {
+			if (current.token) this.clearServerAuthentication(id, false);
+			return;
+		}
 		if (
 			persisted.token === current.token &&
 			persisted.refreshToken === current.refreshToken &&
