@@ -12,12 +12,11 @@ async function mount() {
   const view = render(ZoomableImage, { props: { src, alt: 'Test image', onerror: vi.fn() } });
   view.container.style.width = '400px';
   view.container.style.height = '350px';
+  expect(view.container.querySelector('img')?.classList.contains('skeleton')).toBe(false);
   const stage = view.container.querySelector<HTMLDivElement>('.touch-none')!;
   await expect.poll(() => stage.clientWidth).toBe(400);
   await expect.poll(() => view.container.querySelector('img')?.naturalWidth).toBe(400);
-  await expect
-    .poll(() => view.container.querySelector('img')?.classList.contains('skeleton'))
-    .toBe(false);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   return { query: view, stage, image: view.container.querySelector<HTMLImageElement>('img')! };
 }
 
