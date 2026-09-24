@@ -60,6 +60,55 @@ describe('account names', () => {
     );
   });
 
+  it('shows the live self-DM name with a separate, visible YOU badge', async () => {
+    const self = { id: 'self', login: 'me', displayName: 'Original name' };
+    const view = render(DirectMessageName, {
+      participants: [self],
+      currentUserId: 'self',
+      getDisplayName: () => 'A long updated display name that must truncate'
+    });
+    view.container.firstElementChild?.classList.add('w-32');
+
+    const name = view.container.querySelector('bdi')!;
+    const badge = view.container.querySelector('[data-testid="you-badge"]')!;
+    expect(name.textContent).toBe('A long updated display name that must truncate');
+    expect(badge.textContent).toBe('You');
+    expect(getComputedStyle(badge.firstElementChild!).textTransform).toBe('uppercase');
+    expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
+    expect(badge.getBoundingClientRect().right).toBeLessThanOrEqual(
+      view.container.firstElementChild!.getBoundingClientRect().right + 1
+    );
+
+    await view.rerender({
+      participants: [self],
+      currentUserId: 'self',
+      getDisplayName: () => 'New name'
+    });
+    expect(view.container.querySelector('bdi')?.textContent).toBe('New name');
+    expect(view.container.querySelector('[data-testid="you-badge"]')).not.toBeNull();
+
+    await view.rerender({ participants: [self], currentUserId: 'self', getDisplayName: () => '' });
+    expect(view.container.querySelector('bdi')?.textContent).toBe('me');
+  });
+
+  it('does not show a YOU badge for another user who puts (You) in their name', () => {
+    const view = render(DirectMessageName, {
+      participants: [
+        { id: 'self', login: 'me', displayName: 'Me' },
+        { id: 'other', login: 'other', displayName: 'Alice (You)' }
+      ],
+      currentUserId: 'self'
+    });
+    expect(view.container.querySelector('bdi')?.textContent).toBe('Alice (You)');
+    expect(view.container.querySelector('[data-testid="you-badge"]')).toBeNull();
+  });
+
+  it('shows the current-user fallback when self-DM participant data is missing', () => {
+    const view = render(DirectMessageName, { participants: [], currentUserId: 'self' });
+    expect(view.container.textContent).toBe('You');
+    expect(view.container.querySelector('[data-testid="you-badge"]')).toBeNull();
+  });
+
   it('marks a one-to-one DM and a profile identity beside the name', () => {
     const user = {
       id: 'bot',

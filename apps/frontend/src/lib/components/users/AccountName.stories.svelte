@@ -38,6 +38,7 @@
 	<div class="text-lg font-semibold"><AccountName name="TestBot" identity={bot} /></div>
 </Story>
 <Story name="Human" args={{ name: 'Alice', identity: human }} />
+<Story name="Self-DM" asChild><DirectMessageName participants={[human]} currentUserId="alice" /></Story>
 <Story name="Deleted" args={{ name: 'Deleted user', identity: { isBot: true, deleted: true } }} />
 <Story name="Long name" asChild
 	><div class="w-40">
