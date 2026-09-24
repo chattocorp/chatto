@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { UserStore } from '$lib/state/server/users.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 
@@ -24,6 +26,41 @@ function pendingEvent(): TimelineEventView {
 }
 
 describe('realtime message author', () => {
+  it('repairs an unresolved timeline author when the shared profile arrives', async () => {
+    const userStore = new UserStore();
+    const event = { ...pendingEvent(), actorResolution: 'unavailable' as const };
+    const view = render(MessageEventTestHarness, { event, userStore });
+
+    await expect.element(view.getByText('Unknown user', { exact: true })).toBeVisible();
+    userStore.set('author', new DirectoryMember({
+      user: { id: 'author', login: 'author', displayName: 'Resolved author' }
+    }));
+    await expect.element(view.getByText('Resolved author', { exact: true })).toBeVisible();
+    expect(view.container.textContent).not.toContain('[deleted user]');
+
+    userStore.delete('author');
+    await expect.element(view.getByText('[deleted user]', { exact: true })).toBeVisible();
+  });
+
+  it('keeps an explicit deletion private even with a stale live profile', async () => {
+    const userStore = new UserStore();
+    userStore.set('author', new DirectoryMember({
+      user: { id: 'author', login: 'author', displayName: 'Current author' }
+    }));
+    const event = {
+      ...pendingEvent(),
+      actorResolution: undefined,
+      actor: {
+        id: 'author', login: '', displayName: 'Deleted User', deleted: true,
+        avatarUrl: null, presenceStatus: PresenceStatus.OFFLINE
+      }
+    };
+    const view = render(MessageEventTestHarness, { event, userStore });
+
+    await expect.element(view.getByText('[deleted user]', { exact: true })).toBeVisible();
+    expect(view.container.textContent).not.toContain('Current author');
+  });
+
   it.each([false, true])(
     'keeps the body visible while the author loads (bot: %s)',
     async (isBot) => {

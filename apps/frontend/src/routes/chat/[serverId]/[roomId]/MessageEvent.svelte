@@ -13,6 +13,8 @@
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
+  import { avatarUserFromDirectoryMember } from '$lib/state/server/rooms.svelte';
 
   const serverScope = useServerScope();
   const stores = $derived(serverScope.store);
@@ -91,14 +93,20 @@
       .filter((role) => role.pingable && role.name !== 'everyone')
       .map((role) => role.name)
   );
-  // Deleted actors may be absent or retained as a deleted reference.
-  // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
-  const actor = $derived(event?.actor ?? null);
-  const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
-  const authorUnavailable = $derived(!actor && event?.actorResolution === 'unavailable');
-  const deletedActor = $derived(
-    !!actor?.deleted || (!actor && !authorLoading && !authorUnavailable)
+  // Resolve every row against the live profile owner. Timeline includes can
+  // arrive before profiles catch up after a reconnect.
+  const actorId = $derived(event?.actorId || event?.actor?.id || '');
+  const users = $derived(stores.projection.users);
+  const actorDeleted = $derived(
+    event?.actorResolution === 'deleted' || !!event?.actor?.deleted || (!!actorId && users.isDeleted(actorId))
   );
+  const actor = $derived.by(() => {
+    if (actorDeleted) return null;
+    const current = actorId ? users.get(actorId) : undefined;
+    return current ? avatarUserFromDirectoryMember(mapDirectoryMember(current)) : (event?.actor ?? null);
+  });
+  const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
+  const deletedActor = $derived(actorDeleted || !!actor?.deleted);
 
   // Display name with live updates from profile cache
   const displayName = $derived(

@@ -448,16 +448,9 @@ export function messagePostedPayload(
 function userView(userId: string, users: Record<string, User>) {
   if (!userId) return null;
   const user = users[userId];
-  if (!user) {
-    return {
-      id: userId,
-      login: '',
-      displayName: 'Deleted User',
-      deleted: true,
-      avatarUrl: null,
-      presenceStatus: PresenceStatus.OFFLINE
-    };
-  }
+  // Missing includes do not prove account deletion. A later profile can fill
+  // the row from the connection's user store.
+  if (!user) return null;
   return {
     id: user.id,
     login: user.login,

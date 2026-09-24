@@ -480,6 +480,12 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*evtv1.U
 	return result, nil
 }
 
+// GetUserReferences returns public user references in request order. A deleted
+// account has an explicit tombstone; an unknown or not-yet-projected ID is nil.
+func (c *ChattoCore) GetUserReferences(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
+	return c.userModel.userReferences(ctx, userIDs)
+}
+
 // GetUserByLogin retrieves a user by their login name using the login index.
 func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*evtv1.User, error) {
 	user, ok, err := c.userModel.userByLogin(ctx, login)
