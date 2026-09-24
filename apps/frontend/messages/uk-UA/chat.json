@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Додати сервер",
+      "log_in": "Увійти на цей сервер",
+      "sign_out": "Вийти з цього сервера",
       "version": "Версія {version}",
       "version_unknown": "Версія невідома",
       "unreachable": "Сервер недоступний",

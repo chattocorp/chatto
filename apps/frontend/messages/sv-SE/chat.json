@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Lägg till server",
+      "log_in": "Logga in på den här servern",
+      "sign_out": "Logga ut från den här servern",
       "version": "Version {version}",
       "version_unknown": "Okänd version",
       "unreachable": "Servern kan inte nås",

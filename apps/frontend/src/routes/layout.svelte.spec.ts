@@ -84,7 +84,8 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   getPushCapability: vi.fn(() => 'unsupported'),
   getPushRegistrationTargets: vi.fn(() => []),
   onNotificationClick: vi.fn(() => vi.fn()),
-  refreshPushSubscriptions: vi.fn()
+  refreshPushSubscriptions: vi.fn(),
+  unsubscribeBeforeLeaving: vi.fn().mockResolvedValue(undefined)
 }));
 
 vi.mock('$lib/notifications/notificationNavigationUi', () => ({

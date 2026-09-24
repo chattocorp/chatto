@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Dodaj serwer",
+      "log_in": "Zaloguj się na tym serwerze",
+      "sign_out": "Wyloguj się z tego serwera",
       "version": "Wersja {version}",
       "version_unknown": "Nieznana wersja",
       "unreachable": "Serwer jest niedostępny",

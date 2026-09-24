@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "新增伺服器",
+      "log_in": "登入此伺服器",
+      "sign_out": "登出此伺服器",
       "version": "版本 {version}",
       "version_unknown": "版本不明",
       "unreachable": "無法連線至伺服器",

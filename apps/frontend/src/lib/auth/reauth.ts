@@ -376,8 +376,8 @@ export function startRemoteReauthentication(server: RegisteredServer): Promise<v
   return runServerOAuthFlow(server.url, details);
 }
 
-export function beginOriginReauthentication(): void {
-  const path = window.location.pathname + window.location.search;
+export function beginOriginReauthentication(returnPath?: string): void {
+  const path = returnPath ?? window.location.pathname + window.location.search;
   saveReturnUrl(path);
   clearCachedUser();
   serverRegistry.clearOriginAuthentication();

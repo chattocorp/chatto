@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Legg til server",
+      "log_in": "Logg inn på denne serveren",
+      "sign_out": "Logg ut av denne serveren",
       "version": "Versjon {version}",
       "version_unknown": "Ukjent versjon",
       "unreachable": "Tjeneren er utilgjengelig",

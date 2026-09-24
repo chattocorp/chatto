@@ -631,6 +631,56 @@ describe('ServerRegistry', () => {
 			});
 		});
 
+		it('does not restore a bearer session when renewal finishes after sign-out', async () => {
+			let finishRefresh: ((response: Response) => void) | undefined;
+			let signalRefreshStarted: (() => void) | undefined;
+			const refreshStarted = new Promise<void>((resolve) => {
+				signalRefreshStarted = resolve;
+			});
+			vi.stubGlobal('fetch', vi.fn((input: string | URL | Request) => {
+				if (!String(input).endsWith('/oauth/token')) {
+					return Promise.resolve(new Response('', { status: 503 }));
+				}
+				signalRefreshStarted?.();
+				return new Promise<Response>((resolve) => {
+					finishRefresh = resolve;
+				});
+			}));
+			serverRegistry.addServer(renewableServer());
+
+			const renewal = serverRegistry.renewServerAuthentication('renewable', true);
+			await refreshStarted;
+			serverRegistry.clearServerAuthentication('renewable');
+			finishRefresh?.(refreshedResponse());
+
+			await expect(renewal).resolves.toBeNull();
+			expect(serverRegistry.getServer('renewable')).toMatchObject({
+				token: null,
+				refreshToken: null
+			});
+			expect(JSON.parse(localStorage.getItem(authenticationStorageKey('renewable')) ?? 'null'))
+				.toMatchObject({ token: null, refreshToken: null });
+		});
+
+		it("does not renew another tab's signed-out bearer session", async () => {
+			const fetchMock = vi.fn();
+			vi.stubGlobal('fetch', fetchMock);
+			serverRegistry.addServer(renewableServer());
+			updatePersistedAuthentication('renewable', {
+				token: null,
+				refreshToken: null,
+				refreshRequestId: null
+			});
+
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBeNull();
+			expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token')))
+				.toHaveLength(0);
+			expect(serverRegistry.getServer('renewable')).toMatchObject({
+				token: null,
+				refreshToken: null
+			});
+		});
+
 		it('reuses its persisted request ID after a lost refresh response', async () => {
 			let refreshAttempts = 0;
 			const requestBodies: Array<Record<string, string>> = [];

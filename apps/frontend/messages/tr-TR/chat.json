@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Sunucu Ekle",
+      "log_in": "Bu sunucuda oturum aç",
+      "sign_out": "Bu sunucudaki oturumu kapat",
       "version": "Sürüm {version}",
       "version_unknown": "Sürüm bilinmiyor",
       "unreachable": "Sunucuya ulaşılamıyor",
