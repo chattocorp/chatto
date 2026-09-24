@@ -394,6 +394,22 @@ describe('RoomList', () => {
     await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('shows the current account name in a self-DM sidebar row', async () => {
+    mocks.store.navigation.rooms = [{
+      id: 'dm-self',
+      name: '',
+      type: RoomKind.DM,
+      viewerIsMember: true,
+      hasMessageHistory: true,
+      members: [user('me', 'me', 'My name')]
+    }] as never;
+
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-self"]')!;
+    await expect.element(row).toHaveTextContent('My name');
+    expect(row.querySelector('[data-testid="you-badge"]')).not.toBeNull();
+  });
+
   it('renders a full-width separator between adjacent room and DM sections', () => {
     const { container } = render(RoomList);
     const roomList = q(container, 'nav.room-list') as HTMLElement;
