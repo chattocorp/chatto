@@ -267,6 +267,15 @@ func TestUserServiceUploadAvatarRequestLimit(t *testing.T) {
 		requireConnectCode(t, err, connect.CodeUnauthenticated)
 	})
 
+	t.Run("avatar above configured limit is rejected", func(t *testing.T) {
+		tooLarge := int(env.core.AssetsConfig().MaxUploadSize) + 64*1024 + 1
+		_, err := users.UploadAvatar(env.ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
+			UserId: env.viewer.Id,
+			Image:  &apiv1.ImageUpload{Image: bytes.Repeat([]byte{'a'}, tooLarge)},
+		}))
+		requireConnectCode(t, err, connect.CodeResourceExhausted)
+	})
+
 	t.Run("other user methods retain the standard limit", func(t *testing.T) {
 		_, err := users.ListUsers(env.ctx, connect.NewRequest(&apiv1.ListUsersRequest{
 			Search: strings.Repeat("a", MaxRequestMessageBytes),
