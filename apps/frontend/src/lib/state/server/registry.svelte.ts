@@ -1085,7 +1085,7 @@ class ServerRegistry {
 		return store.serverInfo.error !== null ||
 			(this.isOriginServer(id) && store.startupPresentationOnly) || Boolean(
 			session.token && session.reauthRequiredAt === null &&
-			(!store.currentUser.user || store.startupPresentationOnly) && !store.currentUser.loading
+			(!store.currentUser.user || store.currentUser.verifiedUserId === null || store.startupPresentationOnly) && !store.currentUser.loading
 		);
 	}
 
@@ -1109,7 +1109,7 @@ class ServerRegistry {
 		}
 		const session = this.sessions.get(id);
 		if (!session?.token || session.reauthRequiredAt !== null ||
-			(store.currentUser.user && !store.startupPresentationOnly)) return;
+			(store.currentUser.user && store.currentUser.verifiedUserId !== null && !store.startupPresentationOnly)) return;
 		await store.currentUser.load();
 		// A removed server or changed credential must not receive stale viewer data.
 		if (this.#stores.get(id) !== store || this.sessions.get(id)?.token !== session.token ||
