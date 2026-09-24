@@ -1078,6 +1078,43 @@ describe('RoomList', () => {
     }
   });
 
+  it('reveals a notified row when the room list finishes loading', async () => {
+    const navigation = mocks.store.navigation;
+    const roomDescriptor = Object.getOwnPropertyDescriptor(navigation, 'rooms')!;
+    const loadingDescriptor = Object.getOwnPropertyDescriptor(navigation, 'isInitialLoading')!;
+    const loadedRooms = navigation.rooms;
+    const rooms = new SvelteMap<string, typeof loadedRooms>();
+    const loading = new SvelteMap([['value', true]]);
+    Object.defineProperty(navigation, 'rooms', {
+      configurable: true,
+      get: () => rooms.get('value') ?? []
+    });
+    Object.defineProperty(navigation, 'isInitialLoading', {
+      configurable: true,
+      get: () => loading.get('value') ?? false
+    });
+    mocks.activeRoomId = 'channel-1';
+    mocks.appUi.requestSidebarReveal('origin', 'channel-1');
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+
+    try {
+      const { container } = render(RoomList);
+      await tick();
+      expect(scrollIntoView).not.toHaveBeenCalled();
+
+      rooms.set('value', loadedRooms);
+      loading.set('value', false);
+      await vi.waitFor(() => {
+        expect(q(container, 'a[aria-current="page"]')).not.toBeNull();
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      scrollIntoView.mockRestore();
+      Object.defineProperty(navigation, 'rooms', roomDescriptor);
+      Object.defineProperty(navigation, 'isInitialLoading', loadingDescriptor);
+    }
+  });
+
   it('does not scroll for ordinary room navigation', async () => {
     mocks.activeRoomId = 'channel-1';
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
