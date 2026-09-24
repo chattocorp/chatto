@@ -142,7 +142,7 @@
 <!-- The negative margin covers each row's vertical padding so adjacent strokes meet. -->
 {#snippet treeGuide(depth: number, joinsAbove: boolean, continuesBelow: boolean)}
   <span
-    class="pointer-events-none -my-0.5 flex shrink-0 self-stretch text-base-content/20"
+    class="pointer-events-none -my-0.5 mr-1 flex shrink-0 self-stretch text-base-content/20"
     aria-hidden="true"
     data-tree-guide
   >
