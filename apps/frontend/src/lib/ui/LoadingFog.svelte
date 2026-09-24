@@ -2,10 +2,24 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import type { ClassValue } from 'svelte/elements';
-  import { attachFogGradients } from './fogGradients';
 
   let { class: className = '', label = m('common.loading') }: { class?: ClassValue; label?: string } =
     $props();
+
+  function animateFog(node: HTMLElement): () => void {
+    let removed = false;
+    let stop: (() => void) | undefined;
+    // Keep the static gradient while the optional motion code loads.
+    void import('./fogGradients')
+      .then(({ attachFogGradients }) => {
+        if (!removed) stop = attachFogGradients(node);
+      })
+      .catch(() => undefined);
+    return () => {
+      removed = true;
+      stop?.();
+    };
+  }
 </script>
 
 <div
@@ -14,5 +28,5 @@
   aria-busy="true"
   aria-label={label}
   data-loading-fog
-  {@attach attachFogGradients}
+  {@attach animateFog}
 ></div>
