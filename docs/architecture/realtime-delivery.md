@@ -409,7 +409,9 @@ the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
 Room member state retains membership IDs and resolves profiles from the shared
-owner. It does not keep another profile copy for connected rooms. Typing labels
+owner. Search results retain IDs too. Pending profiles do not create empty member
+rows; the rows appear when the shared owner receives those profiles. Connected
+rooms do not keep another profile copy. Typing labels
 prefer that owner when a member row also has profile fields. The quick finder
 reads that owner directly without starting profile requests. Server-scoped name
 and avatar views read the same current profiles.
