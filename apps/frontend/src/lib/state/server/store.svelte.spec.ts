@@ -227,7 +227,7 @@ vi.mock('$lib/api-client/roomDirectory', async (importActual) => {
       CHANNEL: 1,
       DM: 2
     },
-    mapDirectoryRoom: (room: unknown) => room,
+    mapDirectoryRoom: actual.mapDirectoryRoom,
     mapRoomGroup: actual.mapRoomGroup,
     createRoomDirectoryAPI: vi.fn(() => ({
       listRooms: apiMocks.listRooms,
@@ -1192,6 +1192,69 @@ describe('ServerStateStore room search state', () => {
 });
 
 describe('ServerStateStore unified realtime resources', () => {
+  it.each(['full read', 'limited read', 'not a member'] as const)(
+    'reconciles saved text against live room access: %s',
+    (access) => {
+      const store = makeStore(new FakeServerConnection([]));
+      store.restoreSavedView(
+        {
+          version: 1,
+          serverId: store.serverId,
+          userId: 'U1',
+          serverName: 'Saved server',
+          savedAt: Date.now(),
+          rooms: [
+            {
+              id: 'R1',
+              name: 'general',
+              messages: [
+                {
+                  id: 'M1',
+                  createdAt: '2026-09-23T00:00:00Z',
+                  author: 'Bob',
+                  authorId: 'U2',
+                  body: 'Saved message'
+                }
+              ]
+            }
+          ]
+        },
+        true
+      );
+      const messages = store.messagesForRoom('R1');
+      const retained = messages.rootEvents;
+      store.verifyStartupViewer('U1');
+      store.realtimeSync.acceptProjectionEvent(undefined, true);
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({ reset: true, retainView: true })
+      );
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          resource: roomResource([
+            new RoomWithViewerState({
+              room: { id: 'R1' },
+              viewerState: {
+                isMember: access !== 'not a member',
+                permissions: [
+                  { permission: 'message.read', granted: access === 'full read' },
+                  { permission: 'message.read-interactions', granted: true },
+                  { permission: 'message.post', granted: true }
+                ]
+              }
+            })
+          ])
+        })
+      );
+      if (access === 'full read') {
+        expect(messages.rootEvents).toEqual(retained);
+        expect(messages.isInitialLoading).toBe(false);
+      } else {
+        expect(messages.rootEvents).toEqual([]);
+        expect(store.savedView?.rooms).toEqual([]);
+      }
+    }
+  );
+
   it('keeps the normal room projection and timeline during a warm snapshot', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);

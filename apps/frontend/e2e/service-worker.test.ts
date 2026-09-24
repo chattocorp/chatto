@@ -106,6 +106,12 @@ test('offline reload restores saved text in the normal chat view', async ({ page
   });
   const viewerRoute = '**/chatto.api.v1.ViewerService/GetViewer';
   const viewerRequests: Promise<void>[] = [];
+  let releaseTimeline: () => void = () => {};
+  const timelineHeld = new Promise<void>((resolve) => {
+    releaseTimeline = resolve;
+  });
+  const timelineRoute = '**/chatto.api.v1.RoomService/GetRoomEvents';
+  const timelineRequests: Promise<void>[] = [];
   const realtimeSockets: string[] = [];
   const privateRequests: string[] = [];
   page.on('websocket', (socket) => {
@@ -125,6 +131,11 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     viewerRequests.push(resumed);
     return resumed;
   });
+  await page.route(timelineRoute, (route) => {
+    const resumed = timelineHeld.then(() => route.continue());
+    timelineRequests.push(resumed);
+    return resumed;
+  });
   try {
     await page.goto('/chat/-');
     await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
@@ -132,10 +143,18 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     await expect.poll(() => viewerRequests.length).toBeGreaterThan(0);
     expect(realtimeSockets).toHaveLength(0);
     expect(privateRequests).toHaveLength(0);
+    releaseViewer();
+    // The live room includes permissions that the saved display data omits.
+    // Keep its text mounted while the verified snapshot's timeline is pending.
+    await expect.poll(() => timelineRequests.length).toBeGreaterThan(0);
+    await expect(page.getByText(message)).toBeVisible();
   } finally {
     releaseViewer();
+    releaseTimeline();
     await Promise.all(viewerRequests);
+    await Promise.all(timelineRequests);
     await page.unroute(viewerRoute);
+    await page.unroute(timelineRoute);
   }
 
   await page.context().setOffline(true);

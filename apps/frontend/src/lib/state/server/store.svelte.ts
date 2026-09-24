@@ -1267,7 +1267,14 @@ export class ServerStateStore {
               ) ?? false
           )
           .join(',');
-      if (mapDirectoryRoom(next)?.canReadMessages !== true) this.scrubSavedRoom(roomId);
+      const canReadAllMessages = next.viewerState.permissions.some(
+        (grant) => grant.permission === 'message.read' && grant.granted
+      );
+      if (!canReadAllMessages) this.scrubSavedRoom(roomId);
+      // Saved rooms contain display hints, not the previous live permissions.
+      // Confirmed full read access keeps their text visible until snapshot
+      // catch-up replaces it. Missing posting hints are not access revocation.
+      if (this.realtimeSync.restoredFromDisk && canReadAllMessages) continue;
       if (previous && messageAccess(previous) === messageAccess(next)) continue;
       // Rebuild only affected plaintext stores. Their owners and surrounding
       // page stay mounted, and their request generations fence old responses.
