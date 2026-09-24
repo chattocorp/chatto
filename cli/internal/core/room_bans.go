@@ -152,6 +152,13 @@ func (c *ChattoCore) removeUserWithoutSuspension(ctx context.Context, actorID st
 		if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
 			return err
 		}
+		room, err := c.GetRoom(ctx, kind, roomID)
+		if err != nil {
+			return err
+		}
+		if room.GetUniversal() {
+			return invalidArgument("universal room removal requires a suspension")
+		}
 		if !c.roomModel.hasExplicitRoomMembership(roomID, targetUserID) {
 			return ErrNotRoomMember
 		}

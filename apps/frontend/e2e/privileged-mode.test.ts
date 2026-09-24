@@ -60,10 +60,10 @@ test('Moderation follows effective permission on direct access and mode changes'
   page
 }) => {
   const pageErrors: string[] = [];
-  const banRequests: string[] = [];
+  const suspensionRequests: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   page.on('request', (request) => {
-    if (request.url().endsWith('/ListBans')) banRequests.push(request.method());
+    if (request.url().endsWith('/ListSuspensions')) suspensionRequests.push(request.method());
   });
   await page.goto(routes.root);
   await loginAsAdminAndUsePrimaryServer(page, { activatePrivilegedMode: false });
@@ -71,12 +71,12 @@ test('Moderation follows effective permission on direct access and mode changes'
 
   const moderation = page.getByRole('link', { name: 'Moderation', exact: true });
   const denied = page.getByText('Access Denied', { exact: true });
-  const emptyBans = page.getByText('No active room bans', { exact: true });
+  const emptySuspensions = page.getByText('No active room suspensions', { exact: true });
   const enable = page.getByRole('button', { name: 'Enable privileged mode' });
   const disable = page.getByRole('button', { name: 'Disable privileged mode' });
   await expect(denied).toBeVisible();
   await expect(moderation).not.toBeVisible();
-  expect(banRequests).toHaveLength(0);
+  expect(suspensionRequests).toHaveLength(0);
 
   await enable.click();
   await page
@@ -84,13 +84,13 @@ test('Moderation follows effective permission on direct access and mode changes'
     .getByRole('button', { name: 'Enable privileged mode' })
     .click();
   await expect(moderation).toBeVisible();
-  await expect(emptyBans).toBeVisible();
-  expect(banRequests.length).toBeGreaterThan(0);
+  await expect(emptySuspensions).toBeVisible();
+  expect(suspensionRequests.length).toBeGreaterThan(0);
 
   await disable.click();
   await expect(denied).toBeVisible();
   await expect(moderation).not.toBeVisible();
-  await expect(emptyBans).not.toBeVisible();
+  await expect(emptySuspensions).not.toBeVisible();
 
   await enable.click();
   await page
@@ -98,6 +98,6 @@ test('Moderation follows effective permission on direct access and mode changes'
     .getByRole('button', { name: 'Enable privileged mode' })
     .click();
   await expect(moderation).toBeVisible();
-  await expect(emptyBans).toBeVisible();
+  await expect(emptySuspensions).toBeVisible();
   expect(pageErrors).toEqual([]);
 });

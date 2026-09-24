@@ -573,6 +573,32 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	require.False(t, joined)
 }
 
+func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	moderator, err := c.CreateUser(ctx, SystemActorID, "removal-race-moderator", "Moderator", "password")
+	require.NoError(t, err)
+	target, err := c.CreateUser(ctx, SystemActorID, "removal-race-target", "Target", "password")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "removal-race", "")
+	require.NoError(t, err)
+	_, err = c.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id)
+	require.NoError(t, err)
+
+	calls := 0
+	err = c.removeUserWithoutSuspension(ctx, moderator.Id, KindChannel, room.Id, target.Id, "test removal", func() error {
+		calls++
+		if calls == 2 {
+			_, err := c.SetRoomUniversal(ctx, SystemActorID, KindChannel, room.Id, true)
+			return err
+		}
+		return nil
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+	require.Equal(t, 2, calls)
+	require.True(t, c.roomModel.hasExplicitRoomMembership(room.Id, target.Id))
+}
+
 func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 	for _, authority := range []Permission{PermUserManageAccounts, PermRoomManage} {
 		for _, botTarget := range []bool{false, true} {
