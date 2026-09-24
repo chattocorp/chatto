@@ -61,10 +61,6 @@ export function attachFogGradients(node: HTMLElement): () => void {
     y: cloud.y + (Math.random() - 0.5) * 14,
     phase: Math.random() * 32
   }));
-  for (const cloud of clouds) {
-    node.style.setProperty(`--fog-${cloud.name}-size`, `${48 + Math.random() * 8}%`);
-  }
-
   const fog = { node, seed, clouds };
   fogs.add(fog);
   paint(fog);

@@ -542,21 +542,22 @@
   position: absolute;
   inset: -25%;
   pointer-events: none;
+  opacity: 0.48;
   background:
     radial-gradient(
       ellipse at var(--fog-first-x, 30%) var(--fog-first-y, 40%),
-      color-mix(in srgb, var(--color-surface-strong) 52%, transparent),
-      transparent var(--fog-first-size, 52%)
+      var(--color-surface-strong),
+      transparent 52%
     ),
     radial-gradient(
       ellipse at var(--fog-second-x, 70%) var(--fog-second-y, 60%),
-      color-mix(in srgb, var(--color-surface-emphasized) 50%, transparent),
-      transparent var(--fog-second-size, 52%)
+      var(--color-surface-emphasized),
+      transparent 52%
     ),
     radial-gradient(
       ellipse at var(--fog-third-x, 52%) var(--fog-third-y, 48%),
-      color-mix(in srgb, var(--color-background) 44%, transparent),
-      transparent var(--fog-third-size, 52%)
+      var(--color-background),
+      transparent 52%
     );
 }
 

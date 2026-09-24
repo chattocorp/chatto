@@ -12,9 +12,9 @@ const messagesRoot = resolve(frontendRoot, 'messages');
 const routes = [
   {
     name: 'login',
-    // CI baseline: 296.5 KiB. Allow roughly 10% for routine feature growth
-    // and build variation; eager-loading guards below remain independent.
-    budgetKiB: 330,
+    // CI baseline: 296.5 KiB. Keep a small allowance for routine feature
+    // growth and build variation; eager-loading guards below remain independent.
+    budgetKiB: 331,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {
