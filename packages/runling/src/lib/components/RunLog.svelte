@@ -238,9 +238,12 @@
                 {/if}
               </button>
             {:else}
-              <span class="flex min-w-0 max-h-20 overflow-y-clip overflow-x-visible">
+              <span class="flex min-w-0">
                 {@render treeGuide(depth, joinsAbove, continuesBelow)}
-                {@render message(row)}
+                <!-- Clipping this outer span would cut the guide at each row boundary. -->
+                <span class="block min-w-0 max-h-20 flex-1 overflow-y-clip overflow-x-visible">
+                  {@render message(row)}
+                </span>
               </span>
             {/if}
           </li>
