@@ -29,7 +29,7 @@
   </div>
 </Story>
 
-<Story name="Fade in and out" asChild>
+<Story name="Enter and resolve" asChild>
   <div class="flex w-full max-w-xl flex-col gap-4">
     <button class="self-start rounded-md border px-3 py-1" onclick={() => (showFog = !showFog)}>
       Toggle loading
