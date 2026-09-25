@@ -233,8 +233,13 @@
 
   // Feed projection/component inputs into the controller in one ordered
   // transition. DOM and virtualizer state are deliberately excluded.
+  // A thread pane keeps this component when the user opens another thread.
+  const timelineKey = $derived(
+    permalinkThreadRootEventId ? `${roomId}:${permalinkThreadRootEventId}` : roomId
+  );
+
   $effect(() => {
-    const currentRoomId = roomId;
+    const currentTimelineKey = timelineKey;
     const jumped = isJumpedMode;
     const newestId = timelineEvents.at(-1)?.id ?? null;
     const newestOptions = {
@@ -242,7 +247,7 @@
       alwaysScrollToBottom
     };
     untrack(() => {
-      if (viewport.enterRoom(currentRoomId)) expandedSystemEventIds.clear();
+      if (viewport.enterRoom(currentTimelineKey)) expandedSystemEventIds.clear();
       viewport.observeJumpedMode(jumped);
       // Comparing the newest ID rather than the count keeps prepended
       // pagination rows from looking like newly arrived messages.
@@ -318,25 +323,32 @@
     };
   });
 
-  // Land on the unread separator once per room entry. The marker resolves
-  // after the entry read request, so the initial bottom scroll may already
-  // have run; any explicit viewport action before then wins (see
-  // TimelineViewportController.beginUnreadEntryLanding). Later marker
-  // updates do not cancel the landing, so no cleanup is returned.
+  // Land on the unread separator once per room or thread entry. The marker
+  // resolves after the entry read request, so the initial bottom scroll may
+  // already have run; any explicit viewport action before then wins (see
+  // TimelineViewportController.beginUnreadEntryLanding). An entry that
+  // targets a specific message skips the landing. Later marker updates do not
+  // cancel the landing, so no cleanup is returned.
   $effect(() => {
-    if (!scrollToUnreadOnEntry || !effectiveUnreadAfterEventId) return;
+    // Re-run on entry, after enterRoom has armed the landing.
+    void timelineKey;
+    if (!scrollToUnreadOnEntry) return;
+    if (scrollToEventId || pendingHighlightId) {
+      untrack(() => viewport.skipUnreadEntryLanding());
+      return;
+    }
+    if (!effectiveUnreadAfterEventId || isJumpedMode) return;
     if (!virtualizerHandle || virtualItems.length === 0) return;
-    if (isJumpedMode || scrollToEventId || pendingHighlightId) return;
     if (messageStore.recoveryViewport || stores.realtimeSync.isRecoveringSnapshot) return;
 
     untrack(() => {
-      if (viewport.beginUnreadEntryLanding()) void landOnUnreadSeparator(roomId);
+      if (viewport.beginUnreadEntryLanding()) void landOnUnreadSeparator(timelineKey);
     });
   });
 
-  async function landOnUnreadSeparator(requestedRoomId: string) {
+  async function landOnUnreadSeparator(requestedTimelineKey: string) {
     const current = () =>
-      !destroyed && roomId === requestedRoomId && viewport.isUnreadEntryLandingRunning;
+      !destroyed && timelineKey === requestedTimelineKey && viewport.isUnreadEntryLandingRunning;
 
     await tick();
     // Virtua measures estimated rows after each scroll. Repeat until the

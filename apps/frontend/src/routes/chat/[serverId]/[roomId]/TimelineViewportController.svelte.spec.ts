@@ -33,6 +33,18 @@ describe('TimelineViewportController', () => {
     expect(controller.isUnreadEntryLandingRunning).toBe(false);
   });
 
+  it('skips the landing for an entry that targets a message', () => {
+    const controller = new TimelineViewportController();
+    controller.enterRoom('R1');
+
+    controller.skipUnreadEntryLanding();
+
+    expect(controller.beginUnreadEntryLanding()).toBe(false);
+    expect(controller.shouldScrollToBottom).toBe(true);
+    controller.enterRoom('R1:T1');
+    expect(controller.beginUnreadEntryLanding()).toBe(true);
+  });
+
   it('ignores stale bottom scroll events until the landing settles', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');

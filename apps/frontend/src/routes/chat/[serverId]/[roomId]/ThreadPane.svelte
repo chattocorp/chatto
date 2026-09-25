@@ -359,6 +359,7 @@
     isLoading={store.isInitialLoading}
     emptyMessage={m('room.thread.not_found')}
     unreadAfterEventId={unread.unreadMarkerEventId}
+    scrollToUnreadOnEntry={true}
     onReachedBottom={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}

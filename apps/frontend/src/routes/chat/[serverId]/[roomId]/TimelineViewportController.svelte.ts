@@ -34,7 +34,7 @@ export class TimelineViewportController {
   hasNewMessages = $state(false);
   firstVisibleAt = $state<string | null>(null);
 
-  #roomId: string | null = null;
+  #timelineKey: string | null = null;
   #lastSeenNewestId: string | null = null;
   #previousOffset: number | null = null;
   #userScrollIntentAt = 0;
@@ -49,10 +49,15 @@ export class TimelineViewportController {
    */
   #unreadLanding: 'idle' | 'armed' | 'running' = 'idle';
 
-  enterRoom(roomId: string): boolean {
-    if (roomId === this.#roomId) return false;
+  /**
+   * Reset viewport intent when the timeline shows a different conversation.
+   * The key is the room id, plus the thread root id for a thread timeline.
+   * Returns false when the key is unchanged.
+   */
+  enterRoom(timelineKey: string): boolean {
+    if (timelineKey === this.#timelineKey) return false;
 
-    this.#roomId = roomId;
+    this.#timelineKey = timelineKey;
     this.cancelBottomScroll();
     this.initialScrollDone = false;
     this.followBottom();
@@ -148,6 +153,14 @@ export class TimelineViewportController {
     this.beginJump();
     this.#unreadLanding = 'running';
     return true;
+  }
+
+  /**
+   * Skip the landing for this entry. Use it when the entry targets a specific
+   * message, so that message stays in view even if its jump never starts.
+   */
+  skipUnreadEntryLanding(): void {
+    this.#unreadLanding = 'idle';
   }
 
   /** False once another viewport action superseded the running landing. */
