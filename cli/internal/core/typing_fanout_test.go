@@ -22,7 +22,7 @@ func (c *ChattoCore) filterPubSubEvent(ctx context.Context, userID string, membe
 	if !ok {
 		return nil, false
 	}
-	if delivery.typing() && !s.typingSenderVisible(ctx, delivery) {
+	if delivery.roomID != "" && !s.typingSenderVisible(ctx, event.ActorId) {
 		return nil, false
 	}
 	return s.filterPreparedPubSubEvent(ctx, userID, memberRooms, delivery)
@@ -43,9 +43,10 @@ type typingFanoutFixture struct {
 	marks   chan struct{}
 }
 
-// newTypingFanoutFixture streams live events for viewerCount room members and
-// counts authoritative presence-preference reads per user.
-func newTypingFanoutFixture(t *testing.T, viewerCount int) *typingFanoutFixture {
+// newTypingFanoutFixture streams live events for members room members and for
+// outsiders users who never join the room. It counts authoritative
+// presence-preference reads per user.
+func newTypingFanoutFixture(t *testing.T, members, outsiders int) *typingFanoutFixture {
 	t.Helper()
 	c, nc := setupTestCore(t)
 	ctx := testContext(t)
@@ -57,11 +58,13 @@ func newTypingFanoutFixture(t *testing.T, viewerCount int) *typingFanoutFixture 
 	require.NoError(t, err)
 
 	f := &typingFanoutFixture{core: c, nc: nc, room: room.Id, author: author.Id, lookups: make(map[string]*atomic.Int64), marks: make(chan struct{}, 1)}
-	for i := range viewerCount {
+	for i := range members + outsiders {
 		viewer, err := c.CreateUser(ctx, SystemActorID, "typing-viewer-"+string(rune('a'+i)), "Typing Viewer", "password123")
 		require.NoError(t, err)
-		_, err = c.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id)
-		require.NoError(t, err)
+		if i < members {
+			_, err = c.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id)
+			require.NoError(t, err)
+		}
 		f.viewers = append(f.viewers, viewer.Id)
 	}
 	for _, userID := range append([]string{author.Id}, f.viewers...) {
@@ -123,8 +126,8 @@ func (f *typingFanoutFixture) publishTyping(t *testing.T, actorID string) string
 	return event.GetId()
 }
 
-// nextTyping returns the ID of the next typing event on stream.
-func nextTyping(t *testing.T, stream <-chan EventEnvelope) string {
+// nextEvent returns the ID of the next event on stream that match accepts.
+func nextEvent(t *testing.T, stream <-chan EventEnvelope, match func(EventEnvelope) bool) string {
 	t.Helper()
 	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
@@ -132,17 +135,25 @@ func nextTyping(t *testing.T, stream <-chan EventEnvelope) string {
 		select {
 		case envelope, ok := <-stream:
 			require.True(t, ok, "event stream closed")
-			if envelope.PubSubEvent().GetUserTyping() != nil {
+			if match(envelope) {
 				return envelope.ID()
 			}
 		case <-timer.C:
-			t.Fatal("typing event was not delivered")
+			t.Fatal("expected event was not delivered")
 		}
 	}
 }
 
+// nextTyping returns the ID of the next typing event on stream.
+func nextTyping(t *testing.T, stream <-chan EventEnvelope) string {
+	t.Helper()
+	return nextEvent(t, stream, func(envelope EventEnvelope) bool {
+		return envelope.PubSubEvent().GetUserTyping() != nil
+	})
+}
+
 func TestMyEventsHubChecksTypingPrivacyOncePerEvent(t *testing.T) {
-	f := newTypingFanoutFixture(t, 3)
+	f := newTypingFanoutFixture(t, 3, 0)
 
 	eventID := f.publishTyping(t, f.author)
 	for _, stream := range f.streams {
@@ -152,7 +163,7 @@ func TestMyEventsHubChecksTypingPrivacyOncePerEvent(t *testing.T) {
 }
 
 func TestMyEventsHubDropsTypingFromHiddenSender(t *testing.T) {
-	f := newTypingFanoutFixture(t, 2)
+	f := newTypingFanoutFixture(t, 2, 0)
 	_, err := f.core.SetPresencePreference(testContext(t), f.author, apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
 	require.NoError(t, err)
 
@@ -164,38 +175,18 @@ func TestMyEventsHubDropsTypingFromHiddenSender(t *testing.T) {
 }
 
 func TestMyEventsHubSkipsTypingPrivacyReadWithoutAudience(t *testing.T) {
-	f := newTypingFanoutFixture(t, 1)
-	err := f.core.RoomCommands().LeaveRoom(testContext(t), RoomIDInput{ActorID: f.viewers[0], RoomID: f.room})
-	require.NoError(t, err)
-	require.Eventually(t, func() bool {
-		f.core.myEventsModel.hub.mu.Lock()
-		defer f.core.myEventsModel.hub.mu.Unlock()
-		state := f.core.myEventsModel.hub.users[f.viewers[0]]
-		if state == nil {
-			return false
-		}
-		_, member := state.memberRooms[f.room]
-		return !member
-	}, 2*time.Second, 10*time.Millisecond)
+	f := newTypingFanoutFixture(t, 0, 1)
+	outsider := f.viewers[0]
 
 	f.publishTyping(t, f.author)
-	// Nobody on this replica is a member of the room, so the hub must not read
+	// Nobody on this process is a member of the room, so the hub must not read
 	// the sender's preference. A user-scoped event acts as an ordering marker.
-	marker := newPubSubEvent(f.viewers[0], &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged{
+	marker := newPubSubEvent(outsider, &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_ViewerPresencePreferenceChanged{
 		ViewerPresencePreferenceChanged: &realtimev1.ViewerPresencePreferenceChangedEvent{},
 	}})
-	require.NoError(t, f.core.publishUserPubSubEvent(testContext(t), f.viewers[0], marker))
-	timer := time.NewTimer(2 * time.Second)
-	defer timer.Stop()
-	for {
-		select {
-		case envelope := <-f.streams[0]:
-			if envelope.ID() == marker.GetId() {
-				require.Zero(t, f.lookupCount(t, f.author))
-				return
-			}
-		case <-timer.C:
-			t.Fatal("marker event was not delivered")
-		}
-	}
+	require.NoError(t, f.core.publishUserPubSubEvent(testContext(t), outsider, marker))
+	require.Equal(t, marker.GetId(), nextEvent(t, f.streams[0], func(envelope EventEnvelope) bool {
+		return envelope.ID() == marker.GetId()
+	}))
+	require.Zero(t, f.lookupCount(t, f.author))
 }
