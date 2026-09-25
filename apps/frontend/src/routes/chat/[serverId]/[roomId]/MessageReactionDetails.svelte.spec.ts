@@ -129,6 +129,53 @@ describe('message reaction details', () => {
     expect(container.querySelectorAll('[aria-selected="true"]')).toHaveLength(1);
   });
 
+  it('keeps the replacement selected if a removed reaction returns', async () => {
+    const heart = reaction('heart', 1);
+    const thumbsup = reaction('thumbsup', 1);
+    const view = renderDetails([heart, thumbsup]);
+    const { container } = view;
+
+    await expect.element(q(container, '[role="tabpanel"]')).toHaveTextContent('Alice');
+    (container.querySelectorAll('[role="tab"]')[1] as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[role="tab"][aria-selected="true"]')?.getAttribute('aria-label')
+      ).toBe('Thumbs up (1)')
+    );
+
+    await view.rerender({ reactions: [heart] });
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[role="tab"][aria-selected="true"]')?.getAttribute('aria-label')
+      ).toBe('Heart (1)')
+    );
+
+    await view.rerender({ reactions: [heart, thumbsup] });
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[role="tab"][aria-selected="true"]')?.getAttribute('aria-label')
+      ).toBe('Heart (1)')
+    );
+  });
+
+  it('refreshes the visible list when its reaction summary changes', async () => {
+    const view = renderDetails([reaction('heart', 1)]);
+    await expect.element(q(view.container, '[role="tabpanel"]')).toHaveTextContent('Alice');
+    const initialReads = mocks.listReactionUsers.mock.calls.length;
+
+    mocks.listReactionUsers.mockResolvedValue({
+      userIds: ['bob'],
+      totalCount: 1,
+      hasMore: false
+    });
+    mocks.batchGetUsers.mockResolvedValue([user('bob', 'Bob')]);
+    await view.rerender({ reactions: [reaction('heart', 2)] });
+
+    await expect.element(q(view.container, '[role="tabpanel"]')).toHaveTextContent('Bob');
+    expect(q(view.container, '[role="tabpanel"]')?.textContent).not.toContain('Alice');
+    expect(mocks.listReactionUsers.mock.calls.length).toBeGreaterThan(initialReads);
+  });
+
   it('loads the next bounded page when its sentinel becomes visible', async () => {
     let notify: IntersectionObserverCallback | undefined;
     vi.stubGlobal(

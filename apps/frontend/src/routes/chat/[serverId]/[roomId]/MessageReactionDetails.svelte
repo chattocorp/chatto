@@ -56,6 +56,11 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   );
   const selectedReaction = $derived(reactions[selectedIndex]);
   const activeEmoji = $derived(selectedReaction?.emoji ?? '');
+  // Keep the chosen emoji aligned with the fallback when a reaction vanishes.
+  // Otherwise a later return of that emoji would select it again unexpectedly.
+  $effect(() => {
+    if (selectedEmoji !== activeEmoji) selectedEmoji = activeEmoji;
+  });
   // A new summary means the visible roster may have changed. It also starts
   // pagination again so live offset changes cannot mix old and new pages.
   const selectedRevision = $derived(selectedReaction ? JSON.stringify(selectedReaction) : '');
