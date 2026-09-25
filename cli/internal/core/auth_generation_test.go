@@ -157,3 +157,42 @@ func TestChattoCore_PasswordResetRevokesGenerationZeroSessionFromConcurrentLogin
 		t.Fatalf("legacy session was not upgraded: generation %d", upgraded.AuthGeneration)
 	}
 }
+
+// An authorization code that a login writes at generation 0 while a reset is in
+// progress must not be exchanged after the reset.
+func TestChattoCore_PasswordResetRevokesGenerationZeroAuthCodeFromConcurrentLogin(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "generation-zero-code-user", "Generation Zero Code User", "")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.SetInitialPasswordHash(ctx, user.Id, "oldpassword123"); err != nil {
+		t.Fatalf("SetInitialPasswordHash: %v", err)
+	}
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	redirectURI := "https://example.com/callback"
+	code := NewAuthCode()
+	data, err := json.Marshal(AuthCodeData{
+		UserID:              user.Id,
+		RedirectURI:         redirectURI,
+		CodeChallenge:       GenerateCodeChallenge(verifier),
+		CodeChallengeMethod: "S256",
+		CreatedAt:           time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("marshal auth code: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL)); err != nil {
+		t.Fatalf("store auth code: %v", err)
+	}
+
+	if _, _, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI); !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("ExchangeAuthCode err = %v, want ErrAuthCodeNotFound", err)
+	}
+}

@@ -76,10 +76,9 @@ func (c *ChattoCore) RequireAuthenticationAllowed(ctx context.Context, userID st
 // Credentials written before auth_generation existed unmarshal as generation 0
 // with MayPredateAuthGeneration set. For compatibility, those records are
 // grandfathered when their CreatedAt is not older than the user's current
-// password hash event. Legacy imported
-// password hashes only have the legacy user record timestamp, so this
-// intentionally preserves upgraded 0.0.x credentials until a new 0.1.x password
-// change/reset advances the generation.
+// password hash event. Legacy imported password hashes only have the legacy
+// user record timestamp, so this intentionally preserves upgraded 0.0.x
+// credentials until a new 0.1.x password change/reset advances the generation.
 func (c *ChattoCore) ValidateRuntimeCredential(ctx context.Context, credential RuntimeCredential) (RuntimeCredentialValidation, error) {
 	currentGeneration, err := c.CurrentAuthGeneration(ctx, credential.UserID)
 	if err != nil {
@@ -93,12 +92,6 @@ func (c *ChattoCore) ValidateRuntimeCredential(ctx context.Context, credential R
 	}
 	if credential.AuthGeneration != 0 || !credential.MayPredateAuthGeneration {
 		return RuntimeCredentialValidation{}, ErrAuthenticationRevoked
-	}
-	if currentGeneration == 0 {
-		return RuntimeCredentialValidation{
-			UserID:         credential.UserID,
-			AuthGeneration: currentGeneration,
-		}, nil
 	}
 
 	_, passwordSetAt, hasPassword := c.userModel.passwordHashWithSetAt(credential.UserID)
