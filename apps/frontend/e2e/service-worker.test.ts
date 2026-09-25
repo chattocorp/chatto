@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
-import type { SavedView } from '../src/lib/storage/savedViews';
 import { RealtimeSubscribe } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { expect, test } from './setup';
+import { readSavedResources } from './fixtures/savedViews';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { getRoomIdByNameViaConnect, postMessageViaConnect } from './fixtures/connectHelpers';
 
@@ -77,32 +77,14 @@ test('offline reload restores saved text in the normal chat view', async ({ page
   );
   expect(manifest.start_url).toBe('/chat/-');
   await expect
-    .poll(() =>
-      page.evaluate(async (body) => {
-        const db = await new Promise<IDBDatabase>((resolve, reject) => {
-          const request = indexedDB.open('chatto-saved-views', 2);
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
-        });
-        try {
-          const views = await new Promise<
-            { schemaVersion: number; data: { events?: SavedView['rooms'][number]['events'] } }[]
-          >((resolve, reject) => {
-            const request = db.transaction('resources').objectStore('resources').getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-          });
-          return views.some(
-            (view) =>
-              view.schemaVersion === 1 &&
-              view.data.events?.some(
-                (entry) => entry.event.kind === 'messagePosted' && entry.event.body === body
-              )
-          );
-        } finally {
-          db.close();
-        }
-      }, message)
+    .poll(async () =>
+      (await readSavedResources(page)).some(
+        (record) =>
+          record.schemaVersion === 1 &&
+          record.data.events?.some(
+            (entry) => entry.event.kind === 'messagePosted' && entry.event.body === message
+          )
+      )
     )
     .toBe(true);
 

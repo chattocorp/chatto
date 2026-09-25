@@ -17,3 +17,56 @@ export async function clearSavedViews(page: Page): Promise<void> {
       })
   );
 }
+
+/** One persisted resource record, such as a room timeline or member list. */
+export interface SavedResource {
+  key: string;
+  schemaVersion: number;
+  data: {
+    events?: {
+      id: string;
+      event: {
+        kind?: string;
+        body?: string;
+        replyCount?: number;
+        reactions?: unknown[];
+      };
+    }[];
+  };
+}
+
+/** Read every saved resource record without changing the saved views. */
+export async function readSavedResources(page: Page): Promise<SavedResource[]> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('chatto-saved-views', 2);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise<SavedResource[]>((resolve, reject) => {
+        const request = db.transaction('resources').objectStore('resources').getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } finally {
+      db.close();
+    }
+  });
+}
+
+/**
+ * Hold viewer verification requests until `release` is called, so a test can
+ * observe what the saved view renders before verification.
+ */
+export async function holdViewerVerification(page: Page): Promise<{ release: () => void }> {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/chatto.api.v1.ViewerService/GetViewer', async (route) => {
+    await gate;
+    await route.continue();
+  });
+  return { release };
+}
