@@ -98,7 +98,7 @@ Room header affordance for opening or hiding room extras panels.
     <button
       type="button"
       class={[
-        'group/pane-header-icon-button pane-header-icon-button',
+        'pane-header-icon-button',
         isActive && 'pane-header-icon-button-active',
         isActiveCallPanel && 'text-action'
       ]}

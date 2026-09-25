@@ -10,9 +10,14 @@ Pass either `onclick` for a regular button or `href` for navigation —
 the component renders the matching element and gets accessible name
 from the required `label` prop.
 
+Use `tone="active"` only to mark the panel that the button currently
+shows. For an on/off setting, change the icon and label; do not add a
+selected background.
+
 ```svelte
-<HeaderIconButton icon="icon-[uil--bell]" label="Follow thread" onclick={toggle} />
-<HeaderIconButton icon="icon-[uil--bell]" label="Unfollow thread" tone="active" onclick={toggle} />
+<HeaderIconButton icon="icon-[uil--users-alt]" label="Show members" onclick={toggle} />
+<HeaderIconButton icon="icon-[uil--users-alt]" label="Hide members" tone="active" onclick={toggle} />
+<HeaderIconButton icon="icon-[uil--bell]" label="Unfollow thread" onclick={toggle} />
 <HeaderIconButton icon="icon-[uil--cog]" label="Settings" href="/settings" />
 <HeaderIconButton icon="icon-[uil--trash]" label="Delete" tone="danger" onclick={destroy} />
 ```
@@ -47,7 +52,7 @@ arrow aligned with the sidebar nav items below.
     /**
      * Visual tone:
      * - `default` (muted text → text on hover)
-     * - `active` (selected background — for toggled-on states like "following")
+     * - `active` (action tint — marks the panel that this button currently shows)
      * - `danger` (red tint with red hover)
      */
     tone?: Tone;
@@ -73,7 +78,7 @@ arrow aligned with the sidebar nav items below.
   };
 
   const buttonClass = $derived([
-    'group/pane-header-icon-button pane-header-icon-button',
+    'pane-header-icon-button',
     toneClasses[tone]
   ]);
   const glyphClass = $derived([

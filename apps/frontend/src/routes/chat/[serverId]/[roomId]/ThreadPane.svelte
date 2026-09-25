@@ -328,7 +328,6 @@
       <HeaderIconButton
         icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}
         label={threadFollow.following ? m('room.thread.unfollow') : m('room.thread.follow')}
-        tone={threadFollow.following ? 'active' : 'default'}
         onclick={() => void threadFollow.toggle()}
         disabled={threadFollow.pending}
       />

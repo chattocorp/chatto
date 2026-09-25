@@ -128,7 +128,7 @@ shared viewport detector reports an open software keyboard.
       {#if onBack}
         <button
           type="button"
-          class="group/pane-header-icon-button pane-header-icon-button"
+          class="pane-header-icon-button"
           onclick={onBack}
           title={backLabel}
           aria-label={backLabel}
@@ -141,7 +141,7 @@ shared viewport detector reports an open software keyboard.
       {:else if backHref}
         <a
           href={backHref}
-          class="group/pane-header-icon-button pane-header-icon-button"
+          class="pane-header-icon-button"
           title={backLabel}
           aria-label={backLabel}
         >
@@ -200,7 +200,7 @@ shared viewport detector reports an open software keyboard.
           <button
             bind:this={actionsButton}
             type="button"
-            class="group/pane-header-icon-button pane-header-icon-button @min-[32rem]/pane-header:hidden"
+            class="pane-header-icon-button @min-[32rem]/pane-header:hidden"
             aria-label={actionsLabel}
             aria-expanded={actionsExpanded}
             aria-controls={actionsId}

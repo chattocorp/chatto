@@ -417,9 +417,6 @@
       <span class="text-muted">Search members…</span>
     </div>
     <div class="flex items-center gap-4">
-      <button type="button" class="pane-header-icon-button pane-header-icon-button-active" aria-label="Call sidebar" aria-pressed="true">
-        <span class="iconify icon-[uil--phone]" aria-hidden="true"></span>
-      </button>
       <button type="button" class="shell-action">
         <span class="icon-[uil--phone] text-lg" aria-hidden="true"></span>
         Start call
