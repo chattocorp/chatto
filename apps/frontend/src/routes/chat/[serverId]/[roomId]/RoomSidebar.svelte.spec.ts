@@ -2533,7 +2533,7 @@ describe('RoomSidebar', () => {
     });
   });
 
-  it('shows the room-ban action for other members when allowed', async () => {
+  it('shows the room removal action for other members when allowed', async () => {
     mockRoomMembers([
       { ...member(0), id: 'viewer', displayName: 'Viewer' },
       { ...member(1), id: 'other', displayName: 'Other Member' }
@@ -2553,10 +2553,10 @@ describe('RoomSidebar', () => {
     (q(container, '[aria-label="View profile of Other Member"]') as HTMLButtonElement).click();
     await tick();
 
-    expect(container.textContent).toContain('Ban from room');
+    expect(container.textContent).toContain('Remove from room');
   });
 
-  it('hides the room-ban action when member moderation is disabled', async () => {
+  it('hides the room removal action when member moderation is disabled', async () => {
     mockRoomMembers([
       { ...member(0), id: 'viewer', displayName: 'Viewer' },
       { ...member(1), id: 'other', displayName: 'Other Member' }
@@ -2576,6 +2576,6 @@ describe('RoomSidebar', () => {
     (q(container, '[aria-label="View profile of Other Member"]') as HTMLButtonElement).click();
     await tick();
 
-    expect(container.textContent).not.toContain('Ban from room');
+    expect(container.textContent).not.toContain('Remove from room');
   });
 });

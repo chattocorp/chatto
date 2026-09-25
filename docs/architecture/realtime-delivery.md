@@ -298,7 +298,7 @@ follows the same message-read boundary.
 Room visibility and administrative membership facts update the process-wide
 visibility cache. Its stable admission boundary includes room creation,
 deletion, Universal changes, joins, leaves, member additions, member removals,
-bans, and unbans. Facts for a room that a caller never saw are suppressed.
+suspensions and lifted suspensions. Facts for a room that a caller never saw are suppressed.
 
 RBAC facts use normal public events in both live delivery and replay. Role
 creation, metadata changes, and ordering changes refresh role data without a
@@ -321,7 +321,7 @@ the check. Denied or failed reads clear the affected resource, not the server
 projection. Permission events do not clear the resume cursor or request a new
 WebSocket snapshot.
 A replay can
-send a viewer's own leave, removal, or ban fact even when current membership
+send a viewer's own leave, removal, or suspension fact even when current membership
 is false. This closing fact removes state that the client could have retained.
 Effective membership and message-read permission changes are authorization
 boundaries for channel rooms and DMs. An interaction-scoped timeline contains

@@ -93,6 +93,10 @@ another address does not change the selection. See
 
 **Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
 
+**Room removal** — A moderator removes a current user from a channel room and records a reason. The user can rejoin when normal room permissions allow it, unless the moderator also applies a suspension. Universal rooms require a suspension. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
+
+**Room suspension** — A block on rejoining a channel room after a moderator removes the user. It ends at a set time or when a moderator lifts it; an indefinite suspension has no set end time. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
+
 **Room Group** — Named collection of rooms within a server, with its own per-group permission overrides. See [ADR-031](adr/ADR-031-room-group-centric-acl.md) and [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).
 
 **Sidebar Link** — Operator-managed link shown in the Server Sidebar inside a Room Group, ordered alongside rooms and stored as a durable group aggregate fact. See [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).

@@ -226,8 +226,8 @@
       "view_profile": "Profil von {name} anzeigen",
       "in_voice_call": "In einem Sprachanruf",
       "in_video_call": "In einem Videoanruf",
-      "ban_failed": "Mitglied konnte nicht aus dem Raum gesperrt werden",
-      "ban_success": "{name} wurde aus dem Raum gesperrt"
+      "remove_failed": "Benutzer konnte nicht aus dem Raum entfernt werden",
+      "remove_success": "{name} wurde aus dem Raum entfernt"
     },
     "pins": {
       "show": "Angepinnte Nachrichten anzeigen",

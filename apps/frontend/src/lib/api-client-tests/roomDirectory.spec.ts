@@ -8,7 +8,7 @@ import { RoomThreadingMode } from '$lib/roomThreading';
 
 const Permission = {
   Attach: 'message.attach',
-  BanMember: 'room.ban-member',
+  BanMember: 'room.remove-member',
   CreateRoom: 'room.create',
   EchoMessage: 'message.echo',
   JoinRoom: 'room.join',

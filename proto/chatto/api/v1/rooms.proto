@@ -233,32 +233,35 @@ message RemoveMemberResponse {
   bool removed = 1;
 }
 
-// Request to ban a member from a channel room.
-message BanMemberRequest {
-  // Required. Channel room to ban the user from.
+// Request to remove a user from a channel room for moderation.
+message RemoveUserRequest {
+  // Required. Channel room to remove the user from.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. User to ban from the room.
+  // Required. Current room member to remove.
   string user_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required moderator-entered reason stored for audit.
   string reason = 3 [(buf.validate.field).string = {
     min_len: 1
     max_len: 1000
   }];
-  // Optional future time when the ban expires.
-  google.protobuf.Timestamp expires_at = 4;
+  // Omit suspension to allow rejoining under normal room permissions.
+  // A Universal room requires one suspension choice.
+  oneof suspension {
+    // Future time after which the user may rejoin.
+    google.protobuf.Timestamp suspension_expires_at = 4;
+    // Must be true. The user cannot rejoin until the suspension is lifted.
+    bool suspend_indefinitely = 5;
+  }
 }
 
-// Result of banning a room member.
-message BanMemberResponse {
-  reserved 1;
-  reserved "banned";
-}
+// Result of a moderated room removal.
+message RemoveUserResponse {}
 
-// Request to remove a channel room ban.
-message UnbanMemberRequest {
-  // Required. Channel room to unban the user from.
+// Request to lift a channel room suspension.
+message LiftSuspensionRequest {
+  // Required. Channel room containing the suspension.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. User to unban.
+  // Required. Suspended user.
   string user_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required moderator-entered reason stored for audit.
   string reason = 3 [(buf.validate.field).string = {
@@ -267,49 +270,46 @@ message UnbanMemberRequest {
   }];
 }
 
-// Result of removing a room ban.
-message UnbanMemberResponse {
-  reserved 1;
-  reserved "unbanned";
-}
+// Result of lifting a room suspension.
+message LiftSuspensionResponse {}
 
-// Active channel room ban with optional hydrated room and user references.
-message RoomBan {
-  // Stable ban event ID.
+// Active channel room suspension with optional hydrated references.
+message RoomSuspension {
+  // Stable suspension event ID.
   string id = 1;
   // Channel room ID.
   string room_id = 2;
   // Channel room metadata, when the referenced room still exists.
   Room room = 3;
-  // Banned user ID.
+  // Suspended user ID.
   string user_id = 4;
-  // Banned user profile, when the referenced user still exists.
+  // Suspended user profile, when the referenced user still exists.
   DirectoryMember user = 5;
-  // Moderator user ID that created the ban.
+  // Moderator user ID that created the suspension.
   string moderator_id = 6;
   // Moderator profile, when the referenced user still exists.
   DirectoryMember moderator = 7;
-  // Moderator-entered ban reason.
+  // Moderator-entered removal reason.
   string reason = 8;
-  // Time the ban was created.
+  // Time the suspension was created.
   google.protobuf.Timestamp created_at = 9;
-  // Optional future time when the ban expires.
+  // Optional future time when the suspension expires. Absence means indefinite.
   google.protobuf.Timestamp expires_at = 10;
 }
 
-// Request to list active room bans.
-message ListBansRequest {
-  // Optional channel room filter. Empty lists active bans across all rooms.
+// Request to list active room suspensions.
+message ListSuspensionsRequest {
+  // Optional channel room filter. Empty lists active suspensions across all rooms.
   string room_id = 1;
   // Defaults to 50 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 2;
 }
 
-// Active room bans visible to the current moderator.
-message ListBansResponse {
-  // Active bans by creation time, newest first; equal times use ban event ID
+// Active room suspensions visible to the current moderator.
+message ListSuspensionsResponse {
+  // Active suspensions by creation time, newest first; equal times use event ID
   // in ascending order.
-  repeated RoomBan bans = 1;
+  repeated RoomSuspension suspensions = 1;
   // Page metadata.
   PageInfo page = 2;
 }
@@ -463,16 +463,16 @@ service RoomService {
   // room or user.manage-accounts overrides the target's missing room.join.
   // Bot owners and bot.manage holders may also add bots, but without either
   // override the bot needs effective room.join, bounded by its owner's authority.
-  // Preserves permission grants. Bans, archived, universal, and DM rooms prevent adding.
+  // Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
   // Removes an explicit channel-room member. Requires room.manage for this room,
   // user.manage-accounts, ownership of the target bot, or bot.manage.
   // Removal is allowed after room.join is lost and from archived rooms.
   // Preserves permission grants. Universal and DM membership cannot be edited.
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
-  // Lists active channel room bans. The caller must be allowed to moderate room
-  // membership bans.
-  rpc ListBans(ListBansRequest) returns (ListBansResponse);
+  // Lists active channel room suspensions. Requires server-scope
+  // room.remove-member.
+  rpc ListSuspensions(ListSuspensionsRequest) returns (ListSuspensionsResponse);
   // Lists current message-owned room attachments. Authentication and room
   // membership are required. Attachments also require message.read or a
   // matching thread relationship with message.read-interactions. The server omits attachments from
@@ -516,10 +516,11 @@ service RoomService {
   // usually call this after the user has viewed the latest visible event in the
   // room.
   rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
-  // Bans a member from a channel room. Direct-message rooms cannot be moderated
-  // this way, and the target must currently be a room member.
-  rpc BanMember(BanMemberRequest) returns (BanMemberResponse);
-  // Removes an active channel room ban. Calling this when no active ban exists
-  // is allowed and still returns success.
-  rpc UnbanMember(UnbanMemberRequest) returns (UnbanMemberResponse);
+  // Removes a current channel room member with a required reason. Requires
+  // room.remove-member. Without suspension, ordinary join rules apply afterward.
+  // Universal rooms require a suspension. Direct-message rooms are excluded.
+  rpc RemoveUser(RemoveUserRequest) returns (RemoveUserResponse);
+  // Lifts an active channel room suspension. Requires room.remove-member.
+  // Calling this when no active suspension exists succeeds.
+  rpc LiftSuspension(LiftSuspensionRequest) returns (LiftSuspensionResponse);
 }

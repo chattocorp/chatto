@@ -67,8 +67,9 @@ const (
 	// PermRoomManage allows updating or deleting channel rooms.
 	PermRoomManage Permission = "room.manage"
 
-	// PermRoomMemberBan allows banning members from channel rooms.
-	PermRoomMemberBan Permission = "room.ban-member"
+	// PermRoomMemberRemove allows moderated removal from channel rooms,
+	// with an optional suspension that prevents rejoining.
+	PermRoomMemberRemove Permission = "room.remove-member"
 
 	// ===== Call Permissions =====
 
@@ -201,7 +202,7 @@ var allPermissions = []PermissionMetadata{
 	{Permission: PermRoomJoin, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
-	{Permission: PermRoomMemberBan, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
+	{Permission: PermRoomMemberRemove, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 
 	// Calls
 	{Permission: PermCallStart, Category: CategoryCall, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
@@ -415,7 +416,7 @@ func DefaultEveryonePermissions() []Permission {
 func DefaultModeratorPermissions() []Permission {
 	return []Permission{
 		PermMessageManage,
-		PermRoomMemberBan,
+		PermRoomMemberRemove,
 	}
 }
 
@@ -431,7 +432,7 @@ func DefaultAdminPermissions() []Permission {
 		PermRoomJoin,
 		PermRoomList,
 		PermRoomManage,
-		PermRoomMemberBan,
+		PermRoomMemberRemove,
 		PermMessageManage,
 		PermRoleManage,
 		PermRoleAssign,

@@ -1139,20 +1139,20 @@ export class RemoveMemberResponse extends Message<RemoveMemberResponse> {
 }
 
 /**
- * Request to ban a member from a channel room.
+ * Request to remove a user from a channel room for moderation.
  *
- * @generated from message chatto.api.v1.BanMemberRequest
+ * @generated from message chatto.api.v1.RemoveUserRequest
  */
-export class BanMemberRequest extends Message<BanMemberRequest> {
+export class RemoveUserRequest extends Message<RemoveUserRequest> {
   /**
-   * Required. Channel room to ban the user from.
+   * Required. Channel room to remove the user from.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Required. User to ban from the room.
+   * Required. Current room member to remove.
    *
    * @generated from field: string user_id = 2;
    */
@@ -1166,91 +1166,109 @@ export class BanMemberRequest extends Message<BanMemberRequest> {
   reason = "";
 
   /**
-   * Optional future time when the ban expires.
+   * Omit suspension to allow rejoining under normal room permissions.
+   * A Universal room requires one suspension choice.
    *
-   * @generated from field: google.protobuf.Timestamp expires_at = 4;
+   * @generated from oneof chatto.api.v1.RemoveUserRequest.suspension
    */
-  expiresAt?: Timestamp;
+  suspension: {
+    /**
+     * Future time after which the user may rejoin.
+     *
+     * @generated from field: google.protobuf.Timestamp suspension_expires_at = 4;
+     */
+    value: Timestamp;
+    case: "suspensionExpiresAt";
+  } | {
+    /**
+     * Must be true. The user cannot rejoin until the suspension is lifted.
+     *
+     * @generated from field: bool suspend_indefinitely = 5;
+     */
+    value: boolean;
+    case: "suspendIndefinitely";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
-  constructor(data?: PartialMessage<BanMemberRequest>) {
+  constructor(data?: PartialMessage<RemoveUserRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.BanMemberRequest";
+  static readonly typeName = "chatto.api.v1.RemoveUserRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "expires_at", kind: "message", T: Timestamp },
+    { no: 4, name: "suspension_expires_at", kind: "message", T: Timestamp, oneof: "suspension" },
+    { no: 5, name: "suspend_indefinitely", kind: "scalar", T: 8 /* ScalarType.BOOL */, oneof: "suspension" },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BanMemberRequest {
-    return new BanMemberRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveUserRequest {
+    return new RemoveUserRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BanMemberRequest {
-    return new BanMemberRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveUserRequest {
+    return new RemoveUserRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BanMemberRequest {
-    return new BanMemberRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveUserRequest {
+    return new RemoveUserRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BanMemberRequest | PlainMessage<BanMemberRequest> | undefined, b: BanMemberRequest | PlainMessage<BanMemberRequest> | undefined): boolean {
-    return proto3.util.equals(BanMemberRequest, a, b);
+  static equals(a: RemoveUserRequest | PlainMessage<RemoveUserRequest> | undefined, b: RemoveUserRequest | PlainMessage<RemoveUserRequest> | undefined): boolean {
+    return proto3.util.equals(RemoveUserRequest, a, b);
   }
 }
 
 /**
- * Result of banning a room member.
+ * Result of a moderated room removal.
  *
- * @generated from message chatto.api.v1.BanMemberResponse
+ * @generated from message chatto.api.v1.RemoveUserResponse
  */
-export class BanMemberResponse extends Message<BanMemberResponse> {
-  constructor(data?: PartialMessage<BanMemberResponse>) {
+export class RemoveUserResponse extends Message<RemoveUserResponse> {
+  constructor(data?: PartialMessage<RemoveUserResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.BanMemberResponse";
+  static readonly typeName = "chatto.api.v1.RemoveUserResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BanMemberResponse {
-    return new BanMemberResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveUserResponse {
+    return new RemoveUserResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BanMemberResponse {
-    return new BanMemberResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveUserResponse {
+    return new RemoveUserResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BanMemberResponse {
-    return new BanMemberResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveUserResponse {
+    return new RemoveUserResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BanMemberResponse | PlainMessage<BanMemberResponse> | undefined, b: BanMemberResponse | PlainMessage<BanMemberResponse> | undefined): boolean {
-    return proto3.util.equals(BanMemberResponse, a, b);
+  static equals(a: RemoveUserResponse | PlainMessage<RemoveUserResponse> | undefined, b: RemoveUserResponse | PlainMessage<RemoveUserResponse> | undefined): boolean {
+    return proto3.util.equals(RemoveUserResponse, a, b);
   }
 }
 
 /**
- * Request to remove a channel room ban.
+ * Request to lift a channel room suspension.
  *
- * @generated from message chatto.api.v1.UnbanMemberRequest
+ * @generated from message chatto.api.v1.LiftSuspensionRequest
  */
-export class UnbanMemberRequest extends Message<UnbanMemberRequest> {
+export class LiftSuspensionRequest extends Message<LiftSuspensionRequest> {
   /**
-   * Required. Channel room to unban the user from.
+   * Required. Channel room containing the suspension.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Required. User to unban.
+   * Required. Suspended user.
    *
    * @generated from field: string user_id = 2;
    */
@@ -1263,77 +1281,77 @@ export class UnbanMemberRequest extends Message<UnbanMemberRequest> {
    */
   reason = "";
 
-  constructor(data?: PartialMessage<UnbanMemberRequest>) {
+  constructor(data?: PartialMessage<LiftSuspensionRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UnbanMemberRequest";
+  static readonly typeName = "chatto.api.v1.LiftSuspensionRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnbanMemberRequest {
-    return new UnbanMemberRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LiftSuspensionRequest {
+    return new LiftSuspensionRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnbanMemberRequest {
-    return new UnbanMemberRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LiftSuspensionRequest {
+    return new LiftSuspensionRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnbanMemberRequest {
-    return new UnbanMemberRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LiftSuspensionRequest {
+    return new LiftSuspensionRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UnbanMemberRequest | PlainMessage<UnbanMemberRequest> | undefined, b: UnbanMemberRequest | PlainMessage<UnbanMemberRequest> | undefined): boolean {
-    return proto3.util.equals(UnbanMemberRequest, a, b);
+  static equals(a: LiftSuspensionRequest | PlainMessage<LiftSuspensionRequest> | undefined, b: LiftSuspensionRequest | PlainMessage<LiftSuspensionRequest> | undefined): boolean {
+    return proto3.util.equals(LiftSuspensionRequest, a, b);
   }
 }
 
 /**
- * Result of removing a room ban.
+ * Result of lifting a room suspension.
  *
- * @generated from message chatto.api.v1.UnbanMemberResponse
+ * @generated from message chatto.api.v1.LiftSuspensionResponse
  */
-export class UnbanMemberResponse extends Message<UnbanMemberResponse> {
-  constructor(data?: PartialMessage<UnbanMemberResponse>) {
+export class LiftSuspensionResponse extends Message<LiftSuspensionResponse> {
+  constructor(data?: PartialMessage<LiftSuspensionResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UnbanMemberResponse";
+  static readonly typeName = "chatto.api.v1.LiftSuspensionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnbanMemberResponse {
-    return new UnbanMemberResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LiftSuspensionResponse {
+    return new LiftSuspensionResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnbanMemberResponse {
-    return new UnbanMemberResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LiftSuspensionResponse {
+    return new LiftSuspensionResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnbanMemberResponse {
-    return new UnbanMemberResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LiftSuspensionResponse {
+    return new LiftSuspensionResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UnbanMemberResponse | PlainMessage<UnbanMemberResponse> | undefined, b: UnbanMemberResponse | PlainMessage<UnbanMemberResponse> | undefined): boolean {
-    return proto3.util.equals(UnbanMemberResponse, a, b);
+  static equals(a: LiftSuspensionResponse | PlainMessage<LiftSuspensionResponse> | undefined, b: LiftSuspensionResponse | PlainMessage<LiftSuspensionResponse> | undefined): boolean {
+    return proto3.util.equals(LiftSuspensionResponse, a, b);
   }
 }
 
 /**
- * Active channel room ban with optional hydrated room and user references.
+ * Active channel room suspension with optional hydrated references.
  *
- * @generated from message chatto.api.v1.RoomBan
+ * @generated from message chatto.api.v1.RoomSuspension
  */
-export class RoomBan extends Message<RoomBan> {
+export class RoomSuspension extends Message<RoomSuspension> {
   /**
-   * Stable ban event ID.
+   * Stable suspension event ID.
    *
    * @generated from field: string id = 1;
    */
@@ -1354,21 +1372,21 @@ export class RoomBan extends Message<RoomBan> {
   room?: Room;
 
   /**
-   * Banned user ID.
+   * Suspended user ID.
    *
    * @generated from field: string user_id = 4;
    */
   userId = "";
 
   /**
-   * Banned user profile, when the referenced user still exists.
+   * Suspended user profile, when the referenced user still exists.
    *
    * @generated from field: chatto.api.v1.DirectoryMember user = 5;
    */
   user?: DirectoryMember;
 
   /**
-   * Moderator user ID that created the ban.
+   * Moderator user ID that created the suspension.
    *
    * @generated from field: string moderator_id = 6;
    */
@@ -1382,33 +1400,33 @@ export class RoomBan extends Message<RoomBan> {
   moderator?: DirectoryMember;
 
   /**
-   * Moderator-entered ban reason.
+   * Moderator-entered removal reason.
    *
    * @generated from field: string reason = 8;
    */
   reason = "";
 
   /**
-   * Time the ban was created.
+   * Time the suspension was created.
    *
    * @generated from field: google.protobuf.Timestamp created_at = 9;
    */
   createdAt?: Timestamp;
 
   /**
-   * Optional future time when the ban expires.
+   * Optional future time when the suspension expires. Absence means indefinite.
    *
    * @generated from field: google.protobuf.Timestamp expires_at = 10;
    */
   expiresAt?: Timestamp;
 
-  constructor(data?: PartialMessage<RoomBan>) {
+  constructor(data?: PartialMessage<RoomSuspension>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomBan";
+  static readonly typeName = "chatto.api.v1.RoomSuspension";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -1422,31 +1440,31 @@ export class RoomBan extends Message<RoomBan> {
     { no: 10, name: "expires_at", kind: "message", T: Timestamp },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomBan {
-    return new RoomBan().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomSuspension {
+    return new RoomSuspension().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomBan {
-    return new RoomBan().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomSuspension {
+    return new RoomSuspension().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomBan {
-    return new RoomBan().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomSuspension {
+    return new RoomSuspension().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RoomBan | PlainMessage<RoomBan> | undefined, b: RoomBan | PlainMessage<RoomBan> | undefined): boolean {
-    return proto3.util.equals(RoomBan, a, b);
+  static equals(a: RoomSuspension | PlainMessage<RoomSuspension> | undefined, b: RoomSuspension | PlainMessage<RoomSuspension> | undefined): boolean {
+    return proto3.util.equals(RoomSuspension, a, b);
   }
 }
 
 /**
- * Request to list active room bans.
+ * Request to list active room suspensions.
  *
- * @generated from message chatto.api.v1.ListBansRequest
+ * @generated from message chatto.api.v1.ListSuspensionsRequest
  */
-export class ListBansRequest extends Message<ListBansRequest> {
+export class ListSuspensionsRequest extends Message<ListSuspensionsRequest> {
   /**
-   * Optional channel room filter. Empty lists active bans across all rooms.
+   * Optional channel room filter. Empty lists active suspensions across all rooms.
    *
    * @generated from field: string room_id = 1;
    */
@@ -1459,48 +1477,48 @@ export class ListBansRequest extends Message<ListBansRequest> {
    */
   page?: PageRequest;
 
-  constructor(data?: PartialMessage<ListBansRequest>) {
+  constructor(data?: PartialMessage<ListSuspensionsRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListBansRequest";
+  static readonly typeName = "chatto.api.v1.ListSuspensionsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "page", kind: "message", T: PageRequest },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListBansRequest {
-    return new ListBansRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListSuspensionsRequest {
+    return new ListSuspensionsRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListBansRequest {
-    return new ListBansRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListSuspensionsRequest {
+    return new ListSuspensionsRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListBansRequest {
-    return new ListBansRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListSuspensionsRequest {
+    return new ListSuspensionsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListBansRequest | PlainMessage<ListBansRequest> | undefined, b: ListBansRequest | PlainMessage<ListBansRequest> | undefined): boolean {
-    return proto3.util.equals(ListBansRequest, a, b);
+  static equals(a: ListSuspensionsRequest | PlainMessage<ListSuspensionsRequest> | undefined, b: ListSuspensionsRequest | PlainMessage<ListSuspensionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListSuspensionsRequest, a, b);
   }
 }
 
 /**
- * Active room bans visible to the current moderator.
+ * Active room suspensions visible to the current moderator.
  *
- * @generated from message chatto.api.v1.ListBansResponse
+ * @generated from message chatto.api.v1.ListSuspensionsResponse
  */
-export class ListBansResponse extends Message<ListBansResponse> {
+export class ListSuspensionsResponse extends Message<ListSuspensionsResponse> {
   /**
-   * Active bans by creation time, newest first; equal times use ban event ID
+   * Active suspensions by creation time, newest first; equal times use event ID
    * in ascending order.
    *
-   * @generated from field: repeated chatto.api.v1.RoomBan bans = 1;
+   * @generated from field: repeated chatto.api.v1.RoomSuspension suspensions = 1;
    */
-  bans: RoomBan[] = [];
+  suspensions: RoomSuspension[] = [];
 
   /**
    * Page metadata.
@@ -1509,32 +1527,32 @@ export class ListBansResponse extends Message<ListBansResponse> {
    */
   page?: PageInfo;
 
-  constructor(data?: PartialMessage<ListBansResponse>) {
+  constructor(data?: PartialMessage<ListSuspensionsResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListBansResponse";
+  static readonly typeName = "chatto.api.v1.ListSuspensionsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "bans", kind: "message", T: RoomBan, repeated: true },
+    { no: 1, name: "suspensions", kind: "message", T: RoomSuspension, repeated: true },
     { no: 2, name: "page", kind: "message", T: PageInfo },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListBansResponse {
-    return new ListBansResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListSuspensionsResponse {
+    return new ListSuspensionsResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListBansResponse {
-    return new ListBansResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListSuspensionsResponse {
+    return new ListSuspensionsResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListBansResponse {
-    return new ListBansResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListSuspensionsResponse {
+    return new ListSuspensionsResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListBansResponse | PlainMessage<ListBansResponse> | undefined, b: ListBansResponse | PlainMessage<ListBansResponse> | undefined): boolean {
-    return proto3.util.equals(ListBansResponse, a, b);
+  static equals(a: ListSuspensionsResponse | PlainMessage<ListSuspensionsResponse> | undefined, b: ListSuspensionsResponse | PlainMessage<ListSuspensionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListSuspensionsResponse, a, b);
   }
 }
 

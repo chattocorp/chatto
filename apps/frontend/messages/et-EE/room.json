@@ -226,8 +226,8 @@
       "view_profile": "Vaata profiili {name}",
       "in_voice_call": "Häälkõnes",
       "in_video_call": "Videokõnes",
-      "ban_failed": "Liikme ruumist blokeerimine ebaõnnestus",
-      "ban_success": "Blokeeritud {name} ruumist"
+      "remove_failed": "Kasutajat ei õnnestunud toast eemaldada",
+      "remove_success": "{name} eemaldati toast"
     },
     "pins": {
       "show": "Kuva kinnitatud sõnumid",

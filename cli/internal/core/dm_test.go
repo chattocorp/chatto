@@ -755,11 +755,11 @@ func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
 
-	if _, err := core.BanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotBanDMRoomMember) {
-		t.Fatalf("expected ErrCannotBanDMRoomMember from BanMember, got %v", err)
+	if _, err := core.BanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
+		t.Fatalf("expected ErrCannotRemoveDMRoomMember from BanMember, got %v", err)
 	}
-	if err := core.UnbanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotBanDMRoomMember) {
-		t.Fatalf("expected ErrCannotBanDMRoomMember from UnbanMember, got %v", err)
+	if err := core.UnbanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
+		t.Fatalf("expected ErrCannotRemoveDMRoomMember from UnbanMember, got %v", err)
 	}
 
 	isMember, err := core.RoomMembershipExists(ctx, KindDM, user2.Id, room.Id)

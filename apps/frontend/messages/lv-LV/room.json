@@ -226,8 +226,8 @@
       "view_profile": "Skatīt profilu {name}",
       "in_voice_call": "Balss zvanā",
       "in_video_call": "Videozvanā",
-      "ban_failed": "Neizdevās padzīt dalībnieku no telpas",
-      "ban_success": "Izraidīts {name} no telpas"
+      "remove_failed": "Neizdevās noņemt lietotāju no telpas",
+      "remove_success": "{name} noņemts no telpas"
     },
     "pins": {
       "show": "Rādīt piespraustās ziņas",

@@ -120,7 +120,7 @@
       "room_join": "Gå med i befintliga rum",
       "room_list": "Se rum i katalogen. En användare kan tillåtas se ett rum (t.ex. för att begära åtkomst) utan att få gå med i det.",
       "room_manage": "Redigera ett rums inställningar och behörigheter och ta bort rum",
-      "room_ban_member": "Blockera medlemmar från rum",
+      "room_remove_member": "Ta bort medlemmar från rum och stäng av återinträde vid behov",
       "message_read": "Läs alla meddelanden i rum. Om denna behörighet tas bort är begränsad åtkomst fortfarande möjlig om message.read-interactions har beviljats separat.",
       "message_read_interactions": "Läs hela trådar som du har skapat eller där en annan användare nämnde dig direkt",
       "message_post": "Publicera meddelanden och trådsvar och starta direktmeddelanden",

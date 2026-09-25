@@ -226,8 +226,8 @@
       "view_profile": "Se profilen til {name}",
       "in_voice_call": "I et taleanrop",
       "in_video_call": "I en videosamtale",
-      "ban_failed": "Kunne ikke utestenge medlem fra rommet",
-      "ban_success": "Utestengt {name} fra rommet"
+      "remove_failed": "Kunne ikke fjerne brukeren fra rommet",
+      "remove_success": "{name} ble fjernet fra rommet"
     },
     "pins": {
       "show": "Vis festede meldinger",

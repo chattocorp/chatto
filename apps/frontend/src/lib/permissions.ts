@@ -63,9 +63,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
     category: 'room',
     description: () => m('rbac.permission_descriptions.room_manage')
   },
-  'room.ban-member': {
+  'room.remove-member': {
     category: 'room',
-    description: () => m('rbac.permission_descriptions.room_ban_member')
+    description: () => m('rbac.permission_descriptions.room_remove_member')
   },
 
   // Call permissions

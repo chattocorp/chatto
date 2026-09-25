@@ -226,8 +226,8 @@
       "view_profile": "Visa profil för {name}",
       "in_voice_call": "I ett röstsamtal",
       "in_video_call": "I ett videosamtal",
-      "ban_failed": "Det gick inte att blockera medlem från rummet",
-      "ban_success": "Utestängd {name} från rummet"
+      "remove_failed": "Det gick inte att ta bort användaren från rummet",
+      "remove_success": "{name} togs bort från rummet"
     },
     "pins": {
       "show": "Visa fästa meddelanden",

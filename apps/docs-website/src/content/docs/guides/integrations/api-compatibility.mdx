@@ -497,7 +497,6 @@ Regenerate clients from the 0.5 protobuf definitions.
 | `MessageService` | `DeleteMessage`, `DeleteAttachment`, `DeleteLinkPreview` | `deleted` |
 | `RoomService` | `LeaveRoom` | `left` |
 | `RoomService` | `RefreshTypingIndicator` | `updated` |
-| `RoomService` | `BanMember` / `UnbanMember` | `banned` / `unbanned` |
 | `PushNotificationService` | `Subscribe` / `Unsubscribe` | `subscribed` / `unsubscribed` |
 | `PushNotificationService` | `SendTestNotification` | `sent` |
 | `AdminUserService` | `DeleteUser` / `ClearUsernameCooldown` | `deleted` / `cleared` |
@@ -582,8 +581,19 @@ order. For offset lists, an absent page or a zero limit selects the default.
 Valid limits above the RPC maximum are capped; shared `PageRequest` values
 above 500 or below zero return `INVALID_ARGUMENT`.
 
-`RoomService.ListBans` sorts by creation time, newest first, then by ban event
-ID in ascending order. Bans with equal timestamps now keep the same order
+`RoomService.ListSuspensions` sorts by creation time, newest first, then by suspension event
+ID in ascending order. Suspensions with equal timestamps keep the same order
 between reads. Offset pages remain live reads: additions, removals, or expiry
-between requests can still shift offsets. No client regeneration or data
-migration is required.
+between requests can still shift offsets.
+
+## Room removal and suspension in 0.5
+
+Regenerate clients and replace `RoomService.BanMember` with
+`RoomService.RemoveUser`. Supply a reason and choose one suspension case:
+omit it to allow rejoining under normal room permissions, set
+`suspension_expires_at` to a future time, or set `suspend_indefinitely` to
+`true`. Universal rooms require a suspension. Replace `ListBans` with
+`ListSuspensions`, `UnbanMember` with `LiftSuspension`, and `RoomBan` with
+`RoomSuspension`. Read `ListSuspensionsResponse.suspensions` in place of
+`bans`. `RoomService.RemoveMember` remains the separate room-management call.
+Existing active room bans appear as suspensions after the upgrade.

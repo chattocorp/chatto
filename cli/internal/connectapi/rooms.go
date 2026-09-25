@@ -19,8 +19,8 @@ type roomService struct {
 }
 
 const (
-	defaultRoomBanListLimit = 50
-	maxRoomBanListLimit     = 100
+	defaultRoomSuspensionListLimit = 50
+	maxRoomSuspensionListLimit     = 100
 )
 
 func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[apiv1.CreateRoomRequest]) (*connect.Response[apiv1.CreateRoomResponse], error) {
@@ -213,7 +213,7 @@ func (s *roomService) RemoveMember(ctx context.Context, req *connect.Request[api
 	return connect.NewResponse(&apiv1.RemoveMemberResponse{Removed: removed}), nil
 }
 
-func (s *roomService) ListBans(ctx context.Context, req *connect.Request[apiv1.ListBansRequest]) (*connect.Response[apiv1.ListBansResponse], error) {
+func (s *roomService) ListSuspensions(ctx context.Context, req *connect.Request[apiv1.ListSuspensionsRequest]) (*connect.Response[apiv1.ListSuspensionsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -224,7 +224,7 @@ func (s *roomService) ListBans(ctx context.Context, req *connect.Request[apiv1.L
 		value := req.Msg.GetRoomId()
 		roomID = &value
 	}
-	bans, err := s.api.core.RoomCommands().ListActiveRoomBans(ctx, core.RoomBanListInput{
+	bans, err := s.api.core.RoomCommands().ListActiveRoomSuspensions(ctx, core.RoomBanListInput{
 		ActorID: caller.UserID,
 		RoomID:  roomID,
 	})
@@ -232,20 +232,20 @@ func (s *roomService) ListBans(ctx context.Context, req *connect.Request[apiv1.L
 		return nil, connectError(err)
 	}
 
-	limit, offset := apiPagination(req.Msg.GetPage(), defaultRoomBanListLimit, maxRoomBanListLimit)
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultRoomSuspensionListLimit, maxRoomSuspensionListLimit)
 	page, totalCount, hasMore := apiSlicePage(bans, limit, offset)
 
-	out := make([]*apiv1.RoomBan, 0, len(page))
+	out := make([]*apiv1.RoomSuspension, 0, len(page))
 	for _, ban := range page {
-		apiBan, err := s.apiRoomBan(ctx, ban)
+		apiBan, err := s.apiRoomSuspension(ctx, ban)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, apiBan)
 	}
-	return connect.NewResponse(&apiv1.ListBansResponse{
-		Bans: out,
-		Page: apiPageInfo(totalCount, hasMore),
+	return connect.NewResponse(&apiv1.ListSuspensionsResponse{
+		Suspensions: out,
+		Page:        apiPageInfo(totalCount, hasMore),
 	}), nil
 }
 
@@ -269,35 +269,47 @@ func (s *roomService) RefreshTypingIndicator(ctx context.Context, req *connect.R
 	return connect.NewResponse(&apiv1.RefreshTypingIndicatorResponse{}), nil
 }
 
-func (s *roomService) BanMember(ctx context.Context, req *connect.Request[apiv1.BanMemberRequest]) (*connect.Response[apiv1.BanMemberResponse], error) {
+func (s *roomService) RemoveUser(ctx context.Context, req *connect.Request[apiv1.RemoveUserRequest]) (*connect.Response[apiv1.RemoveUserResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var expiresAt *time.Time
-	if req.Msg.ExpiresAt != nil {
-		t := req.Msg.ExpiresAt.AsTime()
+	suspension := false
+	switch selected := req.Msg.GetSuspension().(type) {
+	case *apiv1.RemoveUserRequest_SuspensionExpiresAt:
+		if selected.SuspensionExpiresAt == nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suspension expiry is required"))
+		}
+		t := selected.SuspensionExpiresAt.AsTime()
 		expiresAt = &t
+		suspension = true
+	case *apiv1.RemoveUserRequest_SuspendIndefinitely:
+		if !selected.SuspendIndefinitely {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suspend_indefinitely must be true"))
+		}
+		suspension = true
 	}
 
-	if _, err := s.api.core.RoomCommands().BanMember(ctx, core.RoomBanInput{
-		ActorID:   caller.UserID,
-		RoomID:    req.Msg.RoomId,
-		UserID:    req.Msg.UserId,
-		Reason:    req.Msg.Reason,
-		ExpiresAt: expiresAt,
+	if err := s.api.core.RoomCommands().RemoveUser(ctx, core.RoomRemoveUserInput{
+		ActorID:    caller.UserID,
+		RoomID:     req.Msg.RoomId,
+		UserID:     req.Msg.UserId,
+		Reason:     req.Msg.Reason,
+		Suspension: suspension,
+		ExpiresAt:  expiresAt,
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.BanMemberResponse{}), nil
+	return connect.NewResponse(&apiv1.RemoveUserResponse{}), nil
 }
 
-func (s *roomService) UnbanMember(ctx context.Context, req *connect.Request[apiv1.UnbanMemberRequest]) (*connect.Response[apiv1.UnbanMemberResponse], error) {
+func (s *roomService) LiftSuspension(ctx context.Context, req *connect.Request[apiv1.LiftSuspensionRequest]) (*connect.Response[apiv1.LiftSuspensionResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.api.core.RoomCommands().UnbanMember(ctx, core.RoomUnbanInput{
+	if err := s.api.core.RoomCommands().LiftSuspension(ctx, core.RoomUnbanInput{
 		ActorID: caller.UserID,
 		RoomID:  req.Msg.RoomId,
 		UserID:  req.Msg.UserId,
@@ -305,15 +317,15 @@ func (s *roomService) UnbanMember(ctx context.Context, req *connect.Request[apiv
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UnbanMemberResponse{}), nil
+	return connect.NewResponse(&apiv1.LiftSuspensionResponse{}), nil
 }
 
-func (s *roomService) apiRoomBan(ctx context.Context, ban core.RoomBan) (*apiv1.RoomBan, error) {
+func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (*apiv1.RoomSuspension, error) {
 	var expiresAt *timestamppb.Timestamp
 	if ban.ExpiresAt != nil {
 		expiresAt = timestamppb.New(*ban.ExpiresAt)
 	}
-	out := &apiv1.RoomBan{
+	out := &apiv1.RoomSuspension{
 		Id:          ban.EventID,
 		RoomId:      ban.RoomID,
 		UserId:      ban.UserID,

@@ -304,7 +304,7 @@ describe('UserContextMenu', () => {
       'Send Message',
       'View profile',
       'View in Server Admin',
-      'Ban from room'
+      'Remove from room'
     ]);
     const actionIcons = Array.from(dialog.querySelectorAll('.menu-entry > .menu-entry-leading'));
     expect(
@@ -315,7 +315,7 @@ describe('UserContextMenu', () => {
       'icon-[uil--comment-alt-message]',
       'icon-[uil--user]',
       'icon-[uil--servers]',
-      'icon-[uil--ban]',
+      'icon-[uil--user-minus]',
       'icon-[uil--copy]'
     ]);
     expect(sections[2]?.textContent).toContain('Copy User ID');

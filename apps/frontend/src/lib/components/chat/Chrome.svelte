@@ -138,7 +138,7 @@
       canManage: can('server.manage'),
       canManageNeighbors: can('server.manage-neighbors'),
       canManageRooms: can('room.manage'),
-      canModerate: can('room.ban-member'),
+      canModerate: can('room.remove-member'),
       canManageRoles: viewer?.canAdminManageRoles ?? false,
       canAssignRoles: viewer?.canAssignRoles ?? false,
       canManageUserAccounts: viewer?.canAdminManageAccounts ?? false,

@@ -226,8 +226,8 @@
       "view_profile": "{name} profilini görüntüle",
       "in_voice_call": "Sesli aramada",
       "in_video_call": "Video görüşmesinde",
-      "ban_failed": "Üyenin odadan yasaklanması başarısız oldu",
-      "ban_success": "{name} kişinin odaya girişi yasaklandı"
+      "remove_failed": "Kullanıcı odadan çıkarılamadı",
+      "remove_success": "{name} odadan çıkarıldı"
     },
     "pins": {
       "show": "Sabitlenmiş mesajları göster",

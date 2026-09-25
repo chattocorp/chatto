@@ -481,6 +481,7 @@
     pinsStore: roomPinsStore ?? undefined,
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
+    isUniversal: room.roomData?.room.isUniversal ?? false,
     currentUserId: currentUser.user?.id ?? null,
     membersStore: roomMembersStore,
     onOpenProfile: (userId: string) => appUi.openMemberProfile(userId),

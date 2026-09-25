@@ -230,8 +230,8 @@
       "view_profile": "הצג את הפרופיל של {name}",
       "in_voice_call": "בשיחה קולית",
       "in_video_call": "בשיחת וידאו",
-      "ban_failed": "לא הצליח לחסום חבר מהחדר",
-      "ban_success": "נאסר {name} מהחדר"
+      "remove_failed": "לא ניתן להסיר את המשתמש מהחדר",
+      "remove_success": "{name} הוסר מהחדר"
     },
     "pins": {
       "show": "הצגת הודעות מוצמדות",

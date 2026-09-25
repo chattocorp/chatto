@@ -145,10 +145,10 @@ var (
 	// server policy; users can mute them instead.
 	ErrCannotLeaveUniversalRoom = errors.New("cannot leave universal rooms")
 
-	// ErrCannotBanDMRoomMember is returned when a moderator tries to ban
+	// ErrCannotRemoveDMRoomMember is returned when a moderator tries to remove
 	// someone from a DM room. DM membership is the privacy boundary and
 	// cannot be moderated like a channel room.
-	ErrCannotBanDMRoomMember = errors.New("cannot ban members from DM conversations")
+	ErrCannotRemoveDMRoomMember = errors.New("cannot remove users from DM conversations")
 
 	// ErrLoginTooShort is returned when a login is shorter than MinLoginLength.
 	ErrLoginTooShort = errors.New("username must be at least 2 characters")

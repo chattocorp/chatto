@@ -226,8 +226,8 @@
       "view_profile": "Bekijk profiel van {name}",
       "in_voice_call": "In een spraakoproep",
       "in_video_call": "In een videogesprek",
-      "ban_failed": "Kan lid niet uitsluiten van kamer",
-      "ban_success": "{name} is uitgesloten van de kamer"
+      "remove_failed": "Gebruiker kon niet uit de kamer worden verwijderd",
+      "remove_success": "{name} is uit de kamer verwijderd"
     },
     "pins": {
       "show": "Vastgezette berichten tonen",
