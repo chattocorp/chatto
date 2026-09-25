@@ -11,8 +11,6 @@ import (
 )
 
 var (
-	// ErrOIDCSubjectAlreadyClaimed is returned when an OIDC subject is already linked to a different user.
-	ErrOIDCSubjectAlreadyClaimed = errors.New("OIDC subject is already linked to another account")
 	// ErrExternalIdentityAlreadyClaimed is returned when an external identity is already linked to a different user.
 	ErrExternalIdentityAlreadyClaimed = errors.New("external identity is already linked to another account")
 )

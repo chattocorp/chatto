@@ -8,13 +8,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/pkg/events"
 )
 

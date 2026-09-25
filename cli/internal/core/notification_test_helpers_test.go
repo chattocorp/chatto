@@ -4,11 +4,10 @@ import (
 	"context"
 	"testing"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 type notificationTestSignalKind string

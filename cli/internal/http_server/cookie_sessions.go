@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -16,6 +14,7 @@ import (
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 )
 
 const (

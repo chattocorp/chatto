@@ -25,10 +25,6 @@ const (
 	MaxAvatarDim = 256
 	// MaxLogoDim is the maximum dimension for space logo images.
 	MaxLogoDim = 512
-	// MaxBannerWidth is the maximum width for space banner images (4:3 aspect ratio).
-	MaxBannerWidth = 768
-	// MaxBannerHeight is the maximum height for space banner images (4:3 aspect ratio).
-	MaxBannerHeight = 576
 	// DefaultTransformJPEGQuality is the JPEG quality used by transformed images
 	// unless the caller selects a surface-specific quality (1-100).
 	// 80 provides a good balance between file size and visual quality.

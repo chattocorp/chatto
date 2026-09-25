@@ -82,9 +82,9 @@ func emailVerificationOTPSubject(userID, email string) string {
 	return strings.TrimSpace(userID) + "\x00" + strings.ToLower(strings.TrimSpace(email))
 }
 
-// emailHash returns the stable lowercase-SHA256 hex digest used in both
-// the per-email key and the user_by_email index. Centralised so the
-// index and the per-email entries can never drift apart.
+// emailHash returns the stable lookup hash for an email address. The user
+// projection keys verified emails and its email index with it, and auth audit
+// events record it, so all of them agree.
 func emailHash(email string) string {
 	return userPIILookupHash(email)
 }

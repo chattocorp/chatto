@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/nats-io/nats.go/jetstream"
@@ -17,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 )
 
 const (

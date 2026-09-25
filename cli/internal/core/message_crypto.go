@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"hmans.de/chatto/pkg/events"
 )
 

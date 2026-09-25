@@ -89,8 +89,9 @@ func decodeEvent(data []byte) (events.DecodedEvent[*evtv1.Event], error) {
 	return events.DecodedEvent[*evtv1.Event]{Event: &event, ID: event.GetId()}, nil
 }
 
-// AppendEventuallyAndWait is AppendAndWait for append-only facts whose exact
-// encoded payload remains safe after an intervening write.
+// AppendEventuallyAndWait publishes an append-only fact on its aggregate
+// subject and waits until projector has applied it. Use it only for facts whose
+// exact encoded payload remains safe after an intervening write.
 func (p *Publisher) AppendEventuallyAndWait(
 	ctx context.Context,
 	projector *events.Projector,

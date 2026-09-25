@@ -304,11 +304,3 @@ func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(co
 		RetryDelay:  25 * time.Millisecond,
 	}, create)
 }
-
-// ============================================================================
-// KV Key Helpers
-// ============================================================================
-
-// These helper functions format keys for NATS KV bucket entries. They stay in
-// the core package since they're only used here and are integral to how core
-// interacts with storage.
