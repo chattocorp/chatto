@@ -35,14 +35,20 @@ export interface SavedResource {
   };
 }
 
-/** Read every saved resource record without changing the saved views. */
+/**
+ * Read every saved resource record without changing the saved views. Before the
+ * app creates the database, this returns no records and does not create it.
+ */
 export async function readSavedResources(page: Page): Promise<SavedResource[]> {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('chatto-saved-views', 2);
+    const db = await new Promise<IDBDatabase | null>((resolve) => {
+      const request = indexedDB.open('chatto-saved-views');
+      // Abort creation so the app still runs its own schema upgrade later.
+      request.onupgradeneeded = () => request.transaction?.abort();
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => resolve(null);
     });
+    if (!db) return [];
     try {
       return await new Promise<SavedResource[]>((resolve, reject) => {
         const request = db.transaction('resources').objectStore('resources').getAll();
