@@ -175,9 +175,8 @@ func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
 	require.Equal(t, "avatar-U1", avatarAgain.GetId(), "avatar reads must be detached")
 	require.True(t, model.isPublicAvatarAsset("avatar-U1"))
 
-	hash, setAt, ok := model.passwordHashWithSetAt("U1")
+	hash, ok := model.passwordHash("U1")
 	require.True(t, ok)
-	require.Equal(t, passwordAt, setAt)
 	hash[0] = 'X'
 	hashAgain, ok := model.passwordHash("U1")
 	require.True(t, ok)

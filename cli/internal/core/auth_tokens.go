@@ -76,30 +76,13 @@ type AuthTokenData struct {
 	FreshAuthMethod         string                      `json:"fresh_auth_method,omitempty"`
 	FreshAuthSource         string                      `json:"fresh_auth_source,omitempty"`
 	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at,omitempty"`
-	// AuthGenerationRecorded marks a cookie record from a release that always
-	// records AuthGeneration, also when it is 0. A record without it may predate
-	// auth generations. Bearer access records do not set it: they always carry a
-	// renewable session ID and the generation of that session, and their encoding
-	// must stay the same across releases for the deterministic retry comparison.
-	AuthGenerationRecorded bool `json:"auth_generation_recorded,omitempty"`
-}
-
-// runtimeCredential returns the generation data that ValidateRuntimeCredential
-// checks for this record.
-func (d AuthTokenData) runtimeCredential() RuntimeCredential {
-	return RuntimeCredential{
-		UserID:                   d.UserID,
-		CreatedAt:                d.CreatedAt,
-		AuthGeneration:           d.AuthGeneration,
-		MayPredateAuthGeneration: !d.AuthGenerationRecorded && d.RenewableSessionID == "",
-	}
 }
 
 // revokedByAuthGeneration reports whether a newer auth generation already
 // revoked a stored credential. Logout uses it so that a stale credential does
 // not count as a live logout that terminates the user's current sessions.
-func (c *ChattoCore) revokedByAuthGeneration(ctx context.Context, credential RuntimeCredential) (bool, error) {
-	if _, err := c.ValidateRuntimeCredential(ctx, credential); err != nil {
+func (c *ChattoCore) revokedByAuthGeneration(ctx context.Context, userID string, authGeneration uint64) (bool, error) {
+	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			return true, nil
 		}
@@ -268,19 +251,12 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		}
 	}
 
-	validation, err := c.ValidateRuntimeCredential(ctx, tokenData.runtimeCredential())
-	if err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return ValidatedRuntimeCredential{}, err
 		}
 		_ = c.deleteRuntimeStateKey(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
-	}
-	if validation.ShouldPersistAuthGeneration {
-		tokenData.AuthGeneration = validation.AuthGeneration
-		if value, err := json.Marshal(tokenData); err == nil {
-			_, _ = c.updateRuntimeStateUntil(ctx, key, value, entry.Revision(), tokenData.ExpiresAt, time.Now())
-		}
 	}
 
 	return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
@@ -395,7 +371,7 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 	}
 	// If the generation check fails, revoke the credential as a live logout.
 	// Revocation must not depend on the user projection.
-	if stale, err := c.revokedByAuthGeneration(ctx, tokenData.runtimeCredential()); err != nil {
+	if stale, err := c.revokedByAuthGeneration(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
 		c.logger.Warn("Failed to check auth generation during credential revocation", "error", err)
 	} else if stale {
 		if tokenData.RenewableSessionID != "" {

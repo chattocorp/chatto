@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -29,54 +28,9 @@ func createGenerationZeroPasswordUser(t *testing.T, core *ChattoCore, login stri
 	return user.Id
 }
 
-func TestChattoCore_NewCredentialsRecordAuthGeneration(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	userID := createGenerationZeroPasswordUser(t, core, "recorded-generation-user")
-
-	cookieSession, _, err := core.CreateCookieSession(ctx, userID, "password_login")
-	if err != nil {
-		t.Fatalf("CreateCookieSession: %v", err)
-	}
-	if cookie := readAuthTokenData(t, core, cookieSession); !cookie.AuthGenerationRecorded {
-		t.Fatal("new cookie session does not record its auth generation")
-	}
-
-	code, err := core.CreateAuthCode(ctx, userID, "https://example.com/callback", GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), "S256")
-	if err != nil {
-		t.Fatalf("CreateAuthCode: %v", err)
-	}
-	entry, err := core.storage.runtimeStateKV.Get(ctx, core.authCodeKey(code))
-	if err != nil {
-		t.Fatalf("get auth code: %v", err)
-	}
-	var codeData AuthCodeData
-	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
-		t.Fatalf("unmarshal auth code: %v", err)
-	}
-	if !codeData.AuthGenerationRecorded {
-		t.Fatal("new auth code does not record its auth generation")
-	}
-
-	// Refresh retries compare stored access records byte for byte, also with
-	// records from older replicas. Access records must keep the older encoding.
-	bearer, err := core.CreateBearerSessionWithSource(ctx, userID, "password_login")
-	if err != nil {
-		t.Fatalf("CreateBearerSessionWithSource: %v", err)
-	}
-	accessEntry, err := core.storage.runtimeStateKV.Get(ctx, core.authTokenKey(bearer.AccessToken))
-	if err != nil {
-		t.Fatalf("get access record: %v", err)
-	}
-	if bytes.Contains(accessEntry.Value(), []byte("auth_generation")) {
-		t.Fatalf("generation-0 access record encoding changed: %s", accessEntry.Value())
-	}
-}
-
 // A login that checks the old password while a reset is in progress can store
-// a generation-0 cookie session after the password event timestamp. The new
-// generation must revoke that session. Only records that do not record their
-// auth generation can use the legacy CreatedAt comparison.
+// a generation-0 cookie session after the password event. The new generation
+// must revoke that session, whatever its CreatedAt time.
 func TestChattoCore_PasswordChangeRevokesGenerationZeroSessionFromConcurrentLogin(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -85,71 +39,24 @@ func TestChattoCore_PasswordChangeRevokesGenerationZeroSessionFromConcurrentLogi
 		t.Fatalf("SetPasswordHash: %v", err)
 	}
 
-	storeSession := func(t *testing.T, recorded bool) string {
-		t.Helper()
-		now := time.Now()
-		data, err := json.Marshal(AuthTokenData{
-			UserID:                 userID,
-			Kind:                   AuthTokenKindFirstPartySession,
-			Presentation:           AuthTokenPresentationCookie,
-			CreatedAt:              now,
-			ExpiresAt:              now.Add(time.Hour),
-			AuthGenerationRecorded: recorded,
-		})
-		if err != nil {
-			t.Fatalf("marshal session: %v", err)
-		}
-		sessionID := NewAuthToken()
-		if _, err := core.storage.runtimeStateKV.Create(ctx, core.authTokenKey(sessionID), data, jetstream.KeyTTL(time.Hour)); err != nil {
-			t.Fatalf("store session: %v", err)
-		}
-		return sessionID
-	}
-
-	raced := storeSession(t, true)
-	if _, err := core.ValidateCookieCredential(ctx, raced); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("generation-0 session after password change: err = %v, want ErrCookieSessionNotFound", err)
-	}
-
-	legacy := storeSession(t, false)
-	if _, err := core.ValidateCookieCredential(ctx, legacy); err != nil {
-		t.Fatalf("legacy session created after the password event should stay valid: %v", err)
-	}
-	if upgraded := readAuthTokenData(t, core, legacy); upgraded.AuthGeneration == 0 {
-		t.Fatal("legacy session was not upgraded to the current auth generation")
-	}
-}
-
-// An authorization code that a login writes at generation 0 while a reset is in
-// progress must not be exchanged after the reset.
-func TestChattoCore_PasswordChangeRevokesGenerationZeroAuthCodeFromConcurrentLogin(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	userID := createGenerationZeroPasswordUser(t, core, "generation-zero-code-user")
-	if err := core.SetPasswordHash(ctx, userID, "newpassword456"); err != nil {
-		t.Fatalf("SetPasswordHash: %v", err)
-	}
-
-	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-	redirectURI := "https://example.com/callback"
-	code := NewAuthCode()
-	data, err := json.Marshal(AuthCodeData{
-		UserID:                 userID,
-		RedirectURI:            redirectURI,
-		CodeChallenge:          GenerateCodeChallenge(verifier),
-		CodeChallengeMethod:    "S256",
-		CreatedAt:              time.Now(),
-		AuthGenerationRecorded: true,
+	now := time.Now()
+	data, err := json.Marshal(AuthTokenData{
+		UserID:       userID,
+		Kind:         AuthTokenKindFirstPartySession,
+		Presentation: AuthTokenPresentationCookie,
+		CreatedAt:    now,
+		ExpiresAt:    now.Add(time.Hour),
 	})
 	if err != nil {
-		t.Fatalf("marshal auth code: %v", err)
+		t.Fatalf("marshal session: %v", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL)); err != nil {
-		t.Fatalf("store auth code: %v", err)
+	sessionID := NewAuthToken()
+	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authTokenKey(sessionID), data, jetstream.KeyTTL(time.Hour)); err != nil {
+		t.Fatalf("store session: %v", err)
 	}
 
-	if _, _, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI); !errors.Is(err, ErrAuthCodeNotFound) {
-		t.Fatalf("ExchangeAuthCode err = %v, want ErrAuthCodeNotFound", err)
+	if _, err := core.ValidateCookieCredential(ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("generation-0 session after password change: err = %v, want ErrCookieSessionNotFound", err)
 	}
 }
 

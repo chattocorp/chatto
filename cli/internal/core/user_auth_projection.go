@@ -39,7 +39,6 @@ type projectedUserAuth struct {
 	botAPIKeyCreatedAt  time.Time
 	botIncomingWebhooks map[string]projectedBotIncomingWebhook
 	passwordHash        []byte
-	passwordSetAt       time.Time
 	authGeneration      uint64
 	externalIdentities  map[string]ExternalIdentity
 	oauthConsent        map[string]struct{}
@@ -128,7 +127,7 @@ func (p *UserAuthProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_BotIncomingWebhookRevoked:
 		p.applyBotIncomingWebhookRevoked(e.BotIncomingWebhookRevoked)
 	case *evtv1.Event_UserPasswordHashChanged:
-		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
+		p.applyPasswordHashChanged(e.UserPasswordHashChanged, seq)
 	case *evtv1.Event_UserOidcSubjectLinked:
 		p.applyOIDCSubjectLinked(e.UserOidcSubjectLinked)
 	case *evtv1.Event_UserExternalIdentityLinked:
@@ -176,7 +175,7 @@ func (p *UserAuthProjection) ensureUserLocked(userID string) *projectedUserAuth 
 	return u
 }
 
-func (p *UserAuthProjection) applyPasswordHashChanged(e *evtv1.UserPasswordHashChangedEvent, createdAt *timestamppb.Timestamp, seq uint64) {
+func (p *UserAuthProjection) applyPasswordHashChanged(e *evtv1.UserPasswordHashChangedEvent, seq uint64) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
@@ -187,10 +186,6 @@ func (p *UserAuthProjection) applyPasswordHashChanged(e *evtv1.UserPasswordHashC
 	u.passwordHash = append(u.passwordHash[:0], e.GetPasswordHash()...)
 	if !e.GetPreserveExistingCredentials() {
 		u.authGeneration = seq
-		u.passwordSetAt = time.Time{}
-		if createdAt != nil {
-			u.passwordSetAt = createdAt.AsTime()
-		}
 	}
 }
 
@@ -297,7 +292,6 @@ func (p *UserAuthProjection) applyAccountDeleted(e *evtv1.UserAccountDeletedEven
 	u.deleted = true
 	u.authGeneration = seq
 	u.passwordHash = nil
-	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
 	u.botAPIKeys = make(map[string]projectedBotAPIKey)
@@ -315,7 +309,6 @@ func (p *UserAuthProjection) applyKeyShredded(userID string, seq uint64) {
 	u.deleted = true
 	u.authGeneration = seq
 	u.passwordHash = nil
-	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
 	u.botAPIKeys = make(map[string]projectedBotAPIKey)
@@ -690,14 +683,14 @@ func (p *UserAuthProjection) ExternalIdentities(userID string) []ExternalIdentit
 	return identities
 }
 
-func (p *UserAuthProjection) PasswordHashWithSetAt(userID string) ([]byte, time.Time, bool) {
+func (p *UserAuthProjection) PasswordHash(userID string) ([]byte, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.deleted || len(u.passwordHash) == 0 {
-		return nil, time.Time{}, false
+		return nil, false
 	}
-	return append([]byte(nil), u.passwordHash...), u.passwordSetAt, true
+	return append([]byte(nil), u.passwordHash...), true
 }
 
 func (p *UserAuthProjection) AuthGeneration(userID string) (uint64, bool) {

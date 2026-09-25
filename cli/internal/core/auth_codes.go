@@ -61,10 +61,6 @@ type AuthCodeData struct {
 	CodeChallengeMethod string    `json:"code_challenge_method"`
 	CreatedAt           time.Time `json:"created_at"`
 	AuthGeneration      uint64    `json:"auth_generation,omitempty"`
-	// AuthGenerationRecorded marks a code from a release that always records
-	// AuthGeneration, also when it is 0. A code without it may predate auth
-	// generations.
-	AuthGenerationRecorded bool `json:"auth_generation_recorded,omitempty"`
 }
 
 // ============================================================================
@@ -119,16 +115,15 @@ func (c *ChattoCore) CreateAuthCodeForClientGrantGeneration(ctx context.Context,
 	}
 
 	data, err := json.Marshal(AuthCodeData{
-		UserID:                 userID,
-		ClientID:               clientID,
-		Resource:               resource,
-		Scopes:                 append([]string(nil), scopes...),
-		RedirectURI:            redirectURI,
-		CodeChallenge:          codeChallenge,
-		CodeChallengeMethod:    codeChallengeMethod,
-		CreatedAt:              createdAt,
-		AuthGeneration:         authGeneration,
-		AuthGenerationRecorded: true,
+		UserID:              userID,
+		ClientID:            clientID,
+		Resource:            resource,
+		Scopes:              append([]string(nil), scopes...),
+		RedirectURI:         redirectURI,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
+		CreatedAt:           createdAt,
+		AuthGeneration:      authGeneration,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth code: %w", err)
@@ -233,13 +228,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 		return BearerSessionCredentials{}, "", ErrAuthCodeInvalidVerifier
 	}
 
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:                   codeData.UserID,
-		CreatedAt:                codeData.CreatedAt,
-		AuthGeneration:           codeData.AuthGeneration,
-		MayPredateAuthGeneration: !codeData.AuthGenerationRecorded,
-	})
-	if err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, codeData.UserID, codeData.AuthGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return BearerSessionCredentials{}, "", err
 		}
@@ -248,10 +237,9 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 		}
 		return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 	}
-	codeData.AuthGeneration = validation.AuthGeneration
 
 	// Issue a renewable bearer session.
-	credentials, err := c.CreateOAuthBearerSessionForClientGrant(ctx, validation.UserID, codeData.ClientID, codeData.Resource, codeData.Scopes, validation.AuthGeneration)
+	credentials, err := c.CreateOAuthBearerSessionForClientGrant(ctx, codeData.UserID, codeData.ClientID, codeData.Resource, codeData.Scopes, codeData.AuthGeneration)
 	if err != nil {
 		return BearerSessionCredentials{}, "", fmt.Errorf("failed to create bearer session: %w", err)
 	}
@@ -263,7 +251,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 		return BearerSessionCredentials{}, "", err
 	}
 
-	return credentials, validation.UserID, nil
+	return credentials, codeData.UserID, nil
 }
 
 // ============================================================================

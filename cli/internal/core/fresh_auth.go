@@ -125,7 +125,7 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 	tokenData.FreshAuthAt = session.FreshAuthAt
 	tokenData.FreshAuthMethod = session.FreshAuthMethod
 	tokenData.FreshAuthSource = session.FreshAuthSource
-	if _, err := c.ValidateRuntimeCredential(ctx, tokenData.runtimeCredential()); err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			_ = c.storage.runtimeStateKV.Delete(ctx, key)
 			return AuthTokenData{}, nil, ErrAuthTokenNotFound
@@ -178,16 +178,12 @@ func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, meth
 		_ = c.deleteRuntimeStateKey(ctx, key)
 		return ErrCookieSessionNotFound
 	}
-	validation, err := c.ValidateRuntimeCredential(ctx, tokenData.runtimeCredential())
-	if err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			_ = c.deleteRuntimeStateKey(ctx, key)
 			return ErrCookieSessionNotFound
 		}
 		return err
-	}
-	if validation.ShouldPersistAuthGeneration {
-		tokenData.AuthGeneration = validation.AuthGeneration
 	}
 	tokenData.FreshAuthAt = now
 	tokenData.FreshAuthMethod = method

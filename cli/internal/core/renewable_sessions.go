@@ -373,9 +373,7 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 			return RenewableSession{}, nil, err
 		}
 	}
-	if _, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID: session.UserID, CreatedAt: session.CreatedAt, AuthGeneration: session.AuthGeneration,
-	}); err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, session.UserID, session.AuthGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 			return RenewableSession{}, nil, ErrRefreshTokenNotFound
@@ -529,9 +527,7 @@ func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, ref
 	}
 	// If the generation check fails, revoke the session as a live logout.
 	// Revocation must not depend on the user projection.
-	if stale, err := c.revokedByAuthGeneration(ctx, RuntimeCredential{
-		UserID: session.UserID, CreatedAt: session.CreatedAt, AuthGeneration: session.AuthGeneration,
-	}); err != nil {
+	if stale, err := c.revokedByAuthGeneration(ctx, session.UserID, session.AuthGeneration); err != nil {
 		c.logger.Warn("Failed to check auth generation during refresh token revocation", "error", err)
 	} else if stale {
 		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID))
