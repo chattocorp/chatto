@@ -54,6 +54,22 @@ export function startServerOAuthFlow(
   );
 }
 
+/**
+ * Start sign-in while the server's current public data still loads. Call this
+ * synchronously from the user's action: the browser opens the sign-in window
+ * before `serverInfo` settles. A rejected `serverInfo` closes the window and
+ * rejects the returned promise with the same error.
+ */
+export function startServerOAuthFlowWhenReady(
+  serverUrl: string,
+  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>
+): Promise<void> {
+  return runServerOAuthFlow(
+    serverUrl,
+    serverInfo.then((info) => ({ serverInfo: info, providerId: null }))
+  );
+}
+
 async function runServerOAuthFlow(
   serverUrl: string,
   details: Promise<{

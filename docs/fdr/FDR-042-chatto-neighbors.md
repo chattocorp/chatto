@@ -33,9 +33,9 @@ recommendation, not a trust or reciprocal relationship.
 - The server refreshes the Neighborhood when the cached result is one hour
   old. After a failed remote request, it refreshes when the cached result is
   ten minutes old. After a Neighbor change, it refreshes when the cached
-  result is at least two minutes old. One pass permits at most 150 directory requests and 120
-  profile requests, with six active requests and a ten-second timeout for each
-  request.
+  result is at least two minutes old. One pass permits at most 150 directory
+  requests and 120 profile requests, with six active requests and a
+  ten-second timeout for each request.
 - Neighborhood discovery rejects redirects and servers on loopback, private,
   and link-local network addresses. It stores re-encoded copies of logos and
   banners and serves them from the called server.
@@ -63,7 +63,10 @@ recommendation, not a trust or reciprocal relationship.
   registered server that does not provide a Neighborhood contributes no
   results and does not count as a failure.
 - Joining a server first loads its current public sign-in data from that
-  server. The user starts this request with the join action.
+  server. The user starts this request with the join action. The sign-in
+  window opens from that action. If the current version is not compatible or
+  sign-in is not available, the client closes the window, stops the join, and
+  shows the current action for that server.
 - An advertised server that is already registered remains visible and is
   marked as joined.
 - An unregistered server has a join action only when its discovered version is
@@ -265,9 +268,10 @@ administrator does not get a separate connection prompt on the management page.
 
 **Decision:** A public profile card accepts an image only from one expected
 origin: the advertised server on the Neighbor administration page, or the
-registered server that supplied the cached copy in the Server Directory. The request sends no credentials or referrer data, does not
-follow redirects, and accepts a limited set of declared raster image media
-types. It rejects an image response after its body exceeds 5 MiB.
+registered server that supplied the cached copy in the Server Directory. The
+request sends no credentials or referrer data, does not follow redirects, and
+accepts a limited set of declared raster image media types. It rejects an image
+response after its body exceeds 5 MiB.
 
 **Why:** A profile must not make the client contact an unrelated image host or
 send reusable user credentials. Rejecting redirects prevents hidden network

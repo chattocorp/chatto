@@ -409,6 +409,34 @@ describe('remote server OAuth popup', () => {
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 
+  it('opens a join window before pending server data settles and closes it on rejection', async () => {
+    const popup = {
+      closed: false,
+      opener: {} as Window,
+      location: { href: '' },
+      close: vi.fn(function (this: { closed: boolean }) {
+        this.closed = true;
+      })
+    } as unknown as Window;
+    const { owner, open } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+
+    let rejectServerInfo: ((error: Error) => void) | undefined;
+    const serverInfo = new Promise<never>((_resolve, reject) => {
+      rejectServerInfo = reject;
+    });
+    const { startServerOAuthFlowWhenReady } = await import('./reauth');
+    const completion = startServerOAuthFlowWhenReady('https://remote.example', serverInfo);
+
+    expect(open).toHaveBeenCalledOnce();
+    expect(popup.location.href).toBe('');
+
+    rejectServerInfo?.(new Error('join unavailable'));
+    await expect(completion).rejects.toThrow('join unavailable');
+    expect(popup.close).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
+  });
+
   it('fails without navigating the main window when the popup is blocked', async () => {
     const { owner } = browserHarness(null);
     vi.stubGlobal('window', owner);

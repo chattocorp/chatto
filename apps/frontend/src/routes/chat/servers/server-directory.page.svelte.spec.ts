@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   loadServerDirectory: vi.fn(),
   getPublicServerInfo: vi.fn(),
   startServerOAuthFlow: vi.fn(),
+  startServerOAuthFlowWhenReady: vi.fn(),
   startRemoteReauthentication: vi.fn(),
   toastError: vi.fn(),
   goto: vi.fn()
@@ -42,6 +43,7 @@ vi.mock('$lib/serverDirectory', async (importOriginal) => {
 });
 vi.mock('$lib/auth/reauth', () => ({
   startServerOAuthFlow: mocks.startServerOAuthFlow,
+  startServerOAuthFlowWhenReady: mocks.startServerOAuthFlowWhenReady,
   startRemoteReauthentication: mocks.startRemoteReauthentication
 }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -125,8 +127,16 @@ describe('Server Directory page', () => {
     mocks.authenticated = new Set(['joined']);
     mocks.loadServerDirectory.mockReset();
     mocks.getPublicServerInfo.mockReset();
+    mocks.toastError.mockReset();
     mocks.startServerOAuthFlow.mockReset();
     mocks.startServerOAuthFlow.mockResolvedValue(undefined);
+    mocks.startServerOAuthFlowWhenReady.mockReset();
+    // Like the real flow, the window opens first and then waits for the profile.
+    mocks.startServerOAuthFlowWhenReady.mockImplementation(
+      async (_origin: string, serverInfo: Promise<unknown>) => {
+        await serverInfo;
+      }
+    );
     mocks.startRemoteReauthentication.mockReset();
     mocks.startRemoteReauthentication.mockResolvedValue(undefined);
     mocks.goto.mockReset();
@@ -255,9 +265,12 @@ describe('Server Directory page', () => {
     expect(container.textContent).toContain('Remote description');
   });
 
-  it('loads current sign-in data before joining an advertised server', async () => {
+  it('opens sign-in from the click and then loads current sign-in data', async () => {
     const remoteProfile = profile('Remote');
-    mocks.getPublicServerInfo.mockResolvedValue(remoteProfile);
+    let resolveProfile: (value: PublicServerInfo) => void = () => {};
+    mocks.getPublicServerInfo.mockReturnValue(
+      new Promise<PublicServerInfo>((resolveValue) => (resolveProfile = resolveValue))
+    );
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'))],
       failedSourceCount: 0,
@@ -277,16 +290,53 @@ describe('Server Directory page', () => {
     expect(iconAction.querySelector('.shimmer-hover.rounded-xl')).toBeTruthy();
     iconAction.click();
 
-    await vi.waitFor(() => {
-      expect(mocks.startServerOAuthFlow).toHaveBeenCalledWith(
-        'https://remote.example',
-        remoteProfile
-      );
-    });
+    // The flow starts synchronously, before the current profile loads.
+    expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalledWith(
+      'https://remote.example',
+      expect.any(Promise)
+    );
     expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
       'https://remote.example',
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
+    resolveProfile(remoteProfile);
+    await expect(mocks.startServerOAuthFlowWhenReady.mock.calls[0]?.[1]).resolves.toBe(
+      remoteProfile
+    );
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it('stops a join when the current version is no longer compatible', async () => {
+    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote', { version: '0.4.19' }));
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [entry('https://remote.example', cached('Remote'))],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    button(container, 'Join')?.click();
+
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Sign-in unavailable'));
+    await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
+  });
+
+  it('stops a join when the server no longer supports sign-in', async () => {
+    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote', { authorizeUrl: '' }));
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [entry('https://remote.example', cached('Remote'))],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    button(container, 'Join')?.click();
+
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Sign-in unavailable'));
+    await vi.waitFor(() => expect(button(container, 'Sign-in unavailable')?.disabled).toBe(true));
   });
 
   it('shows OAuth failures as a toast instead of a directory panel error', async () => {
@@ -296,7 +346,7 @@ describe('Server Directory page', () => {
       sourceCount: 1
     });
     mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
-    mocks.startServerOAuthFlow.mockRejectedValueOnce(new Error('Sign-in window closed'));
+    mocks.startServerOAuthFlowWhenReady.mockRejectedValueOnce(new Error('Sign-in window closed'));
     const { container } = render(Page);
     await vi.waitFor(() =>
       expect(

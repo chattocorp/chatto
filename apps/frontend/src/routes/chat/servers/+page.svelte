@@ -2,6 +2,7 @@
   import { toast } from '$lib/ui/toast';
   import { ConnectError } from '@connectrpc/connect';
   import { onMount } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import {
@@ -10,7 +11,11 @@
     type NeighborhoodServerProfile,
     type PublicServerInfo
   } from '$lib/api-client/server';
-  import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
+  import {
+    startRemoteReauthentication,
+    startServerOAuthFlow,
+    startServerOAuthFlowWhenReady
+  } from '$lib/auth/reauth';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
@@ -29,6 +34,9 @@
   /** A live profile from a direct lookup, or a cached Server Directory profile. */
   type ServerVersionProfile = PublicServerInfo | NeighborhoodServerProfile | null;
 
+  /** The current profile cannot start a sign-in from this client. */
+  class ServerJoinUnavailableError extends Error {}
+
   let customInput = $state('');
   let customOrigin = $state('');
   let customProfile = $state<PublicServerInfo | null>(null);
@@ -37,6 +45,8 @@
   let pendingOrigin = $state<string | null>(null);
   let directory = $state<ServerDirectory | null>(null);
   let directoryController: AbortController | null = null;
+  /** Current profiles that a join action loaded; they replace cached profiles. */
+  const liveProfiles = new SvelteMap<string, PublicServerInfo>();
 
   const registeredOrigins = $derived.by(() => [
     ...new Set(
@@ -134,6 +144,20 @@
     return m('add_server.directory.join');
   }
 
+  /** Load the current profile for a join and keep it for the card. */
+  async function loadJoinableProfile(origin: string): Promise<PublicServerInfo> {
+    const profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+    liveProfiles.set(origin, profile);
+    if (!canJoin(profile) || opensInServerClient(origin, profile)) {
+      throw new ServerJoinUnavailableError();
+    }
+    return profile;
+  }
+
+  function canJoin(profile: ServerVersionProfile): boolean {
+    return profile !== null && (!isPublicServerInfo(profile) || !!profile.authorizeUrl);
+  }
+
   function isPublicServerInfo(profile: ServerVersionProfile): profile is PublicServerInfo {
     return profile !== null && 'authorizeUrl' in profile;
   }
@@ -153,21 +177,27 @@
    */
   async function openOrJoin(origin: string, profile: ServerVersionProfile) {
     const joined = registeredServer(origin);
-    if (!joined && (!profile || (isPublicServerInfo(profile) && !profile.authorizeUrl))) return;
+    if (!joined && !canJoin(profile)) return;
     pendingOrigin = origin;
     try {
       if (joined && serverRegistry.isAuthenticated(joined.id)) {
         await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(joined.id) }));
       } else if (joined) {
         await startRemoteReauthentication(joined);
+      } else if (isPublicServerInfo(profile)) {
+        await startServerOAuthFlow(origin, profile);
       } else if (profile) {
-        const serverInfo = isPublicServerInfo(profile)
-          ? profile
-          : await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
-        await startServerOAuthFlow(origin, serverInfo);
+        // The sign-in window must open from this click, before the current
+        // profile loads. A stale cached profile can hide an incompatible
+        // version or missing sign-in support.
+        await startServerOAuthFlowWhenReady(origin, loadJoinableProfile(origin));
       }
-    } catch {
-      toast.error(m('add_server.start_failed'));
+    } catch (error) {
+      toast.error(
+        error instanceof ServerJoinUnavailableError
+          ? m('add_server.directory.sign_in_unavailable')
+          : m('add_server.start_failed')
+      );
     } finally {
       pendingOrigin = null;
     }
@@ -274,7 +304,7 @@
                   variant={joined ? 'secondary' : 'action'}
                   fullWidth
                   loading={pendingOrigin === customOrigin}
-                  disabled={!joined && !profile.authorizeUrl}
+                  disabled={!joined && !canJoin(profile)}
                   onclick={() => openOrJoin(customOrigin, profile)}
                 >
                   {actionLabel(customOrigin, customProfile)}
@@ -287,7 +317,7 @@
               badge={joined ? m('add_server.directory.joined') : undefined}
               iconHref={external ? customOrigin : undefined}
               iconOpensInNewTab={external}
-              onIconClick={external || (!joined && !profile.authorizeUrl)
+              onIconClick={external || (!joined && !canJoin(profile))
                 ? undefined
                 : () => openOrJoin(customOrigin, profile)}
               iconActionLabel={actionLabel(customOrigin, profile)}
@@ -329,8 +359,9 @@
         {:else}
           <div class="columns-1 gap-4 sm:columns-2 lg:columns-3">
             {#each entries as entry (entry.origin)}
+              {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
               {@const joined = registeredServer(entry.origin)}
-              {@const external = opensInServerClient(entry.origin, entry.profile)}
+              {@const external = opensInServerClient(entry.origin, profile)}
               {@const attribution = sourceAttribution(entry)}
               {#snippet cardActions()}
                 <div class="flex flex-col gap-3">
@@ -344,7 +375,7 @@
                   </p>
                   {#if external}
                     <Button href={entry.origin} opensInNewTab variant="secondary" fullWidth>
-                      <span>{actionLabel(entry.origin, entry.profile)}</span>
+                      <span>{actionLabel(entry.origin, profile)}</span>
                       <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
                     </Button>
                   {:else}
@@ -352,9 +383,10 @@
                       variant={joined ? 'secondary' : 'action'}
                       fullWidth
                       loading={pendingOrigin === entry.origin}
-                      onclick={() => openOrJoin(entry.origin, entry.profile)}
+                      disabled={!joined && !canJoin(profile)}
+                      onclick={() => openOrJoin(entry.origin, profile)}
                     >
-                      {actionLabel(entry.origin, entry.profile)}
+                      {actionLabel(entry.origin, profile)}
                     </Button>
                   {/if}
                 </div>
@@ -367,8 +399,10 @@
                   badge={joined ? m('add_server.directory.joined') : undefined}
                   iconHref={external ? entry.origin : undefined}
                   iconOpensInNewTab={external}
-                  onIconClick={external ? undefined : () => openOrJoin(entry.origin, entry.profile)}
-                  iconActionLabel={actionLabel(entry.origin, entry.profile)}
+                  onIconClick={external || (!joined && !canJoin(profile))
+                    ? undefined
+                    : () => openOrJoin(entry.origin, profile)}
+                  iconActionLabel={actionLabel(entry.origin, profile)}
                   iconActionDisabled={pendingOrigin === entry.origin}
                   actions={cardActions}
                   testId="server-directory-entry"
