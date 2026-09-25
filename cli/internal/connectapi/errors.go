@@ -207,9 +207,10 @@ func internalServerCause(err error) error {
 	return err
 }
 
-// LogSafeError returns err as text that is safe to log. It unwraps a hidden
+// LogSafeError returns err as redacted text for logs. It unwraps a hidden
 // internal cause and redacts email addresses, tokens, invite links, and query
-// values. Use it when code outside the Connect handlers logs API errors.
+// values. It does not detect login or display names, so core errors must not
+// include them. Use it when code outside the Connect handlers logs API errors.
 func LogSafeError(err error) string {
 	return safeInternalErrorForLog(internalServerCause(err))
 }
