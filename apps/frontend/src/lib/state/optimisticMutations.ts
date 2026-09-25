@@ -1,3 +1,5 @@
+import { SvelteMap } from 'svelte/reactivity';
+
 export type OptimisticMutationToken = number;
 
 /**
@@ -8,7 +10,12 @@ export type OptimisticMutationToken = number;
  */
 export class OptimisticMutationRegistry {
   private nextToken = 0;
-  private tokens = new Map<string, OptimisticMutationToken>();
+  private tokens = new SvelteMap<string, OptimisticMutationToken>();
+
+  /** Pending UI patches must not become checkpointed server state. */
+  get hasPending(): boolean {
+    return this.tokens.size > 0;
+  }
 
   createToken(): OptimisticMutationToken {
     this.nextToken += 1;

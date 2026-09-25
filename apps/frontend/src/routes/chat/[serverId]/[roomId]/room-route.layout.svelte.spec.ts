@@ -181,7 +181,7 @@ describe('room route layout access handling', () => {
     mocks.currentUserId = '';
     mocks.roomsStore.currentUserId = '';
     mocks.realtimeSync!.reset();
-    mocks.realtimeSync!.restoreSavedProjection();
+    mocks.realtimeSync!.restoreSavedProjection('saved-checkpoint');
     const { container } = renderLayout();
     expect(q(container, '[data-testid="room-layout-room"]')).not.toBeNull();
   });

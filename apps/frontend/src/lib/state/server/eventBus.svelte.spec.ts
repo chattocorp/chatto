@@ -550,6 +550,7 @@ describe('eventBusManager realtime transport', () => {
 
     expect(socket.closeCalls.at(-1)?.reason).toBe('resource reconciliation failed');
     expect(sync.resumeCursor).toBe('cursor-before-failure');
+    expect(sync.phase).toBe('stale');
   });
 
   it('closes and reconnects without advancing after an undecodable frame', async () => {

@@ -88,7 +88,12 @@ export class NotificationStore {
   #readSequence = 0;
   #pendingReadById = new SvelteMap<string, number>();
   #pendingReadRequestById = new SvelteMap<string, Promise<NotificationOccurrenceItem>>();
-  #pendingMutationCount = 0;
+  #pendingMutationCount = $state(0);
+
+  /** Snapshot writers wait for optimistic changes and their authoritative reconciliation. */
+  get hasPendingMutations(): boolean {
+    return this.#pendingMutationCount > 0;
+  }
   #mutationIdleWaiters = new SvelteSet<() => void>();
   #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;

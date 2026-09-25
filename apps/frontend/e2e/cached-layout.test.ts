@@ -4,6 +4,11 @@ import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import type { Page } from '@playwright/test';
+import {
+  RealtimeRecovery,
+  RealtimeServerFrame,
+  RealtimeSubscribe
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 
 /** Record geometry as well as text: an unchanged final DOM can still have shifted. */
 async function layout(page: Page, observe = false) {
@@ -83,30 +88,32 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
       () =>
         page.evaluate(async (id) => {
           return new Promise<boolean>((resolve) => {
-            const request = indexedDB.open('chatto-saved-views', 1);
+            const request = indexedDB.open('chatto-saved-views', 2);
             request.onsuccess = () => {
               const db = request.result;
-              const read = db.transaction('views').objectStore('views').getAll();
+              const read = db.transaction('resources').objectStore('resources').getAll();
               read.onsuccess = () => {
                 resolve(
                   read.result.some(
-                    (view) =>
-                      view.version === 2 &&
-                      view.rooms.some(
-                        (room: {
-                          members?: unknown;
-                          events: {
-                            id: string;
-                            event: { replyCount?: number; reactions?: unknown[] };
-                          }[];
-                        }) =>
-                          room.members &&
-                          room.events.some(
-                            (event) =>
-                              event.id === id &&
-                              event.event.replyCount === 1 &&
-                              event.event.reactions?.length === 1
-                          )
+                    (record: {
+                      schemaVersion: number;
+                      key: string;
+                      data: {
+                        events?: {
+                          id: string;
+                          event: { replyCount?: number; reactions?: unknown[] };
+                        }[];
+                      };
+                    }) =>
+                      record.schemaVersion === 1 &&
+                      read.result.some(
+                        (other) => other.key === record.key.replace('timeline:', 'members:')
+                      ) &&
+                      record.data.events?.some(
+                        (event) =>
+                          event.id === id &&
+                          event.event.replyCount === 1 &&
+                          event.event.reactions?.length === 1
                       )
                   )
                 );
@@ -126,6 +133,21 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
   await page.route('**/chatto.api.v1.ViewerService/GetViewer', async (route) => {
     await gate;
     await route.continue();
+  });
+  const resumed: RealtimeRecovery[] = [];
+  const requestedCheckpoints: string[] = [];
+  page.on('websocket', (socket) => {
+    if (!socket.url().includes('/api/realtime')) return;
+    socket.on('framesent', ({ payload }) => {
+      if (typeof payload === 'string') return;
+      const subscribe = RealtimeSubscribe.fromBinary(payload);
+      if (subscribe.resumeCursor) requestedCheckpoints.push(subscribe.resumeCursor);
+    });
+    socket.on('framereceived', ({ payload }) => {
+      if (typeof payload === 'string') return;
+      const frame = RealtimeServerFrame.fromBinary(payload);
+      if (frame.frame.case === 'caughtUp') resumed.push(frame.frame.value.recovery);
+    });
   });
   try {
     await page.reload();
@@ -148,6 +170,8 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
     await page.screenshot({ path: testInfo.outputPath('cached-room.png') });
     release();
     await waitForRoomReady(page);
+    expect(requestedCheckpoints).toHaveLength(1);
+    expect(resumed).toContain(RealtimeRecovery.RESUMED);
     await expect.poll(() => layout(page)).toEqual(cached);
     const changes = await page.evaluate(() => {
       const probe = (

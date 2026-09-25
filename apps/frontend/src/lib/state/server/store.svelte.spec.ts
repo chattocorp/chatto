@@ -3,6 +3,7 @@ import { savedViewFixture } from '$lib/test-utils/savedView';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { flushSync } from 'svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import type { RoomFileItem } from '$lib/api-client/attachments';
@@ -673,6 +674,7 @@ afterEach(() => {
   setRealtimeSocketFactoryForTests(null);
   soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('ServerStateStore viewer restoration', () => {
@@ -736,7 +738,7 @@ describe('ServerStateStore viewer restoration', () => {
       })
     );
     original.realtimeSync.markCaughtUp('live-cursor');
-    original.noteViewedRoom('R1');
+    original.saveCurrentView(original.realtimeSync.lastCaughtUpAt!);
     const snapshot = JSON.parse(JSON.stringify(original.savedView));
     const restored = makeStore(new FakeServerConnection([]));
     restored.restoreSavedView(snapshot, true);
@@ -753,8 +755,99 @@ describe('ServerStateStore viewer restoration', () => {
     expect(restored.projection.users.get('U2')?.user?.presenceStatus).toBe(4);
     expect(restored.currentUser.verifiedUserId).toBeNull();
     expect(restored.isAuthenticated).toBe(false);
-    expect(restored.realtimeSync.resumeCursor).toBeNull();
+    expect(restored.realtimeSync.resumeCursor).toBe('live-cursor');
   });
+  it('automatically saves loaded rooms without a route dwell timer or recent-room limit', async () => {
+    vi.useFakeTimers();
+    const store = makeStore(new FakeServerConnection([]));
+    const capture = vi.spyOn(store, 'saveCurrentView');
+    const rooms = Array.from({ length: 15 }, (_, i) => ({
+      id: `R${i}`,
+      name: `Room ${i}`,
+      messages: []
+    }));
+    store.restoreSavedView(
+      savedViewFixture({
+        serverId: store.serverId,
+        userId: 'U1',
+        serverName: 'Server',
+        savedAt: Date.now(),
+        rooms
+      }),
+      true
+    );
+    store.projection.viewer = new GetViewerResponse({ user: { profile: { id: 'U1' } } });
+    for (const room of rooms) {
+      const events = savedViewFixture({
+        serverId: store.serverId,
+        userId: 'U1',
+        serverName: 'Server',
+        savedAt: Date.now(),
+        rooms: [
+          {
+            ...room,
+            messages: Array.from({ length: 75 }, (_, i) => ({
+              id: `M${i}`,
+              createdAt: '2026-09-25T00:00:00Z',
+              author: 'Member',
+              body: `Message ${i}`
+            }))
+          }
+        ]
+      }).rooms[0].events;
+      store.messagesForRoom(room.id).restorePresentation(room.id, events, true, {
+        hasNewer: false,
+        startCursor: 'start',
+        endCursor: 'end'
+      });
+    }
+    store.realtimeSync.markCaughtUp('all-loaded-rooms');
+    flushSync();
+    expect(capture).not.toHaveBeenCalled();
+    for (let i = 0; i < 20; i++) {
+      store.realtimeSync.acceptProjectionEvent(`burst-${i}`, false);
+      flushSync();
+    }
+    store.realtimeSync.acceptProjectionEvent('all-loaded-rooms', false);
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(capture).toHaveBeenCalledTimes(1);
+    expect(store.savedView?.checkpoint).toBe('all-loaded-rooms');
+    expect(store.savedView?.rooms).toHaveLength(15);
+    expect(
+      store.savedView?.rooms.every(
+        (room) => room.events.length === 75 && room.timeline?.startCursor === 'start'
+      )
+    ).toBe(true);
+    const confirmed = store.savedView;
+    const reaction = store
+      .messagesForRoom('R0')
+      .beginOptimisticReaction({ messageEventId: 'M0', emoji: '👍', action: 'add' });
+    store.realtimeSync.acceptProjectionEvent('while-mutation-pending', false);
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(store.savedView).toBe(confirmed);
+    reaction.rollback();
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(store.savedView?.checkpoint).toBe('while-mutation-pending');
+    // Pagination alone must still schedule a save on a quiet connection.
+    store
+      .messagesForRoom('R0')
+      .events.push({ ...store.messagesForRoom('R0').events[0], id: 'older' });
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(store.savedView?.rooms[0].events).toHaveLength(76);
+    store
+      .membersForRoom('R0')
+      .restorePresentation({ ids: ['U1'], totalCount: 2, complete: false, presence: [] });
+    await Promise.resolve();
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(store.savedView?.rooms[0].members?.ids).toEqual(['U1']);
+    store.dispose();
+  });
+
   it('loads the viewer with the connection renewal hook', async () => {
     const connection = new FakeServerConnection([]);
     const store = makeStore(connection);
@@ -799,7 +892,7 @@ describe('ServerStateStore viewer restoration', () => {
     );
 
     expect(store.realtimeSync.phase).toBe('stale');
-    expect(store.realtimeSync.resumeCursor).toBeNull();
+    expect(store.realtimeSync.resumeCursor).toBe('saved-checkpoint');
     expect(store.realtimeSync.lastCaughtUpAt).toBeNull();
     expect(store.projection.rooms.size).toBe(1);
     expect(store.projection.users.size).toBe(0);

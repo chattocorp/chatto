@@ -61,24 +61,6 @@
     });
   });
 
-  $effect(() => {
-    const settled = serverRegistry.servers.flatMap((server) => {
-      const store = serverRegistry.tryGetStore(server.id);
-      const caughtUpAt = store?.realtimeSync.lastCaughtUpAt;
-      // A committed event has already reconciled its store data. Include its
-      // cursor so live changes also replace the saved snapshot.
-      const cursor = store?.realtimeSync.resumeCursor;
-      return store && caughtUpAt ? [{ store, caughtUpAt, cursor }] : [];
-    });
-    // Serializing a large room directory must not block the first useful paint.
-    const timer = setTimeout(() => {
-      untrack(() => {
-        for (const { store, caughtUpAt } of settled) store.saveCurrentView(caughtUpAt);
-      });
-    }, 2_000);
-    return () => clearTimeout(timer);
-  });
-
   // Remote session termination is authoritative even when its server is not
   // the active route. Sign out that server and clear its saved private view.
   $effect(() => {

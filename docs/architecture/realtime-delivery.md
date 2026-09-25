@@ -527,8 +527,8 @@ message windows when they complete. An interrupted replacement leaves the
 prior view visible while the client requests another snapshot. A cold offline
 launch restores a bounded store snapshot in the normal chat route. Verified access
 revocation clears the disk snapshot and affected timeline position. Explicit sign-out clears
-the saved data. The snapshot never supplies a realtime cursor or current
-authorization.
+the saved data. A complete validated snapshot set supplies its applied replay
+cursor, but never current authorization.
 After the saved view paints, the registry starts server discovery and verifies
 the viewer through the existing connection. The root route does not reload.
 This saved startup applies to room and overview routes. Settings and management
@@ -554,8 +554,17 @@ Selectors have no saved-data fallback. The connection holds private reads
 until viewer verification and rejects commands until catch-up completes.
 Snapshot catch-up replaces retained rows through the normal timeline read;
 member refreshes publish their complete replacement without a partial-page gap.
-The versioned IndexedDB record has no realtime or pagination cursor.
-Invalid records use live startup. Cursor advances schedule a new snapshot.
+IndexedDB stores versioned layout, shared resources, room and thread windows,
+and member-list records. A manifest and all records commit atomically with one
+server/viewer replay checkpoint. Timeline records include pagination boundaries;
+membership records include completeness. Missing or invalid records use live
+startup. Every loaded owner can be saved without a room-count or dwell-time
+rule. Lightweight loaded-window changes and completed reconciliation barriers
+schedule capture through a server-owned 100 ms timer; capture runs outside
+reactive dependency tracking. Pending writes coalesce without being cancelled by navigation. Optimistic
+patches block persistence. Local write generations and persistent privacy
+cutoffs, recorded synchronously when a purge is requested, reject older writes. See
+[ADR-104](../adr/ADR-104-checkpointed-client-projection-snapshots.md).
 Saved data does not verify or populate the account-loading owner. Settings
 wait for complete account data; the transport coordinator does not populate
 or clear it. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
@@ -611,8 +620,9 @@ invalidate pending reads. Empty DMs remain excluded from sidebar navigation.
 
 The browser keeps one in-memory resource view and cursor for each
 authenticated server. Only the active server keeps a persistent socket.
-Inactive servers use bounded periodic catch-up sockets. A page reload starts
-without a cursor and performs new resource reads.
+Inactive servers use bounded periodic catch-up sockets. A page reload restores
+a compatible complete snapshot set and its cursor when available. Without that
+set, it starts without a cursor and performs new resource reads.
 
 The frontend keeps its resource view during access-token rotation, cookie-session
 renewal, server switches, network reconnects, and tab wake. It replaces the

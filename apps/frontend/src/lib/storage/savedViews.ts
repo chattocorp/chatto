@@ -2,7 +2,6 @@
 
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import type { ServerPresentationSnapshot } from './presentationSnapshot';
-import { decodePresentation } from './decodeSavedView';
 
 /** A normal room resource and its bounded presentation state. */
 export type SavedRoom = {
@@ -13,11 +12,23 @@ export type SavedRoom = {
   resource: string;
   events: TimelineEventView[];
   hasReachedStart?: boolean;
+  /** Absent when this room's timeline has never been loaded or was evicted. */
+  timeline?: { startCursor?: string; endCursor?: string; hasNewer: boolean };
   members?: { ids: string[]; totalCount: number; complete: boolean; presence: [string, number][] };
+  threads?: {
+    rootId: string;
+    events: TimelineEventView[];
+    hasReachedStart: boolean;
+    timeline: { startCursor?: string; endCursor?: string; hasNewer: boolean };
+  }[];
 };
 
 export type SavedView = {
-  version: 2;
+  version: 3;
+  /** Opaque, viewer-bound server sequence token, committed with all resource records. */
+  checkpoint: string;
+  /** Time the reconciliation barrier accepted this checkpoint, not the time of a disk write. */
+  checkpointAt: number;
   serverId: string;
   userId: string;
   viewerName?: string;
@@ -27,233 +38,71 @@ export type SavedView = {
   presentation: ServerPresentationSnapshot;
 };
 
-const DB_NAME = 'chatto-saved-views';
-const STORE_NAME = 'views';
-const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-// The application shell uses at most 12 MB of the 20 MB offline budget.
-const MAX_TOTAL_BYTES = 8_000_000;
-let purgeGeneration = 0;
+/** Synchronous privacy fence shared with the lazily loaded disk implementation. */
+export const snapshotStorageGeneration = { value: 0 };
 
-/** Fence reads and writes captured before a private-content change. */
+let boundaryMillisecond = 0;
+let boundaryOrdinal = 0;
+
+/** Order privacy requests and accepted checkpoints even within one clock tick. */
+export function snapshotBoundaryTime(): number {
+  const now = Date.now();
+  boundaryOrdinal = now === boundaryMillisecond ? boundaryOrdinal + 1 : 0;
+  boundaryMillisecond = now;
+  return now + boundaryOrdinal / 1000;
+}
+
+/** Fence queued reads/writes immediately, including before the storage chunk loads. */
 export function invalidateSavedViewWrites(): void {
-  purgeGeneration++;
+  snapshotStorageGeneration.value++;
 }
 
-type SavedRecord = SavedView & { key: string };
-
-function keyFor(serverId: string, userId: string): string {
-  return `${serverId}\u0000${userId}`;
-}
-
-function openDatabase(): Promise<IDBDatabase | null> {
-  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(STORE_NAME, { keyPath: 'key' });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-    request.onblocked = () => resolve(null);
-  });
-}
-
-function requestResult<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-function transactionDone(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-    transaction.onabort = () => reject(transaction.error);
-  });
-}
-
-function validRecord(value: unknown): value is SavedRecord {
-  try {
-    if (!value || typeof value !== 'object') return false;
-    const record = value as Partial<SavedRecord>;
-    const valid =
-      record.version === 2 &&
-      typeof record.key === 'string' &&
-      typeof record.serverId === 'string' &&
-      typeof record.userId === 'string' &&
-      typeof record.serverName === 'string' &&
-      (record.viewerName === undefined || typeof record.viewerName === 'string') &&
-      Number.isFinite(record.savedAt) &&
-      !!record.presentation &&
-      (record.presentation.searchStatus === undefined ||
-        (Number.isInteger(record.presentation.searchStatus.state) &&
-          (record.presentation.searchStatus.retryAfterMs === null ||
-            Number.isFinite(record.presentation.searchStatus.retryAfterMs)))) &&
-      (record.presentation.serverVersion === undefined ||
-        typeof record.presentation.serverVersion === 'string') &&
-      (record.presentation.activeCalls === undefined ||
-        (Array.isArray(record.presentation.activeCalls) &&
-          record.presentation.activeCalls.every((value) => typeof value === 'string'))) &&
-      typeof record.presentation.server === 'string' &&
-      (record.presentation.viewer === undefined ||
-        typeof record.presentation.viewer === 'string') &&
-      (record.presentation.runtime === undefined ||
-        typeof record.presentation.runtime === 'string') &&
-      (record.presentation.motd === undefined || typeof record.presentation.motd === 'string') &&
-      Array.isArray(record.presentation.roomGroups) &&
-      record.presentation.roomGroups.every((value) => typeof value === 'string') &&
-      Array.isArray(record.presentation.users) &&
-      record.presentation.users.every((value) => typeof value === 'string') &&
-      Array.isArray(record.rooms) &&
-      record.rooms.every(
-        (room) =>
-          typeof room.id === 'string' &&
-          typeof room.name === 'string' &&
-          typeof room.resource === 'string' &&
-          (room.hasReachedStart === undefined || typeof room.hasReachedStart === 'boolean') &&
-          Array.isArray(room.events) &&
-          (room.members === undefined ||
-            (Array.isArray(room.members.ids) &&
-              room.members.ids.every((id) => typeof id === 'string') &&
-              Number.isFinite(room.members.totalCount) &&
-              typeof room.members.complete === 'boolean' &&
-              Array.isArray(room.members.presence) &&
-              room.members.presence.every(
-                (entry) =>
-                  Array.isArray(entry) &&
-                  entry.length === 2 &&
-                  typeof entry[0] === 'string' &&
-                  Number.isInteger(entry[1])
-              ))) &&
-          (room.kind === undefined || typeof room.kind === 'number') &&
-          (room.universal === undefined || typeof room.universal === 'boolean')
-      );
-    if (!valid) return false;
-    decodePresentation(record as SavedView);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Read only a saved view for the exact local server and user. */
+/** Load a complete compatible resource set for the exact server and viewer. */
 export async function loadSavedView(
   serverId: string,
   userId: string | null
 ): Promise<SavedView | null> {
   if (!userId) return null;
-  const generation = purgeGeneration;
-  const db = await openDatabase();
-  if (!db) return null;
+  const generation = snapshotStorageGeneration.value;
   try {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const value: unknown = await requestResult(
-      transaction.objectStore(STORE_NAME).get(keyFor(serverId, userId))
-    );
-    if (generation !== purgeGeneration) return null;
-    if (!validRecord(value) || value.serverId !== serverId || value.userId !== userId) return null;
-    // The validator is needed only when a disk record exists. Keep its schema
-    // library out of first-visit and login route bundles.
-    const { timelineSnapshotSchema, notificationSnapshotSchema } =
-      await import('./presentationSnapshot');
-    for (const room of value.rooms) room.events = timelineSnapshotSchema.parse(room.events);
-    if (value.presentation.notifications) {
-      value.presentation.notifications = notificationSnapshotSchema.parse(
-        value.presentation.notifications
-      );
-    }
-    if (generation !== purgeGeneration) return null;
-    if (Date.now() - value.savedAt >= MAX_AGE_MS) {
-      await clearSavedView(serverId, userId);
-      return null;
-    }
-    const { key: _key, ...view } = value;
-    return view;
+    const storage = await import('./projectionSnapshotStorage');
+    return await storage.loadSavedView(serverId, userId, generation);
   } catch {
     return null;
-  } finally {
-    db.close();
   }
 }
 
-/** Save a bounded store snapshot. Storage failure leaves live chat unaffected. */
+/** Persist a complete checkpoint set; writes coalesce without a route-lifetime timer. */
 export async function saveView(view: SavedView): Promise<void> {
-  const generation = purgeGeneration;
-  if (JSON.stringify(view).length * 2 > MAX_TOTAL_BYTES) return;
-  const db = await openDatabase();
-  if (!db) return;
+  const generation = snapshotStorageGeneration.value;
   try {
-    if (generation !== purgeGeneration) return;
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const current = ((await requestResult(store.getAll())) as unknown[]).filter(validRecord);
-    if (
-      current.some(
-        (entry) => entry.key === keyFor(view.serverId, view.userId) && entry.savedAt > view.savedAt
-      )
-    )
-      return;
-    const entries = current
-      .filter(
-        (entry) =>
-          entry.key !== keyFor(view.serverId, view.userId) &&
-          Date.now() - entry.savedAt < MAX_AGE_MS
-      )
-      .sort((a, b) => b.savedAt - a.savedAt);
-    const selected: SavedRecord[] = [{ ...view, key: keyFor(view.serverId, view.userId) }];
-    let total = JSON.stringify(selected[0]).length * 2;
-    for (const entry of entries) {
-      const bytes = JSON.stringify(entry).length * 2;
-      if (total + bytes > MAX_TOTAL_BYTES) continue;
-      selected.push(entry);
-      total += bytes;
-    }
-    store.clear();
-    for (const entry of selected) store.put(entry);
-    await transactionDone(transaction);
+    const storage = await import('./projectionSnapshotStorage');
+    await storage.saveView(view, generation);
   } catch {
-    // Private browsing, quota pressure, and blocked storage must not break chat.
-  } finally {
-    db.close();
+    /* A missing offline chunk must not interrupt live state. */
   }
 }
 
-/** Remove saved private content when a local or verified server boundary occurs. */
+/** Remove private snapshots and fence older writes before loading storage code. */
 export async function clearSavedView(serverId: string, userId?: string): Promise<void> {
-  purgeGeneration++;
-  const db = await openDatabase();
-  if (!db) return;
+  const cutoff = snapshotBoundaryTime();
+  invalidateSavedViewWrites();
   try {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    if (userId) store.delete(keyFor(serverId, userId));
-    else {
-      const keys = await requestResult(store.getAllKeys());
-      for (const key of keys) {
-        if (typeof key === 'string' && key.startsWith(`${serverId}\u0000`)) store.delete(key);
-      }
-    }
-    await transactionDone(transaction);
+    const storage = await import('./projectionSnapshotStorage');
+    await storage.clearSavedView(serverId, userId, cutoff);
   } catch {
-    // A failed purge is retried on the next explicit boundary or cache open.
-  } finally {
-    db.close();
+    /* Storage can be unavailable; the synchronous write fence remains. */
   }
 }
 
-/** Remove every saved private view on this browser profile. */
+/** Remove all device snapshots, including records from other server accounts. */
 export async function clearAllSavedViews(): Promise<void> {
-  purgeGeneration++;
-  const db = await openDatabase();
-  if (!db) return;
+  const cutoff = snapshotBoundaryTime();
+  invalidateSavedViewWrites();
   try {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).clear();
-    await transactionDone(transaction);
+    const storage = await import('./projectionSnapshotStorage');
+    await storage.clearAllSavedViews(cutoff);
   } catch {
-    // See clearSavedView.
-  } finally {
-    db.close();
+    /* Storage can be unavailable; the synchronous write fence remains. */
   }
 }

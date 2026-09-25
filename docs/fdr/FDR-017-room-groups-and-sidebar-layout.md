@@ -126,5 +126,5 @@ ADR-086 and ADR-087.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations), ADR-087 (request-time authorization with aggregate OCC)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations), ADR-087 (request-time authorization with aggregate OCC), [ADR-104](../adr/ADR-104-checkpointed-client-projection-snapshots.md) (checkpointed client projections)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

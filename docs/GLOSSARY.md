@@ -272,6 +272,13 @@ explicit reads, commands, pagination, and history. See
 [ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
+**Client Projection Snapshot** — Versioned device copy of client resource state
+and its applied Resume Cursor. A manifest and its resource records commit
+atomically for one server and viewer. Loaded collection windows retain their
+coverage. Restoration populates the normal stores; session verification still
+gates replay and commands. See
+[ADR-104](adr/ADR-104-checkpointed-client-projection-snapshots.md).
+
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
 realtime snapshot. The server sends later authorized public events only after
 that snapshot. A client can also use the opaque

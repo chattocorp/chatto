@@ -1,7 +1,7 @@
 # ADR-103: Open a Saved Chat View Before Client Connection
 
 **Date:** 2026-09-23
-**Status:** Accepted
+**Status:** Partially superseded by [ADR-104](ADR-104-checkpointed-client-projection-snapshots.md)
 
 ## Context
 
@@ -12,6 +12,10 @@ a navigation request to fail before it served its cached document. A slow
 server could therefore delay useful content that was already on the device.
 
 ## Decision
+
+ADR-104 replaces the storage limits and cursor-free format described below with
+versioned resource snapshots and a shared, atomic replay checkpoint. The startup
+ordering, normal-store rendering, and authorization rules here remain in effect.
 
 On an initial chat route with a saved view for the registered server and user,
 the client creates its stores without network work and restores that view into

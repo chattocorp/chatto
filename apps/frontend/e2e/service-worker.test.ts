@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { SavedView } from '../src/lib/storage/savedViews';
+import { RealtimeSubscribe } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { expect, test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { getRoomIdByNameViaConnect, postMessageViaConnect } from './fixtures/connectHelpers';
@@ -79,23 +80,23 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     .poll(() =>
       page.evaluate(async (body) => {
         const db = await new Promise<IDBDatabase>((resolve, reject) => {
-          const request = indexedDB.open('chatto-saved-views', 1);
+          const request = indexedDB.open('chatto-saved-views', 2);
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error);
         });
         try {
-          const views = await new Promise<SavedView[]>((resolve, reject) => {
-            const request = db.transaction('views').objectStore('views').getAll();
+          const views = await new Promise<
+            { schemaVersion: number; data: { events?: SavedView['rooms'][number]['events'] } }[]
+          >((resolve, reject) => {
+            const request = db.transaction('resources').objectStore('resources').getAll();
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
           });
           return views.some(
             (view) =>
-              view.version === 2 &&
-              view.rooms.some((room) =>
-                room.events.some(
-                  (entry) => entry.event.kind === 'messagePosted' && entry.event.body === body
-                )
+              view.schemaVersion === 1 &&
+              view.data.events?.some(
+                (entry) => entry.event.kind === 'messagePosted' && entry.event.body === body
               )
           );
         } finally {
@@ -140,6 +141,16 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     const resumed = timelineHeld.then(() => route.continue());
     timelineRequests.push(resumed);
     return resumed;
+  });
+  // Exercise rejected disk checkpoints; cached-layout.test covers successful resume.
+  await page.routeWebSocket('**/api/realtime', (socket) => {
+    const server = socket.connectToServer();
+    socket.onMessage((message) => {
+      if (typeof message === 'string') return server.send(message);
+      const subscribe = RealtimeSubscribe.fromBinary(message);
+      subscribe.resumeCursor = 'expired-snapshot-test';
+      server.send(Buffer.from(subscribe.toBinary()));
+    });
   });
   try {
     await page.goto('/chat/-');
