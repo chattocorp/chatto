@@ -40,7 +40,7 @@ Persistence is opt-in through separate interfaces:
   encrypted snapshot repository defined by ADR-050.
 - `CheckpointedProjection` owns local derived storage and returns the highest
   source-log sequence atomically represented by that storage.
-- `StartupBatchProjection` may atomically apply ordered batches while replaying
+- `StartupBatchEventProjection` may atomically apply ordered batches while replaying
   the history captured at startup. Live events continue through individual
   `Apply` calls.
 

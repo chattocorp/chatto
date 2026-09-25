@@ -5,11 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"slices"
 	"sort"
 	"time"
-
-	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
@@ -812,63 +809,6 @@ func followedThreadSortKey(thread *FollowedThread) string {
 		return ""
 	}
 	return thread.RoomID + "\x00" + thread.ThreadRootEventID
-}
-
-// listFollowedThreadViewerStates is the strict counterpart used by complete
-// realtime replacement operations. Any uncertain lookup fails the whole read;
-// only confirmed missing/inaccessible/non-followed threads are omitted.
-func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
-	refs := c.roomModel.followedThreadsForUser(userID)
-	result := make([]*FollowedThread, 0, len(refs))
-	for _, ref := range refs {
-		room, err := c.FindRoomByID(ctx, ref.roomID)
-		if err != nil {
-			if errors.Is(err, ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-				continue
-			}
-			return nil, fmt.Errorf("read followed thread room %s: %w", ref.roomID, err)
-		}
-		kind := KindOfRoom(room)
-		if !slices.Contains(spaceIDs, LegacySpaceIDForRoomKind(kind)) {
-			continue
-		}
-		following, err := c.IsFollowingThread(ctx, kind, userID, ref.roomID, ref.threadRootEventID)
-		if err != nil {
-			return nil, fmt.Errorf("read followed thread state %s: %w", ref.threadRootEventID, err)
-		}
-		if !following {
-			continue
-		}
-		isMember, err := c.RoomMembershipExists(ctx, kind, userID, ref.roomID)
-		if err != nil {
-			return nil, fmt.Errorf("read followed thread membership %s: %w", ref.threadRootEventID, err)
-		}
-		if !isMember {
-			continue
-		}
-		canRead, err := c.CanReadThreadMessages(ctx, userID, kind, ref.roomID, ref.threadRootEventID)
-		if err != nil {
-			return nil, fmt.Errorf("read followed thread message permission %s: %w", ref.threadRootEventID, err)
-		}
-		if !canRead {
-			continue
-		}
-		metadata, err := c.GetThreadMetadata(ctx, kind, ref.roomID, ref.threadRootEventID)
-		if err != nil {
-			return nil, fmt.Errorf("read followed thread metadata %s: %w", ref.threadRootEventID, err)
-		}
-		lastOpened, err := c.GetThreadLastOpened(ctx, kind, userID, ref.roomID, ref.threadRootEventID)
-		if err != nil {
-			return nil, fmt.Errorf("read followed thread marker %s: %w", ref.threadRootEventID, err)
-		}
-		hasUnreadReplies := metadata.LastReplyAt != nil && (lastOpened.IsZero() || metadata.LastReplyAt.After(lastOpened))
-		result = append(result, &FollowedThread{
-			SpaceID: LegacySpaceIDForRoomKind(kind), RoomID: ref.roomID,
-			ThreadRootEventID: ref.threadRootEventID, Exists: metadata.Exists,
-			HasUnreadReplies: hasUnreadReplies,
-		})
-	}
-	return result, nil
 }
 
 func (c *ChattoCore) hydrateFollowedThreadViewerStates(ctx context.Context, userID string, threads []*FollowedThread) error {

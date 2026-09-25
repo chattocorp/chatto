@@ -601,11 +601,6 @@ func isKnownNonSnapshotServerConfigEventType(eventType string) bool {
 	}
 }
 
-func isLiveEVTServerConfigSubject(subject string) bool {
-	configSubjectID, ok := liveEVTConfigSubjectID(subject)
-	return ok && configSubjectID == evtstream.ConfigSingletonID
-}
-
 func liveEVTConfigSubjectID(subject string) (string, bool) {
 	parts := strings.Split(subject, ".")
 	if len(parts) != 4 || parts[0] != "evt" || parts[1] != evtstream.AggregateConfig || parts[2] == "" || parts[3] == "" {

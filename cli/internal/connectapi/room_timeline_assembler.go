@@ -128,39 +128,6 @@ func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID, r
 	return page, nil
 }
 
-func (a *roomTimelineAssembler) hydrateEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *evtv1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
-	ctx = core.WithDEKRequestCache(ctx)
-
-	messageIDs := []string(nil)
-	if event.GetMessagePosted() != nil {
-		messageIDs = append(messageIDs, event.Id)
-	}
-
-	reactionsByMessageID, err := a.api.core.GetReactionsBatch(ctx, messageIDs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	h := &timelineHydrator{
-		api:                  a.api,
-		ctx:                  ctx,
-		viewerID:             viewerID,
-		kind:                 kind,
-		reactionsByMessageID: reactionsByMessageID,
-		userIDs:              make(map[string]struct{}),
-		thumbnail:            a.thumbnail,
-	}
-	apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
-	if err != nil {
-		return nil, nil, err
-	}
-	users, err := h.users()
-	if err != nil {
-		return nil, nil, err
-	}
-	return apiEvent, &apiv1.RoomTimelineIncludes{Users: users}, nil
-}
-
 type timelineHydrator struct {
 	api                  *API
 	ctx                  context.Context

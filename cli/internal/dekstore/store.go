@@ -5,8 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/charmbracelet/log"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -83,17 +84,6 @@ func validateUserDataEncryptionKey(dek *runtimestatev1.UserDataEncryptionKey) er
 		return fmt.Errorf("%w: %s", kms.ErrUnsupportedWrappingAlgorithm, dek.GetWrappingAlgorithm())
 	}
 	return nil
-}
-
-func ValidateUserDataEncryptionKeyRecord(ref string, data []byte) error {
-	if err := ValidateRef(ref); err != nil {
-		return err
-	}
-	var dek runtimestatev1.UserDataEncryptionKey
-	if err := proto.Unmarshal(data, &dek); err != nil {
-		return fmt.Errorf("failed to decode content key: %w", err)
-	}
-	return validateUserDataEncryptionKey(&dek)
 }
 
 func (s *Store) Create(ctx context.Context, dek *runtimestatev1.UserDataEncryptionKey) (string, error) {

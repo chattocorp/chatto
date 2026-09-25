@@ -115,22 +115,6 @@ func (c *ChattoCore) AdminGetUser(ctx context.Context, userID string) (*AdminUse
 	}, nil
 }
 
-// AdminGetUserByLogin returns a hydrated operator view for one login.
-func (c *ChattoCore) AdminGetUserByLogin(ctx context.Context, login string) (*AdminUserView, error) {
-	user, err := c.GetUserByLogin(ctx, login)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-	return c.AdminGetUser(ctx, user.GetId())
-}
-
-// AdminCreateUser creates a user and applies optional operator-managed email
-// and role state. If any post-create step fails, it compensates by deleting the
-// just-created account.
-func (c *ChattoCore) AdminCreateUser(ctx context.Context, req AdminCreateUserRequest) (*AdminUserView, error) {
-	return c.AdminCreateUserAs(ctx, SystemActorID, req)
-}
-
 // AdminCreateUserAs creates a user with an explicit actor and applies optional
 // email and role state with compensation if a post-create step fails.
 func (c *ChattoCore) AdminCreateUserAs(ctx context.Context, actorID string, req AdminCreateUserRequest) (*AdminUserView, error) {
@@ -194,11 +178,6 @@ func (c *ChattoCore) AdminUpdateOperatorUser(ctx context.Context, req AdminUpdat
 	return c.AdminGetUser(ctx, user.GetId())
 }
 
-// AdminSetUserPassword sets a user's password as the system actor.
-func (c *ChattoCore) AdminSetUserPassword(ctx context.Context, userID, password string) (*AdminUserView, error) {
-	return c.AdminSetUserPasswordAs(ctx, SystemActorID, userID, password)
-}
-
 // AdminSetUserPasswordAs sets a user's password with an explicit actor.
 func (c *ChattoCore) AdminSetUserPasswordAs(ctx context.Context, actorID, userID, password string) (*AdminUserView, error) {
 	if err := c.SetPasswordHashAs(ctx, actorID, userID, password); err != nil {
@@ -207,22 +186,12 @@ func (c *ChattoCore) AdminSetUserPasswordAs(ctx context.Context, actorID, userID
 	return c.AdminGetUser(ctx, userID)
 }
 
-// AdminDeleteUser permanently deletes a user as the system actor.
-func (c *ChattoCore) AdminDeleteUser(ctx context.Context, userID string) error {
-	return c.AdminDeleteUserAs(ctx, SystemActorID, userID)
-}
-
 // AdminDeleteUserAs permanently deletes a user with an explicit actor.
 func (c *ChattoCore) AdminDeleteUserAs(ctx context.Context, actorID, userID string) error {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return err
 	}
 	return c.DeleteUser(ctx, actorID, userID)
-}
-
-// AdminAddUserVerifiedEmail adds an already-verified email to a user.
-func (c *ChattoCore) AdminAddUserVerifiedEmail(ctx context.Context, userID, email string) (*AdminUserView, error) {
-	return c.AdminAddUserVerifiedEmailAs(ctx, SystemActorID, userID, email)
 }
 
 // AdminAddUserVerifiedEmailAs adds an already-verified email with an explicit actor.

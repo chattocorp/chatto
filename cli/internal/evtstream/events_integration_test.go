@@ -569,11 +569,6 @@ func newReplayTrackingProjection(subjects []string, replay []string) *replayTrac
 
 func (p *replayTrackingProjection) ReplaySubjects() []string { return p.replay }
 
-type countingSubjectsProjection struct {
-	*trackingProjection
-	subjectCalls int
-}
-
 type minimalProjection struct {
 	mu      sync.Mutex
 	count   int
@@ -689,17 +684,6 @@ func (p *checkpointTrackingProjection) ResetCheckpoint(_ context.Context, reques
 	return p.resetErr
 }
 
-func newCountingSubjectsProjection(subs ...string) *countingSubjectsProjection {
-	return &countingSubjectsProjection{
-		trackingProjection: newTrackingProjection(subs...),
-	}
-}
-
-func (p *countingSubjectsProjection) Subjects() []string {
-	p.subjectCalls++
-	return p.trackingProjection.Subjects()
-}
-
 type blockingProjection struct {
 	*trackingProjection
 	entered chan struct{}
@@ -750,10 +734,6 @@ type identityBoundSnapshotSource struct {
 	request        ProjectionSnapshotLoadRequest
 }
 
-type blockingSnapshotSource struct {
-	canceled chan struct{}
-}
-
 type gatedSnapshotSource struct {
 	started  chan struct{}
 	release  chan struct{}
@@ -781,12 +761,6 @@ func (s *gatedSnapshotSource) LoadProjectionSnapshot(ctx context.Context, reques
 	case <-ctx.Done():
 		return ProjectionSnapshot{}, ctx.Err()
 	}
-}
-
-func (s *blockingSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
-	<-ctx.Done()
-	close(s.canceled)
-	return ProjectionSnapshot{}, ctx.Err()
 }
 
 func (s *staticSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {

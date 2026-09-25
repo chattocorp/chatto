@@ -299,19 +299,6 @@ func (s *adminRoomLayoutService) channelRoomsByID(ctx context.Context) (map[stri
 	return roomsByID, nil
 }
 
-func (s *adminRoomLayoutService) roomGroup(ctx context.Context, groupID string) (*evtv1.RoomGroup, error) {
-	groups, err := s.api.core.ListRoomGroupsOrdered(ctx, core.KindChannel)
-	if err != nil {
-		return nil, err
-	}
-	for _, group := range groups {
-		if group.GetId() == groupID {
-			return group, nil
-		}
-	}
-	return nil, core.ErrRoomGroupNotFound
-}
-
 func apiAdminRoomLayoutGroup(group *evtv1.RoomGroup, roomsByID map[string]*evtv1.Room) *adminv1.AdminRoomLayoutGroup {
 	if group == nil {
 		return nil
@@ -368,13 +355,4 @@ func adminRoomLayoutItemInputToCore(item *adminv1.AdminRoomLayoutItemInput) *evt
 	default:
 		return &evtv1.SidebarGroupEntry{}
 	}
-}
-
-func sidebarLinkFromAdminRoomLayoutGroup(group *evtv1.RoomGroup, linkID string) *evtv1.SidebarLink {
-	for _, link := range group.GetSidebarLinks() {
-		if link.GetId() == linkID {
-			return link
-		}
-	}
-	return nil
 }

@@ -446,13 +446,6 @@ func DefaultAdminPermissions() []Permission {
 	}
 }
 
-// DefaultOwnerPermissions returns the persisted permissions granted to owners
-// by default. Owners are resolved through the effective-owner override instead
-// of stored grants, so fresh servers do not materialize owner permission rows.
-func DefaultOwnerPermissions() []Permission {
-	return nil
-}
-
 // AnnouncementsRoomName is the canonical name for the seeded announcement-only
 // room whose creation-time permission facts differ from ordinary rooms.
 const AnnouncementsRoomName = "announcements"

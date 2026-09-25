@@ -82,19 +82,6 @@ func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userI
 	return user, nil
 }
 
-// AdminUpdateUserDisplayName updates a user's display name as an admin action.
-// Behavior matches UpdateUserDisplayName; this exists as a distinct entry point
-// for audit clarity in logs.
-// Authorization: Caller must verify admin privileges.
-func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, displayName string) (*evtv1.User, error) {
-	user, err := c.updateUserDisplayNameAs(ctx, SystemActorID, userID, displayName)
-	if err != nil {
-		return nil, err
-	}
-	c.logger.Info("Admin updated user display name", "id", userID)
-	return user, nil
-}
-
 // AdminUpdateUserProfile updates a user's login, display name, and/or bio as a
 // single admin-authored mutation. When multiple fields are changed, their
 // durable events are appended atomically in one batch.
@@ -374,11 +361,6 @@ func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, tar
 // ============================================================================
 // Login Change Operations
 // ============================================================================
-
-// userLoginChangedAtKey returns the KV key for tracking when a user last changed their login.
-func userLoginChangedAtKey(userID string) string {
-	return "user_login_changed_at." + userID
-}
 
 // UpdateUserLogin changes a user's login/username. The 30-day cooldown applies
 // unless the user has user.manage-accounts. A bypassed change does not advance

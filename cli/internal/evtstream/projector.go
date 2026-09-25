@@ -39,10 +39,6 @@ type PreparedProjectionPointer[T any] interface {
 // SequencedEvent pairs one decoded EVT event with its stable stream sequence.
 type SequencedEvent = events.SequencedEventOf[*evtv1.Event]
 
-// StartupBatchProjection atomically applies groups of Chatto events while a
-// projector replays its captured startup history.
-type StartupBatchProjection = events.StartupBatchEventProjection[*evtv1.Event]
-
 // NewProjector binds a Chatto core-event projection to the generic ordered
 // projector lifecycle.
 func NewProjector(
@@ -91,28 +87,6 @@ func decodeEvent(data []byte) (events.DecodedEvent[*evtv1.Event], error) {
 		return events.DecodedEvent[*evtv1.Event]{}, err
 	}
 	return events.DecodedEvent[*evtv1.Event]{Event: &event, ID: event.GetId()}, nil
-}
-
-// AppendAndWait publishes a Chatto event on its aggregate subject and waits
-// until projector has applied the resulting stream position.
-//
-// A non-zero sequence with an error means the event committed but the local
-// projection did not catch up before the context ended.
-func (p *Publisher) AppendAndWait(
-	ctx context.Context,
-	projector *events.Projector,
-	aggregate Aggregate,
-	event *evtv1.Event,
-) (uint64, error) {
-	subject := aggregate.SubjectFor(event)
-	sequence, err := p.Append(ctx, subject, event)
-	if err != nil {
-		return 0, err
-	}
-	if err := projector.WaitFor(ctx, events.SubjectPosition(subject, sequence)); err != nil {
-		return sequence, err
-	}
-	return sequence, nil
 }
 
 // AppendEventuallyAndWait is AppendAndWait for append-only facts whose exact

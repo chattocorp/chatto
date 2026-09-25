@@ -141,34 +141,6 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 	}
 }
 
-// setupRoomWithMessage creates a user, a room, joins the user, and posts one
-// message. Returns the resulting event so the test can use the durable envelope id.
-func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (room, user struct{ Id string }, event *evtv1.Event) {
-	t.Helper()
-
-	createdUser, err := core.CreateUser(ctx, "system", "msguser", "msguser", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	createdRoom, err := core.CreateRoom(ctx, createdUser.Id, KindChannel, "", "general", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	if _, err := core.JoinRoom(ctx, createdUser.Id, KindChannel, createdUser.Id, createdRoom.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
-	}
-
-	posted, err := core.PostMessage(ctx, KindChannel, createdRoom.Id, createdUser.Id, body, nil, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
-	}
-
-	room.Id = createdRoom.Id
-	user.Id = createdUser.Id
-	event = posted
-	return
-}
-
 // TestStreamMyEvents_DeliversMessageRetracted is the integration test for
 // the room-id-extraction switch in StreamMyEvents (cli/internal/core/core.go).
 // If a future refactor drops the MessageRetracted case from that switch, the

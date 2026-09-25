@@ -15,12 +15,6 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-// Historical INSTANCE KV keys for server branding.
-const (
-	serverLogoKey   = "instance.logo"
-	serverBannerKey = "instance.banner"
-)
-
 // UploadServerLogo processes a logo image (resize + WebP) and uploads the
 // bytes to the object store. Returns the asset reference. Use SetServerLogo
 // to atomically swap the server's logo pointer (and clean up the prior

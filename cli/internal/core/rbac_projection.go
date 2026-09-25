@@ -2,7 +2,6 @@ package core
 
 import (
 	"sort"
-	"strings"
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
@@ -598,20 +597,6 @@ func (p *RBACProjection) NextAvailablePosition() int32 {
 		next++
 	}
 	return next
-}
-
-func (p *RBACProjection) CountStats() (roles int, assignments int, decisions int) {
-	p.RLock()
-	defer p.RUnlock()
-	for name := range p.roles {
-		if strings.TrimSpace(name) != "" {
-			roles++
-		}
-	}
-	for _, roleSet := range p.assignments {
-		assignments += len(roleSet)
-	}
-	return roles, assignments, len(p.decisions)
 }
 
 func sortPermissions(perms []Permission) {

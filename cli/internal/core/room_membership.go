@@ -568,29 +568,6 @@ func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, 
 	return out, nil
 }
 
-// GetAllUserRoomMemberships retrieves all of a user's room memberships
-// across every kind. Reads membership through RoomModel
-// (ADR-035 phase 5 cutover).
-func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id string) ([]*evtv1.RoomMembership, error) {
-	channelRooms, err := c.ListMemberRooms(ctx, KindChannel, user_id, MemberRoomListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	dmRooms, err := c.ListMemberRooms(ctx, KindDM, user_id, MemberRoomListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	rooms := append(channelRooms, dmRooms...)
-	out := make([]*evtv1.RoomMembership, 0, len(rooms))
-	for _, room := range rooms {
-		out = append(out, &evtv1.RoomMembership{
-			UserId: user_id,
-			RoomId: room.Id,
-		})
-	}
-	return out, nil
-}
-
 // deleteUserRoomMembershipsInSpace removes all of a user's memberships of
 // the given kind. Called when a user is deleted or leaves a space.
 // Publishes UserLeftRoomEvent for each affected room, which projections apply.

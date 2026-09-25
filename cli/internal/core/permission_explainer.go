@@ -41,14 +41,6 @@ func (r *PermissionResolver) explainServerPermission(ctx context.Context, userID
 	return exp, err
 }
 
-// ExplainServerKindPermission is the kind-aware singleton-scope explainer used
-// by the inspector UI. KindDM resolves the direct-message scope first.
-func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
-	return r.explainInContentView(ctx, func(readCtx context.Context) (PermissionExplanation, error) {
-		return r.explainServerKindPermission(readCtx, userID, kind, perm)
-	})
-}
-
 func (r *PermissionResolver) explainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 

@@ -3,10 +3,11 @@ package http_server
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"net/http"
 	"strings"
 	"time"
+
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
@@ -225,14 +226,6 @@ func (s *HTTPServer) browserSessionID(c *gin.Context) (string, bool) {
 		return cookies[0].token, true
 	}
 	return "", false
-}
-
-func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *runtimestatev1.CookieSession, bool) {
-	credential, ok, _ := s.cookiePresentedCredential(c)
-	if !ok {
-		return "", "", nil, false
-	}
-	return credential.auth.UserID, credential.auth.Handle, credential.cookieRecord, true
 }
 
 func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntimeCredential, bool, error) {

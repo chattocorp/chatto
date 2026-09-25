@@ -113,13 +113,6 @@ func serverAssetNATSObjectKeys(key string) (logicalID string, namespaced bool, o
 	return logicalID, false, []string{PublicServerAssetObjectKey(logicalID), logicalID}, true
 }
 
-// IsReservedServerAssetKey rejects private, internal, and unknown namespaces
-// before public-route transform parsing or backend probing.
-func IsReservedServerAssetKey(key string) bool {
-	_, _, ok := serverAssetRequestKey(key)
-	return !ok
-}
-
 // ResolvePublicServerAsset positively classifies an object and binds the
 // decision to one exact backend key before the public route performs cache
 // access, content reads, or transforms. Unknown objects fail closed.

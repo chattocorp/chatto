@@ -49,13 +49,3 @@ func (p trustedProxySet) containsRemoteAddr(remoteAddr string) bool {
 	}
 	return false
 }
-
-func forwardedHost(header string) string {
-	parts := strings.Split(header, ",")
-	for i := len(parts) - 1; i >= 0; i-- {
-		if host := strings.TrimSpace(parts[i]); host != "" {
-			return host
-		}
-	}
-	return ""
-}

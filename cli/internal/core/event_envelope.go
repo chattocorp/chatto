@@ -122,10 +122,3 @@ func EventUserTyping(event EventEnvelope) *realtimev1.UserTypingEvent {
 	}
 	return event.PubSubEvent().GetUserTyping()
 }
-
-func EventPresenceChanged(event EventEnvelope) *realtimev1.PresenceChangedEvent {
-	if event == nil || event.PubSubEvent() == nil {
-		return nil
-	}
-	return event.PubSubEvent().GetPresenceChanged()
-}

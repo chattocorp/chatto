@@ -10,10 +10,6 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-func (p *Projection) decryptBody(ctx context.Context, eventID, roomID string, body *evtv1.MessageBody) ([]byte, error) {
-	return p.decryptBodyWithDEKs(ctx, eventID, roomID, body, p.deks)
-}
-
 func (p *Projection) decryptBodyWithDEKs(ctx context.Context, eventID, roomID string, body *evtv1.MessageBody, deks map[string]*evtv1.UserDEKGeneratedEvent) ([]byte, error) {
 	if body.GetEncryptionVersion() >= encryption.EnvelopeVersionV2 || body.GetContentKeyEpoch() > 0 {
 		if body.GetEncryptionVersion() != encryption.EnvelopeVersionV2 || body.GetContentKeyEpoch() <= 0 {
