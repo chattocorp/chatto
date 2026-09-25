@@ -69,13 +69,45 @@ type AuthTokenData struct {
 	Request                 *evtv1.AuditRequestMetadata `json:"request,omitempty"`
 	CreatedAt               time.Time                   `json:"created_at"`
 	ExpiresAt               time.Time                   `json:"expires_at,omitempty"`
-	AuthGeneration          uint64                      `json:"auth_generation,omitempty"`
+	AuthGeneration          uint64                      `json:"auth_generation"`
 	RenewableSessionID      string                      `json:"renewable_session_id,omitempty"`
 	AccessGeneration        uint64                      `json:"access_generation,omitempty"`
 	FreshAuthAt             time.Time                   `json:"fresh_auth_at,omitempty"`
 	FreshAuthMethod         string                      `json:"fresh_auth_method,omitempty"`
 	FreshAuthSource         string                      `json:"fresh_auth_source,omitempty"`
 	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at,omitempty"`
+
+	// legacyAuthGeneration is set by UnmarshalJSON when the stored record has
+	// no auth_generation key. See RuntimeCredential.MayPredateAuthGeneration.
+	legacyAuthGeneration bool
+}
+
+// UnmarshalJSON decodes a stored record and notes whether it has an
+// auth_generation key. Current releases always write the key, so a record
+// without it may predate auth generations.
+func (d *AuthTokenData) UnmarshalJSON(data []byte) error {
+	type plain AuthTokenData
+	var decoded struct {
+		plain
+		AuthGeneration *uint64 `json:"auth_generation"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*d = AuthTokenData(decoded.plain)
+	d.AuthGeneration, d.legacyAuthGeneration = storedAuthGeneration(decoded.AuthGeneration)
+	return nil
+}
+
+// runtimeCredential returns the generation data that ValidateRuntimeCredential
+// checks for this record.
+func (d AuthTokenData) runtimeCredential() RuntimeCredential {
+	return RuntimeCredential{
+		UserID:                   d.UserID,
+		CreatedAt:                d.CreatedAt,
+		AuthGeneration:           d.AuthGeneration,
+		MayPredateAuthGeneration: d.legacyAuthGeneration,
+	}
 }
 
 // ValidatedRuntimeCredential is the normalized result of validating an opaque
@@ -238,11 +270,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		}
 	}
 
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         tokenData.UserID,
-		CreatedAt:      tokenData.CreatedAt,
-		AuthGeneration: tokenData.AuthGeneration,
-	})
+	validation, err := c.ValidateRuntimeCredential(ctx, tokenData.runtimeCredential())
 	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return ValidatedRuntimeCredential{}, err

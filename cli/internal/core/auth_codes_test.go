@@ -302,6 +302,7 @@ func TestChattoCore_ExchangeAuthCodeGrandfathersLegacyGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal legacy auth code: %v", err)
 	}
+	data = withoutAuthGenerationKey(t, data)
 	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL)); err != nil {
 		t.Fatalf("store legacy auth code: %v", err)
 	}
@@ -348,6 +349,7 @@ func TestChattoCore_ExchangeAuthCodeRejectsLegacyGenerationBeforePasswordChange(
 	if err != nil {
 		t.Fatalf("marshal legacy auth code: %v", err)
 	}
+	data = withoutAuthGenerationKey(t, data)
 	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL)); err != nil {
 		t.Fatalf("store legacy auth code: %v", err)
 	}

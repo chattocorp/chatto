@@ -17,6 +17,12 @@ type RuntimeCredential struct {
 	UserID         string
 	CreatedAt      time.Time
 	AuthGeneration uint64
+	// MayPredateAuthGeneration reports that the stored record has no auth
+	// generation field, so an older release may have written it before auth
+	// generations existed. Only such records can use the legacy CreatedAt
+	// comparison. A record that stores generation 0 explicitly was issued while
+	// the user was at generation 0, and any later generation revokes it.
+	MayPredateAuthGeneration bool
 }
 
 // RuntimeCredentialValidation is the result of validating a runtime credential
@@ -25,6 +31,15 @@ type RuntimeCredentialValidation struct {
 	UserID                      string
 	AuthGeneration              uint64
 	ShouldPersistAuthGeneration bool
+}
+
+// storedAuthGeneration converts an optional decoded auth_generation value. It
+// reports legacy when the stored record has no auth_generation key.
+func storedAuthGeneration(value *uint64) (generation uint64, legacy bool) {
+	if value == nil {
+		return 0, true
+	}
+	return *value, false
 }
 
 func (c *ChattoCore) CurrentAuthGeneration(ctx context.Context, userID string) (uint64, error) {
@@ -58,9 +73,10 @@ func (c *ChattoCore) RequireAuthenticationAllowed(ctx context.Context, userID st
 // credentials. Storage-specific callers load their record, pass the common
 // credential fields here, and persist AuthGeneration when ShouldPersist is true.
 //
-// Credentials written before auth_generation existed unmarshal as generation 0.
-// For compatibility, those records are grandfathered when their CreatedAt is
-// not older than the user's current password hash event. Legacy imported
+// Credentials written before auth_generation existed unmarshal as generation 0
+// with MayPredateAuthGeneration set. For compatibility, those records are
+// grandfathered when their CreatedAt is not older than the user's current
+// password hash event. Legacy imported
 // password hashes only have the legacy user record timestamp, so this
 // intentionally preserves upgraded 0.0.x credentials until a new 0.1.x password
 // change/reset advances the generation.
@@ -75,7 +91,7 @@ func (c *ChattoCore) ValidateRuntimeCredential(ctx context.Context, credential R
 			AuthGeneration: currentGeneration,
 		}, nil
 	}
-	if credential.AuthGeneration != 0 {
+	if credential.AuthGeneration != 0 || !credential.MayPredateAuthGeneration {
 		return RuntimeCredentialValidation{}, ErrAuthenticationRevoked
 	}
 	if currentGeneration == 0 {

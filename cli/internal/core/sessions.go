@@ -194,11 +194,7 @@ func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID s
 			return nil, err
 		}
 
-		validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-			UserID:         tokenData.UserID,
-			CreatedAt:      tokenData.CreatedAt,
-			AuthGeneration: tokenData.AuthGeneration,
-		})
+		validation, err := c.ValidateRuntimeCredential(ctx, tokenData.runtimeCredential())
 		if err != nil {
 			if errors.Is(err, ErrAuthenticationRevoked) {
 				_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
@@ -346,11 +342,7 @@ func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, n
 			return nil, false, ErrCookieSessionNotFound
 		}
 
-		validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-			UserID:         tokenData.UserID,
-			CreatedAt:      tokenData.CreatedAt,
-			AuthGeneration: tokenData.AuthGeneration,
-		})
+		validation, err := c.ValidateRuntimeCredential(ctx, tokenData.runtimeCredential())
 		if err != nil {
 			if errors.Is(err, ErrAuthenticationRevoked) {
 				_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
