@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { createPresenceAPI } from '$lib/api-client/presence';
   import { createAccountAPI } from '$lib/api-client/account';
+  import { beginOriginReauthentication } from '$lib/auth/reauth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
   import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
@@ -45,6 +46,13 @@
   $effect(() => {
     if (!originServerId || !verifiedOriginUserId) return;
     void resumeReturnNavigation();
+  });
+
+  // A rejected origin viewer with nothing loaded to read goes to sign-in and
+  // returns to the current page afterwards.
+  $effect(() => {
+    if (!serverRegistry.originSignInRequired || isExplicitSignOutRedirectInProgress()) return;
+    untrack(() => beginOriginReauthentication());
   });
 
   $effect(() => {

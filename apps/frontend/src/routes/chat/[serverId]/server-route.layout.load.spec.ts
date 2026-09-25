@@ -73,6 +73,10 @@ describe('server route layout load', () => {
     mocks.store.savedView = null;
     mocks.store.networkStartupDeferred = false;
     mocks.loadSavedView.mockResolvedValue(null);
+    // The store accepts a matching view; tests override this to model refusal.
+    mocks.store.restoreSavedView.mockImplementation((view: typeof mocks.store.savedView) => {
+      if (view) mocks.store.savedView = view;
+    });
   });
 
   it('opens setup for the origin before requiring authentication', async () => {
@@ -129,6 +133,18 @@ describe('server route layout load', () => {
     await expect(routeLoad(null)).resolves.toMatchObject({ serverSegment: '-' });
     expect(mocks.store.restoreSavedView).toHaveBeenCalledWith(savedView, false);
     expect(mocks.store.currentUser.load).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a refused saved view as a readable view', async () => {
+    mocks.serverId = 'remote';
+    mocks.origin = false;
+    mocks.store.currentUser.loading = true;
+    mocks.store.currentUser.user = undefined;
+    mocks.loadSavedView.mockResolvedValue({ serverId: 'remote', userId: 'viewer-1', rooms: [] });
+    mocks.store.restoreSavedView.mockImplementation(() => {});
+
+    await expect(routeLoad(null)).rejects.toMatchObject({ status: 302, location: '/login' });
+    expect(mocks.store.currentUser.load).toHaveBeenCalledOnce();
   });
 
   it('restores a dormant server before starting its requests', async () => {

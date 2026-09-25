@@ -55,6 +55,12 @@ copied profile references. A later verified save can capture the remaining state
 After origin sign-out, a dormant remote bearer session can be selected for
 navigation. Its viewer check starts when that route opens.
 
+A session that needs reauthentication does not restore its saved view, because
+the server rejected that viewer. The client deletes the view and uses live
+startup. If the origin rejects the viewer and no loaded data remains, the client
+opens sign-in and returns to the current page afterwards. The reauthentication
+notice remains for loaded data that the viewer can still read.
+
 Every server route starts from the saved view. The client shows a message
 permalink target from the saved window when the window contains it. Other
 targets load through private requests, which wait until the viewer is verified.

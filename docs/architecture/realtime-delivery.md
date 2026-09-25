@@ -541,7 +541,10 @@ during warm snapshot hydration and retry. Actions stay gated by verified
 authority. Verified origin authentication also starts browser-session renewal.
 The chat root installs origin-session termination handling from the registry's
 verified viewer, even when the route still has no loaded viewer. A changed or
-rejected viewer clears the saved private view.
+rejected viewer clears the saved private view. A session that already needs
+reauthentication deletes its saved view at startup and uses live startup. When
+the origin rejects its viewer and no loaded data remains, the chat root starts
+origin sign-in and keeps the current page as the return path.
 
 `CurrentUserState` owns the complete account and one pending account request for
 each server. Route loading and recovery use that owner. Cookie migration and

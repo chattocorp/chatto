@@ -55,15 +55,18 @@ export const load: LayoutLoad = async ({ url, params }) => {
   }
   if (startupSavedView && serverId) {
     // Install the saved projection before any connection or viewer request.
+    // A rejected or undecodable view is not restored; use live startup then.
     serverRegistry.init(true);
-    serverRegistry.getStore(serverId).restoreSavedView(startupSavedView, true);
-    return {
-      serverInfo: null,
-      serverInfoLoaded: false,
-      user: null,
-      startupServerId: serverId,
-      startupPending: true
-    };
+    const store = serverRegistry.getStore(serverId);
+    store.restoreSavedView(startupSavedView, true);
+    if (store.startupPresentationOnly)
+      return {
+        serverInfo: null,
+        serverInfoLoaded: false,
+        user: null,
+        startupServerId: serverId,
+        startupPending: true
+      };
   }
   // Initialise persisted remote sessions before child route loads read them.
   // This is idempotent across SPA navigations.

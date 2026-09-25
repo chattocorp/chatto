@@ -22,10 +22,14 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     redirect(302, resolve('/setup'));
   }
 
-  const savedView = startupServerId === serverId
-    ? serverStore.savedView
-    : await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null);
-  serverStore.restoreSavedView(savedView, serverStore.networkStartupDeferred);
+  serverStore.restoreSavedView(
+    startupServerId === serverId
+      ? serverStore.savedView
+      : await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null),
+    serverStore.networkStartupDeferred
+  );
+  // Only a view the store accepted counts; it refuses rejected or corrupt views.
+  const savedView = serverStore.savedView;
   // A dormant server starts its network work after its saved view is ready.
   if (startupServerId !== serverId) serverRegistry.startServerNetwork(serverId);
 
