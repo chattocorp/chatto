@@ -48,7 +48,7 @@ Good universal-room candidates:
 | `#general` | Everyone can participate unless your community is invite-only or segmented. |
 | `#rules` | Everyone sees it; posts are restricted. |
 
-Universal rooms do not write one membership record per user. Chatto derives effective membership from the room's `room.join` permission and active room bans. If you later disable Universal, previous explicit memberships remain intact.
+Universal rooms do not write one membership record per user. Chatto derives effective membership from the room's `room.join` permission and active room suspensions. A moderated removal from a Universal room requires a suspension. If you later disable Universal, previous explicit memberships remain intact.
 
 <Aside type="tip">
   Members cannot leave a universal room. Tell members to mute noisy universal rooms instead of trying to leave them.

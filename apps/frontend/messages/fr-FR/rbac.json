@@ -120,7 +120,7 @@
       "room_join": "Rejoindre des salons existants",
       "room_list": "Voir les salles dans l'annuaire. Un utilisateur peut être autorisé à voir une salle (par exemple pour demander l'accès) sans être autorisé à la rejoindre.",
       "room_manage": "Modifier les paramètres et les autorisations d'une salle et supprimer des salles",
-      "room_ban_member": "Interdire les membres des salles",
+      "room_remove_member": "Retirer des membres des salons et suspendre leur retour si nécessaire",
       "message_read": "Lire tous les messages des salons. Retirer cette permission permet encore un accès limité si message.read-interactions est accordée séparément.",
       "message_read_interactions": "Lire les fils complets que vous avez créés ou dans lesquels un autre utilisateur vous a mentionné directement",
       "message_post": "Publier des messages et des réponses dans les fils, et démarrer des messages privés",

@@ -213,11 +213,12 @@ func (x *RoomMemberAddedEvent) GetUserId() string {
 
 // RoomMemberRemovedEvent records a manager removing a user from a channel room.
 // The Event envelope actor_id is the manager. The payload user_id is the
-// target.
+// target. A moderated removal has a reason; ordinary member management does not.
 type RoomMemberRemovedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -266,6 +267,13 @@ func (x *RoomMemberRemovedEvent) GetUserId() string {
 	return ""
 }
 
+func (x *RoomMemberRemovedEvent) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_chatto_core_evt_v1_moderation_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_moderation_events_proto_rawDesc = "" +
@@ -284,10 +292,11 @@ const file_chatto_core_evt_v1_moderation_events_proto_rawDesc = "" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\"H\n" +
 	"\x14RoomMemberAddedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"J\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"b\n" +
 	"\x16RoomMemberRemovedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userIdB\xd0\x01\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reasonB\xd0\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x15ModerationEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (

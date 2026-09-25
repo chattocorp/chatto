@@ -73,7 +73,7 @@
       return () => true;
     }
 
-    // The ban list requires effective server-scope room.ban-member.
+    // The suspension list requires effective server-scope room.remove-member.
     if (pathname.startsWith(moderationBase)) {
       return () => chromePermissions?.canModerate ?? false;
     }

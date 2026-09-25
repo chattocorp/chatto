@@ -365,10 +365,10 @@ describe('server query cache', () => {
       ['server', 'one', 'session', 'scope', 'admin', 'user-permissions', 'retained'],
       'private-retained-permissions'
     );
-    queryClient.setQueryData(['server', 'one', 'session', 'scope', 'admin', 'bans'], {
+    queryClient.setQueryData(['server', 'one', 'session', 'scope', 'admin', 'suspensions'], {
       pages: [
         {
-          bans: [
+          suspensions: [
             {
               id: 'ban-1',
               userId: 'removed',
@@ -449,13 +449,13 @@ describe('server query cache', () => {
     expect(
       queryClient.getQueryData<{
         pages: Array<{
-          bans: Array<{ user: unknown; moderator: unknown }>;
+          suspensions: Array<{ user: unknown; moderator: unknown }>;
         }>;
-      }>(['server', 'one', 'session', 'scope', 'admin', 'bans'])
+      }>(['server', 'one', 'session', 'scope', 'admin', 'suspensions'])
     ).toMatchObject({
       pages: [
         {
-          bans: [
+          suspensions: [
             { user: null, moderator: { id: 'retained' } },
             { user: { id: 'retained' }, moderator: null }
           ]

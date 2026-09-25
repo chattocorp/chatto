@@ -61,8 +61,13 @@ reconnects the live projection so elevated controls turn off without a page
 reload.
 
 The Moderation link and page are available only when you have active
-server-wide `room.ban-member` permission. If you disable privileged mode while
+server-wide `room.remove-member` permission. If you disable privileged mode while
 the page is open, the page shows an access-denied screen.
+
+For Chatto 0.5, review role and user grants that used `room.ban-member`.
+That old permission does not grant `room.remove-member`. Grant the new
+permission at the scopes where moderators must remove members or lift
+suspensions. Chatto does not copy old grants during upgrade.
 
 The mode activates permissions, not role names. It therefore also covers
 custom roles and direct user grants. It does not add authority: a role removal
@@ -172,7 +177,7 @@ also includes `server.manage-neighbors` through the same explicit metadata.
 | `room.join`               | Join channel rooms.                                                                                                                                                             |
 | `room.create`             | Create channel rooms.                                                                                                                                                           |
 | `room.manage`             | Configure, rename, archive, or delete rooms and room groups at the effective scope, including explicit channel-room membership. A server-scope grant also permits global room-group creation and ordering. |
-| `room.ban-member`         | Ban members from channel rooms.                                                                                                                                                 |
+| `room.remove-member`      | Remove a current channel-room member with a reason. You can also suspend rejoining for a set period or indefinitely. |
 | `role.manage`             | Configure role definitions and role permission decisions, including room and room-group overrides.                                                                              |
 | `role.assign`             | Assign or revoke roles for users. Non-owners can only manage roles whose explicit scoped decisions are within their own authority; the `owner` role is owner-only.              |
 | `user.invite`             | List, create, copy, and revoke invite links. This exposes every active invite-link capability to the holder.                                                              |

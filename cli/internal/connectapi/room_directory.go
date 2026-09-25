@@ -175,7 +175,7 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 			permissionGrant(core.PermMessageEcho, state.CanEchoMessage),
 			permissionGrant(core.PermMessageManage, state.CanManageOthersMessage),
 			permissionGrant(core.PermRoomManage, state.CanManageRoom),
-			permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
+			permissionGrant(core.PermRoomMemberRemove, state.CanBanRoomMembers),
 		),
 	}
 	if !state.SlowModeNextPostAt.IsZero() {

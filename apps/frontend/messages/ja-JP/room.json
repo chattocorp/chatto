@@ -226,8 +226,8 @@
       "view_profile": "{name} のプロフィールを見る",
       "in_voice_call": "音声通話中",
       "in_video_call": "ビデオ通話中",
-      "ban_failed": "ルームへのメンバーの参加禁止に失敗しました",
-      "ban_success": "{name} をルームから禁止しました"
+      "remove_failed": "ユーザーをルームから退出させられませんでした",
+      "remove_success": "{name}をルームから退出させました"
     },
     "pins": {
       "show": "ピン留めされたメッセージを表示",

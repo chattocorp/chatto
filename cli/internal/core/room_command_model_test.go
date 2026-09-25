@@ -135,46 +135,48 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom target: %v", err)
 	}
-	if _, err := commands.BanMember(ctx, RoomBanInput{
-		ActorID: actor.Id,
-		RoomID:  room.Id,
-		UserID:  target.Id,
-		Reason:  "test",
+	if err := commands.RemoveUser(ctx, RoomRemoveUserInput{
+		ActorID:    actor.Id,
+		RoomID:     room.Id,
+		UserID:     target.Id,
+		Reason:     "test",
+		Suspension: true,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("BanMember without room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("RemoveUser without room.remove-member error = %v, want ErrPermissionDenied", err)
 	}
-	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+	if _, err := commands.ListActiveRoomSuspensions(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("ListActiveRoomBans without room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("ListActiveRoomBans without room.remove-member error = %v, want ErrPermissionDenied", err)
 	}
 
-	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantRoomPermission room.ban-member: %v", err)
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomMemberRemove); err != nil {
+		t.Fatalf("GrantRoomPermission room.remove-member: %v", err)
 	}
-	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+	if _, err := commands.ListActiveRoomSuspensions(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("ListActiveRoomBans with only room-scoped room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("ListActiveRoomBans with only room-scoped room.remove-member error = %v, want ErrPermissionDenied", err)
 	}
-	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantServerPermission room.ban-member: %v", err)
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomMemberRemove); err != nil {
+		t.Fatalf("GrantServerPermission room.remove-member: %v", err)
 	}
-	if _, err := commands.BanMember(ctx, RoomBanInput{
-		ActorID: actor.Id,
-		RoomID:  room.Id,
-		UserID:  target.Id,
-		Reason:  "test",
+	if err := commands.RemoveUser(ctx, RoomRemoveUserInput{
+		ActorID:    actor.Id,
+		RoomID:     room.Id,
+		UserID:     target.Id,
+		Reason:     "test",
+		Suspension: true,
 	}); err != nil {
-		t.Fatalf("BanMember with room-scoped room.ban-member: %v", err)
+		t.Fatalf("RemoveUser with room-scoped room.remove-member: %v", err)
 	}
 	roomID := room.Id
-	bans, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
+	bans, err := commands.ListActiveRoomSuspensions(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 		RoomID:  &roomID,
 	})
 	if err != nil {
-		t.Fatalf("ListActiveRoomBans with server-scoped room.ban-member: %v", err)
+		t.Fatalf("ListActiveRoomBans with server-scoped room.remove-member: %v", err)
 	}
 	if got := len(bans); got != 1 {
 		t.Fatalf("ListActiveRoomBans count = %d, want 1", got)
@@ -569,6 +571,32 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	joined, err := c.RoomMembershipExists(ctx, KindChannel, bot.User.Id, room.Id)
 	require.NoError(t, err)
 	require.False(t, joined)
+}
+
+func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	moderator, err := c.CreateUser(ctx, SystemActorID, "removal-race-moderator", "Moderator", "password")
+	require.NoError(t, err)
+	target, err := c.CreateUser(ctx, SystemActorID, "removal-race-target", "Target", "password")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "removal-race", "")
+	require.NoError(t, err)
+	_, err = c.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id)
+	require.NoError(t, err)
+
+	calls := 0
+	err = c.removeUserWithoutSuspension(ctx, moderator.Id, KindChannel, room.Id, target.Id, "test removal", func() error {
+		calls++
+		if calls == 2 {
+			_, err := c.SetRoomUniversal(ctx, SystemActorID, KindChannel, room.Id, true)
+			return err
+		}
+		return nil
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+	require.Equal(t, 2, calls)
+	require.True(t, c.roomModel.hasExplicitRoomMembership(room.Id, target.Id))
 }
 
 func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {

@@ -120,7 +120,7 @@
       "room_join": "加入现有聊天室",
       "room_list": "在目录中查看聊天室。可以允许用户查看某个聊天室（例如申请访问权限），但不允许其加入。",
       "room_manage": "编辑聊天室的设置和权限，以及删除聊天室",
-      "room_ban_member": "禁止成员进入聊天室",
+      "room_remove_member": "将成员移出聊天室，并可暂停其重新加入",
       "message_read": "阅读房间内的所有消息。移除此权限后，如果单独授予了 message.read-interactions，仍可有限访问。",
       "message_read_interactions": "阅读你创建的完整话题，或其他用户直接提及你的完整话题",
       "message_post": "发布消息和话题回复，并发起私信",

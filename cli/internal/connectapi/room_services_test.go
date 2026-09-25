@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"slices"
 	"strings"
 	"testing"
@@ -17,10 +16,12 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/evtstream"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 func TestAPIRoomThreadingModeChangeValueFailsClosed(t *testing.T) {
@@ -252,13 +253,13 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomJoin); err != nil {
 		t.Fatalf("GrantServerPermission join: %v", err)
 	}
-	if _, err := env.rooms.ListBans(env.ctx, connect.NewRequest(&apiv1.ListBansRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated ListBans code = %v, want unauthenticated", connect.CodeOf(err))
+	if _, err := env.rooms.ListSuspensions(env.ctx, connect.NewRequest(&apiv1.ListSuspensionsRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated ListSuspensions code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("ListBans without permission code = %v, want permission denied", connect.CodeOf(err))
+	if _, err := env.rooms.ListSuspensions(ctx, connect.NewRequest(&apiv1.ListSuspensionsRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("ListSuspensions without permission code = %v, want permission denied", connect.CodeOf(err))
 	}
-	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomMemberBan); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomMemberRemove); err != nil {
 		t.Fatalf("GrantServerPermission ban: %v", err)
 	}
 	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
@@ -343,21 +344,43 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 		t.Fatalf("RoomService.GetMember after RemoveMember code = %v, want not found", connect.CodeOf(err))
 	}
 
-	if _, err := env.rooms.BanMember(ctx, connect.NewRequest(&apiv1.BanMemberRequest{
+	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
 		RoomId: room.Id,
 		UserId: target.Id,
 		Reason: "  ",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("blank BanMember reason code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("blank RemoveUser reason code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	for name, request := range map[string]*apiv1.RemoveUserRequest{
+		"self removal":   {RoomId: room.Id, UserId: env.viewer.Id, Reason: "self"},
+		"missing member": {RoomId: room.Id, UserId: addTarget.Id, Reason: "absent"},
+		"past expiry": {
+			RoomId: room.Id, UserId: target.Id, Reason: "expired",
+			Suspension: &apiv1.RemoveUserRequest_SuspensionExpiresAt{SuspensionExpiresAt: timestamppb.New(time.Now().Add(-time.Minute))},
+		},
+		"false indefinite": {
+			RoomId: room.Id, UserId: target.Id, Reason: "invalid",
+			Suspension: &apiv1.RemoveUserRequest_SuspendIndefinitely{SuspendIndefinitely: false},
+		},
+	} {
+		_, err := env.rooms.RemoveUser(ctx, connect.NewRequest(request))
+		if name == "self removal" || name == "missing member" {
+			if connect.CodeOf(err) != connect.CodePermissionDenied {
+				t.Fatalf("RemoveUser %s code = %v, want permission denied", name, connect.CodeOf(err))
+			}
+		} else if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("RemoveUser %s code = %v, want invalid argument", name, connect.CodeOf(err))
+		}
 	}
 
-	banResp, err := env.rooms.BanMember(ctx, connect.NewRequest(&apiv1.BanMemberRequest{
-		RoomId: room.Id,
-		UserId: target.Id,
-		Reason: "moderation test",
+	banResp, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
+		RoomId:     room.Id,
+		UserId:     target.Id,
+		Reason:     "moderation test",
+		Suspension: &apiv1.RemoveUserRequest_SuspendIndefinitely{SuspendIndefinitely: true},
 	}))
 	if err != nil {
-		t.Fatalf("BanMember: %v", err)
+		t.Fatalf("RemoveUser: %v", err)
 	}
 	requireEmptyResponse(t, banResp.Msg)
 	isTargetMember, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, target.Id, room.Id)
@@ -365,68 +388,164 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 		t.Fatalf("RoomMembershipExists target after ban: %v", err)
 	}
 	if isTargetMember {
-		t.Fatalf("target is still a member after BanMember")
+		t.Fatalf("target is still a member after RemoveUser")
 	}
 
-	listResp, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{}))
+	listResp, err := env.rooms.ListSuspensions(ctx, connect.NewRequest(&apiv1.ListSuspensionsRequest{}))
 	if err != nil {
-		t.Fatalf("ListBans: %v", err)
+		t.Fatalf("ListSuspensions: %v", err)
 	}
-	if got := len(listResp.Msg.GetBans()); got != 1 {
-		t.Fatalf("ListBans count = %d, want 1", got)
+	if got := len(listResp.Msg.GetSuspensions()); got != 1 {
+		t.Fatalf("ListSuspensions count = %d, want 1", got)
 	}
 	if listResp.Msg.GetPage().GetTotalCount() != 1 || listResp.Msg.GetPage().GetHasMore() {
-		t.Fatalf("ListBans page = %+v, want total_count 1 has_more false", listResp.Msg.GetPage())
+		t.Fatalf("ListSuspensions page = %+v, want total_count 1 has_more false", listResp.Msg.GetPage())
 	}
-	listedBan := listResp.Msg.GetBans()[0]
+	listedBan := listResp.Msg.GetSuspensions()[0]
 	if listedBan.GetId() == "" {
-		t.Fatalf("ListBans ban id is empty")
+		t.Fatalf("ListSuspensions ban id is empty")
 	}
 	if listedBan.GetRoomId() != room.Id || listedBan.GetRoom().GetName() != room.Name {
-		t.Fatalf("ListBans room = %+v, want id %s name %q", listedBan.GetRoom(), room.Id, room.Name)
+		t.Fatalf("ListSuspensions room = %+v, want id %s name %q", listedBan.GetRoom(), room.Id, room.Name)
 	}
 	if listedBan.GetUserId() != target.Id || listedBan.GetUser().GetUser().GetDisplayName() != target.DisplayName {
-		t.Fatalf("ListBans user = %+v, want target %s", listedBan.GetUser(), target.Id)
+		t.Fatalf("ListSuspensions user = %+v, want target %s", listedBan.GetUser(), target.Id)
 	}
 	if listedBan.GetModeratorId() != env.viewer.Id || listedBan.GetModerator().GetUser().GetDisplayName() != env.viewer.DisplayName {
-		t.Fatalf("ListBans moderator = %+v, want viewer %s", listedBan.GetModerator(), env.viewer.Id)
+		t.Fatalf("ListSuspensions moderator = %+v, want viewer %s", listedBan.GetModerator(), env.viewer.Id)
 	}
 	if listedBan.GetReason() != "moderation test" {
-		t.Fatalf("ListBans reason = %q, want moderation test", listedBan.GetReason())
+		t.Fatalf("ListSuspensions reason = %q, want moderation test", listedBan.GetReason())
 	}
 	if listedBan.GetCreatedAt() == nil {
-		t.Fatalf("ListBans created_at is nil")
+		t.Fatalf("ListSuspensions created_at is nil")
 	}
 	if listedBan.GetExpiresAt() != nil {
-		t.Fatalf("ListBans expires_at = %v, want nil", listedBan.GetExpiresAt())
+		t.Fatalf("ListSuspensions expires_at = %v, want nil", listedBan.GetExpiresAt())
 	}
 
-	filteredResp, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{RoomId: room.Id}))
+	filteredResp, err := env.rooms.ListSuspensions(ctx, connect.NewRequest(&apiv1.ListSuspensionsRequest{RoomId: room.Id}))
 	if err != nil {
-		t.Fatalf("ListBans filtered: %v", err)
+		t.Fatalf("ListSuspensions filtered: %v", err)
 	}
-	if got := len(filteredResp.Msg.GetBans()); got != 1 {
-		t.Fatalf("filtered ListBans count = %d, want 1", got)
+	if got := len(filteredResp.Msg.GetSuspensions()); got != 1 {
+		t.Fatalf("filtered ListSuspensions count = %d, want 1", got)
 	}
 	if filteredResp.Msg.GetPage().GetTotalCount() != 1 || filteredResp.Msg.GetPage().GetHasMore() {
-		t.Fatalf("filtered ListBans page = %+v, want total_count 1 has_more false", filteredResp.Msg.GetPage())
+		t.Fatalf("filtered ListSuspensions page = %+v, want total_count 1 has_more false", filteredResp.Msg.GetPage())
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, addTarget.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("GrantUserRoomPermission second target join: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, addTarget.Id, core.KindChannel, addTarget.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom second target: %v", err)
+	}
+	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
+		RoomId: room.Id, UserId: addTarget.Id, Reason: "second suspension",
+		Suspension: &apiv1.RemoveUserRequest_SuspendIndefinitely{SuspendIndefinitely: true},
+	})); err != nil {
+		t.Fatalf("RemoveUser second target: %v", err)
+	}
+	firstPage, err := env.rooms.ListSuspensions(ctx, connect.NewRequest(&apiv1.ListSuspensionsRequest{Page: &apiv1.PageRequest{Limit: 1}}))
+	if err != nil {
+		t.Fatalf("ListSuspensions first page: %v", err)
+	}
+	secondPage, err := env.rooms.ListSuspensions(ctx, connect.NewRequest(&apiv1.ListSuspensionsRequest{Page: &apiv1.PageRequest{Limit: 1, Offset: 1}}))
+	if err != nil {
+		t.Fatalf("ListSuspensions second page: %v", err)
+	}
+	if len(firstPage.Msg.GetSuspensions()) != 1 || len(secondPage.Msg.GetSuspensions()) != 1 ||
+		firstPage.Msg.GetSuspensions()[0].GetId() == secondPage.Msg.GetSuspensions()[0].GetId() ||
+		firstPage.Msg.GetPage().GetTotalCount() != 2 || !firstPage.Msg.GetPage().GetHasMore() ||
+		secondPage.Msg.GetPage().GetTotalCount() != 2 || secondPage.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListSuspensions pages = %+v and %+v, want distinct entries and total_count 2", firstPage.Msg, secondPage.Msg)
+	}
+	if _, err := env.rooms.LiftSuspension(ctx, connect.NewRequest(&apiv1.LiftSuspensionRequest{
+		RoomId: room.Id, UserId: addTarget.Id, Reason: "pagination checked",
+	})); err != nil {
+		t.Fatalf("LiftSuspension second target: %v", err)
 	}
 
-	unbanResp, err := env.rooms.UnbanMember(ctx, connect.NewRequest(&apiv1.UnbanMemberRequest{
+	unbanResp, err := env.rooms.LiftSuspension(ctx, connect.NewRequest(&apiv1.LiftSuspensionRequest{
 		RoomId: room.Id,
 		UserId: target.Id,
 		Reason: "appeal accepted",
 	}))
 	if err != nil {
-		t.Fatalf("UnbanMember: %v", err)
+		t.Fatalf("LiftSuspension: %v", err)
 	}
 	requireEmptyResponse(t, unbanResp.Msg)
-	afterUnbanResp, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{}))
+	afterUnbanResp, err := env.rooms.ListSuspensions(ctx, connect.NewRequest(&apiv1.ListSuspensionsRequest{}))
 	if err != nil {
-		t.Fatalf("ListBans after unban: %v", err)
+		t.Fatalf("ListSuspensions after unban: %v", err)
 	}
-	if got := len(afterUnbanResp.Msg.GetBans()); got != 0 {
-		t.Fatalf("ListBans after unban count = %d, want 0", got)
+	if got := len(afterUnbanResp.Msg.GetSuspensions()); got != 0 {
+		t.Fatalf("ListSuspensions after unban count = %d, want 0", got)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom after suspension lifted: %v", err)
+	}
+	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
+		RoomId: room.Id,
+		UserId: target.Id,
+		Reason: "reset room participation",
+	})); err != nil {
+		t.Fatalf("RemoveUser without suspension: %v", err)
+	}
+	removals, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberRemoved))
+	if err != nil {
+		t.Fatalf("read room removal audit: %v", err)
+	}
+	foundReason := false
+	for _, event := range removals {
+		if event.GetActorId() == env.viewer.Id && event.GetRoomMemberRemoved().GetUserId() == target.Id && event.GetRoomMemberRemoved().GetReason() == "reset room participation" {
+			foundReason = true
+		}
+	}
+	if !foundReason {
+		t.Fatal("moderated removal audit reason missing")
+	}
+	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom after removal without suspension: %v", err)
+	}
+	expiresAt := time.Now().Add(time.Second)
+	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
+		RoomId: room.Id, UserId: target.Id, Reason: "brief suspension",
+		Suspension: &apiv1.RemoveUserRequest_SuspensionExpiresAt{SuspensionExpiresAt: timestamppb.New(expiresAt)},
+	})); err != nil {
+		t.Fatalf("RemoveUser with timed suspension: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); !errors.Is(err, core.ErrPermissionDenied) {
+		t.Fatalf("JoinRoom during timed suspension error = %v, want permission denied", err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		_, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("JoinRoom after timed suspension expired: %v", err)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, core.SystemActorID, core.KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
+		RoomId: room.Id,
+		UserId: target.Id,
+		Reason: "universal room removal",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("RemoveUser without suspension in Universal room code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
+		RoomId:     room.Id,
+		UserId:     target.Id,
+		Reason:     "universal room suspension",
+		Suspension: &apiv1.RemoveUserRequest_SuspendIndefinitely{SuspendIndefinitely: true},
+	})); err != nil {
+		t.Fatalf("RemoveUser with suspension in Universal room: %v", err)
 	}
 }
 
@@ -634,19 +753,19 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("RemoveMember for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.BanMember(ctx, connect.NewRequest(&apiv1.BanMemberRequest{
+	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
 		RoomId: dm.Id,
 		UserId: participant.Id,
 		Reason: "should not ban",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("BanMember for DM code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("RemoveUser for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.UnbanMember(ctx, connect.NewRequest(&apiv1.UnbanMemberRequest{
+	if _, err := env.rooms.LiftSuspension(ctx, connect.NewRequest(&apiv1.LiftSuspensionRequest{
 		RoomId: dm.Id,
 		UserId: participant.Id,
 		Reason: "should not unban",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UnbanMember for DM code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("LiftSuspension for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
 
 	stored, err := env.core.GetRoom(env.ctx, core.KindDM, dm.Id)
@@ -869,7 +988,7 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	}
 	if apiRoomPermissionGranted(dmRoom, core.PermRoomJoin) ||
 		apiRoomPermissionGranted(dmRoom, core.PermRoomManage) ||
-		apiRoomPermissionGranted(dmRoom, core.PermRoomMemberBan) {
+		apiRoomPermissionGranted(dmRoom, core.PermRoomMemberRemove) {
 		t.Fatalf("DM exposes channel-only actions: %+v", dmRoom)
 	}
 	if !apiRoomPermissionGranted(dmRoom, core.PermMessagePostInThread) {

@@ -1,7 +1,7 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-24
 
 ## Overview
 
@@ -22,7 +22,7 @@ The Operator API gives server operators local, root-equivalent user administrati
 - `chatto operator room list` shows active and archived channel rooms without a user session or room membership. Operators can filter by the exact stored name. Each result includes the room ID, name, description, group ID, and archived state.
 - Room pages use stable room ID order and include a total count and next-page status. Pages are live reads; room changes between requests can move results between offsets. A repeated read is safe.
 - `chatto operator room create` creates a channel as the system actor with normal name and description checks. An omitted group selects the current default group.
-- `chatto operator room member add` adds an existing user as an explicit member of a channel room. An existing membership succeeds without another join fact. Missing resources, DM rooms, archived rooms, universal rooms, and active bans prevent the add.
+- `chatto operator room member add` adds an existing user as an explicit member of a channel room. An existing membership succeeds without another join fact. Missing resources, DM rooms, archived rooms, universal rooms, and active suspensions prevent the add.
 - `chatto operator asset upload` reads a local file, uploads it in bounded chunks, and returns a room-scoped asset ID owned by the mapped author. It uses normal attachment size, processing, storage, and pending-asset cleanup. The upload fact records the system actor. The CLI does not fetch source URLs.
 - `chatto operator message import` creates one encrypted historical message in an active channel. The event records the system actor and the mapped author separately. It preserves source creation and optional edit times, a same-room reply reference, attachment IDs, and an exported preview. It does not fetch preview URLs or infer thread membership from a reply.
 - Historical message facts do not create notifications, unread activity, thread follows, webhook deliveries, or live message-post frames. Projections retain this rule during replay. The command returns a new message ID on each success. Import scripts own source mappings and retry decisions.
@@ -103,7 +103,7 @@ fixture remains separate so its workload stays comparable.
 
 **Decision:** The local Operator API adds explicit channel members through the existing membership operation as the system actor. A repeat for a current member returns the member without another join fact.
 **Why:** Import scripts must make mapped users members before they can refer to them as historical room participants. Membership is already a set in Chatto, so no import source key is needed.
-**Tradeoff:** The operation keeps normal room limits: it cannot add explicit members to archived, universal, or DM rooms, and it cannot bypass an active room ban.
+**Tradeoff:** The operation keeps normal room limits: it cannot add explicit members to archived, universal, or DM rooms, and it cannot bypass an active room suspension.
 
 ### 10. Local attachment upload
 

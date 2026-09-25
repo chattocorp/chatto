@@ -226,8 +226,8 @@
       "view_profile": "Rigardu profilon de {name}",
       "in_voice_call": "En voĉvoko",
       "in_video_call": "En videovoko",
-      "ban_failed": "Malsukcesis malpermesi membron de ĉambro",
-      "ban_success": "Malpermesita {name} de ĉambro"
+      "remove_failed": "Ne eblis forigi uzanton el ĉambro",
+      "remove_success": "{name} estis forigita el ĉambro"
     },
     "pins": {
       "show": "Montri alpinglitajn mesaĝojn",

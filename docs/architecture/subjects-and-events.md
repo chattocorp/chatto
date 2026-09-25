@@ -252,10 +252,10 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.call_joined`                              | `CallParticipantJoinedEvent`                        |
 | `evt.room.{roomId}.call_left`                                | `CallParticipantLeftEvent`                          |
 | `evt.room.{roomId}.call_ended`                               | `CallEndedEvent`                                    |
-| `evt.room.{roomId}.room_member_banned`                       | `RoomMemberBannedEvent`                             |
-| `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent`                           |
+| `evt.room.{roomId}.room_member_banned`                       | `RoomMemberBannedEvent` (stored suspension)         |
+| `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent` (suspension lifted)       |
 | `evt.room.{roomId}.room_member_added`                        | `RoomMemberAddedEvent`                              |
-| `evt.room.{roomId}.room_member_removed`                      | `RoomMemberRemovedEvent`                            |
+| `evt.room.{roomId}.room_member_removed`                      | `RoomMemberRemovedEvent` (optional reason)          |
 | `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`; encrypted message text and separately encrypted attachment descriptions, plus non-PII content metadata |
 | `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
 | `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |

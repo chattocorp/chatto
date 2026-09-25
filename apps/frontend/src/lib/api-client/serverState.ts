@@ -161,7 +161,7 @@ export async function getAuthenticatedServerState(
     viewerCanJoinRooms: can('room.join'),
     viewerCanListRooms: can('room.list'),
     viewerCanManageRooms: can('room.manage'),
-    viewerCanBanRoomMembers: can('room.ban-member'),
+    viewerCanBanRoomMembers: can('room.remove-member'),
     viewerCanPostMessages: can('message.post'),
     viewerCanPostInThreads: can('message.post-in-thread'),
     viewerCanAttachFiles: can('message.attach'),

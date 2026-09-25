@@ -79,6 +79,7 @@
   const activeServerId = $derived(serverScope.serverId);
   const currentUser = $derived({ user: stores.viewerUser });
   const roomPermissions = $derived(getRoomPermissions());
+  const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
@@ -802,6 +803,7 @@
     currentUserId={currentUser.user?.id}
     {canStartDMs}
     canBanRoomMembers={roomPermissions.canBanRoomMembers}
+    {isUniversal}
     {onOpenProfile}
   />
 

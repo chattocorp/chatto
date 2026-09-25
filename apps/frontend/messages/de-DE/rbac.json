@@ -120,7 +120,7 @@
       "room_join": "Bestehenden Räumen beitreten",
       "room_list": "Räume im Verzeichnis sehen. Ein Benutzer kann einen Raum sehen dürfen (z. B. um Zugriff anzufragen), ohne ihm beitreten zu dürfen.",
       "room_manage": "Einstellungen und Berechtigungen eines Raums bearbeiten und Räume löschen",
-      "room_ban_member": "Mitglieder aus Räumen sperren",
+      "room_remove_member": "Mitglieder aus Räumen entfernen und erneuten Beitritt bei Bedarf sperren",
       "message_read": "Alle Nachrichten in Räumen lesen. Wenn diese Berechtigung entfernt wird, bleibt eingeschränkter Zugriff möglich, falls message.read-interactions separat erteilt wurde.",
       "message_read_interactions": "Vollständige Threads lesen, die du erstellt hast oder in denen dich ein anderer Benutzer direkt erwähnt hat",
       "message_post": "Nachrichten und Thread-Antworten posten und DMs starten",

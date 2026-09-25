@@ -59,7 +59,8 @@ Use a permission-only RBAC model for everyone except effective owners.
   existing role events. It is not an authorization rank.
 - Targeted operations are gated by concrete permissions only: for example
   `role.assign` gates role assignment, `user.manage-accounts` gates account
-  lifecycle and recovery actions, `room.ban-member` gates room bans, and
+  lifecycle and recovery actions, `room.remove-member` gates moderated room
+  removal and suspension, and
   `user.manage-permissions` gates direct per-user permission overrides.
 - Authorization-sensitive writes normally evaluate permission checks inside
   their target aggregate's OCC retry. RBAC, relevant user lifecycle, and

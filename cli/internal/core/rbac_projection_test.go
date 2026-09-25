@@ -161,6 +161,22 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 	}
 }
 
+func TestRBACProjection_OldRoomBanGrantDoesNotAuthorizeRemoval(t *testing.T) {
+	p := NewRBACProjection()
+	applyRBACProjectionEvent(t, p, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", "moderator", Permission("room.ban-member")),
+	}})
+	if got := p.GetDecision(ScopeServer, "", "moderator", Permission("room.ban-member")); got != DecisionAllow {
+		t.Fatalf("stored old grant = %v, want DecisionAllow for replay", got)
+	}
+	if got := p.GetDecision(ScopeServer, "", "moderator", PermRoomMemberRemove); got != DecisionNone {
+		t.Fatalf("new removal permission = %v, want DecisionNone", got)
+	}
+	if err := ValidatePermission(Permission("room.ban-member")); err == nil {
+		t.Fatal("old permission remains assignable")
+	}
+}
+
 func TestRBACProjection_LegacyPermissionDecisionUnknownFields(t *testing.T) {
 	p := NewRBACProjection()
 

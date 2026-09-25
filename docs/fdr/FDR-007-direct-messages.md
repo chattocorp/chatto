@@ -43,7 +43,7 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - Operators can prevent a human user from creating new DMs, or any user from
   sending messages in existing DMs, by revoking `message.post`. A human user
   can still open an existing DM that they are a participant in.
-- Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
+- Operators cannot remove participants from an existing DM room. Moderated channel-room removal uses `room.remove-member` and is rejected for DMs.
 - Inside a DM room, ordinary message features apply. This includes threads,
   follows, unread state, echoes, reactions, edits, deletes, mentions, and
   attachments. DMs always use Enabled threading behavior.

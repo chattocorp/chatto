@@ -2,4 +2,4 @@
   let { onBanFromRoom }: { onBanFromRoom?: () => void } = $props();
 </script>
 
-<button type="button" onclick={() => onBanFromRoom?.()}>Ban from room</button>
+<button type="button" onclick={() => onBanFromRoom?.()}>Remove from room</button>

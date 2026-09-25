@@ -242,8 +242,8 @@
       "view_profile": "عرض الملف الشخصي لـ {name}",
       "in_voice_call": "في مكالمة صوتية",
       "in_video_call": "في مكالمة فيديو",
-      "ban_failed": "فشل في حظر العضو من الغرفة",
-      "ban_success": "تم حظر {name} من الغرفة"
+      "remove_failed": "تعذرت إزالة المستخدم من الغرفة",
+      "remove_success": "تمت إزالة {name} من الغرفة"
     },
     "pins": {
       "show": "عرض الرسائل المثبّتة",

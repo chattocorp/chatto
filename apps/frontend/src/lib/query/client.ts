@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
-import type { RoomBanList } from '$lib/api-client/rooms';
+import type { RoomSuspensionList } from '$lib/api-client/rooms';
 import { registerServerQueryCache } from './cacheRegistry';
 import { clearUserStores } from '$lib/state/server/users.svelte';
 
@@ -167,12 +167,12 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
       key[5] === 'user-permissions' ||
       (key[5] === 'members' && key[6] === 'row' && key[7] === userId));
 
-  queryClient.setQueriesData<InfiniteData<RoomBanList, number>>(
+  queryClient.setQueriesData<InfiniteData<RoomSuspensionList, number>>(
     {
       predicate: (query) => {
         const key = query.queryKey;
         return (
-          key[0] === 'server' && key[1] === serverId && key[4] === 'admin' && key[5] === 'bans'
+          key[0] === 'server' && key[1] === serverId && key[4] === 'admin' && key[5] === 'suspensions'
         );
       }
     },
@@ -182,7 +182,7 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
             ...data,
             pages: data.pages.map((page) => ({
               ...page,
-              bans: page.bans.map((ban) => ({
+              suspensions: page.suspensions.map((ban) => ({
                 ...ban,
                 user: ban.userId === userId || ban.user?.id === userId ? null : ban.user,
                 moderator:

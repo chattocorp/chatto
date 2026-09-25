@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-24
 
 ## Overview
 
@@ -38,7 +38,7 @@ permission is lost. Archived channels have no column in this matrix.
 
 Bot owners and human bot managers can manage their bots without `room.manage`.
 Without an account or room management override, adding a bot requires its
-effective `room.join`, including its owner's ceiling. Bans and archived rooms
+effective `room.join`, including its owner's ceiling. Suspensions and archived rooms
 prevent adding. Universal membership remains automatic; DMs are excluded.
 The event log records the acting manager and target account for each change,
 including management overrides. Membership does not grant message permissions.
@@ -135,7 +135,7 @@ owner that notification cleanup cannot recognize.
 
 ### 6. Target-user mutations are permission-gated and role assignment is bounded
 
-**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; room bans use `room.ban-member`.
+**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; moderated room removal uses `room.remove-member`.
 **Why:** Concrete permissions are easier to audit and explain than a role-rank hierarchy, while bounding `role.assign` prevents delegated role managers from granting authority they do not possess or removing restrictions they cannot control.
 **Tradeoff:** A delegated assigner may need the target role's underlying permissions even when they only administer membership. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rule during a rolling upgrade until they are replaced.
 
@@ -215,7 +215,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `message.post-in-interactions` — reply only in readable threads with an interaction relationship.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
-- `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.
+- `room.remove-member` — remove current channel-room members with an optional suspension. DM membership is not managed through this permission.
 
 ## Related
 

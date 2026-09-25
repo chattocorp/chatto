@@ -120,7 +120,7 @@
       "room_join": "Připojte se ke stávajícím místnostem",
       "room_list": "Podívejte se na místnosti v adresáři. Uživateli může být povoleno vidět místnost (např. požádat o přístup), aniž by mu bylo povoleno se k ní připojit.",
       "room_manage": "Upravte nastavení a oprávnění místnosti a smažte místnosti",
-      "room_ban_member": "Zakázat členům přístup do místností",
+      "room_remove_member": "Odebírat členy z místností a podle potřeby pozastavit návrat",
       "message_read": "Číst všechny zprávy v místnostech. Odebrání tohoto oprávnění stále umožňuje omezený přístup, pokud je message.read-interactions uděleno samostatně.",
       "message_read_interactions": "Číst celá vlákna, která jste vytvořili nebo ve kterých vás přímo zmínil jiný uživatel",
       "message_post": "Zveřejňovat zprávy a odpovědi ve vláknech a zahajovat soukromé zprávy",
