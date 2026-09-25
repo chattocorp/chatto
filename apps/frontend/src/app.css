@@ -420,8 +420,9 @@
 
   /* Tailwind defines neutrals with a `none` hue. Chrome before 138 carries
      that missing component into the blue channel of `color-mix(in srgb, …)`,
-     which tints the dark theme olive and blue. A zero hue looks identical and
-     mixes correctly in every browser. */
+     which tints the dark theme olive and blue. A zero hue looks identical in
+     srgb and oklab mixes. Do not mix neutrals in oklch, lch, or hsl, where a
+     zero hue pulls the result toward red. */
   --color-neutral-50: oklch(98.5% 0 0);
   --color-neutral-100: oklch(97% 0 0);
   --color-neutral-200: oklch(92.2% 0 0);
