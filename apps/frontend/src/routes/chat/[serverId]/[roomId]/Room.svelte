@@ -435,8 +435,11 @@
   const activeMobileRoomSidebarProfileUserId = $derived(
     desktopRoomLayout.current ? null : activeRoomSidebarProfileUserId
   );
+  // The mobile overlay exists only below the desktop breakpoint. Its panel stays
+  // selected in app UI state, so it reopens when the viewport narrows again.
   const hasMobileRoomSidebar = $derived(
-    mobileRoomSidebarPanel !== null || activeMobileRoomSidebarProfileUserId !== null
+    !desktopRoomLayout.current &&
+      (mobileRoomSidebarPanel !== null || activeMobileRoomSidebarProfileUserId !== null)
   );
   const roomFilesPanelActive = $derived(
     visibleRoomSidebarPanel(

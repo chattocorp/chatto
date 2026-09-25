@@ -152,6 +152,8 @@ export class MessageComposerState {
   readonly #mentionSearchDebounce = useDebounce();
   #mentionSearchRequestId = 0;
   #editSeededForEvent = '';
+  /** Draft key of the room or thread where the active edit began. */
+  #editDraftKey = '';
   #autocompleteRoomId = '';
   #insertedQuoteRequestId = 0;
   #focusRequested = false;
@@ -184,6 +186,7 @@ export class MessageComposerState {
     void dependencies.mentionRolesStore.load();
     this.#synchronizeMentionSearch();
     this.#synchronizeEditState();
+    this.#synchronizeEditScope();
     this.#synchronizeDraft();
     this.#synchronizeDraftText();
     this.#synchronizeLinkPreviews();
@@ -424,6 +427,7 @@ export class MessageComposerState {
       const api = this.editorApi;
       if (eventId && this.#editSeededForEvent !== eventId) {
         this.#editSeededForEvent = eventId;
+        this.#editDraftKey = untrack(() => this.draftKey);
         this.autocomplete.reset();
         this.draft.clearText();
         this.message = originalBody;
@@ -435,7 +439,26 @@ export class MessageComposerState {
       } else if (this.#editSeededForEvent && !eventId) {
         this.#resetEditor();
         this.#editSeededForEvent = '';
+        this.#editDraftKey = '';
       }
+    });
+  }
+
+  /**
+   * Cancels an edit when a reused composer moves to another room or thread.
+   * Runs before draft synchronization so the new scope's draft loads normally.
+   */
+  #synchronizeEditScope(): void {
+    $effect(() => {
+      const draftKey = this.draftKey;
+      untrack(() => {
+        if (!this.isEditing || this.#editDraftKey === draftKey) return;
+        // Skip the edit-exit editor reset: it would clear the new scope's draft.
+        this.#editSeededForEvent = '';
+        this.#editDraftKey = '';
+        this.alsoSendToChannel = false;
+        this.editState.cancelEdit();
+      });
     });
   }
 

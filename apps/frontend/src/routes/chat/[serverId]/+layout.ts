@@ -45,10 +45,9 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     : serverStore.currentUser.user !== undefined;
   if (!reauthRequired && !authenticated && !savedView) redirectToLogin(url);
 
+  // Do not read child params here. SvelteKit re-runs a load for each param it
+  // reads, and this load restores saved views and checks access per server.
   return {
-    serverSegment: params.serverId,
-
-    /** The currently active room (from child route params). */
-    roomId: params.roomId
+    serverSegment: params.serverId
   };
 };

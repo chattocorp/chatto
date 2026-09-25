@@ -92,6 +92,26 @@ describe('server route layout load', () => {
     await expectLoginRedirect();
   });
 
+  it('does not read the room param, so room switches do not re-run it', async () => {
+    const params = new Proxy(
+      { serverId: '-', roomId: 'room-1' },
+      {
+        get(target, key) {
+          if (key === 'roomId') throw new Error('server layout load read params.roomId');
+          return Reflect.get(target, key);
+        }
+      }
+    );
+
+    await expect(
+      load({
+        params,
+        parent: async () => ({ user: { id: 'viewer-1' }, serverInfo: { setupRequired: false } }),
+        url: new URL('https://chat.example.test/chat/-/room-1')
+      } as never)
+    ).resolves.toEqual({ serverSegment: '-' });
+  });
+
   it('uses the parent origin viewer without a second viewer request', async () => {
     await expect(routeLoad()).resolves.toMatchObject({ serverSegment: '-' });
 

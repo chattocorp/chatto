@@ -2202,6 +2202,25 @@ describe('MessageComposer', () => {
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
     });
 
+    it('cancels an edit and restores the next room draft when the room changes', async () => {
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      roomStateMock.editState.cancelEdit.mockImplementationOnce(() => {
+        roomStateMock.editState.eventId = null;
+      });
+      const rendered = renderMessageComposer({ roomId: 'edit-scope-a' }, { exactRoomId: true });
+      const editor = await findEditor(rendered.container);
+      await expect.element(editor).toHaveTextContent('original body');
+      expect(roomStateMock.editState.cancelEdit).not.toHaveBeenCalled();
+
+      sessionStorage.setItem('chatto:draft:edit-scope-b', 'room B draft');
+      await rendered.rerender({ roomId: 'edit-scope-b' });
+
+      await expect.element(editor).toHaveTextContent('room B draft');
+      expect(roomStateMock.editState.cancelEdit).toHaveBeenCalledOnce();
+      expect(sessionStorage.getItem('chatto:draft:edit-scope-b')).toBe('room B draft');
+    });
+
     it('closes mention autocomplete when cancelling an edit', async () => {
       roomStateMock.members = [roomMember('golden_fox07')];
       roomStateMock.editState.eventId = 'evt_edit';
