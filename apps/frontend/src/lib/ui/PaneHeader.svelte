@@ -139,12 +139,7 @@ shared viewport detector reports an open software keyboard.
           ></span>
         </button>
       {:else if backHref}
-        <a
-          href={backHref}
-          class="pane-header-icon-button"
-          title={backLabel}
-          aria-label={backLabel}
-        >
+        <a href={backHref} class="pane-header-icon-button" title={backLabel} aria-label={backLabel}>
           <span
             class="icon-[uil--arrow-left] pane-header-icon-glyph text-xl rtl:-scale-x-100"
             aria-hidden="true"
