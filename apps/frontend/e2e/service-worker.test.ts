@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import type { SavedView } from '../src/lib/storage/savedViews';
 import { expect, test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { getRoomIdByNameViaConnect, postMessageViaConnect } from './fixtures/connectHelpers';
@@ -83,15 +84,19 @@ test('offline reload restores saved text in the normal chat view', async ({ page
           request.onerror = () => reject(request.error);
         });
         try {
-          const views = await new Promise<
-            Array<{ rooms?: Array<{ messages?: Array<{ body?: string }> }> }>
-          >((resolve, reject) => {
+          const views = await new Promise<SavedView[]>((resolve, reject) => {
             const request = db.transaction('views').objectStore('views').getAll();
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
           });
-          return views.some((view) =>
-            view.rooms?.some((room) => room.messages?.some((entry) => entry.body === body))
+          return views.some(
+            (view) =>
+              view.version === 2 &&
+              view.rooms.some((room) =>
+                room.events.some(
+                  (entry) => entry.event.kind === 'messagePosted' && entry.event.body === body
+                )
+              )
           );
         } finally {
           db.close();
@@ -146,8 +151,7 @@ test('offline reload restores saved text in the normal chat view', async ({ page
     const timeline = await page.getByTestId('messages-container').elementHandle();
     expect(timeline).not.toBeNull();
     releaseViewer();
-    // The live room includes permissions that the saved display data omits.
-    // Keep its text mounted while the verified snapshot's timeline is pending.
+    // Keep the restored timeline mounted while the verified replacement is pending.
     await expect.poll(() => timelineRequests.length).toBeGreaterThan(0);
     await expect(page.getByText(message)).toBeVisible();
     expect(await timeline!.evaluate((element) => element.isConnected)).toBe(true);
