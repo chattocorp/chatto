@@ -94,6 +94,7 @@
         "remove_reaction": "Remover {emoji}",
         "add_reaction": "Adicionar reação",
         "more_reactions": "Mais reações",
+        "reactions": "Reações",
         "reply": "Responder",
         "reply_room": "Responder na sala",
         "reply_thread": "Responder no tópico",

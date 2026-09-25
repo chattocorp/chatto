@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-25
 
 ## Overview
 
@@ -15,6 +15,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 - Each pill shows: the emoji, how many users reacted with it, and a highlight when the current user has reacted.
 - Hovering a pill shows a tooltip with up to 5 reactor names plus an overflow count.
+- A message with reactions has a Reactions action in its desktop menu and touch action sheet, even when the reader cannot add a reaction. It opens a details view with the count for each emoji. Readers select an emoji to see all accounts that used it. Long lists load in pages.
 - Clicking a pill toggles the current user's reaction.
 - Adding or removing a reaction requires room membership and `message.react`.
   In a channel room, it also requires broad `message.read`, or
@@ -55,7 +56,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 **Decision:** `ReactionSummary.count` is the total current count, while bounded reactor previews expose only a small set of reacting users. ConnectRPC room timeline responses expose hydrated reaction summaries with bounded preview semantics. Reaction writes use ConnectRPC `MessageService.AddReaction` and `RemoveReaction` in the web client and call the shared core operation model.
 **Why:** Reaction pills need a quick hover tooltip, not an unbounded user directory embedded in every message event. Keeping the full count separate preserves the main signal while preventing popular reactions from inflating timeline payloads.
-**Tradeoff:** Clients that need a complete reactor list will need a future dedicated paginated query instead of overloading the message timeline shape.
+**Tradeoff:** A complete reactor list needs a separate `MessageService.ListReactionUsers` paged read for each emoji. The web client loads a list only when a reader opens the reaction details view and selects that emoji.
 
 ### 5. Quick-reaction recents are per-device, not per-user
 

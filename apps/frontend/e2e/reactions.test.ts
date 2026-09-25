@@ -4,6 +4,116 @@ import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
 
 test.describe('Emoji reactions', () => {
+  test('shows reactor names by emoji from desktop and touch message menus', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60_000);
+    const browserErrors: string[] = [];
+    page.on('pageerror', (error) => browserErrors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') browserErrors.push(message.text());
+    });
+    const firstUser = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const body = `Reaction details ${Date.now()}`;
+    const message = await roomPage.sendMessage(body);
+    await message.react('❤️');
+    await message.expectReaction('❤️', 1);
+
+    let secondName = '';
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ user, chatPage: otherChat, roomPage: otherRoom }) => {
+        secondName = user.displayName;
+        await otherChat.goto();
+        await otherChat.enterRoom('general');
+        const otherMessage = otherRoom.getMessage(body);
+        await otherMessage.react('👍');
+        await otherMessage.expectReaction('👍', 1);
+      },
+      { viewport: { width: 1280, height: 720 } }
+    );
+    await message.expectReaction('👍', 1);
+
+    await message.locator.locator('.message-content-stack').click({ button: 'right' });
+    const desktopMenu = page.getByRole('menu');
+    await desktopMenu.getByRole('menuitem', { name: 'Reactions', exact: true }).click();
+    const details = page.getByRole('dialog', { name: 'Reactions' });
+    await expect(details.getByTestId('reaction-details-panel')).toContainText(
+      firstUser.displayName
+    );
+    await details.getByRole('tab', { name: /Thumbs up/ }).click();
+    await expect(details.getByTestId('reaction-details-panel')).toContainText(secondName);
+    await expect(details.getByTestId('reaction-details-panel')).not.toContainText(
+      firstUser.displayName
+    );
+    await details.getByRole('button', { name: 'Close' }).click();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    await page.reload();
+    await roomPage.expectMessageVisible(body);
+    const touchMessage = roomPage.getMessage(body).locator.locator('.message-content-stack');
+    await touchMessage.scrollIntoViewIfNeeded();
+    const box = await touchMessage.boundingBox();
+    if (!box) throw new Error('Message content is not visible');
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }]
+    });
+    const actionSheet = page.getByRole('dialog', { name: 'Message actions' });
+    await expect(actionSheet).toBeVisible({ timeout: 5000 });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const reactionsButton = actionSheet.getByRole('button', { name: 'Reactions', exact: true });
+    const reactionsBox = await reactionsButton.boundingBox();
+    if (!reactionsBox) throw new Error('Reactions action is not visible');
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [
+        { x: reactionsBox.x + reactionsBox.width / 2, y: reactionsBox.y + reactionsBox.height / 2 }
+      ]
+    });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const touchDetails = page.getByRole('dialog', { name: 'Reactions' });
+    await expect(touchDetails).toHaveClass(/bottom-sheet/);
+    await touchDetails.getByRole('tab', { name: /Thumbs up/ }).click();
+    await expect(touchDetails.getByTestId('reaction-details-panel')).toContainText(secondName);
+
+    await touchDetails.getByRole('button', { name: 'Close' }).last().click();
+    await expect(touchDetails).not.toBeVisible();
+    const threadBox = await touchMessage.boundingBox();
+    if (!threadBox) throw new Error('Message content is not visible');
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: threadBox.x + threadBox.width / 2, y: threadBox.y + threadBox.height / 2 }]
+    });
+    await expect(actionSheet).toBeVisible({ timeout: 5000 });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const replyInThread = actionSheet.getByRole('button', {
+      name: 'Reply in thread',
+      exact: true
+    });
+    const replyBox = await replyInThread.boundingBox();
+    if (!replyBox) throw new Error('Reply in thread action is not visible');
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: replyBox.x + replyBox.width / 2, y: replyBox.y + replyBox.height / 2 }]
+    });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(page.getByRole('heading', { name: 'Thread in #general' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Reply in thread...' })).toBeVisible();
+    await cdp.detach();
+
+    expect(browserErrors).toEqual([]);
+  });
+
   test('add a reaction to a message', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

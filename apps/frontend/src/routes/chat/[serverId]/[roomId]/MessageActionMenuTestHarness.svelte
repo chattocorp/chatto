@@ -9,6 +9,8 @@
     linkUrl = null,
     imageUrl = null,
     onOpenEmojiPicker,
+    hasReactions = false,
+    onOpenReactionDetails,
     onClose
   }: {
     presentation?: 'menu' | 'sheet';
@@ -16,6 +18,8 @@
     linkUrl?: string | null;
     imageUrl?: string | null;
     onOpenEmojiPicker?: () => void;
+    hasReactions?: boolean;
+    onOpenReactionDetails?: () => void;
     onClose: () => void;
   } = $props();
 
@@ -25,4 +29,13 @@
   });
 </script>
 
-<MessageActionMenu {presentation} {action} {linkUrl} {imageUrl} {onOpenEmojiPicker} {onClose} />
+<MessageActionMenu
+  {presentation}
+  {action}
+  {linkUrl}
+  {imageUrl}
+  {onOpenEmojiPicker}
+  {hasReactions}
+  {onOpenReactionDetails}
+  {onClose}
+/>

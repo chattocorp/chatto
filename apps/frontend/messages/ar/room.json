@@ -98,6 +98,7 @@
         "remove_reaction": "قم بإزالة {emoji}",
         "add_reaction": "إضافة رد فعل",
         "more_reactions": "المزيد من التفاعلات",
+        "reactions": "التفاعلات",
         "reply": "رد",
         "reply_room": "الرد في الغرفة",
         "reply_thread": "الرد في الموضوع",
