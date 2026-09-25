@@ -4,6 +4,7 @@
   import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
   import {
     createComposerContext,
+    createRoomMembers,
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
     type ComposerContext
@@ -45,6 +46,7 @@
   const composerContext = createComposerContext({ scroll: true });
   onMount(() => onComposerReady?.(composerContext));
   createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
+  createRoomMembers();
 
   const events = $derived(
     eventIds.map((id, index): TimelineEventView => {

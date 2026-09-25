@@ -16,6 +16,8 @@
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { provideUserProfiles } from '$lib/state/userProfiles.svelte';
   import MessageEvent from './MessageEvent.svelte';
+  import MessageUserOverlays from './MessageUserOverlays.svelte';
+  import { MessageUserInteractionState } from './messageUserInteractions.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { RoomThreadingMode } from '$lib/roomThreading';
 
@@ -32,6 +34,7 @@
     canViewPinnedMessages = false,
     canPinMessages = false,
     pinStatus = null,
+    showMessage = true,
     threadingMode = RoomThreadingMode.ENABLED,
     onOpenThread
   }: {
@@ -47,6 +50,7 @@
     canViewPinnedMessages?: boolean;
     canPinMessages?: boolean;
     pinStatus?: boolean | null;
+    showMessage?: boolean;
     threadingMode?: RoomThreadingMode;
     onOpenThread?: OpenThreadHandler;
   } = $props();
@@ -89,6 +93,7 @@
       presenceStatus: PresenceStatus.OFFLINE
     }
   ];
+  const userInteractions = new MessageUserInteractionState(() => roomMembers.members);
   createRoomPermissions(() => ({
     ...DEFAULT_ROOM_PERMISSIONS,
     canPostMessage,
@@ -110,13 +115,26 @@
   };
 </script>
 
-<MessageEvent
-  {event}
+{#if showMessage}
+  <MessageEvent
+    {event}
+    {roomId}
+    {permalinkThreadRootEventId}
+    messageStore={messageStore as never}
+    {threadingMode}
+    {onOpenThread}
+    onOpenUser={(user, anchorRect) => userInteractions.showUser(user, anchorRect)}
+  />
+{/if}
+
+<MessageUserOverlays
+  interactions={userInteractions}
+  {serverId}
   {roomId}
-  {permalinkThreadRootEventId}
-  messageStore={messageStore as never}
-  {threadingMode}
-  {onOpenThread}
+  currentUserId="viewer"
+  canStartDMs={false}
+  canBanRoomMembers={false}
+  isUniversal={false}
 />
 
 <output data-testid="active-reply-target">

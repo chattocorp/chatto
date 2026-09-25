@@ -7,20 +7,6 @@ export class MessageUserInteractionState {
 
   constructor(private readonly getMembers: () => RoomMember[]) {}
 
-  showUserFromEvent(user: UserAvatarUserView | RoomMember | null, event: MouseEvent): void {
-    if (!user) return;
-    const button = (event.target as HTMLElement).closest('button');
-    this.showUser(user, button?.getBoundingClientRect() ?? null);
-  }
-
-  showMember(userId: string, anchorRect: DOMRect): void {
-    const member = this.getMembers().find((candidate) => candidate.id === userId);
-    if (!member) return;
-
-    this.user = member;
-    this.anchorRect = anchorRect;
-  }
-
   showUser(user: UserAvatarUserView | RoomMember, anchorRect: DOMRect | null): void {
     this.user =
       this.getMembers().find((candidate) => candidate.id === user.id) ??

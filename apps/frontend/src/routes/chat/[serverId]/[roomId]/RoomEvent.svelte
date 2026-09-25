@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TimelineEventView } from '$lib/render/timelineEvents';
-  import type { MessagesStore } from '$lib/state/room';
+  import type { MessagesStore, RoomMember } from '$lib/state/room';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
@@ -16,7 +17,7 @@
     onOpenThread,
     activeCallId = null,
     onOpenCall,
-    onOpenProfile,
+    onOpenUser,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
@@ -27,7 +28,7 @@
     onOpenThread?: OpenThreadHandler;
     activeCallId?: string | null;
     onOpenCall?: () => void;
-    onOpenProfile?: (userId: string) => void;
+    onOpenUser?: (user: UserAvatarUserView | RoomMember, anchorRect: DOMRect | null) => void;
     threadingMode?: RoomThreadingMode;
   } = $props();
 
@@ -49,7 +50,7 @@
     {permalinkThreadRootEventId}
     {messageStore}
     {onOpenThread}
-    {onOpenProfile}
+    {onOpenUser}
     {threadingMode}
   />
 {:else}
