@@ -3,7 +3,6 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
-import { page } from '$app/state';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
@@ -40,6 +39,7 @@ const { mocks } = vi.hoisted(() => {
       pushState: vi.fn(),
       replaceState: vi.fn(),
       pageUrl: new URL('https://chat.example.test/chat/-/room-1'),
+      pageState: {} as App.PageState,
       markRoomAsRead: vi.fn(),
       projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       resetTypingDebounce: vi.fn(),
@@ -99,7 +99,9 @@ const scopeState = new SvelteMap([['serverId', 'server-1']]);
 vi.mock('$app/state', () => ({
   page: {
     params: { serverId: '-', roomId: 'room-1' },
-    state: {},
+    get state() {
+      return mocks.pageState;
+    },
     get url() {
       return mocks.pageUrl;
     }
@@ -954,6 +956,7 @@ describe('Room local message echo', () => {
   describe('?highlight= permalinks', () => {
     afterEach(() => {
       mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1');
+      mocks.pageState = {};
       mocks.replaceState.mockReset();
     });
 
@@ -982,8 +985,10 @@ describe('Room local message echo', () => {
       }
     });
 
-    it('highlights once and removes the parameter', async () => {
+    it('highlights once and removes the parameter without dropping page state', async () => {
       mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1?highlight=msg-linked');
+      const openModalState = { modal: { type: 'image-viewer' } } as unknown as App.PageState;
+      mocks.pageState = openModalState;
 
       const { container } = render(Room, { props: { roomId: 'room-1' } });
 
@@ -991,7 +996,7 @@ describe('Room local message echo', () => {
         .element(q(container, '[data-testid="pending-highlight-id"]'))
         .toHaveTextContent('msg-linked');
       await vi.waitFor(() => {
-        expect(mocks.replaceState).toHaveBeenCalledWith('/chat/-/room-1', page.state);
+        expect(mocks.replaceState).toHaveBeenCalledWith('/chat/-/room-1', openModalState);
       });
       expect(mocks.replaceState).toHaveBeenCalledOnce();
       expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce();
