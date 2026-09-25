@@ -368,7 +368,7 @@
         })
       : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: targetRoomId });
     try {
-      replaceState(path, {});
+      replaceState(path, page.state);
     } catch (error) {
       console.warn('Failed to remove the highlight parameter:', error);
     }

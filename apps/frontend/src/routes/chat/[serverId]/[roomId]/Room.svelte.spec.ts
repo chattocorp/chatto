@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
+import { page } from '$app/state';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
@@ -990,7 +991,7 @@ describe('Room local message echo', () => {
         .element(q(container, '[data-testid="pending-highlight-id"]'))
         .toHaveTextContent('msg-linked');
       await vi.waitFor(() => {
-        expect(mocks.replaceState).toHaveBeenCalledWith('/chat/-/room-1', {});
+        expect(mocks.replaceState).toHaveBeenCalledWith('/chat/-/room-1', page.state);
       });
       expect(mocks.replaceState).toHaveBeenCalledOnce();
       expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce();

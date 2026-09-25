@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
@@ -32,6 +33,7 @@ const { mocks } = vi.hoisted(() => {
       sendTypingIndicator: vi.fn(),
       resetTypingDebounce: vi.fn(),
       jumpToMessage: vi.fn(),
+      resetJumpState: vi.fn(),
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
       unreadMarkerEventId: null as string | null,
@@ -161,7 +163,8 @@ vi.mock('$lib/state/room', () => ({
     jumpState: {
       scrollToEventId: null,
       setJumpHandler: vi.fn(),
-      jumpToMessage: mocks.jumpToMessage
+      jumpToMessage: mocks.jumpToMessage,
+      reset: mocks.resetJumpState
     }
   }),
   MessagesStore: class {
@@ -309,6 +312,22 @@ describe('ThreadPane', () => {
 
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.reconcileThreadRead).toHaveBeenCalledWith('room-1', 'thread-root');
+  });
+
+  it('resets jump state when the pane switches to another thread', async () => {
+    const props = {
+      roomId: 'room-1',
+      roomName: 'General',
+      threadRootEventId: 'thread-root',
+      onClose: mocks.onClose
+    };
+    const rendered = render(ThreadPane, { props });
+    await tick();
+    mocks.resetJumpState.mockClear();
+
+    await rendered.rerender({ ...props, threadRootEventId: 'thread-2' });
+
+    expect(mocks.resetJumpState).toHaveBeenCalledOnce();
   });
 
   it('registers only visible panes and releases the registration on unmount', () => {
