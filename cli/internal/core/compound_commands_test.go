@@ -76,6 +76,7 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 			room, err := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "before", "before")
 			require.NoError(t, err)
 			require.NoError(t, first.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermRoomManage))
+			concurrentManagerID := newRoomManagerForTest(t, ctx, first, "compound-concurrent-manager", room.Id)
 			second, err := NewChattoCore(ctx, nc, first.config)
 			require.NoError(t, err)
 			startCoreServices(t, second)
@@ -100,7 +101,9 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 						return err
 					}
 				}
-				_, err := second.UpdateRoom(ctx, SystemActorID, KindChannel, room.Id, "concurrent", "before")
+				_, err := second.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+					ActorID: concurrentManagerID, RoomID: room.Id, Name: proto.String("concurrent"),
+				})
 				return err
 			})
 			if scenario == "omitted-name" {

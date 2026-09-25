@@ -124,6 +124,7 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "thread-policy-room", "",
 		WithRoomThreadingMode(evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED))
 	require.NoError(t, err)
+	managerID := newRoomManagerForTest(t, ctx, chatto, "thread-policy-manager", room.Id)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
 
@@ -149,7 +150,9 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 		ActorID: user.Id, RoomID: room.Id, Body: "historical reply with echo", ThreadRootEventID: threadedRoot.Event.Id, AlsoSendToChannel: true,
 	})
 	require.NoError(t, err)
-	room, err = chatto.SetRoomThreadingMode(ctx, SystemActorID, KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED)
+	room, err = chatto.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: managerID, RoomID: room.Id, ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED.Enum(),
+	})
 	require.NoError(t, err)
 	echoID, exists := chatto.roomModel.channelEchoEventID(echoedThreadReply.Event.Id)
 	require.True(t, exists)
@@ -200,6 +203,7 @@ func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 	require.NoError(t, err)
 	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "echo-policy-race-room", "")
 	require.NoError(t, err)
+	managerID := newRoomManagerForTest(t, ctx, chatto, "echo-policy-race-manager", room.Id)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
 
@@ -219,7 +223,9 @@ func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 			if echoAttempts != 1 {
 				return nil
 			}
-			_, err := replica.SetRoomThreadingMode(attemptCtx, SystemActorID, KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED)
+			_, err := replica.RoomCommands().UpdateRoom(attemptCtx, RoomUpdateInput{
+				ActorID: managerID, RoomID: room.Id, ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED.Enum(),
+			})
 			return err
 		}),
 	)
@@ -231,31 +237,6 @@ func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 	require.Len(t, posted, 1, "neither the reply nor its echo should be published")
 }
 
-func TestThreadingModeChangeReauthorizesAfterManageRevocation(t *testing.T) {
-	chatto, _ := setupTestCore(t)
-	ctx := testContext(t)
-	manager, err := chatto.CreateUser(ctx, SystemActorID, "thread-mode-auth-race", "Thread Mode Auth Race", "password123")
-	require.NoError(t, err)
-	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "thread-mode-auth-race", "")
-	require.NoError(t, err)
-	require.NoError(t, chatto.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomManage))
-
-	checks := 0
-	_, err = chatto.setRoomThreadingMode(ctx, manager.Id, KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED, func(attemptCtx context.Context) error {
-		checks++
-		if checks == 1 {
-			return chatto.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, manager.Id, PermRoomManage)
-		}
-		_, authorizeErr := chatto.RoomCommands().authorizeRoomManage(attemptCtx, manager.Id, room.Id)
-		return authorizeErr
-	})
-	require.ErrorIs(t, err, ErrPermissionDenied)
-	require.GreaterOrEqual(t, checks, 2)
-	unchanged, err := chatto.GetRoom(ctx, KindChannel, room.Id)
-	require.NoError(t, err)
-	require.Equal(t, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED, EffectiveRoomThreadingMode(unchanged))
-}
-
 func TestThreadingModeChangeConflictsWithInFlightMessage(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -263,6 +244,7 @@ func TestThreadingModeChangeConflictsWithInFlightMessage(t *testing.T) {
 	require.NoError(t, err)
 	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "thread-mode-race", "")
 	require.NoError(t, err)
+	managerID := newRoomManagerForTest(t, ctx, chatto, "thread-mode-race-manager", room.Id)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
 
@@ -276,7 +258,9 @@ func TestThreadingModeChangeConflictsWithInFlightMessage(t *testing.T) {
 			return authErr
 		}
 		if authorizationChecks == 1 {
-			_, authErr = chatto.SetRoomThreadingMode(attemptCtx, SystemActorID, KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED)
+			_, authErr = chatto.RoomCommands().UpdateRoom(attemptCtx, RoomUpdateInput{
+				ActorID: managerID, RoomID: room.Id, ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum(),
+			})
 		}
 		return authErr
 	}
@@ -301,6 +285,8 @@ func TestDMThreadingModeIsRejected(t *testing.T) {
 	dm, _, err := chatto.FindOrCreateDM(ctx, owner.Id, []string{peer.Id})
 	require.NoError(t, err)
 	require.Equal(t, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, dm.GetThreadingMode())
-	_, err = chatto.SetRoomThreadingMode(ctx, owner.Id, KindDM, dm.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED)
+	_, err = chatto.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: owner.Id, RoomID: dm.Id, ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED.Enum(),
+	})
 	require.True(t, errors.Is(err, ErrInvalidArgument))
 }

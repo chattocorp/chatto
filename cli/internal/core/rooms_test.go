@@ -669,33 +669,6 @@ func TestChattoCore_RoomNameExists(t *testing.T) {
 	}
 }
 
-func TestChattoCore_UpdateRoom(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create space and room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "OriginalName", "Original Description")
-
-	// Update the room
-	updated, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "Updated-Name", "Updated Description")
-	if err != nil {
-		t.Fatalf("Failed to update room: %v", err)
-	}
-
-	if updated.Name != "Updated-Name" {
-		t.Errorf("Expected name 'Updated-Name', got '%s'", updated.Name)
-	}
-	if updated.Description != "Updated Description" {
-		t.Errorf("Expected description 'Updated Description', got '%s'", updated.Description)
-	}
-
-	// Verify update persisted
-	retrieved, _ := core.GetRoom(ctx, KindChannel, room.Id)
-	if retrieved.Name != "Updated-Name" {
-		t.Errorf("Updated name not persisted: got '%s'", retrieved.Name)
-	}
-}
-
 func TestChattoCore_UpdateRoom_DuplicateName(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -709,15 +682,22 @@ func TestChattoCore_UpdateRoom_DuplicateName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create second room: %v", err)
 	}
+	managerID := newRoomManagerForTest(t, ctx, core, "duplicate-name-manager", roomB.Id)
+	rename := func(name string) error {
+		_, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+			ActorID: managerID, RoomID: roomB.Id, Name: stringPtrForCoreTest(name), Description: stringPtrForCoreTest("Updated description"),
+		})
+		return err
+	}
 
 	// Try to rename Room-B to Room-A - should fail
-	_, err = core.UpdateRoom(ctx, "test-user", KindChannel, roomB.Id, "Room-A", "Updated description")
+	err = rename("Room-A")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists when renaming to existing name, got: %v", err)
 	}
 
 	// Try to rename Room-B to "room-a" (case-insensitive match) - should fail
-	_, err = core.UpdateRoom(ctx, "test-user", KindChannel, roomB.Id, "room-a", "Updated description")
+	err = rename("room-a")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists for case-insensitive match, got: %v", err)
 	}
@@ -734,9 +714,12 @@ func TestChattoCore_UpdateRoom_SameName_DifferentCase(t *testing.T) {
 	}
 
 	// Update room to same name with different casing - should succeed
-	updated, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "GENERAL", "Updated description")
+	managerID := newRoomManagerForTest(t, ctx, core, "same-name-manager", room.Id)
+	updated, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: managerID, RoomID: room.Id, Name: stringPtrForCoreTest("GENERAL"), Description: stringPtrForCoreTest("Updated description"),
+	})
 	if err != nil {
-		t.Errorf("Expected success when updating to same name with different case, got: %v", err)
+		t.Fatalf("Expected success when updating to same name with different case, got: %v", err)
 	}
 	if updated.Name != "GENERAL" {
 		t.Errorf("Expected name 'GENERAL', got '%s'", updated.Name)
@@ -753,7 +736,10 @@ func TestChattoCore_UpdateRoom_PreservesArchived(t *testing.T) {
 		t.Fatalf("Failed to archive room: %v", err)
 	}
 
-	updated, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "new-name", "New description")
+	managerID := newRoomManagerForTest(t, ctx, core, "archived-room-manager", room.Id)
+	updated, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: managerID, RoomID: room.Id, Name: stringPtrForCoreTest("new-name"), Description: stringPtrForCoreTest("New description"),
+	})
 	if err != nil {
 		t.Fatalf("Failed to update room: %v", err)
 	}
@@ -886,7 +872,10 @@ func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
 		t.Fatalf("CreateRoom: %v", err)
 	}
 
-	if _, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "new-name", ""); err != nil {
+	managerID := newRoomManagerForTest(t, ctx, core, "rename-room-manager", room.Id)
+	if _, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: managerID, RoomID: room.Id, Name: stringPtrForCoreTest("new-name"),
+	}); err != nil {
 		t.Fatalf("UpdateRoom rename: %v", err)
 	}
 

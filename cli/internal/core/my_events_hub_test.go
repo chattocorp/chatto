@@ -621,9 +621,10 @@ func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testin
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomUniversal: %v", err)
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
+	setRoomUniversalForTest(t, ctx, core, actor.Id, room.Id, true)
 	model := NewMyEventsModel(core)
 	hub := model.hub
 	projection := newMyEventsSubscription(viewer.Id)
@@ -712,12 +713,11 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
-	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomUniversal true: %v", err)
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
-	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, false); err != nil {
-		t.Fatalf("SetRoomUniversal false: %v", err)
-	}
+	setRoomUniversalForTest(t, ctx, core, actor.Id, room.Id, true)
+	setRoomUniversalForTest(t, ctx, core, actor.Id, room.Id, false)
 
 	model := NewMyEventsModel(core)
 	hub := model.hub

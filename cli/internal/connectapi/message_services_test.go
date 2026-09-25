@@ -720,9 +720,10 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 	room := env.createJoinedRoom("message-threading-mode")
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED); err != nil {
-		t.Fatalf("SetRoomThreadingMode required: %v", err)
-	}
+	managerID := env.newRoomManager(t, "threading-mode-manager", room.Id)
+	env.updateRoom(t, core.RoomUpdateInput{
+		ActorID: managerID, RoomID: room.Id, ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum(),
+	})
 	rootResponse, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id,
 		Body:   "required root",
@@ -753,9 +754,9 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 		t.Fatalf("CreateMessage required thread reply: %v", err)
 	}
 
-	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED); err != nil {
-		t.Fatalf("SetRoomThreadingMode disabled: %v", err)
-	}
+	env.updateRoom(t, core.RoomUpdateInput{
+		ActorID: managerID, RoomID: room.Id, ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED.Enum(),
+	})
 	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:       room.Id,
 		Body:         "forbidden new thread",

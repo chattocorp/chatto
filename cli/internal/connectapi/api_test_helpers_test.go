@@ -280,6 +280,38 @@ func (e *connectAPITestEnv) createJoinedRoom(name string) *evtv1.Room {
 	return room
 }
 
+// grantRoomManage grants userID room.manage on roomID.
+// RoomCommands().UpdateRoom authorizes every caller, including
+// core.SystemActorID, so tests grant this permission before they change room
+// settings.
+func (e *connectAPITestEnv) grantRoomManage(t testing.TB, roomID, userID string) {
+	t.Helper()
+	if err := e.core.GrantUserRoomPermission(e.ctx, core.SystemActorID, roomID, userID, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+}
+
+// newRoomManager creates an account with room.manage on roomID and returns its
+// ID.
+func (e *connectAPITestEnv) newRoomManager(t testing.TB, login, roomID string) string {
+	t.Helper()
+	manager, err := e.core.CreateUser(e.ctx, core.SystemActorID, login, "Room Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser room manager: %v", err)
+	}
+	e.grantRoomManage(t, roomID, manager.Id)
+	return manager.Id
+}
+
+// updateRoom applies input through RoomCommands().UpdateRoom and fails the
+// test on error. input.ActorID must hold room.manage on input.RoomID.
+func (e *connectAPITestEnv) updateRoom(t testing.TB, input core.RoomUpdateInput) {
+	t.Helper()
+	if _, err := e.core.RoomCommands().UpdateRoom(e.ctx, input); err != nil {
+		t.Fatalf("RoomCommands.UpdateRoom: %v", err)
+	}
+}
+
 func (e *connectAPITestEnv) uploadAttachmentAsset(t testing.TB, roomID, filename, contentType string, content []byte) string {
 	t.Helper()
 	sum := sha256.Sum256(content)

@@ -121,24 +121,11 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadingMode == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
 	}
-	if input.Universal != nil && kind == KindDM {
-		return nil, fmt.Errorf("%w: DM rooms cannot be universal", ErrInvalidArgument)
+	if input.SlowModeSeconds != nil && *input.SlowModeSeconds > MaxRoomSlowModeSeconds {
+		return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
 	}
-	if input.SlowModeSeconds != nil {
-		if kind == KindDM {
-			return nil, invalidArgument("DM rooms cannot use slow mode")
-		}
-		if *input.SlowModeSeconds > MaxRoomSlowModeSeconds {
-			return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
-		}
-	}
-	if input.ThreadingMode != nil {
-		if kind == KindDM {
-			return nil, invalidArgument("DM rooms cannot configure threading")
-		}
-		if !IsValidRoomThreadingMode(*input.ThreadingMode) {
-			return nil, invalidArgument("invalid room threading mode")
-		}
+	if input.ThreadingMode != nil && !IsValidRoomThreadingMode(*input.ThreadingMode) {
+		return nil, invalidArgument("invalid room threading mode")
 	}
 	agg := evtstream.RoomAggregate(input.RoomID)
 	filter := agg.AllEventsFilter()
