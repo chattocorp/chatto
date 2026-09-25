@@ -650,7 +650,7 @@ func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, room
 // The result includes only rooms where the user is still a member and has
 // applicable message-read authority.
 func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
-	page, err := c.ListFollowedThreadsPage(ctx, userID, spaceIDs, 0, 0)
+	page, err := c.ListFollowedThreadsPage(ctx, userID, spaceIDs, false, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -661,9 +661,13 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 // spaces, sorted by last activity (newest first), with pagination applied before
 // per-thread read-marker lookups.
 //
+// When unreadOnly is set, the function reads the markers of all followed
+// threads, keeps only threads with unread replies, and then applies
+// pagination. TotalCount then counts only unread threads.
+//
 // The result includes only rooms where the user is still a member and has
 // applicable message-read authority.
-func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, limit, offset int) (*FollowedThreadsPage, error) {
+func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, unreadOnly bool, limit, offset int) (*FollowedThreadsPage, error) {
 	var allThreads []*FollowedThread
 
 	for _, spaceID := range spaceIDs {
@@ -694,6 +698,19 @@ func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string,
 		return allThreads[i].ActivityAt.After(*allThreads[j].ActivityAt)
 	})
 
+	if unreadOnly {
+		if err := c.hydrateFollowedThreadViewerStates(ctx, userID, allThreads); err != nil {
+			return nil, err
+		}
+		unread := allThreads[:0]
+		for _, thread := range allThreads {
+			if thread.HasUnreadReplies {
+				unread = append(unread, thread)
+			}
+		}
+		allThreads = unread
+	}
+
 	totalCount := len(allThreads)
 	if offset < 0 {
 		offset = 0
@@ -715,8 +732,10 @@ func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string,
 		pageThreads = allThreads[offset:]
 	}
 
-	if err := c.hydrateFollowedThreadViewerStates(ctx, userID, pageThreads); err != nil {
-		return nil, err
+	if !unreadOnly {
+		if err := c.hydrateFollowedThreadViewerStates(ctx, userID, pageThreads); err != nil {
+			return nil, err
+		}
 	}
 
 	return &FollowedThreadsPage{

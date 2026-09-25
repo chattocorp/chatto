@@ -894,7 +894,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	})
 
 	t.Run("returns a paged followed thread list", func(t *testing.T) {
-		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 0)
+		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 0)
 		if err != nil {
 			t.Fatalf("Failed to list followed thread page: %v", err)
 		}
@@ -911,7 +911,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 			t.Errorf("first page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg2.Id)
 		}
 
-		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 1)
+		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 1)
 		if err != nil {
 			t.Fatalf("Failed to list followed thread second page: %v", err)
 		}
@@ -993,6 +993,34 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 					t.Error("Expected HasUnreadReplies=true for thread 1 (not opened)")
 				}
 			}
+		}
+	})
+
+	t.Run("unread-only page counts and returns only unread threads", func(t *testing.T) {
+		// Thread 2 was opened in the previous subtest; thread 1 remains unread.
+		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, true, 1, 0)
+		if err != nil {
+			t.Fatalf("Failed to list unread followed thread page: %v", err)
+		}
+		if page.TotalCount != 1 {
+			t.Fatalf("TotalCount = %d, want 1", page.TotalCount)
+		}
+		if page.HasMore {
+			t.Fatal("HasMore = true, want false")
+		}
+		if len(page.Threads) != 1 || page.Threads[0].ThreadRootEventID != rootMsg1.Id {
+			t.Fatalf("unread page = %+v, want only thread 1", page.Threads)
+		}
+		if !page.Threads[0].HasUnreadReplies {
+			t.Error("HasUnreadReplies = false, want true")
+		}
+
+		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 0, 0)
+		if err != nil {
+			t.Fatalf("Failed to list all followed threads: %v", err)
+		}
+		if page.TotalCount != 2 {
+			t.Fatalf("unfiltered TotalCount = %d, want 2", page.TotalCount)
 		}
 	})
 

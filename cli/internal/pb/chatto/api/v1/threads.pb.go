@@ -379,8 +379,12 @@ type ListFollowedThreadsRequest struct {
 	// Include followed direct-message threads. Defaults to false so older
 	// clients retain the channel-only result shape.
 	IncludeDirectMessageThreads bool `protobuf:"varint,4,opt,name=include_direct_message_threads,json=includeDirectMessageThreads,proto3" json:"include_direct_message_threads,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Return only threads with replies that the viewer has not read. The page
+	// total then counts only these threads. Older servers ignore this field and
+	// return all followed threads.
+	UnreadOnly    bool `protobuf:"varint,5,opt,name=unread_only,json=unreadOnly,proto3" json:"unread_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListFollowedThreadsRequest) Reset() {
@@ -423,6 +427,13 @@ func (x *ListFollowedThreadsRequest) GetPage() *PageRequest {
 func (x *ListFollowedThreadsRequest) GetIncludeDirectMessageThreads() bool {
 	if x != nil {
 		return x.IncludeDirectMessageThreads
+	}
+	return false
+}
+
+func (x *ListFollowedThreadsRequest) GetUnreadOnly() bool {
+	if x != nil {
+		return x.UnreadOnly
 	}
 	return false
 }
@@ -637,10 +648,12 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\flatest_reply\x18\n" +
 	" \x01(\v2\x16.chatto.api.v1.MessageR\vlatestReply\x12L\n" +
 	"#direct_message_participant_user_ids\x18\v \x03(\tR\x1fdirectMessageParticipantUserIdsJ\x04\b\x01\x10\x04J\x04\b\x05\x10\bR\aroom_idR\troom_nameR\x14thread_root_event_idR\vreply_countR\rlast_reply_atR\n" +
-	"has_unread\"\xac\x01\n" +
+	"has_unread\"\xcd\x01\n" +
 	"\x1aListFollowedThreadsRequest\x12.\n" +
 	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x12C\n" +
-	"\x1einclude_direct_message_threads\x18\x04 \x01(\bR\x1bincludeDirectMessageThreadsJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
+	"\x1einclude_direct_message_threads\x18\x04 \x01(\bR\x1bincludeDirectMessageThreads\x12\x1f\n" +
+	"\vunread_only\x18\x05 \x01(\bR\n" +
+	"unreadOnlyJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
 	"\x1bListFollowedThreadsResponse\x127\n" +
 	"\athreads\x18\x01 \x03(\v2\x1d.chatto.api.v1.FollowedThreadR\athreads\x12?\n" +
 	"\bincludes\x18\x04 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\x12+\n" +
