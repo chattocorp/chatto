@@ -38,6 +38,7 @@ const { mocks } = vi.hoisted(() => {
       goto: vi.fn(),
       pushState: vi.fn(),
       replaceState: vi.fn(),
+      pageUrl: new URL('https://chat.example.test/chat/-/room-1'),
       markRoomAsRead: vi.fn(),
       projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       resetTypingDebounce: vi.fn(),
@@ -98,7 +99,9 @@ vi.mock('$app/state', () => ({
   page: {
     params: { serverId: '-', roomId: 'room-1' },
     state: {},
-    url: new URL('https://chat.example.test/chat/-/room-1')
+    get url() {
+      return mocks.pageUrl;
+    }
   }
 }));
 
@@ -945,6 +948,53 @@ describe('Room local message echo', () => {
       (await waitForElement(container, '[data-testid="thread-pane-highlight-id"]')).textContent
     ).toBe('thread-message');
     expect(mocks.pendingHighlightConsume).not.toHaveBeenCalled();
+  });
+
+  describe('?highlight= permalinks', () => {
+    afterEach(() => {
+      mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1');
+      mocks.replaceState.mockReset();
+    });
+
+    it('highlights the target when the router rejects the early URL update', async () => {
+      // A cold load runs this before SvelteKit's router starts.
+      mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1?highlight=msg-linked');
+      mocks.replaceState.mockImplementation(() => {
+        throw new Error('Cannot call replaceState(...) before router is initialized');
+      });
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      try {
+        const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+        await expect
+          .element(q(container, '[data-testid="pending-highlight-id"]'))
+          .toHaveTextContent('msg-linked');
+        await vi.waitFor(() => {
+          expect(warn).toHaveBeenCalledWith(
+            'Failed to remove the highlight parameter:',
+            expect.any(Error)
+          );
+        });
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('highlights once and removes the parameter', async () => {
+      mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1?highlight=msg-linked');
+
+      const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+      await expect
+        .element(q(container, '[data-testid="pending-highlight-id"]'))
+        .toHaveTextContent('msg-linked');
+      await vi.waitFor(() => {
+        expect(mocks.replaceState).toHaveBeenCalledWith('/chat/-/room-1', {});
+      });
+      expect(mocks.replaceState).toHaveBeenCalledOnce();
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce();
+    });
   });
 
   it('keeps root message-link highlights pending until the jump completes', async () => {
