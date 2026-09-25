@@ -68,9 +68,26 @@ Read the components in `apps/docs-website/src/components/release-notes/`
 before use. Add missing components if the requested page requires them.
 Import them from `../../../components/release-notes/` in the MDX page.
 
-- Start with `ReleaseHero`. Until the stable release exists, use `(unreleased)`
-  in the frontmatter title, an unreleased description, and
-  `status="Unreleased"` on the hero.
+Use this page order:
+
+1. `ReleaseHero`. Until the stable release exists, use `(unreleased)` in the
+   frontmatter title, an unreleased description, and `status="Unreleased"` on
+   the hero. If readers must act before they upgrade, say so in the summary.
+2. Audience sections, in this order: `## Using Chatto` for members,
+   `## Running Chatto` for operators and administrators, and
+   `## Integrating with Chatto` for bots, API clients, and other integrations.
+   Omit a section that has no content. Each section has these parts in this
+   order, and omits a part that has no content:
+   1. A `ReleaseFeatureGrid` with cards: `size="large"` headline cards first,
+      then default cards, then `size="small"` cards.
+   2. `### Other noteworthy changes`: a bullet list of smaller changes that do
+      not need a card. Write each bullet as one or two short sentences.
+   3. `### Fixes`: a bullet list of fixes for this audience.
+3. `## Upgrade Notes`, when readers must act or check compatibility.
+4. `## GitHub release`.
+
+Cards:
+
 - Use `ReleaseFeatureGrid` with `ReleaseFeatureCard` as direct children.
   This structure supports native Grid Lanes and its polyfill.
 - Use one card per feature. Use `size="large"` for headlines, `size="small"`
@@ -78,12 +95,19 @@ Import them from `../../../components/release-notes/` in the MDX page.
   short paragraph: usually one sentence for small cards and at most two for
   other cards. Move extra detail to upgrade notes, grouped fixes, or the GitHub
   release. Do not add audience labels or subheadings inside cards.
-- Add `Running and Integrating Chatto` only when its content needs a separate
-  section. A more specific heading is acceptable.
-- Put bug fixes in `Smaller fixes you'll appreciate`, grouped by function.
-  Do not put fixes in feature cards.
-- Add a plain `Upgrade Notes` section when readers must act or check
-  compatibility. Do not put these notes in cards or callout boxes.
+
+Other sections:
+
+- Put upgrade notes in plain text, not in cards or callout boxes. Put the
+  actions in the order that readers must do them, and make the most critical
+  action first and prominent. When the list is long, group it in `###`
+  subsections, for example permissions, upgrade procedure, configuration,
+  what members notice, and custom clients and bots. Link to guides for
+  details. Do not list individual API changes; link to the API compatibility
+  guide.
+- Put each bug fix in the `### Fixes` part of the section for the audience it
+  affects. Do not put fixes in feature cards. Omit fixes that already shipped
+  in a patch release of the previous stable minor release.
 - End with `GitHub release` and a link to
   `https://github.com/chattocorp/chatto/releases/tag/v<version>`.
   Keep this target for unreleased pages even before it exists.
