@@ -559,10 +559,11 @@ and member-list records. A manifest and all records commit atomically with one
 server/viewer replay checkpoint. Timeline records include pagination boundaries;
 membership records include completeness. Missing or invalid records use live
 startup. Every loaded owner can be saved without a room-count or dwell-time
-rule. Store changes and completed reconciliation barriers schedule writes;
-pending writes coalesce without being cancelled by navigation. Optimistic
+rule. Lightweight loaded-window changes and completed reconciliation barriers
+schedule capture through a server-owned 100 ms timer; capture runs outside
+reactive dependency tracking. Pending writes coalesce without being cancelled by navigation. Optimistic
 patches block persistence. Local write generations and persistent privacy
-cutoffs reject writes from before a purge. See
+cutoffs, recorded synchronously when a purge is requested, reject older writes. See
 [ADR-104](../adr/ADR-104-checkpointed-client-projection-snapshots.md).
 Saved data does not verify or populate the account-loading owner. Settings
 wait for complete account data; the transport coordinator does not populate

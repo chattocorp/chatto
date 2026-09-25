@@ -124,6 +124,15 @@ export class RoomMembersStore {
     return this.filterLoadedMembers(this.activeSearch);
   }
 
+  /** Subscribe to persisted membership fields without resolving shared profiles. */
+  trackSnapshotChanges(): void {
+    void this.#memberIds;
+    void this.totalCount;
+    void this.hasLoadedAll;
+    void this.hasFirstPage;
+    void this.presenceVersion;
+  }
+
   /** Persist visible membership order without copying its shared profiles. */
   capturePresentation() {
     return {

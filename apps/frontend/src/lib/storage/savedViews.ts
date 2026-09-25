@@ -41,6 +41,17 @@ export type SavedView = {
 /** Synchronous privacy fence shared with the lazily loaded disk implementation. */
 export const snapshotStorageGeneration = { value: 0 };
 
+let boundaryMillisecond = 0;
+let boundaryOrdinal = 0;
+
+/** Order privacy requests and accepted checkpoints even within one clock tick. */
+export function snapshotBoundaryTime(): number {
+  const now = Date.now();
+  boundaryOrdinal = now === boundaryMillisecond ? boundaryOrdinal + 1 : 0;
+  boundaryMillisecond = now;
+  return now + boundaryOrdinal / 1000;
+}
+
 /** Fence queued reads/writes immediately, including before the storage chunk loads. */
 export function invalidateSavedViewWrites(): void {
   snapshotStorageGeneration.value++;
@@ -74,10 +85,11 @@ export async function saveView(view: SavedView): Promise<void> {
 
 /** Remove private snapshots and fence older writes before loading storage code. */
 export async function clearSavedView(serverId: string, userId?: string): Promise<void> {
+  const cutoff = snapshotBoundaryTime();
   invalidateSavedViewWrites();
   try {
     const storage = await import('./projectionSnapshotStorage');
-    await storage.clearSavedView(serverId, userId);
+    await storage.clearSavedView(serverId, userId, cutoff);
   } catch {
     /* Storage can be unavailable; the synchronous write fence remains. */
   }
@@ -85,10 +97,11 @@ export async function clearSavedView(serverId: string, userId?: string): Promise
 
 /** Remove all device snapshots, including records from other server accounts. */
 export async function clearAllSavedViews(): Promise<void> {
+  const cutoff = snapshotBoundaryTime();
   invalidateSavedViewWrites();
   try {
     const storage = await import('./projectionSnapshotStorage');
-    await storage.clearAllSavedViews();
+    await storage.clearAllSavedViews(cutoff);
   } catch {
     /* Storage can be unavailable; the synchronous write fence remains. */
   }

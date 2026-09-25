@@ -6,6 +6,7 @@ import {
   invalidateSavedViewWrites,
   loadSavedView,
   saveView,
+  snapshotBoundaryTime,
   type SavedView
 } from './savedViews';
 
@@ -138,6 +139,18 @@ describe('device saved views', () => {
       savedAt: Date.now()
     });
     expect((await loadSavedView('one', 'alice'))?.checkpoint).toBe('reconciled-after-purge');
+  });
+
+  it('accepts the post-purge checkpoint while storage work is delayed', async () => {
+    const before = view('delayed-purge', 'alice');
+    await saveView(before);
+    const purge = clearSavedView('delayed-purge', 'alice');
+    // The triggering event can complete in the same millisecond as the purge request.
+    const checkpointAt = snapshotBoundaryTime();
+    const replacement = saveView({ ...before, checkpoint: 'after-purge', checkpointAt });
+    vi.setSystemTime(Date.now() + 1000);
+    await Promise.all([purge, replacement]);
+    expect((await loadSavedView('delayed-purge', 'alice'))?.checkpoint).toBe('after-purge');
   });
 
   it('does not weaken a privacy cutoff when the device clock moves backwards', async () => {

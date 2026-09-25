@@ -1,4 +1,5 @@
 import { SvelteSet } from 'svelte/reactivity';
+import { snapshotBoundaryTime } from '$lib/storage/savedViews';
 
 /** How current one server's client-side resource view is. */
 export type RealtimeProjectionPhase = 'empty' | 'hydrating' | 'ready' | 'stale';
@@ -71,14 +72,14 @@ export class RealtimeProjectionSyncState {
     }
     if (cursor) {
       this.#resumeCursor = cursor;
-      this.checkpointAt = Date.now();
+      this.checkpointAt = snapshotBoundaryTime();
     }
   }
 
   markCaughtUp(cursor: string | undefined, authorizationRefreshGeneration = 0): void {
     if (cursor) {
       this.#resumeCursor = cursor;
-      this.checkpointAt = Date.now();
+      this.checkpointAt = snapshotBoundaryTime();
     }
     this.#completedAuthorizationRefreshGeneration = Math.max(
       this.#completedAuthorizationRefreshGeneration,

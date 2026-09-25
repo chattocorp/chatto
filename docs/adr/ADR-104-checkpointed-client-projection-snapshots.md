@@ -29,8 +29,10 @@ Keep shared user profiles in their normal owner. Persist no credentials or
 verified account state. Optimistic timeline and notification patches delay
 persistence until authoritative reconciliation or rollback completes.
 
-The server store schedules persistence when its resource owners change. Writes
-that arrive during an active transaction coalesce to the latest pending set.
+The server store observes checkpoint, mutation, and loaded-window changes with
+lightweight triggers. A server-owned 100 ms timer coalesces capture requests;
+serialization runs outside reactive dependency tracking and the update path.
+Writes that arrive during an active transaction coalesce to the latest pending set.
 Navigation does not cancel them. There is no dwell-time rule, recent-room count,
 or fixed row count. Thread windows remain owned by the server after their UI
 closes and receive the same replay and privacy updates as room windows.
@@ -52,8 +54,10 @@ Actions remain blocked until catch-up and its resource reads succeed.
 Advance a checkpoint only after all event-triggered reads finish, including
 membership updates. A failed read leaves the earlier checkpoint in place.
 Persist the checkpoint acceptance time separately from the snapshot write time.
-Privacy purges fence local queued writes and leave persistent invalidation
-cutoffs. A stale tab cannot recreate a purged copy by giving old state a newer
+Privacy requests synchronously fence local queued writes and record their
+cutoff before any storage work. Checkpoints accepted later in the same clock
+tick retain their order. Transactions preserve the largest existing cutoff.
+A stale tab cannot recreate a purged copy by giving old state a newer
 write timestamp; a later reconciliation barrier must first accept the state.
 
 Discard the previous uncheckpointed cache on the IndexedDB schema upgrade.

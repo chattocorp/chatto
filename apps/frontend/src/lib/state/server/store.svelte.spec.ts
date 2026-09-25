@@ -674,6 +674,7 @@ afterEach(() => {
   setRealtimeSocketFactoryForTests(null);
   soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('ServerStateStore viewer restoration', () => {
@@ -756,8 +757,10 @@ describe('ServerStateStore viewer restoration', () => {
     expect(restored.isAuthenticated).toBe(false);
     expect(restored.realtimeSync.resumeCursor).toBe('live-cursor');
   });
-  it('automatically saves loaded rooms without a route dwell timer or recent-room limit', () => {
+  it('automatically saves loaded rooms without a route dwell timer or recent-room limit', async () => {
+    vi.useFakeTimers();
     const store = makeStore(new FakeServerConnection([]));
+    const capture = vi.spyOn(store, 'saveCurrentView');
     const rooms = Array.from({ length: 15 }, (_, i) => ({
       id: `R${i}`,
       name: `Room ${i}`,
@@ -800,6 +803,15 @@ describe('ServerStateStore viewer restoration', () => {
     }
     store.realtimeSync.markCaughtUp('all-loaded-rooms');
     flushSync();
+    expect(capture).not.toHaveBeenCalled();
+    for (let i = 0; i < 20; i++) {
+      store.realtimeSync.acceptProjectionEvent(`burst-${i}`, false);
+      flushSync();
+    }
+    store.realtimeSync.acceptProjectionEvent('all-loaded-rooms', false);
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(capture).toHaveBeenCalledTimes(1);
     expect(store.savedView?.checkpoint).toBe('all-loaded-rooms');
     expect(store.savedView?.rooms).toHaveLength(15);
     expect(
@@ -813,10 +825,26 @@ describe('ServerStateStore viewer restoration', () => {
       .beginOptimisticReaction({ messageEventId: 'M0', emoji: '👍', action: 'add' });
     store.realtimeSync.acceptProjectionEvent('while-mutation-pending', false);
     flushSync();
+    vi.advanceTimersByTime(100);
     expect(store.savedView).toBe(confirmed);
     reaction.rollback();
     flushSync();
+    vi.advanceTimersByTime(100);
     expect(store.savedView?.checkpoint).toBe('while-mutation-pending');
+    // Pagination alone must still schedule a save on a quiet connection.
+    store
+      .messagesForRoom('R0')
+      .events.push({ ...store.messagesForRoom('R0').events[0], id: 'older' });
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(store.savedView?.rooms[0].events).toHaveLength(76);
+    store
+      .membersForRoom('R0')
+      .restorePresentation({ ids: ['U1'], totalCount: 2, complete: false, presence: [] });
+    await Promise.resolve();
+    flushSync();
+    vi.advanceTimersByTime(100);
+    expect(store.savedView?.rooms[0].members?.ids).toEqual(['U1']);
     store.dispose();
   });
 

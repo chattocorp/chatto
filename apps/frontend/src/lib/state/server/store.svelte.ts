@@ -42,6 +42,7 @@ import type { ServerRegistration } from './catalog.svelte';
 import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { untrack } from 'svelte';
 import { ServerProjectionStore } from './projection.svelte';
 import { getUserStore } from './users.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '$lib/state/room';
@@ -180,6 +181,7 @@ export class ServerStateStore {
   /** New owner allocation is deferred because selectors can allocate inside a derived. */
   #snapshotOwnersVersion = $state(0);
   #disposed = false;
+  #snapshotTimer: ReturnType<typeof setTimeout> | undefined;
   #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (event) =>
@@ -350,9 +352,29 @@ export class ServerStateStore {
     this.#disposeEffects = $effect.root(() => {
       $effect(() => {
         void this.#snapshotOwnersVersion;
-        const checkpointAt = this.realtimeSync.checkpointAt;
-        const caughtUpAt = this.realtimeSync.lastCaughtUpAt;
-        if (checkpointAt && caughtUpAt) this.saveCurrentView(caughtUpAt);
+        void this.realtimeSync.checkpointAt;
+        void this.realtimeSync.resumeCursor;
+        void this.realtimeSync.lastCaughtUpAt;
+        void this.realtimeSync.phase;
+        void this.checkingPermissions;
+        void this.#projectionReconciliations.size;
+        void this.#pendingResourceRefreshes.size;
+        void this.notifications.hasPendingMutations;
+        void this.notifications.occurrences;
+        void this.notifications.loading;
+        // Track loaded-window changes without traversing or serializing their rows.
+        for (const owner of [
+          ...Object.values(this.#roomMessages),
+          ...Object.values(this.#threadMessages)
+        ]) {
+          void owner.events.length;
+          void owner.isInitialLoading;
+          void owner.isLoadingMore;
+          void owner.hasReachedStart;
+          void owner.hasPendingMutations;
+        }
+        for (const owner of Object.values(this.#roomMembers)) owner.trackSnapshotChanges();
+        untrack(() => this.scheduleSnapshot());
       });
       $effect(() => {
         const bus = eventBusManager.getBus(this.serverId);
@@ -861,6 +883,19 @@ export class ServerStateStore {
     this.projection.reset();
     this.resetProjectionMirrors();
     this.realtimeSync.reset();
+  }
+
+  /** Coalesce dirty owners into a bounded-delay capture outside the update path. */
+  private scheduleSnapshot(): void {
+    if (this.#snapshotTimer !== undefined || this.#disposed || this.realtimeSync.phase !== 'ready')
+      return;
+    // A server-owned throttle coalesces bursts without postponing forever or
+    // cancelling on room navigation. Capture is outside reactive dependency tracking.
+    this.#snapshotTimer = setTimeout(() => {
+      this.#snapshotTimer = undefined;
+      const caughtUpAt = this.realtimeSync.lastCaughtUpAt;
+      if (caughtUpAt) untrack(() => this.saveCurrentView(caughtUpAt));
+    }, 100);
   }
 
   /** Persist every loaded owner at a completed, verified reconciliation checkpoint. */
@@ -2191,6 +2226,8 @@ export class ServerStateStore {
   /** Clean up resources. */
   dispose(): void {
     this.#disposed = true;
+    clearTimeout(this.#snapshotTimer);
+    this.#snapshotTimer = undefined;
     this.currentUser.reset();
     this.#messageReconciler.reset();
     this.projection.users.clear();

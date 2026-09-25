@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { decodePresentation } from './decodeSavedView';
-import { snapshotStorageGeneration, type SavedRoom, type SavedView } from './savedViews';
+import {
+  clearSavedView as requestSavedViewClear,
+  snapshotStorageGeneration,
+  type SavedRoom,
+  type SavedView
+} from './savedViews';
 
 const DB_NAME = 'chatto-saved-views';
 const STORE_NAME = 'manifests';
@@ -269,7 +274,7 @@ export async function loadSavedView(
     }
     if (generation !== snapshotStorageGeneration.value) return null;
     if (Date.now() - value.savedAt >= MAX_AGE_MS) {
-      await clearSavedView(serverId, userId);
+      await requestSavedViewClear(serverId, userId);
       return null;
     }
     const { key: _key, ...view } = value;
@@ -408,14 +413,21 @@ async function writeView(view: SavedView, generation: number): Promise<void> {
 }
 
 /** Clock adjustments must not weaken an earlier privacy boundary. */
-async function advanceInvalidation(store: IDBObjectStore, key: string): Promise<void> {
+async function advanceInvalidation(
+  store: IDBObjectStore,
+  key: string,
+  cutoff: number
+): Promise<void> {
   const previous = await requestResult<number | undefined>(store.get(key));
-  store.put(Math.max(previous ?? 0, Date.now()), key);
+  store.put(Math.max(previous ?? 0, cutoff), key);
 }
 
 /** Remove saved private content when a local or verified server boundary occurs. */
-export async function clearSavedView(serverId: string, userId?: string): Promise<void> {
-  snapshotStorageGeneration.value++;
+export async function clearSavedView(
+  serverId: string,
+  userId: string | undefined,
+  cutoff: number
+): Promise<void> {
   const db = await openDatabase();
   if (!db) return;
   try {
@@ -427,7 +439,8 @@ export async function clearSavedView(serverId: string, userId?: string): Promise
     const resources = transaction.objectStore(RESOURCE_STORE);
     await advanceInvalidation(
       transaction.objectStore(INVALIDATIONS_STORE),
-      userId ? keyFor(serverId, userId) : `server:${serverId}`
+      userId ? keyFor(serverId, userId) : `server:${serverId}`,
+      cutoff
     );
     if (userId) {
       store.delete(keyFor(serverId, userId));
@@ -450,8 +463,7 @@ export async function clearSavedView(serverId: string, userId?: string): Promise
 }
 
 /** Remove every saved private view on this browser profile. */
-export async function clearAllSavedViews(): Promise<void> {
-  snapshotStorageGeneration.value++;
+export async function clearAllSavedViews(cutoff: number): Promise<void> {
   const db = await openDatabase();
   if (!db) return;
   try {
@@ -461,7 +473,7 @@ export async function clearAllSavedViews(): Promise<void> {
     );
     transaction.objectStore(STORE_NAME).clear();
     transaction.objectStore(RESOURCE_STORE).clear();
-    await advanceInvalidation(transaction.objectStore(INVALIDATIONS_STORE), 'all');
+    await advanceInvalidation(transaction.objectStore(INVALIDATIONS_STORE), 'all', cutoff);
     await transactionDone(transaction);
   } catch {
     // See clearSavedView.
