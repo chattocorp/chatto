@@ -84,12 +84,16 @@ function renderMenu({
   linkUrl,
   imageUrl,
   onOpenEmojiPicker,
+  hasReactions,
+  onOpenReactionDetails,
   ...overrides
 }: ActionOverrides & {
   presentation?: 'menu' | 'sheet';
   linkUrl?: string | null;
   imageUrl?: string | null;
   onOpenEmojiPicker?: () => void;
+  hasReactions?: boolean;
+  onOpenReactionDetails?: () => void;
 } = {}) {
   return render(MessageActionMenuTestHarness, {
     props: {
@@ -98,6 +102,8 @@ function renderMenu({
       linkUrl,
       imageUrl,
       onOpenEmojiPicker,
+      hasReactions,
+      onOpenReactionDetails,
       onClose: baseProps.onClose
     }
   });
@@ -169,7 +175,9 @@ describe('MessageActionMenu', () => {
   });
 
   it('reports a clipboard failure and closes the menu', async () => {
-    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('Clipboard unavailable'));
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(
+      new Error('Clipboard unavailable')
+    );
     const error = vi.spyOn(toast, 'error').mockImplementation(() => 'toast');
     const { container } = renderMenu({ linkUrl: 'https://example.com/path' });
 
@@ -187,6 +195,28 @@ describe('MessageActionMenu', () => {
     await expect.element(q(container, '[aria-label="React with 👍"]')).toBeInTheDocument();
     await expect.element(q(container, '[aria-label="React with ❤️"]')).toBeInTheDocument();
   });
+
+  it.each(['menu', 'sheet'] as const)(
+    'opens reaction details from the %s when adding reactions is denied',
+    (presentation) => {
+      const onOpenReactionDetails = vi.fn();
+      const { container } = renderMenu({
+        presentation,
+        canReact: false,
+        hasReactions: true,
+        onOpenReactionDetails
+      });
+
+      const entry = [...container.querySelectorAll<HTMLButtonElement>('.menu-entry')].find(
+        (button) => button.textContent?.trim() === 'Reactions'
+      );
+      expect(entry).toBeDefined();
+      entry!.click();
+      expect(baseProps.onClose).toHaveBeenCalledOnce();
+      expect(onOpenReactionDetails).toHaveBeenCalledOnce();
+      expect(container.querySelector('[aria-label="React with 👍"]')).toBeNull();
+    }
+  );
 
   it('renders author actions when allowed', async () => {
     const { container } = renderMenu({
@@ -209,7 +239,11 @@ describe('MessageActionMenu', () => {
           button.textContent?.trim()
         )
       )
-    ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy message link'], ['Delete']]);
+    ).toEqual([
+      ['Reply', 'Reply in thread', 'Edit'],
+      ['Copy text', 'Copy message link'],
+      ['Delete']
+    ]);
   });
 
   it('uses custom reply action labels when provided', () => {
@@ -226,7 +260,12 @@ describe('MessageActionMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy text', 'Copy message link']);
+    expect(actionLabels).toEqual([
+      'Reply in thread',
+      'Open thread',
+      'Copy text',
+      'Copy message link'
+    ]);
     const replyIcon = container.querySelector('[role="menuitem"] .iconify');
     expect(replyIcon?.classList).toContain('icon-[uil--corner-up-left]');
     expect(replyIcon?.classList).toContain('rtl:-scale-x-100');
@@ -406,7 +445,11 @@ describe('MessageActionMenu', () => {
               button.textContent?.trim()
             )
           )
-      ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy message link'], ['Delete']]);
+      ).toEqual([
+        ['Reply', 'Reply in thread', 'Edit'],
+        ['Copy text', 'Copy message link'],
+        ['Delete']
+      ]);
       expect(container.querySelector('[role="menuitem"]')).toBeNull();
       expect(container.querySelector('.menu-entry')).toHaveClass('menu-entry-sheet');
       expect(q(container, '[aria-label="React with 👍"]')).toHaveClass('rounded-full', 'text-xl');
@@ -440,6 +483,9 @@ describe('MessageActionMenu', () => {
         props: {
           interactions,
           action: buildAction(),
+          roomId: 'room-1',
+          messageEventId: 'message-event-1',
+          reactions: [],
           onClose
         }
       });

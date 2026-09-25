@@ -163,7 +163,7 @@
   }
 
   function handleTouchEnd() {
-    interactions.cancelLongPress();
+    interactions.finishLongPress();
   }
 
   function handleTouchMove() {
@@ -188,7 +188,7 @@
   function handleMouseUp(event: MouseEvent) {
     if (event.button !== 0) return;
     if (prefersTouch && !canUseHoverActions) {
-      interactions.cancelLongPress();
+      interactions.finishLongPress();
     }
     if (!(event.target instanceof Element && event.target.closest('[role="toolbar"]'))) {
       selectedReplyQuoteSnapshot = getSelectedReplyQuote();
@@ -803,6 +803,9 @@
     <MessageEventActionOverlays
       {interactions}
       action={actionModel}
+      {roomId}
+      messageEventId={event.id}
+      reactions={msg?.reactions ?? []}
       linkUrl={contextLinkUrl}
       imageUrl={contextImageUrl}
       onClose={() => {

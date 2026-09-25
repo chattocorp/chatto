@@ -94,6 +94,7 @@
         "remove_reaction": "{emoji} öğesini kaldır",
         "add_reaction": "Tepki ekle",
         "more_reactions": "Daha fazla tepki",
+        "reactions": "Tepkiler",
         "reply": "Yanıtla",
         "reply_room": "Odada yanıtla",
         "reply_thread": "Konuda yanıtla",

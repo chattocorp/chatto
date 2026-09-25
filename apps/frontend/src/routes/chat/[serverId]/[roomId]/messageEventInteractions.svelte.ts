@@ -17,6 +17,39 @@ export class MessageEventInteractionState {
 
   #highlightTimer: ReturnType<typeof setTimeout> | null = null;
   #longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  #openingClickTimer: ReturnType<typeof setTimeout> | null = null;
+  #handlePressEnd = () => this.finishLongPress();
+  #discardOpeningClick = (event: MouseEvent) => {
+    this.#clearOpeningClickGuard();
+    if (event.detail === 0) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  #allowNewPress = () => this.#clearOpeningClickGuard();
+
+  #stopListeningForPressEnd(): void {
+    window.removeEventListener('touchend', this.#handlePressEnd, true);
+    window.removeEventListener('touchcancel', this.#handlePressEnd, true);
+    window.removeEventListener('pointerup', this.#handlePressEnd, true);
+    window.removeEventListener('pointercancel', this.#handlePressEnd, true);
+    window.removeEventListener('mouseup', this.#handlePressEnd, true);
+  }
+
+  #clearOpeningClickGuard(): void {
+    window.removeEventListener('click', this.#discardOpeningClick, true);
+    window.removeEventListener('pointerdown', this.#allowNewPress, true);
+    window.removeEventListener('touchstart', this.#allowNewPress, true);
+    if (this.#openingClickTimer) clearTimeout(this.#openingClickTimer);
+    this.#openingClickTimer = null;
+  }
+
+  #guardOpeningClick(): void {
+    this.#clearOpeningClickGuard();
+    window.addEventListener('click', this.#discardOpeningClick, true);
+    window.addEventListener('pointerdown', this.#allowNewPress, true);
+    window.addEventListener('touchstart', this.#allowNewPress, true);
+    this.#openingClickTimer = setTimeout(() => this.#clearOpeningClickGuard(), 2000);
+  }
 
   get hasOpenActionSurface(): boolean {
     return this.showActionSheet || this.contextMenuPosition !== null;
@@ -72,14 +105,29 @@ export class MessageEventInteractionState {
   }
 
   startLongPress(): void {
+    if (this.showActionSheet) return;
     this.cancelLongPress();
+    window.addEventListener('touchend', this.#handlePressEnd, true);
+    window.addEventListener('touchcancel', this.#handlePressEnd, true);
+    window.addEventListener('pointerup', this.#handlePressEnd, true);
+    window.addEventListener('pointercancel', this.#handlePressEnd, true);
+    window.addEventListener('mouseup', this.#handlePressEnd, true);
     this.#highlightTimer = setTimeout(() => {
       this.longPressActive = true;
     }, HIGHLIGHT_DELAY_MS);
     this.#longPressTimer = setTimeout(() => {
       this.showActionSheet = true;
       this.longPressActive = false;
+      // The opening release can produce a click on an action beneath the finger.
+      // A new press clears the guard, so immediate intentional taps still work.
+      this.#guardOpeningClick();
     }, LONG_PRESS_MS);
+  }
+
+  /** Stop tracking the press even when its release misses the message. */
+  finishLongPress(): void {
+    this.cancelLongPress();
+    this.#stopListeningForPressEnd();
   }
 
   cancelLongPress(): void {
@@ -94,13 +142,18 @@ export class MessageEventInteractionState {
       clearTimeout(this.#longPressTimer);
       this.#longPressTimer = null;
     }
+    if (!this.showActionSheet) this.#stopListeningForPressEnd();
   }
 
   closeActionSheet(): void {
     this.showActionSheet = false;
+    this.#stopListeningForPressEnd();
+    this.#clearOpeningClickGuard();
   }
 
   dispose(): void {
     this.cancelLongPress();
+    this.#stopListeningForPressEnd();
+    this.#clearOpeningClickGuard();
   }
 }

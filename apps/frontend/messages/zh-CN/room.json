@@ -94,6 +94,7 @@
         "remove_reaction": "移除 {emoji}",
         "add_reaction": "添加回应",
         "more_reactions": "更多回应",
+        "reactions": "回应",
         "reply": "回复",
         "reply_room": "在房间中回复",
         "reply_thread": "在话题串中回复",

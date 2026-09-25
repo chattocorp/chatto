@@ -43,6 +43,45 @@ describe('MessageEventInteractionState', () => {
     expect(state.showActionSheet).toBe(false);
   });
 
+  it('discards the click from a release that misses the message', () => {
+    vi.useFakeTimers();
+    const state = new MessageEventInteractionState();
+    const button = document.createElement('button');
+    const onClick = vi.fn();
+    button.addEventListener('click', onClick);
+    document.body.append(button);
+
+    state.startLongPress();
+    vi.advanceTimersByTime(500);
+    expect(state.showActionSheet).toBe(true);
+
+    window.dispatchEvent(new Event('touchend'));
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+    expect(onClick).not.toHaveBeenCalled();
+
+    state.closeActionSheet();
+    button.remove();
+  });
+
+  it('accepts an immediate new tap after the opening press', () => {
+    vi.useFakeTimers();
+    const state = new MessageEventInteractionState();
+    const button = document.createElement('button');
+    const onClick = vi.fn();
+    button.addEventListener('click', onClick);
+    document.body.append(button);
+
+    state.startLongPress();
+    vi.advanceTimersByTime(500);
+    window.dispatchEvent(new Event('touchend'));
+    button.dispatchEvent(new Event('touchstart', { bubbles: true }));
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+    expect(onClick).toHaveBeenCalledOnce();
+
+    state.closeActionSheet();
+    button.remove();
+  });
+
   it('tracks floating and sheet emoji-picker presentations independently', () => {
     const state = new MessageEventInteractionState();
 

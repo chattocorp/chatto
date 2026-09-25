@@ -94,6 +94,7 @@
         "remove_reaction": "{emoji} を削除します",
         "add_reaction": "リアクションを追加",
         "more_reactions": "その他のリアクション",
+        "reactions": "リアクション",
         "reply": "返信",
         "reply_room": "ルームで返信",
         "reply_thread": "スレッド内で返信",

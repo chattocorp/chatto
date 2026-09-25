@@ -94,6 +94,7 @@
         "remove_reaction": "Odebrat {emoji}",
         "add_reaction": "Přidejte reakci",
         "more_reactions": "Více reakcí",
+        "reactions": "Reakce",
         "reply": "Odpovědět",
         "reply_room": "Odpovědět v místnosti",
         "reply_thread": "Odpověď ve vláknu",

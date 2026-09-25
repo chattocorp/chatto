@@ -22,6 +22,8 @@ surface-specific sizing and menu semantics.
     linkUrl = null,
     imageUrl = null,
     onOpenEmojiPicker,
+    hasReactions = false,
+    onOpenReactionDetails,
     onClose
   }: {
     presentation?: 'menu' | 'sheet';
@@ -31,6 +33,8 @@ surface-specific sizing and menu semantics.
     /** URL of the image attachment that opened this context menu. */
     imageUrl?: string | null;
     onOpenEmojiPicker?: () => void;
+    hasReactions?: boolean;
+    onOpenReactionDetails?: () => void;
     onClose: () => void;
   } = $props();
 
@@ -46,6 +50,11 @@ surface-specific sizing and menu semantics.
   function handleReplyInRoom() {
     action.replyInRoom?.();
     onClose();
+  }
+
+  function handleOpenReactionDetails() {
+    onClose();
+    onOpenReactionDetails?.();
   }
 
   function handleReply() {
@@ -178,6 +187,10 @@ surface-specific sizing and menu semantics.
     {/if}
   {/if}
 
+  {#if hasReactions && onOpenReactionDetails}
+    {@render actionGroup(reactionDetailsAction)}
+  {/if}
+
   {#if action.replyInRoom || action.replyThread || action.secondaryReplyInRoom || action.canEdit}
     {@render actionGroup(primaryActions)}
   {/if}
@@ -191,6 +204,14 @@ surface-specific sizing and menu semantics.
   {#if action.canDelete}
     {@render actionGroup(deleteAction)}
   {/if}
+{/snippet}
+
+{#snippet reactionDetailsAction()}
+  {@render actionButton(
+    m('room.message.actions.reactions'),
+    'icon-[uil--smile]',
+    handleOpenReactionDetails
+  )}
 {/snippet}
 
 {#snippet pinAction()}
@@ -245,12 +266,24 @@ surface-specific sizing and menu semantics.
     )}
   {/if}
   {#if !isSheet && linkUrl}
-    {@render actionButton(m('room.message.actions.copy_link'), 'icon-[uil--link]', handleCopyTargetLink)}
+    {@render actionButton(
+      m('room.message.actions.copy_link'),
+      'icon-[uil--link]',
+      handleCopyTargetLink
+    )}
   {/if}
   {#if !isSheet && imageUrl}
-    {@render actionButton(m('room.message.actions.copy_image'), 'icon-[uil--image]', handleCopyImage)}
+    {@render actionButton(
+      m('room.message.actions.copy_image'),
+      'icon-[uil--image]',
+      handleCopyImage
+    )}
   {/if}
-  {@render actionButton(m('room.message.actions.copy_message_link'), 'icon-[uil--link]', handleCopyLink)}
+  {@render actionButton(
+    m('room.message.actions.copy_message_link'),
+    'icon-[uil--link]',
+    handleCopyLink
+  )}
 {/snippet}
 
 {#snippet deleteAction()}

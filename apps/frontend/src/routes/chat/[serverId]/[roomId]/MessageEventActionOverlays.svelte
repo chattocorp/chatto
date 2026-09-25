@@ -2,6 +2,7 @@
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { m } from '$lib/i18n/messages';
+  import type { ReactionSummaryView } from '$lib/render/reactions';
   import type { MessageActionModel } from './messageActionModel';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
 
@@ -9,6 +10,7 @@
   let messageActionMenuLoadAttempt = $state(0);
   let emojiPickerModule: Promise<typeof import('$lib/components/EmojiPicker.svelte')> | null = null;
   let emojiPickerLoadAttempt = $state(0);
+  let reactionDetailsVisible = $state(false);
 
   function loadMessageActionMenu(_attempt: number) {
     messageActionMenuModule ??= import('./MessageActionMenu.svelte').catch((error: unknown) => {
@@ -29,18 +31,28 @@
   let {
     interactions,
     action,
+    roomId,
+    messageEventId,
+    reactions,
     linkUrl = null,
     imageUrl = null,
     onClose
   }: {
     interactions: MessageEventInteractionState;
     action: MessageActionModel;
+    roomId: string;
+    messageEventId: string;
+    reactions: ReactionSummaryView[];
     /** URL of the message-body link that opened the desktop context menu. */
     linkUrl?: string | null;
     /** URL of the image attachment that opened the desktop context menu. */
     imageUrl?: string | null;
     onClose?: () => void;
   } = $props();
+
+  $effect(() => {
+    if (reactions.length === 0) reactionDetailsVisible = false;
+  });
 
   function closeContextMenu(): void {
     interactions.closeContextMenu();
@@ -83,6 +95,8 @@
     <MessageActionMenu
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
       {action}
+      hasReactions={reactions.length > 0}
+      onOpenReactionDetails={() => (reactionDetailsVisible = true)}
       linkUrl={presentation === 'menu' ? linkUrl : null}
       imageUrl={presentation === 'menu' ? imageUrl : null}
       onOpenEmojiPicker={action.canReact
@@ -105,6 +119,21 @@
   >
     {@render actionMenu()}
   </ContextMenu>
+{/if}
+
+{#if reactionDetailsVisible && reactions.length > 0}
+  {#await import('./MessageReactionDetails.svelte')}
+    <LoadingFog class="m-2 h-28 w-64 max-w-full" />
+  {:then { default: MessageReactionDetails }}
+    <MessageReactionDetails
+      {roomId}
+      {messageEventId}
+      {reactions}
+      onClose={() => (reactionDetailsVisible = false)}
+    />
+  {:catch}
+    {@render loadError(() => (reactionDetailsVisible = false))}
+  {/await}
 {/if}
 
 {#if interactions.emojiPickerPosition}
