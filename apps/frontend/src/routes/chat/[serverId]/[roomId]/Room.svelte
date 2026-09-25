@@ -232,12 +232,18 @@
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);
   const postingNotice = $derived.by(() => {
     if (room.roomData?.canPostMessage !== false) return null;
-    if (canReadMessages && !room.roomData.room.archived && threadingMode !== RoomThreadingMode.DISABLED) {
+    if (
+      canReadMessages &&
+      !room.roomData.room.archived &&
+      threadingMode !== RoomThreadingMode.DISABLED
+    ) {
       if (room.roomData.canPostInThread) return m('room.timeline.post_threads_only');
       if (room.roomData.canPostInteractions) {
-        return m(room.isDM
-          ? 'room.timeline.post_interactions_only'
-          : 'room.timeline.post_interactions_only_channel');
+        return m(
+          room.isDM
+            ? 'room.timeline.post_interactions_only'
+            : 'room.timeline.post_interactions_only_channel'
+        );
       }
     }
     return m('room.timeline.post_denied');
@@ -388,14 +394,12 @@
   const supportsMessageSearch = $derived(serverInfo.supportsFeature('messageSearch'));
   const messageSearchAvailable = $derived(
     supportsMessageSearch &&
-      !stores.messageSearch.statusLoading &&
       (stores.messageSearch.statusError ||
         (stores.messageSearch.statusLoaded &&
           stores.messageSearch.status.state !== MessageSearchState.DISABLED))
   );
   $effect(() => {
-    if (supportsMessageSearch && stores.isAuthenticated)
-      void stores.messageSearch.ensureStatus();
+    if (supportsMessageSearch && stores.isAuthenticated) void stores.messageSearch.ensureStatus();
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
@@ -481,7 +485,7 @@
     pinsStore: roomPinsStore ?? undefined,
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
-    currentUserId: currentUser.user?.id ?? null,
+    currentUserId: stores.viewerId,
     membersStore: roomMembersStore,
     onOpenProfile: (userId: string) => appUi.openMemberProfile(userId),
     onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
@@ -672,7 +676,7 @@
   const typingIndicator = createTypingIndicator(() => ({
     roomId,
     threadRootEventId: null,
-    currentUserId: currentUser.user?.id ?? null
+    currentUserId: stores.viewerId
   }));
 </script>
 
@@ -845,7 +849,9 @@
             {#if room.roomData?.hasLimitedMessageAccess}
               <div data-testid="limited-message-access">
                 <Hint>
-                  {m(room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access')}
+                  {m(
+                    room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access'
+                  )}
                 </Hint>
               </div>
             {/if}
@@ -939,7 +945,8 @@
               threadingMode !== RoomThreadingMode.DISABLED}
             slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
             slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
-            slowModeBypassed={!!room.roomData?.canManageRoom || !!room.roomData?.canManageOthersMessage}
+            slowModeBypassed={!!room.roomData?.canManageRoom ||
+              !!room.roomData?.canManageOthersMessage}
             highlightEventId={navigation.pendingThreadHighlight}
             pendingQuote={navigation.pendingThreadQuote}
             pendingReply={navigation.pendingThreadReply}

@@ -22,8 +22,6 @@ import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { getActorId, unmask } from './helpers';
 import { MessageTimelineSource } from './MessageTimelineSource';
-import type { SavedRoom } from '$lib/storage/savedViews';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 import {
   beginOptimisticReaction as beginOptimisticReactionPatch,
@@ -478,35 +476,12 @@ export class MessagesStore {
     this.isInitialLoading = true;
   }
 
-  /** Seed a cold timeline with display rows only; saved text has no cursor or reply authority. */
-  restoreSavedRoom(room: SavedRoom, savedAt: number): void {
-    this.awaitRoomProjection(room.id);
-    this.events = room.messages.map((message) => {
-      const actorId = message.authorId ?? `saved:${message.id}`;
-      const date = new SvelteDate(message.createdAt);
-      return {
-        id: message.id,
-        createdAt: (Number.isNaN(date.getTime()) ? new SvelteDate(savedAt) : date).toISOString(),
-        actorId,
-        actor: {
-          id: actorId,
-          login: '',
-          displayName: message.author,
-          deleted: false,
-          presenceStatus: PresenceStatus.UNSPECIFIED
-        },
-        event: {
-          kind: TimelineEventKind.MessagePosted,
-          roomId: room.id,
-          body: message.body,
-          attachments: [],
-          reactions: [],
-          replyCount: 0,
-          threadParticipants: []
-        }
-      };
-    });
-    this.seenIds = new SvelteSet(this.events.map((event) => event.id));
+  /** Restore the normal timeline store without assigning a live pagination or resume cursor. */
+  restorePresentation(roomId: string, events: TimelineEventView[], hasReachedStart = false): void {
+    this.awaitRoomProjection(roomId);
+    this.events = events;
+    this.hasReachedStart = hasReachedStart;
+    this.seenIds = new SvelteSet(events.map((event) => event.id));
     this.isInitialLoading = false;
   }
 

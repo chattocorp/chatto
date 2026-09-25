@@ -59,9 +59,7 @@
     readViews: { covers: () => false },
     serverInfo: { messageEditWindowSeconds: 31_536_000, supportsFeature: () => true },
     activeCallRooms: { getParticipantCallPresence: () => null },
-    currentUser: {
-      user: { id: 'viewer', login: 'viewer', settings: undefined }
-    },
+    viewerUser: { id: 'viewer', login: 'viewer', settings: undefined },
     permissions: { canStartDMs: false },
     pinsForRoom: () => ({
       isPinned: (_messageEventId: string, hydratedStatus = false) => pinStatus ?? hydratedStatus,

@@ -14,10 +14,11 @@
 
   const serverStore = $derived(serverScope.store);
   const navigation = $derived(serverStore.navigation);
-  // Unknown membership can display saved content. Live rooms must match the account.
+  // Displayed membership belongs to this store's viewer. The connection owns
+  // session verification and command readiness.
   const ready = $derived(
     !navigation.isInitialLoading &&
-      (!navigation.currentUserId || navigation.currentUserId === serverStore.currentUser.user?.id)
+      (!navigation.currentUserId || navigation.currentUserId === serverStore.viewerId)
   );
 
   let threadId = $derived(page.params.threadId);

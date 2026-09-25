@@ -56,7 +56,7 @@ sidebar. Shows the avatar with presence and the live display name.
   const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeStore = $derived(serverScope.store);
-  const activeServerUser = $derived(activeStore.currentUser.user);
+  const activeServerUser = $derived(activeStore.viewerUser);
   const presenceScope = $derived(
     activeServerUser ? { serverId: activeServerId, userId: activeServerUser.id } : null
   );

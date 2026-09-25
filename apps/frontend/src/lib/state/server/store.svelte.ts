@@ -48,6 +48,8 @@ import { MessagesStore, RoomFilesStore, RoomPinsStore, RoomMembersStore } from '
 import type { RoomMember } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import { decodePresentation } from '$lib/storage/decodeSavedView';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -65,12 +67,7 @@ import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
-import {
-  clearSavedView,
-  invalidateSavedViewWrites,
-  saveView,
-  type SavedView
-} from '$lib/storage/savedViews';
+import { clearSavedView, saveView, type SavedView } from '$lib/storage/savedViews';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   purgeRegisteredRoomMemberQueries,
@@ -163,11 +160,18 @@ export class ServerStateStore {
   readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
-  /** Last authorized text view for read-only reconnect and offline presentation. */
+  /** Last complete store snapshot for reconnect and offline presentation. */
   savedView = $state.raw<SavedView | null>(null);
-  /** Display fallback until live catch-up completes; never membership or permission input. */
-  get savedRooms() {
-    return this.realtimeSync.restoredFromDisk ? (this.savedView?.rooms ?? []) : [];
+  /** Display identity is independent of whether this connection has verified its account. */
+  get viewerId(): string | null {
+    return this.currentUser.user?.id ?? this.#getSession().userId ?? null;
+  }
+  /** Viewer display data; authentication must use currentUser.verifiedUserId instead. */
+  get viewerUser(): CurrentUser | undefined {
+    return (
+      this.currentUser.user ??
+      (this.projection.viewer ? viewerResponseToState(this.projection.viewer).user : undefined)
+    );
   }
   /** A cold disk view can render before its session has been verified. */
   startupPresentationOnly = $state(false);
@@ -322,19 +326,14 @@ export class ServerStateStore {
     );
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
     const notifications = this.notifications;
-    this.navigation = new NavigationStore(
-      this.projection,
-      this.realtimeSync,
-      {
-        get roomUnreadCounts() {
-          return notifications.attention.roomUnreadCounts;
-        },
-        get roomImportantUnreadCounts() {
-          return notifications.attention.roomImportantUnreadCounts;
-        }
+    this.navigation = new NavigationStore(this.projection, this.realtimeSync, {
+      get roomUnreadCounts() {
+        return notifications.attention.roomUnreadCounts;
       },
-      () => this.savedRooms
-    );
+      get roomImportantUnreadCounts() {
+        return notifications.attention.roomImportantUnreadCounts;
+      }
+    });
     this.roomDirectory = new RoomDirectoryStore(
       this.navigation,
       memberDirectoryAPI,
@@ -515,6 +514,8 @@ export class ServerStateStore {
       this.#realtimeSnapshotPending = false;
     }
     await this.waitForRealtimeReconciliation();
+    this.requireCurrentRealtimeProjection(generation);
+    this.#serverConnection.resumePrivateActions();
   }
 
   /** Wait for queued event reads without starting catch-up resource reads. */
@@ -754,9 +755,17 @@ export class ServerStateStore {
   restoreSavedView(view: SavedView | null, beforeConnection = false): void {
     if (!view || view.serverId !== this.serverId || view.userId !== this.#getSession().userId)
       return;
+    // Decode everything before publishing so corrupt storage cannot partially restore state.
+    let restored;
+    try {
+      restored = decodePresentation(view);
+    } catch {
+      void clearSavedView(this.serverId, view.userId);
+      return;
+    }
     if (!this.savedView || view.savedAt > this.savedView.savedAt) this.savedView = view;
     this.#recentSavedRoomIds = view.rooms
-      .filter((room) => room.messages.length > 0)
+      .filter((room) => room.events.length > 0)
       .map((room) => room.id);
     if (
       this.realtimeSync.phase === 'empty' &&
@@ -764,9 +773,34 @@ export class ServerStateStore {
     ) {
       this.startupPresentationOnly = true;
       this.#serverConnection.pausePrivateRequests();
+      this.#serverConnection.pausePrivateActions();
       this.serverInfo.name = view.serverName;
-      for (const room of view.rooms) {
-        this.messagesForRoom(room.id, true).restoreSavedRoom(room, view.savedAt);
+      this.projection.server = restored.server;
+      this.serverInfo.version = view.presentation.serverVersion ?? '';
+      if (view.presentation.searchStatus)
+        this.messageSearch.restoreStatus(view.presentation.searchStatus);
+      this.projection.activeCalls = restored.activeCalls;
+      this.activeCallRooms.replaceProjection(restored.activeCalls);
+      this.serverInfo.applyProjectionProfile(restored.server);
+      this.projection.roomGroups = restored.groups;
+      this.projection.viewer = restored.viewer;
+      if (restored.notifications)
+        this.notifications.replaceOccurrenceProjection(restored.notifications);
+      if (restored.viewer)
+        this.permissions = { ...viewerResponseToState(restored.viewer), loaded: true };
+      this.projection.serverState = { runtime: restored.runtime, motd: view.presentation.motd };
+      this.serverInfo.applyProjectionState(this.projection.serverState);
+      for (const user of restored.users) {
+        if (user.user?.id) this.projection.users.set(user.user.id, user);
+      }
+      for (const { saved, resource, events } of restored.rooms) {
+        this.projection.rooms.set(saved.id, resource);
+        this.messagesForRoom(saved.id, true).restorePresentation(
+          saved.id,
+          events,
+          saved.hasReachedStart
+        );
+        if (saved.members) this.membersForRoom(saved.id).restorePresentation(saved.members);
       }
       this.realtimeSync.restoreSavedProjection();
     }
@@ -797,7 +831,7 @@ export class ServerStateStore {
     this.realtimeSync.reset();
   }
 
-  /** Keep the latest viewed room first in the bounded offline text cache. */
+  /** Keep the latest viewed room first in the bounded store snapshot. */
   noteViewedRoom(roomId: string): void {
     this.#recentSavedRoomIds = [
       roomId,
@@ -809,6 +843,7 @@ export class ServerStateStore {
   /** Capture current authorized data without making the saved copy authoritative. */
   saveCurrentView(savedAt: number): void {
     if (this.realtimeSync.phase !== 'ready' || this.realtimeSync.lastCaughtUpAt !== savedAt) return;
+    if (this.#projectionReconciliations.size > 0 || this.#pendingResourceRefreshes.size > 0) return;
     const userId = this.currentUser.user?.id ?? this.#getSession().userId;
     if (
       !userId ||
@@ -819,39 +854,51 @@ export class ServerStateStore {
       return;
     const rooms = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
-      if (!room || room.archived || !room.isMember || room.canReadMessages !== true) return [];
-      const messages = this.#recentSavedRoomIds.includes(room.id)
-        ? (this.#roomMessages[room.id]?.rootEvents ?? [])
-            .filter(
-              (event) =>
-                event.event.kind === TimelineEventKind.MessagePosted &&
-                !event.event.deletedAt &&
-                typeof event.event.body === 'string' &&
-                !this.#deletedRealtimeUserIds.has(event.actorId ?? '')
-            )
-            .slice(-50)
-            .map((event) => ({
-              id: event.id,
-              createdAt: event.createdAt,
-              author: event.actor?.displayName ?? event.actor?.login ?? '',
-              authorId: event.actorId ?? undefined,
-              body:
-                (event.event as Extract<TimelineEventView['event'], { kind: 'messagePosted' }>)
-                  .body ?? ''
-            }))
-        : [];
+      if (!room || room.archived) return [];
+      const events =
+        room.isMember && room.canReadMessages === true && this.#recentSavedRoomIds.includes(room.id)
+          ? (this.#roomMessages[room.id]?.rootEvents ?? []).slice(-50)
+          : [];
+      const members = this.#roomMembers[room.id];
       return [
-        { id: room.id, name: room.name, kind: room.kind, universal: room.isUniversal, messages }
+        {
+          id: room.id,
+          name: room.name,
+          kind: room.kind,
+          universal: room.isUniversal,
+          resource: entry.toJsonString(),
+          events: JSON.parse(JSON.stringify(events)) as TimelineEventView[],
+          hasReachedStart:
+            events.length === this.#roomMessages[room.id]?.rootEvents.length &&
+            this.#roomMessages[room.id]?.hasReachedStart,
+          members: members?.hasFirstPage ? members.capturePresentation() : undefined
+        }
       ];
     });
     const view: SavedView = {
-      version: 1,
+      version: 2,
       serverId: this.serverId,
       userId,
       viewerName: this.currentUser.user?.displayName ?? '',
       serverName: this.serverInfo.name,
-      savedAt,
-      rooms
+      savedAt: Date.now(),
+      rooms,
+      presentation: {
+        serverVersion: this.serverInfo.version,
+        searchStatus: this.messageSearch.statusLoaded
+          ? { ...this.messageSearch.status }
+          : undefined,
+        activeCalls: this.projection.activeCalls.map((call) => call.toJsonString()),
+        server: (
+          this.projection.server ?? new ServerPublicProfile({ name: this.serverInfo.name })
+        ).toJsonString(),
+        roomGroups: this.projection.roomGroups.map((group) => group.toJsonString()),
+        users: [...this.projection.users.values()].map((member) => member.toJsonString()),
+        viewer: this.projection.viewer.toJsonString(),
+        runtime: this.projection.serverState?.runtime?.toJsonString(),
+        motd: this.projection.serverState?.motd,
+        notifications: this.notifications.capturePresentation()
+      }
     };
     this.savedView = view;
     void saveView(view);
@@ -859,20 +906,16 @@ export class ServerStateStore {
 
   /** Remove a room as soon as access loss is verified. */
   private scrubSavedRoom(roomId: string): void {
-    if (!this.savedView) {
-      const userId = this.currentUser.user?.id ?? this.#getSession().userId;
-      if (userId) void clearSavedView(this.serverId, userId);
-      return;
-    }
-    if (!this.savedView.rooms.some((room) => room.id === roomId)) return;
-    invalidateSavedViewWrites();
-    const view = {
-      ...this.savedView,
-      rooms: this.savedView.rooms.filter((room) => room.id !== roomId)
-    };
-    this.savedView = view;
+    // Shared profiles and timeline metadata can also refer to the removed room.
+    // Purge the complete disk copy; the next verified save captures the remaining state.
+    this.discardSavedSnapshot();
     this.#recentSavedRoomIds = this.#recentSavedRoomIds.filter((id) => id !== roomId);
-    void saveView(view);
+  }
+
+  /** Fence pending disk writes whenever copied private content becomes invalid. */
+  private discardSavedSnapshot(): void {
+    this.savedView = null;
+    void clearSavedView(this.serverId, this.currentUserId() ?? undefined);
   }
 
   /** Message-read loss does not imply loss of voice or room membership. */
@@ -1276,6 +1319,7 @@ export class ServerStateStore {
     }
   }
   private scrubRemovedUser(userId: string): void {
+    this.discardSavedSnapshot();
     this.projection.users.delete(userId);
     for (const roomId of Object.keys(this.#roomMembers))
       this.updateRoomMembership(roomId, userId, false);
@@ -1470,9 +1514,6 @@ export class ServerStateStore {
         return;
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
-        const viewerId = this.currentUser.user?.id ?? this.#getSession().userId;
-        this.savedView = null;
-        if (viewerId) void clearSavedView(this.serverId, viewerId);
         this.#deletedRealtimeUserIds.add(userId);
         this.#pendingUserRefreshIds.delete(userId);
         this.projection.removeUser(userId);
@@ -1504,6 +1545,13 @@ export class ServerStateStore {
       case 'messagePinned':
       case 'messageUnpinned':
       case 'assetDeleted': {
+        if (
+          payload.case === 'messageEdited' ||
+          payload.case === 'messageRetracted' ||
+          payload.case === 'assetDeleted'
+        ) {
+          this.discardSavedSnapshot();
+        }
         const anchorEventId =
           rawValue?.messageEventId ?? (payload.case === 'messagePosted' ? event.id : null);
         if (payload.case === 'messagePosted') this.ingestRealtimeMessagePost(event);

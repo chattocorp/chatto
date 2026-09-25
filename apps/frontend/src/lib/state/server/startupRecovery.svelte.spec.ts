@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { savedViewFixture } from '$lib/test-utils/savedView';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -65,14 +66,13 @@ describe('origin startup recovery', () => {
     );
     const store = serverRegistry.getStore('origin');
     store.restoreSavedView(
-      {
-        version: 1,
+      savedViewFixture({
         serverId: 'origin',
         userId: 'U1',
         serverName: 'Chatto',
         savedAt: Date.now(),
         rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      },
+      }),
       true
     );
     return store;
@@ -134,7 +134,7 @@ describe('origin startup recovery', () => {
         expect(mocks.viewer).toHaveBeenCalledTimes(3);
         expect(store.currentUser.verifiedUserId).toBe('U1');
         expect(store.navigation.rooms.some((room) => room.id === 'R1')).toBe(true);
-        expect(store.projection.rooms.size).toBe(0);
+        expect(store.projection.rooms.size).toBe(1);
       } finally {
         view.unmount();
       }

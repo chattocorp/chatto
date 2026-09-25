@@ -7,8 +7,7 @@
 
   let { children } = $props();
 
-  // The root layout resolves the active instance from the URL and provides
-  // it via context; we just consume it here.
+  // Resolve the URL here and provide one stable server scope to its route subtree.
   const serverId = $derived(getActiveServer());
 
   // Guard: if the instance ID couldn't be resolved (e.g., "-" with no origin

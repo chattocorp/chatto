@@ -39,6 +39,7 @@ export class MessageSearchStore {
   private statusRequestId = 0;
   private activeInput: Omit<MessageSearchInput, 'cursor'> | null = null;
   private statusPromise: Promise<void> | null = null;
+  private statusNeedsRefresh = false;
   private privacyInvalidationListeners = new SvelteSet<
     (matches: (result: MessageSearchResult) => boolean, force: boolean) => void
   >();
@@ -57,7 +58,9 @@ export class MessageSearchStore {
 
   async ensureStatus(): Promise<void> {
     if (!this.canLoad()) return;
-    if (this.statusLoaded || this.statusPromise) return this.statusPromise ?? Promise.resolve();
+    if ((this.statusLoaded && !this.statusNeedsRefresh) || this.statusPromise)
+      return this.statusPromise ?? Promise.resolve();
+    this.statusNeedsRefresh = false;
     const requestId = ++this.statusRequestId;
     this.statusLoading = true;
     this.statusError = false;
@@ -81,8 +84,15 @@ export class MessageSearchStore {
   }
 
   async refreshStatus(): Promise<void> {
-    this.statusLoaded = false;
+    this.statusNeedsRefresh = true;
     await this.ensureStatus();
+  }
+
+  /** Restore capability display while requiring the next live check to refresh it. */
+  restoreStatus(status: MessageSearchStatus): void {
+    this.status = status;
+    this.statusLoaded = true;
+    this.statusNeedsRefresh = true;
   }
 
   async search(
@@ -248,6 +258,7 @@ export class MessageSearchStore {
     this.statusLoading = false;
     this.statusError = false;
     this.statusPromise = null;
+    this.statusNeedsRefresh = false;
     this.invalidatePrivacyConsumers(() => false, true);
   }
 }

@@ -20,13 +20,34 @@ paint for the selected server. Other remote servers start discovery when
 the user opens them. The saved viewer remains display data. While its viewer
 check is pending, the connection holds private reads and rejects server
 actions. It allows the viewer check to proceed. A successful check releases
-the held reads and realtime startup only for the same user. The response guard
+the held reads and realtime startup only for the same user. Commands remain
+blocked until the replacement snapshot and its resource reads complete.
+The response guard
 records the private data generation after the held read is released. This
 prevents viewer verification from rejecting a valid response. An account change
 clears the old private view through the existing session replacement boundary.
 On chat-wide pages without a selected saved view, the client starts the origin
 server with the public shell requests. These pages use its live projections.
 Unopened remote servers remain dormant.
+
+The UI reads the normal stores. A versioned IndexedDB record stores their
+presentation state: room resources and groups, known public profiles, viewer
+display preferences, notification state, loaded member lists, and complete
+timeline rows for a bounded recent window. Restoration populates those same
+stores. There is no separate saved-room selector or text-only message renderer.
+Reconnect replaces or updates the state through the existing reducers.
+An unchanged resource must keep the same presentation. Member refreshes keep
+the displayed list until all replacement pages arrive.
+
+The snapshot has no credentials, verified account state, or realtime cursor.
+Cached viewer data does not populate the account-loading owner. API commands
+remain blocked at the connection boundary while that snapshot is unverified.
+The cache keeps at most 50 timeline rows for each of 10 recent rooms, with a
+shared 8 MB limit and seven-day expiry. Invalid records and the previous
+text-only format use normal live startup. Live cursor advances schedule a new
+save. A verified room-access loss, message edit or retraction, attachment
+deletion, or account deletion clears the disk snapshot. This also removes
+copied profile references. A later verified save can capture the remaining state.
 After origin sign-out, a dormant remote bearer session can be selected for
 navigation. Its viewer check starts when that route opens.
 
@@ -45,7 +66,8 @@ network. No realtime cursor or query result is saved with the view.
 
 ## Consequences
 
-- A repeat launch can show saved rooms and text before the server responds.
+- A repeat launch can show room groups, message badges, and member lists before
+  the server responds. Attachment bytes still require the network.
 - The view remains read-only until the server confirms the session and current
   permissions. A failed check does not turn saved identity into authority.
 - Users can see an older installed frontend version until a service worker

@@ -102,7 +102,6 @@
   const supportsMessageSearch = $derived(activeStore.serverInfo.supportsFeature('messageSearch'));
   const messageSearchAvailable = $derived(
     supportsMessageSearch &&
-      !activeStore.messageSearch.statusLoading &&
       (activeStore.messageSearch.statusError ||
         (activeStore.messageSearch.statusLoaded &&
           activeStore.messageSearch.status.state !== MessageSearchState.DISABLED))

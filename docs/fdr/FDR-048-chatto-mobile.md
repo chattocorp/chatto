@@ -36,7 +36,7 @@ client. It connects to independent servers without running a local backend.
 - Server sign-in opens the system authentication session. The selected server
   owns sign-in and consent. Cancellation leaves the client in place.
 - Server registrations and sessions use persistent application webview storage.
-- The shared client can restore bounded saved chat text when webview storage
+- The shared client can restore bounded saved chat state when webview storage
   is available. This view remains read-only until the server verifies the
   session and permissions. It does not provide offline message sending.
 - Sign-in requires HTTPS and a server with the mobile client registration.

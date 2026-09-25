@@ -1,4 +1,5 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
+import { savedViewFixture } from '$lib/test-utils/savedView';
 import {
   generateServerId,
   restorePersistedServerState,
@@ -300,16 +301,17 @@ describe('ServerRegistry', () => {
     registry.addServer(makeServer({ id: 'offline', token: 'access', userId: 'U1' }));
     const store = registry.getStore('offline');
     store.currentUser.loading = false;
-    store.restoreSavedView({
-      version: 1,
-      serverId: 'offline',
-      userId: 'U1',
-      serverName: 'Saved server',
-      savedAt: Date.now(),
-      rooms: [{ id: 'R1', name: 'general', messages: [] }]
-    });
-    expect(store.navigation.rooms).toMatchObject([{ id: 'R1', viewerIsMember: null }]);
-    expect(store.projection.rooms.has('R1')).toBe(false);
+    store.restoreSavedView(
+      savedViewFixture({
+        serverId: 'offline',
+        userId: 'U1',
+        serverName: 'Saved server',
+        savedAt: Date.now(),
+        rooms: [{ id: 'R1', name: 'general', messages: [] }]
+      })
+    );
+    expect(store.navigation.rooms).toMatchObject([{ id: 'R1', viewerIsMember: true }]);
+    expect(store.projection.rooms.has('R1')).toBe(true);
 
     await registry.clearDeviceSavedViews();
 
@@ -328,15 +330,16 @@ describe('ServerRegistry', () => {
     registry.addServer(makeServer({ id: 'live', token: 'access', userId: 'U1' }));
     const store = registry.getStore('live');
     store.currentUser.loading = false;
-    store.restoreSavedView({
-      version: 1,
-      serverId: 'live',
-      userId: 'U1',
-      serverName: 'Live server',
-      savedAt: Date.now(),
-      rooms: [{ id: 'R1', name: 'general', messages: [] }]
-    });
-    // Saved labels no longer fabricate live room authority. Supply a live room.
+    store.restoreSavedView(
+      savedViewFixture({
+        serverId: 'live',
+        userId: 'U1',
+        serverName: 'Live server',
+        savedAt: Date.now(),
+        rooms: [{ id: 'R1', name: 'general', messages: [] }]
+      })
+    );
+    // A verified live projection must survive removal of its device snapshot.
     const room = new RoomWithViewerState({
       room: { id: 'R1', name: 'general' },
       viewerState: { isMember: true }

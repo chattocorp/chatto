@@ -60,37 +60,34 @@ export function useRoomData(getProps: () => { roomId: string }) {
     const currentStore = store;
     if (!currentStore.realtimeSync.hasDisplayableView) return undefined;
     const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
-    const live = mapDirectoryRoomDetails(projectedRoom);
-    const saved = currentStore.savedRooms.find((room) => room.id === getProps().roomId);
-    const room = live ?? saved;
+    const room = mapDirectoryRoomDetails(projectedRoom);
     // A stale projection can render known rooms immediately, but absence is
     // not authoritative until the activation catch-up reaches caught_up.
     if (!room) return currentStore.realtimeSync.phase === 'ready' ? null : undefined;
-    const canAct = currentStore.isAuthenticated;
     return {
       room: {
         id: room.id,
         name: room.name,
-        description: live?.description,
+        description: room.description ?? undefined,
         type: roomKindOrChannel(room.kind ?? RoomKind.CHANNEL),
-        isUniversal: live?.isUniversal ?? saved?.universal ?? false,
-        slowModeSeconds: live?.slowModeSeconds ?? 0,
-        threadingMode: live?.threadingMode ?? RoomThreadingMode.DISABLED,
-        archived: live?.archived
+        isUniversal: room.isUniversal,
+        slowModeSeconds: room.slowModeSeconds,
+        threadingMode: room.threadingMode,
+        archived: room.archived
       },
       spaceName: currentStore.serverInfo.name ?? null,
-      canReadMessages: live?.canReadMessages ?? null,
-      hasLimitedMessageAccess: live?.hasLimitedMessageAccess ?? false,
-      canPostMessage: canAct && (live?.canPostMessage ?? false),
-      canPostInThread: canAct && (live?.canPostInThread ?? false),
-      canPostInteractions: canAct && (live?.canPostInteractions ?? false),
-      canAttach: canAct && (live?.canAttach ?? false),
-      canReact: canAct && (live?.canReact ?? false),
-      canManageOthersMessage: canAct && (live?.canManageOthersMessage ?? false),
-      canEchoMessage: canAct && (live?.canEchoMessage ?? false),
-      canManageRoom: canAct && (live?.canManageRoom ?? false),
-      canBanRoomMembers: canAct && (live?.canBanRoomMembers ?? false),
-      slowModeNextPostAt: live?.slowModeNextPostAt ?? null
+      canReadMessages: room.canReadMessages,
+      hasLimitedMessageAccess: room.hasLimitedMessageAccess,
+      canPostMessage: room.canPostMessage,
+      canPostInThread: room.canPostInThread,
+      canPostInteractions: room.canPostInteractions,
+      canAttach: room.canAttach,
+      canReact: room.canReact,
+      canManageOthersMessage: room.canManageOthersMessage,
+      canEchoMessage: room.canEchoMessage,
+      canManageRoom: room.canManageRoom,
+      canBanRoomMembers: room.canBanRoomMembers,
+      slowModeNextPostAt: room.slowModeNextPostAt
     };
   });
 
@@ -102,7 +99,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
     return {
       participantIds: projectedRoom?.memberUserIds ?? [],
       participants: currentStore.projectedMembersForRoom(getProps().roomId),
-      currentUserId: currentStore.currentUser.user?.id ?? currentStore.savedView?.userId ?? null
+      currentUserId: currentStore.viewerId
     };
   });
 

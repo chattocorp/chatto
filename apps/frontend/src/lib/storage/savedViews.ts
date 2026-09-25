@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Bounded, presentation-only private content saved for offline reading. */
-export type SavedMessage = {
-  id: string;
-  createdAt: string;
-  author: string;
-  authorId?: string;
-  body: string;
-};
+import type { TimelineEventView } from '$lib/render/timelineEvents';
+import type { ServerPresentationSnapshot } from './presentationSnapshot';
+import { decodePresentation } from './decodeSavedView';
 
+/** A normal room resource and its bounded presentation state. */
 export type SavedRoom = {
   id: string;
   name: string;
   kind?: number;
   universal?: boolean;
-  messages: SavedMessage[];
+  resource: string;
+  events: TimelineEventView[];
+  hasReachedStart?: boolean;
+  members?: { ids: string[]; totalCount: number; complete: boolean; presence: [string, number][] };
 };
 
 export type SavedView = {
-  version: 1;
+  version: 2;
   serverId: string;
   userId: string;
   viewerName?: string;
   serverName: string;
   savedAt: number;
   rooms: SavedRoom[];
+  presentation: ServerPresentationSnapshot;
 };
 
 const DB_NAME = 'chatto-saved-views';
@@ -74,36 +74,96 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 }
 
 function validRecord(value: unknown): value is SavedRecord {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Partial<SavedRecord>;
-  return record.version === 1 && typeof record.key === 'string' &&
-    typeof record.serverId === 'string' && typeof record.userId === 'string' &&
-    typeof record.serverName === 'string' &&
-    (record.viewerName === undefined || typeof record.viewerName === 'string') &&
-    Number.isFinite(record.savedAt) &&
-    Array.isArray(record.rooms) && record.rooms.every((room) =>
-      typeof room.id === 'string' && typeof room.name === 'string' &&
-      (room.kind === undefined || typeof room.kind === 'number') &&
-      (room.universal === undefined || typeof room.universal === 'boolean') &&
-      Array.isArray(room.messages) && room.messages.every((message) =>
-        typeof message.id === 'string' && typeof message.createdAt === 'string' &&
-        typeof message.author === 'string' && typeof message.body === 'string' &&
-        (message.authorId === undefined || typeof message.authorId === 'string')
-      )
-    );
+  try {
+    if (!value || typeof value !== 'object') return false;
+    const record = value as Partial<SavedRecord>;
+    const valid =
+      record.version === 2 &&
+      typeof record.key === 'string' &&
+      typeof record.serverId === 'string' &&
+      typeof record.userId === 'string' &&
+      typeof record.serverName === 'string' &&
+      (record.viewerName === undefined || typeof record.viewerName === 'string') &&
+      Number.isFinite(record.savedAt) &&
+      !!record.presentation &&
+      (record.presentation.searchStatus === undefined ||
+        (Number.isInteger(record.presentation.searchStatus.state) &&
+          (record.presentation.searchStatus.retryAfterMs === null ||
+            Number.isFinite(record.presentation.searchStatus.retryAfterMs)))) &&
+      (record.presentation.serverVersion === undefined ||
+        typeof record.presentation.serverVersion === 'string') &&
+      (record.presentation.activeCalls === undefined ||
+        (Array.isArray(record.presentation.activeCalls) &&
+          record.presentation.activeCalls.every((value) => typeof value === 'string'))) &&
+      typeof record.presentation.server === 'string' &&
+      (record.presentation.viewer === undefined ||
+        typeof record.presentation.viewer === 'string') &&
+      (record.presentation.runtime === undefined ||
+        typeof record.presentation.runtime === 'string') &&
+      (record.presentation.motd === undefined || typeof record.presentation.motd === 'string') &&
+      Array.isArray(record.presentation.roomGroups) &&
+      record.presentation.roomGroups.every((value) => typeof value === 'string') &&
+      Array.isArray(record.presentation.users) &&
+      record.presentation.users.every((value) => typeof value === 'string') &&
+      Array.isArray(record.rooms) &&
+      record.rooms.every(
+        (room) =>
+          typeof room.id === 'string' &&
+          typeof room.name === 'string' &&
+          typeof room.resource === 'string' &&
+          (room.hasReachedStart === undefined || typeof room.hasReachedStart === 'boolean') &&
+          Array.isArray(room.events) &&
+          (room.members === undefined ||
+            (Array.isArray(room.members.ids) &&
+              room.members.ids.every((id) => typeof id === 'string') &&
+              Number.isFinite(room.members.totalCount) &&
+              typeof room.members.complete === 'boolean' &&
+              Array.isArray(room.members.presence) &&
+              room.members.presence.every(
+                (entry) =>
+                  Array.isArray(entry) &&
+                  entry.length === 2 &&
+                  typeof entry[0] === 'string' &&
+                  Number.isInteger(entry[1])
+              ))) &&
+          (room.kind === undefined || typeof room.kind === 'number') &&
+          (room.universal === undefined || typeof room.universal === 'boolean')
+      );
+    if (!valid) return false;
+    decodePresentation(record as SavedView);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Read only a saved view for the exact local server and user. */
-export async function loadSavedView(serverId: string, userId: string | null): Promise<SavedView | null> {
+export async function loadSavedView(
+  serverId: string,
+  userId: string | null
+): Promise<SavedView | null> {
   if (!userId) return null;
   const generation = purgeGeneration;
   const db = await openDatabase();
   if (!db) return null;
   try {
     const transaction = db.transaction(STORE_NAME, 'readonly');
-    const value: unknown = await requestResult(transaction.objectStore(STORE_NAME).get(keyFor(serverId, userId)));
+    const value: unknown = await requestResult(
+      transaction.objectStore(STORE_NAME).get(keyFor(serverId, userId))
+    );
     if (generation !== purgeGeneration) return null;
     if (!validRecord(value) || value.serverId !== serverId || value.userId !== userId) return null;
+    // The validator is needed only when a disk record exists. Keep its schema
+    // library out of first-visit and login route bundles.
+    const { timelineSnapshotSchema, notificationSnapshotSchema } =
+      await import('./presentationSnapshot');
+    for (const room of value.rooms) room.events = timelineSnapshotSchema.parse(room.events);
+    if (value.presentation.notifications) {
+      value.presentation.notifications = notificationSnapshotSchema.parse(
+        value.presentation.notifications
+      );
+    }
+    if (generation !== purgeGeneration) return null;
     if (Date.now() - value.savedAt >= MAX_AGE_MS) {
       await clearSavedView(serverId, userId);
       return null;
@@ -117,7 +177,7 @@ export async function loadSavedView(serverId: string, userId: string | null): Pr
   }
 }
 
-/** Save a bounded text snapshot. Storage failure leaves live chat unaffected. */
+/** Save a bounded store snapshot. Storage failure leaves live chat unaffected. */
 export async function saveView(view: SavedView): Promise<void> {
   const generation = purgeGeneration;
   if (JSON.stringify(view).length * 2 > MAX_TOTAL_BYTES) return;
@@ -127,12 +187,19 @@ export async function saveView(view: SavedView): Promise<void> {
     if (generation !== purgeGeneration) return;
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
-    const current = (await requestResult(store.getAll()) as unknown[]).filter(validRecord);
-    if (current.some((entry) => entry.key === keyFor(view.serverId, view.userId) &&
-      entry.savedAt > view.savedAt)) return;
+    const current = ((await requestResult(store.getAll())) as unknown[]).filter(validRecord);
+    if (
+      current.some(
+        (entry) => entry.key === keyFor(view.serverId, view.userId) && entry.savedAt > view.savedAt
+      )
+    )
+      return;
     const entries = current
-      .filter((entry) => entry.key !== keyFor(view.serverId, view.userId) &&
-        Date.now() - entry.savedAt < MAX_AGE_MS)
+      .filter(
+        (entry) =>
+          entry.key !== keyFor(view.serverId, view.userId) &&
+          Date.now() - entry.savedAt < MAX_AGE_MS
+      )
       .sort((a, b) => b.savedAt - a.savedAt);
     const selected: SavedRecord[] = [{ ...view, key: keyFor(view.serverId, view.userId) }];
     let total = JSON.stringify(selected[0]).length * 2;

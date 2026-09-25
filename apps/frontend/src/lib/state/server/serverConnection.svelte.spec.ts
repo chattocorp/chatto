@@ -128,11 +128,14 @@ describe('ServerConnection', () => {
     const signal = new AbortController().signal;
     const read = client.apiConfig.beforePrivateRequest!('ListMembers', signal);
     let settled = false;
-    void read.finally(() => { settled = true; });
+    void read.finally(() => {
+      settled = true;
+    });
     await Promise.resolve();
     expect(settled).toBe(false);
-    await expect(client.apiConfig.beforePrivateRequest!('MarkRoomAsRead', signal))
-      .rejects.toMatchObject({ code: Code.FailedPrecondition });
+    await expect(
+      client.apiConfig.beforePrivateRequest!('MarkRoomAsRead', signal)
+    ).rejects.toMatchObject({ code: Code.FailedPrecondition });
 
     client.resumePrivateRequests();
     await expect(read).resolves.toBeUndefined();
@@ -142,10 +145,32 @@ describe('ServerConnection', () => {
   it('cancels held reads when their private connection is discarded', async () => {
     const client = new ServerConnection(makeConfig());
     client.pausePrivateRequests();
-    const read = client.apiConfig.beforePrivateRequest!('ListMembers', new AbortController().signal);
+    const read = client.apiConfig.beforePrivateRequest!(
+      'ListMembers',
+      new AbortController().signal
+    );
 
     client.dispose();
     await expect(read).rejects.toMatchObject({ code: Code.Canceled });
+  });
+
+  it('keeps commands blocked after viewer verification until catch-up completes', async () => {
+    const client = new ServerConnection(makeConfig());
+    const signal = new AbortController().signal;
+    client.pausePrivateRequests();
+    client.pausePrivateActions();
+    client.resumePrivateRequests();
+    await expect(
+      client.apiConfig.beforePrivateRequest!('ListMembers', signal)
+    ).resolves.toBeUndefined();
+    await expect(
+      client.apiConfig.beforePrivateRequest!('PostMessage', signal)
+    ).rejects.toMatchObject({ code: Code.FailedPrecondition });
+    client.resumePrivateActions();
+    await expect(
+      client.apiConfig.beforePrivateRequest!('PostMessage', signal)
+    ).resolves.toBeUndefined();
+    client.dispose();
   });
 
   it('cancels an aborted read without sending it after viewer verification', async () => {

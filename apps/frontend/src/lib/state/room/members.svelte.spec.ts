@@ -74,6 +74,23 @@ function createStore(results: Array<MemberDirectoryPage | Promise<MemberDirector
 }
 
 describe('RoomMembersStore', () => {
+  it('retains the complete visible membership until all refresh pages arrive', async () => {
+    const finalPage = deferred<MemberDirectoryPage>();
+    const store = createStore([
+      pageResult([user('u1'), user('u2')]),
+      pageResult([user('u1')], true, 2),
+      finalPage.promise
+    ]);
+    store.setRoom('room');
+    await store.loadInitial();
+    const refresh = store.refresh();
+    await vi.waitFor(() => expect(store.isBackgroundLoading).toBe(true));
+    expect(store.members.map((member) => member.id)).toEqual(['u1', 'u2']);
+    expect(store.totalCount).toBe(2);
+    finalPage.resolve(pageResult([user('u2')], false, 2));
+    await refresh;
+    expect(store.members.map((member) => member.id)).toEqual(['u1', 'u2']);
+  });
   it('publishes connected names while the full page is pending and preserves them between full pages', async () => {
     const first = deferred<MemberDirectoryPage>();
     const last = deferred<MemberDirectoryPage>();
@@ -227,11 +244,16 @@ describe('RoomMembersStore', () => {
   it('retains a join ID while the shared profile loads without a blank row or second request', async () => {
     const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);
     const profiles = getUserStore('member-join-test', 'connection');
-    profiles.set('first', new DirectoryMember({
-      user: { id: 'first', login: 'first', displayName: 'First' }
-    }));
+    profiles.set(
+      'first',
+      new DirectoryMember({
+        user: { id: 'first', login: 'first', displayName: 'First' }
+      })
+    );
     const connection = {
-      serverId: 'member-join-test', queryScope: 'connection', getAPI: () => api
+      serverId: 'member-join-test',
+      queryScope: 'connection',
+      getAPI: () => api
     } as unknown as ServerConnection;
     const store = new RoomMembersStore(connection);
     store.setRoom('room');
@@ -242,16 +264,22 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(2);
     expect(api.batchGetUsers).not.toHaveBeenCalled();
 
-    profiles.set('second', new DirectoryMember({
-      user: { id: 'second', login: 'second', displayName: 'Second' }
-    }));
+    profiles.set(
+      'second',
+      new DirectoryMember({
+        user: { id: 'second', login: 'second', displayName: 'Second' }
+      })
+    );
     expect(store.members.map((member) => member.login)).toEqual(['first', 'second']);
 
     await store.applyMembership('third', true, 'later-cursor');
     await store.applyMembership('third', false);
-    profiles.set('third', new DirectoryMember({
-      user: { id: 'third', login: 'third', displayName: 'Third' }
-    }));
+    profiles.set(
+      'third',
+      new DirectoryMember({
+        user: { id: 'third', login: 'third', displayName: 'Third' }
+      })
+    );
     expect(store.members.map((member) => member.id)).toEqual(['first', 'second']);
 
     disposeUserStore('member-join-test', 'connection');
@@ -260,11 +288,16 @@ describe('RoomMembersStore', () => {
   it('keeps connected member names owned by the shared profile store', async () => {
     const api = new FakeMemberDirectoryAPI([pageResult([user('first', 'stale')])]);
     const profiles = getUserStore('member-profile-test', 'connection');
-    profiles.set('first', new DirectoryMember({
-      user: { id: 'first', login: 'current', displayName: 'Current' }
-    }));
+    profiles.set(
+      'first',
+      new DirectoryMember({
+        user: { id: 'first', login: 'current', displayName: 'Current' }
+      })
+    );
     const connection = {
-      serverId: 'member-profile-test', queryScope: 'connection', getAPI: () => api
+      serverId: 'member-profile-test',
+      queryScope: 'connection',
+      getAPI: () => api
     } as unknown as ServerConnection;
     const store = new RoomMembersStore(connection);
     store.setRoom('room');
@@ -274,9 +307,12 @@ describe('RoomMembersStore', () => {
     store.updateUsers([user('first', 'stale')]);
     expect(store.members[0]?.login).toBe('current');
 
-    profiles.set('first', new DirectoryMember({
-      user: { id: 'first', login: 'updated', displayName: 'Updated' }
-    }));
+    profiles.set(
+      'first',
+      new DirectoryMember({
+        user: { id: 'first', login: 'updated', displayName: 'Updated' }
+      })
+    );
     expect(store.members[0]?.login).toBe('updated');
     disposeUserStore('member-profile-test', 'connection');
   });
@@ -315,35 +351,44 @@ describe('RoomMembersStore', () => {
   });
 
   it('renders deleted members but omits identities with pending profiles', async () => {
-    const api = new FakeMemberDirectoryAPI([{
-      members: [],
-      memberIds: ['deleted', 'pending'],
-      consumedCount: 2,
-      totalCount: 2,
-      hasMore: false
-    }]);
+    const api = new FakeMemberDirectoryAPI([
+      {
+        members: [],
+        memberIds: ['deleted', 'pending'],
+        consumedCount: 2,
+        totalCount: 2,
+        hasMore: false
+      }
+    ]);
     const profiles = getUserStore('deleted-member-test', 'connection');
     profiles.delete('deleted');
     const connection = {
-      serverId: 'deleted-member-test', queryScope: 'connection', getAPI: () => api
+      serverId: 'deleted-member-test',
+      queryScope: 'connection',
+      getAPI: () => api
     } as unknown as ServerConnection;
     const store = new RoomMembersStore(connection);
     store.setRoom('room');
     await store.loadInitial();
 
-    expect(store.members).toEqual([{
-      id: 'deleted',
-      login: '',
-      displayName: '',
-      deleted: true,
-      avatarUrl: null,
-      presenceStatus: PresenceStatus.OFFLINE
-    }]);
+    expect(store.members).toEqual([
+      {
+        id: 'deleted',
+        login: '',
+        displayName: '',
+        deleted: true,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.OFFLINE
+      }
+    ]);
     expect(store.totalCount).toBe(2);
 
-    profiles.set('pending', new DirectoryMember({
-      user: { id: 'pending', login: 'alice', displayName: 'Alice' }
-    }));
+    profiles.set(
+      'pending',
+      new DirectoryMember({
+        user: { id: 'pending', login: 'alice', displayName: 'Alice' }
+      })
+    );
     expect(store.members.map((member) => member.displayName)).toEqual(['', 'Alice']);
     disposeUserStore('deleted-member-test', 'connection');
   });
@@ -356,9 +401,12 @@ describe('RoomMembersStore', () => {
       { members: [], memberIds: ['late-profile'], consumedCount: 1, totalCount: 1, hasMore: false }
     ]);
     const profiles = getUserStore('late-search-profile-test', 'connection');
-    profiles.set('first', new DirectoryMember({
-      user: { id: 'first', login: 'first', displayName: 'First' }
-    }));
+    profiles.set(
+      'first',
+      new DirectoryMember({
+        user: { id: 'first', login: 'first', displayName: 'First' }
+      })
+    );
     const connection = {
       serverId: 'late-search-profile-test',
       queryScope: 'connection',
@@ -372,9 +420,12 @@ describe('RoomMembersStore', () => {
     await store.setSearch('alice');
     expect(store.filteredMembers).toEqual([]);
 
-    profiles.set('late-profile', new DirectoryMember({
-      user: { id: 'late-profile', login: 'alice', displayName: 'Alice Smith' }
-    }));
+    profiles.set(
+      'late-profile',
+      new DirectoryMember({
+        user: { id: 'late-profile', login: 'alice', displayName: 'Alice Smith' }
+      })
+    );
     expect(store.filteredMembers.map((member) => member.displayName)).toEqual(['Alice Smith']);
 
     backgroundPage.resolve(pageResult([user('late-profile', 'alice')], false, 2));
@@ -667,26 +718,29 @@ describe('RoomMembersStore', () => {
     expect(store.hasLoadedAll).toBe(true);
   });
 
-  it.each([false, true])('handles a failed later page during reauthorization: %s', async (reauthorize) => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fakeAPI = new FakeMemberDirectoryAPI([
-      pageResult([user('u1', 'initial')], false, 1),
-      pageResult([user('u2', 'refresh-a')], true, 3),
-      Promise.reject(new Error('network failed'))
-    ]);
-    const store = new RoomMembersStore(fakeAPI);
+  it.each([false, true])(
+    'handles a failed later page during reauthorization: %s',
+    async (reauthorize) => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const fakeAPI = new FakeMemberDirectoryAPI([
+        pageResult([user('u1', 'initial')], false, 1),
+        pageResult([user('u2', 'refresh-a')], true, 3),
+        Promise.reject(new Error('network failed'))
+      ]);
+      const store = new RoomMembersStore(fakeAPI);
 
-    try {
-      store.setRoom('room-1');
-      await store.loadInitial();
-      await store.refresh({ reauthorize });
+      try {
+        store.setRoom('room-1');
+        await store.loadInitial();
+        await store.refresh({ reauthorize });
 
-      expect(store.members.map((member) => member.login)).toEqual(reauthorize ? [] : ['refresh-a']);
-      expect(store.totalCount).toBe(reauthorize ? 0 : 3);
-      expect(store.hasLoadedAll).toBe(false);
-      expect(store.loadError).toBe('network failed');
-    } finally {
-      consoleErrorSpy.mockRestore();
+        expect(store.members.map((member) => member.login)).toEqual(reauthorize ? [] : ['initial']);
+        expect(store.totalCount).toBe(reauthorize ? 0 : 1);
+        expect(store.hasLoadedAll).toBe(false);
+        expect(store.loadError).toBe('network failed');
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     }
-  });
+  );
 });
