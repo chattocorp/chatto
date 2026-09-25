@@ -339,7 +339,7 @@
     docs: {
       description: {
         story:
-          '`icon-action` uses soft corners and a faint neutral hover tint over its parent surface. Keyboard focus keeps a clear outline. Header icons share this feedback; selected toolbar icons use the shared raised finish and look inset while pressed.'
+          '`icon-action` uses soft corners and a faint neutral hover tint over its parent surface. Keyboard focus keeps a clear outline. Header icons share this feedback. A selected pane-header icon uses the action fill of the current sidebar item.'
       }
     }
   }}
