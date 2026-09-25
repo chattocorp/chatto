@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-24
 
 ## Overview
 
@@ -18,6 +18,10 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - A group header shows a permanent **+** button when the viewer can create a room or manage the group. It opens a small menu with **New Room** (`room.create`) and **New Link** (group `room.manage`), showing only permitted actions. The button also works when the group is collapsed. The controls and open creation menu update when group permissions change, including when privileged mode is enabled or disabled. Each action creates its entry in that group. The header context menu keeps the creation and management actions.
 - Explicit drag handles let authorized viewers reorder groups and move room or link entries within or between groups. Pointer-based layouts fade each drag handle in over the leading row icon. Touch layouts keep the controls visible.
 - Configured room groups, the alphabetical fallback used before a layout exists, and the Direct Messages section share the same sidebar heading, spacing, and collapse/expand interaction. This presentation does not make Direct Messages an operator-managed room group.
+- When a channel room or DM becomes current, its sidebar row scrolls into view
+  if the row exists. An already visible row stays in place. A closed sidebar
+  stays closed; the mobile drawer is positioned for its next opening, while a
+  hidden desktop sidebar waits until it opens.
 - ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
 - Unjoined channel rooms are hidden by default in each expanded group. A compact "+ N more" row at the end of the group reveals them in their configured order. Select "Show less" to hide them again. The control appears even when only one unjoined room remains. Joined rooms, sidebar links, and the current room stay visible. The same rule applies to the alphabetical fallback. Expansion is independent for each group and resets when the sidebar is remounted. This control does not contact an external service.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.

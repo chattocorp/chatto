@@ -31,6 +31,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
+  import { sidebarNav } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import {
     isNavigationVisibleRoom,
@@ -645,6 +646,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return sections;
   });
 
+  /** Reveal the selected row when it renders or the desktop sidebar opens. */
+  const revealCurrentRoom: Attachment<HTMLAnchorElement> = (row) => {
+    if (!sidebarNav.isMobile && !sidebarNav.isOpen) return;
+    row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
+
   let groupByRoomId = $derived.by(() => {
     const groups = new SvelteMap<string, RoomsListGroup>();
     for (const group of navigation.roomGroups) {
@@ -854,6 +861,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
     {@attach roomMenuTrigger(room)}
+    {@attach isCurrentRoom && revealCurrentRoom}
   >
     {#if presentation}
       <div class="flex shrink-0 -space-x-1">
