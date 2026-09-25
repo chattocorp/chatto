@@ -267,10 +267,13 @@ Do not generate playground links for code written into this repository.
   updates during first hydration instead of restarting it, fence and retry
   stale append reads, and version per-resource async refreshes so older
   responses cannot restore deleted or superseded data.
-- Keep a realtime resume cursor RAM-only and owned by the exact per-server
-  projection it advances. Socket teardown must not discard either one, and a
-  recreated projection must resume without a cursor so it performs an exact
-  WebSocket snapshot and cursor-bounded targeted resource reads.
+- Keep the realtime resume cursor owned by the exact per-server projection it
+  advances. Persist it only together with a complete, versioned projection
+  snapshot in one atomic transaction. Restore the cursor only after validating
+  the complete snapshot set, and verify the viewer before starting replay.
+  Missing, incompatible, or incomplete snapshots must start without a cursor.
+  Socket teardown must not discard the retained projection or its cursor. See
+  [ADR-104](../../docs/adr/ADR-104-checkpointed-client-projection-snapshots.md).
 - Treat undecodable realtime frames and unknown top-level frames as fatal for
   that socket. Protocol 4 makes additive semantic event variants
   skippable because the common cursor stays outside the event `oneof`.
