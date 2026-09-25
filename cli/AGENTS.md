@@ -44,8 +44,12 @@ authorization, live events, backup and restore, and backend tests.
 
 - Public RPC API surface lives in ConnectRPC/protobuf or the planned wire
   protocol.
-- Keep ConnectRPC transport thin: authenticate, decode, map errors/responses,
-  and delegate policy/domain work to shared services.
+- Keep ConnectRPC transport thin: authenticate, decode, build responses, and
+  delegate policy/domain work to shared services.
+- Handlers return core errors directly. A shared interceptor maps them to
+  Connect codes through the `connectError` table; do not call `connectError`
+  in handlers. Code or tests that call a handler directly and inspect the code
+  must use `errorCode`, because direct calls skip the interceptor.
 - Keep projected read hydration out of ConnectRPC handlers. Put per-response
   batching, bounded concurrency, include-map construction, and protobuf response
   assembly in small `*_assembler.go` helpers near the service that owns the

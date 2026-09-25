@@ -73,7 +73,10 @@ requests a private preference read. This transient signal has no cursor and is
 not stored in EVT. Other viewers receive no frame for it. Public presence
 transitions come from the effective-status hub. Invisible
 heartbeats and expiry do not produce repeated Offline transitions. Typing is
-checked against the private choice at publication and delivery.
+checked against the private choice at publication and delivery. At delivery,
+each process reads the sender's choice once per typing event, and only when it
+has a local member of the room other than the sender. The hub does not hold its
+lock during this read.
 
 Common metadata and the cursor are outside the event `oneof`. A client can
 ignore a new event variant and still retain its cursor after it accepts the

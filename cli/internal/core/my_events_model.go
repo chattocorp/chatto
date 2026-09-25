@@ -316,57 +316,66 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 	return nil
 }
 
-func (c *ChattoCore) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
-	return c.myEventsModel.filterPubSubEvent(ctx, userID, memberRooms, msg, event)
+// pubSubDelivery holds the recipient-independent scope of one live sync event.
+// pubSubSubjectPayloadScope accepts only typing events on room subjects, so a
+// delivery with a roomID is always a typing event.
+type pubSubDelivery struct {
+	event        *pubsubv1.PubSubEvent
+	kind         RoomKind
+	roomID       string
+	targetUserID string
 }
 
-func (s *MyEventsModel) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
+// preparePubSubEvent checks that the subject and payload agree. It does not
+// depend on the recipient.
+func (s *MyEventsModel) preparePubSubEvent(msg *nats.Msg, event *pubsubv1.PubSubEvent) (pubSubDelivery, bool) {
 	if event == nil || event.Event == nil {
 		s.core.logger.Warn("Dropping live sync event without payload", "subject", msg.Subject)
-		return nil, false
+		return pubSubDelivery{}, false
 	}
-
 	kind, roomID, targetUserID, ok := pubSubSubjectPayloadScope(msg.Subject, event)
 	if !ok {
 		s.core.logger.Warn("Dropping live sync event with mismatched subject and payload", "subject", msg.Subject)
-		return nil, false
+		return pubSubDelivery{}, false
 	}
-	if roomID != "" {
+	return pubSubDelivery{event: event, kind: kind, roomID: roomID, targetUserID: targetUserID}, true
+}
 
-		_, isMember := memberRooms[roomID]
+// typingSenderVisible applies the sender's private visibility choice. It reads
+// the authoritative record, so callers must not hold MyEventsHub.mu.
+func (s *MyEventsModel) typingSenderVisible(ctx context.Context, senderID string) bool {
+	allowed, err := s.core.MayPublishTyping(ctx, senderID)
+	return err == nil && allowed
+}
 
-		// Skip own typing events; the sender doesn't need to see them.
-		if event.GetUserTyping() != nil && event.ActorId == userID {
+// filterPreparedPubSubEvent applies the recipient-specific delivery rules. For
+// room (typing) events, the caller must already have checked
+// typingSenderVisible.
+func (s *MyEventsModel) filterPreparedPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, delivery pubSubDelivery) (EventEnvelope, bool) {
+	event := delivery.event
+	if delivery.roomID == "" {
+		if delivery.targetUserID != userID {
 			return nil, false
-		}
-
-		if !isMember {
-			return nil, false
-		}
-		if event.GetUserTyping() != nil {
-			allowed, privacyErr := s.core.MayPublishTyping(ctx, event.ActorId)
-			if privacyErr != nil || !allowed {
-				return nil, false
-			}
-			typing := event.GetUserTyping()
-			var canRead bool
-			var err error
-			if typing.GetThreadRootEventId() != "" {
-				canRead, err = s.core.CanReadThreadMessages(ctx, userID, kind, roomID, typing.GetThreadRootEventId())
-			} else {
-				canRead, err = s.core.CanReadMessages(ctx, userID, kind, roomID)
-			}
-			if err != nil || !canRead {
-				return nil, false
-			}
 		}
 		return NewPubSubEventEnvelope(event), true
 	}
-
-	if targetUserID != userID {
+	// Skip own typing events; the sender doesn't need to see them.
+	if event.ActorId == userID {
 		return nil, false
 	}
-
+	if _, isMember := memberRooms[delivery.roomID]; !isMember {
+		return nil, false
+	}
+	var canRead bool
+	var err error
+	if threadRootID := event.GetUserTyping().GetThreadRootEventId(); threadRootID != "" {
+		canRead, err = s.core.CanReadThreadMessages(ctx, userID, delivery.kind, delivery.roomID, threadRootID)
+	} else {
+		canRead, err = s.core.CanReadMessages(ctx, userID, delivery.kind, delivery.roomID)
+	}
+	if err != nil || !canRead {
+		return nil, false
+	}
 	return NewPubSubEventEnvelope(event), true
 }
 
@@ -559,6 +568,9 @@ func pubSubSubjectPayloadScope(subject string, event *pubsubv1.PubSubEvent) (Roo
 		}
 		return "", "", parts[3], parts[4] == eventType
 	case "room":
+		// Room scope accepts only typing events. MyEventsHub.handlePubSub
+		// applies the typing privacy check to every room-scoped delivery, so a
+		// new room event type must revisit that check.
 		if len(parts) != 6 || parts[4] == "" || strings.ContainsAny(parts[4], ".*>") || parts[5] != "user_typing" {
 			return "", "", "", false
 		}

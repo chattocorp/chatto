@@ -496,6 +496,7 @@ func TestPubSubSubjectPayloadScope(t *testing.T) {
 		{name: "room scope", subject: "live.sync.room.channel.R1.user_typing", event: typingEvent, want: true},
 		{name: "room payload mismatch", subject: "live.sync.room.channel.R2.user_typing", event: typingEvent},
 		{name: "room type mismatch", subject: "live.sync.room.channel.R1.session_terminated", event: userEvent},
+		{name: "room scope accepts only typing", subject: "live.sync.room.channel.R1.user_typing", event: userEvent},
 		{name: "wildcard target rejected", subject: "live.sync.user.*.session_terminated", event: userEvent},
 		{name: "extra token rejected", subject: "live.sync.user.U1.session_terminated.extra", event: userEvent},
 	}
