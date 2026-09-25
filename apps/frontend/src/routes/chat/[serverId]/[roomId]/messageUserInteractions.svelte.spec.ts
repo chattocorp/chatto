@@ -34,14 +34,13 @@ describe('MessageUserInteractionState', () => {
     expect(state.hasCurrentMember(member.id)).toBe(false);
   });
 
-  it('only opens mention users that are current room members', () => {
+  it('tracks the selected user and current membership independently', () => {
     const state = new MessageUserInteractionState(() => [member]);
     const rect = new DOMRect(1, 2, 3, 4);
 
-    state.showMember('missing', rect);
-    expect(state.user).toBeNull();
-
-    state.showMember(member.id, rect);
+    expect(state.hasCurrentMember('missing')).toBe(false);
+    expect(state.hasCurrentMember(member.id)).toBe(true);
+    state.showUser(member, rect);
     expect(state.user).toEqual(member);
     expect(state.anchorRect).toBe(rect);
 

@@ -177,6 +177,24 @@ describe('MessageEvent action model integration', () => {
     expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined();
   });
 
+  it('keeps the user menu open when its source message unmounts', async () => {
+    const event = messageEvent();
+    const rendered = render(MessageEventTestHarness, { props: { event } });
+    const body = q(rendered.container, '[data-testid="message-body"]')!;
+    body.innerHTML = '<span class="mention" data-user-id="target-user">@Target User</span>';
+    q(body, '.mention')!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() =>
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Target User')
+    );
+
+    await rendered.rerender({ event, showMessage: false });
+
+    expect(rendered.container.querySelector('[data-testid="message-row"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Target User');
+  });
+
   it('keeps the message menu for a mention without a current member', async () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;
@@ -186,7 +204,9 @@ describe('MessageEvent action model integration', () => {
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
     );
 
-    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy());
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy()
+    );
   });
 
   it('shows Copy Image only for a right-clicked image attachment', async () => {
@@ -221,16 +241,12 @@ describe('MessageEvent action model integration', () => {
     await openContextMenu(rendered.container);
     expect(menuButton(rendered.container, 'Copy image')).toBeUndefined();
 
-    imageElement.dispatchEvent(
-      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    );
+    imageElement.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeTruthy());
     (q(rendered.container, 'button[aria-label="More actions"]') as HTMLButtonElement).click();
     await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeUndefined());
 
-    imageElement.dispatchEvent(
-      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    );
+    imageElement.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeTruthy());
     await rendered.rerender({ event: messageEvent({ id: 'next-message' }) });
     await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy image')).toBeUndefined());
@@ -697,7 +713,9 @@ describe('MessageEvent action model integration', () => {
     vi.advanceTimersByTime(500);
     flushSync();
     vi.useRealTimers();
-    await vi.waitFor(() => expect(actionSheetButton(rendered.container, 'Copy message link')).toBeTruthy());
+    await vi.waitFor(() =>
+      expect(actionSheetButton(rendered.container, 'Copy message link')).toBeTruthy()
+    );
     expect(actionSheetButton(rendered.container, 'Edit')).toBeUndefined();
     expect(actionSheetButton(rendered.container, 'Delete')).toBeUndefined();
     expect(q(rendered.container, 'dialog[open] button[aria-label="React with 👍"]')).toBeNull();
