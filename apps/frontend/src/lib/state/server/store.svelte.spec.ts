@@ -729,6 +729,12 @@ describe('ServerStateStore viewer restoration', () => {
       complete: true,
       presence: [['U2', 1]]
     });
+    original.realtimePresenceHandler(
+      new RealtimeEvent({
+        actorId: 'U2',
+        event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 4 }) }
+      })
+    );
     original.realtimeSync.markCaughtUp('live-cursor');
     original.noteViewedRoom('R1');
     const snapshot = JSON.parse(JSON.stringify(original.savedView));
@@ -744,6 +750,7 @@ describe('ServerStateStore viewer restoration', () => {
       original.membersForRoom('R1').capturePresentation()
     );
     expect(restored.viewerUser?.displayName).toBe('Alice');
+    expect(restored.projection.users.get('U2')?.user?.presenceStatus).toBe(4);
     expect(restored.currentUser.verifiedUserId).toBeNull();
     expect(restored.isAuthenticated).toBe(false);
     expect(restored.realtimeSync.resumeCursor).toBeNull();

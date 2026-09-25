@@ -893,7 +893,16 @@ export class ServerStateStore {
           this.projection.server ?? new ServerPublicProfile({ name: this.serverInfo.name })
         ).toJsonString(),
         roomGroups: this.projection.roomGroups.map((group) => group.toJsonString()),
-        users: [...this.projection.users.values()].map((member) => member.toJsonString()),
+        users: [...this.projection.users.values()].map((member) => {
+          // Presence events update a separate runtime owner. Persist its latest
+          // value so restored profiles do not briefly show an older status.
+          const copy = member.clone();
+          if (copy.user) {
+            copy.user.presenceStatus =
+              this.#memberPresence.get(copy.user.id) ?? copy.user.presenceStatus;
+          }
+          return copy.toJsonString();
+        }),
         viewer: this.projection.viewer.toJsonString(),
         runtime: this.projection.serverState?.runtime?.toJsonString(),
         motd: this.projection.serverState?.motd,

@@ -60,6 +60,13 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
   await chatPage.goto();
   await chatPage.enterRoom('general');
   await waitForRoomReady(page);
+  // Keep server data unchanged: automatic presence otherwise moves the viewer
+  // offline on disconnect and online again after reconnect.
+  await page.getByTestId('current-user-presence-menu').click();
+  await page.getByRole('menuitemradio', { name: 'Look offline', exact: true }).click();
+  await expect(roomPage.offlineSectionHeader).toHaveText('Offline (2)');
+  await roomPage.offlineSectionHeader.click();
+  await expect(page.getByTestId('room-member-card')).toHaveCount(2);
   const root = await roomPage.sendMessage('Cached layout with thread and reaction');
   const eventId = await root.getEventId();
   await root.openThread();
@@ -125,6 +132,7 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
     await root.expectReaction('👍', 1);
     await root.expectFollowingThread();
     await expect(page.getByTestId('room-member-list')).toBeVisible();
+    await expect(page.getByTestId('room-member-card')).toHaveCount(2);
     await expect(page.getByTestId('room-post-denied')).toHaveCount(0);
     await page.evaluate(() => document.fonts.ready);
     // Finish the normal route entrance animation before measuring the data handoff.
