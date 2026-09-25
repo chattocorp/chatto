@@ -349,10 +349,9 @@ func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
 	for i, event := range eventsToApply {
 		require.NoError(t, p.Apply(event, uint64(i+1)))
 	}
-	hash, setAt, ok := p.PasswordHashWithSetAt("U1")
+	hash, ok := p.PasswordHash("U1")
 	require.True(t, ok)
 	require.Equal(t, []byte("hash"), hash)
-	require.Equal(t, createdAt.Add(time.Minute), setAt)
 	require.Equal(t, uint64(2), mustAuthGeneration(t, p, "U1"))
 	owner, ok := p.ExternalIdentityOwnerID("issuer", "subject")
 	require.True(t, ok)
@@ -360,7 +359,7 @@ func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
 	require.True(t, p.HasOAuthConsent("U1", "https://client.example"))
 
 	require.NoError(t, p.Apply(&evtv1.Event{Id: "A5", Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "U1"}}}, 5))
-	_, _, ok = p.PasswordHashWithSetAt("U1")
+	_, ok = p.PasswordHash("U1")
 	require.False(t, ok)
 	_, ok = p.ExternalIdentityOwnerID("issuer", "subject")
 	require.False(t, ok)
@@ -383,7 +382,7 @@ func TestUserAuthProjectionShreddingRequestIsTerminal(t *testing.T) {
 	require.NoError(t, p.Apply(&evtv1.Event{Id: "A4", Event: &evtv1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("late")},
 	}}, 4))
-	_, _, ok := p.PasswordHashWithSetAt("U1")
+	_, ok := p.PasswordHash("U1")
 	require.False(t, ok)
 }
 

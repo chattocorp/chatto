@@ -276,7 +276,7 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 		}
 	})
 
-	t.Run("revokes bearer tokens for reset user only", func(t *testing.T) {
+	t.Run("revokes credentials for reset user only", func(t *testing.T) {
 		user, _ := core.CreateUser(ctx, "system", "reset-revoke-user", "Reset Revoke User", "oldpassword")
 		core.AddVerifiedEmailDirect(ctx, user.Id, "resetrevoke@example.com")
 		otherUser, _ := core.CreateUser(ctx, "system", "reset-revoke-other", "Reset Revoke Other", "password123")
@@ -284,6 +284,18 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 		token1, _ := core.CreateAuthToken(ctx, user.Id)
 		token2, _ := core.CreateAuthToken(ctx, user.Id)
 		otherToken, _ := core.CreateAuthToken(ctx, otherUser.Id)
+		cookieSession, _, err := core.CreateCookieSession(ctx, user.Id, "password_login")
+		if err != nil {
+			t.Fatalf("CreateCookieSession: %v", err)
+		}
+		otherCookieSession, _, err := core.CreateCookieSession(ctx, otherUser.Id, "password_login")
+		if err != nil {
+			t.Fatalf("CreateCookieSession other: %v", err)
+		}
+		bearerSession, err := core.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+		if err != nil {
+			t.Fatalf("CreateBearerSessionWithSource: %v", err)
+		}
 		resetToken, _ := core.CreatePasswordResetToken(ctx, "resetrevoke@example.com")
 		newHash, _ := bcrypt.GenerateFromPassword([]byte("newpassword123"), bcrypt.DefaultCost)
 
@@ -301,6 +313,15 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 			t.Fatalf("other token should remain valid: %v", err)
 		} else if gotUserID != otherUser.Id {
 			t.Fatalf("other token user ID = %q, want %q", gotUserID, otherUser.Id)
+		}
+		if _, err := core.ValidateCookieCredential(ctx, cookieSession); !errors.Is(err, ErrCookieSessionNotFound) {
+			t.Fatalf("cookie ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
+		}
+		if _, err := core.ValidateCookieCredential(ctx, otherCookieSession); err != nil {
+			t.Fatalf("other cookie session should remain valid: %v", err)
+		}
+		if _, err := core.RefreshBearerSession(ctx, bearerSession.RefreshToken, testRefreshRequestIDA, ""); !errors.Is(err, ErrRefreshTokenNotFound) {
+			t.Fatalf("RefreshBearerSession err = %v, want ErrRefreshTokenNotFound", err)
 		}
 	})
 

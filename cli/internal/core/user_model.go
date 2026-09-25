@@ -217,12 +217,7 @@ func (m *UserModel) externalIdentities(userID string) []ExternalIdentity {
 }
 
 func (m *UserModel) passwordHash(userID string) ([]byte, bool) {
-	hash, _, ok := m.auth.Projection().PasswordHashWithSetAt(userID)
-	return hash, ok
-}
-
-func (m *UserModel) passwordHashWithSetAt(userID string) ([]byte, time.Time, bool) {
-	return m.auth.Projection().PasswordHashWithSetAt(userID)
+	return m.auth.Projection().PasswordHash(userID)
 }
 
 func (m *UserModel) authGeneration(userID string) (uint64, bool) {

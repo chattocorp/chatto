@@ -78,6 +78,19 @@ type AuthTokenData struct {
 	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at,omitempty"`
 }
 
+// revokedByAuthGeneration reports whether a newer auth generation already
+// revoked a stored credential. Logout uses it so that a stale credential does
+// not count as a live logout that terminates the user's current sessions.
+func (c *ChattoCore) revokedByAuthGeneration(ctx context.Context, userID string, authGeneration uint64) (bool, error) {
+	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
+		if errors.Is(err, ErrAuthenticationRevoked) {
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
+}
+
 // ValidatedRuntimeCredential is the normalized result of validating an opaque
 // runtime credential handle from a specific presentation channel.
 type ValidatedRuntimeCredential struct {
@@ -238,23 +251,12 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		}
 	}
 
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         tokenData.UserID,
-		CreatedAt:      tokenData.CreatedAt,
-		AuthGeneration: tokenData.AuthGeneration,
-	})
-	if err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return ValidatedRuntimeCredential{}, err
 		}
 		_ = c.deleteRuntimeStateKey(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
-	}
-	if validation.ShouldPersistAuthGeneration {
-		tokenData.AuthGeneration = validation.AuthGeneration
-		if value, err := json.Marshal(tokenData); err == nil {
-			_, _ = c.updateRuntimeStateUntil(ctx, key, value, entry.Revision(), tokenData.ExpiresAt, time.Now())
-		}
 	}
 
 	return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
@@ -340,7 +342,9 @@ func (c *ChattoCore) RevokeAuthTokenWithReason(ctx context.Context, token, reaso
 // RevokePresentedRuntimeCredentialWithReason deletes one opaque runtime
 // credential for the requested presentation channel. It returns the owning user
 // ID when the credential existed so HTTP-edge logout can apply one audit and
-// live-session termination flow for bearer and cookie presentations.
+// live-session termination flow for bearer and cookie presentations. A
+// credential that a newer auth generation already revoked is deleted and
+// reported as not revoked.
 func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Context, token string, presentation AuthTokenPresentation, reason string) (string, bool, error) {
 	if token == "" {
 		return "", false, nil
@@ -365,6 +369,17 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 	if tokenData.presentationOrDefault() != presentation {
 		return "", false, nil
 	}
+	// If the generation check fails, revoke the credential as a live logout.
+	// Revocation must not depend on the user projection.
+	if stale, err := c.revokedByAuthGeneration(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
+		c.logger.Warn("Failed to check auth generation during credential revocation", "error", err)
+	} else if stale {
+		if tokenData.RenewableSessionID != "" {
+			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(tokenData.RenewableSessionID))
+		}
+		_ = c.deleteRuntimeStateKey(ctx, key)
+		return "", false, nil
+	}
 
 	if isBearerPresentation(presentation) {
 		if tokenData.RenewableSessionID == "" {
@@ -384,7 +399,9 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 }
 
 // RevokeAllAuthTokensForUserWithReason deletes every renewable bearer session
-// for a user and records one revocation audit fact per session.
+// for a user and records one revocation audit fact per session. The scan reads
+// every renewable session on the server, so do not call it on latency-sensitive
+// paths; password changes and resets revoke sessions through the auth generation.
 func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, userID, reason string) (int, error) {
 	if userID == "" {
 		return 0, nil

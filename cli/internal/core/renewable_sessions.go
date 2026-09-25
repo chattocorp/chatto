@@ -373,9 +373,7 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 			return RenewableSession{}, nil, err
 		}
 	}
-	if _, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID: session.UserID, CreatedAt: session.CreatedAt, AuthGeneration: session.AuthGeneration,
-	}); err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, session.UserID, session.AuthGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 			return RenewableSession{}, nil, ErrRefreshTokenNotFound
@@ -509,7 +507,9 @@ func (c *ChattoCore) RevokeRefreshTokenWithReason(ctx context.Context, refreshTo
 
 // RevokeRefreshTokenWithReasonResult revokes a renewable session and returns
 // the owning user when the presented refresh credential was authentic and the
-// session still existed.
+// session still existed. A session that a newer auth generation already revoked
+// is deleted and reported as not revoked, so logout does not terminate the
+// user's current sessions.
 func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, refreshToken, reason string) (string, bool, error) {
 	sessionID, _, resourceBound, ok := c.parseRefreshTokenDetails(refreshToken)
 	if !ok {
@@ -523,6 +523,14 @@ func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, ref
 		return "", false, err
 	}
 	if renewableSessionIsResourceBound(session) != resourceBound {
+		return "", false, nil
+	}
+	// If the generation check fails, revoke the session as a live logout.
+	// Revocation must not depend on the user projection.
+	if stale, err := c.revokedByAuthGeneration(ctx, session.UserID, session.AuthGeneration); err != nil {
+		c.logger.Warn("Failed to check auth generation during refresh token revocation", "error", err)
+	} else if stale {
+		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID))
 		return "", false, nil
 	}
 	if err := c.revokeRenewableSession(ctx, sessionID, reason); err != nil {

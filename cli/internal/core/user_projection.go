@@ -1120,12 +1120,7 @@ func (p *UserProjection) ExternalIdentityOwnerID(issuer, subject string) (string
 }
 
 func (p *UserProjection) PasswordHash(userID string) ([]byte, bool) {
-	hash, _, ok := p.PasswordHashWithSetAt(userID)
-	return hash, ok
-}
-
-func (p *UserProjection) PasswordHashWithSetAt(userID string) ([]byte, time.Time, bool) {
-	return p.auth.PasswordHashWithSetAt(userID)
+	return p.auth.PasswordHash(userID)
 }
 
 func (p *UserProjection) AuthGeneration(userID string) (uint64, bool) {

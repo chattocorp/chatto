@@ -100,20 +100,12 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 		if tokenData.ExpiresAt.IsZero() || !now.Before(tokenData.ExpiresAt) {
 			return time.Time{}, ErrCookieSessionNotFound
 		}
-		validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-			UserID:         tokenData.UserID,
-			CreatedAt:      tokenData.CreatedAt,
-			AuthGeneration: tokenData.AuthGeneration,
-		})
-		if err != nil {
+		if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
 			if errors.Is(err, ErrAuthenticationRevoked) {
 				_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
 				return time.Time{}, ErrCookieSessionNotFound
 			}
 			return time.Time{}, err
-		}
-		if validation.ShouldPersistAuthGeneration {
-			tokenData.AuthGeneration = validation.AuthGeneration
 		}
 		if active && now.Before(tokenData.PrivilegedModeExpiresAt) {
 			return tokenData.PrivilegedModeExpiresAt, nil

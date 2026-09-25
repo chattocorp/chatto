@@ -228,12 +228,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 		return BearerSessionCredentials{}, "", ErrAuthCodeInvalidVerifier
 	}
 
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         codeData.UserID,
-		CreatedAt:      codeData.CreatedAt,
-		AuthGeneration: codeData.AuthGeneration,
-	})
-	if err != nil {
+	if err := c.RequireAuthenticationAllowed(ctx, codeData.UserID, codeData.AuthGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return BearerSessionCredentials{}, "", err
 		}
@@ -242,10 +237,9 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 		}
 		return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 	}
-	codeData.AuthGeneration = validation.AuthGeneration
 
 	// Issue a renewable bearer session.
-	credentials, err := c.CreateOAuthBearerSessionForClientGrant(ctx, validation.UserID, codeData.ClientID, codeData.Resource, codeData.Scopes, validation.AuthGeneration)
+	credentials, err := c.CreateOAuthBearerSessionForClientGrant(ctx, codeData.UserID, codeData.ClientID, codeData.Resource, codeData.Scopes, codeData.AuthGeneration)
 	if err != nil {
 		return BearerSessionCredentials{}, "", fmt.Errorf("failed to create bearer session: %w", err)
 	}
@@ -257,7 +251,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 		return BearerSessionCredentials{}, "", err
 	}
 
-	return credentials, validation.UserID, nil
+	return credentials, codeData.UserID, nil
 }
 
 // ============================================================================
