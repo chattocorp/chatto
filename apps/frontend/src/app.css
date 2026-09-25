@@ -1241,11 +1241,11 @@
   @apply shrink-0 text-base transition-colors feedback-quick;
 }
 
-/* Selected panel tint. Matches the current sidebar item so that one selection
-   language applies across navigation and pane header toggles. */
+/* This utility gives a selected panel button the fill and colour of the
+   current sidebar item. */
 @utility pane-header-icon-button-active {
   @apply bg-action/10 text-action not-disabled:hover:bg-action/15 not-disabled:hover:text-action;
-  @apply not-disabled:active:bg-action/20 focus-visible:bg-action/10 focus-visible:text-action;
+  @apply not-disabled:active:bg-action/20 focus-visible:bg-action/10;
 }
 
 /* Sidebar navigation utilities */
