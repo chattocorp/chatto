@@ -155,20 +155,23 @@ func withPrivilegedModeEvaluation(ctx context.Context, userID string, active boo
 }
 
 // privilegedModeAllows reports whether privileged mode is active for userID.
-// A fixed evaluation state wins. Otherwise, an authenticated human request
-// uses its credential's activation deadline, and checks for a different human
-// resolve as inactive. Internal work without a credential and bot API keys
-// keep entitlement semantics.
+// A fixed evaluation state wins. Otherwise, internal work without a credential
+// keeps entitlement semantics. An authenticated request resolves checks for a
+// different user as inactive. A human request uses its credential's
+// activation deadline; bot API keys do not use privileged mode.
 func privilegedModeAllows(ctx context.Context, userID string, now time.Time) bool {
 	if evaluation, ok := ctx.Value(privilegedModeEvaluationKey{}).(privilegedModeEvaluation); ok {
 		return evaluation.active && evaluation.userID == userID
 	}
 	credential, authenticated := authctx.CredentialForContext(ctx)
-	if !authenticated || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
+	if !authenticated {
 		return true
 	}
 	if credential.UserID != userID {
 		return false
+	}
+	if credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
+		return true
 	}
 	return now.Before(credential.PrivilegedModeExpiresAt)
 }

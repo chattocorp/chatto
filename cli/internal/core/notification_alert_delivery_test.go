@@ -201,3 +201,57 @@ func TestNotificationAlertWorkerUsesRoomGroupPolicy(t *testing.T) {
 		t.Fatal("group-policy alert was not delivered")
 	}
 }
+
+// Alert revalidation is not bound to a session, so an owner's alert follows
+// ordinary read access instead of the owner override.
+func TestNotificationSoundEligibleDoesNotApplyOwnerOverride(t *testing.T) {
+	chattoCore, _ := newTestCore(t)
+	startCoreServices(t, chattoCore)
+	ctx := testContext(t)
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "sound-owner", "Sound Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	if err := chattoCore.AssignOwnerRole(ctx, recipient.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "sound-owner-author", "Sound Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "sound-owner-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{recipient.Id, author.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, recipient.Id,
+		notificationTestSignalDirectMention,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+	); err != nil {
+		t.Fatalf("SetServerNotificationMode: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "hello @sound-owner", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	waitForNotificationMaterializer(t, chattoCore)
+	occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, recipient.Id, notificationOccurrenceID(recipient.Id, posted.GetId(), "direct_mention_received"))
+	if err != nil {
+		t.Fatalf("Get occurrence: %v", err)
+	}
+	if eligible, err := chattoCore.NotificationSoundEligible(ctx, occurrence); err != nil || !eligible {
+		t.Fatalf("NotificationSoundEligible before deny = (%v, %v), want true, nil", eligible, err)
+	}
+	for _, perm := range []Permission{PermMessageRead, PermMessageReadInteractions} {
+		if err := chattoCore.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, perm); err != nil {
+			t.Fatalf("DenyRoomPermission %s: %v", perm, err)
+		}
+	}
+	if eligible, err := chattoCore.NotificationSoundEligible(ctx, occurrence); err != nil || eligible {
+		t.Fatalf("NotificationSoundEligible after deny = (%v, %v), want false, nil", eligible, err)
+	}
+}

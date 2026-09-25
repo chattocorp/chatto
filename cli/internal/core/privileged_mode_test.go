@@ -417,6 +417,10 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
+	bot, err := c.CreateBot(ctx, other.Id, "gated_checker", "Gated Checker")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
 
 	session := func(userID string, deadline time.Time) context.Context {
 		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
@@ -435,6 +439,11 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 		{"expired", session(owner.Id, time.Now().Add(-time.Second)), false},
 		{"active", session(owner.Id, time.Now().Add(time.Minute)), true},
 		{"other human", session(other.Id, time.Now().Add(time.Minute)), false},
+		{"bot key", authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Kind:   authctx.RuntimeCredentialKindBotAPIKey,
+			UserID: bot.User.Id,
+			Handle: bot.User.Id,
+		}), false},
 		{"fixed inactive evaluation", withPrivilegedModeEvaluation(session(owner.Id, time.Now().Add(time.Minute)), owner.Id, false), false},
 		{"fixed active evaluation", withPrivilegedModeEvaluation(ctx, owner.Id, true), true},
 		{"internal", ctx, true},
