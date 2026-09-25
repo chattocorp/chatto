@@ -48,6 +48,33 @@ func TestAuthTokenDataRecordsAuthGenerationPresence(t *testing.T) {
 	if legacy.UserID != "user" {
 		t.Fatalf("legacy UserID = %q, want user", legacy.UserID)
 	}
+
+	// A session store decodes and encodes records again. That must not turn a
+	// legacy record into a current generation-0 record.
+	reencoded, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal legacy: %v", err)
+	}
+	var roundTripped AuthTokenData
+	if err := json.Unmarshal(reencoded, &roundTripped); err != nil {
+		t.Fatalf("unmarshal round trip: %v", err)
+	}
+	if !roundTripped.runtimeCredential().MayPredateAuthGeneration {
+		t.Fatalf("re-encoded legacy record lost its legacy form: %s", reencoded)
+	}
+
+	legacy.AuthGeneration = 42
+	upgraded, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal upgraded: %v", err)
+	}
+	var decodedUpgrade AuthTokenData
+	if err := json.Unmarshal(upgraded, &decodedUpgrade); err != nil {
+		t.Fatalf("unmarshal upgraded: %v", err)
+	}
+	if decodedUpgrade.AuthGeneration != 42 || decodedUpgrade.runtimeCredential().MayPredateAuthGeneration {
+		t.Fatalf("upgraded record = %s, want generation 42 and not legacy", upgraded)
+	}
 }
 
 func TestAuthCodeDataRecordsAuthGenerationPresence(t *testing.T) {

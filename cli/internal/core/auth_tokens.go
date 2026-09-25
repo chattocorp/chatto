@@ -99,6 +99,21 @@ func (d *AuthTokenData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON always writes auth_generation, except for a legacy record that is
+// still at generation 0. That record keeps its legacy form when a session store
+// decodes and encodes it again.
+func (d AuthTokenData) MarshalJSON() ([]byte, error) {
+	type plain AuthTokenData
+	encoded := struct {
+		plain
+		AuthGeneration *uint64 `json:"auth_generation,omitempty"`
+	}{plain: plain(d)}
+	if !d.legacyAuthGeneration || d.AuthGeneration != 0 {
+		encoded.AuthGeneration = &d.AuthGeneration
+	}
+	return json.Marshal(encoded)
+}
+
 // runtimeCredential returns the generation data that ValidateRuntimeCredential
 // checks for this record.
 func (d AuthTokenData) runtimeCredential() RuntimeCredential {
