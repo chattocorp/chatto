@@ -292,6 +292,10 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateCookieSession other: %v", err)
 		}
+		bearerSession, err := core.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+		if err != nil {
+			t.Fatalf("CreateBearerSessionWithSource: %v", err)
+		}
 		resetToken, _ := core.CreatePasswordResetToken(ctx, "resetrevoke@example.com")
 		newHash, _ := bcrypt.GenerateFromPassword([]byte("newpassword123"), bcrypt.DefaultCost)
 
@@ -315,6 +319,9 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 		}
 		if _, err := core.ValidateCookieCredential(ctx, otherCookieSession); err != nil {
 			t.Fatalf("other cookie session should remain valid: %v", err)
+		}
+		if _, err := core.RefreshBearerSession(ctx, bearerSession.RefreshToken, testRefreshRequestIDA, ""); !errors.Is(err, ErrRefreshTokenNotFound) {
+			t.Fatalf("RefreshBearerSession err = %v, want ErrRefreshTokenNotFound", err)
 		}
 	})
 

@@ -357,7 +357,7 @@ func TestChattoCore_MultipleTokensPerUser(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RevokeAllAuthTokensForUser(t *testing.T) {
+func TestChattoCore_RevokeAllAuthTokensForUserWithReason(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -387,7 +387,7 @@ func TestChattoCore_RevokeAllAuthTokensForUser(t *testing.T) {
 		t.Fatalf("CreateAuthToken other: %v", err)
 	}
 
-	revoked, err := core.RevokeAllAuthTokensForUserWithReason(ctx, user.Id, "password_reset")
+	revoked, err := core.RevokeAllAuthTokensForUserWithReason(ctx, user.Id, "account_deleted")
 	if err != nil {
 		t.Fatalf("RevokeAllAuthTokensForUserWithReason: %v", err)
 	}
