@@ -43,11 +43,15 @@ export class TimelineViewportController {
   #bottomScrollOperation = 0;
   #wasJumpedMode = false;
   /**
-   * One-shot landing on the unread separator. `armed` from room entry until
-   * the landing starts; `running` until it settles. Any explicit viewport
-   * action (user scroll, jump, post, jump to present) resets it to `idle`.
+   * One-shot landing on the unread separator for `#unreadLandingKey`.
+   * `armed` from room entry until the landing starts; `running` until it
+   * settles. Any explicit viewport action (user scroll, jump, post, jump to
+   * present) resets it to `idle`. The state is keyed by timeline, so a
+   * decision made during mount stays valid when `enterRoom` for that timeline
+   * runs later.
    */
   #unreadLanding: 'idle' | 'armed' | 'running' = 'idle';
+  #unreadLandingKey: string | null = null;
 
   /**
    * Reset viewport intent when the timeline shows a different conversation.
@@ -65,8 +69,15 @@ export class TimelineViewportController {
     this.#previousOffset = null;
     this.#scrollUpLockedUntil = 0;
     this.#wasJumpedMode = false;
-    this.#unreadLanding = 'armed';
+    this.#enterUnreadLanding(timelineKey);
     return true;
+  }
+
+  /** Arm the landing when the given timeline has no landing decision yet. */
+  #enterUnreadLanding(timelineKey: string): void {
+    if (this.#unreadLandingKey === timelineKey) return;
+    this.#unreadLandingKey = timelineKey;
+    this.#unreadLanding = 'armed';
   }
 
   followBottom(): void {
@@ -141,14 +152,15 @@ export class TimelineViewportController {
   /**
    * Start the one-shot landing on the unread separator for this room entry.
    *
-   * Returns true at most once per `enterRoom`, and only when no explicit
+   * Returns true at most once per timeline entry, and only when no explicit
    * viewport action happened since entry. A marker that appears later, for
    * example after the app returns to the foreground, does not move the view.
    * While the landing runs, scroll observations cannot re-enable bottom
    * following: late events from the superseded bottom scroll would otherwise
    * report the old bottom position.
    */
-  beginUnreadEntryLanding(): boolean {
+  beginUnreadEntryLanding(timelineKey: string): boolean {
+    this.#enterUnreadLanding(timelineKey);
     if (this.#unreadLanding !== 'armed') return false;
     this.beginJump();
     this.#unreadLanding = 'running';
@@ -159,7 +171,8 @@ export class TimelineViewportController {
    * Skip the landing for this entry. Use it when the entry targets a specific
    * message, so that message stays in view even if its jump never starts.
    */
-  skipUnreadEntryLanding(): void {
+  skipUnreadEntryLanding(timelineKey: string): void {
+    this.#enterUnreadLanding(timelineKey);
     this.#unreadLanding = 'idle';
   }
 

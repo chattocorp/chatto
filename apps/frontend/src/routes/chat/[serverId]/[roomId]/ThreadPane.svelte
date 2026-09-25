@@ -175,17 +175,13 @@
     isDirectMessage ? roomName : m('room.thread.title', { room: roomName })
   );
 
-  // The pane stays mounted across threads. A jump target or jumped window from
-  // the previous thread must not affect the next one.
-  $effect(() => {
-    void threadRootEventId;
-    jumpState.reset();
-  });
-
   // Reload thread events when the thread prop changes. Silent reconnect +
-  // tab-resume catch-ups are owned by the server event bus.
+  // tab-resume catch-ups are owned by the server event bus. The pane stays
+  // mounted across threads, so a jump target or jumped window from the
+  // previous thread must not carry over.
   $effect(() => {
     store.setThread(roomId, threadRootEventId);
+    jumpState.reset();
   });
 
   // Load a permalink target outside the latest page before asking the

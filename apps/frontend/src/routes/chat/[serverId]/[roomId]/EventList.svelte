@@ -323,29 +323,6 @@
     };
   });
 
-  // Land on the unread separator once per room or thread entry. The marker
-  // resolves after the entry read request, so the initial bottom scroll may
-  // already have run; any explicit viewport action before then wins (see
-  // TimelineViewportController.beginUnreadEntryLanding). An entry that
-  // targets a specific message skips the landing. Later marker updates do not
-  // cancel the landing, so no cleanup is returned.
-  $effect(() => {
-    // Re-run on entry, after enterRoom has armed the landing.
-    void timelineKey;
-    if (!scrollToUnreadOnEntry) return;
-    if (scrollToEventId || pendingHighlightId) {
-      untrack(() => viewport.skipUnreadEntryLanding());
-      return;
-    }
-    if (!effectiveUnreadAfterEventId || isJumpedMode) return;
-    if (!virtualizerHandle || virtualItems.length === 0) return;
-    if (messageStore.recoveryViewport || stores.realtimeSync.isRecoveringSnapshot) return;
-
-    untrack(() => {
-      if (viewport.beginUnreadEntryLanding()) void landOnUnreadSeparator(timelineKey);
-    });
-  });
-
   async function landOnUnreadSeparator(requestedTimelineKey: string) {
     const current = () =>
       !destroyed && timelineKey === requestedTimelineKey && viewport.isUnreadEntryLandingRunning;
@@ -388,6 +365,32 @@
     );
     return { position, index, store: messageStore };
   });
+
+  // Land on the unread separator once per room or thread entry. The marker resolves
+  // after the entry read request, so the initial bottom scroll may already
+  // have run; any explicit viewport action before then wins (see
+  // TimelineViewportController.beginUnreadEntryLanding). An entry that
+  // targets a specific message skips the landing.
+  const unreadEntryLanding = $derived.by(() => {
+    if (!scrollToUnreadOnEntry) return null;
+    if (scrollToEventId || pendingHighlightId) return { timelineKey, skip: true };
+    if (!effectiveUnreadAfterEventId || isJumpedMode) return null;
+    if (!virtualizerHandle || virtualItems.length === 0) return null;
+    if (messageStore.recoveryViewport || stores.realtimeSync.isRecoveringSnapshot) return null;
+    return { timelineKey, skip: false };
+  });
+
+  /** Apply the derived landing request; the controller makes it one-shot. */
+  function landOnUnreadEntry(request: typeof unreadEntryLanding) {
+    return () =>
+      untrack(() => {
+        if (!request) return;
+        if (request.skip) viewport.skipUnreadEntryLanding(request.timelineKey);
+        else if (viewport.beginUnreadEntryLanding(request.timelineKey)) {
+          void landOnUnreadSeparator(request.timelineKey);
+        }
+      });
+  }
 
   /** Coordinates belong to this mounted timeline, not to its cached store. */
   function ownViewport(store: MessagesStore) {
@@ -807,7 +810,11 @@
     ontouchmove={markUserScrollIntent}
     onpointerdown={markUserScrollIntent}
   >
-    <div class="mt-auto mobile-presentation:px-1" {@attach restoreViewport(recoveryTarget)}>
+    <div
+      class="mt-auto mobile-presentation:px-1"
+      {@attach restoreViewport(recoveryTarget)}
+      {@attach landOnUnreadEntry(unreadEntryLanding)}
+    >
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>

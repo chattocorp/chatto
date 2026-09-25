@@ -6,14 +6,14 @@ describe('TimelineViewportController', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');
 
-    expect(controller.beginUnreadEntryLanding()).toBe(true);
-    expect(controller.beginUnreadEntryLanding()).toBe(false);
+    expect(controller.beginUnreadEntryLanding('R1')).toBe(true);
+    expect(controller.beginUnreadEntryLanding('R1')).toBe(false);
 
     controller.enterRoom('R1');
-    expect(controller.beginUnreadEntryLanding()).toBe(false);
+    expect(controller.beginUnreadEntryLanding('R1')).toBe(false);
 
     controller.enterRoom('R2');
-    expect(controller.beginUnreadEntryLanding()).toBe(true);
+    expect(controller.beginUnreadEntryLanding('R2')).toBe(true);
   });
 
   it.each([
@@ -25,10 +25,10 @@ describe('TimelineViewportController', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');
     action(controller);
-    expect(controller.beginUnreadEntryLanding()).toBe(false);
+    expect(controller.beginUnreadEntryLanding('R1')).toBe(false);
 
     controller.enterRoom('R2');
-    controller.beginUnreadEntryLanding();
+    controller.beginUnreadEntryLanding('R2');
     action(controller);
     expect(controller.isUnreadEntryLandingRunning).toBe(false);
   });
@@ -37,18 +37,31 @@ describe('TimelineViewportController', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');
 
-    controller.skipUnreadEntryLanding();
+    controller.skipUnreadEntryLanding('R1');
 
-    expect(controller.beginUnreadEntryLanding()).toBe(false);
+    expect(controller.beginUnreadEntryLanding('R1')).toBe(false);
     expect(controller.shouldScrollToBottom).toBe(true);
-    controller.enterRoom('R1:T1');
-    expect(controller.beginUnreadEntryLanding()).toBe(true);
+    controller.enterRoom('R2');
+    expect(controller.beginUnreadEntryLanding('R2')).toBe(true);
+  });
+
+  it('keeps a landing decision made before the room entry is observed', () => {
+    // On mount, the timeline can decide before it reports the room entry.
+    const skipped = new TimelineViewportController();
+    skipped.skipUnreadEntryLanding('R1');
+    skipped.enterRoom('R1');
+    expect(skipped.beginUnreadEntryLanding('R1')).toBe(false);
+
+    const running = new TimelineViewportController();
+    expect(running.beginUnreadEntryLanding('R1')).toBe(true);
+    running.enterRoom('R1');
+    expect(running.isUnreadEntryLandingRunning).toBe(true);
   });
 
   it('ignores stale bottom scroll events until the landing settles', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');
-    controller.beginUnreadEntryLanding();
+    controller.beginUnreadEntryLanding('R1');
     const atBottom = {
       offset: 700,
       scrollSize: 1_000,
@@ -71,7 +84,7 @@ describe('TimelineViewportController', () => {
   it('follows the bottom when the unread messages fit on screen', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');
-    controller.beginUnreadEntryLanding();
+    controller.beginUnreadEntryLanding('R1');
 
     controller.finishUnreadEntryLanding(0);
 
