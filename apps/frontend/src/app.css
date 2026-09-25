@@ -418,6 +418,22 @@
   --font-sans: 'IBM Plex Sans Variable', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
+  /* Tailwind defines neutrals with a `none` hue. Chrome before 138 carries
+     that missing component into the blue channel of `color-mix(in srgb, …)`,
+     which tints the dark theme olive and blue. A zero hue looks identical and
+     mixes correctly in every browser. */
+  --color-neutral-50: oklch(98.5% 0 0);
+  --color-neutral-100: oklch(97% 0 0);
+  --color-neutral-200: oklch(92.2% 0 0);
+  --color-neutral-300: oklch(87% 0 0);
+  --color-neutral-400: oklch(70.8% 0 0);
+  --color-neutral-500: oklch(55.6% 0 0);
+  --color-neutral-600: oklch(43.9% 0 0);
+  --color-neutral-700: oklch(37.1% 0 0);
+  --color-neutral-800: oklch(26.9% 0 0);
+  --color-neutral-900: oklch(20.5% 0 0);
+  --color-neutral-950: oklch(14.5% 0 0);
+
   --color-background: var(--color-background);
   --color-text: var(--color-text);
   --color-text-top: var(--color-text-top);
