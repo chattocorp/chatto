@@ -69,6 +69,8 @@ async function clearSavedViews(page: Page): Promise<void> {
         const request = indexedDB.deleteDatabase('chatto-saved-views');
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
+        request.onblocked = () =>
+          reject(new Error('An open connection blocks saved-view deletion'));
       })
   );
 }
