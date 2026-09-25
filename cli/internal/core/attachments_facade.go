@@ -27,7 +27,7 @@ func (c *ChattoCore) UploadDerivativeAttachment(
 	roomID string,
 	filename string,
 	contentType string,
-	reader io.Reader,
+	reader io.ReadSeeker,
 ) (*evtv1.Attachment, error) {
 	return c.mediaModel.UploadDerivativeAttachment(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, reader)
 }
@@ -39,7 +39,7 @@ func (c *ChattoCore) UploadDerivativeAttachmentWithDimensions(
 	roomID string,
 	filename string,
 	contentType string,
-	reader io.Reader,
+	reader io.ReadSeeker,
 	width int32,
 	height int32,
 ) (*evtv1.Attachment, error) {

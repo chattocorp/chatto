@@ -24,14 +24,12 @@ type AssetProcessingRuntime struct {
 
 // NewAssetProcessingRuntime opens the resources used by a worker. The main app
 // owns resource creation; standalone workers therefore expect EVT and
-// SERVER_ASSETS to exist already. The video limit also applies to generated
-// playback segments, even when this process does not accept user uploads.
+// SERVER_ASSETS to exist already. Generated media bypasses user upload limits.
 func NewAssetProcessingRuntime(
 	ctx context.Context,
 	nc *nats.Conn,
 	js jetstream.JetStream,
 	cfg config.CoreConfig,
-	videoCfg config.VideoConfig,
 	logger *log.Logger,
 ) (*AssetProcessingRuntime, error) {
 	if nc == nil {
@@ -64,14 +62,13 @@ func NewAssetProcessingRuntime(
 	}
 
 	workerCore := &ChattoCore{
-		nc:                 nc,
-		js:                 js,
-		logger:             logger,
-		storage:            &storage{serverAssets: serverAssets, serverEvtStream: evt},
-		config:             cfg,
-		VideoMaxUploadSize: int64(videoCfg.MaxUploadSizeOrDefault()),
-		s3Client:           s3Client,
-		EventPublisher:     publisher,
+		nc:             nc,
+		js:             js,
+		logger:         logger,
+		storage:        &storage{serverAssets: serverAssets, serverEvtStream: evt},
+		config:         cfg,
+		s3Client:       s3Client,
+		EventPublisher: publisher,
 	}
 	workerCore.mediaModel = NewMediaModel(workerCore)
 	workerCore.assetModel = NewAssetModel(workerCore, assets)
