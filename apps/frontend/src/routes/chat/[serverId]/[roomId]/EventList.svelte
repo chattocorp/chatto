@@ -59,6 +59,7 @@
     emptyMessage = m('room.message.empty'),
     // Event ID of the first unread message (for showing the unread separator)
     unreadAfterEventId = null,
+    scrollToUnreadOnEntry = false,
     // Typing indicator
     typingUserIds = [],
     typingMembers = [],
@@ -103,6 +104,9 @@
     emptyMessage?: string;
     // Event ID of the first unread message (for showing the unread separator)
     unreadAfterEventId?: string | null;
+    // Land on the unread separator, not the newest message, when it first
+    // appears after entering a room and the user has not moved the viewport.
+    scrollToUnreadOnEntry?: boolean;
     // Typing indicator
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
@@ -313,6 +317,47 @@
       cancelled = true;
     };
   });
+
+  // Land on the unread separator once per room entry. The marker resolves
+  // after the entry read request, so the initial bottom scroll may already
+  // have run; any explicit viewport action before then wins (see
+  // TimelineViewportController.beginUnreadEntryLanding). Later marker
+  // updates do not cancel the landing, so no cleanup is returned.
+  $effect(() => {
+    if (!scrollToUnreadOnEntry || !effectiveUnreadAfterEventId) return;
+    if (!virtualizerHandle || virtualItems.length === 0) return;
+    if (isJumpedMode || scrollToEventId || pendingHighlightId) return;
+    if (messageStore.recoveryViewport || stores.realtimeSync.isRecoveringSnapshot) return;
+
+    untrack(() => {
+      if (viewport.beginUnreadEntryLanding()) void landOnUnreadSeparator(roomId);
+    });
+  });
+
+  async function landOnUnreadSeparator(requestedRoomId: string) {
+    const current = () =>
+      !destroyed && roomId === requestedRoomId && viewport.isUnreadEntryLandingRunning;
+
+    await tick();
+    // Virtua measures estimated rows after each scroll. Repeat until the
+    // offset is stable so the separator ends up at the top of the viewport.
+    let previousOffset: number | null = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if (!current()) return;
+      const index = virtualItems.findIndex((item) => item.type === 'unread-separator');
+      if (index === -1) break;
+      safeScrollToIndex(index, { align: 'start' });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const offset = virtualizerHandle?.getScrollOffset() ?? null;
+      if (offset === null || offset === previousOffset) break;
+      previousOffset = offset;
+    }
+    if (!current()) return;
+
+    // If all unread messages fit on screen, the scroll clamps to the bottom
+    // and the timeline keeps following new messages.
+    viewport.finishUnreadEntryLanding(distanceFromBottom());
+  }
 
   // Scroll container and virtualizer handle
   let scrollContainer = $state<HTMLDivElement>();

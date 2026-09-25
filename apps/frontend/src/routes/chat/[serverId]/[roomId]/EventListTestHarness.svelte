@@ -24,6 +24,8 @@
     pendingHighlightId = null,
     hasReachedStart = false,
     recoveryViewport = null,
+    unreadAfterEventId = null,
+    scrollToUnreadOnEntry = false,
     onComposerReady,
     onStoreRead
   }: {
@@ -39,6 +41,8 @@
     pendingHighlightId?: string | null;
     hasReachedStart?: boolean;
     recoveryViewport?: { eventId: string; offset: number; hasNewer?: boolean } | null;
+    unreadAfterEventId?: string | null;
+    scrollToUnreadOnEntry?: boolean;
     onComposerReady?: (context: ComposerContext) => void;
     onStoreRead?: () => void;
   } = $props();
@@ -130,6 +134,8 @@
   {updateCounter}
   {pendingHighlightId}
   {hasReachedStart}
+  {unreadAfterEventId}
+  {scrollToUnreadOnEntry}
   {scrollToEventId}
   onScrollToEventComplete={onComplete}
 />

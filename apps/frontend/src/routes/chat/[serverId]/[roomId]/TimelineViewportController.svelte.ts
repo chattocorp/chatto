@@ -42,6 +42,12 @@ export class TimelineViewportController {
   #scrollUpLockedUntil = 0;
   #bottomScrollOperation = 0;
   #wasJumpedMode = false;
+  /**
+   * One-shot landing on the unread separator. `armed` from room entry until
+   * the landing starts; `running` until it settles. Any explicit viewport
+   * action (user scroll, jump, post, jump to present) resets it to `idle`.
+   */
+  #unreadLanding: 'idle' | 'armed' | 'running' = 'idle';
 
   enterRoom(roomId: string): boolean {
     if (roomId === this.#roomId) return false;
@@ -54,6 +60,7 @@ export class TimelineViewportController {
     this.#previousOffset = null;
     this.#scrollUpLockedUntil = 0;
     this.#wasJumpedMode = false;
+    this.#unreadLanding = 'armed';
     return true;
   }
 
@@ -90,11 +97,13 @@ export class TimelineViewportController {
   }
 
   requestComposerBottom(): void {
+    this.#unreadLanding = 'idle';
     this.followBottom();
     this.unlockScrollUp();
   }
 
   beginJump(): void {
+    this.#unreadLanding = 'idle';
     this.cancelBottomScroll();
     this.stopFollowingBottom();
     this.initialScrollDone = true;
@@ -105,6 +114,7 @@ export class TimelineViewportController {
   }
 
   prepareJumpToPresent(): void {
+    this.#unreadLanding = 'idle';
     this.cancelBottomScroll();
     this.followBottom();
     this.initialScrollDone = false;
@@ -114,7 +124,47 @@ export class TimelineViewportController {
   markUserScrollIntent(now = Date.now()): void {
     this.#userScrollIntentAt = now;
     this.#intentRevision += 1;
+    this.#unreadLanding = 'idle';
     this.cancelBottomScroll();
+  }
+
+  /**
+   * Start the one-shot landing on the unread separator for this room entry.
+   *
+   * Returns true at most once per `enterRoom`, and only when no explicit
+   * viewport action happened since entry. A marker that appears later, for
+   * example after the app returns to the foreground, does not move the view.
+   * While the landing runs, scroll observations cannot re-enable bottom
+   * following: late events from the superseded bottom scroll would otherwise
+   * report the old bottom position.
+   */
+  beginUnreadEntryLanding(): boolean {
+    if (this.#unreadLanding !== 'armed') return false;
+    this.beginJump();
+    this.#unreadLanding = 'running';
+    return true;
+  }
+
+  /** False once another viewport action superseded the running landing. */
+  get isUnreadEntryLandingRunning(): boolean {
+    return this.#unreadLanding === 'running';
+  }
+
+  /**
+   * Finish a landing from the measured final position. Near the bottom, the
+   * timeline follows new messages again. Otherwise, the scroll-up lock keeps
+   * trailing virtualizer corrections from undoing the landing.
+   */
+  finishUnreadEntryLanding(distanceFromBottom: number | null, now = Date.now()): void {
+    if (this.#unreadLanding !== 'running') return;
+    this.#unreadLanding = 'idle';
+    if (distanceFromBottom === null) return;
+    if (distanceFromBottom < 50) {
+      this.followBottom();
+    } else {
+      this.stopFollowingBottom();
+      this.#scrollUpLockedUntil = now + SCROLL_UP_LOCK_MS;
+    }
   }
 
   captureIntentRevision(): number {
@@ -131,13 +181,13 @@ export class TimelineViewportController {
     let reachedBottom = false;
 
     if (!observation.alwaysScrollToBottom) {
-      const scrollUpLocked = observation.now < this.#scrollUpLockedUntil;
+      const scrollUpLocked =
+        this.#unreadLanding === 'running' || observation.now < this.#scrollUpLockedUntil;
       if (distanceFromBottom < 10 && !scrollUpLocked) {
         const wasScrolledUp = !this.shouldScrollToBottom;
         this.followBottom();
         reachedBottom =
-          wasScrolledUp &&
-          observation.now - this.#userScrollIntentAt < USER_SCROLL_INTENT_MS;
+          wasScrolledUp && observation.now - this.#userScrollIntentAt < USER_SCROLL_INTENT_MS;
       } else if (
         observation.now - this.#userScrollIntentAt < USER_SCROLL_INTENT_MS &&
         this.#previousOffset !== null &&
@@ -158,10 +208,7 @@ export class TimelineViewportController {
     return { distanceFromBottom, reachedBottom };
   }
 
-  reconcileAfterTabResume(
-    distanceFromBottom: number,
-    alwaysScrollToBottom: boolean
-  ): void {
+  reconcileAfterTabResume(distanceFromBottom: number, alwaysScrollToBottom: boolean): void {
     if (alwaysScrollToBottom || !this.shouldScrollToBottom || !this.initialScrollDone) return;
     if (distanceFromBottom > 50) this.stopFollowingBottom();
   }
