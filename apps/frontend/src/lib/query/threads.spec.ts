@@ -175,7 +175,10 @@ describe('followed thread query helpers', () => {
         hasMore: true
       },
       {
-        threads: [thread('unread-1', { hasUnreadReplies: true }), thread('unread-2', { hasUnreadReplies: true })],
+        threads: [
+          thread('unread-1', { hasUnreadReplies: true }),
+          thread('unread-2', { hasUnreadReplies: true })
+        ],
         totalCount: 5,
         hasMore: true
       }

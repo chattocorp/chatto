@@ -67,9 +67,7 @@ export function flattenFollowedThreads(data: FollowedThreadsData | undefined): F
  * a thread from that feed when the viewer reads it, so a loaded thread that is
  * no longer unread must not advance the offset.
  */
-export function nextUnreadFollowedThreadOffset(
-  pages: readonly FollowedThreadsQueryPage[]
-): number {
+export function nextUnreadFollowedThreadOffset(pages: readonly FollowedThreadsQueryPage[]): number {
   return flattenFollowedThreads({ pages: [...pages], pageParams: [] }).filter(
     (thread) => thread.hasUnreadReplies
   ).length;
