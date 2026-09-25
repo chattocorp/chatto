@@ -17,7 +17,10 @@ type ThreadFollowModel struct {
 	core *ChattoCore
 }
 
-func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, includeDM bool, limit, offset int) (*FollowedThreadsPage, error) {
+// ListFollowedThreads returns one page of the actor's followed threads. When
+// unreadOnly is set, the page and its total include only threads with unread
+// replies.
+func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, includeDM, unreadOnly bool, limit, offset int) (*FollowedThreadsPage, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -25,7 +28,7 @@ func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID str
 	if includeDM {
 		spaceIDs = append(spaceIDs, LegacySpaceIDForRoomKind(KindDM))
 	}
-	return s.core.ListFollowedThreadsPage(ctx, actorID, spaceIDs, limit, offset)
+	return s.core.ListFollowedThreadsPage(ctx, actorID, spaceIDs, unreadOnly, limit, offset)
 }
 
 func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorID string) (bool, error) {

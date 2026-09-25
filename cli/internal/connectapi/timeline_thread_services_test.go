@@ -1102,6 +1102,63 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	}
 }
 
+func TestThreadServiceListFollowedThreadsUnreadOnly(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("followed-unread-only")
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-unread-participant", "Thread Unread Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, participant.Id, core.KindChannel, participant.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom participant: %v", err)
+	}
+	ctx := withCaller(env.ctx, env.viewer)
+	var roots []string
+	for _, body := range []string{"read root", "unread root", "newest read root"} {
+		root := env.post(room.Id, env.viewer.Id, body, "")
+		env.post(room.Id, participant.Id, "reply to "+body, root.Id)
+		if _, err := env.threads.FollowThread(ctx, connect.NewRequest(&apiv1.FollowThreadRequest{
+			RoomId:            room.Id,
+			ThreadRootEventId: root.Id,
+		})); err != nil {
+			t.Fatalf("FollowThread: %v", err)
+		}
+		roots = append(roots, root.Id)
+	}
+	for _, rootID := range []string{roots[0], roots[2]} {
+		if _, err := env.core.SetThreadLastOpened(env.ctx, core.KindChannel, env.viewer.Id, room.Id, rootID); err != nil {
+			t.Fatalf("SetThreadLastOpened: %v", err)
+		}
+	}
+
+	resp, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page:       &apiv1.PageRequest{Limit: 1},
+		UnreadOnly: true,
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads unread only: %v", err)
+	}
+	if resp.Msg.GetPage().GetTotalCount() != 1 || resp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("unread page metadata = total %d hasMore %v, want total 1 hasMore false", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
+	}
+	if len(resp.Msg.GetThreads()) != 1 || resp.Msg.GetThreads()[0].GetThread().GetThreadRootEventId() != roots[1] {
+		t.Fatalf("unread page threads = %+v, want only %s", resp.Msg.GetThreads(), roots[1])
+	}
+	if !resp.Msg.GetThreads()[0].GetThread().GetViewerState().GetHasUnreadReplies() {
+		t.Fatal("unread page thread has hasUnreadReplies = false")
+	}
+
+	resp, err = env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page: &apiv1.PageRequest{Limit: 1},
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads all: %v", err)
+	}
+	if resp.Msg.GetPage().GetTotalCount() != 3 || !resp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("complete page metadata = total %d hasMore %v, want total 3 hasMore true", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
+	}
+}
+
 func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("followed-loss")

@@ -28,9 +28,20 @@ function threadRoot(serverId: string, connection: ThreadQueryConnection) {
 }
 
 export const threadQueryKeys = {
-  followed(serverId: string, connection: ThreadQueryConnection, query = '') {
+  /**
+   * Key for the followed-thread feed. Pass no filter for the complete feed; any
+   * segment after the base key marks a filtered feed whose totals do not
+   * describe the complete follow projection.
+   */
+  followed(
+    serverId: string,
+    connection: ThreadQueryConnection,
+    filter: { query?: string; unreadOnly?: boolean } = {}
+  ) {
     const base = [...threadRoot(serverId, connection), 'followed'] as const;
-    return query ? [...base, query] as const : base;
+    if (filter.query) return [...base, 'search', filter.query] as const;
+    if (filter.unreadOnly) return [...base, 'unread'] as const;
+    return base;
   }
 };
 

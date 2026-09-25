@@ -1,7 +1,7 @@
 # FDR-044: My Threads
 
 **Status:** Active
-**Last reviewed:** 2026-09-21
+**Last reviewed:** 2026-09-25
 
 ## Overview
 
@@ -18,7 +18,8 @@ find replies that they have not read.
 - A DM row uses participant names and avatars instead of a channel name. It
   does not show a `#` channel prefix.
 - The Unread filter includes only threads with replies after the user's thread
-  read cursor.
+  read cursor. The server applies this filter before pagination, so the first
+  page shows unread threads or confirms that none exist.
 - When server search is enabled, a search input filters followed threads by
   their root messages and all replies, including replies outside the current
   list preview. Each matching thread appears once in activity order.
@@ -61,6 +62,21 @@ does not put a read thread in this filter.
 have read. Notification policy remains an independent way to prioritize work.
 **Tradeoff:** A thread with important attention can appear only in All after
 its replies are read.
+
+### 2a. The server filters unread threads
+
+**Decision:** `ListFollowedThreads` accepts `unread_only`. The server reads
+the cursors of all followed threads, keeps the unread threads, and then
+paginates. The page total counts only unread threads. The client also hides a
+thread that becomes read while the list shows it. For search results and for
+servers without this field, the client filters loaded pages and continues to
+load pages until it finds a match or reaches the end. It shows the normal
+loading state during this work.
+**Why:** A client-side filter over pages of all followed threads needs many
+requests to show an empty Unread view. The server already loads every followed
+thread to sort it, so one more cursor read for each thread is small.
+**Tradeoff:** Unread pages use offsets over a set that shrinks when the user
+reads a thread. The next page can skip a thread until the list loads again.
 
 ### 3. The activity-list presentation makes the order clear
 

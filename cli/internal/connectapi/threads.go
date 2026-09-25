@@ -23,7 +23,7 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 	}
 
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultFollowedThreadLimit, maxFollowedThreadLimit)
-	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, req.Msg.GetIncludeDirectMessageThreads(), limit, offset)
+	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, req.Msg.GetIncludeDirectMessageThreads(), req.Msg.GetUnreadOnly(), limit, offset)
 	if err != nil {
 		return nil, connectError(err)
 	}

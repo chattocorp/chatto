@@ -162,6 +162,16 @@ describe('followed thread query helpers', () => {
     });
   });
 
+  it('keeps complete, unread, and search feeds in separate cache entries', () => {
+    const connection = { queryScope: 'session-1' };
+    const keys = [
+      threadQueryKeys.followed('origin', connection),
+      threadQueryKeys.followed('origin', connection, { unreadOnly: true }),
+      threadQueryKeys.followed('origin', connection, { query: 'unread' })
+    ].map((key) => JSON.stringify(key));
+    expect(new Set(keys).size).toBe(3);
+  });
+
   it('reconciles every cached session from the process-wide projection owner', () => {
     const firstKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
     const secondKey = threadQueryKeys.followed('origin', { queryScope: 'session-2' });

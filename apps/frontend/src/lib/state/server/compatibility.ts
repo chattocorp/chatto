@@ -13,6 +13,7 @@ const serverFeatureMinimumVersions = {
   botOwnerReassignment: '0.5.0-0',
   messageSearch: '0.5.0-0',
   followedThreadSearch: '0.5.0-beta.6',
+  followedThreadUnreadFilter: '0.5.0-beta.8',
   neighbors: '0.5.0-0',
   pinnedMessages: '0.5.0-0',
   realtimeProjection: '0.5.0-alpha.6',
