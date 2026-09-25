@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Updated:** 2026-09-25
+
 ## Context
 
 Chatto's design goal is a single self-hosted executable. The frontend is a SvelteKit application. The question is how to serve it:
@@ -12,17 +14,33 @@ Chatto's design goal is a single self-hosted executable. The frontend is a Svelt
 
 ## Decision
 
-Configure SvelteKit with `adapter-static` (`fallback: '200.html'`, `precompress: true`) and `ssr = false`. The compiled SPA output is embedded into the Go binary with `//go:embed all:.client`. The Go server handles:
+Configure SvelteKit with `adapter-static`, `fallback: '200.html'`, and
+`ssr = false`. Precompression is enabled only when
+`CHATTO_FRONTEND_PRECOMPRESS=1`; CI and release workflows set this value.
+Ordinary frontend builds leave precompression disabled.
+
+The compiled SPA output is embedded into the Go binary with
+`//go:embed all:.client`. Preparation of the embedded files removes each raw
+file that has a gzip copy, retaining the gzip and Brotli representations.
+The Go server handles:
 
 - Serving the `200.html` fallback for all unrecognized routes (SPA client-side routing)
 - Serving SvelteKit's immutable assets (`/_app/immutable/`) with 1-year cache headers and ETags
 - Serving precompressed `.br` and `.gz` variants without runtime compression
+- Decompressing the embedded gzip copy when a raw file is absent and an
+  uncompressed response is needed
 - Injecting server-side OpenGraph meta tags into the `200.html` response for asset/space preview URLs
 
 ## Consequences
 
-- **True single binary**: `go build` produces one executable containing the entire application — backend, frontend, and embedded NATS server. No external files needed at runtime.
-- **No runtime compression cost**: SvelteKit's `precompress: true` generates Brotli and gzip variants at build time. The Go server detects `Accept-Encoding` and serves the pre-compressed file directly.
+- **Single application binary**: After the frontend build is prepared for
+  embedding, `go build` includes the frontend, backend, and embedded NATS
+  server in one executable. No separate frontend files are needed at runtime.
+- **Smaller embedded frontend**: Release builds omit duplicate raw files. The
+  Go server serves accepted compressed representations directly. Requests
+  that need a missing raw representation incur gzip decompression.
 - **No SSR**: The frontend is fully client-rendered. First paint shows a loading state until JavaScript boots. This is acceptable for an authenticated app where SEO doesn't matter.
 - **OpenGraph tags are server-rendered**: Despite being an SPA, the Go server injects `<meta>` tags for link preview URLs (space invites, shared assets) by manipulating the `200.html` before serving. This gives good link previews without SSR.
-- **Frontend updates require a full rebuild**: Changing a CSS color means rebuilding the Go binary. In practice, this is automated by CI and acceptable for a self-hosted product.
+- **Bundled frontend updates require a binary rebuild**: Updating the embedded
+  frontend requires rebuilding the Go binary. A separately hosted frontend
+  can be updated independently; see [ADR-025](ADR-025-multi-instance-client-architecture.md).

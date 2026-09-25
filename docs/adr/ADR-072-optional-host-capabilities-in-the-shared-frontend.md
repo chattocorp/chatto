@@ -2,6 +2,8 @@
 
 **Date:** 2026-08-13
 
+**Updated:** 2026-09-25
+
 **Status:** Accepted
 
 **Supersedes:** The blanket prohibition on preload bridges in
@@ -43,6 +45,15 @@ capability implementation at the point of use, but must not fork the rest of
 the application into desktop and web variants. Capability availability is
 independent of server protocol support, server configuration, and viewer
 permission; those remain separate checks.
+
+This rule governs access to native operations. Host-specific presentation
+defaults are a separate concern. The iOS shell defaults to Flat surface depth;
+a saved user choice takes precedence. Its first-paint script identifies the
+bundled `capacitor:` page, and the preference store uses the Capacitor platform
+value. These checks select a visual default only. They must not establish
+capability availability, server support, or permission. Native authentication
+still uses capability detection as specified in
+[ADR-099](ADR-099-capacitor-mobile-client.md).
 
 The first capability is `window.chattoDesktop.screenShare`. It lists bounded,
 temporary window/display descriptions with in-memory preview bytes and starts

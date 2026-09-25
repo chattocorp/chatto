@@ -57,4 +57,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-045](FDR-045-realtime-event-stream.md) | Realtime Event Stream | Experimental | 2026-09-24 |
 | [FDR-046](FDR-046-privileged-mode.md) | Privileged Mode | Active | 2026-09-09 |
 | [FDR-047](FDR-047-first-run-setup.md) | First-Run Setup | Active | 2026-09-10 |
-| [FDR-048](FDR-048-chatto-mobile.md) | Chatto Mobile | Experimental | 2026-09-19 |
+| [FDR-048](FDR-048-chatto-mobile.md) | Chatto Mobile | Experimental | 2026-09-25 |
