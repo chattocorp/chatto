@@ -180,8 +180,13 @@
 
   // Locally filtered pages without a match leave no scroll edge to observe, so
   // load the next page directly until a match appears or the feed ends.
+  // An imperative fetch ignores `enabled`, so check search availability here too.
   const needsNextFilteredPage = $derived(
-    filteredThreads.length === 0 && hasMore && !threadsQuery.isFetching && error === null
+    filteredThreads.length === 0 &&
+      hasMore &&
+      !threadsQuery.isFetching &&
+      error === null &&
+      (!searchQuery || searchStatus.available)
   );
   $effect(() => {
     if (needsNextFilteredPage) void threadsQuery.fetchNextPage();
