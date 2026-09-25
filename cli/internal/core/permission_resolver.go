@@ -11,7 +11,9 @@ import (
 // PermissionResolver handles permission resolution using a deliberately small
 // model:
 //
-//  1. Effective owners are allowed every known RBAC permission.
+//  1. Effective owners are entitled to every known RBAC permission. The
+//     override is effective only where privileged mode allows it; otherwise
+//     owners resolve through the same rules as everyone else.
 //  2. For everyone else, permissions outside the DM scope are denied in DMs.
 //  3. Each direct-user or explicitly assigned role contributes its nearest
 //     decision (room, then group, then server). Across those decisions, any
@@ -74,7 +76,7 @@ type TraceEntry struct {
 //
 // Order of operations:
 //
-//  1. Effective-owner override.
+//  1. Effective-owner override, when privileged mode allows it.
 //  2. Permissions that do not apply at the direct-message scope are denied for
 //     direct-message checks.
 //  3. Resolve the nearest decision for the user and each named role. Any deny
@@ -109,28 +111,58 @@ func (r *PermissionResolver) resolveInContentView(ctx context.Context, resolve f
 	return decision, err
 }
 
+// resolveWithGroup resolves effective authorization. For humans, privileged
+// mode gates both elevation-required permissions and the effective-owner
+// override. An owner without active privileged mode resolves through direct
+// grants, named roles, and the everyone baseline like any other human.
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	decision, err := r.resolveEntitlementWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+	// A bot subject has no human session to arm, including during inspection.
+	if isBot, ownerUserID, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
+		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
+	}
+	privileged := privilegedModeAllows(ctx, userID, time.Now())
+	decision, err := r.resolveHumanWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm, privileged)
 	if err != nil || decision != DecisionAllow {
 		return decision, err
-	}
-	// A bot subject has no human session to arm, including during inspection.
-	if isBot, _, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
-		return decision, nil
 	}
 	metadata, known := GetPermissionMetadata(perm)
 	if !known || !metadata.RequiresPrivilegedMode {
 		return decision, nil
 	}
-	if !privilegedModeAllows(ctx, userID, time.Now()) {
+	if !privileged {
 		return DecisionDeny, nil
 	}
 	return decision, nil
 }
 
-// privilegedModeAllows keeps internal and bot-derived authorization behavior
-// unchanged while requiring explicit activation for the authenticated human.
+// privilegedModeEvaluationKey carries a fixed privileged-mode state for work
+// that is not bound to one request credential.
+type privilegedModeEvaluationKey struct{}
+
+// privilegedModeEvaluation is the fixed privileged-mode state of one human.
+// Checks for any other user resolve as inactive.
+type privilegedModeEvaluation struct {
+	userID string
+	active bool
+}
+
+// withPrivilegedModeEvaluation fixes the privileged-mode state that effective
+// authorization uses for userID. Realtime fan-out uses it to evaluate one
+// class of sessions with the same state as their request credentials. It
+// takes precedence over a request credential in ctx.
+func withPrivilegedModeEvaluation(ctx context.Context, userID string, active bool) context.Context {
+	return context.WithValue(ctx, privilegedModeEvaluationKey{}, privilegedModeEvaluation{userID: userID, active: active})
+}
+
+// privilegedModeAllows reports whether privileged mode is active for userID.
+// A fixed evaluation state wins. Otherwise, an authenticated human request
+// uses its credential's activation deadline, and checks for a different human
+// resolve as inactive. Internal work without a credential and bot API keys
+// keep entitlement semantics.
 func privilegedModeAllows(ctx context.Context, userID string, now time.Time) bool {
+	if evaluation, ok := ctx.Value(privilegedModeEvaluationKey{}).(privilegedModeEvaluation); ok {
+		return evaluation.active && evaluation.userID == userID
+	}
 	credential, authenticated := authctx.CredentialForContext(ctx)
 	if !authenticated || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
 		return true
@@ -157,15 +189,18 @@ func (r *PermissionResolver) resolveEntitlementWithGroup(ctx context.Context, us
 	if accountExists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
-	return r.resolveHumanWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+	return r.resolveHumanWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm, true)
 }
 
-func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
+// resolveHumanWithGroup resolves a human's decision. ownerOverride selects
+// whether an effective owner is allowed every known permission or resolves
+// through ordinary RBAC decisions.
+func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission, ownerOverride bool) (DecisionKind, error) {
 	if _, known := GetPermissionMetadata(perm); known {
 		if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 			return DecisionDeny, nil
 		}
-		if r.core.isServerOwner(userID) {
+		if ownerOverride && r.core.isServerOwner(userID) {
 			return DecisionAllow, nil
 		}
 	}

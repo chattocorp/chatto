@@ -18,6 +18,10 @@
 > replaces the authorization fence with stable request-time authorization and
 > aggregate OCC. The RBAC resolution rules in this record remain current.
 >
+> **Amended 2026-09-25:** [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)
+> makes the effective-owner override effective only while the owner's session
+> has active privileged mode. Owners stay entitled to all permissions.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,

@@ -11,7 +11,7 @@ Every signed-in user belongs to the `everyone` role. You can also give them buil
 
 The main rules are:
 
-- **Owners are entitled to every permission.** A user is an owner when they have the `owner` role or a verified email listed in `owners.emails`. They must activate privileged mode before elevation-required permissions become effective.
+- **Owners are entitled to every permission.** A user is an owner when they have the `owner` role or a verified email listed in `owners.emails`. The owner permissions become effective only while privileged mode is active. At other times, owners have the same permissions as other users with their roles and grants.
 - **A deny on a user or one of their assigned roles wins.** For example, a deny from a `suspended` role overrides an allow from `admin`.
 - **More specific settings replace broader ones for the same user or role.** A channel uses Room, Room group, then Server. A DM uses Direct messages, then Server.
 - **`everyone` provides the default.** A user or role can override an `everyone` deny, but its allow must be at least as specific as the deny.
@@ -45,7 +45,7 @@ Every Chatto server starts with four system roles. You cannot delete them.
 | **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, message reading, posting, thread posting, attaching files, reactions, echoing thread replies, calls, and deleting your own account.                                            |
 | **moderator** | Adds server-wide moderation defaults for managing messages and banning room members.                                                                                                                                                                                                     |
 | **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. Ordinary posting, attachments, threads, reactions, and echoing otherwise come from `everyone`. System diagnostics remain owner-only. |
-| **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants.                                                                                                                                                                                              |
+| **owner**     | Is entitled to every permission virtually. These permissions become effective only in privileged mode. Owner permissions are not stored as editable grants.                                                                                                                              |
 
 The order of roles in the admin UI does not affect which permissions win.
 
@@ -73,6 +73,14 @@ The mode activates permissions, not role names. It therefore also covers
 custom roles and direct user grants. It does not add authority: a role removal
 or deny still takes effect while the mode is active.
 
+For owners, the mode also activates the owner permissions. Without the mode,
+an owner cannot see, join, or read a room that denies these actions to
+`everyone`, unless another role or a direct grant allows them. Restricted rooms
+appear in the room directory when you enable the mode and disappear when it
+ends. If you joined such a room while the mode was active, you stay a member,
+but you cannot read the room until you enable the mode again. Notifications
+use your permissions without the mode. MCP clients cannot enable the mode.
+
 The initial elevation-required set includes message moderation, room creation
 and management, role and user administration, server management, invite and
 bot administration, audit access, and owner-only system diagnostics. Normal
@@ -92,7 +100,7 @@ expiry will occur.
 
 When a user tries to do something, Chatto checks permissions in this order:
 
-1. Owners are entitled to every permission. Elevation-required permissions also need active privileged mode. DM membership rules still apply, so owners cannot read DMs they are not part of.
+1. Owners with active privileged mode have every permission. Without the mode, owners continue with the steps below like other users. DM membership rules still apply, so owners cannot read DMs they are not part of.
 2. For the user and each assigned role, Chatto selects the nearest setting in the channel or DM scope chain.
 3. If any of those settings is **Deny**, the action is denied. Otherwise, Chatto keeps any **Allow** it found.
 4. Chatto compares that result with the most specific setting for `everyone`. An allow for the user or an assigned role can override an `everyone` deny only if it is at the same or a more specific scope.
@@ -216,7 +224,7 @@ deletions, reactions, and attachment selection are unaffected.
 
 Fresh servers make announcement rooms read-only for normal members. At the room level, they deny `message.post` for `everyone` and allow it for `admin`.
 
-Normal members, moderators, and roles with only server-level posting access cannot post there. Owners and admins can post. You can let another role post by giving it a room-level `message.post` allow.
+Normal members, moderators, and roles with only server-level posting access cannot post there. Admins can post. Owners can post while privileged mode is active. To let an owner post without the mode, give them the `admin` role or a room-level `message.post` allow. You can let another role post by giving it a room-level `message.post` allow.
 
 To prevent thread replies in announcements, also deny `message.post-in-thread`
 and `message.post-in-interactions` for `everyone` in that room. An effective broad
@@ -234,7 +242,7 @@ To make a room available only to a role such as `engineering`:
 
 If **Universal** added someone to the room, removing their role also removes them from the room. If they joined themselves or an admin added them, removing the role does not remove that separate membership.
 
-Other roles need their own room-level allow. A server or room-group allow cannot override the room-level `everyone` deny. Owners can still access the room.
+Other roles need their own room-level allow. A server or room-group allow cannot override the room-level `everyone` deny. Owners can access the room only while privileged mode is active, unless they have the role or their own allow.
 
 ### Normal-member room lockdown
 
@@ -255,7 +263,7 @@ To stop one non-owner user from posting without changing their roles:
 3. Under permission overrides, deny `message.post` at server scope.
 4. Deny `message.post-in-thread` and `message.post-in-interactions` to prevent replies. Optionally deny `message.attach`, `message.react`, and `message.echo`.
 
-For non-owners, a deny set directly on the user wins over their role allows. Owner permissions cannot be restricted.
+For non-owners, a deny set directly on the user wins over their role allows. Owner permissions cannot be restricted while privileged mode is active.
 
 If you suspend users regularly, create a `suspended` role with server-level denies. Do not add room or room-group allows to that role, because those more specific settings would replace its server-level denies. The role's denies override allows from the user's other roles.
 
@@ -282,7 +290,7 @@ Custom roles are reusable sets of permissions. They can override `everyone`, but
 
 Owners and admins are deliberately different:
 
-- **Owners** are always entitled to every permission. You cannot lock them out by changing roles or permission settings. Their permission rows appear as read-only green checks in the UI. They must activate privileged mode to use elevation-required permissions.
+- **Owners** are always entitled to every permission. You cannot lock them out by changing roles or permission settings, because they can always enable privileged mode. Their permission rows appear as read-only green checks in the UI. Their owner permissions are effective only while privileged mode is active.
 - **Admins** receive broad default permissions, but you can still restrict them. A deny set directly on the admin or on one of their roles wins. An `everyone` deny also applies unless the admin has an allow at the same or a more specific scope.
 
 Use `owners.emails` in `chatto.toml` to recover owner access if needed. The user must verify the listed email before becoming an owner.

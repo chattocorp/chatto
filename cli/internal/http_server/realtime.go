@@ -516,6 +516,13 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}
 				continue
 			}
+			if privilegedModeDeadlineTimer != nil && !time.Now().Before(credential.PrivilegedModeExpiresAt) {
+				// Fan-out evaluated this session with privileged mode active. Never
+				// write such an event after the deadline; the deadline watcher sends
+				// the reconnecting close frame and cancels ctx.
+				<-ctx.Done()
+				return
+			}
 			if heartbeat := frame.GetHeartbeat(); heartbeat != nil {
 				cursor, cursorErr := s.core.RealtimeCursorForSequence(user.Id, boundarySequence)
 				if cursorErr != nil {

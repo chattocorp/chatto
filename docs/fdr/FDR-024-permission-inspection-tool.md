@@ -1,7 +1,7 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-09-25
 
 ## Overview
 
@@ -21,6 +21,7 @@ bundled permission-explainer UI.
 - Denies win across direct-user and named-role entries. A named/direct allow wins over an `everyone` deny only at the same or a nearer scope; otherwise the nearer baseline row is marked as winning.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
+- An owner explanation shows the owner override only when it applies to the inspected user in the request. An inspector checks a different user, so the trace for an owner shows their ordinary decisions. See ADR-105.
 
 ## Design Decisions
 
@@ -67,5 +68,5 @@ stable API values explicitly.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-105 (privileged mode gates the owner override)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-017 (Room Groups & Sidebar Layout), FDR-021 (Admin Dashboard & System Monitoring)
