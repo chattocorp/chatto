@@ -17,6 +17,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 	"golang.org/x/time/rate"
 
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -173,20 +174,42 @@ func tokenVerifier(chattoCore *core.ChattoCore, resource string) auth.TokenVerif
 			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !hasAllScopes(credential.Scopes, config.MCPOAuthScopes()) {
 				return nil, auth.ErrInvalidToken
 			}
-			return &auth.TokenInfo{Scopes: credential.Scopes, Expiration: credential.ExpiresAt, UserID: credential.UserID}, nil
+			return &auth.TokenInfo{Scopes: credential.Scopes, Expiration: credential.ExpiresAt, UserID: credential.UserID, Extra: runtimeCredentialExtra(authctx.RuntimeCredential{
+				Kind:                    authctx.RuntimeCredentialKindBearerToken,
+				UserID:                  credential.UserID,
+				Handle:                  token,
+				OAuthClientID:           credential.ClientID,
+				ExpiresAt:               credential.ExpiresAt,
+				PrivilegedModeExpiresAt: credential.PrivilegedModeExpiresAt,
+			})}, nil
 		}
 		if !errors.Is(err, core.ErrAuthTokenNotFound) {
 			return nil, err
 		}
-		bot, _, err := chattoCore.ValidateBotAPIKeyCredential(ctx, token)
+		bot, verifier, err := chattoCore.ValidateBotAPIKeyCredential(ctx, token)
 		if err != nil {
 			if errors.Is(err, core.ErrAuthTokenNotFound) {
 				return nil, auth.ErrInvalidToken
 			}
 			return nil, err
 		}
-		return &auth.TokenInfo{Scopes: config.MCPOAuthScopes(), UserID: bot.GetId()}, nil
+		// Keep the raw key out of the request context after verification.
+		return &auth.TokenInfo{Scopes: config.MCPOAuthScopes(), UserID: bot.GetId(), Extra: runtimeCredentialExtra(authctx.RuntimeCredential{
+			Kind:              authctx.RuntimeCredentialKindBotAPIKey,
+			UserID:            bot.GetId(),
+			Handle:            bot.GetId(),
+			BotAPIKeyVerifier: append([]byte(nil), verifier...),
+		})}, nil
 	}
+}
+
+// runtimeCredentialExtraKey stores the verified Chatto credential in the MCP
+// token info. Tool handlers attach it to their context, so authorization uses
+// the same privileged-mode state as other requests with that credential.
+const runtimeCredentialExtraKey = "chatto_runtime_credential"
+
+func runtimeCredentialExtra(credential authctx.RuntimeCredential) map[string]any {
+	return map[string]any{runtimeCredentialExtraKey: credential}
 }
 
 func hasAllScopes(granted, required []string) bool {
@@ -219,9 +242,8 @@ type getServerInfoOutput struct {
 
 func getServerInfoHandler(chattoCore *core.ChattoCore, serverURL, mcpURL, version string) mcp.ToolHandlerFor[getServerInfoInput, getServerInfoOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, _ getServerInfoInput) (*mcp.CallToolResult, getServerInfoOutput, error) {
-		token := auth.TokenInfoFromContext(ctx)
-		if token == nil || token.UserID == "" {
-			return nil, getServerInfoOutput{}, auth.ErrInvalidToken
+		if _, _, err := authenticatedRequest(ctx); err != nil {
+			return nil, getServerInfoOutput{}, err
 		}
 		return nil, getServerInfoOutput{
 			ServerName:      chattoCore.ConfigModel().GetEffectiveServerName(),
@@ -257,9 +279,9 @@ type listRoomsOutput struct {
 
 func listRoomsHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[listRoomsInput, listRoomsOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, input listRoomsInput) (*mcp.CallToolResult, listRoomsOutput, error) {
-		token := auth.TokenInfoFromContext(ctx)
-		if token == nil || token.UserID == "" {
-			return nil, listRoomsOutput{}, auth.ErrInvalidToken
+		ctx, userID, err := authenticatedRequest(ctx)
+		if err != nil {
+			return nil, listRoomsOutput{}, err
 		}
 		limit := input.Limit
 		if limit == 0 {
@@ -271,7 +293,7 @@ func listRoomsHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[listRoomsI
 		if len(input.AfterRoomID) > 256 || strings.TrimSpace(input.AfterRoomID) != input.AfterRoomID {
 			return nil, listRoomsOutput{}, fmt.Errorf("after_room_id is invalid")
 		}
-		rooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, token.UserID, core.RoomDirectoryListOptions{IncludeChannels: true, IncludeDMs: true})
+		rooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{IncludeChannels: true, IncludeDMs: true})
 		if err != nil {
 			return nil, listRoomsOutput{}, err
 		}
