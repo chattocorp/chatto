@@ -187,11 +187,7 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 		userIDs:              make(map[string]struct{}),
 		thumbnail:            defaultTimelineAttachmentThumbnail(),
 	}
-	apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
-	if err != nil {
-		return nil, err
-	}
-	return apiEvent, nil
+	return h.event(ctx, &core.RoomEvent{Event: event})
 }
 
 func messageFromTimelineEvent(event *apiv1.RoomTimelineEvent) *apiv1.Message {

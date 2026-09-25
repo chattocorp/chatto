@@ -62,11 +62,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, av
 
 func userAvatarURL(ctx context.Context, api *API, userID string, avatar *apiv1.ImageTransformOptions) (string, error) {
 	if avatar == nil {
-		url, err := api.core.GetUserAvatarURL(ctx, userID, nil, nil, "")
-		if err != nil {
-			return "", err
-		}
-		return url, nil
+		return api.core.GetUserAvatarURL(ctx, userID, nil, nil, "")
 	}
 
 	width, height := int(avatar.GetWidth()), int(avatar.GetHeight())
@@ -74,9 +70,5 @@ func userAvatarURL(ctx context.Context, api *API, userID string, avatar *apiv1.I
 	if avatar.GetFit() == apiv1.ImageFitMode_IMAGE_FIT_MODE_CONTAIN {
 		fit = "contain"
 	}
-	url, err := api.core.GetUserAvatarURL(ctx, userID, &width, &height, fit)
-	if err != nil {
-		return "", err
-	}
-	return url, nil
+	return api.core.GetUserAvatarURL(ctx, userID, &width, &height, fit)
 }

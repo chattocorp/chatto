@@ -155,7 +155,8 @@ func errorCode(err error) connect.Code {
 	return connect.CodeOf(connectError(err))
 }
 
-// errorMappingInterceptor converts every handler error with connectError.
+// errorMappingInterceptor converts every unary handler error with connectError.
+// Chatto has no streaming RPCs; add a streaming conversion before adding one.
 // Handlers can therefore return core errors directly. Install it inside
 // internalErrorLoggingInterceptor so that the logger sees mapped errors.
 func errorMappingInterceptor() connect.Interceptor {

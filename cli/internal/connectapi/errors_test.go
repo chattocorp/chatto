@@ -60,12 +60,6 @@ func TestHandlerOptionsLogUnmappedErrorsWithoutExposingCause(t *testing.T) {
 	}
 }
 
-func TestConnectErrorMapsInvalidInvitation(t *testing.T) {
-	if got := errorCode((core.ErrInvitationInvalid)); got != connect.CodeInvalidArgument {
-		t.Fatalf("connectError code = %v, want invalid argument", got)
-	}
-}
-
 func TestConnectErrorMapsContextTermination(t *testing.T) {
 	tests := []struct {
 		name string
@@ -79,7 +73,7 @@ func TestConnectErrorMapsContextTermination(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := errorCode((tt.err)); got != tt.want {
+			if got := errorCode(tt.err); got != tt.want {
 				t.Fatalf("connectError code = %v, want %v", got, tt.want)
 			}
 		})

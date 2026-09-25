@@ -33,10 +33,7 @@ func (s *notificationService) hydratedOccurrence(ctx context.Context, occurrence
 }
 
 func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) error {
-	if err := s.api.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
-		return err
-	}
-	return nil
+	return s.api.core.NotificationOccurrences().WaitCurrent(ctx)
 }
 
 func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req *connect.Request[apiv1.GetNotificationOccurrenceRequest]) (*connect.Response[apiv1.GetNotificationOccurrenceResponse], error) {
