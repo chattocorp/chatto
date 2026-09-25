@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-20
 
-**Updated:** 2026-08-25
+**Updated:** 2026-09-25
 
 ## Status
 
@@ -25,7 +25,12 @@ Users wanted to connect to multiple Chatto servers from a single client (similar
 
 The frontend is server-agnostic by default. It doesn't assume it is served by a Chatto server. Instead:
 
-1. **Probe-based origin detection**: On init, call `chatto.discovery.v1.ServerDiscoveryService.GetServer` on the current origin. If it responds, auto-register the origin as a server. If it fails (static hosting), skip.
+1. **Probe-based origin detection**: Discover an HTTP or HTTPS origin through
+   `chatto.discovery.v1.ServerDiscoveryService.GetServer`. Register it when
+   discovery succeeds. Native shell origins cannot host the backend and are
+   not probed. Normal route loading waits for origin discovery and registration;
+   a saved-view startup defers network work until after the first paint, as
+   specified in [ADR-103](ADR-103-cached-first-client-startup.md).
 2. **No `isHome` flag**: The origin server is identified by comparing `server.url` to `window.location.origin` at runtime — no stored flag.
 3. **Cookie-only origin auth**: The client uses the HttpOnly cookie for the
    server that serves the SPA. Dedicated browser authentication does not issue
@@ -66,7 +71,10 @@ The URL is the sole source of truth for which server is active:
 - `-` segment = origin server
 - Hostname segment = remote server (e.g., `chat.example.com`)
 
-The `[serverId]/+layout.svelte` resolves the segment and provides the server ID via Svelte context. No mutable "active server" singleton.
+The `[serverId]/+layout.svelte` resolves the segment and provides the server ID,
+connection, and store through `ServerScopeProvider`. The provider is keyed by
+store identity, so session replacement also replaces the route scope. There
+is no mutable active-server singleton.
 
 ### Per-Server Permissions
 
@@ -87,7 +95,8 @@ revocation, and expiry contract.
 
 - Users can connect to multiple Chatto servers from one client
 - The SPA can be served statically (CDN) without a Chatto backend
-- No special-casing for "home" vs "remote" — all servers use the same code paths
+- Server-scoped screens share stores and API adapters. Origin cookie sessions
+  and remote bearer sessions retain their own authentication and recovery paths.
 - Short access lifetimes bound an access token stolen without its refresh
   credential, while background rotation avoids frequent interactive login
 
@@ -103,7 +112,9 @@ revocation, and expiry contract.
 - Users approve the first OAuth authorization for each client; Chatto remembers consent per user + stable client ID without an operator-managed registration table.
 - Signing in to each Chatto server remains a separate authorization and creates
   a device-local session.
-- The probe is async for unauthenticated users, so the origin may not be registered by the time the first render completes
+- Normal startup waits for network discovery and account loading. Saved-view
+  startup can render before these checks complete, but the saved view grants
+  no authority to perform server actions.
 
 ### Trade-offs
 

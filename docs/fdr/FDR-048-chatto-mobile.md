@@ -1,7 +1,7 @@
 # FDR-048: Chatto Mobile
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-19
+**Last reviewed:** 2026-09-25
 
 ## Overview
 
@@ -36,6 +36,9 @@ client. It connects to independent servers without running a local backend.
 - Server sign-in opens the system authentication session. The selected server
   owns sign-in and consent. Cancellation leaves the client in place.
 - Server registrations and sessions use persistent application webview storage.
+- The shared client can restore bounded saved chat text when webview storage
+  is available. This view remains read-only until the server verifies the
+  session and permissions. It does not provide offline message sending.
 - Sign-in requires HTTPS and a server with the mobile client registration.
 - Registered servers recover from failed startup discovery or session loading
   through the shared retry loop. Returning to the foreground triggers an
@@ -51,6 +54,8 @@ client. It connects to independent servers without running a local backend.
 
 **Decision:** Bundle the existing frontend with Capacitor, starting with iOS.
 Use native system authentication as the first host capability.
+Keep the iOS Flat surface default separate from native capability detection;
+it changes presentation and does not grant access to a native operation.
 **Why:** This retains the shared interface and session behaviour while allowing
 later native media support. See ADR-072 and ADR-099.
 **Tradeoff:** WebKit behaviour still applies to the shared interface. Native
@@ -58,14 +63,15 @@ integration requires device verification in addition to browser tests.
 
 ### 2. Keep the first implementation small
 
-**Decision:** Retain webview session storage and defer push, native calls,
-offline storage, and public App Store distribution.
+**Decision:** Retain webview session storage and the shared client's bounded
+saved chat view. Defer native push, native call ownership, a separate native
+offline store, and public App Store distribution.
 **Why:** First establish a working shell and authentication boundary.
 **Tradeoff:** This is a development prototype, not a complete mobile release.
 
 ## Related
 
-- **ADRs:** ADR-072, ADR-099
+- **ADRs:** ADR-072, ADR-099, ADR-103
 - **FDRs:** FDR-016, FDR-023, FDR-034
 
 ## Open Questions
