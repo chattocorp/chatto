@@ -454,6 +454,37 @@ describe('remote server OAuth popup', () => {
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 
+  it('handles a join window that closes while server data still loads', async () => {
+    const popup = {
+      closed: false,
+      opener: {} as Window,
+      location: { href: '' },
+      close: vi.fn(function (this: { closed: boolean }) {
+        this.closed = true;
+      })
+    } as unknown as Window;
+    const { owner } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+
+    let rejectServerInfo: ((error: Error) => void) | undefined;
+    const serverInfo = new Promise<never>((_resolve, reject) => {
+      rejectServerInfo = reject;
+    });
+    const { startServerOAuthFlowWhenReady } = await import('./reauth');
+    const completion = startServerOAuthFlowWhenReady('https://remote.example', serverInfo);
+
+    (popup as unknown as { closed: boolean }).closed = true;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    rejectServerInfo?.(new Error('join unavailable'));
+    await expect(completion).rejects.toThrow('join unavailable');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    process.off('unhandledRejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
   it('reports a blocked join window without an unhandled server-data rejection', async () => {
     const { owner } = browserHarness(null);
     vi.stubGlobal('window', owner);

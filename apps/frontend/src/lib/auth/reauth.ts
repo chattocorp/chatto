@@ -146,6 +146,9 @@ async function runServerOAuthFlow(
   }
 
   const responseWait = waitForPopupResponse(authorizationWindow, state, responseChannel);
+  // The window can close while server data still loads. Observe that early
+  // rejection here; the later await still receives it.
+  responseWait.promise.catch(() => {});
 
   try {
     const { serverInfo, providerId } = await details;
