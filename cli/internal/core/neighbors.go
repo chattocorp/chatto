@@ -4,14 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
-	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
-	"golang.org/x/net/idna"
-
+	"hmans.de/chatto/internal/core/neighborhood"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -274,54 +269,8 @@ func waitNeighborRetry(ctx context.Context, attempt int) error {
 }
 
 func canonicalNeighborOrigin(raw string) (string, error) {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.Opaque != "" {
-		return "", invalidNeighborOrigin()
-	}
-	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "http" && scheme != "https" {
-		return "", invalidNeighborOrigin()
-	}
-	if (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" {
-		return "", invalidNeighborOrigin()
-	}
-	hostname := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
-	if hostname == "" || strings.Contains(hostname, "%") {
-		return "", invalidNeighborOrigin()
-	}
-	if ip := net.ParseIP(hostname); ip != nil {
-		hostname = ip.String()
-	} else {
-		hostname, err = idna.Lookup.ToASCII(hostname)
-		if err != nil || hostname == "" {
-			return "", invalidNeighborOrigin()
-		}
-		hostname = strings.ToLower(hostname)
-	}
-	port := parsed.Port()
-	if port == "" && strings.HasSuffix(parsed.Host, ":") {
-		return "", invalidNeighborOrigin()
-	}
-	if port != "" {
-		portNumber, err := strconv.Atoi(port)
-		if err != nil || portNumber < 1 || portNumber > 65535 {
-			return "", invalidNeighborOrigin()
-		}
-		if (scheme == "http" && portNumber == 80) || (scheme == "https" && portNumber == 443) {
-			port = ""
-		} else {
-			port = strconv.Itoa(portNumber)
-		}
-	}
-	host := hostname
-	if strings.Contains(hostname, ":") {
-		host = "[" + hostname + "]"
-	}
-	if port != "" {
-		host = net.JoinHostPort(hostname, port)
-	}
-	origin := scheme + "://" + host
-	if len(origin) > MaxNeighborOriginLength {
+	origin, ok := neighborhood.CanonicalOrigin(raw)
+	if !ok || len(origin) > MaxNeighborOriginLength {
 		return "", invalidNeighborOrigin()
 	}
 	return origin, nil

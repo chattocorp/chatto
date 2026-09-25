@@ -437,7 +437,7 @@ func skipReason(name string, includeKeys bool) string {
 	case "KV_AUTH_TOKENS":
 		return "security (prevents token leakage)"
 	}
-	if strings.HasPrefix(name, "OBJ_ASSET_CACHE") {
+	if strings.HasPrefix(name, "OBJ_ASSET_CACHE") || name == "OBJ_NEIGHBORHOOD_IMAGES" {
 		return "cache (regeneratable)"
 	}
 	return ""

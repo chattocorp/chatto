@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -27,6 +28,7 @@ func (s *HTTPServer) setupAssetRoutes() {
 	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
 	s.router.GET("/assets/server/*path", s.serveServerAsset)
+	s.router.GET("/assets/neighborhood/:name", s.serveNeighborhoodImage)
 	s.router.GET("/assets/files/:assetID", s.serveStableAttachment)
 	s.router.GET("/assets/files/:assetID/image/:dimensions/:fit", s.serveStableTransformedAttachment)
 	s.router.GET("/assets/hls/:assetID/master.m3u8", s.serveHLSMasterPlaylist)
@@ -157,6 +159,29 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 		reader,
 		nil,
 	)
+}
+
+// serveNeighborhoodImage serves one public, content-addressed copy of a
+// Neighborhood server logo or banner. The route needs no authentication
+// because discovery stores only public profile images in its own bucket.
+func (s *HTTPServer) serveNeighborhoodImage(c *gin.Context) {
+	name := c.Param("name")
+	reader, info, err := s.core.OpenNeighborhoodImage(c.Request.Context(), name)
+	if err != nil {
+		if !errors.Is(err, core.ErrNeighborhoodImageNotFound) {
+			s.logger.Warn("Failed to read Neighborhood image", "error", err)
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		return
+	}
+	defer reader.Close()
+
+	// The name is the SHA-256 hash of the image bytes, so the content at one
+	// URL never changes.
+	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.Header("ETag", fmt.Sprintf("\"%s\"", name))
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.DataFromReader(http.StatusOK, int64(info.Size), "image/webp", reader, nil)
 }
 
 // serveStableAttachment serves the canonical authenticated asset URL:

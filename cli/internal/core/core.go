@@ -70,6 +70,7 @@ type ChattoCore struct {
 	linkPreviewCache          *linkpreview.Cache   // Cache for link preview metadata
 	linkPreviewFetcher        *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker  *projectionSnapshotWorker
+	neighborhoodDiscovery     *neighborhoodDiscovery
 	credentialUsage           *credentialUsageRecorder
 	serverOrigins             map[string]struct{}
 	natsRecoveryState         atomic.Int32
@@ -216,6 +217,17 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	g.Go(func() error { return c.keyShredding.Run(gctx) })
 	g.Go(func() error { return c.credentialUsage.Run(gctx) })
+	if c.neighborhoodDiscovery != nil {
+		g.Go(func() error {
+			err := c.neighborhoodDiscovery.Run(gctx, c.bootDone)
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			// Neighborhood discovery is optional public metadata. A failure
+			// must never make core unavailable.
+			return nil
+		})
+	}
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)

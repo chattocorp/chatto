@@ -1,7 +1,7 @@
 # FDR-042: Chatto Neighbors
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-25
 
 ## Overview
 
@@ -21,6 +21,24 @@ recommendation, not a trust or reciprocal relationship.
   or an exact `webserver.allowed_origins` alias.
 - The directory has no ordering contract.
 - Any caller can list the advertised origins through the public discovery API.
+- Each server discovers its Neighborhood in the background. The Neighborhood
+  contains each direct Neighbor whose public profile loads. It also contains
+  servers that a mutually advertising Neighbor recommends when that
+  recommendation is also mutual, to at most two mutual hops.
+- Any caller can list the cached Neighborhood through the public discovery
+  API. The call does not contact other servers. Each result has the server
+  origin, public name, version, description, logo, and banner. It also tells
+  whether the called server advertises the result directly and which other
+  Neighborhood servers mutually recommend it.
+- The server refreshes the Neighborhood when the cached result is one hour
+  old. After a failed remote request, it refreshes when the cached result is
+  ten minutes old. After a Neighbor change, it refreshes when the cached
+  result is at least two minutes old. One pass permits at most 150 directory requests and 120
+  profile requests, with six active requests and a ten-second timeout for each
+  request.
+- Neighborhood discovery rejects redirects and servers on loopback, private,
+  and link-local network addresses. It stores re-encoded copies of logos and
+  banners and serves them from the called server.
 - The Server Directory asks the user for consent before it contacts any
   advertised server. The client saves this consent on the device and does not
   ask again on later visits.
@@ -65,8 +83,9 @@ recommendation, not a trust or reciprocal relationship.
   its own compatible client.
 - A user can enter a server address directly when the wanted server is not in
   the directory.
-- The advertising server does not contact a Neighbor. It does not test
-  reachability, compatibility, ownership, or consent.
+- Neighbor administration does not contact a Neighbor. Background
+  Neighborhood discovery reads public data from Neighbors and their mutual
+  recommendations. It does not test compatibility, ownership, or consent.
 - `server.manage-neighbors` controls administrative access. The permission is
   independently grantable. An effective `server.manage` allow includes it
   through explicit permission metadata.
@@ -105,6 +124,11 @@ responses are not durable consent or an authenticated relationship. The
 observation can change between requests.
 
 ### 3. The server stays passive and the client loads public profiles
+
+**Status:** Partially superseded by ADR-105 and Design Decision 14. The server
+now contacts Neighbors for background Neighborhood discovery. Neighbor
+administration writes remain passive. The Server Directory and the Neighbor
+administration page still load public profiles in the browser.
 
 **Decision:** The server validates and stores canonical origins. It does not
 request discovery data, images, or health information from a Neighbor. The
@@ -260,6 +284,21 @@ hops. The media-type and size limits bound untrusted image handling.
 images do not display. A remote image response must permit the browser's
 cross-origin request.
 
+### 14. The server discovers and caches the Neighborhood
+
+**Decision:** Each server runs Neighborhood discovery in the background with
+the mutual-hop rules and fixed request limits. It stores the latest result in
+`MEMORY_CACHE` and image copies in `NEIGHBORHOOD_IMAGES`. The public
+`ListNeighborhoodServers` RPC returns only the cached result. See ADR-105.
+
+**Why:** A registered server already knows the user's IP address. When it
+contacts other servers, those servers do not see the user's address. A client
+can then show the Neighborhood without a consent step. One cached pass also
+replaces a separate crawl for each user visit.
+
+**Tradeoff:** The server makes outbound requests and cannot reach servers on
+private network addresses. Results can be up to one hour old.
+
 ## Permissions
 
 - `server.manage-neighbors` permits Neighbor administration. A human session
@@ -273,11 +312,11 @@ cross-origin request.
 - Unbounded recursive Neighbor discovery
 - Directory ranking or sorting
 - Remote-server moderation or blocking
-- Server-side reachability or compatibility checks
+- Server-side compatibility checks
 
 ## Related
 
-- **ADRs:** ADR-033, ADR-034, ADR-040, ADR-044, ADR-045
+- **ADRs:** ADR-033, ADR-034, ADR-040, ADR-044, ADR-045, ADR-105
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-020 (Server Branding &
   Configuration), FDR-031 (Client–Server Compatibility Discovery)
 - **Issues:** [#1669](https://github.com/chattocorp/chatto/issues/1669),

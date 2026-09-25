@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package chatto.core.cache_state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1;cachestatev1";
+
+// NeighborhoodDirectory is the latest Neighborhood discovery result stored
+// under neighborhood.directory in MEMORY_CACHE. Discovery replaces the complete
+// value after each pass.
+message NeighborhoodDirectory {
+  // Time when the discovery pass completed.
+  google.protobuf.Timestamp refreshed_at = 1;
+  // Hash of the Neighbor origins that started the discovery pass. A different
+  // current hash makes the directory stale.
+  string source_fingerprint = 2;
+  // Discovered servers in discovery order.
+  repeated NeighborhoodServerRecord servers = 3;
+  // Whether at least one remote request failed during the pass. Discovery
+  // retries an incomplete directory sooner than a complete one.
+  bool incomplete = 4;
+}
+
+// NeighborhoodServerRecord is one discovered server with a loaded public
+// profile.
+message NeighborhoodServerRecord {
+  // Canonical HTTP or HTTPS origin.
+  string origin = 1;
+  // Public server name, truncated to the discovery limit.
+  string name = 2;
+  // Public server software version, truncated to the discovery limit.
+  string version = 3;
+  // Public server description, truncated to the discovery limit.
+  string description = 4;
+  // Whether this server advertises the record as a Neighbor.
+  bool direct_neighbor = 5;
+  // Canonical origins of other records in the same directory that mutually
+  // recommend it.
+  repeated string recommended_by_origins = 6;
+  // Cached copy of the public logo.
+  NeighborhoodImage logo = 7;
+  // Cached copy of the public banner.
+  NeighborhoodImage banner = 8;
+}
+
+// NeighborhoodImage identifies one re-encoded public profile image in the
+// NEIGHBORHOOD_IMAGES object store.
+message NeighborhoodImage {
+  // Remote URL that supplied the image. Discovery reuses the stored copy
+  // while this URL is unchanged.
+  string source_url = 1;
+  // Content-addressed object name in NEIGHBORHOOD_IMAGES.
+  string object_name = 2;
+}

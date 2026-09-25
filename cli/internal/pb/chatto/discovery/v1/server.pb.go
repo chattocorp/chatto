@@ -9,6 +9,7 @@ package discoveryv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
@@ -207,11 +208,182 @@ func (x *ListNeighborsResponse) GetOrigins() []string {
 	return nil
 }
 
+// Request for the Neighborhood that this server has discovered.
+type ListNeighborhoodServersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNeighborhoodServersRequest) Reset() {
+	*x = ListNeighborhoodServersRequest{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNeighborhoodServersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNeighborhoodServersRequest) ProtoMessage() {}
+
+func (x *ListNeighborhoodServersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNeighborhoodServersRequest.ProtoReflect.Descriptor instead.
+func (*ListNeighborhoodServersRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{4}
+}
+
+// One server in the Neighborhood of the called server.
+type NeighborhoodServer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Canonical origin of the server.
+	Origin string `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	// Public profile that the called server loaded. The welcome message is
+	// absent. The logo and banner URLs identify copies on the called server.
+	Profile *v1.ServerPublicProfile `protobuf:"bytes,2,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Whether the called server advertises this server as a Neighbor.
+	DirectNeighbor bool `protobuf:"varint,3,opt,name=direct_neighbor,json=directNeighbor,proto3" json:"direct_neighbor,omitempty"`
+	// Canonical origins of other servers in the same response that mutually
+	// recommend this server. The list does not include the called server.
+	RecommendedByOrigins []string `protobuf:"bytes,4,rep,name=recommended_by_origins,json=recommendedByOrigins,proto3" json:"recommended_by_origins,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *NeighborhoodServer) Reset() {
+	*x = NeighborhoodServer{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NeighborhoodServer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NeighborhoodServer) ProtoMessage() {}
+
+func (x *NeighborhoodServer) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NeighborhoodServer.ProtoReflect.Descriptor instead.
+func (*NeighborhoodServer) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *NeighborhoodServer) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
+func (x *NeighborhoodServer) GetProfile() *v1.ServerPublicProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+func (x *NeighborhoodServer) GetDirectNeighbor() bool {
+	if x != nil {
+		return x.DirectNeighbor
+	}
+	return false
+}
+
+func (x *NeighborhoodServer) GetRecommendedByOrigins() []string {
+	if x != nil {
+		return x.RecommendedByOrigins
+	}
+	return nil
+}
+
+// Servers that the called server discovered through its Neighbors. The
+// called server lists each of its Neighbors whose public profile loaded. It
+// also lists servers that a mutually advertising Neighbor recommends when the
+// recommendation is also mutual. The response has no ordering contract.
+type ListNeighborhoodServersResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Servers in the Neighborhood.
+	Servers []*NeighborhoodServer `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	// Time when the called server last completed Neighborhood discovery.
+	// Absent before the first completed discovery.
+	RefreshedAt   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=refreshed_at,json=refreshedAt,proto3" json:"refreshed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNeighborhoodServersResponse) Reset() {
+	*x = ListNeighborhoodServersResponse{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNeighborhoodServersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNeighborhoodServersResponse) ProtoMessage() {}
+
+func (x *ListNeighborhoodServersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNeighborhoodServersResponse.ProtoReflect.Descriptor instead.
+func (*ListNeighborhoodServersResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListNeighborhoodServersResponse) GetServers() []*NeighborhoodServer {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+func (x *ListNeighborhoodServersResponse) GetRefreshedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RefreshedAt
+	}
+	return nil
+}
+
 var File_chatto_discovery_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\n" +
-	" chatto/discovery/v1/server.proto\x12\x13chatto.discovery.v1\x1a\x1achatto/api/v1/server.proto\"\x12\n" +
+	" chatto/discovery/v1/server.proto\x12\x13chatto.discovery.v1\x1a\x1achatto/api/v1/server.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x12\n" +
 	"\x10GetServerRequest\"\xaa\x01\n" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
@@ -219,10 +391,20 @@ const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\x0esetup_required\x18\x03 \x01(\bR\rsetupRequired\"\x16\n" +
 	"\x14ListNeighborsRequest\"B\n" +
 	"\x15ListNeighborsResponse\x12\x18\n" +
-	"\aorigins\x18\x01 \x03(\tR\aoriginsJ\x04\b\x02\x10\x03R\tneighbors2\xe6\x01\n" +
+	"\aorigins\x18\x01 \x03(\tR\aoriginsJ\x04\b\x02\x10\x03R\tneighbors\" \n" +
+	"\x1eListNeighborhoodServersRequest\"\xc9\x01\n" +
+	"\x12NeighborhoodServer\x12\x16\n" +
+	"\x06origin\x18\x01 \x01(\tR\x06origin\x12<\n" +
+	"\aprofile\x18\x02 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x12'\n" +
+	"\x0fdirect_neighbor\x18\x03 \x01(\bR\x0edirectNeighbor\x124\n" +
+	"\x16recommended_by_origins\x18\x04 \x03(\tR\x14recommendedByOrigins\"\xa3\x01\n" +
+	"\x1fListNeighborhoodServersResponse\x12A\n" +
+	"\aservers\x18\x01 \x03(\v2'.chatto.discovery.v1.NeighborhoodServerR\aservers\x12=\n" +
+	"\frefreshed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vrefreshedAt2\xf2\x02\n" +
 	"\x16ServerDiscoveryService\x12_\n" +
 	"\tGetServer\x12%.chatto.discovery.v1.GetServerRequest\x1a&.chatto.discovery.v1.GetServerResponse\"\x03\x90\x02\x01\x12k\n" +
-	"\rListNeighbors\x12).chatto.discovery.v1.ListNeighborsRequest\x1a*.chatto.discovery.v1.ListNeighborsResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
+	"\rListNeighbors\x12).chatto.discovery.v1.ListNeighborsRequest\x1a*.chatto.discovery.v1.ListNeighborsResponse\"\x03\x90\x02\x01\x12\x89\x01\n" +
+	"\x17ListNeighborhoodServers\x123.chatto.discovery.v1.ListNeighborhoodServersRequest\x1a4.chatto.discovery.v1.ListNeighborhoodServersResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
 	"\x17com.chatto.discovery.v1B\vServerProtoP\x01Z;hmans.de/chatto/internal/pb/chatto/discovery/v1;discoveryv1\xa2\x02\x03CDX\xaa\x02\x13Chatto.Discovery.V1\xca\x02\x13Chatto\\Discovery\\V1\xe2\x02\x1fChatto\\Discovery\\V1\\GPBMetadata\xea\x02\x15Chatto::Discovery::V1b\x06proto3"
 
 var (
@@ -237,27 +419,36 @@ func file_chatto_discovery_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_discovery_v1_server_proto_rawDescData
 }
 
-var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_discovery_v1_server_proto_goTypes = []any{
-	(*GetServerRequest)(nil),       // 0: chatto.discovery.v1.GetServerRequest
-	(*GetServerResponse)(nil),      // 1: chatto.discovery.v1.GetServerResponse
-	(*ListNeighborsRequest)(nil),   // 2: chatto.discovery.v1.ListNeighborsRequest
-	(*ListNeighborsResponse)(nil),  // 3: chatto.discovery.v1.ListNeighborsResponse
-	(*v1.ServerPublicProfile)(nil), // 4: chatto.api.v1.ServerPublicProfile
-	(*v1.ServerLogin)(nil),         // 5: chatto.api.v1.ServerLogin
+	(*GetServerRequest)(nil),                // 0: chatto.discovery.v1.GetServerRequest
+	(*GetServerResponse)(nil),               // 1: chatto.discovery.v1.GetServerResponse
+	(*ListNeighborsRequest)(nil),            // 2: chatto.discovery.v1.ListNeighborsRequest
+	(*ListNeighborsResponse)(nil),           // 3: chatto.discovery.v1.ListNeighborsResponse
+	(*ListNeighborhoodServersRequest)(nil),  // 4: chatto.discovery.v1.ListNeighborhoodServersRequest
+	(*NeighborhoodServer)(nil),              // 5: chatto.discovery.v1.NeighborhoodServer
+	(*ListNeighborhoodServersResponse)(nil), // 6: chatto.discovery.v1.ListNeighborhoodServersResponse
+	(*v1.ServerPublicProfile)(nil),          // 7: chatto.api.v1.ServerPublicProfile
+	(*v1.ServerLogin)(nil),                  // 8: chatto.api.v1.ServerLogin
+	(*timestamppb.Timestamp)(nil),           // 9: google.protobuf.Timestamp
 }
 var file_chatto_discovery_v1_server_proto_depIdxs = []int32{
-	4, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
-	5, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
-	0, // 2: chatto.discovery.v1.ServerDiscoveryService.GetServer:input_type -> chatto.discovery.v1.GetServerRequest
-	2, // 3: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:input_type -> chatto.discovery.v1.ListNeighborsRequest
-	1, // 4: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
-	3, // 5: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:output_type -> chatto.discovery.v1.ListNeighborsResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	7, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
+	8, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
+	7, // 2: chatto.discovery.v1.NeighborhoodServer.profile:type_name -> chatto.api.v1.ServerPublicProfile
+	5, // 3: chatto.discovery.v1.ListNeighborhoodServersResponse.servers:type_name -> chatto.discovery.v1.NeighborhoodServer
+	9, // 4: chatto.discovery.v1.ListNeighborhoodServersResponse.refreshed_at:type_name -> google.protobuf.Timestamp
+	0, // 5: chatto.discovery.v1.ServerDiscoveryService.GetServer:input_type -> chatto.discovery.v1.GetServerRequest
+	2, // 6: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:input_type -> chatto.discovery.v1.ListNeighborsRequest
+	4, // 7: chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers:input_type -> chatto.discovery.v1.ListNeighborhoodServersRequest
+	1, // 8: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
+	3, // 9: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:output_type -> chatto.discovery.v1.ListNeighborsResponse
+	6, // 10: chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers:output_type -> chatto.discovery.v1.ListNeighborhoodServersResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_discovery_v1_server_proto_init() }
@@ -271,7 +462,7 @@ func file_chatto_discovery_v1_server_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_discovery_v1_server_proto_rawDesc), len(file_chatto_discovery_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

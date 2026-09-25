@@ -79,3 +79,40 @@ Publicly advertised servers. The response has no ordering contract.
 | Field | Type | Description |
 | --- | --- | --- |
 | `origins` | `repeated string` | Canonical origins of the advertised servers. |
+
+
+<a id="chatto-discovery-v1-ServerDiscoveryService-ListNeighborhoodServers"></a>
+
+### ListNeighborhoodServers
+
+Returns the Neighborhood without requiring a session. The server
+contacts other servers in the background and caches the result. A call
+does not contact other servers, so a client can show the Neighborhood
+without revealing the user's network address to those servers. The
+server refreshes the Neighborhood at least once per hour and soon after
+its Neighbors change.
+
+```http
+POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers
+```
+
+<a id="chatto-discovery-v1-ListNeighborhoodServersRequest"></a>
+
+#### Input: ListNeighborhoodServersRequest
+
+Request for the Neighborhood that this server has discovered.
+
+
+<a id="chatto-discovery-v1-ListNeighborhoodServersResponse"></a>
+
+#### Result: ListNeighborhoodServersResponse
+
+Servers that the called server discovered through its Neighbors. The
+called server lists each of its Neighbors whose public profile loaded. It
+also lists servers that a mutually advertising Neighbor recommends when the
+recommendation is also mutual. The response has no ordering contract.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `servers` | repeated [`NeighborhoodServer`](/reference/connectrpc-api/types/#chatto-discovery-v1-NeighborhoodServer) | Servers in the Neighborhood. |
+| `refreshed_at` | `google.protobuf.Timestamp` | Time when the called server last completed Neighborhood discovery. Absent before the first completed discovery. |

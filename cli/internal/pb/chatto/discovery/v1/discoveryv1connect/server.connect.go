@@ -39,6 +39,9 @@ const (
 	// ServerDiscoveryServiceListNeighborsProcedure is the fully-qualified name of the
 	// ServerDiscoveryService's ListNeighbors RPC.
 	ServerDiscoveryServiceListNeighborsProcedure = "/chatto.discovery.v1.ServerDiscoveryService/ListNeighbors"
+	// ServerDiscoveryServiceListNeighborhoodServersProcedure is the fully-qualified name of the
+	// ServerDiscoveryService's ListNeighborhoodServers RPC.
+	ServerDiscoveryServiceListNeighborhoodServersProcedure = "/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers"
 )
 
 // ServerDiscoveryServiceClient is a client for the chatto.discovery.v1.ServerDiscoveryService
@@ -50,6 +53,13 @@ type ServerDiscoveryServiceClient interface {
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
 	// Returns the public Neighbor directory without requiring a session.
 	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
+	// Returns the Neighborhood without requiring a session. The server
+	// contacts other servers in the background and caches the result. A call
+	// does not contact other servers, so a client can show the Neighborhood
+	// without revealing the user's network address to those servers. The
+	// server refreshes the Neighborhood at least once per hour and soon after
+	// its Neighbors change.
+	ListNeighborhoodServers(context.Context, *connect.Request[v1.ListNeighborhoodServersRequest]) (*connect.Response[v1.ListNeighborhoodServersResponse], error)
 }
 
 // NewServerDiscoveryServiceClient constructs a client for the
@@ -77,13 +87,21 @@ func NewServerDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listNeighborhoodServers: connect.NewClient[v1.ListNeighborhoodServersRequest, v1.ListNeighborhoodServersResponse](
+			httpClient,
+			baseURL+ServerDiscoveryServiceListNeighborhoodServersProcedure,
+			connect.WithSchema(serverDiscoveryServiceMethods.ByName("ListNeighborhoodServers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // serverDiscoveryServiceClient implements ServerDiscoveryServiceClient.
 type serverDiscoveryServiceClient struct {
-	getServer     *connect.Client[v1.GetServerRequest, v1.GetServerResponse]
-	listNeighbors *connect.Client[v1.ListNeighborsRequest, v1.ListNeighborsResponse]
+	getServer               *connect.Client[v1.GetServerRequest, v1.GetServerResponse]
+	listNeighbors           *connect.Client[v1.ListNeighborsRequest, v1.ListNeighborsResponse]
+	listNeighborhoodServers *connect.Client[v1.ListNeighborhoodServersRequest, v1.ListNeighborhoodServersResponse]
 }
 
 // GetServer calls chatto.discovery.v1.ServerDiscoveryService.GetServer.
@@ -96,6 +114,11 @@ func (c *serverDiscoveryServiceClient) ListNeighbors(ctx context.Context, req *c
 	return c.listNeighbors.CallUnary(ctx, req)
 }
 
+// ListNeighborhoodServers calls chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers.
+func (c *serverDiscoveryServiceClient) ListNeighborhoodServers(ctx context.Context, req *connect.Request[v1.ListNeighborhoodServersRequest]) (*connect.Response[v1.ListNeighborhoodServersResponse], error) {
+	return c.listNeighborhoodServers.CallUnary(ctx, req)
+}
+
 // ServerDiscoveryServiceHandler is an implementation of the
 // chatto.discovery.v1.ServerDiscoveryService service.
 type ServerDiscoveryServiceHandler interface {
@@ -105,6 +128,13 @@ type ServerDiscoveryServiceHandler interface {
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
 	// Returns the public Neighbor directory without requiring a session.
 	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
+	// Returns the Neighborhood without requiring a session. The server
+	// contacts other servers in the background and caches the result. A call
+	// does not contact other servers, so a client can show the Neighborhood
+	// without revealing the user's network address to those servers. The
+	// server refreshes the Neighborhood at least once per hour and soon after
+	// its Neighbors change.
+	ListNeighborhoodServers(context.Context, *connect.Request[v1.ListNeighborhoodServersRequest]) (*connect.Response[v1.ListNeighborhoodServersResponse], error)
 }
 
 // NewServerDiscoveryServiceHandler builds an HTTP handler from the service implementation. It
@@ -128,12 +158,21 @@ func NewServerDiscoveryServiceHandler(svc ServerDiscoveryServiceHandler, opts ..
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	serverDiscoveryServiceListNeighborhoodServersHandler := connect.NewUnaryHandler(
+		ServerDiscoveryServiceListNeighborhoodServersProcedure,
+		svc.ListNeighborhoodServers,
+		connect.WithSchema(serverDiscoveryServiceMethods.ByName("ListNeighborhoodServers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.discovery.v1.ServerDiscoveryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ServerDiscoveryServiceGetServerProcedure:
 			serverDiscoveryServiceGetServerHandler.ServeHTTP(w, r)
 		case ServerDiscoveryServiceListNeighborsProcedure:
 			serverDiscoveryServiceListNeighborsHandler.ServeHTTP(w, r)
+		case ServerDiscoveryServiceListNeighborhoodServersProcedure:
+			serverDiscoveryServiceListNeighborhoodServersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -149,4 +188,8 @@ func (UnimplementedServerDiscoveryServiceHandler) GetServer(context.Context, *co
 
 func (UnimplementedServerDiscoveryServiceHandler) ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.discovery.v1.ServerDiscoveryService.ListNeighbors is not implemented"))
+}
+
+func (UnimplementedServerDiscoveryServiceHandler) ListNeighborhoodServers(context.Context, *connect.Request[v1.ListNeighborhoodServersRequest]) (*connect.Response[v1.ListNeighborhoodServersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers is not implemented"))
 }

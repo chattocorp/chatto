@@ -64,6 +64,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Neighbor** — Chatto server that another server advertises in its public directory. A Neighbor has a canonical origin. It is a recommendation, not a trust or reciprocal relationship. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
+**Neighborhood** — Servers that one Chatto server discovers through its Neighbors: each direct Neighbor, plus servers that a mutually advertising Neighbor mutually recommends, to at most two mutual hops. The server discovers its Neighborhood in the background and publishes a cached result. See [FDR-042](fdr/FDR-042-chatto-neighbors.md) and [ADR-105](adr/ADR-105-server-side-neighborhood-discovery.md).
+
 **Server Directory** — Client page that shows direct Neighbor recommendations from registered servers and follows bounded mutual recommendations recursively. It adds a direct server after its public profile loads, expands a remote server only after mutuality is observed, keeps registered results visible as joined, shows recommendation-source attribution in a tapestry layout, and also accepts a direct server address. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
 **Client application** — Browser, desktop, mobile app, or integration that a user authorizes to access a Chatto server; its stable identity comes from CIMD or a built-in registration. A client appears in server administration after completing at least one user-approved authorization. Administrators may label it trusted or block it, but trust never replaces user consent. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).

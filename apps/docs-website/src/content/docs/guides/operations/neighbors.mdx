@@ -34,6 +34,33 @@ this information to review the advertised server before you keep or remove it.
 The directory has no ordering contract. Clients must not use its response order
 as a rank or preference.
 
+## Understand Neighborhood discovery
+
+Your Chatto server discovers its **Neighborhood** in the background. The
+Neighborhood contains each Neighbor whose public profile loads. When a Neighbor
+also advertises your server, the Neighborhood can also contain the servers
+that this Neighbor recommends. Chatto adds such a server only when that server
+advertises the recommending Neighbor back. It follows at most two of these
+mutual hops.
+
+Chatto refreshes the Neighborhood each hour. If a server did not respond,
+Chatto tries again after ten minutes. After you add, edit, or delete a
+Neighbor, the change appears in about two minutes. One refresh sends at most
+150 directory requests and 120 profile requests. Chatto uses at most six
+active requests, and each request has a ten-second timeout.
+
+These requests go from your Chatto server to the other servers. Make sure that
+your server can make outbound HTTPS requests to its Neighbors. If outbound
+traffic is blocked, the Neighborhood is empty or incomplete. Chatto does not
+contact servers on loopback, private, or link-local network addresses, and it
+does not follow redirects.
+
+Chatto keeps a copy of each server's logo and banner. It accepts an image only
+from that server's origin, only with a GIF, JPEG, PNG, or WebP media type, and
+only up to 5 MiB. Your server serves these copies, so a client can show the
+Neighborhood without contacting the other servers. Backups do not include the
+Neighborhood or its image copies. Chatto discovers them again after a restore.
+
 ## Use the Server Directory
 
 Select **Add Server** in the Server Gutter to open the Server Directory. The
@@ -92,11 +119,11 @@ same compatibility rule applies to a server found through this field.
 
 ## Understand the trust boundary
 
-The Chatto server stores and publishes the origin. It does not contact the
-Neighbor. It does not verify that:
+The Chatto server stores and publishes the origin. A change to a Neighbor does
+not contact that server. Neighborhood discovery later reads the public profile
+and directory of each Neighbor. It does not verify that:
 
-- the origin runs Chatto;
-- the server is online or compatible;
+- the server is compatible;
 - the remote administrator approves the listing; or
 - the two servers trust each other.
 
@@ -112,19 +139,22 @@ contain no reusable user credential or referrer data and do not follow
 redirects. A failed cross-origin request can still send an unauthenticated CORS
 preflight. Each remote server can see your network IP address and technical
 connection details. The session limits bound the Server Directory request
-effect. The server-side Neighbor configuration remains passive.
+effect.
 
 ## Use the API
 
 The authenticated `chatto.admin.v1.AdminServerService` provides list, get,
 create, update, and delete methods. The public
 `chatto.discovery.v1.ServerDiscoveryService.ListNeighbors` method returns
-canonical origins without a session.
+canonical origins without a session. The public
+`ListNeighborhoodServers` method returns the cached Neighborhood without a
+session. It does not contact other servers. Its logo and banner URLs point to
+copies on the called server.
 
 Administrative API callers must send a canonical HTTP or HTTPS origin without
 a path, query, fragment, or credentials. The hostname and deep-link input
 normalization is a bundled-client feature. Create and update operations return
 `FailedPrecondition` when the origin identifies the current server.
 
-An older server can return `Unimplemented` for the public method. Treat that
-result as no available Neighbor directory.
+An older server can return `Unimplemented` for these public methods. Treat
+that result as no available Neighbor directory or Neighborhood.

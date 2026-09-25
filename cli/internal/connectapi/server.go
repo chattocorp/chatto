@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 )
@@ -80,6 +81,49 @@ func (s *serverDiscoveryService) ListNeighbors(ctx context.Context, _ *connect.R
 		etag, err := discoveryResponseETag(response)
 		if err != nil {
 			return nil, connectInternalError(fmt.Errorf("marshal Neighbor discovery response for ETag: %w", err))
+		}
+		cacheHeaders := http.Header{"Cache-Control": []string{discoveryCacheControl}, "Etag": []string{etag}}
+		if ifNoneMatch(callInfo.RequestHeader().Get("If-None-Match"), etag) {
+			return nil, connect.NewNotModifiedError(cacheHeaders)
+		}
+		for name, values := range cacheHeaders {
+			callInfo.ResponseHeader()[name] = values
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (s *serverDiscoveryService) ListNeighborhoodServers(ctx context.Context, _ *connect.Request[discoveryv1.ListNeighborhoodServersRequest]) (*connect.Response[discoveryv1.ListNeighborhoodServersResponse], error) {
+	directory, err := s.api.core.NeighborhoodDirectory(ctx)
+	if err != nil {
+		return nil, connectInternalError(err)
+	}
+	response := &discoveryv1.ListNeighborhoodServersResponse{
+		Servers:     make([]*discoveryv1.NeighborhoodServer, 0, len(directory.GetServers())),
+		RefreshedAt: directory.GetRefreshedAt(),
+	}
+	for _, record := range directory.GetServers() {
+		profile := &apiv1.ServerPublicProfile{Name: record.GetName(), Version: record.GetVersion()}
+		if description := record.GetDescription(); description != "" {
+			profile.Description = stringPtr(description)
+		}
+		if logo := record.GetLogo(); logo != nil {
+			profile.LogoUrl = stringPtr(s.api.absolutizeServerURL(ctx, core.NeighborhoodImagePath(logo.GetObjectName())))
+		}
+		if banner := record.GetBanner(); banner != nil {
+			profile.BannerUrl = stringPtr(s.api.absolutizeServerURL(ctx, core.NeighborhoodImagePath(banner.GetObjectName())))
+		}
+		response.Servers = append(response.Servers, &discoveryv1.NeighborhoodServer{
+			Origin:               record.GetOrigin(),
+			Profile:              profile,
+			DirectNeighbor:       record.GetDirectNeighbor(),
+			RecommendedByOrigins: record.GetRecommendedByOrigins(),
+		})
+	}
+	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
+		etag, err := discoveryResponseETag(response)
+		if err != nil {
+			return nil, connectInternalError(fmt.Errorf("marshal Neighborhood discovery response for ETag: %w", err))
 		}
 		cacheHeaders := http.Header{"Cache-Control": []string{discoveryCacheControl}, "Etag": []string{etag}}
 		if ifNoneMatch(callInfo.RequestHeader().Get("If-None-Match"), etag) {
