@@ -353,7 +353,7 @@ func (h *MyEventsHub) consume(sub *myEventsSubscription, delivery myEventsDelive
 // established and every current subscriber must reconnect and catch up.
 func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
-		return h.handlePubSub(msg)
+		return h.handlePubSub(ctx, msg)
 	}
 	if strings.HasPrefix(msg.Subject, evtstream.LiveSubjectRoot) {
 		return h.handleLiveEVT(ctx, msg)
@@ -362,25 +362,46 @@ func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 	return false
 }
 
-func (h *MyEventsHub) handlePubSub(msg *nats.Msg) bool {
+func (h *MyEventsHub) handlePubSub(ctx context.Context, msg *nats.Msg) bool {
 	h.decoded.Add(1)
 	event := new(pubsubv1.PubSubEvent)
 	if err := proto.Unmarshal(msg.Data, event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
 		return false
 	}
-	if event.Event == nil {
-		h.model.core.logger.Warn("Dropping live sync event without a payload", "subject", msg.Subject)
+	delivery, ok := h.model.preparePubSubEvent(msg, event)
+	if !ok {
 		return false
+	}
+	// The privacy check reads the authoritative NATS record. Run it once per
+	// event, only when a local recipient can receive it, and without holding
+	// h.mu, so that it does not block subscription changes.
+	if delivery.typing() {
+		if !h.hasTypingAudience(delivery.roomID, event.ActorId) || !h.model.typingSenderVisible(ctx, delivery) {
+			return false
+		}
 	}
 
 	bytes := int64(len(msg.Data))
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for userID, state := range h.users {
-		authorized, ok := h.model.filterPubSubEvent(context.Background(), userID, state.memberRooms, msg, event)
+		authorized, ok := h.model.filterPreparedPubSubEvent(ctx, userID, state.memberRooms, delivery)
 		if ok {
 			h.enqueueUserLocked(state, authorized, bytes)
+		}
+	}
+	return false
+}
+
+// hasTypingAudience reports whether a local user other than the sender is a
+// member of roomID. The fan-out checks membership again for each recipient.
+func (h *MyEventsHub) hasTypingAudience(roomID, senderID string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for userID, state := range h.users {
+		if _, ok := state.memberRooms[roomID]; ok && userID != senderID {
+			return true
 		}
 	}
 	return false
