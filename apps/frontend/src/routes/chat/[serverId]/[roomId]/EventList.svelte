@@ -233,8 +233,13 @@
 
   // Feed projection/component inputs into the controller in one ordered
   // transition. DOM and virtualizer state are deliberately excluded.
+  // A thread pane keeps this component when the user opens another thread.
+  const timelineKey = $derived(
+    permalinkThreadRootEventId ? `${roomId}:${permalinkThreadRootEventId}` : roomId
+  );
+
   $effect(() => {
-    const currentRoomId = roomId;
+    const currentTimelineKey = timelineKey;
     const jumped = isJumpedMode;
     const newestId = timelineEvents.at(-1)?.id ?? null;
     const newestOptions = {
@@ -242,7 +247,7 @@
       alwaysScrollToBottom
     };
     untrack(() => {
-      if (viewport.enterRoom(currentRoomId)) expandedSystemEventIds.clear();
+      if (viewport.enterRoom(currentTimelineKey)) expandedSystemEventIds.clear();
       viewport.observeJumpedMode(jumped);
       // Comparing the newest ID rather than the count keeps prepended
       // pagination rows from looking like newly arrived messages.
@@ -318,25 +323,9 @@
     };
   });
 
-  // Land on the unread separator once per room entry. The marker resolves
-  // after the entry read request, so the initial bottom scroll may already
-  // have run; any explicit viewport action before then wins (see
-  // TimelineViewportController.beginUnreadEntryLanding). Later marker
-  // updates do not cancel the landing, so no cleanup is returned.
-  $effect(() => {
-    if (!scrollToUnreadOnEntry || !effectiveUnreadAfterEventId) return;
-    if (!virtualizerHandle || virtualItems.length === 0) return;
-    if (isJumpedMode || scrollToEventId || pendingHighlightId) return;
-    if (messageStore.recoveryViewport || stores.realtimeSync.isRecoveringSnapshot) return;
-
-    untrack(() => {
-      if (viewport.beginUnreadEntryLanding()) void landOnUnreadSeparator(roomId);
-    });
-  });
-
-  async function landOnUnreadSeparator(requestedRoomId: string) {
+  async function landOnUnreadSeparator(requestedTimelineKey: string) {
     const current = () =>
-      !destroyed && roomId === requestedRoomId && viewport.isUnreadEntryLandingRunning;
+      !destroyed && timelineKey === requestedTimelineKey && viewport.isUnreadEntryLandingRunning;
 
     await tick();
     // Virtua measures estimated rows after each scroll. Repeat until the
@@ -376,6 +365,32 @@
     );
     return { position, index, store: messageStore };
   });
+
+  // Land on the unread separator once per room or thread entry. The marker resolves
+  // after the entry read request, so the initial bottom scroll may already
+  // have run; any explicit viewport action before then wins (see
+  // TimelineViewportController.beginUnreadEntryLanding). An entry that
+  // targets a specific message skips the landing.
+  const unreadEntryLanding = $derived.by(() => {
+    if (!scrollToUnreadOnEntry) return null;
+    if (scrollToEventId || pendingHighlightId) return { timelineKey, skip: true };
+    if (!effectiveUnreadAfterEventId || isJumpedMode) return null;
+    if (!virtualizerHandle || virtualItems.length === 0) return null;
+    if (messageStore.recoveryViewport || stores.realtimeSync.isRecoveringSnapshot) return null;
+    return { timelineKey, skip: false };
+  });
+
+  /** Apply the derived landing request; the controller makes it one-shot. */
+  function landOnUnreadEntry(request: typeof unreadEntryLanding) {
+    return () =>
+      untrack(() => {
+        if (!request) return;
+        if (request.skip) viewport.skipUnreadEntryLanding(request.timelineKey);
+        else if (viewport.beginUnreadEntryLanding(request.timelineKey)) {
+          void landOnUnreadSeparator(request.timelineKey);
+        }
+      });
+  }
 
   /** Coordinates belong to this mounted timeline, not to its cached store. */
   function ownViewport(store: MessagesStore) {
@@ -795,7 +810,11 @@
     ontouchmove={markUserScrollIntent}
     onpointerdown={markUserScrollIntent}
   >
-    <div class="mt-auto mobile-presentation:px-1" {@attach restoreViewport(recoveryTarget)}>
+    <div
+      class="mt-auto mobile-presentation:px-1"
+      {@attach restoreViewport(recoveryTarget)}
+      {@attach landOnUnreadEntry(unreadEntryLanding)}
+    >
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>

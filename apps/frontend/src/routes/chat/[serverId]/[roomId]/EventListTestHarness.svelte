@@ -14,6 +14,7 @@
   let {
     eventIds,
     roomId = 'room-1',
+    permalinkThreadRootEventId = null,
     eventKind = 'message',
     scrollToEventId,
     onComplete,
@@ -31,6 +32,7 @@
   }: {
     eventIds: string[];
     roomId?: string;
+    permalinkThreadRootEventId?: string | null;
     eventKind?: 'message' | 'join';
     scrollToEventId: string | null;
     onComplete?: () => void;
@@ -126,6 +128,7 @@
 
 <EventList
   {roomId}
+  {permalinkThreadRootEventId}
   messageStore={messageStore as never}
   {events}
   {isLoading}

@@ -329,23 +329,50 @@
       return;
     }
 
-    const fromUrl = page.url.searchParams.get('highlight');
+    const fromUrl = navigation.consumeHighlightParam(
+      roomId,
+      threadId,
+      page.url.searchParams.get('highlight')
+    );
     if (!fromUrl) return;
 
-    if (threadId) {
-      replaceState(
-        resolve('/chat/[serverId]/[roomId]/[threadId]', {
-          serverId: serverSegment,
-          roomId,
-          threadId
-        }),
-        {}
-      );
-    } else {
-      replaceState(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }), {});
-    }
     applyHighlight(fromUrl);
+    void removeHighlightParam(roomId, threadId, fromUrl);
   });
+
+  /**
+   * Remove a consumed `?highlight=` parameter so a refresh does not repeat the
+   * jump. On a cold load this runs before SvelteKit's router starts, and the
+   * router rejects history updates until then, so wait one tick first. The
+   * highlight itself does not depend on this update.
+   */
+  async function removeHighlightParam(
+    targetRoomId: string,
+    targetThreadId: string | undefined,
+    eventId: string
+  ): Promise<void> {
+    await tick();
+    if (
+      roomId !== targetRoomId ||
+      threadId !== targetThreadId ||
+      page.url.searchParams.get('highlight') !== eventId
+    ) {
+      return;
+    }
+
+    const path = targetThreadId
+      ? resolve('/chat/[serverId]/[roomId]/[threadId]', {
+          serverId: serverSegment,
+          roomId: targetRoomId,
+          threadId: targetThreadId
+        })
+      : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: targetRoomId });
+    try {
+      replaceState(path, page.state);
+    } catch (error) {
+      console.warn('Failed to remove the highlight parameter:', error);
+    }
+  }
 
   function applyHighlight(eventId: string, notificationId: string | null = null): void {
     const requestId = navigation.beginHighlight(eventId, !!threadId);
