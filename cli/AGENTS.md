@@ -262,16 +262,27 @@ authorization, live events, backup and restore, and backend tests.
 ## Authorization And RBAC
 
 - Core authorization source of truth lives around `cli/internal/core/permissions.go`,
-  `permission_resolver.go`, `can.go`, and FDR-001/ADR-040.
+  `permission_resolver.go`, `can.go`, FDR-001, ADR-040, ADR-096, and ADR-105.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
-- For non-owners, each direct-user or explicitly assigned role contributes its
-  nearest room/group/server decision. Denies win across those subjects. The
-  implicit `everyone` role supplies the scoped baseline: a named allow overrides
-  an everyone deny only at the same or a nearer scope. Effective owners bypass
-  normal permission decisions.
+- Each direct-user or explicitly assigned role contributes its nearest
+  room/group/server decision. Denies win across those subjects. The implicit
+  `everyone` role supplies the scoped baseline: a named allow overrides an
+  everyone deny only at the same or a nearer scope.
 - Effective owner means durable `owner` role or verified email matching
-  `owners.emails`.
+  `owners.emails`. Owners are entitled to every permission, but the owner
+  override is effective only while the owner's session has active privileged
+  mode. Without it, owners resolve through the rules above like other users.
+  Entitlement paths (bot owner ceilings, delegation, privileged-mode
+  availability) keep the override.
+- Every transport that authorizes a human must attach the verified runtime
+  credential with `authctx.WithCredential` before it calls core. A context
+  without a credential counts as internal work and gets entitlement semantics,
+  including the owner override and elevation-required permissions.
+- Work that outlives its request, such as realtime fan-out, call connections,
+  notifications, and alerts, must choose its privileged-mode state explicitly.
+  Use the state of the receiving session, or the unprivileged view when no
+  single session applies. Use `withPrivilegedModeEvaluation` for a fixed state.
 - DM membership is mandatory for all DM access. The DM scope then controls all
   `message.*` permissions. Owners do not bypass membership. Operators who are
   not participants cannot read or manage a DM.

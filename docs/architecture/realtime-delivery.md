@@ -279,9 +279,12 @@ timed-out, and rejected catch-ups.
 Privileged-mode changes keep the mounted client state and resume cursor. The
 client reconnects and reads current viewer, room, and room-group resources
 before it marks catch-up complete. The server cancels authorized work at the session's privilege
-deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. The client
-then reads effective permissions with privileged mode inactive. See
-[ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md).
+deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not
+write a live event after that deadline. The periodic credential check sends
+the same close when another connection of the session ends privileged mode. The client then reads effective
+permissions and rooms with privileged mode inactive. See
+[ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
+[ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).
 
 For a valid short gap, the handler subscribes to the process-wide live hub,
 captures an EVT cutoff, waits until `ServerContentView` reaches that cutoff
@@ -348,9 +351,10 @@ safe fallback. Neither path advances the cursor past the fact.
 `MyEventsHub` owns one NATS Core subscription to `live.sync.>` and one to
 `live.evt.>` per Chatto process. It classifies subjects before decoding, waits
 for `ServerContentView` once for content facts, and fans immutable decoded
-events into count- and byte-bounded session queues. Sessions for one user
-share room-visibility state. There are no per-client NATS or JetStream
-consumers.
+events into count- and byte-bounded session queues. Sessions of one user with
+the same privileged-mode state share room-visibility state. The hub makes each
+membership, read, and visibility decision with that fixed state (ADR-105).
+There are no per-client NATS or JetStream consumers.
 
 Historical message-post facts remain in EVT and reach the internal
 `live.evt.>` feed. The hub and resume replay omit them from public live

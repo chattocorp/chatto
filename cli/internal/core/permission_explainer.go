@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // PermissionExplanation captures the full resolution trace for a single
@@ -76,7 +77,9 @@ func (r *PermissionResolver) explainRoomPermission(ctx context.Context, userID s
 // collectFullTrace mirrors Resolve while preserving the nearest decision for
 // each direct-user/named-role subject plus the everyone baseline. The baseline
 // remains visible in the trace and can win when its deny is nearer than every
-// named allow.
+// named allow. The effective-owner override appears only when privileged mode
+// allows it for userID in ctx; otherwise an owner's ordinary decisions explain
+// the result.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
 	if _, known := GetPermissionMetadata(perm); !known {
 		return nil
@@ -84,13 +87,18 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	if isBot, ownerUserID, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
 		return r.collectBotFullTrace(ctx, userID, ownerUserID, kind, roomID, perm, exp)
 	}
+	return r.collectHumanFullTrace(ctx, userID, kind, roomID, perm, exp, privilegedModeAllows(ctx, userID, time.Now()))
+}
 
+// collectHumanFullTrace explains a human decision. ownerOverride has the same
+// meaning as in resolveHumanWithGroup.
+func (r *PermissionResolver) collectHumanFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation, ownerOverride bool) error {
 	if _, known := GetPermissionMetadata(perm); known {
 		if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 			exp.applyDMApplicabilityDeny(LevelDM)
 			return nil
 		}
-		if r.core.isServerOwner(userID) {
+		if ownerOverride && r.core.isServerOwner(userID) {
 			exp.State = DecisionAllow
 			exp.DecidedAt = LevelServer
 			exp.DecidedByRole = RoleOwner
@@ -161,8 +169,9 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 		return nil
 	}
 
+	// The owner ceiling uses entitlement, independent of any human session.
 	ownerExplanation := PermissionExplanation{Permission: perm, State: DecisionNone}
-	if err := r.collectFullTrace(ctx, ownerUserID, kind, roomID, perm, &ownerExplanation); err != nil {
+	if err := r.collectHumanFullTrace(ctx, ownerUserID, kind, roomID, perm, &ownerExplanation, true); err != nil {
 		return err
 	}
 	if ownerExplanation.State != DecisionAllow {

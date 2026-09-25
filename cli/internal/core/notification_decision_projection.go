@@ -526,10 +526,10 @@ func (s *notificationDecisionSnapshot) notificationInteractionVisibilityExists(u
 	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
 }
 
+// roomPermissionAllowed resolves notification visibility without the
+// effective-owner override. Notification delivery is not bound to one session,
+// so it uses the unprivileged view that owners have outside privileged mode.
 func (s *notificationDecisionSnapshot) roomPermissionAllowed(userID, roomID, groupID string, permission Permission) bool {
-	if s.rbac.HasRole(userID, RoleOwner) {
-		return true
-	}
 	scopes := make([]permissionScopeTarget, 0, 3)
 	kind, _ := s.roomKind(roomID)
 	if kind == KindDM && PermissionAppliesAtScope(permission, ScopeDM) {

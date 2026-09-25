@@ -337,11 +337,11 @@ func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context
 		return nil, false
 	}
 
-	userID, ok := s.resolveStableAssetViewerID(c, assetID, params)
+	userID, authCtx, ok := s.resolveStableAssetViewerID(c, ctx, assetID, params)
 	if !ok {
 		return nil, false
 	}
-	return s.resolveAttachmentForViewer(c, ctx, assetID, userID)
+	return s.resolveAttachmentForViewer(c, authCtx, assetID, userID)
 }
 
 func (s *HTTPServer) resolveAttachmentForViewer(c *gin.Context, ctx context.Context, assetID, userID string) (*evtv1.Attachment, bool) {
@@ -566,45 +566,49 @@ func (s *HTTPServer) serveHLSSegment(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, info.Size, "video/mp2t", reader, nil)
 }
 
-func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, params *signedurl.TransformParams) (string, bool) {
+// resolveStableAssetViewerID returns the viewer and the context that must
+// authorize the read. A signed ticket is a bounded capability without a
+// runtime credential. A cookie or bearer request authorizes with its
+// credential, so privileged mode applies as for other requests.
+func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, ctx context.Context, assetID string, params *signedurl.TransformParams) (string, context.Context, bool) {
 	if access := c.Query("access"); access != "" {
 		ticket, err := signedurl.ParseSignedAssetAccessTicket(s.config.Core.Assets.SigningSecret, access)
 		if err != nil {
 			s.logger.Warn("Invalid asset access ticket", "error", err, "asset_id", assetID)
 			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid asset access ticket"})
-			return "", false
+			return "", nil, false
 		}
 		if ticket.Expired(time.Now().Unix()) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket expired"})
-			return "", false
+			return "", nil, false
 		}
 		if ticket.AssetID != assetID {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket does not match asset"})
-			return "", false
+			return "", nil, false
 		}
 		if !ticket.MatchesTransform(params) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket does not match derivative"})
-			return "", false
+			return "", nil, false
 		}
-		return ticket.UserID, true
+		return ticket.UserID, ctx, true
 	}
 
 	if params != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Asset derivative URL requires a signed access ticket"})
-		return "", false
+		return "", nil, false
 	}
 
 	reqWithUser := s.injectUserIntoContext(c)
 	if authenticationValidationError(reqWithUser.Context()) != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
-		return "", false
+		return "", nil, false
 	}
 	user := authctx.ForContext(reqWithUser.Context())
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return "", false
+		return "", nil, false
 	}
-	return user.Id, true
+	return user.Id, reqWithUser.Context(), true
 }
 
 // serveTransformedAsset handles the common logic for serving transformed images.

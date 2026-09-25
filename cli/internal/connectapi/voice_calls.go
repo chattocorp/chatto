@@ -179,6 +179,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		user.GetIsBot(),
 		access.E2EEKey,
 		permissions,
+		core.PrivilegedModeDeadline(ctx, caller.UserID),
 		access.CallID,
 	)
 	if err != nil {
@@ -246,6 +247,7 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 		access.E2EEKey,
 		access.CallID,
 		publisherKind,
+		core.PrivilegedModeDeadline(ctx, caller.UserID),
 	)
 	if err != nil {
 		return nil, err
