@@ -755,6 +755,28 @@ describe('ServerStateStore viewer restoration', () => {
     expect(restored.isAuthenticated).toBe(false);
     expect(restored.realtimeSync.resumeCursor).toBe('live-cursor');
   });
+  it('does not restore a saved view for a session that needs reauthentication', () => {
+    const store = makeStore(new FakeServerConnection([]), {
+      ...registered,
+      userId: 'U1',
+      reauthRequiredAt: Date.now()
+    });
+    store.restoreSavedView(
+      savedViewFixture({
+        serverId: store.serverId,
+        userId: 'U1',
+        serverName: 'Saved server',
+        savedAt: Date.now(),
+        rooms: [{ id: 'R1', name: 'general', messages: [] }]
+      }),
+      true
+    );
+
+    expect(store.startupPresentationOnly).toBe(false);
+    expect(store.savedView).toBeNull();
+    expect(store.projection.rooms.has('R1')).toBe(false);
+    expect(store.realtimeSync.restoredFromDisk).toBe(false);
+  });
   it('automatically saves loaded rooms without a route dwell timer or recent-room limit', async () => {
     vi.useFakeTimers();
     const store = makeStore(new FakeServerConnection([]));

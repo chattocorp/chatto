@@ -792,10 +792,18 @@ export class ServerStateStore {
     this.clearRoomMessageAccess(roomId, forgetStores);
   }
 
-  /** Restore a device snapshot only for the same local viewer. */
+  /**
+   * Restore a device snapshot only for the same local viewer. A session that
+   * already needs reauthentication had its viewer rejected, so its saved view
+   * is deleted instead of shown.
+   */
   restoreSavedView(view: SavedView | null, beforeConnection = false): void {
-    if (!view || view.serverId !== this.serverId || view.userId !== this.#getSession().userId)
+    const session = this.#getSession();
+    if (!view || view.serverId !== this.serverId || view.userId !== session.userId) return;
+    if (session.reauthRequiredAt !== null) {
+      void clearSavedView(this.serverId, view.userId);
       return;
+    }
     // Decode everything before publishing so corrupt storage cannot partially restore state.
     let restored;
     try {
