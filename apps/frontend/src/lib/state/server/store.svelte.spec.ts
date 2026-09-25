@@ -761,16 +761,16 @@ describe('ServerStateStore viewer restoration', () => {
       userId: 'U1',
       reauthRequiredAt: Date.now()
     });
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Saved server',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      }),
-      true
-    );
+    const view = savedViewFixture({
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    });
+    // A copy saved before the session expired is also discarded.
+    store.savedView = view;
+    store.restoreSavedView(view, true);
 
     expect(store.startupPresentationOnly).toBe(false);
     expect(store.savedView).toBeNull();

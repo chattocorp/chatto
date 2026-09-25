@@ -801,7 +801,7 @@ export class ServerStateStore {
     const session = this.#getSession();
     if (!view || view.serverId !== this.serverId || view.userId !== session.userId) return;
     if (session.reauthRequiredAt !== null) {
-      void clearSavedView(this.serverId, view.userId);
+      this.discardSavedSnapshot();
       return;
     }
     // Decode everything before publishing so corrupt storage cannot partially restore state.
