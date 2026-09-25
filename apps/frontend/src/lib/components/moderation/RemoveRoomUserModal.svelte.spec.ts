@@ -25,21 +25,61 @@ describe('RemoveRoomUserModal', () => {
     const onconfirm = vi.fn();
     render(RemoveRoomUserModal, { props: { user, onconfirm } });
 
-    await expect.element(page.getByRole('radio', { name: 'No suspension — can rejoin' })).toBeChecked();
+    await expect.element(page.getByTestId('remove-room-user-card')).toHaveTextContent('Target');
+    await expect.element(page.getByTestId('remove-room-user-card')).toHaveTextContent('@target');
+    await expect
+      .element(page.getByRole('combobox', { name: 'Suspension period' }))
+      .toHaveValue('none');
     await page.getByRole('textbox', { name: 'Reason' }).fill('reset participation');
     await page.getByRole('button', { name: 'Remove from room' }).click();
 
     expect(onconfirm).toHaveBeenCalledWith('reset participation', { kind: 'none' });
   });
 
-  it('requires a suspension choice for a Universal room', async () => {
+  it('offers timed and indefinite suspensions in one dropdown', async () => {
     const onconfirm = vi.fn();
-    render(RemoveRoomUserModal, { props: { user, isUniversal: true, onconfirm } });
+    render(RemoveRoomUserModal, { props: { user, onconfirm } });
 
-    await expect.element(page.getByRole('radio', { name: 'No suspension — can rejoin' })).not.toBeInTheDocument();
     await page.getByRole('textbox', { name: 'Reason' }).fill('cooldown');
     await page.getByRole('combobox', { name: 'Suspension period' }).selectOptions('24h');
     await page.getByRole('button', { name: 'Remove from room' }).click();
+
+    expect(onconfirm).toHaveBeenCalledWith('cooldown', {
+      kind: 'until',
+      expiresAt: expect.any(String)
+    });
+    expect(Date.parse(onconfirm.mock.calls[0][1].expiresAt)).toBeGreaterThan(Date.now());
+  });
+
+  it('requires a suspension for a Universal room', async () => {
+    const onconfirm = vi.fn();
+    render(RemoveRoomUserModal, { props: { user, isUniversal: true, onconfirm } });
+
+    const suspension = page.getByRole('combobox', { name: 'Suspension period' });
+    await expect.element(suspension).toHaveValue('indefinite');
+    await expect
+      .element(page.getByRole('option', { name: 'No suspension — can rejoin' }))
+      .not.toBeInTheDocument();
+    await page.getByRole('textbox', { name: 'Reason' }).fill('cooldown');
+    await page.getByRole('button', { name: 'Remove from room' }).click();
+
+    expect(onconfirm).toHaveBeenCalledWith('cooldown', { kind: 'indefinite' });
+  });
+
+  it('requires a future custom end time', async () => {
+    const onconfirm = vi.fn();
+    render(RemoveRoomUserModal, { props: { user, onconfirm } });
+
+    await page.getByRole('textbox', { name: 'Reason' }).fill('cooldown');
+    await page.getByRole('combobox', { name: 'Suspension period' }).selectOptions('custom');
+    const submit = page.getByRole('button', { name: 'Remove from room' });
+    const custom = page.getByRole('textbox', { name: 'Custom expiry' });
+    await expect.element(submit).toBeDisabled();
+    await custom.fill('2020-01-01T12:00');
+    await expect.element(submit).toBeDisabled();
+    await custom.fill('2099-01-01T12:00');
+    await expect.element(submit).toBeEnabled();
+    await submit.click();
 
     expect(onconfirm).toHaveBeenCalledWith('cooldown', {
       kind: 'until',
