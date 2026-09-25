@@ -1,96 +1,174 @@
 ---
-title: Media & Attachments
-description: Operate Chatto uploads, image transforms, room files, link previews, S3 storage, and video processing.
+title: Files & Media
+description: Configure uploads, S3-compatible storage, video processing, link previews, and safe file delivery.
 ---
 
-import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Chatto can handle ordinary file uploads, images, avatars, server branding images, link-preview images, and optionally videos and animated GIFs. Small deployments can keep assets in NATS ObjectStore; larger deployments should usually move assets to S3-compatible storage.
+Members can upload files, images, avatars, and server branding images. Chatto
+also stores link-preview images and, when you enable it, processes videos and
+animated GIFs. By default, Chatto keeps these assets in NATS. For many or large
+files, use S3-compatible storage.
 
 ## What Members Can Upload
 
-Members can attach files through drag-and-drop, paste, or the file picker when they have `message.attach` and the relevant posting permission.
-
 | Asset type | Behavior |
 | ---------- | -------- |
-| Images | Dimensions are inspected, image URLs can request resized WebP variants, and thumbnails are cached when enabled. |
-| Documents and ordinary files | Stored as persisted assets and exposed through signed URLs. |
-| Videos | Accepted only when video uploads are enabled. |
-| Animated GIFs | Uploaded as images when video uploads are disabled; queued for derivative processing when enabled. |
-| Avatars, logos, banners | Stored in the same asset system but gated by profile or admin permissions. |
-| Link-preview images | Downloaded, bounded, stored, and served through the configured storage backend. |
+| Images | Chatto serves resized WebP versions on request. Set `core.assets.cache.enabled = true` to cache them. |
+| Documents and other files | Chatto serves them through signed URLs. |
+| Videos | Chatto accepts them only when `video.enabled = true`. |
+| Animated GIFs | Chatto stores them as images. When video uploads are enabled, it also converts them to video. |
+| Avatars, logos, banners | Profile and administrator permissions control them. |
+| Link-preview images | Chatto downloads, limits, and stores them in the asset storage. |
 
-Default upload limits are 25 MB for non-video files and 100 MB for videos when video uploads are enabled.
+| Limit | Default | Setting |
+| ----- | ------- | ------- |
+| Images and other files | 25 MB | `core.assets.max_upload_size` |
+| Videos | 100 MB | `video.max_upload_size` |
+
+Browsers upload message attachments in chunks of up to 10 MiB. If your reverse
+proxy limits the request body size, allow at least 11 MiB for each request.
+Avatar and branding uploads can need larger request bodies.
 
 ## Attachment Descriptions
 
-Add a description in the attachment preview before you send a message. After
-send, open the attachment controls to add, replace, or remove it. Descriptions
-can contain line breaks and can contain at most 1,000 Unicode characters.
+Members add a description in the attachment preview before they send a
+message. After they send it, they can add, replace, or remove it in the
+attachment controls. A description can have line breaks and up to 1,000
+characters.
 
-Chatto uses an image description as alt text and uses the filename when no
-description exists. The image viewer also shows the description as a visible
-caption. Video, audio, and file controls expose the description to assistive
-technology.
+Chatto uses the description as alt text for images, and the filename when no
+description exists. The image viewer also shows it as a caption. Video, audio,
+and file controls give it to assistive technology.
 
-Descriptions belong to a message attachment, not to the uploaded asset. Chatto
-encrypts each description with the message author's content key. It does not put
-the description in upload-session state or permanent asset-ownership events.
-Description changes use the same three-hour window and `message.manage` override
-as message-text edits.
-
-Message attachments use upload chunks of up to 10 MiB. The browser uses the chunk
-limit returned by the server. This limit is fixed and reduces the number of
-requests on connections with high latency. If you set a reverse proxy request
-body limit, allow at least 11 MiB for each attachment upload request to include
-the chunk and request metadata. Avatar and branding uploads can need larger
-request bodies.
+Chatto encrypts each description with the content key of the message author.
+Description changes use the same three-hour window and `message.manage`
+override as message-text edits.
 
 ## Permission And Access Model
 
-File attachments require:
+To attach a file, a member needs:
 
 - room membership
-- `message.post`, `message.post-in-thread`, or `message.post-in-interactions`
-  with a relationship to the target thread; thread replies also need read access
+- `message.post`, `message.post-in-thread`, or `message.post-in-interactions`,
+  and read access for thread replies
 - `message.attach`
 
-Attachment URLs are signed per user and still check that the signed user can access the room. If a user leaves, is removed, or loses room access, new asset fetches fail even if an old message still contains the URL.
-
-<Aside type="note">
-  Signed attachment URLs are bearer capabilities until they expire. Chatto keeps their TTL bounded and checks the signed user's current room access on every protected asset fetch.
-</Aside>
+Attachment URLs are signed for one user and expire. Each request also checks
+that this user can still read the room. When a member leaves the room or loses
+access, old URLs stop working for them.
 
 ## Room Files
 
-The room sidebar Files panel lists current accessible attachments from root messages and thread replies. It derives from visible message state, so files disappear when their message is deleted or the attachment is removed.
-
-Use this as a member convenience surface, not as a permanent document-management system. There is no attachment search or media filtering yet.
+The **Files** panel in the room sidebar lists the attachments of visible
+messages and thread replies. A file disappears from the list when its message
+or attachment is deleted. The panel has no search or filter.
 
 ## Link Previews
 
-Chatto fetches link-preview metadata when a user composes a message with a URL. Preview images are persisted through the asset backend, so S3-backed deployments store preview media alongside uploaded files.
+When a member writes a message with a URL, the Chatto server fetches the page
+metadata and preview image. The linked site sees the server's IP address, not
+the member's. The fetcher blocks private network addresses and caches results
+for a limited time. You do not need a separate worker.
 
-The fetcher is designed to be SSRF-safe and caches successful and failed lookups for bounded periods. Operators do not need a separate preview worker.
-
-Supported public Bluesky and Mastodon post URLs render as native Chatto cards. Provider adapters capture a bounded, common snapshot containing the provider, author, post text, attached images, any embedded website card, and at most one quoted post with its media. Mastodon content warnings and accepted quote posts use the same snapshot fields; warned text and media stay concealed until the reader reveals them, and boosts show the original post but do not currently identify who boosted it. Bluesky is resolved through its oEmbed and public post APIs. Mastodon is resolved through the linked server's public oEmbed and status APIs, so compatible public servers are supported without an instance allowlist. For federated proxy permalinks that do not have oEmbed metadata, Chatto verifies the linked server's public instance metadata before using its status API. Images are persisted through the configured asset backend, and clients render the stored snapshot without contacting the provider. If structured discovery fails while composing the message, Chatto falls back to the ordinary link-preview card when OpenGraph metadata is available.
+Public Bluesky and Mastodon posts show as native cards with the author, text,
+images, and one quoted post. Mastodon content warnings stay closed until the
+reader opens them. Chatto supports all compatible public Mastodon servers.
+Clients show the stored card and do not contact the provider. When Chatto
+cannot read the post, it shows a normal link preview.
 
 ## Storage Backend Choice
 
-| Deployment | Recommended backend |
-| ---------- | ------------------- |
-| Small server with light uploads | NATS ObjectStore, the default. |
-| Active community with many files | S3-compatible storage. |
-| Video playback with seeking | Enable video uploads and run an asset-processing worker; HLS works with either storage backend. |
-| Replicated NATS cluster | S3-compatible storage to avoid multiplying large binary storage. |
+| Deployment | Storage |
+| ---------- | ------- |
+| Small server, few uploads, a few GB in total | NATS (default) |
+| Active community with many files or videos | S3-compatible storage |
+| Replicated NATS cluster | S3-compatible storage, so that NATS does not copy large files to each node |
+| Existing S3 or CDN infrastructure | S3-compatible storage |
 
-Switching to S3 affects new assets. Existing NATS-stored assets continue to work because each asset records its own backend.
+Each asset records its storage backend. When you change the backend, new
+assets go to the new backend, and existing assets stay readable. Asset URLs do
+not change.
 
-## Video And Animated GIF Processing
+## S3 Storage
 
-Video uploads are optional and disabled by default. When enabled, Chatto stores the original upload and queues durable derivative work. Asset-processing workers require `ffmpeg` and `ffprobe`; they generate a thumbnail and package temporary renditions into durable six-second HLS segments. Chatto generates the small HLS playlists on demand rather than storing them.
+<Tabs>
+<TabItem label="TOML">
 
-Enable uploads only when at least one embedded or standalone worker has CPU and temporary disk space for transcoding:
+```toml
+[core.assets]
+storage_backend = "s3"
+
+[core.assets.s3]
+endpoint = "s3.amazonaws.com"
+bucket = "chatto-assets"
+path_prefix = "production/chatto"
+region = "eu-central-1"
+access_key_id = "<generate-me>"
+secret_access_key = "<generate-me>"
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_CORE_ASSETS_STORAGE_BACKEND=s3
+CHATTO_CORE_ASSETS_S3_ENDPOINT=s3.amazonaws.com
+CHATTO_CORE_ASSETS_S3_BUCKET=chatto-assets
+CHATTO_CORE_ASSETS_S3_PATH_PREFIX=production/chatto
+CHATTO_CORE_ASSETS_S3_REGION=eu-central-1
+CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID=<generate-me>
+CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY=<generate-me>
+```
+
+</TabItem>
+</Tabs>
+
+Chatto creates the bucket at startup if it does not exist.
+
+| Setting (`core.assets.s3.*`) | Default | Description |
+| ------- | ------- | ----------- |
+| `endpoint` | — | S3 endpoint host |
+| `bucket` | — | Bucket name |
+| `path_prefix` | — | Optional key prefix for all objects |
+| `region` | — | Region. Optional for services other than AWS. |
+| `access_key_id`, `secret_access_key` | — | Credentials |
+| `use_ssl` | `true` | Use HTTPS to connect to S3 |
+| `path_style` | `auto` | URL addressing. `auto` uses virtual-hosted URLs for AWS and path-style URLs for other endpoints. |
+
+Any service with the S3 API works. Examples of endpoints:
+
+| Provider | `endpoint` | `region` |
+| -------- | ---------- | -------- |
+| Cloudflare R2 | `<account-id>.r2.cloudflarestorage.com` | — |
+| Wasabi | `s3.eu-central-1.wasabisys.com` | `eu-central-1` |
+| Backblaze B2 | `s3.us-west-004.backblazeb2.com` | `us-west-004` |
+
+### Change the storage configuration
+
+- To go back to NATS, set `storage_backend = "nats"`. Files in S3 stay
+  readable.
+- To change `path_prefix`, first move or copy the objects to the new prefix.
+  Chatto stores keys without the prefix, so it needs no other change.
+
+<Aside type="caution">
+  Chatto has one S3 configuration. If you change the endpoint or the bucket,
+  Chatto cannot read files in the old location. To move to a different
+  provider or bucket, copy all objects first.
+</Aside>
+
+`chatto backup` does not include S3 objects. Back them up with your storage
+provider. See [Backup & Restore](/guides/operations/backup-restore/).
+
+## Video Processing
+
+Video uploads are off by default. When you enable them, a worker makes a
+thumbnail and adaptive HLS renditions for each video and animated GIF. The
+worker needs `ffmpeg` and `ffprobe`. The official Docker image includes them.
+For other installations, install the `ffmpeg` package.
+
+<Tabs>
+<TabItem label="TOML">
 
 ```toml
 [video]
@@ -101,48 +179,109 @@ enabled = true
 max_concurrent_jobs = 2
 ```
 
-The official Docker image includes the required ffmpeg tools. Host installs need those binaries installed separately.
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_VIDEO_ENABLED=true
+CHATTO_ASSET_PROCESSING_ENABLED=true
+CHATTO_ASSET_PROCESSING_MAX_CONCURRENT_JOBS=2
+```
+
+</TabItem>
+</Tabs>
+
+`video.enabled` accepts video uploads and queues their processing.
+`asset_processing.enabled` starts the worker inside `chatto run`.
 
 <Aside type="caution">
-  Transcoding is CPU-heavy background work. The durable worker can run inside `chatto run` or separately as `chatto asset-processing`; keep at least one worker available whenever video uploads are enabled.
+  `asset_processing.enabled` is `false` in existing configuration files.
+  `chatto init` writes `true`. If no worker runs, new videos stay in
+  processing.
 </Aside>
 
-<Aside type="note">
-  New processed videos use HLS for reliable duration detection, seeking, and adaptive quality on both NATS ObjectStore and S3. Videos processed by older Chatto versions are not backfilled and continue using their MP4 variants; unprocessed NATS-backed video files remain complete, non-seekable responses.
-</Aside>
+| Setting | Default | Description |
+| ------- | ------- | ----------- |
+| `video.enabled` | `false` | Accept video uploads and queue processing |
+| `video.max_upload_size` | `100 MB` | Maximum video file size |
+| `asset_processing.enabled` | `false` | Start the worker inside `chatto run` |
+| `asset_processing.ffmpeg_path` | from `PATH` | Path to `ffmpeg` |
+| `asset_processing.ffprobe_path` | from `PATH` | Path to `ffprobe` |
+| `asset_processing.max_concurrent_jobs` | `2` | Parallel jobs in each worker process |
+| `asset_processing.temp_dir` | system temp | Directory for temporary files |
+
+### Run workers separately
+
+Transcoding uses much CPU. To keep this work away from the server processes,
+disable the built-in worker:
+
+```toml
+[video]
+enabled = true
+
+[asset_processing]
+enabled = false
+max_concurrent_jobs = 4
+```
+
+Then start one or more workers with the same configuration:
+
+```bash
+chatto asset-processing --config chatto.toml
+```
+
+This command always runs the worker, independently of
+`asset_processing.enabled`. The worker must reach the same NATS server and
+asset storage. Set `nats.client.url`. If Chatto uses embedded NATS, expose its
+client port to the trusted network only.
+
+Workers share one queue. Each job goes to one worker. If a worker stops during
+a job, another worker does the job again. While no worker runs, members can
+still send messages, and their videos stay in processing.
+
+### Processing behavior
+
+1. Chatto stores the original upload immediately.
+2. The message shows the video as processing.
+3. A worker makes a thumbnail and six-second HLS segments. It converts audio to
+   AAC stereo.
+4. The player starts adaptive playback. Seeking works with NATS and S3
+   storage.
+
+A job can use 30 minutes. After that, Chatto records a failure and does not
+try again. If processing fails, for example with an unsupported codec, the
+member sees an error and can upload again. Videos from older Chatto versions
+keep their MP4 files.
+
+Chatto stores the original, the thumbnail, and the HLS segments. Put
+`asset_processing.temp_dir` on fast disk with space for the jobs that run at
+the same time.
 
 ## HTML Attachments
 
 Select an HTML or XHTML attachment to open its viewer. The viewer shows the
-document type and file size. Select **Download** to
-save the original file. Download does not load the preview.
+document type and file size. **Download** saves the original file and does not
+load the preview.
 
-Select **Show preview** to view the document. Before you select it, Chatto does
-not load the document or its external resources. The notice below the button
-explains that external websites can see your IP address if the document loads
-content from them. Each new opening requires this choice again.
+**Show preview** loads the document. Before this, Chatto loads nothing from the
+document. A notice tells the member that external websites can see their IP
+address if the document loads content from them. The member must make this
+choice each time.
 
-The preview blocks scripts, forms, popups, and access to Chatto's application
-state. Documents that need scripts may not work fully. Download and Close stay
-available outside the preview. Escape closes the viewer when focus is on its
-controls. When focus is inside the document, use Close or press Tab to return
-to the viewer controls first.
+The preview blocks scripts, forms, popups, and access to Chatto. Documents that
+need scripts can fail. **Download** and **Close** stay available outside the
+preview.
 
-API clients can add `download=1` to the original attachment URL. Keep its
-`access` ticket parameter. The server returns the original bytes with a download
-disposition and filename, including for S3 storage.
+API clients can add `download=1` to the original attachment URL. Keep the
+`access` parameter. Chatto then returns the original file as a download, also
+for S3 storage.
 
 ## Active Document Safety
 
-Uploaded HTML, XHTML, SVG, XML, and XML-derived active document formats are served with a sandbox policy and `nosniff`. S3-backed active documents stream through Chatto instead of redirecting directly to object storage so the sandbox headers stay in place. Active documents also use
-`Referrer-Policy: no-referrer` so resource requests do not disclose their
-ticketed URLs.
+Chatto serves uploaded HTML, XHTML, SVG, XML, and related formats with a
+sandbox policy, `nosniff`, and `Referrer-Policy: no-referrer`. With S3 storage,
+Chatto streams these files itself and does not redirect to S3. This keeps the
+sandbox headers in place.
 
-## Related Guides
-
-<CardGrid>
-  <LinkCard title="S3 Storage" href="/guides/infrastructure/s3-storage/" description="Configure S3-compatible storage for persisted assets." />
-  <LinkCard title="Video Processing" href="/guides/infrastructure/video-processing/" description="Enable ffmpeg-backed video and animated-GIF processing." />
-  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Plan backups that include asset storage and encryption keys." />
-  <LinkCard title="Room Attachment API" href="/reference/connectrpc-api/rooms/#chatto-api-v1-RoomService-ListRoomAttachments" description="Typed API reference for room attachment list reads." />
-</CardGrid>
+See [Environment Variables](/reference/environment-variables/#assets) for all
+asset settings.

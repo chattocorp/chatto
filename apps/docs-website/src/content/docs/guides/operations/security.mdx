@@ -3,7 +3,7 @@ title: Security & Privacy
 description: What Chatto protects, and what you must protect as a server operator.
 ---
 
-import { LinkCard } from "@astrojs/starlight/components";
+import { Aside, LinkCard } from "@astrojs/starlight/components";
 
 Chatto protects accounts, sessions, and message text. You protect the host, the
 reverse proxy, the secrets, and the backups. This page describes both parts.
@@ -52,8 +52,8 @@ You can label a client as trusted, or block it. A block stops new
 authorizations and makes the client's tokens invalid.
 
 <LinkCard
-  title="Connections From Other Chatto Clients"
-  href="/guides/operations/cross-server-connections/"
+  title="Clients From Other Origins"
+  href="/guides/operations/identity-login/#clients-from-other-origins"
   description="How client identity works, and what your deployment needs."
 />
 
@@ -77,19 +77,74 @@ controls the server, its storage, and its keys can read more.
   description="Roles, scopes, privileged mode, and how Chatto resolves a permission check."
 />
 
-## Encryption
+## Encryption and Data Erasure
 
-Chatto encrypts message text and selected account fields, such as names and
-email addresses, before it stores them. Attachments, avatars, and event
-metadata are not encrypted by Chatto. Use storage encryption for them. Account
-deletion destroys the account's keys, which makes its protected fields
-unreadable.
+Chatto encrypts some fields before it stores them. This is not full-disk
+encryption or end-to-end encryption. The running server decrypts these fields
+for authorized clients.
 
-<LinkCard
-  title="Encryption at Rest and Data Erasure"
-  href="/guides/operations/privacy-erasure/"
-  description="What Chatto encrypts, the threat model, and how deletion and backups interact."
-/>
+| Data | Encrypted by Chatto |
+| ---- | ------------------- |
+| Message text and attachment descriptions | Yes |
+| Login name, display name, bio, and verified email address | Yes |
+| Passwords | No. Chatto stores only bcrypt hashes. |
+| Attachments, avatars, branding images, and video derivatives | No. Use storage encryption. |
+| Filenames, authors, room and thread IDs, timestamps, reactions, link previews, statuses, preferences, and other metadata | No |
+| Configuration secrets and runtime records | No. Protect the host and NATS storage. |
+
+Each account has its own data keys. Chatto encrypts these keys with
+key-encryption keys, which it keeps in the NATS `ENCRYPTION_KEYS` bucket.
+
+Encryption protects the encrypted fields when a person gets:
+
+- the event stream or a data backup, but not the `ENCRYPTION_KEYS` bucket or a
+  key export
+- changed ciphertext. Chatto finds the change and does not decrypt the field.
+
+Encryption does not protect them from:
+
+- a person who controls the running server, or who has both the data and the
+  keys
+- code that runs in the Chatto process
+- clients that are authorized to read the data through the API
+- access to asset storage, because Chatto does not encrypt files
+
+### Account deletion
+
+A member deletes their account in **Account Settings**. This needs
+`user.delete-self`. An administrator with `admin.view-users` and
+`user.delete-any` deletes other members on the member page in **Server
+Administration**. The administrator confirms the login of the account but does not
+enter a password again.
+
+Deletion destroys the keys of the account (crypto-shredding). After that,
+Chatto cannot read the message text or protected profile fields of the member,
+and it shows their messages as unavailable. Chatto also deletes their
+attachments, avatar, settings, and memberships. The user ID, timestamps, room
+relationships, and other metadata stay in the event history.
+
+<Aside type="caution">
+  Key and file cleanup can fail and try again later. A successful deletion
+  does not prove that all cleanup is complete. Monitor the server log for
+  account-deletion warnings.
+</Aside>
+
+### Backups and keys
+
+`chatto backup` leaves out the `ENCRYPTION_KEYS` bucket unless you add
+`--include-keys`. It also leaves out S3 objects.
+
+| Backup | Result |
+| ------ | ------ |
+| `chatto backup --encrypt --include-keys` | One archive can restore all data. A person with its passphrase can read message text. |
+| `chatto backup --encrypt` and `chatto keys export` | Data and keys are in separate files. A restore needs both. |
+| `chatto backup` without keys | The archive cannot restore message text or protected profile fields. If you lose all keys, you lose this data. |
+
+<Aside type="caution">
+  An old backup that has keys can make deleted data readable again. Keep
+  backups, key exports, NATS snapshots, S3 object versions, and storage
+  snapshots only as long as your deletion policy allows.
+</Aside>
 
 ## HTTPS and reverse proxies
 
@@ -165,9 +220,8 @@ Your configuration contains these secrets:
 A change to `core.secret_key` signs out every session and makes invite links
 and pending sign-in links invalid. It does not change the encryption keys.
 
-The encryption keys are in the NATS `ENCRYPTION_KEYS` bucket. `chatto backup`
-leaves them out unless you add `--include-keys`. A backup without the keys
-cannot restore message text. See [Backup & Restore](/guides/operations/backup-restore/).
+Protect key exports and backups with keys like the secrets above. See
+[Backup & Restore](/guides/operations/backup-restore/).
 
 ## Report a vulnerability
 

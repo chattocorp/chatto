@@ -1,27 +1,26 @@
 ---
-title: Realtime Protocol Overview
-description: Receive an exact resource snapshot, public events, and short-gap resume.
+title: Realtime
+description: Receive exact resource snapshots, public events, and short-gap resume over the realtime WebSocket, and connect a TypeScript client.
 ---
 
-import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 import realtimeSequence from "../../../../assets/realtime-protocol-sequence.svg?raw";
 
-Use realtime protocol 4 when a bot or client must react to activity on one
+Use realtime protocol 4 when a bot or client must react to activity on a
 Chatto server. The protocol sends binary protobuf frames over a WebSocket at
-`/api/realtime`.
-
-Use [ConnectRPC](/reference/connectrpc-api/) for commands, explicit resource
-reads, pagination, history, and read-your-writes results. Realtime events tell
-you what happened. ConnectRPC gives you the resource detail that your
-integration needs.
+`/api/realtime`. Realtime events tell you what happened.
+[ConnectRPC](/reference/connectrpc-api/) gives you the resource detail.
 
 | Need                                                                     | Use               |
 | ------------------------------------------------------------------------ | ----------------- |
 | React to a message, edit, reaction, membership change, or other activity | Realtime event    |
 | Create, update, or delete a resource                                     | ConnectRPC        |
-| Read one resource or a paginated list                                    | ConnectRPC        |
+| Read one resource, a paginated list, or history                          | ConnectRPC        |
 | Build a current local content view                                       | Realtime snapshot |
 | Repair a short connection gap                                            | Realtime resume   |
+
+The [realtime reference](/reference/connectrpc-api/realtime/) lists all
+frames, events, and enums.
 
 ## Connection lifecycle
 
@@ -29,270 +28,166 @@ integration needs.
 
 1. Open a WebSocket to `wss://chat.example.com/api/realtime`.
 2. Send one binary [`RealtimeSubscribe`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeSubscribe)
-   message. Request protocol version `4`. Select `SNAPSHOT` or `LIVE_ONLY` as
-   the required initial-state fallback. Include a bearer credential when you
-   do not use a same-origin cookie. You can also include a safe resume cursor.
+   message. Request protocol version `4`, and select `SNAPSHOT` or
+   `LIVE_ONLY` as the initial-state fallback. Include a bearer credential if
+   you do not use a same-origin cookie. Optionally, include a resume cursor.
 3. Send no more application messages on this socket.
-4. If the server sends `snapshot`, replace all snapshot resource families with
-   the values from that atomic frame.
-5. Process replayed events, if any. The server sends `caught_up` when recovery
+4. If the server sends `snapshot`, replace all snapshot resource families.
+5. Process replayed events, if any. The server sends `caught_up` when it
    reaches the live boundary.
-6. Reconcile the latest-value resources that your client retains. Save the
-   `caught_up` cursor after all earlier work succeeds. Continue to process
-   realtime events.
+6. Reconcile the latest-value resources that your client keeps. Then save the
+   `caught_up` cursor and continue to process events.
 
-Treat the stream as live only after `caught_up`. Its `recovery` field states
-what happened: `RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`. A successful replay with
-no events still reports `RESUMED`. If you supplied a cursor but receive
-`LIVE_ONLY`, the server did not recover the gap. Fetch current state if your
-integration needs it; do not assume that every missed trigger was delivered.
+Treat the stream as live only after `caught_up`. Its `recovery` field is
+`RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`. A replay with no events still reports
+`RESUMED`. If you sent a cursor but receive `LIVE_ONLY`, the server did not
+recover the gap. Read current state if your integration needs it.
 
 ## Choose snapshot or live-only startup
 
-Select `LIVE_ONLY` for a bot that wants new events and reads resources through
-ConnectRPC. If the cursor is absent or unusable, the server starts at a stated
-current boundary. It does not send old events or current resources.
+- `LIVE_ONLY` is for a bot that wants new events and reads resources through
+  ConnectRPC. Without a usable cursor, the server starts at the current
+  boundary and sends no old events or resources.
+- `SNAPSHOT` is for a client that keeps a local copy of server state. Without a
+  usable cursor, the server sends an exact snapshot at boundary `E`, then
+  `caught_up(E)`. The bundled frontend uses this mode.
 
-Select `SNAPSHOT` for a client that keeps a server projection. If the cursor is
-absent or unusable, the server sends an exact authorized content snapshot at
-boundary `E`. It then sends `caught_up(E)`. The bundled frontend uses this
-mode.
-
-When a cursor is usable, both choices can result in `RESUME`. The server sends
-authorized replayable events after that cursor and then sends `caught_up`. The
-client does not send a separate catch-up command.
-
-A cursor can become unusable because it is invalid, expired, too far behind,
-from another server history, or unsafe for current authorization. Fallback is
-normal recovery behavior. The server does not send a partial replay.
+With a usable cursor, both modes resume. The server replays the events after
+the cursor and then sends `caught_up`. A cursor becomes unusable when it is
+invalid, expired, too far behind, from a different server history, or unsafe
+for current authorization. Then the server uses the fallback. It never sends a
+partial replay.
 
 <Aside type="caution">
-  Keep a resume cursor with the client state that it describes. Do not apply a
-  cursor to an unrelated projection. A cursor is valid for 15 minutes, and the
-  server binds it to the authenticated viewer.
+  A cursor is valid for 15 minutes and belongs to the authenticated viewer.
+  Keep it with the client state that it describes. Do not apply it to
+  unrelated state. Cursors are opaque: store and return them unchanged.
 </Aside>
 
 ## Handle public events
 
 Each [`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
-contains one authorized public payload variant. Events include messages,
-edits, retractions, reactions, pins, assets, rooms, membership, profiles,
-threads, calls, typing, and presence changes. An event has a resume cursor when
-it can be replayed. Cursorless events are safe to miss, or current resource
-state can restore their effect.
+contains one public payload, such as a message, edit, retraction, reaction,
+pin, asset, room, membership, profile, thread, call, typing, or presence
+change. It also contains a stable event ID, the source time, and the actor ID
+when applicable. An event has a `cursor` when the server can replay it.
+Cursorless events are safe to miss, or a read of the current resource restores
+their effect.
 
-The public event contains common metadata outside its event `oneof`:
-
-- a stable event ID;
-- source time;
-- a visible actor ID, when applicable.
-
-The optional `cursor` is outside the payload `oneof`. A public event
-does not contain broker coordinates.
-
-The public union contains only event variants that are part of the realtime
-API. Each union member uses a dedicated public payload. Public names and
-compact field numbers describe event semantics, not the internal delivery
-source. Public payload fields have an independent wire layout from stored EVT
-payloads. The complete stored `Event` union is not part of the public API.
-
-Internal event variants and storage-only fields do not exist in the public
-schema. The server can add authorized public-only `_plaintext` fields. It never
-sends raw EVT bytes, ciphertext, credential data, storage pointers, subjects,
-or JetStream sequences.
-
-Event authorization makes every delivered field safe for that viewer. The
-protocol does not currently define viewer-specific visibility for one field
-inside an otherwise authorized event.
-
-Some related durable facts become one resource-change event. Profile facts use
-`UserProfileChangedEvent`, private preference facts use
-`ViewerPreferencesChangedEvent`, and public server profile facts use
-`ServerProfileChangedEvent`. Read the applicable canonical resource with the
-event cursor. Internal moderation audit facts do not appear in the public
-catalogue. Room-group and layout facts use one `RoomLayoutChangedEvent`.
-Read `RoomDirectoryService.ListRoomGroups` for the authorized layout. Asset
-processing and deletion events provide `room_id` and `message_event_id` as well
-as `asset_id`. Read the affected message for its attachment data. Refresh only
-the affected room's retained files and pins. Deletion of a processed derivative
-identifies the message that owns the original asset.
-
-`MessagePostedEvent.room_kind` identifies a channel or DM without a separate
-room lookup. `thread_root_event_id` identifies a reply’s thread root. Structured
-`mentions` distinguish direct mentions from role, here, and all mentions.
-Each direct user, role, here, or all target occurs once. A direct target stores
-its user ID in `direct.user_id`; role and broadcast targets do not list
-their recipients. `includes_viewer` states whether the target included the
-authenticated caller when the message was posted. This value keeps its original
-meaning during replay. Do not infer it from current room membership, roles, or
-presence. Targets with no resolved recipients are omitted.
-
-A bot that responds only to direct mentions checks for a `direct` cause with
-`includes_viewer = true`. A role or broadcast mention must not count as a direct
-mention. The bundled test bot uses this rule in channels; DMs need no mention.
-Edit and retraction events use `message_event_id` for their target.
-
-`MessagePostedEvent.body_plaintext` lets a client show a new message without
-waiting for another request. The event does not duplicate the complete message
-resource. Use `MessageService.GetMessage` to load attachments, link previews,
-reactions, pin state, thread details, and other resource state. A client can
-render the event metadata and plaintext first, then replace that temporary row
-with the authoritative resource response.
-
-A missing cached author does not mean that the account was deleted. The bundled
-client shows a neutral avatar and a name skeleton while author details load.
-If the lookup fails, it shows “Unknown user” and keeps the message body visible.
-Deleted accounts keep the deleted-user label. The same behaviour applies to
-people and bots.
-
-
-Process one event as one unit:
+Process each event as one unit:
 
 1. Decode the complete frame.
-2. Process the public variant that you understand.
+2. Process the variants that you use. Ignore the others.
 3. Save `cursor` only after your processing succeeds.
 
-Events can repeat across reconnects. Use the stable event ID to deduplicate
-effects. The bounded resume policy does not guarantee delivery across a long
-outage. A message created before a lost response or failed local checkpoint
-can still be posted twice; a local event-ID set alone cannot prevent that.
+Events can repeat across reconnects. Use the event ID to deduplicate. Resume
+does not guarantee delivery across a long outage. If you cannot decode a
+complete frame, close the socket and keep the previous cursor. New event
+variants are additive.
 
-New event variants are additive. You can ignore a variant that you do not use
-and still save the common cursor. If a complete top-level frame cannot be
-decoded, close the socket and keep the preceding cursor.
+### Messages and mentions
+
+- `MessagePostedEvent.room_kind` tells you whether the room is a channel or a
+  DM. `thread_root_event_id` identifies the thread root of a reply.
+- `body_plaintext` lets you show a new message immediately. Use
+  `MessageService.GetMessage` for attachments, link previews, reactions, pin
+  state, and thread details.
+- Edit and retraction events use `message_event_id` for their target message.
+- `mentions` lists each direct user, role, here, or all target once. A direct
+  target has `direct.user_id`. `includes_viewer` tells you whether the target
+  included you when the message was posted. It keeps this meaning during
+  replay.
+
+A bot that responds only to direct mentions checks for a `direct` target with
+`includes_viewer = true`. A role or broadcast mention is not a direct mention.
+
+### Resource-change events
+
+Some events tell you only that a resource changed. Read the resource with the
+event cursor:
+
+| Event                           | Read                                        |
+| ------------------------------- | ------------------------------------------- |
+| `UserProfileChangedEvent`       | The user profile                            |
+| `ViewerPreferencesChangedEvent` | Your preferences                            |
+| `ServerProfileChangedEvent`     | The server profile                          |
+| `RoomLayoutChangedEvent`        | `RoomDirectoryService.ListRoomGroups`       |
+| Asset processing or deletion    | The message in `message_event_id`           |
 
 ## Refresh presence and typing
 
 Call `MyAccountService.SetPresence` every 30 seconds while your client is
-visible. The server expires presence after 60 seconds without a refresh.
-To appear offline, stop these calls; you can keep the realtime connection open.
-Another client signed in to the same account can keep presence active.
+visible. Presence expires after 60 seconds without a refresh. To appear
+offline, stop these calls. Another client of the same account can keep
+presence active.
 
-Call `RoomService.RefreshTypingIndicator` at most once every 2 seconds while
-the user types. Include `threadRootEventId` for a thread; omit it for the room
-timeline. Stop sending when typing stops. After posting a message, the next
-typing activity can send immediately.
+Call `RoomService.RefreshTypingIndicator` at most every 2 seconds while the
+user types. Include `threadRootEventId` for a thread. Stop when typing stops.
 
-On receipt of `UserTypingEvent`, track the event actor separately for each room
-and thread. Clear that indicator 6 seconds after the last received typing event,
-or when the actor posts a message in the same room or thread. The receiving
-client owns this timer. There is no stop-typing event, and missed typing events
-are not replayed.
-
-The bundled client shows up to three avatars and two names. For larger groups,
-it shows the two names and a count of the remaining people. Missing profiles
-use an unknown-user label. The indicator stays inside the room or thread pane
-without moving messages. The complete block fades in and out with a subtle zoom and a 150 ms eased transition.
-A bright dot moves clockwise around a 3×3 grid with a fading trail beside the label.
-It announces text changes to assistive technology
-and disables its animations when reduced motion is enabled.
+When you receive `UserTypingEvent`, track the actor for each room and thread.
+Clear the indicator 6 seconds after the last typing event, or when the actor
+posts in that room or thread. There is no stop-typing event, and resume does
+not replay typing events.
 
 ## Notification creation hints
 
-`notification_occurrences_changed.created_notification_id` identifies a newly
-created notification. It is present even during Do Not Disturb or when the
-notification starts as read. Updates and removals omit it. Read current state
-through `NotificationService.ListNotificationOccurrences`; the hint is not a
-sound instruction. Clients choose whether to alert from current state and
-their preferences. The bundled frontend groups creations during one refresh
-into one sound and stays silent for missing or read rows and failed reads.
-
-These events are best-effort live hints. Resume does not replay missed
-notification creation hints. Reconcile the notification list after reconnect;
-do not treat this event as a durable bot trigger.
+`notification_occurrences_changed.created_notification_id` identifies a new
+notification, also during Do Not Disturb or when it starts as read. Read the
+current state with `NotificationService.ListNotificationOccurrences` and
+decide from your preferences whether to alert. Resume does not replay these
+hints. Read the notification list again after you reconnect, and do not use
+this event as a durable bot trigger.
 
 ## Apply the exact snapshot at `E`
 
-When the server sends `snapshot`, clear the state that your client projection
-owns. The one atomic frame contains these canonical resource families before
-`caught_up(E)`:
+When the server sends `snapshot`, clear the state that it replaces. The frame
+contains these complete resource families:
 
-| Snapshot value            | Meaning                                               |
-| ------------------------- | ----------------------------------------------------- |
-| `ServerPublicProfile`     | Current public server profile                         |
-| Repeated `RoomWithViewerState` | Complete visible room directory                  |
-| Repeated `RoomGroup`      | Complete visible room-group layout                    |
-| Repeated `DirectoryMember` | The viewer and users referenced by snapshot resources |
-| Repeated `ActiveCall`     | Complete visible active-call state                    |
+| Snapshot value                 | Meaning                                               |
+| ------------------------------ | ----------------------------------------------------- |
+| `ServerPublicProfile`          | Current public server profile                         |
+| Repeated `RoomWithViewerState` | Complete visible room directory                       |
+| Repeated `RoomGroup`           | Complete visible room-group layout                    |
+| Repeated `DirectoryMember`     | The viewer and users referenced by snapshot resources |
+| Repeated `ActiveCall`          | Complete visible active-call state                    |
 
-The snapshot does not contain the complete user directory. It also excludes
-message and thread history, search results, files, pins, notifications,
-presence, read markers, and account-security state. Read these resources
-through ConnectRPC only when your integration needs them.
+The snapshot does not contain the complete user directory, message or thread
+history, search results, files, pins, notifications, presence, read markers,
+or account-security state. Read these through ConnectRPC when you need them.
 
-Treat each snapshot list as a complete replacement. Do not expose the new state
-as current before `caught_up` and the resource reconciliation that your client
-requires. If the socket closes first, discard the snapshot generation and
-reconnect without its cursor. Events after `E` follow the snapshot in order,
-so no client-driven second replay is required.
+Do not show the new state as current before `caught_up`. If the socket closes
+first, discard the snapshot and reconnect without its cursor.
 
-Cursorless events are not replayed. A client that retains their effects must
-read the related latest-value resources after every `caught_up`, not only after
-a snapshot. The bundled frontend replaces its server runtime state, viewer,
-visible rooms, notifications, and displayed user presence. It replaces mounted
-timelines only after snapshot fallback because durable replay already repairs
-timeline changes. A smaller integration can read only the resource families
-that it retains.
+Resume does not replay cursorless events. After every `caught_up`, not only
+after a snapshot, read the latest-value resources that your client keeps, such
+as the viewer, notifications, and presence.
 
 ## Bind a targeted resource read to an event
 
-Some events contain enough data for immediate use but not a complete resource.
-When a cursor-bearing event causes a follow-up ConnectRPC read, set this header:
+When a cursor-bearing event causes a ConnectRPC read, set this header:
 
 ```http
 Chatto-Realtime-Minimum-Cursor: <event.cursor>
 ```
 
-The common ConnectRPC interceptor honors this header on every authenticated
-unary procedure. The serving replica validates the viewer-bound cursor and
-waits until its content view includes that event boundary. This prevents a
-request that reaches another replica from using older content. Give each
-bounded request a finite deadline. Save the event cursor only after the
-required request succeeds.
+The server waits until its content includes that event before it runs the
+request. This prevents stale reads from another replica. All authenticated
+unary procedures accept the header. The server waits for at most 10 seconds
+or your earlier deadline. A timeout returns `DEADLINE_EXCEEDED` and does not
+run the operation. The response can contain newer content. The header does not
+wait for notifications, search indexing, or other asynchronous work.
 
-This is a minimum boundary, not a historical read. The response can contain
-newer content. The server waits for at most 10 seconds or your earlier deadline;
-a timeout returns `DEADLINE_EXCEEDED` without running the operation. The
-boundary does not guarantee completion of notifications, search indexing, or
-other asynchronous work. A valid cursor can still be used for this header
-when its replay would exceed the server’s work limit.
-
-If a new snapshot starts, discard late reads from the earlier local projection
-generation. They must not replace newer state.
+Save the event cursor only after the read succeeds. If a new snapshot starts,
+discard late responses from the earlier state.
 
 ## Detect a dead connection
 
-Reset your liveness timer after every server frame. Protocol 4 sends a
-heartbeat approximately every 15 seconds. Replace the socket when no frame
-arrives for 75 seconds. WebSocket control frames provide transport ping and
-pong behavior; the client sends no application ping message.
-
-A heartbeat can contain a fresh `cursor` for the last replay boundary
-that this socket delivered. Save it only after all earlier events and resource
-work succeed.
+The server sends a heartbeat approximately every 15 seconds. Reset a timer on
+every server frame, and replace the socket when no frame arrives for 75
+seconds. The client sends no application ping. A heartbeat can contain a fresh
+`cursor`. Save it only after all earlier work succeeds.
 
 ## Handle errors and reconnects
-
-Role changes use normal events. Read current role metadata after `role_created`
-or `role_updated`; apply `roles_reordered` to display order. Use `role_assigned`
-and `role_revoked` to update member role lists. These events do not close the
-connection.
-
-If an assignment event names your viewer, discard private cached data and load
-current authorized state. Do the same for `role_deleted` or
-`role_permissions_changed` when your viewer holds that role, and for permission
-changes to `everyone`. If you do not know your viewer's roles, reload
-conservatively. `viewer_permissions_changed` applies only to the authenticated
-viewer and contains no private permission details.
-
-Bots also receive `viewer_permissions_changed` when their owner's authority
-can change. Role permission changes and deletion conservatively notify bots;
-cosmetic role changes do not.
-
-Clear data before starting replacement reads, and reject older responses that
-arrive later. Snapshot clients can discard their cursor and subscribe again
-without one. Cosmetic changes and unrelated users' assignments do not require
-this full reload.
 
 | Frame                           | Client action                                                                                       |
 | ------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -300,30 +195,393 @@ this full reload.
 | `close` with `reconnect: false` | Stop automatic reconnects and require the applicable user or authentication action.                 |
 | Network close without guidance  | Retry with bounded exponential backoff and the last safe cursor.                                    |
 
-Bearer access credentials can expire while the socket is open. Rotate the
-credential and reconnect when the server requests authentication. Same-origin
-cookie clients can receive a session-renewal close and must renew the browser
-session before they reconnect. A `SESSION_TERMINATED` close means that the
-session ended. Clients must stop reconnecting and return to sign-in.
+- **Expired bearer token:** rotate the credential and reconnect.
+- **Session renewal close:** same-origin cookie clients renew the browser
+  session, then reconnect.
+- **`SESSION_TERMINATED`:** stop reconnecting and return to sign-in.
+- **`RESYNC_REQUIRED`:** discard private cached data and the cursor, then
+  reconnect. Snapshot clients replace their state. Live-only clients read the
+  current resources that they need.
 
-For `RESYNC_REQUIRED`, discard private cached data and the cursor before reconnecting. Snapshot clients
-replace their state. Live-only clients must decide which current resources to
-read; the next startup cannot recover the skipped history.
+Role changes arrive as normal events and do not close the connection. Read
+role metadata after `role_created` or `role_updated`. Apply `roles_reordered`
+to display order, and `role_assigned` and `role_revoked` to member role lists.
 
-<CardGrid>
-  <LinkCard
-    title="TypeScript Tutorial"
-    href="/guides/integrations/realtime-typescript/"
-    description="Connect a small event-driven bot client and resume from a cursor."
-  />
-  <LinkCard
-    title="Realtime Frame Reference"
-    href="/reference/connectrpc-api/realtime/"
-    description="Read every realtime protobuf message, field, and enum."
-  />
-  <LinkCard
-    title="API Compatibility"
-    href="/guides/integrations/api-compatibility/"
-    description="Plan for API and protocol changes while Chatto is pre-1.0."
-  />
-</CardGrid>
+Reload all private cached data when:
+
+- an assignment event names your viewer;
+- `role_deleted` or `role_permissions_changed` affects a role that you hold;
+- the permissions of `everyone` change;
+- you receive `viewer_permissions_changed`. Bots also receive it when the
+  authority of their owner can change.
+
+Clear data before you start the new reads, and reject older responses that
+arrive later. If you do not know the roles of your viewer, reload.
+
+## Use realtime from TypeScript
+
+This example builds a browser client that processes events in order and
+reconnects with its last safe cursor. The same pattern works for a bot runtime
+that has a WebSocket implementation.
+
+### Generate TypeScript bindings
+
+You need a server URL, a bearer credential for a user or bot, [Buf](https://buf.build/docs/cli/installation/),
+Node.js, and the `proto/` directory from the exact Chatto release that your
+server runs. Do not mix schemas from different releases.
+
+<Steps>
+
+1. Create a client project and install the protobuf runtime.
+
+   ```sh
+   mkdir chatto-realtime-client
+   cd chatto-realtime-client
+   npm init -y
+   npm install @bufbuild/protobuf@1.10.1
+   npm install --save-dev @bufbuild/protoc-gen-es@1.10.1 typescript vite
+   npm pkg set type=module scripts.dev=vite scripts.check="tsc --noEmit"
+   ```
+
+2. Copy the `proto/` directory of the matching release into the project,
+   with its `buf.yaml` file and all imported definitions.
+
+3. Create `tsconfig.json`.
+
+   ```json
+   {
+     "compilerOptions": {
+       "target": "ES2022",
+       "module": "NodeNext",
+       "moduleResolution": "NodeNext",
+       "lib": ["ES2022", "DOM"],
+       "strict": true,
+       "noEmit": true
+     },
+     "include": ["src"]
+   }
+   ```
+
+4. Create `buf.gen.yaml`.
+
+   ```yaml
+   version: v2
+   plugins:
+     - local: node_modules/.bin/protoc-gen-es
+       out: src/gen
+       opt:
+         - target=ts
+   ```
+
+5. Generate the bindings into `src/gen/`.
+
+   ```sh
+   buf generate proto --template buf.gen.yaml
+   ```
+
+</Steps>
+
+### Create an event client
+
+Create `src/realtime.ts`:
+
+```ts
+import {
+  RealtimeEvent,
+  RealtimeCloseCode,
+  RealtimeRecovery,
+  RealtimeInitialState,
+  RealtimeServerFrame,
+  RealtimeSnapshot,
+  RealtimeSubscribe,
+} from "./gen/chatto/realtime/v1/realtime_pb.js";
+
+const PROTOCOL_VERSION = 4;
+const BASE_RECONNECT_MS = 1_000;
+const MAX_RECONNECT_MS = 30_000;
+
+function durationMs(value?: { seconds: bigint; nanos: number }): number {
+  return value ? Number(value.seconds) * 1_000 + value.nanos / 1_000_000 : 0;
+}
+
+type ChattoRealtimeClientOptions = {
+  initialState?: RealtimeInitialState;
+  beginSnapshot?: () => void | Promise<void>;
+  applySnapshot?: (snapshot: RealtimeSnapshot) => void | Promise<void>;
+  completeCatchUp?: (cursor: string, signal: AbortSignal, recovery: RealtimeRecovery) => Promise<void>;
+};
+
+export class ChattoRealtimeClient {
+  #socket?: WebSocket;
+  #stopped = false;
+  #reconnectAttempt = 0;
+  #reconnectDelay?: number;
+  #resumeCursor?: string;
+  #lastFrameAt = 0;
+  #heartbeatStallMs = 75_000;
+  #watchdog?: number;
+  #processing = Promise.resolve();
+  #seenEventIds = new Set<string>();
+  #connectionAbort?: AbortController;
+  #snapshotInProgress = false;
+
+  constructor(
+    private readonly serverUrl: string,
+    private readonly bearerToken: string,
+    private readonly onEvent: (event: RealtimeEvent) => void | Promise<void>,
+    private readonly options: ChattoRealtimeClientOptions = {},
+  ) {}
+
+  start(): void {
+    this.#stopped = false;
+    this.#connect();
+  }
+
+  stop(): void {
+    this.#stopped = true;
+    window.clearInterval(this.#watchdog);
+    this.#connectionAbort?.abort();
+    this.#socket?.close(1000, "client stopped");
+  }
+
+  #connect(): void {
+    if (this.#stopped) return;
+    this.#connectionAbort?.abort();
+    const connectionAbort = new AbortController();
+    this.#connectionAbort = connectionAbort;
+    const url = new URL("/api/realtime", this.serverUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+
+    const socket = new WebSocket(url);
+    socket.binaryType = "arraybuffer";
+    this.#socket = socket;
+    this.#reconnectDelay = undefined;
+
+    socket.onopen = () => {
+      if (this.#stopped || this.#socket !== socket) return;
+      this.#lastFrameAt = Date.now();
+      this.#startWatchdog();
+      this.#send(
+        new RealtimeSubscribe({
+          protocolVersion: PROTOCOL_VERSION,
+          bearerToken: this.bearerToken,
+          initialState:
+            this.options.initialState ?? RealtimeInitialState.LIVE_ONLY,
+          resumeCursor: this.#resumeCursor,
+        }),
+      );
+    };
+
+    socket.onmessage = (message) => {
+      if (this.#stopped || this.#socket !== socket) return;
+      // Keep event handling ordered even when one handler is asynchronous.
+      this.#processing = this.#processing
+        .then(async () => {
+          connectionAbort.signal.throwIfAborted();
+          const bytes = await this.#binaryBytes(message.data);
+          const frame = RealtimeServerFrame.fromBinary(bytes);
+          this.#lastFrameAt = Date.now();
+          await this.#handleFrame(frame, connectionAbort.signal);
+        })
+        .catch((error) => {
+          console.error("Realtime frame rejected", error);
+          connectionAbort.abort();
+          socket.close(4000, "unsupported realtime frame");
+        });
+    };
+
+    socket.onclose = () => {
+      if (this.#socket !== socket) return;
+      connectionAbort.abort();
+      this.#socket = undefined;
+      window.clearInterval(this.#watchdog);
+      if (this.#stopped) return;
+
+      const delay =
+        this.#reconnectDelay ??
+        Math.min(
+          BASE_RECONNECT_MS * 2 ** this.#reconnectAttempt,
+          MAX_RECONNECT_MS,
+        );
+      this.#reconnectAttempt += 1;
+      window.setTimeout(() => this.#connect(), delay);
+    };
+  }
+
+  async #handleFrame(
+    frame: RealtimeServerFrame,
+    connectionSignal: AbortSignal,
+  ): Promise<void> {
+    switch (frame.frame.case) {
+      case "snapshot": {
+        if (!this.options.applySnapshot) throw new Error("Unexpected snapshot");
+        // A snapshot starts a new local projection generation. Do not keep a
+        // cursor until caught_up confirms the handoff boundary.
+        this.#snapshotInProgress = true;
+        this.#seenEventIds.clear();
+        this.#resumeCursor = undefined;
+        await this.options.beginSnapshot?.();
+        connectionSignal.throwIfAborted();
+        await this.options.applySnapshot(frame.frame.value);
+        connectionSignal.throwIfAborted();
+        return;
+      }
+
+      case "event": {
+        const event = frame.frame.value;
+        const eventId = event.id;
+        if (eventId && !this.#seenEventIds.has(eventId)) {
+          await this.onEvent(event);
+          connectionSignal.throwIfAborted();
+          this.#seenEventIds.add(eventId);
+        }
+        // Save the cursor only after the complete handler succeeds. An unknown
+        // additive event variant can be ignored and still advance this cursor.
+        if (event.cursor !== undefined) {
+          this.#resumeCursor = event.cursor;
+        }
+        return;
+      }
+
+      case "caughtUp": {
+        const { cursor, recovery } = frame.frame.value;
+        await this.options.completeCatchUp?.(cursor, connectionSignal, recovery);
+        connectionSignal.throwIfAborted();
+        this.#snapshotInProgress = false;
+        this.#resumeCursor = cursor;
+        this.#reconnectAttempt = 0;
+        return;
+      }
+
+      case "heartbeat": {
+        const cursor = frame.frame.value.cursor;
+        if (cursor !== undefined) this.#resumeCursor = cursor;
+        return;
+      }
+
+      case "close": {
+        const close = frame.frame.value;
+        if (close.code === RealtimeCloseCode.RESYNC_REQUIRED) {
+          this.#resumeCursor = undefined;
+        }
+        this.#stopped = !close.reconnect;
+        this.#reconnectDelay =
+          durationMs(close.retryAfter) || BASE_RECONNECT_MS;
+        this.#socket?.close(1000, "server requested reconnect");
+        return;
+      }
+
+      case undefined:
+        throw new Error("Unknown realtime server frame");
+    }
+  }
+
+  #startWatchdog(): void {
+    window.clearInterval(this.#watchdog);
+    this.#watchdog = window.setInterval(() => {
+      if (Date.now() - this.#lastFrameAt >= this.#heartbeatStallMs) {
+        this.#socket?.close(4001, "heartbeat stalled");
+      }
+    }, 5_000);
+  }
+
+  #send(message: RealtimeSubscribe): void {
+    if (this.#socket?.readyState !== WebSocket.OPEN) {
+      throw new Error("Realtime socket is not open");
+    }
+    this.#socket.send(Uint8Array.from(message.toBinary()).buffer);
+  }
+
+  async #binaryBytes(data: unknown): Promise<Uint8Array> {
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    if (data instanceof Blob) return new Uint8Array(await data.arrayBuffer());
+    throw new Error("Expected a binary protobuf frame");
+  }
+}
+```
+
+### Handle the events that your bot needs
+
+Get the access token from a secure runtime source. Do not put it in the
+WebSocket URL or in logs.
+
+```ts
+import { ChattoRealtimeClient } from "./realtime.js";
+
+const client = new ChattoRealtimeClient(
+  "https://chat.example.com",
+  accessToken,
+  async (event) => {
+    switch (event.event.case) {
+      case "messagePosted":
+        console.info("New message ID", event.id);
+        break;
+      case "reactionAdded":
+        console.info("Reaction", event.event.value.emoji);
+        break;
+      default:
+        // Ignore event variants that this integration does not use.
+        break;
+    }
+  },
+);
+
+client.start();
+```
+
+The in-memory event-ID set only shows the deduplication rule. A bot that can
+restart must store completed event IDs with its effects. A checkpoint does not
+make a post exactly-once: the server can accept a post before the response or
+checkpoint is lost. `completeCatchUp` receives the recovery result. Record
+`LIVE_ONLY` after a resume request if missed triggers matter to you.
+
+### Build a projection client
+
+A projection client selects `SNAPSHOT` and passes snapshot callbacks:
+
+```ts
+import { RealtimeInitialState } from "./gen/chatto/realtime/v1/realtime_pb.js";
+
+const projectionClient = new ChattoRealtimeClient(
+  "https://chat.example.com",
+  accessToken,
+  applyOrReconcileEvent,
+  {
+    initialState: RealtimeInitialState.SNAPSHOT,
+    beginSnapshot: () => resetProjection(),
+    applySnapshot: (snapshot) => {
+      if (!snapshot.server) throw new Error("Snapshot has no server profile");
+      replaceServerProfile(snapshot.server);
+      replaceRooms(snapshot.rooms);
+      replaceRoomGroups(snapshot.roomGroups);
+      replaceReferencedUsers(snapshot.users);
+      replaceActiveCalls(snapshot.activeCalls);
+    },
+    completeCatchUp: async (cursor, signal) => {
+      const headers = { "Chatto-Realtime-Minimum-Cursor": cursor };
+      const [runtime, viewer, notifications] = await Promise.all([
+        serverClient.getRuntimeConfig(
+          {},
+          { headers, signal, timeoutMs: 10_000 },
+        ),
+        viewerClient.getViewer({}, { headers, signal, timeoutMs: 10_000 }),
+        notificationClient.listNotificationOccurrences(
+          {},
+          { headers, signal, timeoutMs: 10_000 },
+        ),
+      ]);
+      signal.throwIfAborted();
+      replaceAuxiliaryState({ runtime, viewer, notifications });
+    },
+  },
+);
+
+projectionClient.start();
+```
+
+The example uses generated ConnectRPC clients and your own replacement
+functions. Load users that later events reference with bounded
+`BatchGetUsers` calls. The example reads runtime settings, the viewer, and
+notifications after every `caught_up`, with the cursor as a minimum boundary.
+A response can include changes after the cursor, so make reducers idempotent,
+or read and replace the affected resource.

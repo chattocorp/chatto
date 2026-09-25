@@ -1,55 +1,44 @@
 ---
 title: Server Operations
-description: Day-to-day operations for Chatto admins and self-hosters, including diagnostics, metrics, backups, upgrades, and recovery.
+description: Day-to-day operations for Chatto operators, including diagnostics, metrics, backups, upgrades, recovery, and community badges.
 ---
 
-import {
-  Aside,
-  CardGrid,
-  LinkCard,
-  Tabs,
-  TabItem,
-} from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Running Chatto is mostly about keeping the process healthy, watching storage growth, testing backups, and knowing which tool to use when an account or deployment needs repair.
+To operate Chatto, keep the process healthy, monitor storage growth, test your
+backups, and know which tool repairs an account or a deployment.
 
 ## Operator Surfaces
 
-| Surface          | Use for                                                                                                                       |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Admin UI         | Member management, roles, permissions, room layout, server branding, event log, and system diagnostics.                       |
-| Metrics listener | Per-process Prometheus metrics such as Go runtime, readiness, realtime counters, NATS client counters, and projection health. |
-| Exporter         | Deployment-wide metrics from NATS resources and asset storage.                                                                |
-| Operator CLI     | Local recovery and bootstrap actions over a Unix socket.                                                                      |
-| Backups          | Disaster recovery, migration rehearsal, and upgrade safety.                                                                   |
+| Surface | Use for |
+| ------- | ------- |
+| Admin UI | Members, roles, permissions, room layout, branding, event log, and system diagnostics. |
+| Metrics listener | Prometheus metrics for one server process. |
+| Exporter | Prometheus metrics for the full deployment, from NATS and asset storage. |
+| Operator CLI | Local recovery and bootstrap over a Unix socket. |
+| Backups | Disaster recovery, migration tests, and upgrade safety. |
 
 ## Admin Dashboard
 
-Owners and permissioned admins use the admin UI for daily operations. Depending on their permissions, they can inspect members, roles, permissions, server configuration, room layout, room suspensions, event-log diagnostics, and system health.
+Owners and administrators use the admin UI for daily operations. Their
+permissions control which pages they see. The **System** tab shows health
+data, such as background workers and asset cleanup.
 
-The system pages expose operational metadata, not conversation content; they do not provide a special endpoint for reading every message or file. The Server Admin System tab includes elected asset-cleanup health, pending retry count/age, and pass timing without exposing asset names, storage keys, or raw cleanup errors. This application boundary does not constrain an infrastructure operator who controls the running process, storage, and encryption keys. See [Encryption at Rest and Data Erasure](/guides/operations/privacy-erasure/) for the threat model.
+The system pages show operational metadata, not message content. This is an
+application boundary. A person who controls the process, the storage, and the
+keys can read more. See [Security & Privacy](/guides/operations/security/#encryption-and-data-erasure).
 
 ### NATS Projection Consumers
 
-Use names that start with `projection-` to identify the consumers that maintain
-local read models. Their names have the form
-`projection-<key>-<random>_<generation>`. Each server process needs its own
-projection consumers. The random suffix separates replicas; the generation
-changes when the NATS client replaces a consumer during recovery. NATS consumer
-metadata includes `projection_name` and `projection_description`.
-
-On shutdown, Chatto stops each projector and attempts to delete its consumer.
-If cleanup fails or the process crashes, NATS removes inactive projection
-consumers after five minutes. The timeout also protects active projections
-while slow work temporarily stops requests for more events.
-
-Named durable consumers such as `chatto-asset-cleanup-v1` keep unfinished
-background work across restarts. They remain after shutdown. KV watchers and
-temporary scans also create consumers and do not use the `projection-` prefix.
+Each server process creates its own NATS consumers to keep local read models.
+Their names start with `projection-`. Chatto deletes them at shutdown. After a
+crash, NATS removes them after five minutes without activity. Do not delete
+named durable consumers, such as `chatto-asset-cleanup-v1`. They keep
+unfinished background work across restarts.
 
 ## Metrics
 
-Enable the per-process metrics listener when you want Prometheus scraping for one running Chatto process:
+Enable the metrics listener to let Prometheus scrape one server process:
 
 <Tabs>
 <TabItem label="TOML">
@@ -75,11 +64,13 @@ CHATTO_METRICS_PATH=/metrics
 </TabItem>
 </Tabs>
 
-Keep the metrics listener private. Enable `metrics.pprof` only while actively profiling and only on a trusted internal network or localhost.
+Keep the metrics listener private. Enable `metrics.pprof` only while you
+profile, and only on localhost or a trusted internal network.
 
 ## Exporter
 
-Use the exporter for deployment-wide metrics. Single-process installs can embed it in `chatto run`:
+The exporter gives metrics for the full deployment. On a single process, run
+it inside `chatto run`:
 
 ```toml
 [exporter]
@@ -89,48 +80,40 @@ port = 9100
 path = "/metrics"
 ```
 
-Clustered deployments should run the embedded exporter on at most one replica, or run `chatto exporter` as a separate unit against external NATS or an exposed embedded NATS TCP listener.
+With more than one replica, enable the embedded exporter on one replica only.
+Alternatively, run `chatto exporter` as a separate process against external
+NATS or the TCP listener of embedded NATS.
 
 ## Backups
 
-Backups are not optional for live servers. At minimum:
+A live server must have backups:
 
 1. Schedule encrypted backups.
-2. Decide whether normal backups include encryption keys.
-3. Store backup archives away from the Chatto data directory.
-4. Run a restore test before you rely on the backup.
-5. Keep backup retention aligned with account-deletion expectations.
+2. Decide whether your backups include the encryption keys.
+3. Keep backup archives away from the Chatto data directory.
+4. Test a restore before you rely on a backup.
+5. Set the backup retention to agree with your account deletion policy.
 
-For small self-hosted servers, the simplest reliable backup includes keys:
+For a small server, the simplest reliable backup includes the keys:
 
 ```bash
 chatto backup -c chatto.toml --encrypt --include-keys
 ```
 
-Use separate key exports only when you intentionally want split retention and recovery procedures.
+Export the keys separately only when you want different retention and
+recovery procedures for them. See [Backup & Restore](/guides/operations/backup-restore/).
 
 ## Message Search Provider
 
-For a single-process deployment, enable both the consumer-facing feature and the bundled provider:
-
-```toml
-[search]
-enabled = true
-
-[search_provider]
-enabled = true
-directory = "./data/search"
-```
-
-The Bleve directory contains plaintext-derived message content. Keep it on a protected local volume and exclude it from normal backups. Chatto rebuilds a missing index or a recognized old index format from retained `EVT` history. Unknown or unreadable indexes require [operator recovery](/guides/operations/search/#rebuild-the-search-index). See [Enabling Search](/guides/operations/search/) for language configuration, standalone deployment, index lifecycle, and troubleshooting.
-
-Search has separate protocol, configuration, and readiness states. Compatible clients can discover the protocol on every supporting server. With `search.enabled = false`, the status API reports Search as disabled and query requests are rejected. When enabled, the status progresses through provider startup/indexing to ready, or reports unavailable without affecting the rest of Chatto.
-
-To isolate indexing in another process, leave `search_provider.enabled = false` in the main process and run `chatto search-provider` against the same NATS account. A standalone unit needs `nats.client.url`; with embedded NATS, expose its TCP listener first. Do not run the embedded and standalone providers against the same index directory.
+The search index contains text from decrypted messages. Keep it on a protected
+local volume and do not include it in backups. Chatto rebuilds a missing index.
+See [Enabling Search](/guides/operations/search/) for the configuration,
+separate provider processes, and index recovery.
 
 ## Recovery And Bootstrap
 
-Enable the Operator API only when you need local recovery or trusted automation:
+Enable the operator API only when you need local recovery or trusted
+automation:
 
 ```toml
 [operator_api]
@@ -138,72 +121,84 @@ enabled = true
 socket_path = "/tmp/chatto/operator.sock"
 ```
 
-Run `chatto operator` as the same OS user as the Chatto process, or through `docker compose exec` as the `chatto` user in container deployments.
+Run `chatto operator` as the same OS user as the Chatto process. In a
+container, use `docker compose exec` as the `chatto` user. Use it to:
 
-Use it for tasks such as:
-
-- listing users when no admin session is available
-- setting a password for an existing user
-- creating a bootstrap user
-- adding a verified email
-- assigning or revoking a role
-- deleting an account
+- list users when no admin session is available
+- set a password for a user
+- create a bootstrap user
+- add a verified email address
+- assign or revoke a role
+- delete an account
 
 <Aside type="danger">
-  Treat operator socket access like root access to Chatto. Do not mount the
-  socket into untrusted containers or expose it over TCP.
+  Operator socket access is root access to Chatto. Do not mount the socket
+  into untrusted containers or expose it over TCP.
 </Aside>
+
+See [Operator CLI](/guides/operations/operator-cli/) for all commands.
 
 ## Upgrade Practice
 
 <Aside type="caution" title="Upgrading from 0.4 to 0.5">
-  Stop every 0.4 Chatto server replica before starting 0.5. Do not use a rolling
-  server deployment across these releases: their message lifecycle projections
-  make different decisions when an edit races a deletion. Upgrade the bundled
-  frontend with the server replicas because realtime protocol 4 is also a
-  coordinated compatibility boundary. Users whose browsers still carry the
-  retired pre-typed cookie-session format are signed out once and must sign in
-  again after the upgrade.
+  Stop all 0.4 replicas before you start 0.5. Do not use a rolling deployment.
+  Upgrade the bundled frontend at the same time. Some members must sign in
+  again.
 </Aside>
 
-1. Read the release notes before upgrading.
-2. Make a fresh backup before changing versions.
-3. For larger servers, restore a copy into a scratch environment and boot the new version against it.
-4. Check admin system diagnostics and projection readiness after startup.
-5. Watch logs and metrics during the first minutes after upgrade.
-6. For `0.x` releases, review API changes if you run bots or custom clients.
+1. Read the release notes.
+2. Make a new backup.
+3. On a large server, restore a copy into a test environment and start the
+   new version against it.
+4. After startup, examine the system diagnostics and projection readiness.
+5. Monitor logs and metrics for the first minutes.
+6. If you operate bots or custom clients, read the API changes.
 
-## Related Guides
+To operate more than one replica, see
+[Horizontal Scaling](/guides/infrastructure/horizontal-scaling/).
 
-<CardGrid>
-  <LinkCard
-    title="Backup & Restore"
-    href="/guides/operations/backup-restore/"
-    description="Backup, restore, key export, and disaster recovery procedures."
-  />
-  <LinkCard
-    title="Operator CLI"
-    href="/guides/operations/operator-cli/"
-    description="Local recovery and bootstrap commands."
-  />
-  <LinkCard
-    title="Enabling Search"
-    href="/guides/operations/search/"
-    description="Configure local message indexing and language analyzers."
-  />
-  <LinkCard
-    title="High Availability"
-    href="/guides/infrastructure/high-availability/"
-    description="Run Chatto with replicated infrastructure."
-  />
-  <LinkCard
-    title="Horizontal Scaling"
-    href="/guides/infrastructure/horizontal-scaling/"
-    description="Scale server processes and externalize runtime dependencies."
-  />
-  <LinkCard
-    title="Environment Variables"
-    href="/reference/environment-variables/#metrics"
-    description="Metrics, exporter, and operator API configuration reference."
-  />
-</CardGrid>
+## Community Badges
+
+Chatto can publish [Shields.io](https://shields.io) badges with the number of
+members online and registered. Use them in a README or on a website. Badges
+are off by default, because they make the size and activity of your community
+public.
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[webserver.shields]
+enabled = true
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_WEBSERVER_SHIELDS_ENABLED=true
+```
+
+</TabItem>
+</Tabs>
+
+Add the badges with Markdown image syntax:
+
+```md
+![Chatto online](https://chat.example.com/.well-known/chatto/shields/online.png)
+![Chatto registered](https://chat.example.com/.well-known/chatto/shields/registered.png)
+```
+
+`online.png` counts users who are Online, Away, or Do Not Disturb.
+`registered.png` counts verified accounts. Chatto redirects these URLs to
+Shields.io. Shields.io then reads the public JSON endpoints `online.json` and
+`registered.json` from the same path on your server.
+
+If your Markdown host does not follow image redirects, link to Shields.io
+directly:
+
+```md
+![Chatto online](https://img.shields.io/endpoint?url=https%3A%2F%2Fchat.example.com%2F.well-known%2Fchatto%2Fshields%2Fonline.json)
+```
+
+You cannot change the labels or colors.
