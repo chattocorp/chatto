@@ -339,7 +339,7 @@
     docs: {
       description: {
         story:
-          '`icon-action` uses soft corners and a faint neutral hover tint over its parent surface. Keyboard focus keeps a clear outline. Header icons share this feedback; selected toolbar icons use the shared raised finish and look inset while pressed.'
+          '`icon-action` uses soft corners and a faint neutral hover tint over its parent surface. Keyboard focus keeps a clear outline. Header icons share this feedback. A selected pane-header icon uses the action fill of the current sidebar item.'
       }
     }
   }}
@@ -417,9 +417,6 @@
       <span class="text-muted">Search members…</span>
     </div>
     <div class="flex items-center gap-4">
-      <button type="button" class="pane-header-icon-button pane-header-icon-button-active" aria-label="Call sidebar" aria-pressed="true">
-        <span class="iconify icon-[uil--phone]" aria-hidden="true"></span>
-      </button>
       <button type="button" class="shell-action">
         <span class="icon-[uil--phone] text-lg" aria-hidden="true"></span>
         Start call

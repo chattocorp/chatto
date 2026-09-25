@@ -94,7 +94,10 @@ the inline start to close the drawer. Desktop sidebar sizing is unchanged.
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
 route. The shared primitive then uses a quiet action-coloured fill and an
 action-coloured icon. Current links and selected menu rows use flat fills,
-without gradients, bevels, or shadows. Apply `sidebar-item-attention`
+without gradients, bevels, or shadows. A selected pane-header icon button
+uses the same flat action fill and action-coloured icon. It marks the panel
+that the button shows. On/off settings change the icon and label; they do not
+use a fill. Apply `sidebar-item-attention`
 only to unread content that is not the current route. Unread dots remain neutral. Notification badges
 keep their semantic priority colour.
 
@@ -416,8 +419,8 @@ so dense action rows stay subtle. Neutral chips use `input-border` to keep
 a visible boundary on grey surfaces. Its labelled form uses the standard button radius;
 its square form uses the compact icon radius.
 Coloured fills retain a matched tonal border. Secondary buttons use a quiet
-`surface-emphasized` fill and transparent border space. Filled buttons, Select fields, and selected pane-header icon buttons
-share the `control-raised` finish. Inactive header icons stay flat. Do not add
+`surface-emphasized` fill and transparent border space. Filled buttons and Select fields
+share the `control-raised` finish. Header icons stay flat. Do not add
 local gloss, blur, transparency, or extra shadows.
 
 Compact standalone composer actions and participant-card actions use
@@ -451,7 +454,7 @@ instead of adding local gradients or arbitrary inset shadows.
 | --- | --- |
 | `surface-raised` | Base raised finish. Semantic utilities set `--lighting-*` strength. |
 | `surface-lowered` | Base recessed finish. Semantic utilities set `--lowered-shadow` and `--lowered-edge`. |
-| `control-raised` | Buttons, Select fields, and selected header icons; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback. |
+| `control-raised` | Buttons and Select fields; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback. |
 | `option-depth` | Quiet checkbox and radio rows; removes depth when disabled. |
 | `control-well` | Empty checkbox and radio indicators. |
 | `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow. |
@@ -468,7 +471,7 @@ instead of adding local gradients or arbitrary inset shadows.
 The shared `--shell-*` theme tokens soften shell bevels in light mode with a
 cleaner top highlight, less lower shading, and a small edge blur. Dark mode
 keeps its sharper, low-light finish. Composer, user card, pill segments, buttons,
-Select fields, and selected toolbar controls all use the same recipe. Buttons
+and Select fields all use the same recipe. Buttons
 have no cast shadow or inset pressed effect. Secondary buttons keep transparent
 border space; Select fields retain their field boundary. Ghost buttons stay flat.
 Disabled and loading controls, including button-like links, have no decorative

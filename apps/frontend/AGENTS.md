@@ -292,6 +292,13 @@ Do not generate playground links for code written into this repository.
 ## Testing
 
 - Review visible frontend changes in a browser using Chrome DevTools MCP.
+- `mise dev` creates development bootstrap users. Sign in as `alice` (server
+  owner) or `bob` with the password `foobar123`. The `dev-stack-backend` task
+  in the root `mise.toml` defines these users.
+- Run `mise x -- pnpm exec prettier --check` on the frontend files that you
+  change. Many files in `main` are not formatted and CI does not run Prettier.
+  Fix only the formatting that your change causes. Do not reformat unrelated
+  files.
 - Do not run frontend checks, tests, builds, or other commands that invoke
   SvelteKit sync concurrently in the same checkout. They share generated
   `.svelte-kit` state and can produce transient missing-type failures.

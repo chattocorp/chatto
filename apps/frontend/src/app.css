@@ -1231,7 +1231,7 @@
 
 /* Pane header icon button — fixed padded hit area for icon-only controls in PaneHeader.
    Resting inactive state is intentionally transparent; pair with
-   `pane-header-icon-button-active` for selected/toggled backgrounds. */
+   `pane-header-icon-button-active` to mark the selected panel. */
 @utility pane-header-icon-button {
   @apply icon-action-feedback inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center bg-transparent leading-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
@@ -1241,9 +1241,11 @@
   @apply shrink-0 text-base transition-colors feedback-quick;
 }
 
+/* This utility gives a selected panel button the fill and colour of the
+   current sidebar item. */
 @utility pane-header-icon-button-active {
-  @apply control-raised transition-[background-color,color,box-shadow] feedback-quick;
-  @apply bg-surface-emphasized text-text-top not-disabled:hover:bg-surface-emphasized not-disabled:active:bg-surface-selected focus-visible:bg-surface-emphasized;
+  @apply bg-action/10 text-action not-disabled:hover:bg-action/15 not-disabled:hover:text-action;
+  @apply not-disabled:active:bg-action/20 focus-visible:bg-action/10;
 }
 
 /* Sidebar navigation utilities */
