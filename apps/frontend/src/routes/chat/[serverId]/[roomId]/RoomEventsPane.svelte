@@ -101,6 +101,7 @@
   enableLastEditableFinder={true}
   isLoading={store.isInitialLoading}
   unreadAfterEventId={unreadMarkerEventId}
+  scrollToUnreadOnEntry={true}
   {typingUserIds}
   {typingMembers}
   scrollToEventId={jumpState?.scrollToEventId ?? null}

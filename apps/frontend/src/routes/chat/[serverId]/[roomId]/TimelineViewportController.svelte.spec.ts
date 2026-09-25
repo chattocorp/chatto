@@ -2,6 +2,70 @@ import { describe, expect, it } from 'vitest';
 import { TimelineViewportController } from './TimelineViewportController.svelte';
 
 describe('TimelineViewportController', () => {
+  it('allows one unread separator landing per room entry', () => {
+    const controller = new TimelineViewportController();
+    controller.enterRoom('R1');
+
+    expect(controller.beginUnreadEntryLanding()).toBe(true);
+    expect(controller.beginUnreadEntryLanding()).toBe(false);
+
+    controller.enterRoom('R1');
+    expect(controller.beginUnreadEntryLanding()).toBe(false);
+
+    controller.enterRoom('R2');
+    expect(controller.beginUnreadEntryLanding()).toBe(true);
+  });
+
+  it.each([
+    ['user scroll intent', (c: TimelineViewportController) => c.markUserScrollIntent()],
+    ['jump', (c: TimelineViewportController) => c.beginJump()],
+    ['composer post', (c: TimelineViewportController) => c.requestBottom()],
+    ['jump to present', (c: TimelineViewportController) => c.prepareJumpToPresent()]
+  ])('cancels the unread separator landing after %s', (_name, action) => {
+    const controller = new TimelineViewportController();
+    controller.enterRoom('R1');
+    action(controller);
+    expect(controller.beginUnreadEntryLanding()).toBe(false);
+
+    controller.enterRoom('R2');
+    controller.beginUnreadEntryLanding();
+    action(controller);
+    expect(controller.isUnreadEntryLandingRunning).toBe(false);
+  });
+
+  it('ignores stale bottom scroll events until the landing settles', () => {
+    const controller = new TimelineViewportController();
+    controller.enterRoom('R1');
+    controller.beginUnreadEntryLanding();
+    const atBottom = {
+      offset: 700,
+      scrollSize: 1_000,
+      viewportSize: 300,
+      firstVisibleAt: null,
+      alwaysScrollToBottom: false
+    };
+
+    controller.observeScroll({ ...atBottom, now: 1_000 });
+    expect(controller.shouldScrollToBottom).toBe(false);
+
+    controller.finishUnreadEntryLanding(400, 1_000);
+    controller.observeScroll({ ...atBottom, now: 1_100 });
+    expect(controller.shouldScrollToBottom).toBe(false);
+
+    controller.observeScroll({ ...atBottom, now: 2_000 });
+    expect(controller.shouldScrollToBottom).toBe(true);
+  });
+
+  it('follows the bottom when the unread messages fit on screen', () => {
+    const controller = new TimelineViewportController();
+    controller.enterRoom('R1');
+    controller.beginUnreadEntryLanding();
+
+    controller.finishUnreadEntryLanding(0);
+
+    expect(controller.shouldScrollToBottom).toBe(true);
+  });
+
   it('resets viewport intent exactly once when entering a room', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');
@@ -148,7 +212,7 @@ describe('TimelineViewportController', () => {
     expect(controller.shouldScrollToBottom).toBe(true);
 
     controller.stopFollowingBottom();
-    controller.requestComposerBottom();
+    controller.requestBottom();
     expect(controller.shouldScrollToBottom).toBe(true);
 
     controller.prepareJumpToPresent();

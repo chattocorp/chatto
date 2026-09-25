@@ -386,3 +386,112 @@ describe('EventList localisation', () => {
     }
   });
 });
+
+describe('EventList unread entry landing', () => {
+  const eventIds = ['msg-1', 'msg-2', 'msg-3'];
+
+  async function nextFrames(count = 3) {
+    for (let frame = 0; frame < count; frame++) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  }
+
+  it('lands on the unread separator when the marker resolves after entry', async () => {
+    setVirtualizerScrollOffset(400);
+    try {
+      const rendered = render(EventListTestHarness, {
+        props: { eventIds, scrollToEventId: null, scrollToUnreadOnEntry: true }
+      });
+      await expect
+        .element(page.getByTestId('virtualizer-scroll-alignment'))
+        .toHaveTextContent('end');
+
+      await rendered.rerender({
+        eventIds,
+        scrollToEventId: null,
+        scrollToUnreadOnEntry: true,
+        unreadAfterEventId: 'msg-2'
+      });
+
+      await expect
+        .element(page.getByTestId('virtualizer-rendered-key'))
+        .toHaveAttribute('data-rendered-key', 'unread-separator-msg-2');
+      await expect
+        .element(page.getByTestId('virtualizer-scroll-alignment'))
+        .toHaveTextContent('start');
+      await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
+    } finally {
+      setVirtualizerScrollOffset(700);
+    }
+  });
+
+  it('lets the jump button cancel a running landing', async () => {
+    const frames: FrameRequestCallback[] = [];
+    const requestFrame = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    setVirtualizerScrollOffset(400);
+    try {
+      render(EventListTestHarness, {
+        props: {
+          eventIds,
+          scrollToEventId: null,
+          scrollToUnreadOnEntry: true,
+          unreadAfterEventId: 'msg-2'
+        }
+      });
+      await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
+
+      (page.getByTestId('jump-to-present').element() as HTMLButtonElement).click();
+      for (let frame = 0; frame < 60 && frames.length > 0; frame++) {
+        frames.shift()?.(frame * 16);
+        await tick();
+        await Promise.resolve();
+      }
+      // Real frames let the button's fade-out transition finish.
+      requestFrame.mockRestore();
+
+      await expect.element(page.getByTestId('jump-to-present')).not.toBeInTheDocument();
+      expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+    } finally {
+      requestFrame.mockRestore();
+      setVirtualizerScrollOffset(700);
+    }
+  });
+
+  it('keeps the viewport when the user scrolls before the marker resolves', async () => {
+    const rendered = render(EventListTestHarness, {
+      props: { eventIds, scrollToEventId: null, scrollToUnreadOnEntry: true }
+    });
+    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+
+    page
+      .getByTestId('messages-container')
+      .element()
+      .dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true }));
+    await rendered.rerender({
+      eventIds,
+      scrollToEventId: null,
+      scrollToUnreadOnEntry: true,
+      unreadAfterEventId: 'msg-2'
+    });
+    await nextFrames();
+
+    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+  });
+
+  it('does not land on the separator unless the timeline opts in', async () => {
+    const rendered = render(EventListTestHarness, {
+      props: { eventIds, scrollToEventId: null }
+    });
+    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+
+    await rendered.rerender({ eventIds, scrollToEventId: null, unreadAfterEventId: 'msg-2' });
+    await nextFrames();
+
+    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+  });
+});
