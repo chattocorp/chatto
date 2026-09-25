@@ -2,7 +2,6 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import Button from './Button.svelte';
   import Select from './Select.svelte';
-  import HeaderIconButton from '../HeaderIconButton.svelte';
 
   const componentDescription = `
     Use Button for committed actions, form submits, destructive commands, and link-styled calls to
@@ -90,7 +89,6 @@
 					<Button variant="secondary">Cancel</Button>
 					<Button>Current Server</Button>
 					<Button variant="danger">All Servers</Button>
-					<HeaderIconButton icon="icon-[uil--users-alt]" label="Members" tone="active" />
 				</div>
 				<div class="flex flex-wrap items-end gap-3">
 					<Select id={`quiet-depth-${mode.strength}`} label="Visibility" value="public" options={[{ value: 'public', label: 'Public' }, { value: 'private', label: 'Private' }]} />

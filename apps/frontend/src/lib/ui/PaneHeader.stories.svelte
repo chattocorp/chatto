@@ -44,7 +44,7 @@
   <div class="w-[480px] rounded-md border border-border">
     <PaneHeader title="Thread in #pico-8" onBack={() => {}} backLabel="Back to room">
       {#snippet actions()}
-        <HeaderIconButton icon="icon-[uil--bell]" label="Follow thread" tone="active" />
+        <HeaderIconButton icon="icon-[uil--bell]" label="Unfollow thread" />
         <HeaderIconButton icon="icon-[uil--times]" label="Close thread" />
       {/snippet}
     </PaneHeader>
@@ -75,13 +75,13 @@
   <div class="w-[390px] max-w-full resize-x overflow-auto rounded-md border border-border">
     <PaneHeader title="#general-discussion" collapseActions>
       {#snippet actions()}
-        <HeaderIconButton icon="icon-[uil--users-alt]" label="Members" />
+        <HeaderIconButton icon="icon-[uil--users-alt]" label="Hide members" tone="active" />
         <HeaderIconButton icon="icon-[uil--search]" label="Search" />
-        <HeaderIconButton icon="icon-[uil--phone]" label="Active call" tone="active" />
+        <HeaderIconButton icon="icon-[uil--phone]" label="Call" />
         <HeaderIconButton icon="icon-[uil--sign-out-alt]" label="Leave room" />
       {/snippet}
       {#snippet collapsedActions()}
-        <HeaderIconButton icon="icon-[uil--phone]" label="Active call" tone="active" />
+        <HeaderIconButton icon="icon-[uil--phone]" label="Call" />
       {/snippet}
     </PaneHeader>
   </div>
