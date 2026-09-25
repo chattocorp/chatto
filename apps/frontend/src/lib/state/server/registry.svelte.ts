@@ -392,6 +392,22 @@ class ServerRegistry {
 	}
 
 	/**
+	 * The origin rejected its viewer and no loaded data remains to read. The
+	 * reauthentication notice then offers nothing, so the viewer must sign in.
+	 */
+	get originSignInRequired(): boolean {
+		const origin = this.originServer;
+		if (!origin || origin.reauthRequiredAt == null) return false;
+		const store = this.tryGetStore(origin.id);
+		return (
+			!!store &&
+			!store.currentUser.user &&
+			!store.startupPresentationOnly &&
+			!store.realtimeSync.hasDisplayableView
+		);
+	}
+
+	/**
 	 * Check whether a registered server is the origin (the server serving the SPA).
 	 * Uses URL comparison — no stored flag needed.
 	 */
