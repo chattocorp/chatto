@@ -5,11 +5,13 @@ import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import { sidebarNav } from '$lib/state/globals.svelte';
+import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
     invalidateAll: vi.fn(),
+    recoverServer: vi.fn(),
     afterNavigate: vi.fn(),
     beforeNavigate: vi.fn(),
     onNavigate: vi.fn(),
@@ -84,7 +86,8 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   getPushCapability: vi.fn(() => 'unsupported'),
   getPushRegistrationTargets: vi.fn(() => []),
   onNotificationClick: vi.fn(() => vi.fn()),
-  refreshPushSubscriptions: vi.fn()
+  refreshPushSubscriptions: vi.fn(),
+  unsubscribeBeforeLeaving: vi.fn().mockResolvedValue(undefined)
 }));
 
 vi.mock('$lib/notifications/notificationNavigationUi', () => ({
@@ -120,7 +123,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     servers: [],
     originServer: { id: 'origin' },
     getStore: vi.fn(),
+    getServer: vi.fn(() => ({ userId: 'U1' })),
     tryGetStore: vi.fn(() => null),
+    recoverServer: mocks.recoverServer,
     isAuthenticated: vi.fn(() => false),
     firstAuthenticatedServerId: vi.fn(() => undefined)
   }
@@ -157,7 +162,10 @@ function resetSidebar() {
   sidebarNav.setMobile(true);
 }
 
-function renderLayout(content = '<main data-testid="layout-child"></main>') {
+function renderLayout(
+  content = '<main data-testid="layout-child"></main>',
+  startup: { startupPending: boolean; startupServerId: string } | null = null
+) {
   const serverInfo: PublicServerInfo = {
     name: 'Test Server',
     version: 'test',
@@ -174,11 +182,9 @@ function renderLayout(content = '<main data-testid="layout-child"></main>') {
 
   return render(Layout, {
     props: {
-      data: {
-        serverInfo,
-        serverInfoLoaded: true,
-        user: null
-      },
+      data: startup
+        ? { serverInfo: null, serverInfoLoaded: false, user: null, ...startup }
+        : { serverInfo, serverInfoLoaded: true, user: null },
       children: testSnippet(content)
     }
   });
@@ -197,6 +203,7 @@ function pointer(type: string, x: number, y = 120) {
 describe('OAuth page layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(serverRegistry.tryGetStore).mockReturnValue(undefined);
     installMobileMatchMedia();
     resetSidebar();
   });
@@ -204,6 +211,40 @@ describe('OAuth page layout', () => {
   afterEach(() => {
     page.route.id = '/';
     Object.assign(page, { url: new URL('https://chat.example.test/') });
+  });
+
+  it('verifies a saved viewer after paint without remounting the route', async () => {
+    const startupStore = $state({
+      startupPresentationOnly: true,
+      currentUser: { user: undefined },
+      serverInfo: { motd: null },
+      notifications: {
+        attention: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
+      }
+    });
+    vi.mocked(mocks.recoverServer).mockImplementation(async () => {
+      startupStore.startupPresentationOnly = false;
+    });
+    vi.mocked(serverRegistry.tryGetStore).mockReturnValue(startupStore as never);
+    const view = renderLayout(
+      '<main data-testid="layout-child"><div data-testid="timeline" style="height: 20px; overflow: auto"><div style="height: 100px">Message</div></div><input data-testid="composer" /></main>',
+      { startupPending: true, startupServerId: 'origin' }
+    );
+    const child = q(view.container, '[data-testid="layout-child"]')!;
+    const timeline = q(view.container, '[data-testid="timeline"]')!;
+    const composer = q(view.container, '[data-testid="composer"]') as HTMLInputElement;
+    timeline.scrollTop = 24;
+    composer.value = 'draft text';
+
+    await vi.waitFor(() => expect(mocks.recoverServer).toHaveBeenCalledWith('origin'));
+    await tick();
+
+    expect(q(view.container, '[data-testid="layout-child"]')).toBe(child);
+    expect(q(view.container, '[data-testid="timeline"]')).toBe(timeline);
+    expect(q(view.container, '[data-testid="composer"]')).toBe(composer);
+    expect(timeline.scrollTop).toBe(24);
+    expect(composer.value).toBe('draft text');
+    expect(mocks.invalidateAll).not.toHaveBeenCalled();
   });
 
   it('restores the frame when client-side navigation leaves OAuth login', async () => {
@@ -241,7 +282,9 @@ describe('OAuth page layout', () => {
     await expect.element(view.getByRole('alert')).toBeVisible();
     expect(q(view.container, '[data-testid="app-frame"]')).toBeNull();
     expect(q(view.container, '[data-testid="mobile-sidebar-panel"]')).toBeNull();
-    await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).not.toBeInTheDocument();
+    await expect
+      .element(view.getByRole('button', { name: 'Toggle sidebar' }))
+      .not.toBeInTheDocument();
 
     const child = q(view.container, '[data-testid="layout-child"]')!;
     child.dispatchEvent(pointer('pointerdown', 100));

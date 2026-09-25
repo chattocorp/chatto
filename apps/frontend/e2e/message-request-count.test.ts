@@ -69,7 +69,10 @@ test('notification creation and read state fetch the changed occurrence list', a
       }
     };
     page.on('request', record);
-    await sender.sendMessage(`@${receiver.user.login} Changed notification`);
+    await sender.sendMessage(
+      `@${receiver.user.login} Changed notification`,
+      `@${receiver.user.displayName} Changed notification`
+    );
     await expect(badge).toHaveText('1');
     await receiver.chatPage.enterRoom('general');
     await expect(badge).not.toBeVisible();

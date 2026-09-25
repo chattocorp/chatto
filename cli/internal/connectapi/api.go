@@ -140,7 +140,18 @@ func (a *API) Handlers() []Handler {
 	setupPath, setupHandler := authv1connect.NewServerSetupServiceHandler(&serverSetupService{api: a}, options...)
 	serverDiscoveryPath, serverDiscoveryHandler := discoveryv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
-	userPath, userHandler := apiv1connect.NewUserServiceHandler(&userService{api: a}, options...)
+	userService := &userService{api: a}
+	userPath, standardUserHandler := apiv1connect.NewUserServiceHandler(userService, options...)
+	_, userUploadHandler := apiv1connect.NewUserServiceHandler(userService, uploadOptions...)
+	// Only UploadAvatar needs the configured image upload limit. Keep the other
+	// user methods at the standard request limit.
+	userHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == apiv1connect.UserServiceUploadAvatarProcedure {
+			userUploadHandler.ServeHTTP(w, r)
+			return
+		}
+		standardUserHandler.ServeHTTP(w, r)
+	})
 	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
 	externalAuthPath, externalAuthHandler := authv1connect.NewExternalIdentityAuthServiceHandler(&externalIdentityAuthService{api: a}, options...)
 	pushCleanupPath, pushCleanupHandler := authv1connect.NewPushSubscriptionCleanupServiceHandler(&pushSubscriptionCleanupService{api: a}, options...)

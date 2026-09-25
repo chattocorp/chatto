@@ -95,6 +95,49 @@ describe('createRoomTimelineAPI', () => {
     expect(getUserStore('remote', 'session').size).toBe(0);
   });
 
+  it('does not turn a timeline deletion include into a shared user tombstone', async () => {
+    mocks.getThreadEvents.mockResolvedValue({
+      page: new RoomTimelinePage({
+        includes: {
+          users: {
+            author: new User({ id: 'author', deleted: true }),
+            colleague: new User({ id: 'colleague', login: 'colleague', displayName: 'Colleague' })
+          }
+        },
+        events: [
+          new RoomTimelineEvent({
+            id: 'message-1',
+            actorId: 'author',
+            event: {
+              case: 'messagePosted',
+              value: new RoomMessagePosted({
+                message: new Message({ id: 'message-1', roomId: 'room', actorId: 'author' })
+              })
+            }
+          })
+        ]
+      })
+    });
+    const store = getUserStore('remote', 'session');
+    const api = createRoomTimelineAPI({
+      serverId: 'remote',
+      queryScope: 'session',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    const page = await api.getThreadEvents({
+      roomId: 'room',
+      threadRootEventId: 'root',
+      limit: 20
+    });
+
+    expect(page.events[0]?.actor).toMatchObject({ id: 'author', deleted: true });
+    expect(store.isDeleted('author')).toBe(false);
+    expect(store.missing(['author'])).toEqual(['author']);
+    expect(store.get('colleague')?.user?.displayName).toBe('Colleague');
+  });
+
   it('sends thread page requests with bearer auth and opaque cursors', async () => {
     mocks.getThreadEvents.mockResolvedValue({
       page: new RoomTimelinePage({

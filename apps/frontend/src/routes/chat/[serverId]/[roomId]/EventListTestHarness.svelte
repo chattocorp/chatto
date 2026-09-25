@@ -1,10 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import {
-    TimelineEventKind,
-    type TimelineEventView
-  } from '$lib/render/timelineEvents';
+  import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
   import {
     createComposerContext,
     createRoomPermissions,
@@ -26,7 +23,8 @@
     pendingHighlightId = null,
     hasReachedStart = false,
     recoveryViewport = null,
-    onComposerReady
+    onComposerReady,
+    onStoreRead
   }: {
     eventIds: string[];
     roomId?: string;
@@ -41,6 +39,7 @@
     hasReachedStart?: boolean;
     recoveryViewport?: { eventId: string; offset: number; hasNewer?: boolean } | null;
     onComposerReady?: (context: ComposerContext) => void;
+    onStoreRead?: () => void;
   } = $props();
 
   const composerContext = createComposerContext({ scroll: true });
@@ -95,10 +94,18 @@
     })
   );
 
-  const messageStore = {
-    get recoveryViewport() { return recoveryViewport; },
-    set recoveryViewport(value) { recoveryViewport = value; },
-    clearViewport: () => { recoveryViewport = null; },
+  // Match Room's derived store selection so delayed work sees real owner disposal.
+  const messageStore = $derived({
+    get recoveryViewport() {
+      onStoreRead?.();
+      return recoveryViewport;
+    },
+    set recoveryViewport(value) {
+      recoveryViewport = value;
+    },
+    clearViewport: () => {
+      recoveryViewport = null;
+    },
     setViewport: () => {},
     refreshCurrentWindow: async () => ({
       hasOlder: false,
@@ -106,7 +113,7 @@
       refreshed: false,
       changed: false
     })
-  };
+  });
 </script>
 
 <output data-testid="recovery-anchor">{recoveryViewport?.eventId ?? ''}</output>

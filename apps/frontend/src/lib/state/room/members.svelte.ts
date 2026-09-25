@@ -31,17 +31,12 @@ export type RoomMember = {
   presenceStatus: PresenceStatus;
 };
 
-export type RoomMembersPage = {
-  members: RoomMember[];
-  totalCount: number;
-  hasMore: boolean;
-  consumedCount?: number;
-};
-
 type MemberSearchCacheEntry = {
-  members: RoomMember[];
+  ids: string[];
   complete: boolean;
 };
+
+type StandaloneProfile = { member: RoomMember; fromRealtime: boolean };
 
 function memberMatchesSearch(member: RoomMember, search: string): boolean {
   const query = search.trim().toLowerCase();
@@ -51,13 +46,8 @@ function memberMatchesSearch(member: RoomMember, search: string): boolean {
   );
 }
 
-function mapPage(page: MemberDirectoryPage): RoomMembersPage {
-  return {
-    members: page.members.map(memberFromDirectory),
-    totalCount: page.totalCount,
-    hasMore: page.hasMore,
-    consumedCount: page.consumedCount
-  };
+function pageIds(page: MemberDirectoryPage): string[] {
+  return page.memberIds ?? page.members.map((member) => member.id);
 }
 
 /**
@@ -65,24 +55,27 @@ function mapPage(page: MemberDirectoryPage): RoomMembersPage {
  *
  * The store publishes the first paginated Connect response immediately, then fills `members` with
  * the remaining pages in the background. `hasFirstPage` marks interactive readiness while
- * `hasLoadedAll` marks complete membership for mention rendering and other exhaustive consumers.
+ * `hasLoadedAll` marks complete membership IDs; profile resolution can finish later.
  * Searches use a separate cache until their matching directory page enters canonical order.
  */
 export class RoomMembersStore {
   #memberIds = $state.raw<string[]>([]);
-  #standaloneMembers = $state.raw<RoomMember[]>([]);
+  readonly #standaloneProfiles = new SvelteMap<string, StandaloneProfile>();
   readonly #users?: UserStore;
-  readonly #resolvedMembers = $derived.by(() => this.#users
-    ? this.#memberIds.flatMap((id) => this.resolveProfile(id) ?? [])
-    : this.#standaloneMembers);
-  /** Membership retains IDs; current public profiles come from the connection owner.
-   * Standalone API fixtures can supply render rows without a connection. */
+  readonly #resolvedMembers = $derived(this.resolveIds(this.#memberIds));
+  /** Membership retains IDs. Connected rooms read current profiles from the shared owner. */
   get members(): RoomMember[] {
     return this.#resolvedMembers;
   }
+  /** Accept projection or standalone fixture rows while retaining only membership IDs. */
   set members(members: RoomMember[]) {
     this.#memberIds = members.map((member) => member.id);
-    if (!this.#users) this.#standaloneMembers = members;
+    if (!this.#users) {
+      this.#standaloneProfiles.clear();
+      for (const member of members) {
+        this.#standaloneProfiles.set(member.id, { member, fromRealtime: false });
+      }
+    }
   }
   totalCount = $state(0);
   hasFirstPage = $state(false);
@@ -100,7 +93,6 @@ export class RoomMembersStore {
   #loadId = 0;
   #searchCache = new SvelteMap<string, MemberSearchCacheEntry>();
   #membershipChanges = new SvelteMap<string, boolean>();
-  #profileUpdates = new SvelteMap<string, RoomMember>();
   #minimumCursor: string | undefined;
   #presenceChanges = new SvelteMap<string, number>();
   #previewIds = new SvelteSet<string>();
@@ -127,25 +119,43 @@ export class RoomMembersStore {
     const query = this.activeSearch.trim().toLowerCase();
     if (query && !this.hasLoadedAll) {
       const searched = this.#searchCache.get(query);
-      if (searched) return this.resolveProfiles(searched.members);
+      if (searched) return this.resolveIds(searched.ids);
     }
     return this.filterLoadedMembers(this.activeSearch);
   }
 
-  /** Cached searches retain membership results, but never override live identities. */
-  private resolveProfiles(members: RoomMember[]): RoomMember[] {
-    if (!this.#users) return members;
-    return members.flatMap((member) => this.resolveProfile(member.id) ?? []);
+  /** Resolve current profiles without adding empty rows for pending identities. */
+  private resolveIds(ids: string[]): RoomMember[] {
+    return ids.flatMap((id) => this.resolveProfile(id) ?? []);
   }
 
   private resolveProfile(id: string): RoomMember | undefined {
-    const member = this.#users?.get(id);
-    // A profile invalidation must not erase membership when another page or
-    // profile update arrives before the replacement profile.
-    return member ? memberFromDirectory(mapDirectoryMember(member)) : {
-      id, login: '', displayName: '', deleted: this.#users?.isDeleted(id), avatarUrl: null,
-      presenceStatus: PresenceStatus.OFFLINE
-    };
+    if (!this.#users) return this.#standaloneProfiles.get(id)?.member;
+    const member = this.#users.get(id);
+    if (member) return memberFromDirectory(mapDirectoryMember(member));
+    if (this.#users.isDeleted(id)) {
+      return {
+        id,
+        login: '',
+        displayName: '',
+        deleted: true,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.OFFLINE
+      };
+    }
+    return undefined;
+  }
+
+  /** Standalone fixtures own page profiles locally; realtime updates win over stale pages. */
+  private recordPageProfiles(profiles: DirectoryMember[]): void {
+    if (this.#users) return;
+    for (const profile of profiles) {
+      if (this.#standaloneProfiles.get(profile.id)?.fromRealtime) continue;
+      this.#standaloneProfiles.set(profile.id, {
+        member: memberFromDirectory(profile),
+        fromRealtime: false
+      });
+    }
   }
 
   /** Compatibility alias for consumers that only care whether hydration is complete. */
@@ -173,15 +183,15 @@ export class RoomMembersStore {
     this.isInitialLoading = true;
   }
 
-  /** Replace membership from the canonical server projection. */
-  replaceProjection(roomId: string, members: RoomMember[]): void {
+  /** Replace membership IDs from the canonical server projection. Profiles may arrive later. */
+  replaceProjection(roomId: string, memberIds: readonly string[]): void {
     if (this.roomId !== roomId) {
       this.roomId = roomId;
       this.reset();
     }
     this.#loadId++;
-    this.members = members;
-    this.totalCount = members.length;
+    this.#memberIds = [...memberIds];
+    this.totalCount = memberIds.length;
     this.hasFirstPage = true;
     this.hasLoadedAll = true;
     this.isInitialLoading = false;
@@ -247,7 +257,8 @@ export class RoomMembersStore {
       if (loadId === this.#loadId) {
         this.loadError = error instanceof Error ? error.message : 'Failed to refresh room members';
         if (reauthorize || isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
-          this.members = [];
+          this.#memberIds = [];
+          this.#standaloneProfiles.clear();
           this.totalCount = 0;
           this.#searchCache.clear();
         }
@@ -271,10 +282,10 @@ export class RoomMembersStore {
     const roomId = this.roomId;
     const loadId = this.#loadId;
     const cached = this.#searchCache.get(normalizedSearch.toLowerCase());
-    if (cached && (cached.complete || cached.members.length >= limit)) {
-      return this.resolveProfiles(cached.members).slice(0, limit);
+    if (cached && (cached.complete || cached.ids.length >= limit)) {
+      return this.resolveIds(cached.ids).slice(0, limit);
     }
-    let page: RoomMembersPage;
+    let page: MemberDirectoryPage;
     try {
       page = await this.fetchPage(0, limit, normalizedSearch);
     } catch (error) {
@@ -282,22 +293,24 @@ export class RoomMembersStore {
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
     if (roomId !== this.roomId || loadId !== this.#loadId) return [];
+    this.recordPageProfiles(page.members);
+    const ids = pageIds(page);
     this.#searchCache.set(normalizedSearch.toLowerCase(), {
-      members: page.members,
+      ids,
       complete: !page.hasMore
     });
-    return this.resolveProfiles(page.members).slice(0, limit);
+    return this.resolveIds(ids).slice(0, limit);
   }
 
   private async searchAllMembers(search: string): Promise<void> {
     const query = search.trim().toLowerCase();
     const loadId = this.#loadId;
-    let members: RoomMember[] = [];
+    let ids: string[] = [];
     let offset = 0;
     let hasMore = true;
 
     while (hasMore) {
-      let page: RoomMembersPage;
+      let page: MemberDirectoryPage;
       try {
         page = await this.fetchPage(offset, ROOM_MEMBERS_PAGE_SIZE, search);
       } catch (error) {
@@ -311,11 +324,13 @@ export class RoomMembersStore {
       )
         return;
 
-      members = appendPageMembers(members, page.members);
-      const consumed = page.consumedCount ?? page.members.length;
+      this.recordPageProfiles(page.members);
+      const pageMemberIds = pageIds(page);
+      ids = appendPageIds(ids, pageMemberIds);
+      const consumed = page.consumedCount ?? pageMemberIds.length;
       hasMore = page.hasMore && consumed > 0;
       offset += consumed;
-      this.#searchCache.set(query, { members, complete: !hasMore });
+      this.#searchCache.set(query, { ids, complete: !hasMore });
     }
   }
 
@@ -325,17 +340,20 @@ export class RoomMembersStore {
     this.#presenceChanges.set(userId, this.presenceVersion);
   }
 
-  /** Standalone stores keep profile rows; connected stores read the shared owner. */
+  /** Standalone fixtures receive profile changes here; connected rooms use UserStore. */
   updateUsers(users: DirectoryMember[]): void {
     this.#searchCache.clear();
     if (this.#users) return;
-    const updates = new SvelteMap(users.map((user) => [user.id, memberFromDirectory(user)]));
-    for (const [id, user] of updates) this.#profileUpdates.set(id, user);
-    this.members = this.members.map((member) => updates.get(member.id) ?? member);
+    for (const user of users) {
+      this.#standaloneProfiles.set(user.id, {
+        member: memberFromDirectory(user),
+        fromRealtime: true
+      });
+    }
     if (this.hasLoadedAll) {
-      for (const [id, user] of updates) {
-        if (this.#membershipChanges.get(id) && !this.members.some((member) => member.id === id)) {
-          this.members = [...this.members, user];
+      for (const user of users) {
+        if (this.#membershipChanges.get(user.id) && !this.#memberIds.includes(user.id)) {
+          this.#memberIds = [...this.#memberIds, user.id];
           this.totalCount++;
         }
       }
@@ -348,7 +366,7 @@ export class RoomMembersStore {
     if (!userId || !this.api) return;
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     this.#membershipChanges.set(userId, joined);
-    if (!joined) this.#profileUpdates.delete(userId);
+    if (!joined && !this.#users) this.#standaloneProfiles.delete(userId);
     this.#searchCache.clear();
     if (this.isInitialLoading || this.isBackgroundLoading) {
       await this.refresh();
@@ -357,7 +375,6 @@ export class RoomMembersStore {
     const exists = this.#memberIds.includes(userId);
     if (!joined) {
       this.#memberIds = this.#memberIds.filter((id) => id !== userId);
-      if (!this.#users) this.#standaloneMembers = this.#standaloneMembers.filter((member) => member.id !== userId);
       if (exists) this.totalCount = Math.max(0, this.totalCount - 1);
       return;
     }
@@ -379,11 +396,9 @@ export class RoomMembersStore {
     }
     if (loadId !== this.#loadId || !this.#membershipChanges.get(userId)) return;
     const user = users[0];
-    if (user && !this.members.some((member) => member.id === userId)) {
-      this.members = [
-        ...this.members,
-        this.#profileUpdates.get(userId) ?? memberFromDirectory(user)
-      ];
+    if (user && !this.#memberIds.includes(userId)) {
+      this.recordPageProfiles([user]);
+      this.#memberIds = [...this.#memberIds, userId];
       this.totalCount++;
     }
   }
@@ -419,25 +434,24 @@ export class RoomMembersStore {
           this.#minimumCursor ? { minimumCursor: this.#minimumCursor } : {}
         );
         if (loadId !== this.#loadId || this.hasLoadedAll || this.#fullScanFinished) return;
-        const members = page.members.map(
-          (member) => this.#profileUpdates.get(member.id) ?? memberFromDirectory(member)
-        );
+        this.recordPageProfiles(page.members);
+        const ids = pageIds(page);
         // The filter gives fresh presence even when the profile came from cache.
         // A realtime change received during this request takes precedence.
-        for (const member of members) {
-          this.#previewIds.add(member.id);
-          if ((this.#presenceChanges.get(member.id) ?? 0) <= presenceVersion) {
-            this.livePresence.set(member.id, status);
+        for (const id of ids) {
+          this.#previewIds.add(id);
+          if ((this.#presenceChanges.get(id) ?? 0) <= presenceVersion) {
+            this.livePresence.set(id, status);
           }
         }
-        this.members = appendPageMembers(this.members, members);
-        if (members.length > 0) {
+        this.#memberIds = appendPageIds(this.#memberIds, ids);
+        if (ids.length > 0) {
           this.hasFirstPage = true;
           this.isInitialLoading = false;
           this.isBackgroundLoading = true;
-          this.totalCount = Math.max(this.totalCount, this.members.length);
+          this.totalCount = Math.max(this.totalCount, this.#memberIds.length);
         }
-        const consumed = page.consumedCount ?? page.members.length;
+        const consumed = page.consumedCount ?? ids.length;
         if (!page.hasMore || consumed === 0) return;
         offset += consumed;
       }
@@ -450,21 +464,22 @@ export class RoomMembersStore {
     let nextOffset = 0;
     let hasMore = true;
     let firstPage = true;
-    let fullMembers: RoomMember[] = [];
+    let fullIds: string[] = [];
 
     while (hasMore) {
       const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
       if (loadId !== this.#loadId) return;
 
-      const members = page.members.map((member) => this.#profileUpdates.get(member.id) ?? member);
-      fullMembers = appendPageMembers(fullMembers, members);
-      this.members = appendPageMembers(
-        firstPage ? this.members.filter((member) => this.#previewIds.has(member.id)) : this.members,
-        members
+      this.recordPageProfiles(page.members);
+      const ids = pageIds(page);
+      fullIds = appendPageIds(fullIds, ids);
+      this.#memberIds = appendPageIds(
+        firstPage ? this.#memberIds.filter((id) => this.#previewIds.has(id)) : this.#memberIds,
+        ids
       );
       this.totalCount = page.totalCount;
       hasMore = page.hasMore;
-      const consumed = page.consumedCount ?? page.members.length;
+      const consumed = page.consumedCount ?? ids.length;
       nextOffset += consumed;
 
       if (firstPage) {
@@ -482,22 +497,20 @@ export class RoomMembersStore {
     }
 
     if (loadId === this.#loadId) {
-      this.members = fullMembers.map((member) => this.#profileUpdates.get(member.id) ?? member);
+      this.#memberIds = fullIds;
       this.hasLoadedAll = true;
       this.isBackgroundLoading = false;
     }
   }
 
-  private async fetchPage(offset: number, limit: number, search: string): Promise<RoomMembersPage> {
+  private async fetchPage(offset: number, limit: number, search: string): Promise<MemberDirectoryPage> {
     if (!this.api) return { members: [], totalCount: 0, hasMore: false };
     const normalizedSearch = search.trim();
-    return mapPage(
-      await (this.#minimumCursor
-        ? this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset, {
-            minimumCursor: this.#minimumCursor
-          })
-        : this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset))
-    );
+    return this.#minimumCursor
+      ? this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset, {
+          minimumCursor: this.#minimumCursor
+        })
+      : this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset);
   }
 
   private filterLoadedMembers(search: string): RoomMember[] {
@@ -510,7 +523,8 @@ export class RoomMembersStore {
 
   private reset(): void {
     this.#loadId++;
-    this.members = [];
+    this.#memberIds = [];
+    this.#standaloneProfiles.clear();
     this.totalCount = 0;
     this.hasFirstPage = false;
     this.hasLoadedAll = false;
@@ -521,7 +535,6 @@ export class RoomMembersStore {
     this.activeSearch = '';
     this.#searchCache.clear();
     this.#membershipChanges.clear();
-    this.#profileUpdates.clear();
     this.#minimumCursor = undefined;
     this.livePresence.clear();
     this.#presenceChanges.clear();
@@ -531,10 +544,10 @@ export class RoomMembersStore {
   }
 }
 
-function appendPageMembers(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
+function appendPageIds(current: string[], incoming: string[]): string[] {
   if (incoming.length === 0) return current;
-  const incomingIds = new Set(incoming.map((member) => member.id));
-  return [...current.filter((member) => !incomingIds.has(member.id)), ...incoming];
+  const incomingIds = new Set(incoming);
+  return [...current.filter((id) => !incomingIds.has(id)), ...incoming];
 }
 
 const [getMembersStoreContext, setMembersStoreContext] = createContext<() => RoomMembersStore>();

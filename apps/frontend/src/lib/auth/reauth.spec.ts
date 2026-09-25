@@ -24,8 +24,7 @@ const {
   initServerInfoMock: vi.fn(() => Promise.resolve()),
   gotoMock: vi.fn(() => Promise.resolve()),
   replaceServerAuthenticationMock: vi.fn(),
-  updateServerMock: vi.fn(),
-  clearCachedUserMock: vi.fn()
+  updateServerMock: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({ goto: gotoMock }));
@@ -46,7 +45,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     clearOriginAuthentication: clearOriginAuthenticationMock
   }
 }));
-vi.mock('./loadAuth', () => ({ clearCachedUser: vi.fn() }));
 
 class FakeBroadcastChannel {
   static instances: FakeBroadcastChannel[] = [];
@@ -129,7 +127,9 @@ describe('remote server OAuth popup', () => {
     native.authorize.mockImplementation(async (raw: string, state: string) => {
       const url = new URL(raw);
       expect(url.searchParams.get('client_id')).toBe('eu.chattocorp.chatto.mobile');
-      expect(url.searchParams.get('redirect_uri')).toBe('eu.chattocorp.chatto.mobile:/oauth/callback');
+      expect(url.searchParams.get('redirect_uri')).toBe(
+        'eu.chattocorp.chatto.mobile:/oauth/callback'
+      );
       expect(url.searchParams.get('code_challenge_method')).toBe('S256');
       expect(url.searchParams.get('code_challenge')).toBeTruthy();
       expect(url.searchParams.get('state')).toBe(state);

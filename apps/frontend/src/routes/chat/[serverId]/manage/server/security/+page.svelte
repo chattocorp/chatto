@@ -20,6 +20,7 @@
   import DataTable from '$lib/ui/DataTable.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
@@ -303,7 +304,7 @@
       icon="iconify icon-[uil--shield-exclamation]"
     >
       {#if loading}
-        <div class="text-muted">{m('admin.common.loading')}</div>
+        <LoadingFog class="h-32 w-full" />
       {:else}
         <form onsubmit={save} class="flex flex-col gap-4">
           {#if error}
@@ -399,7 +400,7 @@
         {/snippet}
         </DataTable>
       {:else if oauthClientsLoading}
-        <div class="p-5 text-muted">{m('admin.common.loading')}</div>
+        <LoadingFog class="m-5 h-32" />
       {/if}
     </Panel>
   </div>

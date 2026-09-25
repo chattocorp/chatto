@@ -21,6 +21,43 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
+func TestTimelineIncludesDistinguishMissingAndDeletedUsers(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-includes", "Timeline Includes", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	read := func() map[string]*apiv1.User {
+		t.Helper()
+		users, err := (&timelineHydrator{
+			api:     env.api,
+			ctx:     env.ctx,
+			userIDs: map[string]struct{}{user.Id: {}, "not-projected": {}},
+		}).users()
+		if err != nil {
+			t.Fatalf("hydrate timeline users: %v", err)
+		}
+		return users
+	}
+
+	users := read()
+	if users[user.Id] == nil || users[user.Id].GetDeleted() {
+		t.Fatalf("active user reference = %+v, want active", users[user.Id])
+	}
+	if _, exists := users["not-projected"]; exists {
+		t.Fatal("missing projection was included as a deleted account")
+	}
+
+	if err := env.core.DeleteUser(env.ctx, core.SystemActorID, user.Id); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+	users = read()
+	if users[user.Id] == nil || !users[user.Id].GetDeleted() {
+		t.Fatalf("deleted user reference = %+v, want tombstone", users[user.Id])
+	}
+}
+
 func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	testCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

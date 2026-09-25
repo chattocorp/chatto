@@ -3,6 +3,7 @@
   import type { ClassValue } from 'svelte/elements';
   import { m } from '$lib/i18n/messages';
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import FormField from './FormField.svelte';
 
   let {
@@ -223,7 +224,7 @@
         </button>
       {/each}
     {:else if loading}
-      <div class="px-3 py-2 text-sm text-muted">{m('ui.combobox.loading')}</div>
+      <LoadingFog class="m-2 h-10" label={m('ui.combobox.loading')} />
     {:else}
       <div class="px-3 py-2 text-sm text-muted">{emptyMessage}</div>
     {/if}

@@ -39,6 +39,23 @@ describe('signOutServer', () => {
     expect(headers.get('X-Chatto-Authentication-Mode')).toBe('cookie');
   });
 
+  it('sends the remote bearer and refresh credentials for session revocation', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await signOutServer({ ...remoteServer, refreshToken: 'remote-refresh-token' }, false);
+
+    expect(fetchMock).toHaveBeenCalledWith('https://remote.example.test/auth/logout', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer remote-token',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ refreshToken: 'remote-refresh-token' }),
+      signal: expect.any(AbortSignal)
+    });
+  });
+
   it('aborts stale remote logout requests', async () => {
     vi.useFakeTimers();
 

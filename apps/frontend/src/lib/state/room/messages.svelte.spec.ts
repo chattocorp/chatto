@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { EventConnectionPage, RoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import {
+  roomTimelinePageToEventConnectionPage,
+  type EventConnectionPage,
+  type RoomTimelineAPI
+} from '$lib/api-client/roomTimeline';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
   RoomMessagePosted,
@@ -46,6 +50,19 @@ async function settle() {
     await Promise.resolve();
   }
   flushSync();
+}
+
+/** Deliver a fixture through the same cursor-bound read used by live snapshot catch-up. */
+async function hydrateRoomPage(
+  store: MessagesStore,
+  timeline: RoomTimelineAPI,
+  page: RoomTimelinePage
+) {
+  vi.mocked(timeline.getRoomEvents).mockResolvedValueOnce(
+    roomTimelinePageToEventConnectionPage(page)
+  );
+  store.awaitRoomProjection('room-1');
+  await store.hydrateRealtimeProjection('fixture-cursor', () => true, true);
 }
 
 function deferred<T>() {
@@ -390,7 +407,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
   it('does not overwrite a newer local change with a shared read', async () => {
     const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection, () => null, fakeTimelineAPI()
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI()
     );
     store.setRoom('room-1');
     await settle();
@@ -898,7 +917,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('historical-target', jumpState);
-    store.replaceRoomProjectionPage('room-1', new RoomTimelinePage());
+    await hydrateRoomPage(store, timeline, new RoomTimelinePage());
     expect(store.isInitialLoading).toBe(true);
     resolveAround?.({
       events: [threadMessageEvent('historical-target') as never],
@@ -924,11 +943,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     });
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
     const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('historical-target', jumpState);
-    store.restoreRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    await store.restoreLatestWindow();
     resolveAround?.({
       events: [threadMessageEvent('historical-target') as never],
       startCursor: 'tl:historical',
@@ -992,23 +1011,27 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('keeps the revocation fence closed across late projection and command rows', () => {
+  it('keeps the revocation fence closed across late projection and command rows', async () => {
+    const timeline = fakeTimelineAPI();
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
-      fakeTimelineAPI()
+      timeline
     );
     store.awaitRoomProjection('room-1');
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('secret'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('secret'));
+    const late = deferred<EventConnectionPage>();
+    vi.mocked(timeline.getRoomEvents).mockReturnValueOnce(late.promise);
+    const pending = store.hydrateRealtimeProjection('old-cursor', () => true);
     store.clearForAccessRevocation();
-
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('late-projection'));
+    late.resolve(roomTimelinePageToEventConnectionPage(projectedMessagePage('late-projection')));
+    await pending;
     store.ingestEvent(threadMessageEvent('late-command') as never);
     expect(store.events).toEqual([]);
     expect(store.ensureEvent('late-preview')).toBeUndefined();
 
     store.restoreAfterAccessGrant();
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('authorised-again'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('authorised-again'));
     expect(store.rootEvents.map((event) => event.id)).toEqual(['authorised-again']);
     store.dispose();
   });
@@ -1016,20 +1039,22 @@ describe('MessagesStore — room lifecycle ownership', () => {
   it('rejects delayed room pagination after a projection reset', async () => {
     type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
     const older = deferred<RoomPage>();
-    const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection,
-      () => null,
-      fakeTimelineAPI({
-        getRoomEvents: vi
-          .fn<RoomTimelineAPI['getRoomEvents']>()
-          .mockImplementationOnce(() => older.promise)
-          .mockResolvedValueOnce(emptyPage())
-      })
-    );
     const current = projectedMessagePage('current');
     current.startCursor = 'before-current';
     current.hasOlder = true;
-    store.replaceRoomProjectionPage('room-1', current);
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi
+        .fn<RoomTimelineAPI['getRoomEvents']>()
+        .mockResolvedValueOnce(roomTimelinePageToEventConnectionPage(current))
+        .mockImplementationOnce(() => older.promise)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.awaitRoomProjection('room-1');
+    await store.hydrateRealtimeProjection('current-cursor', () => true);
 
     const loading = store.loadMore();
     store.resetProjectionState();
@@ -1070,7 +1095,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it('treats a discarded permission-reset response as a retryable read', async () => {
-    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
       .mockRejectedValueOnce(new StaleResponseError(false))
       .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('after-reset')));
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -1095,7 +1121,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
   it('keeps a warm timeline visible until its replacement window arrives', async () => {
     type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
     const replacement = deferred<RoomPage>();
-    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
       .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('old-row')))
       .mockImplementationOnce(() => replacement.promise);
     const store = new MessagesStore(
@@ -1117,22 +1144,29 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it('purges plaintext but restores a fresh window around the viewport after a reset', async () => {
-    const getRoomEventsAround = vi.fn<RoomTimelineAPI['getRoomEventsAround']>()
+    const getRoomEventsAround = vi
+      .fn<RoomTimelineAPI['getRoomEventsAround']>()
       .mockResolvedValue({ ...pageFromEvent(threadMessageEvent('anchor')), hasNewer: true });
+    const timeline = fakeTimelineAPI({ getRoomEventsAround });
     const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection, () => null,
-      fakeTimelineAPI({ getRoomEventsAround })
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
     );
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('old-private-row'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('old-private-row'));
     store.setViewport({ eventId: 'anchor', offset: 17 });
     store.resetProjectionState();
     expect(store.events).toEqual([]);
     expect(store.recoveryViewport).toEqual({ eventId: 'anchor', offset: 17 });
     store.resetProjectionState();
     await store.hydrateRealtimeProjection('fresh-boundary', () => true);
-    expect(getRoomEventsAround).toHaveBeenCalledWith(expect.objectContaining({
-      roomId: 'room-1', eventId: 'anchor', minimumCursor: 'fresh-boundary'
-    }));
+    expect(getRoomEventsAround).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: 'room-1',
+        eventId: 'anchor',
+        minimumCursor: 'fresh-boundary'
+      })
+    );
     expect(store.events.map((event) => event.id)).toEqual(['anchor']);
     expect(store.recoveryViewport?.hasNewer).toBe(true);
     store.clearForAccessRevocation();
@@ -1142,27 +1176,41 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it('falls back to a fresh latest window when the saved viewport event no longer exists', async () => {
-    const getRoomEvents = vi.fn<RoomTimelineAPI['getRoomEvents']>()
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
       .mockResolvedValue(pageFromEvent(threadMessageEvent('fresh')));
+    const timeline = fakeTimelineAPI({
+      getRoomEvents,
+      getRoomEventsAround: vi.fn().mockRejectedValue(new ConnectError('gone', Code.NotFound))
+    });
     const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection, () => null,
-      fakeTimelineAPI({ getRoomEvents, getRoomEventsAround: vi.fn().mockRejectedValue(new ConnectError('gone', Code.NotFound)) })
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
     );
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('old-private-row'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('old-private-row'));
     store.setViewport({ eventId: 'gone', offset: 17 });
     store.resetProjectionState();
     await store.hydrateRealtimeProjection('fresh-boundary', () => true);
     expect(store.events.map((event) => event.id)).toEqual(['fresh']);
-    expect(getRoomEvents).toHaveBeenCalledWith(expect.objectContaining({ minimumCursor: 'fresh-boundary' }));
+    expect(getRoomEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ minimumCursor: 'fresh-boundary' })
+    );
     store.dispose();
   });
 
   it('discards the saved position when fresh timeline access is denied', async () => {
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi
+        .fn()
+        .mockRejectedValue(new ConnectError('denied', Code.PermissionDenied))
+    });
     const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection, () => null,
-      fakeTimelineAPI({ getRoomEventsAround: vi.fn().mockRejectedValue(new ConnectError('denied', Code.PermissionDenied)) })
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
     );
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('private-row'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('private-row'));
     store.setViewport({ eventId: 'private-row', offset: 17 });
     store.resetProjectionState();
     expect(await store.hydrateRealtimeProjection('fresh-boundary', () => true)).toBe(false);
@@ -1172,14 +1220,21 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it('pages a restored thread forward and can return to its latest window', async () => {
-    const getThreadEvents = vi.fn<RoomTimelineAPI['getThreadEvents']>()
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
       .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('root')))
       .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('new-reply', 'root')))
       .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('latest-reply', 'root')));
-    const getThreadEventsAround = vi.fn<RoomTimelineAPI['getThreadEventsAround']>()
-      .mockResolvedValue({ ...pageFromEvent(threadMessageEvent('anchor', 'root')), endCursor: 'after-anchor', hasNewer: true });
+    const getThreadEventsAround = vi
+      .fn<RoomTimelineAPI['getThreadEventsAround']>()
+      .mockResolvedValue({
+        ...pageFromEvent(threadMessageEvent('anchor', 'root')),
+        endCursor: 'after-anchor',
+        hasNewer: true
+      });
     const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection, () => null,
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
       fakeTimelineAPI({ getThreadEvents, getThreadEventsAround })
     );
     store.setThread('room-1', 'root');
@@ -1187,11 +1242,19 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.setViewport({ eventId: 'anchor', offset: 17 });
     store.resetProjectionState();
     await store.hydrateRealtimeProjection('fresh-boundary', () => true);
-    expect(getThreadEventsAround).toHaveBeenCalledWith(expect.objectContaining({ threadRootEventId: 'root', eventId: 'anchor', minimumCursor: 'fresh-boundary' }));
+    expect(getThreadEventsAround).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadRootEventId: 'root',
+        eventId: 'anchor',
+        minimumCursor: 'fresh-boundary'
+      })
+    );
     const jump = new JumpToMessageState();
     jump.isJumpedMode = true;
     await store.loadNewer(jump);
-    expect(getThreadEvents).toHaveBeenLastCalledWith(expect.objectContaining({ after: 'after-anchor', threadRootEventId: 'root' }));
+    expect(getThreadEvents).toHaveBeenLastCalledWith(
+      expect.objectContaining({ after: 'after-anchor', threadRootEventId: 'root' })
+    );
     expect(store.threadEvents.map((event) => event.id)).toContain('new-reply');
     expect(jump.hasReachedEnd).toBe(true);
     await store.jumpToPresent(jump);
@@ -1280,7 +1343,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('missing-target', jumpState);
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
     resolveAround?.({
       events: [threadMessageEvent('other-message') as never],
       startCursor: null,
@@ -1307,7 +1370,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('failed-target', jumpState);
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
     rejectAround?.(new Error('network failed'));
 
     await expect(jumping).resolves.toBe(false);
@@ -1329,7 +1392,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('hydrated-target', jumpState);
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('hydrated-target'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('hydrated-target'));
     resolveAround?.({
       events: [threadMessageEvent('other-message') as never],
       startCursor: null,
@@ -1356,7 +1419,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('hydrated-target', jumpState);
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('hydrated-target'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('hydrated-target'));
     rejectAround?.(new Error('network failed'));
 
     await expect(jumping).resolves.toBe(true);
@@ -1566,12 +1629,15 @@ describe('MessagesStore — room lifecycle ownership', () => {
       }))
     });
     const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
 
     const jumpState = new JumpToMessageState();
     await store.jumpToMessage('historical-target', jumpState);
     const loadingNewer = store.loadNewer(jumpState);
-    store.restoreRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    vi.mocked(timeline.getRoomEvents).mockResolvedValueOnce(
+      roomTimelinePageToEventConnectionPage(projectedMessagePage('latest-message'))
+    );
+    await store.restoreLatestWindow();
     resolveNewer({
       events: [threadMessageEvent('stale-newer') as never],
       startCursor: 'tl:stale',
@@ -2865,11 +2931,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: true
       }))
     });
-    const store = new MessagesStore(
-      {} as ServerConnection,
-      () => null,
-      timeline
-    );
+    const store = new MessagesStore({} as ServerConnection, () => null, timeline);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     store.setRoom('room-1');

@@ -109,7 +109,7 @@ describe('buildRoomPresentation', () => {
     expect(getDisplayName).toHaveBeenCalledWith('other', 'Friend');
   });
 
-  it('uses the localized current-user label for a self direct message', () => {
+  it('uses the live name and localized current-user suffix for a self direct message', () => {
     expect(
       build(roomData(), true, {
         currentUserId: 'self',
@@ -124,9 +124,9 @@ describe('buildRoomPresentation', () => {
         ]
       })
     ).toEqual({
-      title: 'You',
+      title: 'Live Me (You)',
       description: undefined,
-      pageTitle: 'You'
+      pageTitle: 'Live Me (You)'
     });
   });
 

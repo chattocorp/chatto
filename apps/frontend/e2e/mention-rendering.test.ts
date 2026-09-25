@@ -32,11 +32,14 @@ test.describe('Mention highlighting', () => {
         await chatPage2.enterRoom('general');
         await roomPage.expectMemberVisible(user2.login, { timeout: TIMEOUTS.UI_STANDARD });
 
-        await roomPage2.sendMessage(`Hey @${user1.login}, check this out!`);
+        await roomPage2.sendMessage(
+          `Hey @${user1.login}, check this out!`,
+          `Hey @${user1.displayName}, check this out!`
+        );
 
         const messageArticle = page
           .locator('[role="article"]')
-          .filter({ hasText: `@${user1.login}` });
+          .filter({ hasText: `@${user1.displayName}` });
         await expect(messageArticle).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
         await expect(messageArticle).toHaveClass(/bg-warning\/10/);
       },
@@ -53,9 +56,9 @@ test.describe('Mention highlighting', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    await roomPage.sendMessage(`Note to myself @${user.login}`);
+    await roomPage.sendMessage(`Note to myself @${user.login}`, `Note to myself @${user.displayName}`);
 
-    const messageArticle = page.locator('[role="article"]').filter({ hasText: `@${user.login}` });
+    const messageArticle = page.locator('[role="article"]').filter({ hasText: `@${user.displayName}` });
     await expect(messageArticle).toBeVisible();
     await expect(messageArticle).not.toHaveClass(/bg-warning\/10/);
   });

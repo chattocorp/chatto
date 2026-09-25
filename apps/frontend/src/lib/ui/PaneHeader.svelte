@@ -35,15 +35,12 @@ shared viewport detector reports an open software keyboard.
   /* eslint-disable svelte/no-navigation-without-resolve -- backHref is a prop; callers pass already-resolved paths or non-route hrefs */
   import type { Snippet } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import PaneHeaderSkeleton from './PaneHeaderSkeleton.svelte';
 
   let {
     title,
     titleContent,
     subtitle,
     subtitleContent,
-    loading = false,
-    skeletonButtons = 3,
     afterTitle,
     actions,
     collapseActions = false,
@@ -62,8 +59,6 @@ shared viewport detector reports an open software keyboard.
     subtitle?: string;
     /** Rich visual subtitle; keep subtitle as its plain-text equivalent. */
     subtitleContent?: Snippet;
-    loading?: boolean;
-    skeletonButtons?: number;
     afterTitle?: Snippet;
     actions?: Snippet;
     /** Collapse actions below 32 rem of pane width. Expand them beside the title. */
@@ -157,22 +152,20 @@ shared viewport detector reports an open software keyboard.
         </a>
       {/if}
       <div class="flex min-w-0 flex-1 flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
-        {#if loading}
-          <PaneHeaderSkeleton buttons={skeletonButtons} />
-        {:else}
-          <div class="flex min-w-0 items-baseline gap-3">
+        <div class="flex min-w-0 items-baseline gap-3">
+          {#if title || titleContent}
             <h1 class="min-w-0 font-black">
               {#if titleContent}{@render titleContent()}{:else}<bdi class="block truncate"
                   >{title}</bdi
                 >{/if}
             </h1>
-            {#if afterTitle}
-              <div class="shrink-0">
-                {@render afterTitle()}
-              </div>
-            {/if}
-          </div>
-        {/if}
+          {/if}
+          {#if afterTitle}
+            <div class="shrink-0">
+              {@render afterTitle()}
+            </div>
+          {/if}
+        </div>
         {#if subtitle}
           <span class="hidden min-w-0 text-sm text-muted md:inline"
             >{#if subtitleContent}{@render subtitleContent()}{:else}<span class="block truncate"

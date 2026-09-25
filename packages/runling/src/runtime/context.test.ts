@@ -1,5 +1,8 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 import { createObservedWorkflowContext, createWorkflowContext } from "./context.ts";
+import { task } from "./workflow.ts";
+import { runWorkflow } from "./runner.ts";
+import type { RunlingEvent } from "./events.ts";
 import { emptyTokenUsage, type TokenUsage } from "./usage.ts";
 
 describe("workflow context", () => {
@@ -83,6 +86,48 @@ test("supplies a default abort reason and retains usage", () => {
   ctx.recordUsage({ ...emptyTokenUsage(), input: 10, cost: 0.25 });
   expect(() => ctx.abort()).toThrow("Workflow aborted");
   expect(ctx.usage).toEqual({ ...emptyTokenUsage(), input: 10, cost: 0.25 });
+});
+
+test("publishes detached state snapshots for the active task without messaging its parent", async () => {
+  const events: RunlingEvent[] = [];
+  const state = { phase: "starting" };
+  const child = task(async ctx => {
+    ctx.publishState(state);
+    state.phase = "done";
+    ctx.publishState(state);
+  });
+  const parent = task(async ctx => {
+    ctx.publishState({ phase: "parent" });
+    await child(ctx);
+  });
+  const result = await runWorkflow(parent, { input: undefined, onEvent: event => events.push(event) });
+  expect(result.ok).toBe(true);
+  const parentId = events.flatMap(event => event.type === "step.started" ? [event.id] : [])[0];
+  const published = events.filter(event => event.type === "task.state");
+  expect(published).toHaveLength(3);
+  expect(published[0]).toMatchObject({ taskId: parentId, state: { phase: "parent" } });
+  expect(published[1]).toMatchObject({ state: { phase: "starting" } });
+  expect(published[2]).toMatchObject({ state: { phase: "done" } });
+  expect(published[1]?.taskId).toBe(published[2]?.taskId);
+  expect(published[1]?.taskId).not.toBe(parentId);
+});
+
+test("rejects invalid or oversized task state before publishing an event", async () => {
+  const events: RunlingEvent[] = [];
+  const work = task(async ctx => {
+    expect(() => ctx.publishState({ invalid: new Date() } as never)).toThrow("JSON object");
+    expect(() => ctx.publishState({ large: "x".repeat(16_000) })).toThrow("size limit");
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(() => ctx.publishState(cyclic as never)).toThrow("JSON object");
+    const transformed = { phase: "working" };
+    Object.defineProperty(transformed, "toJSON", { value: () => "hidden" });
+    expect(() => ctx.publishState(transformed)).toThrow("JSON object");
+  });
+  const result = await runWorkflow(work, { input: undefined, onEvent: event => events.push(event) });
+  expect(result.ok).toBe(true);
+  expect(events.some(event => event.type === "task.state")).toBe(false);
+  expect(() => createWorkflowContext().publishState({ phase: "outside" })).toThrow("inside a task");
 });
 
 

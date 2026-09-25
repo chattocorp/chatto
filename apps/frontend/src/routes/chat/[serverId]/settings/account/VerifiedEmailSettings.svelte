@@ -235,9 +235,8 @@
     items={verifiedEmails}
     columns={2}
     getKey={(verified) => verified.email}
-    emptyMessage={emailsQuery.isPending && !emailsQuery.data
-      ? m('settings.account.email.loading')
-      : m('settings.account.email.none')}
+    loading={emailsQuery.isPending && !emailsQuery.data}
+    emptyMessage={m('settings.account.email.none')}
   >
     {#snippet header()}
       <th class="table-header-cell">{m('settings.account.email.address_label')}</th>

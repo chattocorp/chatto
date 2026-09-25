@@ -510,7 +510,8 @@ describe('QuickSwitcher', () => {
     for (const query of ['alice', 'Alice Current', 'You']) {
       setSearch(container, query);
       expect(resultButtons(container)).toHaveLength(1);
-      expect(resultButtons(container)[0].textContent).toContain('You');
+      expect(resultButtons(container)[0].textContent).toContain('Alice Current');
+      expect(resultButtons(container)[0].querySelector('[data-testid="you-badge"]')).not.toBeNull();
     }
     expect(mocks.listUsers).not.toHaveBeenCalled();
   });
@@ -641,7 +642,7 @@ describe('QuickSwitcher', () => {
     expect(resultButtons(container).filter((button) => button.textContent?.includes('@river ·'))).toHaveLength(0);
     setSearch(container, 'alice');
     expect(resultButtons(container)).toHaveLength(1);
-    expect(container.textContent).toContain('You');
+    expect(resultButtons(container)[0].querySelector('[data-testid="you-badge"]')).not.toBeNull();
   });
 
   it('refreshes known profiles and removes them after deletion, reset, or loss of access', async () => {

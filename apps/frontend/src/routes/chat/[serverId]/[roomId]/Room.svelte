@@ -43,6 +43,7 @@
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
   import { EmptyState, Hint } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
@@ -491,13 +492,13 @@
     const selectedRoomId = roomId;
     const hasFirstPage = roomMembersStore.hasFirstPage;
     const hasCompleteMembership = stores.hasCompleteProjectedRoomMembership(selectedRoomId);
-    const projectedMembers = hasCompleteMembership
-      ? stores.projectedMembersForRoom(selectedRoomId)
+    const projectedMemberIds = hasCompleteMembership
+      ? stores.projectedMemberIdsForRoom(selectedRoomId)
       : [];
     untrack(() => {
       roomMembersStore.setRoom(selectedRoomId);
       if (hasCompleteMembership) {
-        roomMembersStore.replaceProjection(selectedRoomId, projectedMembers);
+        roomMembersStore.replaceProjection(selectedRoomId, projectedMemberIds);
       } else {
         if (!hasFirstPage) roomMembersStore.ensureLoaded();
       }
@@ -797,7 +798,6 @@
             ? directMessageTitle
             : undefined}
           subtitle={presentation.description}
-          loading={!room.roomData}
           collapseActions
           hideOnKeyboard
           actionsLabel={m('room_list.room_actions', { room: room.roomData?.room.name ?? '' })}
@@ -915,16 +915,15 @@
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
             class={[
-              'flex min-h-0 min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted',
+              'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background p-4',
               splitThreadLayout
                 ? 'relative w-[var(--thread-pane-width)] shrink-0'
                 : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
             ]}
             data-testid="thread-pane"
-            aria-busy="true"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
-            {m('common.loading')}
+            <LoadingFog class="min-h-0 w-full flex-1" />
           </div>
         {:then { default: ThreadPane }}
           <ThreadPane

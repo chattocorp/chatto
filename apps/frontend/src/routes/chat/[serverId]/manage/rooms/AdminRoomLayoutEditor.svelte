@@ -12,6 +12,7 @@
     RoomMoveFlushResult
   } from '$lib/state/server/adminRoomLayout.svelte';
   import { ConfirmDialog, EmptyState, FormDialog, Hint, Pill, ToggleChip } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { Button, TextInput } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';
@@ -383,7 +384,7 @@
 
   <div class="flex flex-col gap-4 overflow-y-auto p-6">
     {#if layout.loading}
-      <div class="text-muted">{m('admin.rooms_admin.loading')}</div>
+      <LoadingFog class="h-48 w-full" label={m('admin.rooms_admin.loading')} />
     {:else if layout.error}
       <Hint tone="danger">{layout.error}</Hint>
     {:else}

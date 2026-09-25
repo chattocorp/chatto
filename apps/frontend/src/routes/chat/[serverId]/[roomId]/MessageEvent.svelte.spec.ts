@@ -161,6 +161,34 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('opens the target user menu on a mention right-click', async () => {
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const body = q(rendered.container, '[data-testid="message-body"]')!;
+    body.innerHTML =
+      '<span class="mention" data-user-id="target-user"><bdi>@Target User</bdi></span>';
+    const contextMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+
+    q(body, 'bdi')!.dispatchEvent(contextMenu);
+
+    expect(contextMenu.defaultPrevented).toBe(true);
+    await vi.waitFor(() =>
+      expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Target User')
+    );
+    expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined();
+  });
+
+  it('keeps the message menu for a mention without a current member', async () => {
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const body = q(rendered.container, '[data-testid="message-body"]')!;
+    body.innerHTML = '<span class="mention" data-user-id="missing">@Missing</span>';
+
+    q(body, '.mention')!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+
+    await vi.waitFor(() => expect(menuButton(rendered.container, 'Copy message link')).toBeTruthy());
+  });
+
   it('shows Copy Image only for a right-clicked image attachment', async () => {
     const imageUrl = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
     mocks.copyImageToClipboard.mockResolvedValue(undefined);

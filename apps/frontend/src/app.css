@@ -529,6 +529,38 @@
   @apply rounded-md border border-border bg-surface-emphasized/60;
 }
 
+/* Pending content uses seeded simplex-noise paths for three soft light clouds. */
+.loading-fog {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface), var(--color-background) 42%);
+}
+
+.loading-fog::before {
+  content: '';
+  position: absolute;
+  inset: -25%;
+  pointer-events: none;
+  opacity: 0.48;
+  background:
+    radial-gradient(
+      ellipse at var(--fog-first-x, 30%) var(--fog-first-y, 40%),
+      var(--color-surface-strong),
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse at var(--fog-second-x, 70%) var(--fog-second-y, 60%),
+      var(--color-surface-emphasized),
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse at var(--fog-third-x, 52%) var(--fog-third-y, 48%),
+      var(--color-background),
+      transparent 52%
+    );
+}
+
 /* Panel and table header — one surface with a hairline divider. Typography,
  * spacing, and structure carry hierarchy instead of another background band.
  * Apply to the header element of any panel-like container (admin Panel,
@@ -1111,7 +1143,7 @@
 
 /* Mention styling in messages */
 .mention {
-  @apply cursor-pointer rounded-sm bg-surface-emphasized px-0.5 font-semibold;
+  @apply cursor-pointer rounded-sm bg-action/20 px-0.5 font-semibold text-action;
 }
 
 .mention-self {
@@ -1153,28 +1185,6 @@
   & > .embed-frame,
   & > video {
     @apply min-h-48;
-  }
-}
-
-/* Skeleton loading utility */
-@utility skeleton {
-  @apply relative overflow-hidden opacity-30;
-  background: linear-gradient(
-    90deg,
-    var(--color-surface) 0%,
-    var(--color-surface-emphasized) 50%,
-    var(--color-surface) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 2s linear infinite;
-}
-
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
   }
 }
 

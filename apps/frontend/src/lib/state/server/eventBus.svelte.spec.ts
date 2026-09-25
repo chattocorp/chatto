@@ -422,11 +422,13 @@ describe('eventBusManager realtime transport', () => {
 
     expect(sync.phase).toBe('hydrating');
     expect(sync.resumeCursor).toBeNull();
-    expect(projectionHandler).toHaveBeenCalledWith(expect.objectContaining({
-      reset: true,
-      retainView: true,
-      privacyReset: false
-    }));
+    expect(projectionHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reset: true,
+        retainView: true,
+        privacyReset: false
+      })
+    );
 
     await socket.receive(
       serverFrame({
@@ -439,6 +441,36 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.resumeCursor).toBe('cursor-reset-caught-up');
     expect(completeProjectionCatchUp).toHaveBeenCalledWith('cursor-reset-caught-up');
     expect(fake.status).toBe('connected');
+  });
+
+  it('keeps the retained view when an interrupted warm snapshot retries', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('old-cursor');
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const first = sockets[0];
+    first.open();
+    const updates = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(updates);
+    await first.receive(snapshotFrame());
+    expect(sync.hasDisplayableView).toBe(true);
+    first.serverClose();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sockets.length).toBeGreaterThan(1);
+    const retry = sockets.at(-1)!;
+    retry.open();
+    await retry.receive(snapshotFrame());
+
+    expect(updates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reset: true,
+        retainView: true,
+        privacyReset: false
+      })
+    );
+    expect(sync.hasDisplayableView).toBe(true);
   });
 
   it('rejects a second snapshot on the same subscription', async () => {

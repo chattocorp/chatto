@@ -437,7 +437,7 @@ class EventBusManager {
                 }
                 snapshotReceived = true;
                 try {
-                  const retainView = sync.hasUsableProjection;
+                  const retainView = sync.hasDisplayableView;
                   sync.acceptProjectionEvent(undefined, true);
                   dispatchProjectionUpdate(
                     new RealtimeProjectionUpdate({

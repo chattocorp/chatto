@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerStateStore } from '$lib/state/server/store.svelte';
+  import { UserStore } from '$lib/state/server/users.svelte';
   import type { TimelineEventView } from '$lib/render/timelineEvents';
   import {
     createComposerContext,
@@ -18,6 +21,7 @@
 
   let {
     event,
+    userStore,
     roomId = 'room-1',
     serverId = 'remote-server',
     permalinkThreadRootEventId = null,
@@ -32,6 +36,7 @@
     onOpenThread
   }: {
     event: TimelineEventView;
+    userStore?: UserStore;
     roomId?: string;
     serverId?: string;
     permalinkThreadRootEventId?: string | null;
@@ -47,7 +52,9 @@
   } = $props();
 
   const connection = {} as ServerConnection;
+  const users = untrack(() => userStore ?? new UserStore());
   const store = {
+    projection: { users },
     notifications: { hasThreadNotification: () => false },
     readViews: { covers: () => false },
     serverInfo: { messageEditWindowSeconds: 31_536_000, supportsFeature: () => true },
@@ -73,7 +80,15 @@
   });
   const composerContext = createComposerContext({ scroll: true });
   createMentionRoles();
-  createRoomMembers();
+  const roomMembers = createRoomMembers();
+  roomMembers.members = [
+    {
+      id: 'target-user',
+      login: 'target',
+      displayName: 'Target User',
+      presenceStatus: PresenceStatus.OFFLINE
+    }
+  ];
   createRoomPermissions(() => ({
     ...DEFAULT_ROOM_PERMISSIONS,
     canPostMessage,
@@ -85,7 +100,7 @@
     canPinMessages
   }));
   createPresenceCache();
-  provideUserProfiles();
+  provideUserProfiles(() => users);
 
   const messageStore = {
     ensureEvent: () => undefined,

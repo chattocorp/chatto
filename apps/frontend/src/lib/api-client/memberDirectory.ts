@@ -19,6 +19,8 @@ export type MemberDirectoryAPIConfig = ConnectAPIConfig;
 
 export type MemberDirectoryPage = {
   members: DirectoryMember[];
+  /** Authorized membership IDs in page order, including profiles not yet available. */
+  memberIds?: string[];
   totalCount: number;
   hasMore: boolean;
   /** Number of membership IDs consumed, including unavailable profiles. */
@@ -153,6 +155,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       options.signal?.throwIfAborted();
       return {
         members,
+        memberIds: response.userIds,
         consumedCount: response.userIds.length,
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false

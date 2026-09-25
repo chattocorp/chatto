@@ -20,6 +20,8 @@
   } from '$lib/ui/contextMenuTrigger.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
+  import { hardRedirectAfterSignOut } from '$lib/auth/signOut';
+  import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
   import { onMount } from 'svelte';
   import { loadSavedView } from '$lib/storage/savedViews';
@@ -81,7 +83,7 @@
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
   const needsSignIn = $derived(
-    !setupRequired && !stores.isAuthenticated && !stores.savedView &&
+    !setupRequired && !stores.isAuthenticated &&
     (!registeredServer?.token || needsReauth)
   );
   const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
@@ -131,6 +133,7 @@
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
   let signingIn = $state(false);
+  let signingOut = $state(false);
   const serverContextMenuTrigger = contextMenuTrigger((details) => {
     contextMenu = details;
   });
@@ -158,6 +161,7 @@
   }
 
   function handleRemoveServer(): void {
+    if (serverRegistry.isOriginServer(serverId)) return;
     closeContextMenu();
     pushState('', {
       modal: {
@@ -168,7 +172,67 @@
     });
   }
 
+  async function handleSignIn(): Promise<void> {
+    const server = registeredServer;
+    if (signingIn || !server) return;
+    closeContextMenu();
+    signingIn = true;
+    if (serverRegistry.isOriginServer(serverId)) {
+      try {
+        beginOriginReauthentication(resolve('/chat/[serverId]', { serverId: serverSegment }));
+      } finally {
+        signingIn = false;
+      }
+      return;
+    }
+    try {
+      await startRemoteReauthentication(server);
+    } catch {
+      toast.error(m('add_server.start_failed'));
+    } finally {
+      signingIn = false;
+    }
+  }
+
+  async function handleSignOut(): Promise<void> {
+    if (signingOut || !stores.isAuthenticated) return;
+    const wasActive = isActiveServer;
+    closeContextMenu();
+    signingOut = true;
+    try {
+      const navigation = await clientAccount.signOutCurrentServer(serverId);
+      if (!navigation) return;
+      if (navigation.kind === 'hard') {
+        const href = wasActive
+          ? navigation.serverId
+            ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
+            : resolve('/')
+          : window.location.pathname + window.location.search + window.location.hash;
+        hardRedirectAfterSignOut(href);
+      } else if (wasActive) {
+        await goto(
+          navigation.serverId
+            ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
+            : resolve('/')
+        );
+      }
+    } catch {
+      toast.error(m('common.error.network'));
+    } finally {
+      signingOut = false;
+    }
+  }
+
   async function handleServerClick(event: MouseEvent): Promise<void> {
+    if (signInRequired) {
+      event.preventDefault();
+      const icon = event.currentTarget;
+      if (icon instanceof HTMLElement) {
+        const bounds = icon.getBoundingClientRect();
+        contextMenu = { position: { x: bounds.right, y: bounds.top }, presentation: 'auto' };
+      }
+      return;
+    }
     if (recoveryNeeded && !stores.savedView) {
       event.preventDefault();
       await serverRegistry.recoverServer(serverId);
@@ -176,22 +240,6 @@
         await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
       }
       return;
-    }
-    if (!needsSignIn || stores.savedView) return;
-    event.preventDefault();
-    if (signingIn || !registeredServer) return;
-
-    if (serverRegistry.isOriginServer(serverId)) {
-      beginOriginReauthentication();
-      return;
-    }
-
-    signingIn = true;
-    try {
-      await startRemoteReauthentication(registeredServer);
-    } catch {
-      signingIn = false;
-      toast.error(m('add_server.start_failed'));
     }
   }
 
@@ -349,9 +397,38 @@
       kind="server"
       showMarkRead={serverActionsAvailable}
       canMarkRead={roomUnreadStore.hasAnyUnread || notificationStore.unreadNotificationCount > 0}
+      canLeave={false}
       onMarkRead={handleMarkServerRead}
       onLeave={handleRemoveServer}
     />
+    <MenuSection>
+      {#if signInRequired || stores.isAuthenticated}
+        {#if signInRequired}
+          <MenuItem
+            icon="icon-[uil--sign-in-alt]"
+            onclick={() => void handleSignIn()}
+            disabled={signingIn}
+            dataTestid="server-log-in"
+          >
+            {m('chat.server_gutter.log_in')}
+          </MenuItem>
+        {:else}
+          <MenuItem
+            icon="icon-[uil--sign-out-alt]"
+            onclick={() => void handleSignOut()}
+            disabled={signingOut}
+            dataTestid="server-sign-out"
+          >
+            {m('chat.server_gutter.sign_out')}
+          </MenuItem>
+        {/if}
+      {/if}
+      {#if !serverRegistry.isOriginServer(serverId)}
+        <MenuItem icon="icon-[uil--minus-circle]" tone="danger" onclick={handleRemoveServer}>
+          {m('room_list.remove_server')}
+        </MenuItem>
+      {/if}
+    </MenuSection>
     {#if serverHost}
       <MenuSection>
         <MenuItem

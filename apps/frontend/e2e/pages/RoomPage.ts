@@ -190,15 +190,16 @@ export class RoomPage {
   }
 
   /**
-   * Send a text message and wait for it to appear.
+   * Send a text message and wait for it to appear. Supply renderedText when
+   * the posted content differs from the composer text, such as a user mention.
    * Returns a MessageComponent for the new message.
    */
-  async sendMessage(text: string): Promise<MessageComponent> {
+  async sendMessage(text: string, renderedText = text): Promise<MessageComponent> {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.messageInput);
     await this.messageInput.press('Control+Enter');
-    const message = this.getMessage(text);
+    const message = this.getMessage(renderedText);
     await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await this.waitForInputEditable();
     return message;

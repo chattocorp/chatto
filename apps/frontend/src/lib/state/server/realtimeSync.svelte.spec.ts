@@ -11,11 +11,13 @@ describe('RealtimeProjectionSyncState', () => {
     sync.acceptProjectionEvent(undefined, true);
     expect(sync.isRecoveringSnapshot).toBe(true);
     expect(sync.hasUsableProjection).toBe(false);
+    expect(sync.hasDisplayableView).toBe(true);
     expect(sync.resumeCursor).toBeNull();
     sync.markStale();
     sync.beginCatchUp();
     sync.acceptProjectionEvent(undefined, true);
     expect(sync.isRecoveringSnapshot).toBe(true);
+    expect(sync.hasDisplayableView).toBe(true);
     sync.markCaughtUp('after');
     expect(sync.isRecoveringSnapshot).toBe(false);
     expect(sync.hasUsableProjection).toBe(true);
@@ -23,6 +25,7 @@ describe('RealtimeProjectionSyncState', () => {
     sync.reset();
     expect(sync.isRecoveringSnapshot).toBe(false);
     expect(sync.hasUsableProjection).toBe(false);
+    expect(sync.hasDisplayableView).toBe(false);
   });
   it('resolves a refresh waiter only after a later caught-up boundary', async () => {
     const state = new RealtimeProjectionSyncState();

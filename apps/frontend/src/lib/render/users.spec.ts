@@ -19,11 +19,20 @@ describe('buildDirectMessagePresentation', () => {
     expect(getDisplayName).toHaveBeenNthCalledWith(2, 'colleague', 'colleague');
   });
 
-  it('uses the localized current-user label and avatar for a self-DM', () => {
-    expect(buildDirectMessagePresentation(participants.slice(0, 1), 'self', 'You')).toEqual({
-      label: 'You',
+  it('uses the live display name and localized current-user suffix for a self-DM', () => {
+    const getDisplayName = vi.fn(() => 'Updated Me');
+    expect(buildDirectMessagePresentation(participants.slice(0, 1), 'self', 'You', getDisplayName)).toEqual({
+      label: 'Updated Me (You)',
       visibleParticipants: participants.slice(0, 1)
     });
+    expect(getDisplayName).toHaveBeenCalledWith('self', 'Me');
+  });
+
+  it('falls back to the login when the self participant has no display name', () => {
+    expect(buildDirectMessagePresentation([{ ...participants[0], displayName: '' }], 'self', 'You').label)
+      .toBe('me (You)');
+    expect(buildDirectMessagePresentation(participants.slice(0, 1), 'self', 'You', () => '').label)
+      .toBe('me (You)');
   });
 
   it('keeps an empty participant list empty', () => {

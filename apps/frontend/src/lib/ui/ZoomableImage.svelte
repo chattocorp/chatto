@@ -5,7 +5,6 @@ mounted when a signed image URL refreshes and remounts it for another image.
 <script lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
   import { m } from '$lib/i18n/messages';
-  import SkeletonImg from './SkeletonImg.svelte';
 
   let {
     src,
@@ -31,11 +30,13 @@ mounted when a signed image URL refreshes and remounts it for another image.
 
   /** Limit panning to the fitted image's enlarged edges. */
   function bounds(atZoom = zoom) {
-    if (!naturalWidth || !naturalHeight || !stageWidth || !stageHeight) return { x: 0, y: 0 };
-    const fit = Math.min(stageWidth / naturalWidth, stageHeight / naturalHeight);
+    const width = stageWidth || stage?.clientWidth || 0;
+    const height = stageHeight || stage?.clientHeight || 0;
+    if (!naturalWidth || !naturalHeight || !width || !height) return { x: 0, y: 0 };
+    const fit = Math.min(width / naturalWidth, height / naturalHeight);
     return {
-      x: Math.max(0, (naturalWidth * fit * atZoom - stageWidth) / 2),
-      y: Math.max(0, (naturalHeight * fit * atZoom - stageHeight) / 2)
+      x: Math.max(0, (naturalWidth * fit * atZoom - width) / 2),
+      y: Math.max(0, (naturalHeight * fit * atZoom - height) / 2)
     };
   }
 
@@ -73,6 +74,18 @@ mounted when a signed image URL refreshes and remounts it for another image.
     });
     observer.observe(node);
     return () => observer.disconnect();
+  }
+
+  function measureImage(image: HTMLImageElement) {
+    const update = () => {
+      naturalWidth = image.naturalWidth;
+      naturalHeight = image.naturalHeight;
+      clampPan(offsetX, offsetY);
+    };
+    image.addEventListener('load', update);
+    // A cached image can complete before its load listener is attached.
+    if (image.complete) update();
+    return () => image.removeEventListener('load', update);
   }
 
   function wheelZoom(node: HTMLDivElement) {
@@ -179,18 +192,13 @@ mounted when a signed image URL refreshes and remounts it for another image.
     onpointercancel={pointerend}
     ondblclick={(event) => zoomAt(zoom === 1 ? 2 : 1, event.clientX, event.clientY)}
   >
-    <SkeletonImg
+    <img
       {src}
       {alt}
       draggable="false"
       class="pointer-events-none h-full w-full object-contain outline-none"
       style={`transform: translate(${offsetX}px, ${offsetY}px) scale(${zoom})`}
-      onload={(event) => {
-        const image = event.currentTarget as HTMLImageElement;
-        naturalWidth = image.naturalWidth;
-        naturalHeight = image.naturalHeight;
-        clampPan(offsetX, offsetY);
-      }}
+      {@attach measureImage}
       {onerror}
     />
   </div>

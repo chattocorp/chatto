@@ -16,6 +16,16 @@ function accountSettingsRoot(
 
 export const settingsQueryKeys = {
   root: settingsRoot,
+  notificationPoliciesRoot(serverId: string, connection: SettingsQueryConnection) {
+    return [...settingsRoot(serverId, connection), 'notification-policies'] as const;
+  },
+  notificationPolicies(
+    serverId: string,
+    connection: SettingsQueryConnection,
+    scopes: readonly string[]
+  ) {
+    return [...settingsQueryKeys.notificationPoliciesRoot(serverId, connection), scopes] as const;
+  },
   externalIdentities(serverId: string, connection: SettingsQueryConnection, userId: string) {
     return [...accountSettingsRoot(serverId, connection, userId), 'external-identities'] as const;
   },

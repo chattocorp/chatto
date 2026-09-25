@@ -102,7 +102,8 @@ describe('MessageUserOverlays', () => {
     let dialog: HTMLDialogElement | null = null;
     await vi.waitFor(() => {
       dialog = document.querySelector<HTMLDialogElement>('dialog[open]');
-      expect(dialog?.querySelector('[aria-busy="true"]')?.textContent).toContain('Loading');
+      expect(dialog).not.toBeNull();
+      expect(dialog?.querySelector('[data-loading-fog][aria-busy="true"]')).toBeTruthy();
     });
 
     dialog!.dispatchEvent(new Event('cancel', { cancelable: true }));

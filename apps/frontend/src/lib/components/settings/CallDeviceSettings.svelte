@@ -54,7 +54,7 @@
       alive = false;
       refreshGeneration++;
       navigator.mediaDevices?.removeEventListener('devicechange', refresh);
-      test.stop();
+      test.cancel();
     };
   });
 
@@ -79,12 +79,13 @@
       await onDeviceChange(kind, value);
       return;
     }
-    if (kind === 'audiooutput' && test.active) {
+    if (kind === 'audiooutput' && (test.active || test.hasRecording)) {
       if (await test.setSpeaker(value)) preferences.setDevice(kind, value);
       return;
     }
     const restart = kind !== 'videoinput' && (test.active || test.pending);
     preferences.setDevice(kind, value);
+    if (kind === 'audioinput' && test.hasRecording) test.cancel();
     if (restart) await startTest();
   }
 
@@ -140,7 +141,7 @@
           label={m('voice.speaker')}
           options={options('audiooutput', preferences.speaker)}
           value={preferences.speaker}
-          disabled={!outputSupported}
+          disabled={!outputSupported || test.finalizing}
           description={!outputSupported ? m('voice.preferences.output_unsupported') : undefined}
           onValueChange={(value) => select('audiooutput', value)}
         />
@@ -169,17 +170,33 @@
           unavailable={inCall ? gateUnavailable : test.gateUnavailable}
         />
         <div class="flex flex-wrap gap-2">
-          {#if !test.active && !test.pending}
-            <Button onclick={startTest} disabled={inCall}
-              >{m('voice.preferences.start_test')}</Button
-            >
-          {:else}
+          {#if test.pending}
+            <Button variant="secondary" onclick={() => test.cancel()}>{m('common.cancel')}</Button>
+          {:else if test.active}
             <Button variant="secondary" onclick={() => test.stop()}
               >{m('voice.preferences.stop_test')}</Button
             >
+          {:else if !test.finalizing}
+            <Button onclick={startTest} disabled={inCall}
+              >{m('voice.preferences.start_test')}</Button
+            >
+            {#if test.playing}
+              <Button variant="secondary" onclick={() => test.stopPlayback()}
+                >{m('voice.preferences.stop_playback')}</Button
+              >
+            {:else if test.hasRecording}
+              <Button
+                variant="secondary"
+                disabled={test.playbackPending}
+                onclick={() => test.playAgain()}>{m('voice.preferences.play_again')}</Button
+              >
+            {/if}
           {/if}
         </div>
         {#if test.pending}<p role="status">{m('voice.preferences.waiting')}</p>{/if}
+        {#if test.active}<p role="status">{m('voice.preferences.recording')}</p>{/if}
+        {#if test.finalizing}<p role="status">{m('voice.preferences.finalizing')}</p>{/if}
+        {#if test.playbackBlocked}<Hint>{m('voice.preferences.playback_blocked')}</Hint>{/if}
         {#if test.error}<Hint>{m('voice.preferences.test_failed')}</Hint>{/if}
         {#if inCall}<Hint>{m('voice.preferences.test_in_call')}</Hint>{/if}
       </div>

@@ -1,0 +1,11 @@
+# Separate pnpm workspace
+authling/
+
+# Generated files and build output
+**/dist/
+**/.svelte-kit/
+**/coverage/
+packages/api-types/src/chatto/
+apps/frontend/src/lib/gql/
+apps/frontend/src/lib/types/core.ts
+apps/frontend/static/

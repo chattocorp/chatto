@@ -224,7 +224,7 @@ describe('RoomMembersStore', () => {
     expect(api.batchGetUsers).toHaveBeenCalledTimes(1);
   });
 
-  it('publishes a join ID while the shared profile loads without a second member request', async () => {
+  it('retains a join ID while the shared profile loads without a blank row or second request', async () => {
     const api = new FakeMemberDirectoryAPI([pageResult([user('first')])]);
     const profiles = getUserStore('member-join-test', 'connection');
     profiles.set('first', new DirectoryMember({
@@ -238,14 +238,14 @@ describe('RoomMembersStore', () => {
     await store.loadInitial();
 
     await store.applyMembership('second', true, 'join-cursor');
-    expect(store.members.map((member) => member.id)).toEqual(['first', 'second']);
-    expect(store.members[1]?.login).toBe('');
+    expect(store.members.map((member) => member.id)).toEqual(['first']);
+    expect(store.totalCount).toBe(2);
     expect(api.batchGetUsers).not.toHaveBeenCalled();
 
     profiles.set('second', new DirectoryMember({
       user: { id: 'second', login: 'second', displayName: 'Second' }
     }));
-    expect(store.members[1]?.login).toBe('second');
+    expect(store.members.map((member) => member.login)).toEqual(['first', 'second']);
 
     await store.applyMembership('third', true, 'later-cursor');
     await store.applyMembership('third', false);
@@ -279,6 +279,107 @@ describe('RoomMembersStore', () => {
     }));
     expect(store.members[0]?.login).toBe('updated');
     disposeUserStore('member-profile-test', 'connection');
+  });
+
+  it('keeps a page member ID until its shared profile arrives', async () => {
+    const api = new FakeMemberDirectoryAPI([
+      {
+        members: [],
+        memberIds: ['late-profile'],
+        consumedCount: 1,
+        totalCount: 1,
+        hasMore: false
+      }
+    ]);
+    const profiles = getUserStore('late-member-profile-test', 'connection');
+    const connection = {
+      serverId: 'late-member-profile-test',
+      queryScope: 'connection',
+      getAPI: () => api
+    } as unknown as ServerConnection;
+    const store = new RoomMembersStore(connection);
+    store.setRoom('room');
+    await store.loadInitial();
+
+    expect(store.members).toEqual([]);
+    expect(store.totalCount).toBe(1);
+
+    profiles.set(
+      'late-profile',
+      new DirectoryMember({
+        user: { id: 'late-profile', login: 'alice', displayName: 'Alice Smith' }
+      })
+    );
+    expect(store.members.map((member) => member.displayName)).toEqual(['Alice Smith']);
+    disposeUserStore('late-member-profile-test', 'connection');
+  });
+
+  it('renders deleted members but omits identities with pending profiles', async () => {
+    const api = new FakeMemberDirectoryAPI([{
+      members: [],
+      memberIds: ['deleted', 'pending'],
+      consumedCount: 2,
+      totalCount: 2,
+      hasMore: false
+    }]);
+    const profiles = getUserStore('deleted-member-test', 'connection');
+    profiles.delete('deleted');
+    const connection = {
+      serverId: 'deleted-member-test', queryScope: 'connection', getAPI: () => api
+    } as unknown as ServerConnection;
+    const store = new RoomMembersStore(connection);
+    store.setRoom('room');
+    await store.loadInitial();
+
+    expect(store.members).toEqual([{
+      id: 'deleted',
+      login: '',
+      displayName: '',
+      deleted: true,
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.OFFLINE
+    }]);
+    expect(store.totalCount).toBe(2);
+
+    profiles.set('pending', new DirectoryMember({
+      user: { id: 'pending', login: 'alice', displayName: 'Alice' }
+    }));
+    expect(store.members.map((member) => member.displayName)).toEqual(['', 'Alice']);
+    disposeUserStore('deleted-member-test', 'connection');
+  });
+
+  it('resolves a cached search ID after the shared profile arrives', async () => {
+    const backgroundPage = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([
+      pageResult([user('first')], true, 2),
+      backgroundPage.promise,
+      { members: [], memberIds: ['late-profile'], consumedCount: 1, totalCount: 1, hasMore: false }
+    ]);
+    const profiles = getUserStore('late-search-profile-test', 'connection');
+    profiles.set('first', new DirectoryMember({
+      user: { id: 'first', login: 'first', displayName: 'First' }
+    }));
+    const connection = {
+      serverId: 'late-search-profile-test',
+      queryScope: 'connection',
+      getAPI: () => api
+    } as unknown as ServerConnection;
+    const store = new RoomMembersStore(connection);
+    store.setRoom('room');
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
+
+    await store.setSearch('alice');
+    expect(store.filteredMembers).toEqual([]);
+
+    profiles.set('late-profile', new DirectoryMember({
+      user: { id: 'late-profile', login: 'alice', displayName: 'Alice Smith' }
+    }));
+    expect(store.filteredMembers.map((member) => member.displayName)).toEqual(['Alice Smith']);
+
+    backgroundPage.resolve(pageResult([user('late-profile', 'alice')], false, 2));
+    await loading;
+    disposeUserStore('late-search-profile-test', 'connection');
   });
 
   it('discards a pending join after that member leaves', async () => {

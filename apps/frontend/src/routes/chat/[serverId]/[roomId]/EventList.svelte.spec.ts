@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import EventListTestHarness from './EventListTestHarness.svelte';
 import {
   setVirtualizerForcedRenderedIndex,
@@ -50,8 +51,8 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
 });
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
@@ -68,11 +69,37 @@ vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
 }));
 
 describe('EventList jump completion', () => {
+  it('stops pending bottom scrolling before reading an unmounted room', async () => {
+    const frames: FrameRequestCallback[] = [];
+    const requestFrame = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    const onStoreRead = vi.fn();
+    const view = render(EventListTestHarness, {
+      props: { eventIds: ['message'], scrollToEventId: null, onStoreRead }
+    });
+    try {
+      await tick();
+      expect(frames.length).toBeGreaterThan(0);
+      view.unmount();
+      onStoreRead.mockClear();
+      for (const frame of frames.splice(0)) frame(performance.now());
+      await tick();
+      expect(onStoreRead).not.toHaveBeenCalled();
+    } finally {
+      requestFrame.mockRestore();
+    }
+  });
   it('releases interrupted forward pagination when the snapshot viewport is restored', async () => {
     let jumpState!: JumpToMessageState;
     const rendered = render(EventListTestHarness, {
       props: {
-        eventIds: [], scrollToEventId: null, isLoading: true,
+        eventIds: [],
+        scrollToEventId: null,
+        isLoading: true,
         recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true },
         onComposerReady: (context) => {
           jumpState = context.jumpState;
@@ -92,26 +119,34 @@ describe('EventList jump completion', () => {
   it('releases the saved position when recovery produces an empty timeline', async () => {
     render(EventListTestHarness, {
       props: {
-        eventIds: [], scrollToEventId: null,
+        eventIds: [],
+        scrollToEventId: null,
         recoveryViewport: { eventId: 'removed', offset: 17 }
       }
     });
-    await vi.waitFor(() => expect(page.getByTestId('recovery-anchor').element().textContent).toBe(''));
+    await vi.waitFor(() =>
+      expect(page.getByTestId('recovery-anchor').element().textContent).toBe('')
+    );
   });
   it('restores the saved event and pixel offset after a cleared timeline loads', async () => {
     const rendered = render(EventListTestHarness, {
       props: {
-        eventIds: [], scrollToEventId: null, isLoading: true,
+        eventIds: [],
+        scrollToEventId: null,
+        isLoading: true,
         recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true }
       }
     });
     await rendered.rerender({
       eventIds: ['msg-before', 'msg-anchor', 'msg-after'],
-      scrollToEventId: null, isLoading: false,
+      scrollToEventId: null,
+      isLoading: false,
       recoveryViewport: { eventId: 'msg-anchor', offset: 17, hasNewer: true }
     });
     await expect.element(page.getByText('msg-anchor', { exact: true })).toBeVisible();
-    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('start');
+    await expect
+      .element(page.getByTestId('virtualizer-scroll-alignment'))
+      .toHaveTextContent('start');
     await expect.element(page.getByTestId('virtualizer-scroll-offset')).toHaveTextContent('17');
   });
   it('signals completion after highlighting a rendered target', async () => {

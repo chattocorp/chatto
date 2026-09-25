@@ -14,6 +14,8 @@
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapDirectoryRoomDetails } from '$lib/api-client/roomDirectory';
+  import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
+  import { avatarUserFromDirectoryMember } from '$lib/state/server/rooms.svelte';
 
   const serverScope = useServerScope();
   const stores = $derived(serverScope.store);
@@ -95,25 +97,34 @@
       .filter((role) => role.pingable && role.name !== 'everyone')
       .map((role) => role.name)
   );
-  // Deleted actors may be absent or retained as a deleted reference.
-  // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
-  const actor = $derived(event?.actor ?? null);
-  const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
-  const authorUnavailable = $derived(!actor && event?.actorResolution === 'unavailable');
+  // Resolve every row against the live profile owner. Timeline includes can
+  // arrive before profiles catch up after a reconnect.
+  const actorId = $derived(event?.actorId || event?.actor?.id || '');
+  const users = $derived(stores.projection.users);
   const deletedActor = $derived(
-    !!actor?.deleted || (!actor && !authorLoading && !authorUnavailable)
+    event?.actorResolution === 'deleted' ||
+      !!event?.actor?.deleted ||
+      (!!actorId && users.isDeleted(actorId))
   );
+  const actor = $derived.by(() => {
+    if (deletedActor) return null;
+    const current = actorId ? users.get(actorId) : undefined;
+    return current
+      ? avatarUserFromDirectoryMember(mapDirectoryMember(current))
+      : (event?.actor ?? null);
+  });
+  const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
 
-  // Display name with live updates from profile cache
+  // The actor already uses the live profile when one is available.
   const displayName = $derived(
-    !deletedActor && actor
-      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
+    actor
+      ? actor.displayName || actor.login
       : deletedActor
         ? m('common.deleted_user')
         : m('common.unknown_user')
   );
   const actorCallPresence = $derived(
-    !deletedActor && actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
+    actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
   );
 
   // Permission checks for message actions. Authors can always edit (within
@@ -212,6 +223,21 @@
     // Browsers may synthesize this event during a touch long press, including
     // on hybrid devices; that gesture already owns the action sheet.
     if (interactions.hasActiveLongPressGesture) return;
+    const mention =
+      e.target instanceof Element ? e.target.closest<HTMLElement>('.mention[data-user-id]') : null;
+    const mentionedUserId = mention?.dataset.userId;
+    if (
+      mention &&
+      messageBodySelectionRoot?.contains(mention) &&
+      mentionedUserId &&
+      userInteractions.hasCurrentMember(mentionedUserId)
+    ) {
+      interactions.closeContextMenu();
+      contextLink = null;
+      contextImage = null;
+      showPopoverForMember(mentionedUserId, mention.getBoundingClientRect());
+      return;
+    }
     const anchor = e.target instanceof Element ? e.target.closest('a[href]') : null;
     contextLink =
       anchor instanceof HTMLAnchorElement && messageBodySelectionRoot?.contains(anchor)

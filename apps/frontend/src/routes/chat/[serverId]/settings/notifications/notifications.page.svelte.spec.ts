@@ -10,23 +10,16 @@ import {
   resetServerNotificationPreferencesForTests
 } from '$lib/state/serverNotificationPreferences.svelte';
 import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
+import { queryClient } from '$lib/query/client';
 
 const mocks = vi.hoisted(() => ({
   playNotificationSound: vi.fn(),
   activeServerId: 'origin',
   notifications: {
     getPolicy: vi.fn().mockResolvedValue(null),
-    updatePolicy: vi.fn().mockResolvedValue(null),
-    notificationPolicies: {
-      loading: false,
-      error: null as string | null,
-      errorKind: null as 'load' | 'save' | null,
-      load: vi.fn().mockResolvedValue(undefined),
-      update: vi.fn().mockResolvedValue(undefined),
-      policy: vi.fn(() => undefined),
-      isPending: vi.fn(() => false)
-    }
+    updatePolicy: vi.fn().mockResolvedValue(null)
   },
+  batchPolicies: vi.fn().mockResolvedValue([]),
   serverInfo: {
     name: 'Test Server',
     pushNotificationsEnabled: false,
@@ -96,7 +89,7 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
           baseUrl: 'https://origin.test/api/connect',
           bearerToken: 'origin-token'
         },
-        getAPI: (factory: (config: never) => unknown) => factory({} as never)
+        getAPI: () => ({ batchGetNotificationPolicies: mocks.batchPolicies })
       },
       isCurrent: () => true
     })
@@ -150,6 +143,7 @@ function notificationPreferencesStorageKey(serverId = mocks.activeServerId) {
 
 describe('Notification settings page', () => {
   beforeEach(() => {
+    queryClient.clear();
     localStorage.clear();
     userPreferences.composerEditor = 'markdown';
     localStorage.setItem(
@@ -166,11 +160,7 @@ describe('Notification settings page', () => {
     mocks.notifications.getPolicy.mockResolvedValue(null);
     mocks.notifications.updatePolicy.mockClear();
     mocks.notifications.updatePolicy.mockResolvedValue(null);
-    mocks.notifications.notificationPolicies.load.mockClear();
-    mocks.notifications.notificationPolicies.load.mockResolvedValue(undefined);
-    mocks.notifications.notificationPolicies.update.mockClear();
-    mocks.notifications.notificationPolicies.policy.mockReturnValue(undefined);
-    mocks.notifications.notificationPolicies.isPending.mockReturnValue(false);
+    mocks.batchPolicies.mockClear();
     mocks.serverInfo.pushNotificationsEnabled = false;
     mocks.serverInfo.vapidPublicKey = null;
     mocks.serverInfo.supportsFeature.mockReturnValue(true);

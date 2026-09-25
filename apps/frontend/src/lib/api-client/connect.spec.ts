@@ -7,9 +7,11 @@ import {
   bearerRenewalInterceptor,
   createChattoClient,
   dataGenerationInterceptor,
+  handleAuthError,
   privateRequestInterceptor,
   StaleResponseError
 } from './connect';
+import { configureApiClientHooks } from './hooks';
 
 describe('saved-view private request boundary', () => {
   it('allows viewer verification and gates other private calls', async () => {
@@ -128,5 +130,30 @@ describe('bearerRenewalInterceptor', () => {
     expect(renewBearerToken).toHaveBeenCalledOnce();
     expect(renewBearerToken).toHaveBeenCalledWith(false);
     expect(next).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a renewed bearer session after an API retry is rejected', async () => {
+    const onAuthenticationRequired = vi.fn();
+    configureApiClientHooks({ onAuthenticationRequired });
+    try {
+      const renewBearerToken = vi
+        .fn<(force: boolean) => Promise<string | null>>()
+        .mockResolvedValueOnce('access-1')
+        .mockResolvedValueOnce('access-2');
+      const error = new ConnectError('authentication required', Code.Unauthenticated);
+      const next = vi.fn().mockRejectedValue(error);
+      const request = { stream: false, header: new Headers() };
+      const config = { serverId: 'remote', renewBearerToken };
+
+      await expect(bearerRenewalInterceptor(config)(next as never)(request as never))
+        .rejects.toBe(error);
+      expect(renewBearerToken.mock.calls).toEqual([[false], [true]]);
+      expect(request.header.get('Authorization')).toBe('Bearer access-2');
+      expect(next).toHaveBeenCalledTimes(2);
+      expect(() => handleAuthError(config, error)).toThrow(error);
+      expect(onAuthenticationRequired).not.toHaveBeenCalled();
+    } finally {
+      configureApiClientHooks({});
+    }
   });
 });

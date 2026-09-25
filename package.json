@@ -26,12 +26,17 @@
     "knip:prepare": "pnpm turbo run prepare --filter=chatto-frontend",
     "lint": "pnpm turbo run lint --concurrency=1",
     "lint:frontend": "pnpm turbo run lint --filter=chatto-frontend",
+    "format": "prettier --write",
+    "format:check": "prettier --check",
     "test": "pnpm turbo run test --concurrency=1",
     "test:lingua": "pnpm turbo run test --filter=@chatto/lingua",
     "test:frontend": "pnpm turbo run test --filter=chatto-frontend"
   },
   "devDependencies": {
     "knip": "^6.22.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-svelte": "^3.5.2",
+    "prettier-plugin-tailwindcss": "^0.7.4",
     "turbo": "2.11.2"
   }
 }

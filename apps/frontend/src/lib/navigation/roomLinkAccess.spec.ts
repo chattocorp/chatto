@@ -21,6 +21,11 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
 }
 
 describe('roomRouteAccess', () => {
+  it('keeps saved membership unknown until the server answers', () => {
+    expect(roomRouteAccess({ rooms: [room({ viewerIsMember: null })], roomId: 'room-1' })).toEqual({
+      kind: 'unknown'
+    });
+  });
   it('classifies members as allowed room viewers', () => {
     expect(
       roomRouteAccess({

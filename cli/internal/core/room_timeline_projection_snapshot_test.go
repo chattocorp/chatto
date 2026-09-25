@@ -75,6 +75,48 @@ func TestRoomTimelineRestoreRejectsCorruptCompactReferences(t *testing.T) {
 	}
 }
 
+func TestRoomTimelineRestoreReplacesSparseBodyHistoryAtomically(t *testing.T) {
+	projection := NewRoomTimelineProjection()
+	for i, event := range []*evtv1.Event{
+		bodyEvent("B1", "M1", "R1", "U1", "first", 1),
+		bodyEvent("B2", "M1", "R1", "U1", "second", 2),
+		bodylessPostedEvent("M1", "R1", "U1", 3),
+		bodyEvent("B4", "ORPHAN", "R1", "U1", "orphan first", 4),
+		bodyEvent("B5", "ORPHAN", "R1", "U1", "orphan second", 5),
+	} {
+		require.NoError(t, projection.Apply(event, uint64(i+1)))
+	}
+	require.Equal(t, []uint64{1}, projection.bodyHistoryLocked("M1"))
+	require.Equal(t, []uint64{4}, projection.bodyHistoryLocked("ORPHAN"))
+
+	replacement := NewRoomTimelineProjection()
+	require.NoError(t, replacement.Apply(bodyEvent("B3", "M2", "R2", "U2", "replacement", 1), 1))
+	require.NoError(t, replacement.Apply(bodylessPostedEvent("M2", "R2", "U2", 2), 2))
+	payload, err := replacement.Snapshot()
+	require.NoError(t, err)
+	corrupt := &projectionv1.RoomTimelineProjectionSnapshot{}
+	require.NoError(t, proto.Unmarshal(payload, corrupt))
+	corrupt.Bodies[0].CurrentBodyEventId = ""
+	corruptPayload, err := proto.Marshal(corrupt)
+	require.NoError(t, err)
+	require.Error(t, projection.Restore(corruptPayload))
+	require.Equal(t, []uint64{1}, projection.bodyHistoryLocked("M1"))
+	require.Equal(t, []uint64{4}, projection.bodyHistoryLocked("ORPHAN"))
+
+	require.NoError(t, projection.Restore(payload))
+	seqs, current, ok := projection.BodyEventSeqs("M2")
+	require.True(t, ok)
+	require.Equal(t, uint64(1), current)
+	require.Equal(t, []uint64{1}, seqs)
+	require.Empty(t, projection.bodyHistoryLocked("M1"))
+	require.Empty(t, projection.bodyHistoryLocked("ORPHAN"))
+	require.NoError(t, projection.Apply(bodylessPostedEvent("ORPHAN", "R1", "U1", 3), 3))
+	require.NoError(t, projection.Apply(bodyEvent("B7", "ORPHAN", "R1", "U1", "new", 4), 4))
+	seqs, _, ok = projection.BodyEventSeqs("ORPHAN")
+	require.True(t, ok)
+	require.Equal(t, []uint64{4}, seqs)
+}
+
 // Echo content selection must remain identical after cold replay and restore,
 // while legacy body records retain their physical ownership for secure deletion.
 func TestRoomTimelineEchoReferencesSurviveReplayAndRestore(t *testing.T) {

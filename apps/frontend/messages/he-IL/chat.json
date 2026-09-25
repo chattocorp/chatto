@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "הוסף שרת",
+      "log_in": "התחברות לשרת הזה",
+      "sign_out": "התנתקות מהשרת הזה",
       "version": "גרסה {version}",
       "version_unknown": "גרסה לא ידועה",
       "unreachable": "לא ניתן להגיע לשרת",

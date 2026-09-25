@@ -34,6 +34,7 @@ export function buildDirectMessagePresentation<T extends DirectMessageParticipan
   getDisplayName: (userId: string, fallback: string) => string = (_userId, fallback) => fallback
 ) {
   const others = participants.filter((participant) => participant.id !== currentUserId);
+  const self = participants[0];
   return {
     label:
       others.length > 0
@@ -45,7 +46,9 @@ export function buildDirectMessagePresentation<T extends DirectMessageParticipan
               )
             )
             .join(', ')
-        : formatAccountName(currentUserLabel, participants[0]),
+        : self
+          ? `${formatAccountName(getDisplayName(self.id, self.displayName || self.login) || self.login, self)} (${currentUserLabel})`
+          : currentUserLabel,
     visibleParticipants: others.length > 0 ? others : participants.slice(0, 1)
   };
 }

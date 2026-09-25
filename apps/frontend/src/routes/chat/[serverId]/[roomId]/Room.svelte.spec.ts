@@ -82,7 +82,7 @@ const { mocks } = vi.hoisted(() => {
       membersForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
       nextServerRestoreProjectedRoomWindow: vi.fn(),
-      projectedMembersForRoom: vi.fn(() => []),
+      projectedMemberIdsForRoom: vi.fn(() => []),
       hasCompleteProjectedRoomMembership: vi.fn(() => true),
       mentionRoles: {
         roles: [],
@@ -266,7 +266,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         serverId === 'server-2'
           ? mocks.nextServerRestoreProjectedRoomWindow
           : mocks.restoreProjectedRoomWindow,
-      projectedMembersForRoom: mocks.projectedMembersForRoom,
+      projectedMemberIdsForRoom: mocks.projectedMemberIdsForRoom,
       hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
     }),
     originServer: { id: 'server-1', url: 'https://chat.example.test' },

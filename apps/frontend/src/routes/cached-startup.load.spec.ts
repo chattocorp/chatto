@@ -44,7 +44,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 function route(path = '/chat/-/R1') {
   return {
     url: new URL(`https://chat.example.test${path}`),
-    params: { serverId: '-' }
+    params: { serverId: '-' },
+    route: {
+      id: path === '/chat/-/overview' ? '/chat/[serverId]/overview' : '/chat/[serverId]/[roomId]'
+    }
   } as never;
 }
 
@@ -60,8 +63,12 @@ describe('saved startup route load', () => {
     mocks.loadCurrentUser.mockResolvedValue({ id: 'U1' });
     mocks.probeOrigin.mockResolvedValue(undefined);
     mocks.loadSavedView.mockResolvedValue({
-      version: 1, serverId: 'origin', userId: 'U1', serverName: 'Saved server',
-      savedAt: Date.now(), rooms: [{ id: 'R1', name: 'general', messages: [] }]
+      version: 1,
+      serverId: 'origin',
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
     });
     mocks.getLastRoom.mockReturnValue(null);
   });
@@ -71,7 +78,8 @@ describe('saved startup route load', () => {
     const { load } = await import('./+layout');
 
     await expect(load(route('/chat/-'))).rejects.toMatchObject({
-      status: 302, location: '/chat/-/R1'
+      status: 302,
+      location: '/chat/-/R1'
     });
     expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
 
@@ -83,7 +91,8 @@ describe('saved startup route load', () => {
     const { load } = await import('./+layout');
 
     await expect(load(route('/chat/-'))).rejects.toMatchObject({
-      status: 302, location: '/chat/-/overview'
+      status: 302,
+      location: '/chat/-/overview'
     });
     expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
 
@@ -100,7 +109,8 @@ describe('saved startup route load', () => {
     expect(first).not.toHaveProperty('startupSavedView');
     expect(mocks.init).toHaveBeenCalledWith(true);
     expect(mocks.restoreSavedView).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'U1' }), true
+      expect.objectContaining({ userId: 'U1' }),
+      true
     );
     expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
     expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
@@ -126,7 +136,11 @@ describe('saved startup route load', () => {
 
   it('starts the origin projection on a cold chat-wide route', async () => {
     let finishViewer: (user: { id: string }) => void = () => {};
-    mocks.loadCurrentUser.mockReturnValue(new Promise((resolve) => { finishViewer = resolve; }));
+    mocks.loadCurrentUser.mockReturnValue(
+      new Promise((resolve) => {
+        finishViewer = resolve;
+      })
+    );
     const { load } = await import('./+layout');
 
     const pending = load({
@@ -144,7 +158,8 @@ describe('saved startup route load', () => {
     const { load } = await import('./+layout');
     const result = await load({
       url: new URL('https://chat.example.test/chat/-/R1/m/E1'),
-      params: { serverId: '-', roomId: 'R1', messageId: 'E1' }
+      params: { serverId: '-', roomId: 'R1', messageId: 'E1' },
+      route: { id: '/chat/[serverId]/[roomId]/m/[messageId]' }
     } as never);
 
     expect(result).not.toHaveProperty('startupPending');
@@ -154,9 +169,30 @@ describe('saved startup route load', () => {
     expect(mocks.loadCurrentUser).toHaveBeenCalledOnce();
   });
 
+  it.each(['settings/profile', 'settings/account', 'manage/server/members'])(
+    'loads the viewer before mounting %s even when a saved view exists',
+    async (path) => {
+      const { load } = await import('./+layout');
+      const result = await load({
+        url: new URL(`https://chat.example.test/chat/-/${path}`),
+        params: { serverId: '-' },
+        route: { id: `/chat/[serverId]/${path}` }
+      } as never);
+
+      expect(result).toMatchObject({ user: { id: 'U1' } });
+      expect(result).not.toHaveProperty('startupPending');
+      expect(mocks.restoreSavedView).not.toHaveBeenCalled();
+      expect(mocks.loadSavedView).not.toHaveBeenCalled();
+    }
+  );
+
   it('does not restore a view after its local account changes during the disk read', async () => {
     let finishRead: (view: unknown) => void = () => {};
-    mocks.loadSavedView.mockReturnValue(new Promise((resolve) => { finishRead = resolve; }));
+    mocks.loadSavedView.mockReturnValue(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      })
+    );
     const { load } = await import('./+layout');
     const pending = load(route());
     mocks.userId = null;
@@ -170,7 +206,11 @@ describe('saved startup route load', () => {
 
   it('does not restore a view when sign-out starts during the disk read', async () => {
     let finishRead: (view: unknown) => void = () => {};
-    mocks.loadSavedView.mockReturnValue(new Promise((resolve) => { finishRead = resolve; }));
+    mocks.loadSavedView.mockReturnValue(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      })
+    );
     const { load } = await import('./+layout');
     const pending = load(route());
     mocks.explicitSignOut.mockReturnValue(true);

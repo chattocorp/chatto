@@ -28,6 +28,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { Hint, PaneContent } from '$lib/ui';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { FormError } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -330,10 +331,13 @@
   );
 </script>
 
-{#snippet memberName()}<AccountName
-    name={member?.displayName ?? m('common.loading')}
-    identity={member}
-  />{/snippet}
+{#snippet memberName()}
+  {#if member}
+    <AccountName name={member.displayName} identity={member} />
+  {:else}
+    <LoadingFog class="h-4 w-28" label={m('admin.members.loading_member')} />
+  {/if}
+{/snippet}
 
 <PageTitle
   title={m('admin.common.server_admin_page_title', {
@@ -354,7 +358,7 @@
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <div class="text-muted">{m('admin.members.loading_member')}</div>
+        <LoadingFog class="h-40 w-full" label={m('admin.members.loading_member')} />
       {:else if !details || !member}
         <Hint tone="danger">{m('admin.members.not_found')}</Hint>
       {:else}

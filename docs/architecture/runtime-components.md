@@ -323,24 +323,25 @@ failure preserves ordinary audio. The processor owns an analyser fallback when t
 call state does not create a separate audio context or sampling path. The worklet asset comes from the frontend
 origin and sends only input levels to the UI, with no external connection.
 
-The settings page owns `CallDeviceTest`. With Voice Boosting off and the gate Off, an audio
-element plays the original capture stream. A parallel analyser measures input;
-it does not feed playback, and no custom processor initializes. Browser echo
-cancellation, noise suppression, and automatic gain control are disabled on
-this raw path. Enabling processing restarts capture with noise suppression;
-echo cancellation stays disabled for local monitoring. Returning to bypass
-also restarts capture. Both transitions preserve the selected speaker.
-With processing enabled, capture feeds the shared processor.
-Where `AudioContext.setSinkId` is supported, a shared final gain node
-feeds both the published stream and the context destination for direct local
-monitoring. The same node preserves monitoring after runtime processor failure.
-Other browsers use the processed stream in an audio element. Initialization
-failure monitors the raw stream. Explicit output errors stop the test instead
-of selecting another speaker silently. Active output changes are serialized
-and do not reopen capture. Explicit microphone choices use an exact device
-constraint. No recording is made.
-Generation checks stop late streams or playback after cancellation. Page exit
-stops tracks and playback, closes the audio context, and cancels meter updates.
+The settings page owns `CallDeviceTest`. With Voice Boosting off and the gate
+Off, it records the original capture stream and uses a parallel analyser for
+the input meter. No custom processor initializes. Browser echo cancellation,
+noise suppression, and automatic gain control are disabled on this raw path.
+Enabling processing restarts capture with noise suppression and records the
+processor's output track. Returning to bypass also restarts capture. Both
+transitions preserve the selected speaker. Processor failure records the raw
+track. No capture path connects to speaker output.
+
+The local recorder stops after 10 seconds or on request. It releases capture
+before a separate audio element plays the in-memory sample. The audio element
+or a playback-only audio context selects the speaker. Explicit output errors
+stop the test instead of selecting another speaker silently. Output changes
+are serialized and do not reopen capture. Explicit microphone choices use an
+exact device constraint. Generation checks stop late streams or playback after
+cancellation.
+Page exit stops tracks and playback, closes the audio context, cancels meter
+updates, and discards the sample. See [FDR-016](../fdr/FDR-016-voice-calls.md)
+for the user-visible test behavior.
 Camera discovery requests temporary access on page open only if device names
 are unavailable and no call is active on the selected server.
 The test does not contact a media server.

@@ -16,6 +16,7 @@
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
   import Panel from '$lib/ui/Panel.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { m } from '$lib/i18n/messages';
   import { registerServerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
@@ -500,7 +501,7 @@
 <Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
   <div class="flex max-w-md flex-col gap-4">
     {#if loading}
-      <p class="text-sm text-muted">{m('settings.account.sso.loading')}</p>
+      <LoadingFog class="h-32 w-full" label={m('settings.account.sso.loading')} />
     {:else}
       {#if error}
         <Hint tone="danger">{error}</Hint>

@@ -52,6 +52,8 @@
     },
     "server_gutter": {
       "add_server": "Lisa server",
+      "log_in": "Logi sellesse serverisse sisse",
+      "sign_out": "Logi sellest serverist välja",
       "version": "Versioon {version}",
       "version_unknown": "Versioon teadmata",
       "unreachable": "Server pole kättesaadav",

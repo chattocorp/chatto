@@ -172,7 +172,8 @@ function isInsideExcludedElement(node: Node): boolean {
  * Uses DOMParser to properly traverse the DOM tree, ensuring we only process
  * text nodes that are NOT inside excluded elements (code, pre, blockquote).
  * Only mentions that match actual room members, virtual handles, or known
- * role handles are styled.
+ * role handles are styled. User mentions show the member's current display
+ * name while retaining the source handle for mention resolution.
  *
  * @param html - The rendered HTML string (from markdown)
  * @param members - List of room members to validate mentions against
@@ -246,7 +247,8 @@ export function wrapValidMentions(
           mentionedMember.login.toLowerCase() === currentUserLogin.toLowerCase();
         span.className = isSelfMention ? 'mention mention-self' : 'mention';
         span.setAttribute('data-user-id', mentionedMember.id);
-        span.textContent = `@${username}`;
+        span.setAttribute('dir', 'auto');
+        span.textContent = `@${mentionedMember.displayName.trim() || mentionedMember.login}`;
         fragments.push(span);
       } else if (isVirtualMention(username)) {
         const span = doc.createElement('span');

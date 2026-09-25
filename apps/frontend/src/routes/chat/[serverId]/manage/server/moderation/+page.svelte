@@ -8,6 +8,7 @@
   } from '$lib/api-client/rooms';
   import Panel from '$lib/ui/Panel.svelte';
   import DataTable from '$lib/ui/DataTable.svelte';
+  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -163,7 +164,7 @@
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if loading && bans.length === 0}
-        <div class="text-muted">{m('admin.moderation.loading_suspensions')}</div>
+        <LoadingFog class="h-40 w-full" label={m('admin.moderation.loading_suspensions')} />
       {:else}
         {#if error}
           <Hint tone="danger">{error}</Hint>

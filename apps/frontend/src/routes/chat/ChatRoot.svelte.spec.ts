@@ -5,11 +5,13 @@ import { render } from 'vitest-browser-svelte';
 import { createRawSnippet } from 'svelte';
 import type { CurrentUser } from '$lib/api-client/viewer';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
+import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 
 const mocks = vi.hoisted(() => {
   const originCurrentUser = {
     user: undefined as CurrentUser | undefined,
-    loading: true
+    loading: true,
+    verifiedUserId: null as string | null
   };
   const remoteCurrentUser = {
     user: { id: 'remote-user' } as CurrentUser,
@@ -18,7 +20,7 @@ const mocks = vi.hoisted(() => {
   const originStore = {
     currentUser: originCurrentUser,
     get isAuthenticated() {
-      return originCurrentUser.user !== undefined;
+      return this.currentUser.user !== undefined;
     },
     voiceCall: { isInAnyCall: false },
     serverInfo: { supportsRealtimeProjection: true },
@@ -46,10 +48,10 @@ const mocks = vi.hoisted(() => {
     initSessionChannel: vi.fn(),
     stopSessionChannel: vi.fn(),
     presenceStatuses: { origin: 1, remote: 4 },
-    useSessionTerminated: vi.fn(),
+    onSessionTerminated: vi.fn(),
+    stopSessionTermination: vi.fn(),
     firstAuthenticatedServerId: vi.fn(() => 'remote'),
     clearServerAuthentication: vi.fn(),
-    clearCachedUser: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
     presenceCacheUpdate: vi.fn(),
     deviceTimezone: vi.fn<() => string | null>(() => null),
@@ -100,6 +102,14 @@ vi.mock('$lib/state/server/eventBus.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/eventBus.svelte', () => ({
+  onSessionTerminated: (...args: unknown[]) => {
+    mocks.lifecycle.push('session');
+    mocks.onSessionTerminated(...args);
+    return mocks.stopSessionTermination;
+  }
+}));
+
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'remote'
 }));
@@ -111,13 +121,6 @@ vi.mock('$app/paths', () => ({
 
 vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
-}));
-
-vi.mock('$lib/hooks/useEvent.svelte', () => ({
-  useSessionTerminated: (...args: unknown[]) => {
-    mocks.lifecycle.push('session');
-    mocks.useSessionTerminated(...args);
-  }
 }));
 
 vi.mock('$lib/presenceTracking', () => ({
@@ -139,10 +142,6 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBio: () => null,
   getLiveTimezone: () => null,
   scheduleCustomStatusExpiry: vi.fn()
-}));
-
-vi.mock('$lib/auth/loadAuth', () => ({
-  clearCachedUser: mocks.clearCachedUser
 }));
 
 vi.mock('$lib/auth/returnNavigation', () => ({
@@ -185,7 +184,8 @@ vi.mock('$lib/api-client/presence', () => ({
 }));
 
 vi.mock('$lib/api-client/viewer', () => ({
-  viewerResponseToState: vi.fn()
+  viewerResponseToState: vi.fn(),
+  getCurrentUserViaConnect: vi.fn()
 }));
 
 vi.mock('$lib/components/AuthStatusNotice.svelte', async () => ({
@@ -224,8 +224,8 @@ describe('ChatRoot', () => {
   beforeEach(() => {
     mocks.presenceStatuses.origin = PresenceStatus.ONLINE;
     mocks.presenceStatuses.remote = PresenceStatus.OFFLINE;
-    mocks.originCurrentUser.user = undefined;
-    mocks.originCurrentUser.loading = true;
+    mocks.originCurrentUser = new CurrentUserState(true);
+    mocks.originStore.currentUser = mocks.originCurrentUser;
     mocks.remoteCurrentUser.user = {
       ...originUser,
       id: 'remote-user',
@@ -243,19 +243,19 @@ describe('ChatRoot', () => {
   it('uses the origin viewer and bus installed by the application-root coordinator', () => {
     mocks.originCurrentUser.user = originUser;
     mocks.originCurrentUser.loading = false;
+    mocks.originCurrentUser.verifiedUserId = originUser.id;
     const presenceCache = {
       update: mocks.presenceCacheUpdate
     } as unknown as PresenceCache;
 
     const { container, unmount } = render(ChatRoot, {
       props: {
-        user: originUser,
         presenceCache,
         children
       }
     });
 
-    expect(mocks.originCurrentUser.user).toBe(originUser);
+    expect(mocks.originCurrentUser.user).toEqual(originUser);
     expect(mocks.originCurrentUser.loading).toBe(false);
     expect(mocks.lifecycle[0]).toBe('session');
     expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
@@ -283,8 +283,36 @@ describe('ChatRoot', () => {
 
     unmount();
 
-    expect(mocks.originCurrentUser.user).toBe(originUser);
+    expect(mocks.originCurrentUser.user).toEqual(originUser);
     expect(mocks.stopPresenceTracking).toHaveBeenCalledOnce();
+    expect(mocks.stopSessionChannel).toHaveBeenCalledOnce();
+    expect(mocks.stopSessionTermination).toHaveBeenCalledOnce();
+  });
+
+  it('installs origin session handling when a saved viewer becomes verified', async () => {
+    const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
+    const { container, unmount } = render(ChatRoot, { props: { presenceCache, children } });
+    const child = container.querySelector('[data-testid="chat-root-child"]');
+
+    expect(mocks.onSessionTerminated).not.toHaveBeenCalled();
+    expect(mocks.initSessionChannel).not.toHaveBeenCalled();
+
+    mocks.originCurrentUser.user = originUser;
+    mocks.originCurrentUser.verifiedUserId = originUser.id;
+    mocks.originCurrentUser.loading = false;
+
+    await vi.waitFor(() => expect(mocks.onSessionTerminated).toHaveBeenCalledOnce());
+    expect(mocks.onSessionTerminated).toHaveBeenCalledWith('origin', expect.any(Function));
+    expect(mocks.initSessionChannel).toHaveBeenCalledOnce();
+    expect(container.querySelector('[data-testid="chat-root-child"]')).toBe(child);
+
+    const handler = mocks.onSessionTerminated.mock.calls[0][1] as (reason: string) => void;
+    handler('revoked');
+    expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
+    expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/chat/remote.example.test');
+
+    unmount();
+    expect(mocks.stopSessionTermination).toHaveBeenCalledOnce();
     expect(mocks.stopSessionChannel).toHaveBeenCalledOnce();
   });
 
@@ -295,7 +323,6 @@ describe('ChatRoot', () => {
 
     const { container, unmount } = render(ChatRoot, {
       props: {
-        user: null,
         presenceCache,
         children
       }
@@ -347,7 +374,7 @@ describe('ChatRoot', () => {
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
     render(ChatRoot, {
-      props: { user: null, presenceCache, children }
+      props: { presenceCache, children }
     });
 
     await expect.poll(() => mocks.remoteCurrentUser.user?.settings?.timezone).toBe('Europe/Berlin');
@@ -370,7 +397,7 @@ describe('ChatRoot', () => {
       const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
       render(ChatRoot, {
-        props: { user: null, presenceCache, children }
+        props: { presenceCache, children }
       });
 
       await Promise.resolve();
@@ -393,7 +420,7 @@ describe('ChatRoot', () => {
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
     render(ChatRoot, {
-      props: { user: null, presenceCache, children }
+      props: { presenceCache, children }
     });
 
     await vi.waitFor(() => expect(mocks.updateSettings).toHaveBeenCalledOnce());
@@ -412,7 +439,7 @@ describe('ChatRoot', () => {
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
 
     render(ChatRoot, {
-      props: { user: null, presenceCache, children }
+      props: { presenceCache, children }
     });
 
     await Promise.resolve();

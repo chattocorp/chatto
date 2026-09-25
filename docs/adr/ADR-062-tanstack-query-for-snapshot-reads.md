@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-31
 
-**Updated:** 2026-09-17
+**Updated:** 2026-09-23
 
 ## Status
 
@@ -73,6 +73,12 @@ permission matrices, and event-log lists and details. Other snapshot reads can
 move incrementally when doing so removes meaningful custom lifecycle code.
 The first follow-up applies it to paginated moderation bans and the bounded
 system-diagnostics snapshot.
+The notification-policy settings screen also uses a session-scoped query for
+its visible policy scopes. TanStack owns the read, cancellation, and refresh
+after a save. The screen keeps only cell-level pending and save-error state.
+The policy query is removed when its scope list changes or the screen closes,
+so lost room scopes do not remain in the cache. Server cache removal fences
+late saves and removes cached policies.
 
 [ADR-101](ADR-101-shared-client-user-profiles.md) defines one connection-scoped
 owner for public user profiles shared by snapshot and realtime readers.

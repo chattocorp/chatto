@@ -144,7 +144,9 @@ describe('message search page', () => {
     mocks.serverStores.origin = store;
     const rendered = render(SearchPageTestHarness);
 
-    await expect.element(rendered.getByText('Checking search availability...')).toBeVisible();
+    await expect
+      .element(rendered.getByRole('status', { name: 'Checking search availability...' }))
+      .toBeInTheDocument();
     store.messageSearch.statusLoading = false;
     await tick();
     await expect

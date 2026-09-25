@@ -1,6 +1,7 @@
 import type { DirectoryMember } from '$lib/api-client/memberDirectory';
 import { mapDirectoryRoomDetails, RoomKind } from '$lib/api-client/roomDirectory';
-import type { RoomThreadingMode } from '$lib/roomThreading';
+import { RoomThreadingMode } from '$lib/roomThreading';
+import { roomKindOrChannel } from '$lib/api-client/enumDefaults';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 
 export type RoomData = {
@@ -57,48 +58,51 @@ export function useRoomData(getProps: () => { roomId: string }) {
 
   const roomData = $derived.by<RoomData | null | undefined>(() => {
     const currentStore = store;
-    if (!currentStore.realtimeSync.hasUsableProjection) return undefined;
+    if (!currentStore.realtimeSync.hasDisplayableView) return undefined;
     const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
-    const room = mapDirectoryRoomDetails(projectedRoom);
+    const live = mapDirectoryRoomDetails(projectedRoom);
+    const saved = currentStore.savedRooms.find((room) => room.id === getProps().roomId);
+    const room = live ?? saved;
     // A stale projection can render known rooms immediately, but absence is
     // not authoritative until the activation catch-up reaches caught_up.
     if (!room) return currentStore.realtimeSync.phase === 'ready' ? null : undefined;
+    const canAct = currentStore.isAuthenticated;
     return {
       room: {
         id: room.id,
         name: room.name,
-        description: room.description,
-        type: room.kind,
-        isUniversal: room.isUniversal,
-        slowModeSeconds: room.slowModeSeconds,
-        threadingMode: room.threadingMode,
-        archived: room.archived
+        description: live?.description,
+        type: roomKindOrChannel(room.kind ?? RoomKind.CHANNEL),
+        isUniversal: live?.isUniversal ?? saved?.universal ?? false,
+        slowModeSeconds: live?.slowModeSeconds ?? 0,
+        threadingMode: live?.threadingMode ?? RoomThreadingMode.DISABLED,
+        archived: live?.archived
       },
       spaceName: currentStore.serverInfo.name ?? null,
-      canReadMessages: room.canReadMessages,
-      hasLimitedMessageAccess: room.hasLimitedMessageAccess,
-      canPostMessage: room.canPostMessage,
-      canPostInThread: room.canPostInThread,
-      canPostInteractions: room.canPostInteractions,
-      canAttach: room.canAttach,
-      canReact: room.canReact,
-      canManageOthersMessage: room.canManageOthersMessage,
-      canEchoMessage: room.canEchoMessage,
-      canManageRoom: room.canManageRoom,
-      canBanRoomMembers: room.canBanRoomMembers,
-      slowModeNextPostAt: room.slowModeNextPostAt
+      canReadMessages: live?.canReadMessages ?? null,
+      hasLimitedMessageAccess: live?.hasLimitedMessageAccess ?? false,
+      canPostMessage: canAct && (live?.canPostMessage ?? false),
+      canPostInThread: canAct && (live?.canPostInThread ?? false),
+      canPostInteractions: canAct && (live?.canPostInteractions ?? false),
+      canAttach: canAct && (live?.canAttach ?? false),
+      canReact: canAct && (live?.canReact ?? false),
+      canManageOthersMessage: canAct && (live?.canManageOthersMessage ?? false),
+      canEchoMessage: canAct && (live?.canEchoMessage ?? false),
+      canManageRoom: canAct && (live?.canManageRoom ?? false),
+      canBanRoomMembers: canAct && (live?.canBanRoomMembers ?? false),
+      slowModeNextPostAt: live?.slowModeNextPostAt ?? null
     };
   });
 
   const isDM = $derived(roomData?.room.type === RoomKind.DM);
   const dmData = $derived.by<DMData | null>(() => {
     const currentStore = store;
-    if (!isDM || !currentStore.realtimeSync.hasUsableProjection) return null;
+    if (!isDM || !currentStore.realtimeSync.hasDisplayableView) return null;
     const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
     return {
       participantIds: projectedRoom?.memberUserIds ?? [],
       participants: currentStore.projectedMembersForRoom(getProps().roomId),
-      currentUserId: currentStore.currentUser.user?.id ?? null
+      currentUserId: currentStore.currentUser.user?.id ?? currentStore.savedView?.userId ?? null
     };
   });
 

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
   import { getGradientForName } from '$lib/utils/gradients';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
   /**
    * Minimal data needed for logo display.
@@ -28,7 +27,9 @@
       ? publicServerImageURL(publicImageOrigin, server.logoUrl ?? null)
       : (server.logoUrl ?? null)
   );
-  const gradientStyle = $derived(logoURL ? undefined : getGradientForName(server.name));
+  let failedLogoURL = $state<string | null>(null);
+  const showLogo = $derived(!!logoURL && failedLogoURL !== logoURL);
+  const gradientStyle = $derived(showLogo ? undefined : getGradientForName(server.name));
   const initial = $derived(server.name[0]?.toUpperCase() ?? '?');
 </script>
 
@@ -43,14 +44,20 @@
     : 'h-12 w-12'}"
   style:background={gradientStyle}
 >
-  {#if logoURL && publicImageOrigin}
-    <SkeletonImg
+  {#if showLogo && logoURL && publicImageOrigin}
+    <img
       alt={server.name}
       class="h-full w-full object-cover"
       {@attach loadPublicServerImage(logoURL)}
+      onerror={() => (failedLogoURL = logoURL)}
     />
-  {:else if logoURL}
-    <SkeletonImg src={logoURL} alt={server.name} class="h-full w-full object-cover" />
+  {:else if showLogo && logoURL}
+    <img
+      src={logoURL}
+      alt={server.name}
+      class="h-full w-full object-cover"
+      onerror={() => (failedLogoURL = logoURL)}
+    />
   {:else}
     <span class="text-white drop-shadow-sm">{initial}</span>
   {/if}
