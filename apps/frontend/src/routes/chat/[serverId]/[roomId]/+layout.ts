@@ -3,7 +3,7 @@ import type { LayoutLoad } from './$types';
 /**
  * Expose the selected room to the room layout.
  *
- * This load owns the room param so that a room switch re-runs only this load,
- * not the server layout's access checks and saved-view restore.
+ * This load owns the room param, so a room switch does not re-run the server
+ * layout's access checks and saved-view restore because of this param.
  */
 export const load: LayoutLoad = ({ params }) => ({ roomId: params.roomId });

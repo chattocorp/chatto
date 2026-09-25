@@ -24,7 +24,7 @@ attachments and initially leave a "[Message deleted]" placeholder.
   Posting and deletion remain independently
   authorized and do not return surrounding message state.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
-- Opening another room or thread cancels an unsaved edit in the composer. The composer then shows the saved draft of the new room or thread.
+- When the user opens another room, the room composer cancels its unsaved edit. When the user opens another thread, the thread composer cancels its unsaved edit. The composer then shows the saved draft of the new room or thread. If the save of a cancelled edit completes later, the composer does not clear that draft.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
 - Edited timeline messages show a pen icon and an **Edited** label in their
   metadata row, after thread controls and before the echo link and reactions.
