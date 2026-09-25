@@ -154,19 +154,15 @@ describe('ServerConnection', () => {
     await expect(read).rejects.toMatchObject({ code: Code.Canceled });
   });
 
-  it('keeps commands blocked after viewer verification until catch-up completes', async () => {
+  it('allows commands after viewer verification while realtime remains disconnected', async () => {
     const client = new ServerConnection(makeConfig());
     const signal = new AbortController().signal;
     client.pausePrivateRequests();
-    client.pausePrivateActions();
-    client.resumePrivateRequests();
-    await expect(
-      client.apiConfig.beforePrivateRequest!('ListMembers', signal)
-    ).resolves.toBeUndefined();
     await expect(
       client.apiConfig.beforePrivateRequest!('PostMessage', signal)
     ).rejects.toMatchObject({ code: Code.FailedPrecondition });
-    client.resumePrivateActions();
+    client.setRealtimeConnectionStatus('disconnected', 6);
+    client.resumePrivateRequests();
     await expect(
       client.apiConfig.beforePrivateRequest!('PostMessage', signal)
     ).resolves.toBeUndefined();

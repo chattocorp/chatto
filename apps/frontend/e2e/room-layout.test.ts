@@ -753,7 +753,11 @@ test.describe('Room Layout', () => {
       }).toPass({ timeout: TIMEOUTS.SERVER_MUTATION_SYNC, intervals: [100, 250, 500] });
 
       await page.reload();
-      expect(await waitForSidebarSets(page, 2)).toEqual(['Projects', 'Main']);
+      // The saved layout can contain both groups in their previous order.
+      // Wait for the reordered layout to arrive through realtime catch-up.
+      await expect(page.locator('.room-list button.uppercase')).toHaveText(['Projects', 'Main'], {
+        timeout: TIMEOUTS.SERVER_MUTATION_SYNC
+      });
       await expect(page.locator('[data-testid="room-group-section"]')).toHaveCount(2);
     });
   });

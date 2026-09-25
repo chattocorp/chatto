@@ -551,7 +551,10 @@ Saved-view restoration decodes room resources, groups, known profiles, and
 viewer display data into the normal projection. It restores full timeline rows,
 notification state, and loaded member lists into their normal owners.
 Selectors have no saved-data fallback. The connection holds private reads
-until viewer verification and rejects commands until catch-up completes.
+until viewer verification and rejects commands until that same check succeeds.
+HTTP commands then proceed independently of realtime catch-up. The composer
+does not use WebSocket status to disable input or sending; request errors retain
+the draft through the existing submission path.
 Snapshot catch-up replaces retained rows through the normal timeline read;
 member refreshes publish their complete replacement without a partial-page gap.
 IndexedDB stores versioned layout, shared resources, room and thread windows,

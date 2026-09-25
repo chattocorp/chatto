@@ -115,7 +115,6 @@ type MessageComposerDependencies = {
   roomUnreadStore: RoomUnreadStore;
   getMessageAPI: () => ReturnType<typeof createMessageAPI>;
   getLinkPreviewAPI: () => ReturnType<typeof createLinkPreviewAPI>;
-  isConnectionLost: () => boolean;
 };
 
 export function bodyForSend(text: string): string {
@@ -242,8 +241,7 @@ export class MessageComposerState {
   get inputDisabled(): boolean {
     return (
       this.submission.loading ||
-      (!this.#dependencies.getCanPost() && !this.isEditing) ||
-      this.#dependencies.isConnectionLost()
+      (!this.#dependencies.getCanPost() && !this.isEditing)
     );
   }
 

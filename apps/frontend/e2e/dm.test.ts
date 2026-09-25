@@ -212,8 +212,10 @@ test.describe('Direct Messages (room-shaped)', () => {
           page.locator('nav a.sidebar-item').filter({
             has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
           });
-        const initial = await dmRows().allTextContents();
-        expect(initial[0]).toContain(userB.displayName);
+        // Navigation can show saved activity before realtime catch-up completes.
+        await expect(dmRows().first()).toContainText(userB.displayName, {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
 
         // User C posts into their existing DM with A. A's sidebar should bump
         // C's row to the top and mark it unread — both arrive over the

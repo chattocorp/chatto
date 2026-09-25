@@ -858,6 +858,16 @@ describe('MessageComposer', () => {
       await expect.element(editor).toHaveTextContent('**saved** draft');
     });
 
+    it('keeps input and HTTP submission available when realtime is disconnected', async () => {
+      connectionAttempts.set('failed', 6);
+      const { container, roomId } = renderMessageComposer({ roomId: 'disconnected-send' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, 'Send over HTTP');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body: 'Send over HTTP' });
+    });
+
     it('formats and submits Markdown source with Ctrl+Enter', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'markdown-send' });
       const editor = await findEditor(container);

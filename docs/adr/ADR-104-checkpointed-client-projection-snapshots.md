@@ -49,7 +49,11 @@ Populate the normal stores and restore the replay cursor. Verify the viewer
 before starting replay. The server's existing expired/invalid cursor fallback
 replaces the retained projection. Refresh current presence, calls, and member
 lists at disk recovery; they can contain state that durable replay cannot fix.
-Actions remain blocked until catch-up and its resource reads succeed.
+Commands become available after the server verifies the saved viewer. They use
+normal HTTP requests and do not wait for realtime catch-up. The server checks
+current permissions for each command. A disconnected realtime stream does not
+disable the composer; request failures use the existing error and draft handling.
+There is no offline command queue or automatic mutation retry.
 The chat tree follows the registry's account identity. A route load that replaces
 an unverified route user with the same verified account must not remount that tree
 or discard pending navigation, highlights, and replies.

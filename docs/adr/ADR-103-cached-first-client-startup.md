@@ -24,8 +24,8 @@ paint for the selected server. Other remote servers start discovery when
 the user opens them. The saved viewer remains display data. While its viewer
 check is pending, the connection holds private reads and rejects server
 actions. It allows the viewer check to proceed. A successful check releases
-the held reads and realtime startup only for the same user. Commands remain
-blocked until the replacement snapshot and its resource reads complete.
+the held reads, commands, and realtime startup only for the same user. Commands
+do not wait for the replacement snapshot or its resource reads.
 The response guard
 records the private data generation after the held read is released. This
 prevents viewer verification from rejecting a valid response. An account change
