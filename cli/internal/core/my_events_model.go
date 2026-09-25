@@ -568,6 +568,9 @@ func pubSubSubjectPayloadScope(subject string, event *pubsubv1.PubSubEvent) (Roo
 		}
 		return "", "", parts[3], parts[4] == eventType
 	case "room":
+		// Room scope accepts only typing events. MyEventsHub.handlePubSub
+		// applies the typing privacy check to every room-scoped delivery, so a
+		// new room event type must revisit that check.
 		if len(parts) != 6 || parts[4] == "" || strings.ContainsAny(parts[4], ".*>") || parts[5] != "user_typing" {
 			return "", "", "", false
 		}

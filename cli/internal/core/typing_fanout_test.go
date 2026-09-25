@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,20 +12,6 @@ import (
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
-
-// filterPubSubEvent applies every live sync delivery rule for one recipient,
-// as MyEventsHub does for each event.
-func (c *ChattoCore) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
-	s := c.myEventsModel
-	delivery, ok := s.preparePubSubEvent(msg, event)
-	if !ok {
-		return nil, false
-	}
-	if delivery.roomID != "" && !s.typingSenderVisible(ctx, event.ActorId) {
-		return nil, false
-	}
-	return s.filterPreparedPubSubEvent(ctx, userID, memberRooms, delivery)
-}
 
 // typingLookupSentinelSubject shares the counting subscription with the
 // preference reads, but no stream has this name.
