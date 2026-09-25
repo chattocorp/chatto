@@ -25,7 +25,6 @@ import {
 } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment } from '$lib/navigation';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
-import { clearCachedUser } from './loadAuth';
 import { saveReturnUrl } from './returnNavigation';
 import { oauthBearerSession, persistedBearerSession } from './bearerSession';
 import {
@@ -379,7 +378,6 @@ export function startRemoteReauthentication(server: RegisteredServer): Promise<v
 export function beginOriginReauthentication(returnPath?: string): void {
   const path = returnPath ?? window.location.pathname + window.location.search;
   saveReturnUrl(path);
-  clearCachedUser();
   serverRegistry.clearOriginAuthentication();
 
   const redirect =

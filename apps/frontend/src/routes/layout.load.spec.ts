@@ -54,12 +54,14 @@ describe('root layout load', () => {
   });
 
   it.each(['/setup', '/chat/servers', '/chat/remote/overview'])(
-    'keeps %s available while the origin needs setup', async (path) => {
+    'keeps %s available while the origin needs setup',
+    async (path) => {
       const pending = { ...serverInfo, setupRequired: true };
       mocks.getPublicServerInfo.mockResolvedValue(pending);
       mocks.loadCurrentUser.mockResolvedValue(null);
-      await expect(load({ url: new URL(path, 'https://chat.example.test') } as never))
-        .resolves.toMatchObject({ serverInfo: pending, user: null });
+      await expect(
+        load({ url: new URL(path, 'https://chat.example.test') } as never)
+      ).resolves.toMatchObject({ serverInfo: pending, user: null });
       expect(mocks.probeOrigin).toHaveBeenCalledWith(false, undefined, pending);
     }
   );
@@ -79,7 +81,7 @@ describe('root layout load', () => {
     await load({ url: new URL('https://chat.example.test/chat/-') } as never);
 
     expect(mocks.probeOrigin).toHaveBeenCalledWith(false, undefined, serverInfo);
-    expect(mocks.settleOriginUnauthenticated).toHaveBeenCalledOnce();
+    expect(mocks.settleOriginUnauthenticated).not.toHaveBeenCalled();
   });
 
   it('keeps a second discovery probe available after an initial request fails', async () => {

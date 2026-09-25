@@ -15,12 +15,9 @@ export async function completeOriginAuthentication(): Promise<boolean> {
     typeof window === 'undefined'
       ? null
       : window.location.pathname + window.location.search + window.location.hash;
-  const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
-    import('$lib/state/server/registry.svelte'),
-    import('./loadAuth')
-  ]);
-
-  clearCachedUser();
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  const origin = serverRegistry.originServer;
+  if (origin) serverRegistry.getStore(origin.id).currentUser.reset();
   await invalidateAll();
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) resumePushRegistrationAfterAuthentication(originServerId);

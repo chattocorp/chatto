@@ -12,14 +12,12 @@
   const serverScope = useServerScope();
   const activeServerId = $derived(serverScope.serverId);
 
-  // Wait for the active server projection to contain its viewer prefix before
-  // treating room absence as authoritative.
   const serverStore = $derived(serverScope.store);
   const navigation = $derived(serverStore.navigation);
+  // Unknown membership can display saved content. Live rooms must match the account.
   const ready = $derived(
     !navigation.isInitialLoading &&
-      !!serverStore.currentUser.user?.id &&
-      navigation.currentUserId === serverStore.currentUser.user.id
+      (!navigation.currentUserId || navigation.currentUserId === serverStore.currentUser.user?.id)
   );
 
   let threadId = $derived(page.params.threadId);

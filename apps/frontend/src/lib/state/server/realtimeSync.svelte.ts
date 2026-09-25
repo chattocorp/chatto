@@ -52,6 +52,11 @@ export class RealtimeProjectionSyncState {
     return this.phase === 'ready' || this.phase === 'stale';
   }
 
+  /** Whether retained data can stay mounted while a fresh snapshot hydrates. */
+  get hasDisplayableView(): boolean {
+    return this.hasUsableProjection || this.isRecoveringSnapshot;
+  }
+
   beginCatchUp(): void {
     if (this.phase === 'empty') this.phase = 'hydrating';
   }
@@ -59,7 +64,7 @@ export class RealtimeProjectionSyncState {
   /** Advance only after every resource and event reducer accepted the frame. */
   acceptProjectionEvent(cursor: string | undefined, reset: boolean): void {
     if (reset) {
-      this.isRecoveringSnapshot = this.isRecoveringSnapshot || this.hasUsableProjection;
+      this.isRecoveringSnapshot = this.hasDisplayableView;
       this.phase = 'hydrating';
       this.#resumeCursor = null;
     }

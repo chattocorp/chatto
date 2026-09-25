@@ -4,9 +4,10 @@ import {
   type ViewerAPIConfig
 } from '$lib/api-client/viewer';
 import { browserCookieAuthenticationHeaders } from './authenticationMode';
-import { clearCachedUser } from './loadAuth';
 import { csrfFetch } from './csrf';
 import { isAuthenticationRequiredError } from './errors';
+import { getOriginViewer } from './originViewer';
+import { isExplicitSignOutRedirectInProgress } from './signOut';
 
 export type { CurrentUser };
 
@@ -34,47 +35,85 @@ export class CurrentUserState {
   #loadCurrentUser: (config: ViewerAPIConfig) => Promise<CurrentUser>;
   #onAuthenticationRequired?: () => void;
   #loadPromise: Promise<void> | null = null;
+  #generation = 0;
+  #onLoaded?: (user: CurrentUser) => void;
   #isLoggingOut = false;
 
   constructor(
     cookieAuth: boolean = false,
     apiConfig?: ViewerAPIConfig,
-    loadCurrentUser = getCurrentUserViaConnect,
-    onAuthenticationRequired?: () => void
+    loadCurrentUser = cookieAuth ? getOriginViewer : getCurrentUserViaConnect,
+    onAuthenticationRequired?: () => void,
+    onLoaded?: (user: CurrentUser) => void
   ) {
     this.#cookieAuth = cookieAuth;
     this.#apiConfig = apiConfig;
     this.#loadCurrentUser = loadCurrentUser;
     this.#onAuthenticationRequired = onAuthenticationRequired;
+    this.#onLoaded = onLoaded;
   }
 
   /** Load the viewer once, sharing an in-flight request between route and store owners. */
   load(): Promise<void> {
     if (this.#loadPromise) return this.#loadPromise;
 
-    const promise = this.#loadViewer().finally(() => {
+    this.loading = true;
+    const promise = this.#loadViewer(this.#generation).finally(() => {
       if (this.#loadPromise === promise) this.#loadPromise = null;
     });
     this.#loadPromise = promise;
     return promise;
   }
 
-  async #loadViewer(): Promise<void> {
+  /** Apply live account data through the registry's identity boundary. False if this owner was replaced. */
+  apply(user: CurrentUser): boolean {
+    if (this.#onLoaded) this.#onLoaded(user);
+    else this.accept(user);
+    return this.user?.id === user.id && this.verifiedUserId === user.id;
+  }
+
+  /** Publish complete account data after the registry has checked the account boundary. */
+  accept(user: CurrentUser): void {
+    this.#generation++;
+    this.user = user;
+    this.verifiedUserId = user.id;
+    this.loading = false;
+  }
+
+  /** Clear account data and fence requests from a retired session or store. */
+  reset(): void {
+    this.invalidateVerification();
+    this.user = undefined;
+  }
+
+  /** Retain display data after auth loss, but reject requests from the previous session. */
+  invalidateVerification(): void {
+    this.#generation++;
+    this.#loadPromise = null;
+    this.verifiedUserId = null;
+    this.loading = false;
+  }
+
+  async #loadViewer(generation: number): Promise<void> {
+    const isCurrent = () =>
+      generation === this.#generation &&
+      !(this.#cookieAuth && isExplicitSignOutRedirectInProgress());
     try {
       if (!this.#apiConfig) {
         throw new Error('current user Connect API config is not configured');
       }
       const user = await this.#loadCurrentUser(this.#apiConfig);
-      this.user = user;
-      this.verifiedUserId = user.id;
+      if (!isCurrent()) return;
+      this.apply(user);
     } catch (err) {
+      if (!isCurrent()) return;
       if (isAuthenticationRequiredError(err)) {
-        this.verifiedUserId = null;
+        this.invalidateVerification();
         // The bearer interceptor already tried a refresh. If that grant was
         // rejected, the registry marked reauthentication required. A 401
         // after a successful refresh is not proof that the session was revoked.
-        if (!this.#apiConfig?.renewBearerToken) this.#onAuthenticationRequired?.();
-        this.loading = false;
+        if (this.#cookieAuth || !this.#apiConfig?.renewBearerToken)
+          this.#onAuthenticationRequired?.();
         return;
       }
       // Surface network failures (CORS, DNS, server down) as a console
@@ -82,9 +121,9 @@ export class CurrentUserState {
       // Don't throw — the caller treats this as a per-instance soft
       // failure, not a global crash.
       console.error('[auth] failed to load current user', err);
+    } finally {
+      if (generation === this.#generation) this.loading = false;
     }
-
-    this.loading = false;
   }
 
   /**
@@ -98,7 +137,7 @@ export class CurrentUserState {
 
     if (!this.#cookieAuth) {
       console.warn('Remote server auth failure — marking reauthentication required');
-      this.verifiedUserId = null;
+      this.invalidateVerification();
       this.#onAuthenticationRequired?.();
       this.loading = false;
       return;
@@ -107,6 +146,7 @@ export class CurrentUserState {
     this.#isLoggingOut = true;
 
     if (options.revokeServerSession) {
+      this.reset();
       await csrfFetch('/auth/browser/logout', {
         method: 'POST',
         headers: {
@@ -115,16 +155,12 @@ export class CurrentUserState {
         },
         body: '{}'
       }).catch(() => {});
-      this.user = undefined;
-      this.verifiedUserId = null;
-      clearCachedUser();
-      this.loading = false;
       this.#isLoggingOut = false;
       return;
     }
 
     console.warn('[auth] handleAuthFailure: marking reauthentication required');
-    this.verifiedUserId = null;
+    this.invalidateVerification();
     this.#onAuthenticationRequired?.();
 
     this.#isLoggingOut = false;

@@ -14,7 +14,6 @@
   // Guard: if the instance ID couldn't be resolved (e.g., "-" with no origin
   // instance registered), the layout load redirects before this component mounts.
   const serverStore = $derived(serverId ? serverRegistry.tryGetStore(serverId) : undefined);
-
 </script>
 
 <!-- Authentication replacement recreates same-ID server resources, so key by
@@ -27,11 +26,8 @@
       store={serverStore}
     >
       <Chrome>
-        {#if serverStore.realtimeSync.hasUsableProjection || serverStore.realtimeSync.isRecoveringSnapshot}
-          <div
-            class="contents"
-            aria-busy={serverStore.realtimeSync.isRecoveringSnapshot}
-          >
+        {#if serverStore.realtimeSync.hasDisplayableView}
+          <div class="contents" aria-busy={serverStore.realtimeSync.isRecoveringSnapshot}>
             {@render children?.()}
           </div>
         {/if}

@@ -550,7 +550,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function isHiddenUnjoinedRoom(item: RoomsListGroupItem): boolean {
     if (item.type !== 'room' || isDndShadow(item)) return false;
     const room = roomMap.get(item.roomId);
-    return !!room && room.type !== RoomKind.DM && !room.viewerIsMember && room.id !== activeRoomId;
+    return (
+      !!room &&
+      room.type !== RoomKind.DM &&
+      room.viewerIsMember === false &&
+      room.id !== activeRoomId
+    );
   }
 
   function visibleSectionItems(section: NavigationSection): RoomsListGroupItem[] {
@@ -843,7 +848,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     class={[
       'group/room group/badges @container sidebar-item',
       showUnread && !isCurrentRoom ? 'sidebar-item-attention' : '',
-      !isDM && !isJoined ? 'opacity-60 hover:opacity-85' : ''
+      !isDM && isJoined === false ? 'opacity-60 hover:opacity-85' : ''
     ]}
     aria-current={isCurrentRoom ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
@@ -1029,15 +1034,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       type="button"
       class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-start text-xs"
       aria-expanded={expanded}
-      aria-label={expanded ? m('room_list.hide_rooms_in_group', { group: section.label }) : m('room_list.show_rooms_in_group', { count: unjoinedCount, group: section.label })}
-      title={expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}
+      aria-label={expanded
+        ? m('room_list.hide_rooms_in_group', { group: section.label })
+        : m('room_list.show_rooms_in_group', { count: unjoinedCount, group: section.label })}
+      title={expanded
+        ? m('room_list.show_less')
+        : m('room_list.more_rooms', { count: unjoinedCount })}
       data-testid="room-group-more"
       onclick={() => {
         expandedRoomSections.set(section.persistKey, !expanded);
       }}
     >
       <span class="sidebar-icon" aria-hidden="true">{expanded ? '−' : '+'}</span>
-      <span>{expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}</span>
+      <span
+        >{expanded
+          ? m('room_list.show_less')
+          : m('room_list.more_rooms', { count: unjoinedCount })}</span
+      >
     </button>
   {/if}
 {/snippet}
@@ -1210,7 +1223,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   >
     <NavigationContextMenu
       kind="room"
-      isRoomMember={contextRoom.viewerIsMember}
+      isRoomMember={contextRoom.viewerIsMember === true}
       canJoin={contextRoom.viewerCanJoinRoom}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
@@ -1277,10 +1290,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if linkDialogVisible}
-  {#await Promise.all([
-    import('$lib/ui').then(({ FormDialog }) => ({ default: FormDialog })),
-    import('$lib/ui/form').then(({ TextInput }) => ({ default: TextInput }))
-  ]) then [FormDialogModule, TextInputModule]}
+  {#await Promise.all( [import('$lib/ui').then( ({ FormDialog }) => ({ default: FormDialog }) ), import('$lib/ui/form').then( ({ TextInput }) => ({ default: TextInput }) )] ) then [FormDialogModule, TextInputModule]}
     <FormDialogModule.default
       bind:visible={linkDialogVisible}
       title={editingLinkId ? m('admin.rooms_admin.edit_link') : m('admin.rooms_admin.create_link')}
@@ -1307,7 +1317,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if deleteGroupDialogVisible && deleteGroupTarget}
-  {#await import('$lib/ui').then(({ ConfirmDialog }) => ({ default: ConfirmDialog })) then ConfirmDialogModule}
+  {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
       title={m('admin.rooms_admin.delete_group')}
       actionLabel={m('admin.rooms_admin.delete_group')}
@@ -1325,7 +1335,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if deleteLinkDialogVisible && deleteLinkTarget?.type === 'link'}
-  {#await import('$lib/ui').then(({ ConfirmDialog }) => ({ default: ConfirmDialog })) then ConfirmDialogModule}
+  {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
       title={m('admin.rooms_admin.delete_link')}
       actionLabel={m('admin.rooms_admin.delete_link')}
@@ -1343,7 +1353,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if archiveRoomDialogVisible && archiveRoomTarget}
-  {#await import('$lib/ui').then(({ ConfirmDialog }) => ({ default: ConfirmDialog })) then ConfirmDialogModule}
+  {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
       title={m('admin.rooms_admin.archive_room')}
       actionLabel={m('admin.rooms_admin.archive_room')}

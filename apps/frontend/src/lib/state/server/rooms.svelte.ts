@@ -5,6 +5,7 @@ import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import type { UserAvatarUserView } from '$lib/render/users';
 import type { ServerProjectionStore } from './projection.svelte';
 import { SvelteSet } from 'svelte/reactivity';
+import type { SavedRoom } from '$lib/storage/savedViews';
 
 type ProjectionReadiness = {
   hasUsableProjection: boolean;
@@ -22,7 +23,8 @@ export type RoomsListItem = {
   description?: string | null;
   type: RoomKind;
   isUniversal: boolean;
-  viewerIsMember: boolean;
+  /** Null until live membership is known; saved labels do not grant membership. */
+  viewerIsMember: boolean | null;
   viewerCanReadMessages?: boolean | null;
   viewerCanJoinRoom: boolean;
   viewerCanManageRoom: boolean;
@@ -85,7 +87,7 @@ export function avatarUserFromDirectoryMember(
 }
 
 /**
- * Read-only navigation view over the canonical realtime server projection.
+ * Read-only navigation over live rooms with saved labels as a display fallback.
  *
  * The view owns no server-derived room, membership, group, profile, ordering,
  * or notification state. Getters translate the current protobuf projection
@@ -93,13 +95,16 @@ export function avatarUserFromDirectoryMember(
  */
 export class NavigationStore {
   get #readable(): boolean {
-    return this.readiness.hasUsableProjection ||
-      (this.readiness.isRecoveringSnapshot === true && this.projection.viewer !== null);
+    return (
+      this.readiness.hasUsableProjection ||
+      (this.readiness.isRecoveringSnapshot === true &&
+        (this.projection.viewer !== null || this.getSavedRooms().length > 0))
+    );
   }
 
   readonly #rooms = $derived.by((): RoomsListItem[] => {
     if (!this.#readable) return [];
-    return [...this.projection.rooms.values()].flatMap((entry) => {
+    const live = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
       if (!room || room.archived) return [];
       const members = entry.memberUserIds.flatMap((userId) => {
@@ -127,6 +132,24 @@ export class NavigationStore {
         }
       ];
     });
+    return [
+      ...live,
+      ...this.getSavedRooms()
+        .filter((room) => !this.projection.rooms.has(room.id))
+        .map((room): RoomsListItem => ({
+          id: room.id,
+          name: room.name,
+          type: roomKindOrChannel(room.kind ?? RoomKind.CHANNEL),
+          isUniversal: room.universal ?? false,
+          viewerIsMember: null,
+          viewerCanReadMessages: null,
+          viewerCanJoinRoom: false,
+          viewerCanManageRoom: false,
+          viewerNotificationCount: 0,
+          viewerImportantNotificationCount: 0,
+          members: []
+        }))
+    ];
   });
 
   readonly #roomGroups = $derived.by((): RoomsListGroup[] => {
@@ -155,7 +178,8 @@ export class NavigationStore {
   constructor(
     private readonly projection: ServerProjectionStore,
     private readonly readiness: ProjectionReadiness,
-    private readonly notificationCounts: NotificationCountState
+    private readonly notificationCounts: NotificationCountState,
+    private readonly getSavedRooms: () => readonly SavedRoom[] = () => []
   ) {}
 
   get rooms(): RoomsListItem[] {

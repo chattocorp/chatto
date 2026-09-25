@@ -406,6 +406,10 @@ pending reads; per-user revisions fence list/detail responses. Deletion markers
 prevent old responses from restoring a removed user. Reset rejects pending reads,
 and disposal permanently fences the retired owner. Profile expiry timers have
 the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
+Snapshot user lists contain only referenced users. The client merges them into
+the shared store. At `caught_up`, it requests cached user IDs at that cursor.
+Only an omitted ID from this requested set confirms account removal. A reset
+generation and per-user revisions fence late reads and changes during the check.
 A room's first page and full background load remain separate so
 mention completion can use names early and search while loading continues.
 Room member state retains membership IDs and resolves profiles from the shared
@@ -525,6 +529,35 @@ launch restores bounded saved text in the normal chat route. Verified access
 revocation clears affected saved text and position. Explicit sign-out clears
 the saved data. The saved text never supplies a realtime cursor or current
 authorization.
+After the saved view paints, the registry starts server discovery and verifies
+the viewer through the existing connection. The root route does not reload.
+This saved startup applies to room and overview routes. Settings and management
+routes require live account data or permissions before forms mount. Message
+permalinks use the live timeline.
+The runtime coordinator starts realtime and notification sync when viewer
+verification succeeds. Room and DM selectors keep retained data displayable
+during warm snapshot hydration and retry. Actions stay gated by verified
+authority. Verified origin authentication also starts browser-session renewal.
+The chat root installs origin-session termination handling from the registry's
+verified viewer, even when the route still has no loaded viewer. A changed or
+rejected viewer clears the saved private view.
+
+`CurrentUserState` owns the complete account and one pending account request for
+each server. Route loading and recovery use that owner. Cookie migration and
+transient retries are request policy, with no separate account cache. The
+registry checks identity changes before it publishes the response. Account
+reset, newer live viewer data, and store disposal reject older responses.
+Saved-view restoration keeps room labels in the saved view. Navigation and room
+selectors use those labels only while live catch-up is pending. They do not
+insert rooms, membership, permissions, or profiles into the live projection.
+Timeline stores convert saved text directly to display rows, without API
+response objects or a pagination cursor. These stores wait for verified live
+catch-up before they read history. Live room responses take precedence;
+access loss and omitted rooms remove the saved fallback before it can reappear.
+Snapshot catch-up replaces retained rows through the normal timeline read.
+Saved data never constructs a viewer response or changes account data. Settings
+wait for complete account data; the transport coordinator does not populate
+or clear it. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for

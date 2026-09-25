@@ -3,7 +3,6 @@
   import { resolve } from '$app/paths';
   import { createPresenceAPI } from '$lib/api-client/presence';
   import { createAccountAPI } from '$lib/api-client/account';
-  import { clearCachedUser, type CurrentUser } from '$lib/auth/loadAuth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
   import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
@@ -11,7 +10,7 @@
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
-  import { useSessionTerminated } from '$lib/hooks/useEvent.svelte';
+  import { onSessionTerminated } from '$lib/eventBus.svelte';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
@@ -23,59 +22,42 @@
   import { scheduleCustomStatusExpiry } from '$lib/utils/customStatusExpiry';
 
   let {
-    user,
     presenceCache,
     children
   }: {
-    user?: CurrentUser | null;
     presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
 
-  // The chat layout keys this root by origin server/viewer identity. The
-  // application-root runtime coordinator has already installed this viewer
-  // and created its event bus before the chat subtree initializes.
-  const originUser = untrack(() => user);
+  // The route can keep data.user = null after a saved view starts. Follow the
+  // registry's verified identity so session effects start without a route load.
   const rootPresenceCache = untrack(() => presenceCache);
-  const originServer = serverRegistry.originServer;
-  const originServerId = originServer?.id ?? null;
-  const currentUserState = originServerId
-    ? serverRegistry.getStore(originServerId).currentUser
-    : null;
-  const originSession =
-    originUser && originServerId && currentUserState
-      ? { user: originUser, serverId: originServerId, currentUser: currentUserState }
+  const originServerId = $derived(serverRegistry.originServer?.id ?? null);
+  const verifiedOriginUserId = $derived.by(() => {
+    const store = originServerId ? serverRegistry.tryGetStore(originServerId) : undefined;
+    const currentUser = store?.currentUser;
+    const userId = currentUser?.user?.id;
+    return userId && currentUser?.verifiedUserId === userId && store?.isAuthenticated
+      ? userId
       : null;
+  });
 
-  if (originSession) {
+  $effect(() => {
+    if (!originServerId || !verifiedOriginUserId) return;
     void resumeReturnNavigation();
-  }
+  });
 
-  if (originSession) {
-    const session = originSession;
-
-    $effect(() => {
-      const status = session.currentUser.user?.customStatus;
-      const currentUserId = session.currentUser.user?.id;
-      if (!status?.expiresAt || !currentUserId) return;
-
-      return scheduleCustomStatusExpiry(status, () => {
-        if (
-          session.currentUser.user?.id === currentUserId &&
-          session.currentUser.user.customStatus?.expiresAt === status.expiresAt
-        ) {
-          session.currentUser.user = {
-            ...session.currentUser.user,
-            customStatus: null
-          };
-        }
-      });
-    });
+  $effect(() => {
+    const serverId = originServerId;
+    const userId = verifiedOriginUserId;
+    if (!serverId || !userId) return;
 
     function clearTerminatedOriginSession() {
-      clearCachedUser();
-      serverRegistry.clearServerAuthentication(session.serverId);
-      const remainingServerId = serverRegistry.firstAuthenticatedServerId(session.serverId);
+      if (!serverId || !userId) return;
+      const current = serverRegistry.tryGetStore(serverId)?.currentUser;
+      if (current?.user?.id !== userId || current.verifiedUserId !== userId) return;
+      serverRegistry.clearServerAuthentication(serverId);
+      const remainingServerId = serverRegistry.firstAuthenticatedServerId(serverId);
       hardRedirectAfterSignOut(
         remainingServerId
           ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(remainingServerId) })
@@ -83,24 +65,38 @@
       );
     }
 
-    // Handle session terminated events from server (logout from another tab/device, admin boot).
-    useSessionTerminated(
-      (reason) => {
-        console.warn('Session terminated by server:', reason);
-        if (isExplicitSignOutRedirectInProgress()) return;
-        clearTerminatedOriginSession();
-      },
-      () => session.serverId
-    );
+    const stopTermination = onSessionTerminated(serverId, (reason) => {
+      console.warn('Session terminated by server:', reason);
+      if (isExplicitSignOutRedirectInProgress()) return;
+      clearTerminatedOriginSession();
+    });
+    const stopChannel = initSessionChannel(() => {
+      if (isExplicitSignOutRedirectInProgress()) return;
+      clearTerminatedOriginSession();
+    });
+    return () => {
+      stopTermination();
+      stopChannel();
+    };
+  });
 
-    // Handle logout from another tab in the same browser (instant, no server round-trip).
-    $effect(() =>
-      initSessionChannel(() => {
-        if (isExplicitSignOutRedirectInProgress()) return;
-        clearTerminatedOriginSession();
-      })
-    );
-  }
+  $effect(() => {
+    const serverId = originServerId;
+    const userId = verifiedOriginUserId;
+    if (!serverId || !userId) return;
+    const currentUser = serverRegistry.tryGetStore(serverId)?.currentUser;
+    const status = currentUser?.user?.customStatus;
+    if (!status?.expiresAt) return;
+
+    return scheduleCustomStatusExpiry(status, () => {
+      if (
+        currentUser?.user?.id === userId &&
+        currentUser.user.customStatus?.expiresAt === status.expiresAt
+      ) {
+        currentUser.user = { ...currentUser.user, customStatus: null };
+      }
+    });
+  });
 
   function presenceReporters() {
     return serverRegistry.servers.flatMap((server) => {
@@ -174,7 +170,7 @@
   <ScreenWakeLock />
 {/if}
 <PushNotificationSetup />
-{#if originSession}
+{#if verifiedOriginUserId}
   <WelcomeBanner />
 {/if}
 

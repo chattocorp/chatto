@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
-  clearCachedUserMock,
+  resetAccountMock,
   hasPendingReturnNavigationMock,
   invalidateAllMock,
   resumeReturnNavigationMock
 } = vi.hoisted(() => ({
-  clearCachedUserMock: vi.fn(),
+  resetAccountMock: vi.fn(),
   hasPendingReturnNavigationMock: vi.fn(),
   invalidateAllMock: vi.fn(),
   resumeReturnNavigationMock: vi.fn()
@@ -18,12 +18,9 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    originServer: { id: 'origin' }
+    originServer: { id: 'origin' },
+    getStore: () => ({ currentUser: { reset: resetAccountMock } })
   }
-}));
-
-vi.mock('./loadAuth', () => ({
-  clearCachedUser: clearCachedUserMock
 }));
 
 vi.mock('./returnNavigation', () => ({
@@ -50,15 +47,15 @@ describe('completeOriginAuthentication', () => {
     vi.unstubAllGlobals();
   });
 
-  it('clears cached state before the cookie-backed route reload', async () => {
+  it('invalidates old account requests before the cookie-backed route reload', async () => {
     hasPendingReturnNavigationMock.mockReturnValue(false);
     const { completeOriginAuthentication } = await loadModule();
 
     await expect(completeOriginAuthentication()).resolves.toBe(false);
 
-    expect(clearCachedUserMock).toHaveBeenCalledOnce();
+    expect(resetAccountMock).toHaveBeenCalledOnce();
     expect(invalidateAllMock).toHaveBeenCalledOnce();
-    expect(clearCachedUserMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(resetAccountMock.mock.invocationCallOrder[0]).toBeLessThan(
       invalidateAllMock.mock.invocationCallOrder[0]
     );
     expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
