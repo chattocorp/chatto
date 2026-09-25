@@ -393,8 +393,10 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 	if tokenData.presentationOrDefault() != presentation {
 		return "", false, nil
 	}
+	// If the generation check fails, revoke the credential as a live logout.
+	// Revocation must not depend on the user projection.
 	if stale, err := c.revokedByAuthGeneration(ctx, tokenData.runtimeCredential()); err != nil {
-		return "", false, err
+		c.logger.Warn("Failed to check auth generation during credential revocation", "error", err)
 	} else if stale {
 		if tokenData.RenewableSessionID != "" {
 			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(tokenData.RenewableSessionID))

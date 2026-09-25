@@ -527,10 +527,12 @@ func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, ref
 	if renewableSessionIsResourceBound(session) != resourceBound {
 		return "", false, nil
 	}
+	// If the generation check fails, revoke the session as a live logout.
+	// Revocation must not depend on the user projection.
 	if stale, err := c.revokedByAuthGeneration(ctx, RuntimeCredential{
 		UserID: session.UserID, CreatedAt: session.CreatedAt, AuthGeneration: session.AuthGeneration,
 	}); err != nil {
-		return "", false, err
+		c.logger.Warn("Failed to check auth generation during refresh token revocation", "error", err)
 	} else if stale {
 		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID))
 		return "", false, nil
