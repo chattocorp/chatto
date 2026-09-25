@@ -374,8 +374,9 @@ func (h *MyEventsHub) handlePubSub(ctx context.Context, msg *nats.Msg) bool {
 		return false
 	}
 	// The privacy check reads the authoritative NATS record. Run it once per
-	// event, only when a local recipient can receive it, and without holding
-	// h.mu, so that it does not block subscription changes.
+	// event, only when a local member other than the sender exists, and
+	// without holding h.mu, so that Unsubscribe and other h.mu callers do not
+	// wait for the read.
 	if delivery.typing() {
 		if !h.hasTypingAudience(delivery.roomID, event.ActorId) || !h.model.typingSenderVisible(ctx, delivery) {
 			return false

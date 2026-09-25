@@ -316,10 +316,6 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 	return nil
 }
 
-func (c *ChattoCore) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
-	return c.myEventsModel.filterPubSubEvent(ctx, userID, memberRooms, msg, event)
-}
-
 // pubSubDelivery holds the recipient-independent scope of one live sync event.
 type pubSubDelivery struct {
 	event        *pubsubv1.PubSubEvent
@@ -331,20 +327,6 @@ type pubSubDelivery struct {
 // typing reports whether the event is a typing indicator.
 func (d pubSubDelivery) typing() bool {
 	return d.event.GetUserTyping() != nil
-}
-
-// filterPubSubEvent applies every live sync delivery rule for one recipient.
-// MyEventsHub uses the prepared form instead, so that it checks the typing
-// sender's privacy choice once per event and not once per recipient.
-func (s *MyEventsModel) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
-	delivery, ok := s.preparePubSubEvent(msg, event)
-	if !ok {
-		return nil, false
-	}
-	if delivery.typing() && !s.typingSenderVisible(ctx, delivery) {
-		return nil, false
-	}
-	return s.filterPreparedPubSubEvent(ctx, userID, memberRooms, delivery)
 }
 
 // preparePubSubEvent checks that the subject and payload agree. It does not

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,6 +14,24 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
+// filterPubSubEvent applies every live sync delivery rule for one recipient,
+// as MyEventsHub does for each event.
+func (c *ChattoCore) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
+	s := c.myEventsModel
+	delivery, ok := s.preparePubSubEvent(msg, event)
+	if !ok {
+		return nil, false
+	}
+	if delivery.typing() && !s.typingSenderVisible(ctx, delivery) {
+		return nil, false
+	}
+	return s.filterPreparedPubSubEvent(ctx, userID, memberRooms, delivery)
+}
+
+// typingLookupSentinelSubject shares the counting subscription with the
+// preference reads, but no stream has this name.
+const typingLookupSentinelSubject = "$JS.API.STREAM.MSG.GET.CHATTO_TEST_SENTINEL"
+
 type typingFanoutFixture struct {
 	core    *ChattoCore
 	nc      *nats.Conn
@@ -21,6 +40,7 @@ type typingFanoutFixture struct {
 	viewers []string
 	streams []<-chan EventEnvelope
 	lookups map[string]*atomic.Int64
+	marks   chan struct{}
 }
 
 // newTypingFanoutFixture streams live events for viewerCount room members and
@@ -36,7 +56,7 @@ func newTypingFanoutFixture(t *testing.T, viewerCount int) *typingFanoutFixture 
 	_, err = c.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
 	require.NoError(t, err)
 
-	f := &typingFanoutFixture{core: c, nc: nc, room: room.Id, author: author.Id, lookups: make(map[string]*atomic.Int64)}
+	f := &typingFanoutFixture{core: c, nc: nc, room: room.Id, author: author.Id, lookups: make(map[string]*atomic.Int64), marks: make(chan struct{}, 1)}
 	for i := range viewerCount {
 		viewer, err := c.CreateUser(ctx, SystemActorID, "typing-viewer-"+string(rune('a'+i)), "Typing Viewer", "password123")
 		require.NoError(t, err)
@@ -49,7 +69,11 @@ func newTypingFanoutFixture(t *testing.T, viewerCount int) *typingFanoutFixture 
 	}
 	// MayPublishTyping reads the leader-routed KV record through the stream
 	// message-get API. Count those requests for each user.
-	sub, err := nc.Subscribe("$JS.API.STREAM.MSG.GET.KV_RUNTIME_STATE", func(msg *nats.Msg) {
+	sub, err := nc.Subscribe("$JS.API.STREAM.MSG.GET.*", func(msg *nats.Msg) {
+		if msg.Subject == typingLookupSentinelSubject {
+			f.marks <- struct{}{}
+			return
+		}
 		for userID, count := range f.lookups {
 			if strings.Contains(string(msg.Data), `"$KV.RUNTIME_STATE.`+presenceKey(userID)+`"`) {
 				count.Add(1)
@@ -71,6 +95,21 @@ func newTypingFanoutFixture(t *testing.T, viewerCount int) *typingFanoutFixture 
 		f.streams = append(f.streams, stream)
 	}
 	return f
+}
+
+// lookupCount returns the preference reads for userID that the hub sent before
+// this call. The core shares nc, and one subscription receives its messages in
+// order, so the callback has counted every earlier read once it sees the
+// sentinel.
+func (f *typingFanoutFixture) lookupCount(t *testing.T, userID string) int64 {
+	t.Helper()
+	require.NoError(t, f.nc.Publish(typingLookupSentinelSubject, nil))
+	select {
+	case <-f.marks:
+	case <-time.After(2 * time.Second):
+		t.Fatal("lookup sentinel was not delivered")
+	}
+	return f.lookups[userID].Load()
 }
 
 // publishTyping publishes the pubsub fact directly, so that only the hub reads
@@ -109,9 +148,7 @@ func TestMyEventsHubChecksTypingPrivacyOncePerEvent(t *testing.T) {
 	for _, stream := range f.streams {
 		require.Equal(t, eventID, nextTyping(t, stream))
 	}
-	// Deliver every counted request that the hub has already sent.
-	require.NoError(t, f.nc.Flush())
-	require.EqualValues(t, 1, f.lookups[f.author].Load(), "one privacy read per typing event, not one per recipient")
+	require.EqualValues(t, 1, f.lookupCount(t, f.author), "one privacy read per typing event, not one per recipient")
 }
 
 func TestMyEventsHubDropsTypingFromHiddenSender(t *testing.T) {
@@ -154,8 +191,7 @@ func TestMyEventsHubSkipsTypingPrivacyReadWithoutAudience(t *testing.T) {
 		select {
 		case envelope := <-f.streams[0]:
 			if envelope.ID() == marker.GetId() {
-				require.NoError(t, f.nc.Flush())
-				require.Zero(t, f.lookups[f.author].Load())
+				require.Zero(t, f.lookupCount(t, f.author))
 				return
 			}
 		case <-timer.C:
