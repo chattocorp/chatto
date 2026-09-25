@@ -43,7 +43,7 @@ type assetProcessor interface {
 func (Unit) Name() string { return runtimeUnitName }
 
 func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
-	runtime, err := core.NewAssetProcessingRuntime(ctx, env.NC, env.JS, env.Config.Core, env.Config.Video, env.Logger)
+	runtime, err := core.NewAssetProcessingRuntime(ctx, env.NC, env.JS, env.Config.Core, env.Logger)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -158,6 +159,79 @@ func TestMediaModelUploadDerivativeAttachmentWithDimensionsProjectsAssetDimensio
 	}
 	if declared.GetAsset().GetWidth() != 1280 || declared.GetAsset().GetHeight() != 720 {
 		t.Fatalf("projected dimensions = %dx%d, want 1280x720", declared.GetAsset().GetWidth(), declared.GetAsset().GetHeight())
+	}
+}
+
+func TestMediaModelGeneratedVideoBypassesUserUploadLimits(t *testing.T) {
+	for _, backend := range []struct {
+		name  string
+		setup func(*testing.T) *ChattoCore
+	}{
+		{name: "NATS", setup: func(t *testing.T) *ChattoCore { core, _ := setupTestCore(t); return core }},
+		{name: "S3", setup: func(t *testing.T) *ChattoCore { core, _, _ := setupTestCoreWithS3(t); return core }},
+	} {
+		t.Run(backend.name, func(t *testing.T) {
+			core := backend.setup(t)
+			ctx := testContext(t)
+			core.config.Assets.MaxUploadSize = 10
+			core.VideoMaxUploadSize = 20
+			room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "generated-video", "Generated video")
+			if err != nil {
+				t.Fatalf("CreateRoom: %v", err)
+			}
+
+			if _, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "source.mp4", "video/mp4", bytes.NewReader(bytes.Repeat([]byte("v"), 21))); err == nil || !strings.Contains(err.Error(), "maximum size of 20 bytes") {
+				t.Fatalf("user video upload error = %v, want 20-byte limit", err)
+			}
+			if _, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "note.txt", "text/plain", bytes.NewReader(bytes.Repeat([]byte("n"), 11))); err == nil || !strings.Contains(err.Error(), "maximum size of 10 bytes") {
+				t.Fatalf("user file upload error = %v, want 10-byte limit", err)
+			}
+
+			for _, generated := range []struct {
+				name        string
+				contentType string
+				role        evtv1.AssetDerivativeRole
+			}{
+				{name: "segment.ts", contentType: "video/mp2t", role: evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT},
+				{name: "variant.mp4", contentType: "video/mp4", role: evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT},
+			} {
+				size := 21
+				if generated.role == evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT {
+					size = 10<<20 + 1
+				}
+				content := bytes.Repeat([]byte("g"), size)
+				var source io.ReadSeeker = bytes.NewReader(content)
+				if generated.role == evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT {
+					file, err := os.CreateTemp(t.TempDir(), "segment-*.ts")
+					if err != nil {
+						t.Fatalf("CreateTemp: %v", err)
+					}
+					defer file.Close()
+					if _, err := file.Write(content); err != nil {
+						t.Fatalf("write segment: %v", err)
+					}
+					source = file
+				}
+				attachment, err := core.mediaModel.UploadDerivativeAttachment(ctx, "A-parent", generated.role, room.Id, generated.name, generated.contentType, source)
+				if err != nil {
+					t.Fatalf("UploadDerivativeAttachment(%s): %v", generated.name, err)
+				}
+				if attachment.GetSize() != int64(len(content)) {
+					t.Fatalf("%s size = %d, want %d", generated.name, attachment.GetSize(), len(content))
+				}
+				reader, info, err := core.mediaModel.GetAttachmentReader(ctx, attachment)
+				if err != nil {
+					t.Fatalf("GetAttachmentReader(%s): %v", generated.name, err)
+				}
+				stored, err := io.ReadAll(reader)
+				if closer, ok := reader.(io.Closer); ok {
+					closer.Close()
+				}
+				if err != nil || !bytes.Equal(stored, content) || info.Size != int64(len(content)) {
+					t.Fatalf("%s stored content matches = %t, size = %d, error = %v", generated.name, bytes.Equal(stored, content), info.Size, err)
+				}
+			}
+		})
 	}
 }
 

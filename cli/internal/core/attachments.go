@@ -157,10 +157,22 @@ func (c *MediaModel) uploadAttachmentBinary(
 		size = int64(len(content))
 	}
 
+	return c.storeAttachmentBinary(ctx, attachmentID, roomID, filename, contentType, bytes.NewReader(content), size, width, height)
+}
+
+// storeAttachmentBinary writes a prepared binary without applying upload limits.
+// Callers must validate user uploads before they call this method.
+func (c *MediaModel) storeAttachmentBinary(
+	ctx context.Context,
+	attachmentID, roomID, filename, contentType string,
+	reader io.Reader,
+	size int64,
+	width, height int32,
+) (*evtv1.Attachment, error) {
 	var storage *evtv1.DeprecatedAsset
 	if c.ShouldUseS3() {
 		s3Key := S3KeyAttachment(attachmentID)
-		if _, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, content, contentType); err != nil {
+		if _, err := c.s3Client.PutObject(ctx, s3Key, reader, size, contentType); err != nil {
 			return nil, fmt.Errorf("failed to upload attachment to S3: %w", err)
 		}
 		storage = &evtv1.DeprecatedAsset{
@@ -183,7 +195,7 @@ func (c *MediaModel) uploadAttachmentBinary(
 				"Filename":     {filename},
 				"Room-Id":      {roomID},
 			},
-		}, bytes.NewReader(content)); err != nil {
+		}, reader); err != nil {
 			return nil, fmt.Errorf("failed to store attachment: %w", err)
 		}
 		storage = &evtv1.DeprecatedAsset{
@@ -206,7 +218,7 @@ func (c *MediaModel) uploadAttachmentBinary(
 }
 
 // UploadDerivativeAttachment is the worker-side variant of UploadAttachment.
-// It writes bytes through the same storage path and emits AssetCreatedEvent
+// It streams generated non-image bytes without a user upload limit and emits AssetCreatedEvent
 // with parent_asset_id + derivative_role already set, so the projection
 // knows this asset is a child of `parentAssetID` (thumbnails, transcoded
 // video variants, etc.). Always attributed to SystemActorID — derivatives
@@ -218,14 +230,15 @@ func (c *MediaModel) UploadDerivativeAttachment(
 	roomID string,
 	filename string,
 	contentType string,
-	reader io.Reader,
+	reader io.ReadSeeker,
 ) (*evtv1.Attachment, error) {
 	return c.UploadDerivativeAttachmentWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, reader, 0, 0)
 }
 
 // UploadDerivativeAttachmentWithDimensions is UploadDerivativeAttachment with
 // explicit media dimensions supplied by the worker for generated non-image
-// derivatives such as transcoded video variants.
+// derivatives such as transcoded video variants. The reader must be seekable
+// so storage can receive the binary size without buffering its content.
 func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 	ctx context.Context,
 	parentAssetID string,
@@ -233,11 +246,27 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 	roomID string,
 	filename string,
 	contentType string,
-	reader io.Reader,
+	reader io.ReadSeeker,
 	width int32,
 	height int32,
 ) (*evtv1.Attachment, error) {
-	attachment, err := c.uploadAttachmentBinary(ctx, roomID, filename, contentType, reader)
+	var attachment *evtv1.Attachment
+	var err error
+	if strings.HasPrefix(contentType, "image/") {
+		// Image derivatives still use image validation and metadata extraction.
+		attachment, err = c.uploadAttachmentBinary(ctx, roomID, filename, contentType, reader)
+	} else {
+		// Workers write generated media to seekable files. Stream the bytes to
+		// storage so their size does not increase the worker's memory use.
+		size, seekErr := reader.Seek(0, io.SeekEnd)
+		if seekErr != nil {
+			return nil, fmt.Errorf("measure derivative binary: %w", seekErr)
+		}
+		if _, seekErr = reader.Seek(0, io.SeekStart); seekErr != nil {
+			return nil, fmt.Errorf("rewind derivative binary: %w", seekErr)
+		}
+		attachment, err = c.storeAttachmentBinary(ctx, NewAssetID(), roomID, filename, contentType, reader, size, 0, 0)
+	}
 	if err != nil {
 		return nil, err
 	}
