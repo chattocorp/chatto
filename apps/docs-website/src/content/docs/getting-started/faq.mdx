@@ -31,7 +31,7 @@ Server operators can optionally expose local [Prometheus metrics](/guides/operat
 
 With the exception of voice and video calls, Chatto is not end-to-end encrypted. A running Chatto server must be able to decrypt messages before sending them to authorized clients.
 
-Chatto instead encrypts message text and selected personal data at rest with per-user keys. Deleting an account shreds those keys so the protected data can no longer be decrypted. Attachments and some event metadata are outside this application-level encryption boundary and must be protected by the underlying NATS or S3-compatible storage. See [Encryption at Rest and Data Erasure](/guides/operations/security/#encryption-and-data-erasure) for the exact coverage and threat model.
+Chatto instead encrypts message text and selected personal data at rest with per-user keys. Deleting an account shreds those keys so the protected data can no longer be decrypted. Attachments and some event metadata are outside this application-level encryption boundary and must be protected by the underlying NATS or S3-compatible storage. See [Encryption at Rest and Data Erasure](/how-chatto-works/encryption/) for the exact coverage and threat model.
 
 We may layer end-to-end-encrypted features on top of Chatto in the future, but there is no general end-to-end encryption mode today.
 

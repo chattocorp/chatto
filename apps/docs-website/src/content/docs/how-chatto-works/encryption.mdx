@@ -1,0 +1,156 @@
+---
+title: Encryption
+description: How Chatto encrypts message text and personal data, and how account deletion makes that data unreadable.
+---
+
+import KeyHierarchyDiagram from "../../../components/diagrams/KeyHierarchyDiagram.astro";
+
+Chatto encrypts message text and personal account data before it stores them.
+Each user has their own keys. When an account is deleted, Chatto destroys those
+keys, and the data becomes unreadable everywhere, including in backups that do
+not contain the keys. This technique is called crypto-shredding.
+
+This is not end-to-end encryption. The Chatto server decrypts data to send it
+to members, to deliver notifications, and to build the search index. The
+encryption protects stored data, not data in a running server.
+
+## What Chatto encrypts
+
+| Data | Protection |
+| ---- | ---------- |
+| Message text | Encrypted with the author's message key. |
+| Attachment descriptions | Encrypted with the author's message key. |
+| Login, display name, bio, and verified email addresses | Encrypted with the user's profile key. |
+| Calls | End-to-end encrypted with a key for each call. LiveKit forwards only encrypted media. |
+| Push notifications | Encrypted for the receiving browser. The push service cannot read them. |
+| Projection snapshots | Encrypted with a key derived from `core.secret_key`. They do not contain decrypted message text or profile fields. |
+| Backups | Encrypted with [age](https://age-encryption.org) when you use `chatto backup --encrypt`. |
+| Passwords | Stored as bcrypt hashes, not encrypted. |
+| Attachments, avatars, and server branding | Not encrypted by Chatto. Use encryption in your storage. |
+| Metadata | Not encrypted. This includes authors, rooms, threads, timestamps, reactions, file names, link previews, custom statuses, and settings. |
+| Search index | Not encrypted. It contains text derived from decrypted messages. |
+
+## Keys
+
+Chatto uses two levels of keys:
+
+- A **key-encryption key (KEK)** for each user. Chatto stores KEKs in the NATS
+  `ENCRYPTION_KEYS` bucket.
+- **Data-encryption keys (DEKs)** for each user: one for messages and one for
+  profile data. Chatto wraps (encrypts) each DEK with the user's KEK and stores
+  the wrapped DEK in the NATS `RUNTIME_STATE` bucket.
+
+The encrypted data itself is in the `EVT` event stream. Events contain only
+references to the keys, never the keys.
+
+<KeyHierarchyDiagram />
+
+This split has two effects:
+
+- A normal backup contains the encrypted data and the wrapped DEKs, but not the
+  KEKs. The backup alone cannot decrypt anything.
+- Destroying one user's KEK makes all of that user's protected data unreadable,
+  without changes to the event stream.
+
+### Key management
+
+The built-in key management service (KMS) runs in the Chatto process and keeps
+the KEKs in `ENCRYPTION_KEYS`. The rest of Chatto uses it only to create, wrap,
+unwrap, and destroy keys. It never reads a KEK directly. This boundary makes an
+external KMS possible later. You cannot configure an external KMS today.
+
+## Algorithms
+
+- All keys are random 256-bit keys.
+- Chatto encrypts data and wraps DEKs with XChaCha20-Poly1305. This cipher
+  detects any change to the ciphertext.
+- Each ciphertext is bound to its context through authenticated data:
+  - Message text: the message, the body event, the room, the author, the key
+    epoch, and the event type.
+  - Attachment descriptions: the same values plus the attachment.
+  - Profile fields: the user, the event, the event type, the field name, and
+    the key epoch.
+
+  If someone moves a ciphertext to another message, user, or field, decryption
+  fails.
+- Messages from early Chatto versions use ChaCha20-Poly1305 with the user key
+  directly. Chatto can still read them.
+
+The cryptographic primitives are in the
+[`pkg/datacrypto`](https://github.com/chattocorp/chatto/tree/main/pkg/datacrypto)
+module, licensed under Apache-2.0.
+
+## Lifecycle
+
+**Keys are created on demand.** Chatto creates a user's KEK and DEKs when it
+first needs them.
+
+**A message is written.** Chatto encrypts the text with the author's current
+message DEK and stores the ciphertext in the event stream.
+
+**A message is read.** Chatto checks that the reader has access. Then it
+unwraps the author's DEK with the author's KEK, decrypts the text, and sends it
+to the reader over HTTPS.
+
+**A message is edited.** Chatto encrypts the new text as a new body event. It
+also encrypts the attachment descriptions again, because they are bound to the
+body event.
+
+**A message is deleted.** Chatto removes the stored body events, where the
+storage supports it, and deletes the attachments. The event stream keeps a
+record that the message existed and was deleted.
+
+**An account is deleted.**
+
+1. Chatto records a durable deletion request. From this point, Chatto shows the
+   user's messages and profile data as unavailable.
+2. Chatto destroys the user's KEK, then the wrapped DEKs.
+3. Chatto records that the keys are destroyed.
+4. Chatto deletes the user's attachments and avatar separately, because they are
+   not encrypted with the user's keys.
+
+A background worker repeats unfinished steps after a crash or restart. The user
+ID, timestamps, room relationships, and other metadata stay in the event stream.
+
+**A call starts and ends.** At the first join, Chatto creates a key for the call
+and stores it in `ENCRYPTION_KEYS`. Each participant gets the key with their
+join token. When the call ends, Chatto destroys the key.
+
+## What an attacker can read
+
+| An attacker obtains | Message text and profile fields | Metadata | Attachments |
+| ------------------- | ------------------------------- | -------- | ----------- |
+| The event stream or NATS data without `ENCRYPTION_KEYS` | No | Yes | Yes, if stored in NATS |
+| A backup without keys | No | Yes | Yes, if stored in NATS |
+| A backup with keys, and its passphrase | Yes | Yes | Yes, if stored in NATS |
+| The search index | Text derived from messages | Partly | No |
+| The running server, or NATS data with `ENCRYPTION_KEYS` | Yes | Yes | Yes |
+
+Administrators in Chatto can only read conversations that they are part of. This
+is an application rule, not encryption. A person who controls the server and
+its keys can read everything.
+
+## Backups and erasure
+
+`chatto backup` does not include `ENCRYPTION_KEYS`. You have three options:
+
+| Backup | Result |
+| ------ | ------ |
+| `chatto backup --encrypt --include-keys` | One archive can restore everything. Anyone with the passphrase can read the protected data. |
+| `chatto backup --encrypt` and a separate `chatto keys export` | A restore needs both files. Keep them in different places. |
+| `chatto backup` without keys | The backup cannot restore message text or profile fields. If you lose the keys, that data is gone. |
+
+An old backup with keys can make data readable again after an account was
+deleted. Align the retention of backups, key exports, and storage snapshots with
+your deletion policy. See [Backup & Restore](/guides/operations/backup-restore/).
+
+## Limits
+
+- Messages are not end-to-end encrypted. The server can read them.
+- The KMS runs in the same process as Chatto. Access to the running server
+  gives access to the keys.
+- Metadata, attachments, and avatars are not encrypted by Chatto.
+- The search index contains text from messages. Deleted content leaves the
+  search results immediately, but data can stay in old index files until the
+  index merges them or you rebuild it.
+- The length of a ciphertext shows the approximate length of its text.

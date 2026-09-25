@@ -121,6 +121,10 @@ export default defineConfig({
           ],
         },
         {
+          label: "How Chatto Works",
+          items: ["how-chatto-works/encryption"],
+        },
+        {
           label: "Releases",
           items: [
             "releases/0-5-0",
