@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Disk snapshots contain ordinary presentation data, never a session or resume cursor. */
+/** Resource payload schemas. The storage envelope owns the version and applied checkpoint. */
 import { z } from 'zod';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';

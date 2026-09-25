@@ -25,10 +25,13 @@ export function savedViewFixture(input: {
 }): SavedView {
   return {
     ...input,
-    version: 2,
+    version: 3,
+    checkpoint: 'saved-checkpoint',
+    checkpointAt: input.savedAt,
     presentation: { server: JSON.stringify({ name: input.serverName }), roomGroups: [], users: [] },
     rooms: input.rooms.map(({ messages, ...room }) => ({
       ...room,
+      timeline: { hasNewer: false },
       resource: new RoomWithViewerState({
         room,
         viewerState: {

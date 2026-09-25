@@ -374,6 +374,8 @@ class EventBusManager {
       const failReconciliation = (error: unknown) => {
         if (reconciliationFailed || stopped || socket !== nextSocket) return;
         reconciliationFailed = true;
+        // Disable persistence immediately; WebSocket close delivery is asynchronous.
+        sync.markStale();
         console.error(`[eventBus:${serverId}] resource reconciliation failed`, error);
         nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource reconciliation failed');
       };
@@ -480,6 +482,7 @@ class EventBusManager {
                   dispatchRealtimeEvent(frame.frame.value);
                 } catch (error) {
                   console.error(`[eventBus:${serverId}] projection reducer failed`, error);
+                  sync.markStale();
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
                   return;
                 }

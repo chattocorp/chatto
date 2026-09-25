@@ -153,14 +153,6 @@
   const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
-  // Save only settled, authorized text windows for this device's read-only view.
-  $effect(() => {
-    void roomMessageStore.events;
-    const caughtUpAt = stores.realtimeSync.lastCaughtUpAt;
-    if (!caughtUpAt) return;
-    const timer = setTimeout(() => untrack(() => stores.noteViewedRoom(roomId)), 2_000);
-    return () => clearTimeout(timer);
-  });
   const room = useRoomData(() => ({ roomId }));
   const canReadMessages = $derived(room.roomData?.canReadMessages !== false);
   const shouldHydrateRoom = $derived(

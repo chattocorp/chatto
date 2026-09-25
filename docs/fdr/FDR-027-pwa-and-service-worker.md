@@ -17,7 +17,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 - The root worker caches the current version of the application shell. On a later app launch, it serves the complete cached shell immediately. It uses the network when the cache is absent. Narrow push-worker registrations do not manage the shell.
 - The installed app opens the origin chat route. That route uses the last room saved on the device when one exists.
 - API, authentication, live, webhook, and uploaded-asset requests use the network.
-- The foreground app saves the room list and up to 50 text messages from each of 10 recently viewed rooms per server and user. Saved views expire seven days after the last successful sync. The current offline storage budget is 20 MB: at most 12 MB for the shell and 8 MB for saved text.
+- The foreground app saves room layout, loaded room and thread windows, and loaded member lists per server and user. There is no recent-room count, fixed message-row count, or dwell-time rule. Snapshots expire after seven days. The offline storage budget is 20 MB: at most 12 MB for the shell and 8 MB for state. Under byte pressure, the largest optional timeline or membership records are omitted and load fresh when opened.
 - On a cold chat launch, the app shows a matching saved view in the normal chat layout before it checks the session or opens a connection. It keeps server actions disabled until the server confirms the viewer. It then applies missed data or a replacement snapshot. A missing saved view follows the normal online startup path.
 - A message permalink uses live startup because the target message can be outside the saved view.
 - The app clears affected saved content on sign-out, account switch, server removal, account deletion, and verified room access loss. App preferences include a control to clear saved chats on the device.
@@ -40,7 +40,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ### 2. Saved text in the normal view
 
-**Decision:** IndexedDB stores bounded, presentation-only text data under the server and user identity. The foreground app restores it into the normal chat view for the matching identity before it starts connection work. A saved viewer is display data; it cannot authorize server actions or a realtime connection. The app never stores a realtime cursor with that data and clears saved data at explicit privacy boundaries.
+**Decision:** IndexedDB stores versioned resource snapshots under the server and user identity, with their applied replay checkpoint. The foreground app restores them into the normal stores before it starts connection work. It verifies the viewer before resuming from that checkpoint. A saved viewer is display data; it cannot authorize server actions or a realtime connection. The app clears saved data at explicit privacy boundaries and fences stale writers.
 **Why:** People can read saved text in the familiar chat layout while offline. The saved data does not establish current authorization.
 **Tradeoff:** Automatic saving puts private text on the device. A remote revocation takes effect on this copy only after the device reconnects and verifies it.
 
@@ -64,5 +64,5 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ## Related
 
-- **ADRs:** ADR-047 (direct ticketed asset URLs), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-103 (cached-first client startup)
+- **ADRs:** ADR-047 (direct ticketed asset URLs), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-103 (cached-first client startup), [ADR-104](../adr/ADR-104-checkpointed-client-projection-snapshots.md) (checkpointed client projections)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-034 (Chatto Desktop)

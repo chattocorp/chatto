@@ -177,7 +177,9 @@ export class ServerStateStore {
   startupPresentationOnly = $state(false);
   /** A registered background server has not started discovery or viewer checks. */
   networkStartupDeferred = $state(false);
-  #recentSavedRoomIds: string[] = [];
+  /** New owner allocation is deferred because selectors can allocate inside a derived. */
+  #snapshotOwnersVersion = $state(0);
+  #disposed = false;
   #privacyCleanupFailed = false;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (event) =>
@@ -347,6 +349,12 @@ export class ServerStateStore {
     // envelopes are consumed only by components that need one-shot signals.
     this.#disposeEffects = $effect.root(() => {
       $effect(() => {
+        void this.#snapshotOwnersVersion;
+        const checkpointAt = this.realtimeSync.checkpointAt;
+        const caughtUpAt = this.realtimeSync.lastCaughtUpAt;
+        if (checkpointAt && caughtUpAt) this.saveCurrentView(caughtUpAt);
+      });
+      $effect(() => {
         const bus = eventBusManager.getBus(this.serverId);
         if (!bus) return;
         bus.projectionHandlers.add(this.realtimeProjectionHandler);
@@ -441,7 +449,8 @@ export class ServerStateStore {
           'viewer',
           'rooms',
           'roomGroups',
-          'notifications'
+          'notifications',
+          ...(this.realtimeSync.restoredFromDisk ? ['activeCalls' as const] : [])
         ] as RealtimeResourceFamily[]
       ).map((family) => this.#realtimeResources.read(family, cursor))
     ).finally(() => {
@@ -505,6 +514,8 @@ export class ServerStateStore {
         )
       );
       this.requireCurrentRealtimeProjection(generation);
+    }
+    if (this.#realtimeSnapshotPending || this.realtimeSync.restoredFromDisk) {
       // Retained channel membership can have been read before this snapshot.
       // Recheck it at the snapshot cursor before declaring the view current.
       await Promise.all(
@@ -582,7 +593,14 @@ export class ServerStateStore {
     if (fromSavedProjection) store.awaitRoomProjection(roomId);
     else store.setRoom(roomId);
     this.#roomMessages[roomId] = store;
+    this.snapshotOwnerAdded();
     return store;
+  }
+
+  private snapshotOwnerAdded(): void {
+    queueMicrotask(() => {
+      if (!this.#disposed) this.#snapshotOwnersVersion++;
+    });
   }
 
   /** Return known follow state from a loaded canonical room timeline. */
@@ -709,6 +727,7 @@ export class ServerStateStore {
       });
       store = created;
       this.#roomMembers[roomId] = store;
+      this.snapshotOwnerAdded();
     }
     return store;
   }
@@ -716,9 +735,10 @@ export class ServerStateStore {
   private updateRoomMembership(roomId: string, userId: string, joined: boolean): void {
     const store = this.#roomMembers[roomId];
     if (!store) return;
-    void store
-      .applyMembership(userId, joined, this.#currentEventMinimumCursor)
-      .catch(() => store.resetProjectionState());
+    this.trackProjectionReconciliation(
+      store.applyMembership(userId, joined, this.#currentEventMinimumCursor),
+      this.#realtimeProjectionGeneration
+    );
   }
 
   /** Universal membership depends on server authorization, not only join facts. */
@@ -743,7 +763,7 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
-    this.scrubSavedRoom(roomId);
+    this.discardSavedSnapshot();
     this.#roomMembers[roomId]?.resetProjectionState();
     this.voiceCall.handleRoomAccessRevoked(roomId);
     this.activeCallRooms.clearRoom(roomId);
@@ -764,9 +784,6 @@ export class ServerStateStore {
       return;
     }
     if (!this.savedView || view.savedAt > this.savedView.savedAt) this.savedView = view;
-    this.#recentSavedRoomIds = view.rooms
-      .filter((room) => room.events.length > 0)
-      .map((room) => room.id);
     if (
       this.realtimeSync.phase === 'empty' &&
       (beforeConnection || (!this.currentUser.loading && !this.currentUser.user))
@@ -795,14 +812,30 @@ export class ServerStateStore {
       }
       for (const { saved, resource, events } of restored.rooms) {
         this.projection.rooms.set(saved.id, resource);
-        this.messagesForRoom(saved.id, true).restorePresentation(
-          saved.id,
-          events,
-          saved.hasReachedStart
-        );
+        if (saved.timeline)
+          this.messagesForRoom(saved.id, true).restorePresentation(
+            saved.id,
+            events,
+            saved.hasReachedStart,
+            saved.timeline
+          );
         if (saved.members) this.membersForRoom(saved.id).restorePresentation(saved.members);
+        for (const thread of saved.threads ?? []) {
+          const owner = new MessagesStore(
+            this.#serverConnection,
+            () => this.currentUser.user?.id ?? null
+          );
+          owner.restorePresentation(
+            saved.id,
+            thread.events,
+            thread.hasReachedStart,
+            thread.timeline,
+            thread.rootId
+          );
+          this.#threadMessages[`${saved.id}\u0000${thread.rootId}`] = owner;
+        }
       }
-      this.realtimeSync.restoreSavedProjection();
+      this.realtimeSync.restoreSavedProjection(view.checkpoint);
     }
   }
 
@@ -818,7 +851,6 @@ export class ServerStateStore {
   clearSavedPresentation(): void {
     this.#serverConnection.cancelPrivateRequests();
     this.savedView = null;
-    this.#recentSavedRoomIds = [];
     this.startupPresentationOnly = false;
     if (!this.realtimeSync.restoredFromDisk) return;
     this.#realtimeProjectionGeneration++;
@@ -831,19 +863,21 @@ export class ServerStateStore {
     this.realtimeSync.reset();
   }
 
-  /** Keep the latest viewed room first in the bounded store snapshot. */
-  noteViewedRoom(roomId: string): void {
-    this.#recentSavedRoomIds = [
-      roomId,
-      ...this.#recentSavedRoomIds.filter((id) => id !== roomId)
-    ].slice(0, 10);
-    if (this.realtimeSync.lastCaughtUpAt) this.saveCurrentView(this.realtimeSync.lastCaughtUpAt);
-  }
-
-  /** Capture current authorized data without making the saved copy authoritative. */
+  /** Persist every loaded owner at a completed, verified reconciliation checkpoint. */
   saveCurrentView(savedAt: number): void {
     if (this.realtimeSync.phase !== 'ready' || this.realtimeSync.lastCaughtUpAt !== savedAt) return;
     if (this.#projectionReconciliations.size > 0 || this.#pendingResourceRefreshes.size > 0) return;
+    if (this.#reconciliationError || this.#catchUpResourceReads > 0 || this.checkingPermissions)
+      return;
+    const checkpoint = this.realtimeSync.resumeCursor;
+    const checkpointAt = this.realtimeSync.checkpointAt;
+    if (!checkpoint || !checkpointAt || this.notifications.hasPendingMutations) return;
+    if (
+      [...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].some(
+        (store) => store.hasPendingMutations
+      )
+    )
+      return;
     const userId = this.currentUser.user?.id ?? this.#getSession().userId;
     if (
       !userId ||
@@ -855,10 +889,10 @@ export class ServerStateStore {
     const rooms = [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry) : null;
       if (!room || room.archived) return [];
-      const events =
-        room.isMember && room.canReadMessages === true && this.#recentSavedRoomIds.includes(room.id)
-          ? (this.#roomMessages[room.id]?.rootEvents ?? []).slice(-50)
-          : [];
+      const timeline =
+        room.isMember && room.canReadMessages === true
+          ? this.#roomMessages[room.id]?.captureSnapshot()
+          : undefined;
       const members = this.#roomMembers[room.id];
       return [
         {
@@ -867,16 +901,26 @@ export class ServerStateStore {
           kind: room.kind,
           universal: room.isUniversal,
           resource: entry.toJsonString(),
-          events: JSON.parse(JSON.stringify(events)) as TimelineEventView[],
-          hasReachedStart:
-            events.length === this.#roomMessages[room.id]?.rootEvents.length &&
-            this.#roomMessages[room.id]?.hasReachedStart,
+          events: JSON.parse(JSON.stringify(timeline?.events ?? [])) as TimelineEventView[],
+          timeline: timeline?.timeline,
+          hasReachedStart: timeline?.hasReachedStart,
+          threads:
+            room.isMember && room.canReadMessages === true
+              ? Object.entries(this.#threadMessages).flatMap(([key, owner]) => {
+                  const [roomId, rootId] = key.split('\u0000');
+                  if (roomId !== room.id) return [];
+                  const snapshot = owner.captureSnapshot();
+                  return snapshot ? [{ rootId, ...JSON.parse(JSON.stringify(snapshot)) }] : [];
+                })
+              : [],
           members: members?.hasFirstPage ? members.capturePresentation() : undefined
         }
       ];
     });
     const view: SavedView = {
-      version: 2,
+      version: 3,
+      checkpoint,
+      checkpointAt,
       serverId: this.serverId,
       userId,
       viewerName: this.currentUser.user?.displayName ?? '',
@@ -911,14 +955,6 @@ export class ServerStateStore {
     };
     this.savedView = view;
     void saveView(view);
-  }
-
-  /** Remove a room as soon as access loss is verified. */
-  private scrubSavedRoom(roomId: string): void {
-    // Shared profiles and timeline metadata can also refer to the removed room.
-    // Purge the complete disk copy; the next verified save captures the remaining state.
-    this.discardSavedSnapshot();
-    this.#recentSavedRoomIds = this.#recentSavedRoomIds.filter((id) => id !== roomId);
   }
 
   /** Fence pending disk writes whenever copied private content becomes invalid. */
@@ -981,6 +1017,7 @@ export class ServerStateStore {
     store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
     store.setThread(roomId, threadRootEventId);
     this.#threadMessages[key] = store;
+    this.snapshotOwnerAdded();
     return store;
   }
 
@@ -991,7 +1028,7 @@ export class ServerStateStore {
     this.#threadMessageRefCounts[key] = (this.#threadMessageRefCounts[key] ?? 0) + 1;
   }
 
-  /** Release and destroy an unmounted thread mirror and its decrypted rows. */
+  /** Release the UI consumer; retain the canonical window for replay and persistence. */
   releaseMessagesForThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
     const key = `${roomId}\u0000${threadRootEventId}`;
     if (this.#threadMessages[key] !== store) return;
@@ -1000,8 +1037,7 @@ export class ServerStateStore {
       this.#threadMessageRefCounts[key] = remaining;
       return;
     }
-    store.dispose();
-    delete this.#threadMessages[key];
+    store.clearViewport();
     delete this.#threadMessageRefCounts[key];
   }
 
@@ -1273,7 +1309,7 @@ export class ServerStateStore {
       const canReadAllMessages = next.viewerState.permissions.some(
         (grant) => grant.permission === 'message.read' && grant.granted
       );
-      if (!canReadAllMessages) this.scrubSavedRoom(roomId);
+      if (!canReadAllMessages) this.discardSavedSnapshot();
       // Snapshot catch-up owns the first full-access timeline read.
       if (!previous && canReadAllMessages && this.#realtimeSnapshotPending) continue;
       if (previous && messageAccess(previous) === messageAccess(next)) continue;
@@ -2154,6 +2190,7 @@ export class ServerStateStore {
 
   /** Clean up resources. */
   dispose(): void {
+    this.#disposed = true;
     this.currentUser.reset();
     this.#messageReconciler.reset();
     this.projection.users.clear();
