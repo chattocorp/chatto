@@ -96,7 +96,12 @@ export class TimelineViewportController {
     this.#lastSeenNewestId = newestId;
   }
 
-  requestComposerBottom(): void {
+  /**
+   * Explicit user request to see the latest messages, such as posting or
+   * clicking the jump button. It supersedes an unread separator landing and
+   * the short virtualizer-correction lock.
+   */
+  requestBottom(): void {
     this.#unreadLanding = 'idle';
     this.followBottom();
     this.unlockScrollUp();

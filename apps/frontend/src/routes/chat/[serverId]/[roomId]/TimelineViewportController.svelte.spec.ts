@@ -19,7 +19,7 @@ describe('TimelineViewportController', () => {
   it.each([
     ['user scroll intent', (c: TimelineViewportController) => c.markUserScrollIntent()],
     ['jump', (c: TimelineViewportController) => c.beginJump()],
-    ['composer post', (c: TimelineViewportController) => c.requestComposerBottom()],
+    ['composer post', (c: TimelineViewportController) => c.requestBottom()],
     ['jump to present', (c: TimelineViewportController) => c.prepareJumpToPresent()]
   ])('cancels the unread separator landing after %s', (_name, action) => {
     const controller = new TimelineViewportController();
@@ -212,7 +212,7 @@ describe('TimelineViewportController', () => {
     expect(controller.shouldScrollToBottom).toBe(true);
 
     controller.stopFollowingBottom();
-    controller.requestComposerBottom();
+    controller.requestBottom();
     expect(controller.shouldScrollToBottom).toBe(true);
 
     controller.prepareJumpToPresent();

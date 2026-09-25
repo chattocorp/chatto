@@ -260,7 +260,7 @@
     if (!scrollState || alwaysScrollToBottom) return;
     const counter = scrollState.scrollRequestCounter;
     if (counter > 0) {
-      viewport.requestComposerBottom();
+      viewport.requestBottom();
       tick().then(() => {
         if (scrollContainer && viewport.shouldScrollToBottom) {
           void requestBottomScroll();
@@ -500,7 +500,7 @@
 
   // Scroll to bottom when clicking the new messages indicator
   function scrollToBottom() {
-    viewport.followBottom();
+    viewport.requestBottom();
     onReachedBottom?.();
     void requestBottomScroll();
   }

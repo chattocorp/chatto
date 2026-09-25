@@ -425,6 +425,43 @@ describe('EventList unread entry landing', () => {
     }
   });
 
+  it('lets the jump button cancel a running landing', async () => {
+    const frames: FrameRequestCallback[] = [];
+    const requestFrame = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    setVirtualizerScrollOffset(400);
+    try {
+      render(EventListTestHarness, {
+        props: {
+          eventIds,
+          scrollToEventId: null,
+          scrollToUnreadOnEntry: true,
+          unreadAfterEventId: 'msg-2'
+        }
+      });
+      await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
+
+      (page.getByTestId('jump-to-present').element() as HTMLButtonElement).click();
+      for (let frame = 0; frame < 60 && frames.length > 0; frame++) {
+        frames.shift()?.(frame * 16);
+        await tick();
+        await Promise.resolve();
+      }
+      // Real frames let the button's fade-out transition finish.
+      requestFrame.mockRestore();
+
+      await expect.element(page.getByTestId('jump-to-present')).not.toBeInTheDocument();
+      expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+    } finally {
+      requestFrame.mockRestore();
+      setVirtualizerScrollOffset(700);
+    }
+  });
+
   it('keeps the viewport when the user scrolls before the marker resolves', async () => {
     const rendered = render(EventListTestHarness, {
       props: { eventIds, scrollToEventId: null, scrollToUnreadOnEntry: true }
