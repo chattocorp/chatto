@@ -1,3 +1,5 @@
+import { SvelteMap } from 'svelte/reactivity';
+
 export type OptimisticMutationToken = number;
 
 /**
@@ -44,4 +46,3 @@ export class OptimisticMutationRegistry {
     this.tokens.clear();
   }
 }
-import { SvelteMap } from 'svelte/reactivity';

@@ -407,6 +407,12 @@ async function writeView(view: SavedView, generation: number): Promise<void> {
   }
 }
 
+/** Clock adjustments must not weaken an earlier privacy boundary. */
+async function advanceInvalidation(store: IDBObjectStore, key: string): Promise<void> {
+  const previous = await requestResult<number | undefined>(store.get(key));
+  store.put(Math.max(previous ?? 0, Date.now()), key);
+}
+
 /** Remove saved private content when a local or verified server boundary occurs. */
 export async function clearSavedView(serverId: string, userId?: string): Promise<void> {
   snapshotStorageGeneration.value++;
@@ -419,9 +425,10 @@ export async function clearSavedView(serverId: string, userId?: string): Promise
     );
     const store = transaction.objectStore(STORE_NAME);
     const resources = transaction.objectStore(RESOURCE_STORE);
-    transaction
-      .objectStore(INVALIDATIONS_STORE)
-      .put(Date.now(), userId ? keyFor(serverId, userId) : `server:${serverId}`);
+    await advanceInvalidation(
+      transaction.objectStore(INVALIDATIONS_STORE),
+      userId ? keyFor(serverId, userId) : `server:${serverId}`
+    );
     if (userId) {
       store.delete(keyFor(serverId, userId));
       await deleteResources(resources, keyFor(serverId, userId));
@@ -454,7 +461,7 @@ export async function clearAllSavedViews(): Promise<void> {
     );
     transaction.objectStore(STORE_NAME).clear();
     transaction.objectStore(RESOURCE_STORE).clear();
-    transaction.objectStore(INVALIDATIONS_STORE).put(Date.now(), 'all');
+    await advanceInvalidation(transaction.objectStore(INVALIDATIONS_STORE), 'all');
     await transactionDone(transaction);
   } catch {
     // See clearSavedView.

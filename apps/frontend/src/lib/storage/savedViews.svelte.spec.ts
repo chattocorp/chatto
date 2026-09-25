@@ -140,6 +140,16 @@ describe('device saved views', () => {
     expect((await loadSavedView('one', 'alice'))?.checkpoint).toBe('reconciled-after-purge');
   });
 
+  it('does not weaken a privacy cutoff when the device clock moves backwards', async () => {
+    const before = view('clock-change', 'alice');
+    vi.setSystemTime(Date.now() + 100);
+    await clearSavedView('clock-change', 'alice');
+    vi.setSystemTime(Date.now() - 200);
+    await clearSavedView('clock-change', 'alice');
+    await saveView(before);
+    expect(await loadSavedView('clock-change', 'alice')).toBeNull();
+  });
+
   it('retains pagination boundaries, partial membership, and independent thread windows', async () => {
     const snapshot = view('one', 'alice');
     const room = snapshot.rooms[0];
