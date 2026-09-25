@@ -39,42 +39,31 @@ recommendation, not a trust or reciprocal relationship.
 - Neighborhood discovery rejects redirects and servers on loopback, private,
   and link-local network addresses. It stores re-encoded copies of logos and
   banners and serves them from the called server.
-- The Server Directory asks the user for consent before it contacts any
-  advertised server. The client saves this consent on the device and does not
-  ask again on later visits.
-- The Server Directory starts with all servers registered in the client. It
-  shows their direct recommendations after it loads each public profile. A
-  direct recommendation does not need reciprocal confirmation.
-- The client expands a recommended server only when the source and target
-  public directories currently advertise each other. It follows at most two
-  such mutual hops from a registered server.
-- The client adds results as public profiles load and does not move results
-  that are already visible.
+- The Server Directory loads the cached Neighborhood of each server that is
+  registered in the client. It contacts no other server to show results and
+  does not ask for consent. A registered server already knows the user's
+  network address.
 - The client removes duplicate canonical origins but does not rank or sort the
   results. Each result identifies all sources whose recommendations are shown.
+  A direct Neighbor of a registered server names that registered server as a
+  source.
 - The Server Directory uses a tapestry layout for server profile cards.
-- The Server Directory and Neighbor administration page load each applicable
-  server's public name, description, logo, and banner. The Server Directory
-  omits a direct recommendation when its public profile does not load. It omits
-  a recursive recommendation when mutuality is not verified or its public
-  profile does not load. The administration page keeps an advertised server
-  visible so that an administrator can review or remove it. A failed request
-  does not hide profiles that loaded successfully.
-- A public profile card accepts a logo or banner only from the advertised
-  server origin. The client loads the image without credentials or referrer
-  data, rejects redirects, and accepts only responses that declare a supported
-  raster image media type and contain at most 5 MiB.
-- The Server Directory starts one automatic batch of 12 candidate-directory
-  requests. After the user scrolls near the end of the results, the client can
-  start one more automatic batch of 12. **Load more** starts each later batch.
-  One page session permits at most 48 directory requests, 24 profile requests,
-  and 72 discovery requests in total. It queues at most 120 canonical
-  candidates.
-- The client uses at most six active discovery requests. Each request has a
-  ten-second timeout. It requests one directory and one profile at most for one
-  canonical origin. It does not retry a failed request in the same page session.
-- A hidden page does not start queued requests. Active requests can finish.
-  Leaving the page cancels active work and removes queued work.
+- The Neighbor administration page loads each advertised server's public name,
+  description, logo, and banner directly. It keeps an advertised server visible
+  so that an administrator can review or remove it. A failed request does not
+  hide profiles that loaded successfully.
+- A public profile card accepts a logo or banner only from one origin. On the
+  Neighbor administration page, this is the advertised server. In the Server
+  Directory, this is the registered server that supplied the cached copy. The
+  client loads the image without credentials or referrer data, rejects
+  redirects, and accepts only responses that declare a supported raster image
+  media type and contain at most 5 MiB.
+- The Server Directory sends one request to each registered server, with at
+  most six active requests and a ten-second timeout for each request. A
+  registered server that does not provide a Neighborhood contributes no
+  results and does not count as a failure.
+- Joining a server first loads its current public sign-in data from that
+  server. The user starts this request with the join action.
 - An advertised server that is already registered remains visible and is
   marked as joined.
 - An unregistered server has a join action only when its discovered version is
@@ -110,12 +99,12 @@ origins.
 ### 2. Direct recommendations remain unilateral
 
 **Decision:** The Server Directory shows a direct recommendation from a
-registered server without reciprocal confirmation. It expands that remote
-server only when the client observes that both public directories advertise
-each other.
+registered server without reciprocal confirmation. Neighborhood discovery
+expands that remote server only when it observes that both public directories
+advertise each other.
 
 **Why:** Direct recommendations keep the directory useful for old servers and
-for registered servers that are not publicly reachable. Client-observed
+for servers that do not advertise their recommenders back. Observed
 mutuality prevents one unilateral recommendation from amplifying the recursive
 crawl.
 
@@ -126,9 +115,10 @@ observation can change between requests.
 ### 3. The server stays passive and the client loads public profiles
 
 **Status:** Partially superseded by ADR-105 and Design Decision 14. The server
-now contacts Neighbors for background Neighborhood discovery. Neighbor
-administration writes remain passive. The Server Directory and the Neighbor
-administration page still load public profiles in the browser.
+now contacts Neighbors for background Neighborhood discovery, and the Server
+Directory reads the cached result. Neighbor administration writes remain
+passive. The Neighbor administration page still loads public profiles in the
+browser.
 
 **Decision:** The server validates and stores canonical origins. It does not
 request discovery data, images, or health information from a Neighbor. The
@@ -231,24 +221,26 @@ support.
 **Tradeoff:** A server with a missing or non-standard version cannot use the
 direct join flow, even when it might work with the client.
 
-### 11. Recursive discovery has a page-session budget
+### 11. Recursive discovery has a per-pass budget
 
-**Decision:** The client shows direct recommendations and follows at most two
-verified mutual hops. It uses one shared six-request scheduler and fixed
-candidate, directory, profile, and total request limits. The first candidate
-batch starts automatically. One more batch can start after the user scrolls
-near the end of the results. Later batches require **Load more**.
+**Decision:** Neighborhood discovery lists direct recommendations and follows
+at most two verified mutual hops. One pass permits at most 150 directory
+requests and 120 profile requests, with six active requests and a ten-second
+timeout for each request. It reads at most 100 origins from one remote
+directory.
 
-**Why:** Progressive discovery can find servers beyond a direct recommendation,
-but one malicious or cyclic directory must not start unbounded browser work.
-Fixed limits make the maximum request effect testable.
+**Why:** Recursive discovery can find servers beyond a direct recommendation,
+but one malicious or cyclic directory must not start unbounded work. Fixed
+limits make the maximum request effect testable.
 
-**Tradeoff:** A page session can stop before it explores every recommendation.
-The second automatic batch does not start on a short page that the user does
-not scroll. Discovery order reflects completion and bounded scheduling, not
-quality.
+**Tradeoff:** A pass can stop before it explores every recommendation. Result
+order reflects discovery order and the budget, not quality.
 
 ### 12. Server Directory discovery requires consent
+
+**Status:** Superseded by Design Decision 14 and ADR-105. The Server Directory
+contacts only registered servers, so it no longer asks for consent. A saved
+consent value from an older client has no effect.
 
 **Decision:** The Server Directory does not contact advertised servers until
 the user selects **Discover servers**. Before that action, the client explains
@@ -271,8 +263,9 @@ administrator does not get a separate connection prompt on the management page.
 
 ### 13. Public profile images use a restricted source
 
-**Decision:** A public profile card accepts an image only from the advertised
-server origin. The request sends no credentials or referrer data, does not
+**Decision:** A public profile card accepts an image only from one expected
+origin: the advertised server on the Neighbor administration page, or the
+registered server that supplied the cached copy in the Server Directory. The request sends no credentials or referrer data, does not
 follow redirects, and accepts a limited set of declared raster image media
 types. It rejects an image response after its body exceeds 5 MiB.
 
@@ -289,7 +282,9 @@ cross-origin request.
 **Decision:** Each server runs Neighborhood discovery in the background with
 the mutual-hop rules and fixed request limits. It stores the latest result in
 `MEMORY_CACHE` and image copies in `NEIGHBORHOOD_IMAGES`. The public
-`ListNeighborhoodServers` RPC returns only the cached result. See ADR-105.
+`ListNeighborhoodServers` RPC returns only the cached result. The Server
+Directory merges the cached results of all registered servers and does not ask
+for consent. See ADR-105.
 
 **Why:** A registered server already knows the user's IP address. When it
 contacts other servers, those servers do not see the user's address. A client

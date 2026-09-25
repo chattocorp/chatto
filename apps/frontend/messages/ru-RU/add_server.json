@@ -17,9 +17,6 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
-      "consent_title": "Найти рекомендованные серверы?",
-      "consent_body": "Chatto подключается к серверам, которые рекомендуют серверы, к которым вы присоединились. Эти серверы могут видеть ваш IP-адрес и технические сведения о подключении. Chatto сохраняет ваш выбор на этом устройстве.",
-      "consent_action": "Найти серверы",
       "recommended_by": "Рекомендуют {servers}",
       "more_recommenders_count": {
         "other": "ещё {count}"
@@ -34,10 +31,7 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address.",
-      "discovering": "Поиск других серверов…",
-      "load_more": "Загрузить ещё",
-      "session_limit_reached": "Достигнут лимит обнаружения для этого сеанса."
+      "empty_body": "You can still connect directly with a server address."
     }
   }
 }

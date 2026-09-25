@@ -4,9 +4,18 @@
 One public Chatto server profile. Server-supplied content stays inside the
 card. Callers supply trusted badges and actions through explicit props.
 -->
+<script lang="ts" module>
+  import type { PublicServerInfo } from '$lib/api-client/server';
+
+  /** Public profile fields that the card renders. */
+  export type ServerProfileCardProfile = Pick<
+    PublicServerInfo,
+    'name' | 'description' | 'iconUrl' | 'bannerUrl'
+  >;
+</script>
+
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { PublicServerInfo } from '$lib/api-client/server';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import { m } from '$lib/i18n/messages';
   import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
@@ -14,6 +23,7 @@ card. Callers supply trusted badges and actions through explicit props.
 
   let {
     origin,
+    imageOrigin = origin,
     profile,
     badge,
     details,
@@ -26,8 +36,13 @@ card. Callers supply trusted badges and actions through explicit props.
     testId = 'server-profile-card'
   }: {
     origin: string;
+    /**
+     * Origin that may supply the logo and banner. It defaults to `origin`. A
+     * registered server that hosts cached copies can supply them instead.
+     */
+    imageOrigin?: string;
     /** `undefined` means loading; `null` means that discovery failed. */
-    profile?: PublicServerInfo | null;
+    profile?: ServerProfileCardProfile | null;
     badge?: string;
     /** Optional caller-owned content between the public profile and actions. */
     details?: Snippet;
@@ -54,7 +69,7 @@ card. Callers supply trusted badges and actions through explicit props.
     name: profile?.name ?? hostname,
     logoUrl: profile?.iconUrl
   });
-  const bannerURL = $derived(publicServerImageURL(origin, profile?.bannerUrl ?? null));
+  const bannerURL = $derived(publicServerImageURL(imageOrigin, profile?.bannerUrl ?? null));
   let failedBannerURL = $state<string | null>(null);
   const accessibleIconActionLabel = $derived(
     iconActionLabel ? `${iconActionLabel}: ${logoServer.name}` : logoServer.name
@@ -92,7 +107,7 @@ card. Callers supply trusted badges and actions through explicit props.
           title={accessibleIconActionLabel}
           data-testid={`${testId}-icon-action`}
         >
-          <ServerLogo server={logoServer} publicImageOrigin={origin} fill />
+          <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
         </a>
         <!-- eslint-enable svelte/no-navigation-without-resolve -->
       {:else if onIconClick}
@@ -105,13 +120,13 @@ card. Callers supply trusted badges and actions through explicit props.
           onclick={onIconClick}
           data-testid={`${testId}-icon-action`}
         >
-          <ServerLogo server={logoServer} publicImageOrigin={origin} fill />
+          <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
         </button>
       {:else}
         <div
           class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized"
         >
-          <ServerLogo server={logoServer} publicImageOrigin={origin} fill />
+          <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
         </div>
       {/if}
 

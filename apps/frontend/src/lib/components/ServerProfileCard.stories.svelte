@@ -1,8 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import type { PublicServerInfo } from '$lib/api-client/server';
   import { Button } from '$lib/ui/form';
-  import ServerProfileCard from './ServerProfileCard.svelte';
+  import ServerProfileCard, { type ServerProfileCardProfile } from './ServerProfileCard.svelte';
 
   const { Story } = defineMeta({
     title: 'Components/ServerProfileCard',
@@ -10,18 +9,11 @@
     tags: ['autodocs']
   });
 
-  const profile: PublicServerInfo = {
+  const profile: ServerProfileCardProfile = {
     name: 'The Extremely Long Neighbourhood Server Name',
-    version: '0.5.0',
-    authorizeUrl: '/oauth/authorize',
-    directRegistrationEnabled: true,
-    directLoginEnabled: true,
-    accountCreationPolicy: 'open',
-    welcomeMessage: null,
     description: 'A calm place for thoughtful conversations and small communities.',
     iconUrl: null,
-    bannerUrl: null,
-    authProviders: []
+    bannerUrl: null
   };
 </script>
 
@@ -41,7 +33,7 @@
     {/snippet}
     <ServerProfileCard
       origin="https://old-neighbourhood.example"
-      profile={{ ...profile, version: '0.4.19' }}
+      {profile}
       iconHref="https://old-neighbourhood.example"
       iconOpensInNewTab
       iconActionLabel="Open in new tab"

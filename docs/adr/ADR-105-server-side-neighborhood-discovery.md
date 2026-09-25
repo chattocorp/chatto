@@ -76,5 +76,9 @@ cluster-wide rate. The replica checks again after it gets the lease.
   ten minutes.
 - A NATS restart removes the memory-backed directory. The next check starts a
   new pass. Backups exclude `NEIGHBORHOOD_IMAGES`.
-- This supersedes FDR-042 Design Decision 3 for Neighborhood discovery. The
-  Neighbor administration page still loads public profiles in the browser.
+- The bundled Server Directory merges the Neighborhoods of all registered
+  servers and removes its browser crawl and consent prompt. It accepts cached
+  images only from the registered server that supplied them.
+- This supersedes FDR-042 Design Decision 12 and partially supersedes Design
+  Decision 3. The Neighbor administration page still loads public profiles in
+  the browser.

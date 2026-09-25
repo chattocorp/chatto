@@ -17,9 +17,6 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
-      "consent_title": "Ĉu trovi rekomenditajn servilojn?",
-      "consent_body": "Chatto kontaktas servilojn rekomenditajn de serviloj al kiuj vi aliĝis. Tiuj serviloj povas vidi vian IP-adreson kaj teknikajn detalojn pri la konekto. Chatto konservas vian elekton en ĉi tiu aparato.",
-      "consent_action": "Trovi servilojn",
       "recommended_by": "Rekomendita de {servers}",
       "more_recommenders_count": {
         "other": "{count} pliaj"
@@ -34,10 +31,7 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address.",
-      "discovering": "Pliaj serviloj estas serĉataj…",
-      "load_more": "Ŝargi pli",
-      "session_limit_reached": "La malkovra limo por ĉi tiu seanco estas atingita."
+      "empty_body": "You can still connect directly with a server address."
     }
   }
 }

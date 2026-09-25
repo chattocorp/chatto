@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  getPublicNeighborOrigins,
   getPublicServerInfo,
-  InvalidPublicServerError
+  InvalidPublicServerError,
+  listNeighborhoodServers
 } from '$lib/api-client/server';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   getServer: vi.fn(),
-  listNeighbors: vi.fn()
+  listNeighborhoodServers: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -31,25 +31,52 @@ describe('public server discovery', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.getServer.mockReset();
-    mocks.listNeighbors.mockReset();
+    mocks.listNeighborhoodServers.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       getServer: mocks.getServer,
-      listNeighbors: mocks.listNeighbors
+      listNeighborhoodServers: mocks.listNeighborhoodServers
     });
   });
 
-  it('loads public Neighbor origins without authentication', async () => {
+  it('loads the cached Neighborhood without authentication', async () => {
     const signal = AbortSignal.timeout(1000);
-    mocks.listNeighbors.mockResolvedValue({
-      origins: ['https://one.example', 'https://two.example'],
-      neighbors: [{ origin: 'https://ignored.example', testimonial: 'legacy testimonial' }]
+    mocks.listNeighborhoodServers.mockResolvedValue({
+      servers: [
+        {
+          origin: 'https://one.example',
+          profile: {
+            name: 'One',
+            version: '0.5.0',
+            description: 'First',
+            logoUrl: 'https://chat.example.test/assets/neighborhood/logo',
+            welcomeMessage: 'ignored'
+          },
+          directNeighbor: true,
+          recommendedByOrigins: ['https://two.example']
+        },
+        { origin: 'https://nameless.example', profile: { name: '' }, recommendedByOrigins: [] },
+        { origin: '', profile: { name: 'No origin' }, recommendedByOrigins: [] }
+      ]
     });
 
-    await expect(
-      getPublicNeighborOrigins('https://chat.example.test', { signal })
-    ).resolves.toEqual(['https://one.example', 'https://two.example']);
-    expect(mocks.listNeighbors).toHaveBeenCalledWith({}, { signal });
+    await expect(listNeighborhoodServers('https://chat.example.test', { signal })).resolves.toEqual(
+      [
+        {
+          origin: 'https://one.example',
+          profile: {
+            name: 'One',
+            version: '0.5.0',
+            description: 'First',
+            iconUrl: 'https://chat.example.test/assets/neighborhood/logo',
+            bannerUrl: null
+          },
+          directNeighbor: true,
+          recommendedByOrigins: ['https://two.example']
+        }
+      ]
+    );
+    expect(mocks.listNeighborhoodServers).toHaveBeenCalledWith({}, { signal, timeoutMs: 10_000 });
   });
 
   it('loads public server metadata and maps the shared profile', async () => {

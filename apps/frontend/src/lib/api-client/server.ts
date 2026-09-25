@@ -69,12 +69,52 @@ export async function getPublicServerInfo(
   };
 }
 
-/** Read one server's public Neighbor origins without requiring a session. */
-export async function getPublicNeighborOrigins(
+/** Public profile fields of one server in a Neighborhood. */
+export type NeighborhoodServerProfile = Pick<
+  PublicServerInfo,
+  'name' | 'version' | 'description' | 'iconUrl' | 'bannerUrl'
+>;
+
+/** One server in the Neighborhood that a Chatto server discovered. */
+export type NeighborhoodServer = {
+  origin: string;
+  /** Logo and banner URLs identify copies on the called server. */
+  profile: NeighborhoodServerProfile;
+  /** Whether the called server advertises this server as a Neighbor. */
+  directNeighbor: boolean;
+  /** Other servers in the same response that mutually recommend this server. */
+  recommendedByOrigins: string[];
+};
+
+/**
+ * Read the Neighborhood that one server discovered and cached. The request goes
+ * only to `baseUrl`; the called server does not contact other servers for it.
+ */
+export async function listNeighborhoodServers(
   baseUrl: string,
   options: { signal?: AbortSignal } = {}
-): Promise<string[]> {
+): Promise<NeighborhoodServer[]> {
   const client = createPublicChattoClient(ServerDiscoveryService, baseUrl);
-  const response = await client.listNeighbors({}, { signal: options.signal });
-  return response.origins;
+  const response = await client.listNeighborhoodServers(
+    {},
+    { signal: options.signal, timeoutMs: 10_000 }
+  );
+  return response.servers.flatMap((server) => {
+    if (!server.origin || !server.profile?.name) return [];
+    const profile = mapServerProfile(server.profile);
+    return [
+      {
+        origin: server.origin,
+        profile: {
+          name: profile.name,
+          version: profile.version,
+          description: profile.description,
+          iconUrl: profile.logoUrl,
+          bannerUrl: profile.bannerUrl
+        },
+        directNeighbor: server.directNeighbor,
+        recommendedByOrigins: [...server.recommendedByOrigins]
+      }
+    ];
+  });
 }
