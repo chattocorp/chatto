@@ -11,6 +11,7 @@ const { mocks } = vi.hoisted(() => ({
     store: {
       restoreSavedView: vi.fn(),
       networkStartupDeferred: false,
+      realtimeSync: { phase: 'empty' as 'empty' | 'stale' | 'ready' },
       savedView: null as { serverId: string; userId: string; rooms: unknown[] } | null,
       currentUser: {
         loading: false,
@@ -72,6 +73,7 @@ describe('server route layout load', () => {
     mocks.store.currentUser.load.mockResolvedValue(undefined);
     mocks.store.savedView = null;
     mocks.store.networkStartupDeferred = false;
+    mocks.store.realtimeSync.phase = 'empty';
     mocks.loadSavedView.mockResolvedValue(null);
     // The store accepts a matching view; tests override this to model refusal.
     mocks.store.restoreSavedView.mockImplementation((view: typeof mocks.store.savedView) => {
@@ -186,10 +188,24 @@ describe('server route layout load', () => {
 
   it('leaves network startup to the root layout after the first saved paint', async () => {
     mocks.store.savedView = { serverId: 'origin', userId: 'viewer-1', rooms: [] };
+    mocks.store.realtimeSync.phase = 'stale';
 
     await expect(routeLoad(null, false, 'origin')).resolves.toMatchObject({ serverSegment: '-' });
 
     expect(mocks.startServerNetwork).not.toHaveBeenCalled();
+    expect(mocks.loadSavedView).not.toHaveBeenCalled();
+  });
+
+  it('does not read saved views for a store that already has a projection', async () => {
+    mocks.serverId = 'remote';
+    mocks.origin = false;
+    mocks.store.realtimeSync.phase = 'ready';
+
+    await expect(routeLoad(null)).resolves.toMatchObject({ serverSegment: '-' });
+
+    expect(mocks.loadSavedView).not.toHaveBeenCalled();
+    expect(mocks.store.restoreSavedView).not.toHaveBeenCalled();
+    expect(mocks.startServerNetwork).toHaveBeenCalledWith('remote');
   });
 
   it('keeps the shell mounted for reauthentication recovery', async () => {

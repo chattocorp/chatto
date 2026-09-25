@@ -22,12 +22,14 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     redirect(302, resolve('/setup'));
   }
 
-  serverStore.restoreSavedView(
-    startupServerId === serverId
-      ? serverStore.savedView
-      : await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null),
-    serverStore.networkStartupDeferred
-  );
+  // Only an empty projection can show a saved view. A store that restored one
+  // or synced live data has nothing to restore, so it skips the disk read.
+  if (serverStore.realtimeSync.phase === 'empty') {
+    serverStore.restoreSavedView(
+      await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null),
+      serverStore.networkStartupDeferred
+    );
+  }
   // Only a view the store accepted counts; it refuses rejected or corrupt views.
   const savedView = serverStore.savedView;
   // A dormant server starts its network work after its saved view is ready.
