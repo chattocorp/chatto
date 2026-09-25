@@ -58,7 +58,8 @@ export function startServerOAuthFlow(
  * Start sign-in while the server's current public data still loads. Call this
  * synchronously from the user's action: the browser opens the sign-in window
  * before `serverInfo` settles. A rejected `serverInfo` closes the window and
- * rejects the returned promise with the same error.
+ * rejects the returned promise with the same error. If the browser blocks the
+ * window, the returned promise rejects with that error instead.
  */
 export function startServerOAuthFlowWhenReady(
   serverUrl: string,
@@ -131,6 +132,8 @@ async function runServerOAuthFlow(
   );
   if (!popup) {
     loadAndClearFlowState();
+    // The blocked window replaces any later server-data error.
+    details.catch(() => {});
     throw new OAuthPopupError('The sign-in window could not be opened.');
   }
   const authorizationWindow: AuthorizationWindow = browserAuthorizationWindow(popup);

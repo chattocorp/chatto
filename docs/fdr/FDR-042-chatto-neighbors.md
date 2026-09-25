@@ -181,7 +181,7 @@ identifies each source server whose recommendation is shown.
 duplicate server cards.
 
 **Tradeoff:** A source name can come from the device-local catalogue or from a
-public profile that the current discovery session loaded.
+cached Neighborhood profile. A cached name can be up to one hour old.
 
 ### 8. Recommendations contain no operator-written text
 

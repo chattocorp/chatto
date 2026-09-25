@@ -129,6 +129,25 @@ func TestCrawl(t *testing.T) {
 			wantLists: []string{"https://a.example", "https://b.example"},
 		},
 		{
+			name:      "one-sided loads do not extend discovery past two mutual hops",
+			neighbors: []string{"https://x.example", "https://w.example"},
+			fetcher: &fakeFetcher{
+				directories: map[string][]string{
+					"https://x.example": {self, "https://y.example"},
+					"https://w.example": {self, "https://z.example"},
+					"https://y.example": {"https://x.example", "https://z.example"},
+					"https://z.example": {"https://y.example"},
+				},
+				profiles: profiles("https://x.example", "https://w.example", "https://y.example", "https://z.example"),
+			},
+			want: map[string]crawledServer{
+				"https://x.example": {direct: true, recommendedBy: []string{"https://y.example"}},
+				"https://w.example": {direct: true},
+				"https://y.example": {recommendedBy: []string{"https://x.example"}},
+			},
+			wantLists: []string{"https://x.example", "https://w.example", "https://y.example", "https://z.example"},
+		},
+		{
 			name:      "loaded directories add mutual attribution",
 			neighbors: []string{"https://a.example", "https://d.example"},
 			fetcher: &fakeFetcher{

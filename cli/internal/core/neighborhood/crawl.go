@@ -51,6 +51,10 @@ const (
 	MaxImageURLLength = 2048
 )
 
+// maxMutualHops is the maximum number of mutual hops between the local server
+// and a server that discovery adds through recommendations.
+const maxMutualHops = 2
+
 // ErrUnsupported means that a remote server does not provide a Neighbor
 // directory. Discovery treats that server as having no Neighbors.
 var ErrUnsupported = errors.New("remote server does not provide a Neighbor directory")
@@ -116,7 +120,7 @@ func Crawl(ctx context.Context, selfOrigins []string, neighbors []string, fetche
 		directories: make(map[string]directory),
 		requested:   make(map[string]struct{}),
 		recorded:    make(map[string]*recording),
-		mutual:      make(map[string]struct{}),
+		hops:        make(map[string]int),
 	}
 	for _, origin := range selfOrigins {
 		if canonical, ok := CanonicalOrigin(origin); ok {
@@ -170,9 +174,11 @@ type crawl struct {
 	// requested holds each origin whose directory discovery requested.
 	requested map[string]struct{}
 	// recorded holds each server that discovery lists if its profile loads.
-	recorded          map[string]*recording
-	order             []string
-	mutual            map[string]struct{}
+	recorded map[string]*recording
+	order    []string
+	// hops holds the mutual hop count of each server that can recommend
+	// others.
+	hops              map[string]int
 	directoryRequests int
 	profileRequests   int
 	failedRequests    int
@@ -298,29 +304,31 @@ func (c *crawl) roundRobinCandidates(sources []string) []string {
 }
 
 // recordMutualRecommendations applies the mutual-hop rule to every loaded
-// directory until no new server becomes eligible. The local server is always
-// eligible. A server becomes eligible when an eligible source recommends it
-// and it advertises that source back. Discovery reads new directories only
-// from direct Neighbors, which bounds the result to two mutual hops.
+// directory until no server changes its hop count. A direct Neighbor that
+// advertises the local server back is one mutual hop away. A source adds a
+// target when the target advertises the source back. Only a source less than
+// maxMutualHops away can add a new server; a source at the limit can only
+// attribute a server that discovery already lists.
 func (c *crawl) recordMutualRecommendations() {
 	for _, origin := range c.ownNeighbors {
 		if c.advertisesSelf(origin) {
-			c.mutual[origin] = struct{}{}
+			c.hops[origin] = 1
 		}
 	}
 	for changed := true; changed; {
 		changed = false
-		for _, source := range c.eligibleSources() {
-			if _, loaded := c.directories[source]; !loaded {
-				continue
-			}
+		for _, source := range c.mutualSources() {
+			hops := c.hops[source]
 			for _, target := range c.directories[source].targets {
 				if _, loaded := c.directories[target]; !loaded || !c.advertises(target, source) {
 					continue
 				}
+				if _, listed := c.recorded[target]; !listed && hops >= maxMutualHops {
+					continue
+				}
 				c.record(target, source)
-				if _, known := c.mutual[target]; !known {
-					c.mutual[target] = struct{}{}
+				if known, exists := c.hops[target]; hops < maxMutualHops && (!exists || hops+1 < known) {
+					c.hops[target] = hops + 1
 					changed = true
 				}
 			}
@@ -328,10 +336,12 @@ func (c *crawl) recordMutualRecommendations() {
 	}
 }
 
-func (c *crawl) eligibleSources() []string {
-	sources := make([]string, 0, len(c.mutual))
+// mutualSources returns the servers with a known mutual hop count in
+// discovery order.
+func (c *crawl) mutualSources() []string {
+	sources := make([]string, 0, len(c.hops))
 	for _, origin := range c.order {
-		if _, eligible := c.mutual[origin]; eligible {
+		if _, mutual := c.hops[origin]; mutual {
 			sources = append(sources, origin)
 		}
 	}

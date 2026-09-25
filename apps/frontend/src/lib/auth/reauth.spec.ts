@@ -453,6 +453,25 @@ describe('remote server OAuth popup', () => {
     expect(gotoMock).not.toHaveBeenCalled();
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
+
+  it('reports a blocked join window without an unhandled server-data rejection', async () => {
+    const { owner } = browserHarness(null);
+    vi.stubGlobal('window', owner);
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+
+    const { startServerOAuthFlowWhenReady } = await import('./reauth');
+    await expect(
+      startServerOAuthFlowWhenReady(
+        'https://remote.example',
+        Promise.reject(new Error('join unavailable'))
+      )
+    ).rejects.toThrow('could not be opened');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    process.off('unhandledRejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
 });
 
 describe('origin server reauthentication', () => {
