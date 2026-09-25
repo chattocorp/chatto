@@ -1264,7 +1264,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	realtimeContext := authctx.WithCredential(context.Background(), authctx.RuntimeCredential{
 		Kind: authctx.RuntimeCredentialKindBearerToken, UserID: credential.UserID, Handle: tokenResponse.AccessToken,
 	})
-	if err := s.revalidateRealtimeCredential(realtimeContext); !errors.Is(err, core.ErrNotAuthenticated) {
+	if _, err := s.revalidateRealtimeCredential(realtimeContext); !errors.Is(err, core.ErrNotAuthenticated) {
 		t.Fatalf("resource-bound token authenticated on realtime path: %v", err)
 	}
 	if len(tokenResponse.User) != 0 {

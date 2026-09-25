@@ -202,6 +202,14 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
+	closePrivilegedModeExpired := func() {
+		_ = conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "privileged mode expired"),
+			time.Now().Add(time.Second),
+		)
+		_ = conn.Close()
+	}
 	var privilegedModeDeadlineTimer *time.Timer
 	if credentialOK && time.Now().Before(credential.PrivilegedModeExpiresAt) {
 		privilegedModeDeadlineTimer = time.NewTimer(time.Until(credential.PrivilegedModeExpiresAt))
@@ -213,14 +221,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			defer close(privilegedModeWatcherDone)
 			select {
 			case <-privilegedModeDeadlineTimer.C:
-				terminateRealtimeForPrivilegedModeExpiry(cancel, writeFrame, func() {
-					_ = conn.WriteControl(
-						websocket.CloseMessage,
-						websocket.FormatCloseMessage(websocket.CloseNormalClosure, "privileged mode expired"),
-						time.Now().Add(time.Second),
-					)
-					_ = conn.Close()
-				})
+				terminateRealtimeForPrivilegedModeExpiry(cancel, writeFrame, closePrivilegedModeExpired)
 			case <-ctx.Done():
 			}
 		}()
@@ -243,7 +244,17 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			for {
 				select {
 				case <-ticker.C:
-					err := s.revalidateRealtimeCredential(ctx)
+					privilegedUntil, err := s.revalidateRealtimeCredential(ctx)
+					if err == nil {
+						now := time.Now()
+						if now.Before(credential.PrivilegedModeExpiresAt) && !now.Before(privilegedUntil) {
+							// Another connection of this session ended privileged mode.
+							// Reconnect so fan-out stops using the privileged state.
+							terminateRealtimeForPrivilegedModeExpiry(cancel, writeFrame, closePrivilegedModeExpired)
+							return
+						}
+						continue
+					}
 					if !errors.Is(err, core.ErrNotAuthenticated) {
 						// Transient storage failures do not log out a valid user. The
 						// next interval retries the independent validation.
@@ -328,7 +339,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
-	if err := s.revalidateRealtimeCredential(ctx); err != nil {
+	if _, err := s.revalidateRealtimeCredential(ctx); err != nil {
 		if errors.Is(err, core.ErrNotAuthenticated) {
 			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
@@ -757,37 +768,44 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *r
 
 // revalidateRealtimeCredential checks the exact runtime credential that
 // authorized the socket. It closes the upgrade-to-subscribe gap and bounds
-// access when a live revocation signal is lost.
-func (s *HTTPServer) revalidateRealtimeCredential(ctx context.Context) error {
+// access when a live revocation signal is lost. It returns the credential's
+// current privileged-mode deadline, which another connection of the same
+// session can change.
+func (s *HTTPServer) revalidateRealtimeCredential(ctx context.Context) (time.Time, error) {
 	credential, ok := authctx.CredentialForContext(ctx)
 	if !ok {
-		return core.ErrNotAuthenticated
+		return time.Time{}, core.ErrNotAuthenticated
 	}
 	switch credential.Kind {
 	case authctx.RuntimeCredentialKindCookieSession:
 		record, err := s.core.ValidateCookieCredential(ctx, credential.Handle)
 		if err != nil {
 			if errors.Is(err, core.ErrCookieSessionNotFound) {
-				return core.ErrNotAuthenticated
+				return time.Time{}, core.ErrNotAuthenticated
 			}
-			return err
+			return time.Time{}, err
 		}
 		if record.GetUserId() != credential.UserID {
-			return core.ErrNotAuthenticated
+			return time.Time{}, core.ErrNotAuthenticated
 		}
+		if record.GetPrivilegedModeExpiresAt() == nil {
+			return time.Time{}, nil
+		}
+		return record.GetPrivilegedModeExpiresAt().AsTime(), nil
 	case authctx.RuntimeCredentialKindBearerToken:
 		validated, err := s.core.ValidatePublicBearerCredential(ctx, credential.Handle)
 		if err != nil {
 			if errors.Is(err, core.ErrAuthTokenNotFound) {
-				return core.ErrNotAuthenticated
+				return time.Time{}, core.ErrNotAuthenticated
 			}
-			return err
+			return time.Time{}, err
 		}
 		if validated.UserID != credential.UserID {
-			return core.ErrNotAuthenticated
+			return time.Time{}, core.ErrNotAuthenticated
 		}
+		return validated.PrivilegedModeExpiresAt, nil
 	}
-	return nil
+	return credential.PrivilegedModeExpiresAt, nil
 }
 
 func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeServerFrame, error) {

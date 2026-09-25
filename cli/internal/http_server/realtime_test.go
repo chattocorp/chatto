@@ -827,6 +827,62 @@ func TestRealtimeWebSocketClosesAfterCookieRevocation(t *testing.T) {
 	}
 }
 
+// Deactivation through another connection of the same session must end the
+// privileged fan-out state of this socket.
+func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	env.httpServer.realtimeCredentialCheckEvery = 25 * time.Millisecond
+	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-privileged-tabs", "RT Privileged Tabs", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	env.login(t, "rt-privileged-tabs", "password123")
+	var sessionID string
+	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			sessionID = cookie.Value
+			break
+		}
+	}
+	if sessionID == "" {
+		t.Fatal("login did not set browser session cookie")
+	}
+	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, true); err != nil {
+		t.Fatalf("activate privileged mode: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	// Several credential checks pass while the session stays privileged.
+	time.Sleep(100 * time.Millisecond)
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-privileged-peer", "RT Privileged Peer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser peer: %v", err)
+	}
+	if err := env.core.SetPresence(env.ctx, other.GetId(), core.PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence: %v", err)
+	}
+	if frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second); !ok || frame.GetClose() != nil {
+		t.Fatalf("frame before deactivation = %+v, want a live event on the open socket", frame)
+	}
+	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, false); err != nil {
+		t.Fatalf("deactivate privileged mode: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			t.Fatal("socket stayed open after privileged mode deactivation")
+		}
+		if frame.GetClose() == nil {
+			continue
+		}
+		if frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED || !frame.GetClose().GetReconnect() {
+			t.Fatalf("deactivation response = %+v, want reconnecting privileged_mode_expired", frame)
+		}
+		return
+	}
+}
+
 func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-multi-key-owner", "RT Multi-key Owner", "password123")
