@@ -180,7 +180,7 @@ export class MessageComposerState {
       getMentionRoleNames: () => this.mentionRoles.map((role) => role.name),
       onPostSuccess: (post, event) => this.#handlePostSuccess(post, event),
       onPostError: dependencies.onPostError,
-      onEditSuccess: () => this.#handleEditSuccess()
+      onEditSuccess: (input) => this.#handleEditSuccess(input)
     });
 
     void dependencies.mentionRolesStore.load();
@@ -605,7 +605,10 @@ export class MessageComposerState {
     this.#dependencies.roomUnreadStore.setRoomUnread(post.roomId, false);
   }
 
-  #handleEditSuccess(): void {
+  #handleEditSuccess(input: UpdateMessageInput): void {
+    // A room or thread switch can cancel the edit while its save is in flight.
+    // The composer then shows another draft or edit, so keep it.
+    if (this.editState.eventId !== input.eventId) return;
     this.#resetEditor();
     this.editState.cancelEdit();
   }
