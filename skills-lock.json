@@ -1,6 +1,30 @@
 {
   "version": 1,
   "skills": {
+    "adr": {
+      "source": "hmans/skills",
+      "sourceType": "github",
+      "skillPath": "skills/adr/SKILL.md",
+      "computedHash": "de67327f82ef4536a700ecc0086c63ac9c63c7574d68030e2096415b077ed49c"
+    },
+    "bazinga": {
+      "source": "hmans/skills",
+      "sourceType": "github",
+      "skillPath": "skills/bazinga/SKILL.md",
+      "computedHash": "e364acd3f4611c96b20ccb9ceec860aa14d2fa1c43d29293ac7d8c42c810d1fe"
+    },
+    "fdr": {
+      "source": "hmans/skills",
+      "sourceType": "github",
+      "skillPath": "skills/fdr/SKILL.md",
+      "computedHash": "e8c9786e1982ea40e0d43e22dcd6e5197a8be7e48526227690ed78201a568c6f"
+    },
+    "glossary": {
+      "source": "hmans/skills",
+      "sourceType": "github",
+      "skillPath": "skills/glossary/SKILL.md",
+      "computedHash": "fc41a17a295c228fd9fbab91b40a68a807ceb1ef367873f27dc213d7cb51b3e9"
+    },
     "svelte-code-writer": {
       "source": "sveltejs/ai-tools",
       "ref": "main",
@@ -14,6 +38,12 @@
       "sourceType": "github",
       "skillPath": "tools/skills/svelte-core-bestpractices/SKILL.md",
       "computedHash": "98b4ee346ac45e13740c9f3353b604d5c6e844c96cdc8867052fa961cbdb525d"
+    },
+    "technical-writing": {
+      "source": "hmans/skills",
+      "sourceType": "github",
+      "skillPath": "skills/technical-writing/SKILL.md",
+      "computedHash": "3b57771744b92c0135a20ad5fe628bd483b8fb7bc11dbead7f83c4578ab044af"
     }
   }
 }
