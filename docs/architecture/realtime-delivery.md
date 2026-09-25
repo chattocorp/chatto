@@ -525,9 +525,9 @@ A warm replacement keeps the normal route visible. Fresh room permissions
 remove access to affected rooms; cursor-bounded timeline reads replace retained
 message windows when they complete. An interrupted replacement leaves the
 prior view visible while the client requests another snapshot. A cold offline
-launch restores bounded saved text in the normal chat route. Verified access
-revocation clears affected saved text and position. Explicit sign-out clears
-the saved data. The saved text never supplies a realtime cursor or current
+launch restores a bounded store snapshot in the normal chat route. Verified access
+revocation clears the disk snapshot and affected timeline position. Explicit sign-out clears
+the saved data. The snapshot never supplies a realtime cursor or current
 authorization.
 After the saved view paints, the registry starts server discovery and verifies
 the viewer through the existing connection. The root route does not reload.
@@ -547,15 +547,16 @@ each server. Route loading and recovery use that owner. Cookie migration and
 transient retries are request policy, with no separate account cache. The
 registry checks identity changes before it publishes the response. Account
 reset, newer live viewer data, and store disposal reject older responses.
-Saved-view restoration keeps room labels in the saved view. Navigation and room
-selectors use those labels only while live catch-up is pending. They do not
-insert rooms, membership, permissions, or profiles into the live projection.
-Timeline stores convert saved text directly to display rows, without API
-response objects or a pagination cursor. These stores wait for verified live
-catch-up before they read history. Live room responses take precedence;
-access loss and omitted rooms remove the saved fallback before it can reappear.
-Snapshot catch-up replaces retained rows through the normal timeline read.
-Saved data never constructs a viewer response or changes account data. Settings
+Saved-view restoration decodes room resources, groups, known profiles, and
+viewer display data into the normal projection. It restores full timeline rows,
+notification state, and loaded member lists into their normal owners.
+Selectors have no saved-data fallback. The connection holds private reads
+until viewer verification and rejects commands until catch-up completes.
+Snapshot catch-up replaces retained rows through the normal timeline read;
+member refreshes publish their complete replacement without a partial-page gap.
+The versioned IndexedDB record has no realtime or pagination cursor.
+Invalid records use live startup. Cursor advances schedule a new snapshot.
+Saved data does not verify or populate the account-loading owner. Settings
 wait for complete account data; the transport coordinator does not populate
 or clear it. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 

@@ -141,6 +141,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'origin',
     store: {
       currentUser: currentUserState,
+      get viewerUser() {
+        return currentUserState.user;
+      },
       voiceCall: voiceCallState,
       navigation: roomsState,
       projection: projectionState,

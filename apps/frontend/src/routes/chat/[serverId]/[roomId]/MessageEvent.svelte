@@ -77,7 +77,7 @@
 
   const connection = () => serverScope.connection;
   const activeServerId = $derived(serverScope.serverId);
-  const currentUser = $derived(stores.currentUser);
+  const currentUser = $derived({ user: stores.viewerUser });
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;

@@ -1,7 +1,7 @@
 # FDR-045: Realtime Event Stream
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-09-25
 
 ## Overview
 
@@ -63,10 +63,13 @@ the stream to build and maintain its local server projection.
 - The bundled client keeps the same viewer's saved room and timeline mounted
   while it verifies the viewer and hydrates a warm snapshot. It updates the
   view in place after fresh resources arrive. The saved view is read-only
-  until the server verifies its viewer. A changed or rejected viewer clears
-  that private view.
-- Saved text and public user profiles remain separate from the signed-in
-  account. Restoring saved text does not complete account loading. Account
+  until the server verifies its viewer and finishes catch-up. A changed or
+  rejected viewer clears that private view.
+- Saved room groups, message metadata, and member lists use the same display
+  as live data. Reconnect changes the layout only when the displayed data
+  changes; it does not add metadata omitted by a separate saved renderer.
+- Saved display state and public user profiles remain separate from the verified
+  account. Restoring display state does not complete account loading. Account
   settings wait for complete live account data before they initialise drafts;
   later refreshes preserve edits. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 - The stream does not guarantee every intermediate transition after a client

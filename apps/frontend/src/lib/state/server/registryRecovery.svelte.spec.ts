@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { savedViewFixture } from '$lib/test-utils/savedView';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { CurrentUser } from '$lib/api-client/viewer';
 
@@ -141,14 +142,13 @@ describe('registered server recovery', () => {
     const previous = await register();
     registry.sessions.update('retry-test', { userId: 'old-user' });
     previous.restoreSavedView(
-      {
-        version: 1,
+      savedViewFixture({
         serverId: 'retry-test',
         userId: 'old-user',
         serverName: 'Saved server',
         savedAt: Date.now(),
         rooms: [{ id: 'private-room', name: 'private', messages: [] }]
-      },
+      }),
       true
     );
     mocks.viewer.mockResolvedValue(user);

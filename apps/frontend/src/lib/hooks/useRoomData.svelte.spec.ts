@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { useRoomData } from './useRoomData.svelte';
-import type { SavedView } from '$lib/storage/savedViews';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -17,8 +16,7 @@ const { mocks } = vi.hoisted(() => ({
         hasDisplayableView: boolean;
       };
       isAuthenticated: boolean;
-      savedView: SavedView | null;
-      readonly savedRooms: SavedView['rooms'];
+      viewerId: string;
       projection: { rooms: SvelteMap<string, unknown> };
       projectedMembersForRoom: ReturnType<typeof vi.fn>;
       currentUser: { user: { id: string } | undefined };
@@ -85,10 +83,7 @@ describe('useRoomData projection selector', () => {
     mocks.store = {
       realtimeSync,
       isAuthenticated: true,
-      savedView: null,
-      get savedRooms() {
-        return this.savedView?.rooms ?? [];
-      },
+      viewerId: 'viewer',
       projection: { rooms: new SvelteMap() },
       projectedMembersForRoom: vi.fn((roomId: string) => [member(roomId)]),
       currentUser: { user: { id: 'viewer' } },
@@ -98,24 +93,16 @@ describe('useRoomData projection selector', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('uses saved metadata for display and live data for every permission', () => {
+  it('renders the store projection and follows later permission changes', () => {
     mocks.store.realtimeSync.phase = 'stale';
-    mocks.store.savedView = {
-      version: 1,
-      serverId: 'S1',
-      userId: 'viewer',
-      serverName: 'Saved',
-      savedAt: 1,
-      rooms: [{ id: 'channel', name: 'Saved room', messages: [] }]
-    };
+    mocks.store.projection.rooms.set('channel', projectedRoom('channel', RoomKind.CHANNEL));
     const destroy = $effect.root(() => {
       const selected = useRoomData(() => ({ roomId: 'channel' }));
-      // Even a verified account does not give cached room labels authority.
       expect(selected.roomData).toMatchObject({
-        room: { name: 'Saved room' },
-        canReadMessages: null,
-        canPostMessage: false,
-        canReact: false,
+        room: { name: 'channel' },
+        canReadMessages: true,
+        canPostMessage: true,
+        canReact: true,
         canManageRoom: false
       });
       const live = projectedRoom('channel', RoomKind.CHANNEL);
@@ -290,7 +277,7 @@ describe('useRoomData projection selector', () => {
     }
   });
 
-  it('keeps a saved room visible but disables actions before viewer verification', () => {
+  it('keeps display grants stable before viewer verification; the connection gates commands', () => {
     mocks.store.projection.rooms.set('channel', projectedRoom('channel', RoomKind.CHANNEL));
     mocks.store.realtimeSync.phase = 'stale';
     mocks.store.isAuthenticated = false;
@@ -303,7 +290,7 @@ describe('useRoomData projection selector', () => {
     try {
       expect(room.roomData?.room.id).toBe('channel');
       expect(room.roomData?.canReadMessages).toBe(true);
-      expect(room.roomData?.canPostMessage).toBe(false);
+      expect(room.roomData?.canPostMessage).toBe(true);
       expect(room.roomData?.canManageRoom).toBe(false);
     } finally {
       destroy();

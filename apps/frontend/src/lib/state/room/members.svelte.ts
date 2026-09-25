@@ -124,6 +124,32 @@ export class RoomMembersStore {
     return this.filterLoadedMembers(this.activeSearch);
   }
 
+  /** Persist visible membership order without copying its shared profiles. */
+  capturePresentation() {
+    return {
+      ids: [...this.#memberIds],
+      totalCount: this.totalCount,
+      complete: this.hasLoadedAll,
+      presence: [...this.livePresence]
+    };
+  }
+
+  /** Restore display state; the owning server rechecks membership before enabling actions. */
+  restorePresentation(snapshot: {
+    ids: string[];
+    totalCount: number;
+    complete: boolean;
+    presence: [string, PresenceStatus][];
+  }): void {
+    this.#loadId++;
+    this.#memberIds = [...snapshot.ids];
+    this.totalCount = snapshot.totalCount;
+    this.hasFirstPage = true;
+    this.hasLoadedAll = snapshot.complete;
+    this.isInitialLoading = false;
+    this.livePresence = new SvelteMap(snapshot.presence);
+  }
+
   /** Resolve current profiles without adding empty rows for pending identities. */
   private resolveIds(ids: string[]): RoomMember[] {
     return ids.flatMap((id) => this.resolveProfile(id) ?? []);
@@ -236,7 +262,10 @@ export class RoomMembersStore {
   }
 
   /** Recheck membership after a projection change, at or beyond its cursor. */
-  async refresh({ reauthorize = false, minimumCursor }: {
+  async refresh({
+    reauthorize = false,
+    minimumCursor
+  }: {
     reauthorize?: boolean;
     minimumCursor?: string;
   } = {}): Promise<void> {
@@ -250,13 +279,17 @@ export class RoomMembersStore {
     this.hasLoadedAll = false;
     this.loadError = null;
     this.#searchCache.clear();
-    this.loadOnlinePreview(loadId);
+    if (!this.hasFirstPage) this.loadOnlinePreview(loadId);
     try {
-      await this.loadPages(loadId);
+      await this.loadPages(loadId, this.hasFirstPage);
     } catch (error) {
       if (loadId === this.#loadId) {
         this.loadError = error instanceof Error ? error.message : 'Failed to refresh room members';
-        if (reauthorize || isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
+        if (
+          reauthorize ||
+          isConnectCode(error, Code.PermissionDenied) ||
+          isConnectCode(error, Code.NotFound)
+        ) {
           this.#memberIds = [];
           this.#standaloneProfiles.clear();
           this.totalCount = 0;
@@ -460,11 +493,12 @@ export class RoomMembersStore {
     }
   }
 
-  private async loadPages(loadId: number): Promise<void> {
+  private async loadPages(loadId: number, retainUntilComplete = false): Promise<void> {
     let nextOffset = 0;
     let hasMore = true;
     let firstPage = true;
     let fullIds: string[] = [];
+    let totalCount = this.totalCount;
 
     while (hasMore) {
       const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
@@ -473,11 +507,13 @@ export class RoomMembersStore {
       this.recordPageProfiles(page.members);
       const ids = pageIds(page);
       fullIds = appendPageIds(fullIds, ids);
-      this.#memberIds = appendPageIds(
-        firstPage ? this.#memberIds.filter((id) => this.#previewIds.has(id)) : this.#memberIds,
-        ids
-      );
-      this.totalCount = page.totalCount;
+      if (!retainUntilComplete)
+        this.#memberIds = appendPageIds(
+          firstPage ? this.#memberIds.filter((id) => this.#previewIds.has(id)) : this.#memberIds,
+          ids
+        );
+      totalCount = page.totalCount;
+      if (!retainUntilComplete) this.totalCount = totalCount;
       hasMore = page.hasMore;
       const consumed = page.consumedCount ?? ids.length;
       nextOffset += consumed;
@@ -485,7 +521,7 @@ export class RoomMembersStore {
       if (firstPage) {
         firstPage = false;
         this.hasFirstPage = true;
-        this.hasLoadedAll = !hasMore;
+        if (!retainUntilComplete) this.hasLoadedAll = !hasMore;
         this.isInitialLoading = false;
         this.isBackgroundLoading = hasMore;
       }
@@ -498,12 +534,17 @@ export class RoomMembersStore {
 
     if (loadId === this.#loadId) {
       this.#memberIds = fullIds;
+      this.totalCount = totalCount;
       this.hasLoadedAll = true;
       this.isBackgroundLoading = false;
     }
   }
 
-  private async fetchPage(offset: number, limit: number, search: string): Promise<MemberDirectoryPage> {
+  private async fetchPage(
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<MemberDirectoryPage> {
     if (!this.api) return { members: [], totalCount: 0, hasMore: false };
     const normalizedSearch = search.trim();
     return this.#minimumCursor

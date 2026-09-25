@@ -154,14 +154,16 @@ export class NotificationStore {
         roomUnreadCounts[row.room.id] = Math.max(0, (roomUnreadCounts[row.room.id] ?? 0) - 1);
         if (important)
           roomImportantUnreadCounts[row.room.id] = Math.max(
-            0, (roomImportantUnreadCounts[row.room.id] ?? 0) - 1
+            0,
+            (roomImportantUnreadCounts[row.room.id] ?? 0) - 1
           );
       }
     }
     return {
       unreadNotificationCount: Math.max(0, this.unreadNotificationCount - suppressed.length),
       importantUnreadNotificationCount: Math.max(
-        0, this.importantUnreadNotificationCount - importantCount
+        0,
+        this.importantUnreadNotificationCount - importantCount
       ),
       roomUnreadCounts,
       roomImportantUnreadCounts
@@ -177,6 +179,23 @@ export class NotificationStore {
   setUnreadNotificationCount(count: number, importantCount = count): void {
     this.unreadNotificationCount = Math.max(0, count);
     this.importantUnreadNotificationCount = Math.max(0, Math.min(importantCount, count));
+  }
+
+  /** Capture the retained page and its exact counts for the device snapshot. */
+  capturePresentation(): NotificationOccurrencePage {
+    return JSON.parse(
+      JSON.stringify({
+        occurrences: this.occurrences,
+        consumedCount: this.consumedCount,
+        totalCount: this.totalCount,
+        hasMore: this.hasMore,
+        unreadCount: this.unreadNotificationCount,
+        importantUnreadCount: this.importantUnreadNotificationCount,
+        roomUnreadCounts: this.roomUnreadCounts,
+        roomImportantUnreadCounts: this.roomImportantUnreadCounts,
+        nextExpiryAt: this.nextExpiryAt
+      })
+    ) as NotificationOccurrencePage;
   }
 
   /** Replace notification state from the realtime projection. */
