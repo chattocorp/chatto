@@ -93,9 +93,8 @@
 
   const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
 
-  // Thread timelines contain decrypted history and are useful only while a
-  // pane renders them. Ref-count the stable selector so closing or switching
-  // a pane releases its store instead of retaining every thread ever opened.
+  // Track mounted consumers while the server retains the canonical timeline
+  // for replay and persistence. Release viewport state when the last pane closes.
   $effect(() => {
     const mountedStores = stores;
     const mountedStore = store;
@@ -119,7 +118,9 @@
     markAsRead: markThreadAsRead,
     canMarkAsRead: () => isVisible,
     markerWindowFromReadResult: (result, markedAtMs) =>
-      result.previousLastReadAt ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs } : null,
+      result.previousLastReadAt
+        ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs }
+        : null,
     getMarkerEvents: () => threadEvents,
     getMarkerSkipActorId: () => currentUser.user?.id ?? null,
     onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)
@@ -142,7 +143,9 @@
   let composerApi = $state<MessageComposerApi | null>(null);
   let isDraggingFiles = $state(false);
 
-  const threadMessage = $derived(threadEvents.find((entry) => isMessagePostedEvent(entry.event))?.event);
+  const threadMessage = $derived(
+    threadEvents.find((entry) => isMessagePostedEvent(entry.event))?.event
+  );
   let canPost = $derived(
     threadingMode !== RoomThreadingMode.DISABLED &&
       (isMessagePostedEvent(threadMessage)
@@ -252,13 +255,14 @@
       semantic?.case !== 'messagePosted' ||
       semantic.value.roomId !== roomId ||
       semantic.value.threadRootEventId !== threadRootEventId
-    ) return;
+    )
+      return;
 
-      const actorId = projectionEvent.event?.actorId;
-      if (actorId) typingIndicator.removeTypingUser(actorId);
-      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-        void unread.markAsRead(threadRootEventId, projectionEvent.event?.id ?? '');
-      }
+    const actorId = projectionEvent.event?.actorId;
+    if (actorId) typingIndicator.removeTypingUser(actorId);
+    if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+      void unread.markAsRead(threadRootEventId, projectionEvent.event?.id ?? '');
+    }
   });
 
   const threadFollow = new ThreadFollowState({
@@ -319,11 +323,7 @@
     />
   {/if}
   <DropZoneOverlay visible={isDraggingFiles} />
-  <PaneHeader
-    title={threadTitle}
-    onBack={onClose}
-    backLabel={m('room.thread.back_to_room')}
-  >
+  <PaneHeader title={threadTitle} onBack={onClose} backLabel={m('room.thread.back_to_room')}>
     {#snippet actions()}
       <HeaderIconButton
         icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}

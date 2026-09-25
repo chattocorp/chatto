@@ -50,6 +50,9 @@ before starting replay. The server's existing expired/invalid cursor fallback
 replaces the retained projection. Refresh current presence, calls, and member
 lists at disk recovery; they can contain state that durable replay cannot fix.
 Actions remain blocked until catch-up and its resource reads succeed.
+The chat tree follows the registry's account identity. A route load that replaces
+an unverified route user with the same verified account must not remount that tree
+or discard pending navigation, highlights, and replies.
 
 Advance a checkpoint only after all event-triggered reads finish, including
 membership updates. A failed read leaves the earlier checkpoint in place.
