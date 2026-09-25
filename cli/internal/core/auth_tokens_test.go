@@ -503,7 +503,6 @@ func TestChattoCore_ValidateAuthTokenRejectsLegacyGenerationBeforePasswordChange
 	if err != nil {
 		t.Fatalf("marshal legacy token: %v", err)
 	}
-	data = withoutAuthGenerationKey(t, data)
 	if _, err := core.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(core.authTokenTTL())); err != nil {
 		t.Fatalf("store legacy token: %v", err)
 	}

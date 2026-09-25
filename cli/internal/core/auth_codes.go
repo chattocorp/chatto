@@ -60,28 +60,11 @@ type AuthCodeData struct {
 	CodeChallenge       string    `json:"code_challenge"`
 	CodeChallengeMethod string    `json:"code_challenge_method"`
 	CreatedAt           time.Time `json:"created_at"`
-	AuthGeneration      uint64    `json:"auth_generation"`
-
-	// legacyAuthGeneration is set by UnmarshalJSON when the stored record has
-	// no auth_generation key. See RuntimeCredential.MayPredateAuthGeneration.
-	legacyAuthGeneration bool
-}
-
-// UnmarshalJSON decodes a stored code and notes whether it has an
-// auth_generation key. Current releases always write the key, so a code
-// without it may predate auth generations.
-func (d *AuthCodeData) UnmarshalJSON(data []byte) error {
-	type plain AuthCodeData
-	var decoded struct {
-		plain
-		AuthGeneration *uint64 `json:"auth_generation"`
-	}
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return err
-	}
-	*d = AuthCodeData(decoded.plain)
-	d.AuthGeneration, d.legacyAuthGeneration = storedAuthGeneration(decoded.AuthGeneration)
-	return nil
+	AuthGeneration      uint64    `json:"auth_generation,omitempty"`
+	// AuthGenerationRecorded marks a code from a release that always records
+	// AuthGeneration, also when it is 0. A code without it may predate auth
+	// generations.
+	AuthGenerationRecorded bool `json:"auth_generation_recorded,omitempty"`
 }
 
 // ============================================================================
@@ -136,15 +119,16 @@ func (c *ChattoCore) CreateAuthCodeForClientGrantGeneration(ctx context.Context,
 	}
 
 	data, err := json.Marshal(AuthCodeData{
-		UserID:              userID,
-		ClientID:            clientID,
-		Resource:            resource,
-		Scopes:              append([]string(nil), scopes...),
-		RedirectURI:         redirectURI,
-		CodeChallenge:       codeChallenge,
-		CodeChallengeMethod: codeChallengeMethod,
-		CreatedAt:           createdAt,
-		AuthGeneration:      authGeneration,
+		UserID:                 userID,
+		ClientID:               clientID,
+		Resource:               resource,
+		Scopes:                 append([]string(nil), scopes...),
+		RedirectURI:            redirectURI,
+		CodeChallenge:          codeChallenge,
+		CodeChallengeMethod:    codeChallengeMethod,
+		CreatedAt:              createdAt,
+		AuthGeneration:         authGeneration,
+		AuthGenerationRecorded: true,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth code: %w", err)
@@ -253,7 +237,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Contex
 		UserID:                   codeData.UserID,
 		CreatedAt:                codeData.CreatedAt,
 		AuthGeneration:           codeData.AuthGeneration,
-		MayPredateAuthGeneration: codeData.legacyAuthGeneration,
+		MayPredateAuthGeneration: !codeData.AuthGenerationRecorded,
 	})
 	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {

@@ -108,14 +108,15 @@ func (c *ChattoCore) newCookieSessionDataForGeneration(ctx context.Context, user
 		now = time.Now()
 	}
 	tokenData := AuthTokenData{
-		UserID:         userID,
-		Kind:           AuthTokenKindFirstPartySession,
-		Presentation:   AuthTokenPresentationCookie,
-		Source:         source,
-		Request:        auditRequestMetadata(ctx),
-		CreatedAt:      now,
-		ExpiresAt:      now.Add(c.cookieSessionTTL()),
-		AuthGeneration: authGeneration,
+		UserID:                 userID,
+		Kind:                   AuthTokenKindFirstPartySession,
+		Presentation:           AuthTokenPresentationCookie,
+		Source:                 source,
+		Request:                auditRequestMetadata(ctx),
+		CreatedAt:              now,
+		ExpiresAt:              now.Add(c.cookieSessionTTL()),
+		AuthGeneration:         authGeneration,
+		AuthGenerationRecorded: true,
 	}
 	if !freshAuthAt.IsZero() {
 		tokenData.FreshAuthAt = freshAuthAt

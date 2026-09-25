@@ -69,49 +69,19 @@ type AuthTokenData struct {
 	Request                 *evtv1.AuditRequestMetadata `json:"request,omitempty"`
 	CreatedAt               time.Time                   `json:"created_at"`
 	ExpiresAt               time.Time                   `json:"expires_at,omitempty"`
-	AuthGeneration          uint64                      `json:"auth_generation"`
+	AuthGeneration          uint64                      `json:"auth_generation,omitempty"`
 	RenewableSessionID      string                      `json:"renewable_session_id,omitempty"`
 	AccessGeneration        uint64                      `json:"access_generation,omitempty"`
 	FreshAuthAt             time.Time                   `json:"fresh_auth_at,omitempty"`
 	FreshAuthMethod         string                      `json:"fresh_auth_method,omitempty"`
 	FreshAuthSource         string                      `json:"fresh_auth_source,omitempty"`
 	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at,omitempty"`
-
-	// legacyAuthGeneration is set by UnmarshalJSON when the stored record has
-	// no auth_generation key. See RuntimeCredential.MayPredateAuthGeneration.
-	legacyAuthGeneration bool
-}
-
-// UnmarshalJSON decodes a stored record and notes whether it has an
-// auth_generation key. Current releases always write the key, so a record
-// without it may predate auth generations.
-func (d *AuthTokenData) UnmarshalJSON(data []byte) error {
-	type plain AuthTokenData
-	var decoded struct {
-		plain
-		AuthGeneration *uint64 `json:"auth_generation"`
-	}
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return err
-	}
-	*d = AuthTokenData(decoded.plain)
-	d.AuthGeneration, d.legacyAuthGeneration = storedAuthGeneration(decoded.AuthGeneration)
-	return nil
-}
-
-// MarshalJSON always writes auth_generation, except for a legacy record that is
-// still at generation 0. That record keeps its legacy form when a session store
-// decodes and encodes it again.
-func (d AuthTokenData) MarshalJSON() ([]byte, error) {
-	type plain AuthTokenData
-	encoded := struct {
-		plain
-		AuthGeneration *uint64 `json:"auth_generation,omitempty"`
-	}{plain: plain(d)}
-	if !d.legacyAuthGeneration || d.AuthGeneration != 0 {
-		encoded.AuthGeneration = &d.AuthGeneration
-	}
-	return json.Marshal(encoded)
+	// AuthGenerationRecorded marks a cookie record from a release that always
+	// records AuthGeneration, also when it is 0. A record without it may predate
+	// auth generations. Bearer access records do not set it: their renewable
+	// session holds the authoritative generation, and their encoding must stay
+	// the same across releases for the deterministic retry comparison.
+	AuthGenerationRecorded bool `json:"auth_generation_recorded,omitempty"`
 }
 
 // runtimeCredential returns the generation data that ValidateRuntimeCredential
@@ -121,7 +91,7 @@ func (d AuthTokenData) runtimeCredential() RuntimeCredential {
 		UserID:                   d.UserID,
 		CreatedAt:                d.CreatedAt,
 		AuthGeneration:           d.AuthGeneration,
-		MayPredateAuthGeneration: d.legacyAuthGeneration,
+		MayPredateAuthGeneration: !d.AuthGenerationRecorded,
 	}
 }
 

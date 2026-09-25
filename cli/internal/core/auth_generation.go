@@ -17,11 +17,12 @@ type RuntimeCredential struct {
 	UserID         string
 	CreatedAt      time.Time
 	AuthGeneration uint64
-	// MayPredateAuthGeneration reports that the stored record has no auth
-	// generation field, so an older release may have written it before auth
-	// generations existed. Only such records can use the legacy CreatedAt
-	// comparison. A record that stores generation 0 explicitly was issued while
-	// the user was at generation 0, and any later generation revokes it.
+	// MayPredateAuthGeneration reports that the stored record does not mark its
+	// auth generation as recorded, so an older release may have written it
+	// before auth generations existed. Only such records can use the legacy
+	// CreatedAt comparison. A record that marks generation 0 as recorded was
+	// issued while the user was at generation 0, and any later generation
+	// revokes it.
 	MayPredateAuthGeneration bool
 }
 
@@ -31,15 +32,6 @@ type RuntimeCredentialValidation struct {
 	UserID                      string
 	AuthGeneration              uint64
 	ShouldPersistAuthGeneration bool
-}
-
-// storedAuthGeneration converts an optional decoded auth_generation value. It
-// reports legacy when the stored record has no auth_generation key.
-func storedAuthGeneration(value *uint64) (generation uint64, legacy bool) {
-	if value == nil {
-		return 0, true
-	}
-	return *value, false
 }
 
 func (c *ChattoCore) CurrentAuthGeneration(ctx context.Context, userID string) (uint64, error) {
