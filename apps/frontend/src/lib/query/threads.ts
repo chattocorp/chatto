@@ -62,6 +62,19 @@ export function flattenFollowedThreads(data: FollowedThreadsData | undefined): F
   );
 }
 
+/**
+ * Return the next offset for a server-filtered unread feed. The server removes
+ * a thread from that feed when the viewer reads it, so a loaded thread that is
+ * no longer unread must not advance the offset.
+ */
+export function nextUnreadFollowedThreadOffset(
+  pages: readonly FollowedThreadsQueryPage[]
+): number {
+  return flattenFollowedThreads({ pages: [...pages], pageParams: [] }).filter(
+    (thread) => thread.hasUnreadReplies
+  ).length;
+}
+
 /** Apply the latest projected root-message summary to every cached page. */
 export function updateFollowedThreadSummary(
   data: FollowedThreadsData | undefined,

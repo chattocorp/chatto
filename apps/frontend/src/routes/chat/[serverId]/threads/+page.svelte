@@ -21,6 +21,7 @@
   import { queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
+    nextUnreadFollowedThreadOffset,
     threadQueryKeys,
     updateFollowedThreadSummary,
     type FollowedThreadsData
@@ -137,11 +138,14 @@
           return pageData;
         },
         initialPageParam: query ? '' : 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          query
-            ? lastPage.nextCursor || undefined
-            : lastPage.hasMore && typeof lastPageParam === 'number' && lastPage.nextOffset > lastPageParam
-              ? lastPage.nextOffset : undefined
+        getNextPageParam: (lastPage, pages, lastPageParam) => {
+          if (query) return lastPage.nextCursor || undefined;
+          if (!lastPage.hasMore || typeof lastPageParam !== 'number') return undefined;
+          if (unreadOnly) {
+            return lastPage.threads.length > 0 ? nextUnreadFollowedThreadOffset(pages) : undefined;
+          }
+          return lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined;
+        }
       };
     },
     () => queryClient

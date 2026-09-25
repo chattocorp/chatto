@@ -11,6 +11,7 @@ import { queryClient } from './client';
 import {
   flattenFollowedThreads,
   followedThreadKey,
+  nextUnreadFollowedThreadOffset,
   reconcileFollowedThreadViewerStates,
   threadQueryKeys,
   updateFollowedThreadSummary,
@@ -160,6 +161,29 @@ describe('followed thread query helpers', () => {
       replyCount: 3,
       lastReplyAt: '2026-08-02T10:00:00.000Z'
     });
+  });
+
+  it('does not advance the unread offset for loaded threads that became read', () => {
+    const pages = data(
+      {
+        threads: [
+          thread('read-1'),
+          thread('unread-1', { hasUnreadReplies: true }),
+          thread('read-2')
+        ],
+        totalCount: 5,
+        hasMore: true
+      },
+      {
+        threads: [thread('unread-1', { hasUnreadReplies: true }), thread('unread-2', { hasUnreadReplies: true })],
+        totalCount: 5,
+        hasMore: true
+      }
+    ).pages;
+
+    // The server no longer returns read-1 and read-2 in its unread feed, and
+    // the duplicate unread-1 counts once.
+    expect(nextUnreadFollowedThreadOffset(pages)).toBe(2);
   });
 
   it('keeps complete, unread, and search feeds in separate cache entries', () => {

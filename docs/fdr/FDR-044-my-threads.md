@@ -75,8 +75,10 @@ loading state during this work.
 **Why:** A client-side filter over pages of all followed threads needs many
 requests to show an empty Unread view. The server already loads every followed
 thread to sort it, so one more cursor read for each thread is small.
-**Tradeoff:** Unread pages use offsets over a set that shrinks when the user
-reads a thread. The next page can skip a thread until the list loads again.
+**Tradeoff:** Unread pages use offsets over a set that becomes smaller when
+the user reads a thread. The client counts only loaded threads that are still
+unread to calculate the next offset. A read in a different client can still
+move the offset until the list loads again.
 
 ### 3. The activity-list presentation makes the order clear
 
