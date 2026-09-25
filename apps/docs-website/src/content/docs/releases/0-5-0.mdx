@@ -304,6 +304,9 @@ Do these steps on every upgraded server:
   `bot.create` to `everyone` if members can create bots.
 - **Grant `room.manage`** to delegated room managers. Room group management
   used `role.manage` in 0.4.
+- **Allow `message.post` for `admin` in the `announcements` room** if
+  administrators must post there. A new server has this grant, but an upgraded
+  server does not.
 - **Check thread posting.** `message.post` now also allows thread replies. A
   0.4 setup that allowed `message.post` and denied `message.post-in-thread` now
   allows replies.
