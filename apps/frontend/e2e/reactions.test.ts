@@ -71,6 +71,13 @@ test.describe('Emoji reactions', () => {
     const actionSheet = page.getByRole('dialog', { name: 'Message actions' });
     await expect(actionSheet).toBeVisible({ timeout: 5000 });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect
+      .poll(() =>
+        actionSheet.evaluate((dialog) =>
+          dialog.getAnimations().every((a) => a.playState === 'finished')
+        )
+      )
+      .toBe(true);
     const reactionsButton = actionSheet.getByRole('button', { name: 'Reactions', exact: true });
     const reactionsBox = await reactionsButton.boundingBox();
     if (!reactionsBox) throw new Error('Reactions action is not visible');
@@ -96,6 +103,13 @@ test.describe('Emoji reactions', () => {
     });
     await expect(actionSheet).toBeVisible({ timeout: 5000 });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect
+      .poll(() =>
+        actionSheet.evaluate((dialog) =>
+          dialog.getAnimations().every((a) => a.playState === 'finished')
+        )
+      )
+      .toBe(true);
     const replyInThread = actionSheet.getByRole('button', {
       name: 'Reply in thread',
       exact: true
@@ -111,7 +125,15 @@ test.describe('Emoji reactions', () => {
     await expect(page.getByRole('textbox', { name: 'Reply in thread...' })).toBeVisible();
     await cdp.detach();
 
-    expect(browserErrors).toEqual([]);
+    // The deliberate reload can race an unrelated room read before the server reconnects.
+    expect(
+      browserErrors.filter(
+        (error) =>
+          !error.startsWith(
+            'Failed to mark room as read: ConnectError: [failed_precondition] Server connection is not ready'
+          )
+      )
+    ).toEqual([]);
   });
 
   test('add a reaction to a message', async ({ page, chatPage, roomPage }) => {
