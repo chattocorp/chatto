@@ -178,6 +178,15 @@
     )
   );
 
+  // Locally filtered pages without a match leave no scroll edge to observe, so
+  // load the next page directly until a match appears or the feed ends.
+  const needsNextFilteredPage = $derived(
+    filteredThreads.length === 0 && hasMore && !threadsQuery.isFetching && error === null
+  );
+  $effect(() => {
+    if (needsNextFilteredPage) void threadsQuery.fetchNextPage();
+  });
+
   async function loadMore() {
     if (loading || loadingMore || !hasMore) return;
     await threadsQuery.fetchNextPage();
@@ -375,9 +384,7 @@
         {m('chat.threads.empty_body')}
       </EmptyState>
     {:else if filteredThreads.length === 0 && hasMore}
-      <!-- Locally filtered pages have no match yet: keep loading until a match or the end. -->
       <LoadingFog class="m-6 h-48" />
-      <div class="min-h-8" {@attach loadMoreWhenVisible}></div>
     {:else if filteredThreads.length === 0}
       <EmptyState icon="icon-[uil--comment-check]" title={m('chat.threads.all_caught_up')}>
         {m('chat.threads.no_unread')}
