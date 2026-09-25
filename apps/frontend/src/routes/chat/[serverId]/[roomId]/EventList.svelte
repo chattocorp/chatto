@@ -7,8 +7,11 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
-  import { getComposerContext, getRoomPermissions } from '$lib/state/room';
+  import { getComposerContext, getRoomMembers, getRoomPermissions } from '$lib/state/room';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import RoomEvent from './RoomEvent.svelte';
+  import MessageUserOverlays from './MessageUserOverlays.svelte';
+  import { MessageUserInteractionState } from './messageUserInteractions.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import UnreadSeparator from './UnreadSeparator.svelte';
@@ -147,6 +150,22 @@
   const stores = $derived(serverScope.store);
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);
+  const roomMembers = $derived(getRoomMembers());
+  const userInteractions = new MessageUserInteractionState(() => roomMembers);
+  const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
+  const canStartDMs = $derived(stores.permissions?.canStartDMs ?? false);
+  let overlayScope = untrack(() => `${serverScope.serverId}:${roomId}`);
+  $effect(() => {
+    const nextScope = `${serverScope.serverId}:${roomId}`;
+    if (nextScope !== overlayScope) {
+      userInteractions.close();
+      overlayScope = nextScope;
+    }
+  });
+
+  function openUserMenu(user: UserAvatarUserView | RoomMember, anchorRect: DOMRect | null) {
+    userInteractions.showUser(user, anchorRect);
+  }
   const userSettings = $derived(timeFormatSettingsFor(currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
   const firstVisibleDate = $derived(
@@ -789,7 +808,7 @@
                   onOpenThread={getOpenThreadHandler(eventData)}
                   activeCallId={stores.activeCallRooms.getCallId(roomId)}
                   {onOpenCall}
-                  {onOpenProfile}
+                  onOpenUser={openUserMenu}
                   {threadingMode}
                 />
               {/if}
@@ -823,4 +842,17 @@
       </div>
     </button>
   {/if}
+
+  {#key `${serverScope.serverId}:${roomId}`}
+    <MessageUserOverlays
+      interactions={userInteractions}
+      serverId={serverScope.serverId}
+      {roomId}
+      currentUserId={currentUser.user?.id}
+      {canStartDMs}
+      canBanRoomMembers={roomPermissions.canBanRoomMembers}
+      {isUniversal}
+      {onOpenProfile}
+    />
+  {/key}
 </div>

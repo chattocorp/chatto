@@ -10,9 +10,11 @@
     getMentionRoles,
     getComposerContext,
     type MessagesStore,
+    type RoomMember,
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
   import { avatarUserFromDirectoryMember } from '$lib/state/server/rooms.svelte';
 
@@ -42,8 +44,6 @@
   import MessageReplyAttribution from './MessageReplyAttribution.svelte';
   import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
   import { MessageEventInteractionState } from './messageEventInteractions.svelte';
-  import MessageUserOverlays from './MessageUserOverlays.svelte';
-  import { MessageUserInteractionState } from './messageUserInteractions.svelte';
   import {
     buildMessageReplyPreview,
     canEditMessage,
@@ -62,7 +62,7 @@
     permalinkThreadRootEventId = null,
     messageStore = null,
     onOpenThread,
-    onOpenProfile,
+    onOpenUser,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
@@ -71,7 +71,7 @@
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
-    onOpenProfile?: (userId: string) => void;
+    onOpenUser?: (user: UserAvatarUserView | RoomMember, anchorRect: DOMRect | null) => void;
     threadingMode?: RoomThreadingMode;
   } = $props();
 
@@ -79,7 +79,6 @@
   const activeServerId = $derived(serverScope.serverId);
   const currentUser = $derived(stores.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
-  const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
@@ -144,7 +143,6 @@
 
   const interactions = new MessageEventInteractionState();
   $effect(() => () => interactions.dispose());
-  const userInteractions = new MessageUserInteractionState(() => members);
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
   let contextLink = $state<{ eventId: string; url: string } | null>(null);
@@ -227,7 +225,7 @@
       mention &&
       messageBodySelectionRoot?.contains(mention) &&
       mentionedUserId &&
-      userInteractions.hasCurrentMember(mentionedUserId)
+      members.some((member) => member.id === mentionedUserId)
     ) {
       interactions.closeContextMenu();
       contextLink = null;
@@ -484,18 +482,23 @@
     })
   );
 
-  const canStartDMs = $derived(stores.permissions.canStartDMs);
-
   function showPopoverForActor(e: MouseEvent) {
-    userInteractions.showUserFromEvent(actor, e);
+    showPopoverForUser(actor, e);
   }
 
   function showPopoverForMember(userId: string, anchorRect: DOMRect) {
-    userInteractions.showMember(userId, anchorRect);
+    const member = members.find((candidate) => candidate.id === userId);
+    if (member) onOpenUser?.(member, anchorRect);
   }
 
   function showPopoverForReplyAuthor(e: MouseEvent) {
-    userInteractions.showUserFromEvent(replyPreview?.actor ?? null, e);
+    showPopoverForUser(replyPreview?.actor ?? null, e);
+  }
+
+  function showPopoverForUser(user: UserAvatarUserView | RoomMember | null, event: MouseEvent) {
+    if (!user) return;
+    const button = (event.target as HTMLElement).closest('button');
+    onOpenUser?.(user, button?.getBoundingClientRect() ?? null);
   }
 
   function scrollToReplyTarget() {
@@ -795,17 +798,6 @@
       {/if}
     {/snippet}
   </MessageView>
-
-  <MessageUserOverlays
-    interactions={userInteractions}
-    serverId={activeServerId}
-    {roomId}
-    currentUserId={currentUser.user?.id}
-    {canStartDMs}
-    canBanRoomMembers={roomPermissions.canBanRoomMembers}
-    {isUniversal}
-    {onOpenProfile}
-  />
 
   {#if !isDeleted}
     <MessageEventActionOverlays
