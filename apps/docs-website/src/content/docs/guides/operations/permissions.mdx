@@ -78,8 +78,10 @@ an owner cannot see, join, or read a room that denies these actions to
 `everyone`, unless another role or a direct grant allows them. Restricted rooms
 appear in the room directory when you enable the mode and disappear when it
 ends. If you joined such a room while the mode was active, you stay a member,
-but you cannot read the room until you enable the mode again. Notifications
-use your permissions without the mode. MCP clients cannot enable the mode.
+but you cannot read the room until you enable the mode again. If you join a
+call in such a room, Chatto removes you from the call shortly after the mode
+ends. Notifications use your permissions without the mode. MCP clients cannot
+enable the mode.
 
 The initial elevation-required set includes message moderation, room creation
 and management, role and user administration, server management, invite and

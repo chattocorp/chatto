@@ -280,7 +280,8 @@ Privileged-mode changes keep the mounted client state and resume cursor. The
 client reconnects and reads current viewer, room, and room-group resources
 before it marks catch-up complete. The server cancels authorized work at the session's privilege
 deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not
-write a live event after that deadline. The client then reads effective
+write a live event after that deadline. The periodic credential check sends
+the same close when another connection of the session ends privileged mode. The client then reads effective
 permissions and rooms with privileged mode inactive. See
 [ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
 [ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).

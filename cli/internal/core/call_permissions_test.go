@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
@@ -98,7 +99,7 @@ func TestCallTokenPermissionCombinations(t *testing.T) {
 	for mask, sources := range expected {
 		t.Run(fmt.Sprintf("media_%03b", mask), func(t *testing.T) {
 			permissions := CallPermissions{Voice: mask&1 != 0, Camera: mask&2 != 0, ScreenShare: mask&4 != 0}
-			token, err := GenerateVoiceCallToken("key", "secret", "room", "user", "User", "user", "", false, "e2ee", permissions, "call")
+			token, err := GenerateVoiceCallToken("key", "secret", "room", "user", "User", "user", "", false, "e2ee", permissions, time.Time{}, "call")
 			require.NoError(t, err)
 			parsed, _, err := jwt.NewParser().ParseUnverified(token.Token, jwt.MapClaims{})
 			require.NoError(t, err)
@@ -368,4 +369,43 @@ func TestCallPermissionsScopeMatrix(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A call connection keeps the privileged-mode state of the session that
+// requested its token. The owner override ends with that deadline.
+func TestCallPermissionReconciliationGatesOwnerOverride(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "call-gated-owner", "Owner", "password")
+	require.NoError(t, err)
+	require.NoError(t, c.AssignOwnerRole(ctx, owner.Id))
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "call-gated-owner-room", "")
+	require.NoError(t, err)
+	_, err = c.JoinRoom(ctx, owner.Id, KindChannel, owner.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, c.JoinVoiceCall(ctx, owner.Id, room.Id))
+	snapshot, err := c.GetCallSnapshot(room.Id)
+	require.NoError(t, err)
+	require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermCallJoin))
+
+	name := LiveKitRoomName("", KindChannel, room.Id, snapshot.Call.CallID)
+	scan := func(privilegedUntil time.Time) *callPermissionRoomService {
+		t.Helper()
+		metadata, err := json.Marshal(participantMetadata{PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
+		require.NoError(t, err)
+		service := &callPermissionRoomService{fakeLiveKitRoomService: fakeLiveKitRoomService{
+			rooms:        []string{name},
+			participants: map[string][]string{name: {owner.Id}},
+			metadata:     map[string]string{owner.Id: string(metadata)},
+		}}
+		client := &liveKitRoomClient{service: service, core: c, apiKey: "key", apiSecret: "secret"}
+		_, err = client.ListCallParticipants(ctx)
+		require.NoError(t, err)
+		return service
+	}
+	require.Empty(t, scan(time.Now().Add(time.Minute)).removals, "active privileged mode keeps the owner override")
+	removed := scan(time.Now().Add(-time.Second)).removals
+	require.Len(t, removed, 1, "expired privileged mode removes the owner")
+	require.Equal(t, owner.Id, removed[0].Identity)
+	require.Len(t, scan(time.Time{}).removals, 1, "a token without privileged mode has no owner override")
 }

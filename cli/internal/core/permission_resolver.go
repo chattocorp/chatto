@@ -154,6 +154,19 @@ func withPrivilegedModeEvaluation(ctx context.Context, userID string, active boo
 	return context.WithValue(ctx, privilegedModeEvaluationKey{}, privilegedModeEvaluation{userID: userID, active: active})
 }
 
+// PrivilegedModeDeadline returns the end of the active privileged mode of the
+// human credential in ctx when it authenticates userID. It returns zero when
+// the mode is inactive, ctx has no human credential, or the credential belongs
+// to another user. Work that outlives the request, such as a call connection,
+// stores this deadline to keep the same state.
+func PrivilegedModeDeadline(ctx context.Context, userID string) time.Time {
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey || credential.UserID != userID || !time.Now().Before(credential.PrivilegedModeExpiresAt) {
+		return time.Time{}
+	}
+	return credential.PrivilegedModeExpiresAt
+}
+
 // privilegedModeAllows reports whether privileged mode is active for userID.
 // A fixed evaluation state wins. Otherwise, internal work without a credential
 // keeps entitlement semantics. An authenticated request resolves checks for a

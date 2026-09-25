@@ -28,9 +28,15 @@ Effective authorization for a human applies these rules:
   direct grants, named roles, and the `everyone` baseline like every other
   human. The `owner` role has no stored decisions, so it adds nothing.
 - A request that checks a different human uses that human's inactive state.
-  This rule already applied to elevation-required permissions.
+  This rule already applied to elevation-required permissions. It also
+  applies to bot API key requests.
 - Internal work without a runtime credential keeps entitlement semantics.
   Bot API keys do not use privileged mode.
+
+Every transport that authorizes a human must put the runtime credential in the
+request context. Otherwise, core authorization applies internal-work
+semantics. MCP tool calls and cookie or bearer asset reads carry the
+credential.
 
 Entitlement resolution keeps the override. Thus these functions do not
 change: privileged-mode availability, bot owner ceilings, delegated role
@@ -45,8 +51,18 @@ receiving session:
   not the credential of the first subscriber and not an internal context.
 - A privileged realtime connection does not write an event after its
   privilege deadline. The existing deadline close then reconnects the session.
-- Notification decisions are not bound to one session. They use the
-  unprivileged view for owners.
+  The periodic credential check also reconnects a privileged socket when
+  another connection of the same session ends privileged mode.
+- Notification decisions and alert revalidation are not bound to one session.
+  They use the unprivileged view for owners.
+- A call connection outlives its token request. The token's participant
+  metadata stores the privileged-mode deadline of the requesting session.
+  Call reconciliation evaluates the participant with that state, so the
+  next reconciliation scan after the deadline applies ordinary RBAC. Other
+  call participants can read this deadline.
+- A signed asset access ticket is a bounded capability. Its read check does
+  not have a runtime credential and keeps entitlement semantics until the
+  ticket expires. Chatto issues a ticket only after an authorized read.
 
 The permission explainer shows the owner override only when the override
 applies to the inspected user in the request. Otherwise it explains the
@@ -78,6 +94,8 @@ protobuf messages, persisted events, or runtime-state records.
 - An owner can be a room member without read access after privileged mode
   ends.
 - The realtime hub can keep two visibility states for one owner.
+- An asset URL that Chatto issued during privileged mode stays usable until
+  its ticket expires.
 - Owners and administrators must configure ordinary access for owners through
   roles and grants, as for other users.
 

@@ -43,6 +43,13 @@ server session when they need them.
   sessions of one owner with different states receive different room events.
 - Notifications are not bound to one session. They use the owner's view
   without the mode.
+- When one connection of a session ends the mode, the other realtime
+  connections of that session reconnect within one credential check interval.
+- A call connection keeps the mode state of the request that issued its
+  token. After that deadline, the next call reconciliation applies ordinary
+  RBAC to the owner.
+- Asset URLs that Chatto issued during the mode stay usable until their access
+  tickets expire.
 - The event log records successful activation and explicit deactivation
   transitions. The activation entry includes the fixed deadline. Automatic
   expiry does not add a second event because the deadline is already durable.
