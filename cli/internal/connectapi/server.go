@@ -147,7 +147,7 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 		bw, bh := 1200, 630
 		if u, err := a.core.GetServerBannerURL(ctx, &bw, &bh, "cover"); err != nil {
 			if !options.tolerateErrors {
-				return nil, connectError(err)
+				return nil, err
 			}
 		} else if u != "" {
 			profile.BannerUrl = stringPtr(a.absolutizeAssetURL(ctx, u))
@@ -155,7 +155,7 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 		lw, lh := 256, 256
 		if u, err := a.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err != nil {
 			if !options.tolerateErrors {
-				return nil, connectError(err)
+				return nil, err
 			}
 		} else if u != "" {
 			profile.LogoUrl = stringPtr(a.absolutizeAssetURL(ctx, u))

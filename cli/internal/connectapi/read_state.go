@@ -16,7 +16,7 @@ func (s *roomService) MarkRoomAsRead(ctx context.Context, req *connect.Request[a
 
 	result, err := s.api.core.ReadState().MarkRoomAsRead(ctx, caller.UserID, req.Msg.RoomId, req.Msg.UpToEventId)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	resp := &apiv1.MarkRoomAsReadResponse{}
@@ -37,7 +37,7 @@ func (s *threadService) MarkThreadAsRead(ctx context.Context, req *connect.Reque
 
 	result, err := s.api.core.ReadState().MarkThreadAsRead(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, req.Msg.UpToEventId)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	resp := &apiv1.MarkThreadAsReadResponse{}

@@ -26,7 +26,7 @@ func TestEffectivePermissionServiceBoundaryAndCompleteResult(t *testing.T) {
 	}
 	req := &apiv1.ListEffectivePermissionsRequest{UserId: bot.User.Id}
 	_, err = service.ListEffectivePermissions(env.ctx, connect.NewRequest(req))
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnauthenticated, errorCode(err))
 	ctx := withCaller(env.ctx, viewer)
 	response, err := service.ListEffectivePermissions(ctx, connect.NewRequest(req))
 	require.NoError(t, err)
@@ -35,15 +35,15 @@ func TestEffectivePermissionServiceBoundaryAndCompleteResult(t *testing.T) {
 	require.Len(t, response.Msg.Permissions, len(expected))
 	require.Greater(t, len(response.Msg.Permissions), 100)
 	_, err = env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{UserId: bot.User.Id}))
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	req.UserId = env.viewer.Id
 	_, err = service.ListEffectivePermissions(ctx, connect.NewRequest(req))
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, viewer.Id, core.PermUserManagePermissions))
 	response, err = service.ListEffectivePermissions(ctx, connect.NewRequest(req))
 	require.NoError(t, err)
 	require.NotEmpty(t, response.Msg.Permissions)
 	req.UserId = "missing"
 	_, err = service.ListEffectivePermissions(ctx, connect.NewRequest(req))
-	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	require.Equal(t, connect.CodeNotFound, errorCode(err))
 }

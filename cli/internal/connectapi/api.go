@@ -110,6 +110,7 @@ func handlerOptionsWithReadMax(readMaxBytes int, webserver config.WebserverConfi
 		connect.WithCompressMinBytes(compressionMinBytes),
 		connect.WithInterceptors(
 			internalErrorLoggingInterceptor(),
+			errorMappingInterceptor(),
 			dekRequestCacheInterceptor(),
 			updateMaskInterceptor(),
 			validate.NewInterceptor(),

@@ -24,7 +24,7 @@ func (s *adminOAuthClientService) ListOAuthClients(ctx context.Context, req *con
 	}
 	states, err := s.api.core.ListOAuthClients(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultOAuthClientLimit, maxOAuthClientLimit)
 	total := len(states)
@@ -52,7 +52,7 @@ func (s *adminOAuthClientService) GetOAuthClient(ctx context.Context, req *conne
 	}
 	state, err := s.api.core.GetOAuthClient(ctx, caller.UserID, req.Msg.GetClientId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetOAuthClientResponse{OauthClient: apiOAuthClient(state)}), nil
 }
@@ -68,11 +68,11 @@ func (s *adminOAuthClientService) UpdateOAuthClientPolicy(ctx context.Context, r
 	}
 	policy, err := coreOAuthClientPolicy(req.Msg.GetPolicy())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	state, err := s.api.core.UpdateOAuthClientPolicy(ctx, caller.UserID, req.Msg.GetClientId(), policy)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.UpdateOAuthClientPolicyResponse{OauthClient: apiOAuthClient(state)}), nil
 }

@@ -18,7 +18,7 @@ type operatorRoomService struct {
 func (s *operatorRoomService) ListRooms(ctx context.Context, req *connect.Request[operatorv1.ListRoomsRequest]) (*connect.Response[operatorv1.ListRoomsResponse], error) {
 	rooms, err := s.api.core.ListRooms(ctx, core.KindChannel)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	limit, offset := apiPagination(req.Msg.GetPage(), 20, 100)
 	selected, total, more := operatorRoomPage(rooms, req.Msg.GetName(), limit, offset)
@@ -41,7 +41,7 @@ func (s *operatorRoomService) CreateRoom(ctx context.Context, req *connect.Reque
 	}
 	room, err := s.api.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&operatorv1.CreateRoomResponse{Room: apiRoom(room)}), nil
 }
@@ -52,11 +52,11 @@ func (s *operatorRoomService) AddMember(ctx context.Context, req *connect.Reques
 	}
 	membership, err := s.api.core.AddMember(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetRoomId(), req.Msg.GetUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	user, err := s.api.core.GetUser(ctx, membership.GetUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	member, err := directoryMember(ctx, s.api, user, nil)
 	if err != nil {

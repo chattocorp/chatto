@@ -21,7 +21,7 @@ func (s *messageService) AddReaction(ctx context.Context, req *connect.Request[a
 		Emoji:          req.Msg.Emoji,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.AddReactionResponse{
 		Added:    added,
@@ -42,7 +42,7 @@ func (s *messageService) RemoveReaction(ctx context.Context, req *connect.Reques
 		Emoji:          req.Msg.Emoji,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RemoveReactionResponse{
 		Removed:  removed,

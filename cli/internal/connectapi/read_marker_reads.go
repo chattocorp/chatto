@@ -26,7 +26,7 @@ func (s *roomService) GetRoomReadState(ctx context.Context, req *connect.Request
 	}
 	marker, err := s.api.core.ReadState().GetRoomReadMarker(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetRoomReadStateResponse{State: &apiv1.RoomReadState{RoomId: req.Msg.GetRoomId(), Marker: apiReadMarker(marker)}}), nil
 }
@@ -45,7 +45,7 @@ func (s *roomService) BatchGetRoomReadStates(ctx context.Context, req *connect.R
 		seen[key] = true
 		response, err := s.GetRoomReadState(ctx, connect.NewRequest(&apiv1.GetRoomReadStateRequest{RoomId: target}))
 		if err != nil {
-			if connect.CodeOf(err) == connect.CodeNotFound || connect.CodeOf(err) == connect.CodePermissionDenied {
+			if code := errorCode(err); code == connect.CodeNotFound || code == connect.CodePermissionDenied {
 				continue
 			}
 			return nil, err
@@ -62,7 +62,7 @@ func (s *threadService) GetThreadReadState(ctx context.Context, req *connect.Req
 	}
 	marker, err := s.api.core.ReadState().GetThreadReadMarker(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetThreadRootEventId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetThreadReadStateResponse{State: &apiv1.ThreadReadState{RoomId: req.Msg.GetRoomId(), ThreadRootEventId: req.Msg.GetThreadRootEventId(), Marker: apiReadMarker(marker)}}), nil
 }
@@ -81,7 +81,7 @@ func (s *threadService) BatchGetThreadReadStates(ctx context.Context, req *conne
 		seen[key] = true
 		response, err := s.GetThreadReadState(ctx, connect.NewRequest(&apiv1.GetThreadReadStateRequest{RoomId: target.GetRoomId(), ThreadRootEventId: target.GetThreadRootEventId()}))
 		if err != nil {
-			if connect.CodeOf(err) == connect.CodeNotFound || connect.CodeOf(err) == connect.CodePermissionDenied {
+			if code := errorCode(err); code == connect.CodeNotFound || code == connect.CodePermissionDenied {
 				continue
 			}
 			return nil, err

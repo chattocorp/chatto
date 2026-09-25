@@ -20,7 +20,7 @@ func (s *botService) ListBots(ctx context.Context, req *connect.Request[apiv1.Li
 	}
 	bots, err := s.api.core.ListBots(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	search := strings.ToLower(strings.TrimSpace(req.Msg.GetSearch()))
 	if search != "" {
@@ -48,7 +48,7 @@ func (s *botService) GetBot(ctx context.Context, req *connect.Request[apiv1.GetB
 	}
 	bot, err := s.api.core.GetBot(ctx, caller.UserID, req.Msg.GetBotUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {
@@ -74,7 +74,7 @@ func (s *botService) BatchGetBots(ctx context.Context, req *connect.Request[apiv
 			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
 				continue
 			}
-			return nil, connectError(err)
+			return nil, err
 		}
 		bots = append(bots, bot)
 	}
@@ -92,7 +92,7 @@ func (s *botService) CreateBot(ctx context.Context, req *connect.Request[apiv1.C
 	}
 	bot, err := s.api.core.CreateBotWithAPIKeyName(ctx, caller.UserID, req.Msg.GetLogin(), req.Msg.GetDisplayName(), req.Msg.GetApiKeyName())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := apiBot(ctx, s.api, bot)
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *botService) DeleteBot(ctx context.Context, req *connect.Request[apiv1.D
 	}
 	deleted, err := s.api.core.DeleteBot(ctx, caller.UserID, req.Msg.GetBotUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeleteBotResponse{Deleted: deleted}), nil
 }
@@ -122,7 +122,7 @@ func (s *botService) CreateBotApiKey(ctx context.Context, req *connect.Request[a
 	}
 	issued, err := s.api.core.CreateBotAPIKey(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetName())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := apiBot(ctx, s.api, issued.Bot)
 	if err != nil {
@@ -140,7 +140,7 @@ func (s *botService) RevokeBotApiKey(ctx context.Context, req *connect.Request[a
 	}
 	bot, err := s.api.core.RevokeBotAPIKey(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetKeyId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {
@@ -156,7 +156,7 @@ func (s *botService) CreateBotIncomingWebhook(ctx context.Context, req *connect.
 	}
 	issued, err := s.api.core.CreateBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetName())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := apiBot(ctx, s.api, issued.Bot)
 	if err != nil {
@@ -174,7 +174,7 @@ func (s *botService) RevokeBotIncomingWebhook(ctx context.Context, req *connect.
 	}
 	bot, err := s.api.core.RevokeBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {
@@ -194,7 +194,7 @@ func (s *botService) ReassignBotOwner(ctx context.Context, req *connect.Request[
 	}
 	bot, err := s.api.core.ReassignBotOwner(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetOwnerUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {

@@ -43,7 +43,7 @@ func (s *operatorMessageService) ImportMessage(ctx context.Context, req *connect
 		AttachmentAssetIDs: req.Msg.GetAttachmentAssetIds(), Body: req.Msg.GetBody(), LinkPreview: preview,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&operatorv1.ImportMessageResponse{MessageId: event.GetId()}), nil
 }

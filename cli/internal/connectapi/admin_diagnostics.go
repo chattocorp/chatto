@@ -24,7 +24,7 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 
 	diagnostics, err := s.api.core.GetAdminDiagnostics(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&adminv1.GetSystemInfoResponse{

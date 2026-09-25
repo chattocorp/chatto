@@ -22,7 +22,7 @@ func (s *accountService) SetCustomStatus(ctx context.Context, req *connect.Reque
 
 	updated, err := s.api.core.SetUserCustomStatus(ctx, caller.UserID, req.Msg.Emoji, req.Msg.Text, expiresAt)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.SetCustomStatusResponse{
@@ -37,7 +37,7 @@ func (s *accountService) DeleteCustomStatus(ctx context.Context, _ *connect.Requ
 	}
 	updated, err := s.api.core.ClearUserCustomStatus(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.DeleteCustomStatusResponse{

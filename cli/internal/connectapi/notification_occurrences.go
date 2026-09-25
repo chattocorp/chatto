@@ -34,7 +34,7 @@ func (s *notificationService) hydratedOccurrence(ctx context.Context, occurrence
 
 func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) error {
 	if err := s.api.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
-		return connectError(err)
+		return err
 	}
 	return nil
 }
@@ -49,25 +49,25 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 	}
 	occurrence, err := s.api.core.NotificationOccurrences().Get(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := requireSupportedNotificationSignals(occurrence); err != nil {
 		return nil, err
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, occurrence)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !visible {
 		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, occurrence.GetId())
-		return nil, connectError(core.ErrNotFound)
+		return nil, core.ErrNotFound
 	}
 	hydrated, err := s.hydratedOccurrence(ctx, occurrence)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if hydrated == nil {
-		return nil, connectError(core.ErrNotFound)
+		return nil, core.ErrNotFound
 	}
 	return connect.NewResponse(&apiv1.GetNotificationOccurrenceResponse{Occurrence: hydrated}), nil
 }
@@ -82,18 +82,18 @@ func (s *notificationService) BatchGetNotificationOccurrences(ctx context.Contex
 	}
 	occurrences, err := s.notificationOccurrencesByID(ctx, caller.UserID, req.Msg.GetNotificationIds())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
 		return nil, err
 	}
 	visible, err := s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	hydrated, err := newNotificationAssembler(s.api).occurrences(ctx, visible)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.BatchGetNotificationOccurrencesResponse{Occurrences: hydrated}), nil
 }
@@ -108,14 +108,14 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 	}
 	occurrences, err := s.api.core.NotificationOccurrences().List(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
 		return nil, err
 	}
 	occurrences, err = s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultNotificationLimit, maxNotificationLimit)
 	total := len(occurrences)
@@ -127,7 +127,7 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 	assembler := newNotificationAssembler(s.api)
 	hydrated, err := assembler.occurrences(ctx, page)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	summary := notificationSummary(occurrences)
 	return connect.NewResponse(&apiv1.ListNotificationOccurrencesResponse{
@@ -284,32 +284,32 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 	}
 	existing, err := s.api.core.NotificationOccurrences().Get(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := requireSupportedNotificationSignals(existing); err != nil {
 		return nil, err
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, existing)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !visible {
 		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, existing.GetId())
-		return nil, connectError(core.ErrNotFound)
+		return nil, core.ErrNotFound
 	}
 	// Hydration may consult unrelated projections and fail. Complete it before
 	// committing the triage mutation so an error response never ambiguously
 	// means that the server may already have marked the occurrence read.
 	item, err := s.hydratedOccurrence(ctx, existing)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if item == nil {
-		return nil, connectError(core.ErrNotFound)
+		return nil, core.ErrNotFound
 	}
 	_, err = s.api.core.NotificationOccurrences().MarkRead(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	item.Unread = false
 	return connect.NewResponse(&apiv1.MarkNotificationReadResponse{Occurrence: item}), nil
@@ -328,11 +328,11 @@ func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, 
 		return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{}), nil
 	}
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	deleted, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, []*notificationv1.NotificationOccurrence{existing})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{Deleted: deleted == 1}), nil
 }
@@ -347,11 +347,11 @@ func (s *notificationService) BatchDeleteNotificationOccurrences(ctx context.Con
 	}
 	occurrences, err := s.notificationOccurrencesByID(ctx, caller.UserID, req.Msg.GetNotificationIds())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	count, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.BatchDeleteNotificationOccurrencesResponse{DeletedCount: int32(count)}), nil
 }
@@ -366,11 +366,11 @@ func (s *notificationService) DeleteAllNotificationOccurrences(ctx context.Conte
 	}
 	occurrences, err := s.api.core.NotificationOccurrences().List(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	count, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeleteAllNotificationOccurrencesResponse{DeletedCount: int32(count)}), nil
 }

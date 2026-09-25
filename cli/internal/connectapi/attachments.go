@@ -38,7 +38,7 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 		Offset:  offset,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
@@ -76,7 +76,7 @@ func (s *assetService) GetAsset(ctx context.Context, req *connect.Request[apiv1.
 		AssetID: req.Msg.AssetId,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetAssetResponse{
 		Asset: apiAsset(s.api, asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
@@ -94,7 +94,7 @@ func (s *assetService) BatchGetAssets(ctx context.Context, req *connect.Request[
 		AssetIDs: req.Msg.GetAssetIds(),
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
 	out := make([]*apiv1.Asset, 0, len(assets))

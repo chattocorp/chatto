@@ -169,7 +169,7 @@ Read responses that hydrate projected data from multiple sources should keep tha
 
 These assemblers should stay concrete until repetition proves otherwise. Do not introduce a generic ConnectRPC loader package just because several endpoints hydrate data: most hydration code also owns response-shape details such as protobuf messages, include maps, viewer visibility, nullable fields, and endpoint-specific absence behavior. Shared helpers are appropriate for truly generic mechanics such as bounded parallel mapping, or after multiple assemblers share the same non-trivial loading behavior with the same semantics.
 
-ConnectRPC errors are mapped through the shared `connectError` helper so core authentication, authorization, validation, not-found, conflict, and room-state errors produce consistent Connect status codes. Handlers should return `connect.NewResponse` for success and avoid service-local status-code mapping unless the public method has a deliberate protocol-specific error.
+A shared interceptor maps every handler error through the `connectError` table, so core authentication, authorization, validation, not-found, conflict, and room-state errors produce consistent Connect status codes. Errors that match no table row become `Internal` with a generic message, and the server logs their redacted cause. Handlers return core errors directly and return `connect.NewResponse` for success. Avoid service-local status-code mapping unless the public method has a deliberate protocol-specific error. Code that calls another handler directly and inspects the result must use `errorCode`, because direct calls bypass the interceptor.
 
 Adding a new public ConnectRPC service requires the same change set:
 

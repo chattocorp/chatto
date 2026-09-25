@@ -24,7 +24,7 @@ func (s *adminInviteLinkService) ListInviteLinks(ctx context.Context, req *conne
 	}
 	states, err := s.api.core.ListInvitations(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultInviteLinkLimit, maxInviteLinkLimit)
 	total := len(states)
@@ -52,7 +52,7 @@ func (s *adminInviteLinkService) GetInviteLink(ctx context.Context, req *connect
 	}
 	state, err := s.api.core.GetInvitation(ctx, caller.UserID, req.Msg.GetId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
@@ -73,7 +73,7 @@ func (s *adminInviteLinkService) CreateInviteLink(ctx context.Context, req *conn
 	}
 	state, err := s.api.core.CreateInvitation(ctx, caller.UserID, maxUses, expiresAt)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.CreateInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
@@ -85,7 +85,7 @@ func (s *adminInviteLinkService) RevokeInviteLink(ctx context.Context, req *conn
 	}
 	state, err := s.api.core.RevokeInvitation(ctx, caller.UserID, req.Msg.GetId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.RevokeInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }

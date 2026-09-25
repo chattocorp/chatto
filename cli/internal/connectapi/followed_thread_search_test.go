@@ -136,7 +136,7 @@ func TestThreadSearchIndependentScopeGroupingAndOrder(t *testing.T) {
 				t.Run(fmt.Sprintf("scope=%v/group=%v/order=%v", scope, grouping, order), func(t *testing.T) {
 					response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Query: "needle", Scope: scope, GroupBy: grouping, Order: order}))
 					if grouping == 0 && order == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY {
-						require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+						require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 						return
 					}
 					require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestThreadSearchExcludesResolvedGroupsAndRejectsUnsupportedProviders(t *tes
 			}}
 			response, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Query: "needle", GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD}))
 			if !supportsExclusions {
-				require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+				require.Equal(t, connect.CodeUnavailable, errorCode(err))
 				return
 			}
 			require.NoError(t, err)
@@ -307,7 +307,7 @@ func TestSearchFollowedThreadsScopesDeduplicatesAndPagesByActivity(t *testing.T)
 				changed.Cursor = cursor
 				mutate(changed)
 				_, err := (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(changed))
-				require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+				require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 			}
 		}
 	}
@@ -354,7 +354,7 @@ func TestThreadSearchUsesSharedStructuredFiltersAndValidation(t *testing.T) {
 		invalid := proto.Clone(request).(*apiv1.SearchMessagesRequest)
 		mutate(invalid)
 		_, err := service.SearchMessages(ctx, connect.NewRequest(invalid))
-		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+		require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	}
 	request.Query = "from:nonexistent-user"
 	response, err = service.SearchMessages(ctx, connect.NewRequest(request))
@@ -439,19 +439,19 @@ func TestSearchFollowedThreadsAvailabilityAndAuthorFilter(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	request := connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "needle"})
 	_, err := (&messageSearchService{api: env.api}).SearchMessages(env.ctx, request)
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnauthenticated, errorCode(err))
 	_, err = (&messageSearchService{api: env.api}).SearchMessages(ctx, request)
-	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
 	env.api.config.Search.Enabled = true
 	_, err = (&messageSearchService{api: env.api}).SearchMessages(ctx, request)
-	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnavailable, errorCode(err))
 	room := env.createJoinedRoom("thread-search-author")
 	root := env.post(room.Id, env.viewer.Id, "needle", "")
 	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, root.Id))
 	provider := &fakeMessageSearchProvider{}
 	env.api.searchProvider = provider
 	_, err = (&messageSearchService{api: env.api}).SearchMessages(ctx, request)
-	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err), "older providers cannot silently ignore scope")
+	require.Equal(t, connect.CodeUnavailable, errorCode(err), "older providers cannot silently ignore scope")
 	provider.query = func(req *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
 		require.Equal(t, []string{env.viewer.Id}, req.AuthorIds)
 		require.Equal(t, []string{root.Id}, req.ThreadRootIds)
@@ -460,5 +460,5 @@ func TestSearchFollowedThreadsAvailabilityAndAuthorFilter(t *testing.T) {
 	_, err = (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "from:" + env.viewer.Login}))
 	require.NoError(t, err)
 	_, err = (&messageSearchService{api: env.api}).SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{Scope: apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS, GroupBy: apiv1.MessageSearchGroupBy_MESSAGE_SEARCH_GROUP_BY_THREAD, Query: "from:"}))
-	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 }

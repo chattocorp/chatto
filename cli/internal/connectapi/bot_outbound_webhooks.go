@@ -24,7 +24,7 @@ func (s *botService) GetBotOutboundWebhook(ctx context.Context, req *connect.Req
 	}
 	result, err := s.api.core.GetBotOutboundWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetBotOutboundWebhookResponse{Webhook: apiBotOutboundWebhook(result)}), nil
 }
@@ -35,7 +35,7 @@ func (s *botService) CreateBotOutboundWebhook(ctx context.Context, req *connect.
 	}
 	result, secret, err := s.api.core.CreateBotOutboundWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetName(), req.Msg.GetUrl(), req.Msg.GetAuthorization(), req.Msg.GetEnabled())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.CreateBotOutboundWebhookResponse{Webhook: apiBotOutboundWebhook(result), SigningSecret: secret}), nil
 }
@@ -45,7 +45,7 @@ func (s *botService) RevokeBotOutboundWebhook(ctx context.Context, req *connect.
 		return nil, err
 	}
 	if err = s.api.core.RevokeBotOutboundWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RevokeBotOutboundWebhookResponse{}), nil
 }
@@ -57,7 +57,7 @@ func (s *botService) ListBotOutboundWebhooks(ctx context.Context, req *connect.R
 	}
 	items, err := s.api.core.ListBotOutboundWebhooks(ctx, caller.UserID, req.Msg.GetBotUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	response := &apiv1.ListBotOutboundWebhooksResponse{}
 	for _, item := range items {
@@ -77,7 +77,7 @@ func (s *botService) UpdateBotOutboundWebhook(ctx context.Context, req *connect.
 
 	item, err := s.api.core.UpdateBotOutboundWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId(), core.BotOutboundWebhookPatch{Enabled: req.Msg.Enabled, URL: req.Msg.Url, Authorization: req.Msg.Authorization})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.UpdateBotOutboundWebhookResponse{Webhook: apiBotOutboundWebhook(item)}), nil
 }
@@ -100,7 +100,7 @@ func (s *botService) ListBotWebhookFailures(ctx context.Context, req *connect.Re
 	}
 	page, err := s.api.core.ListBotWebhookFailures(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId(), req.Msg.GetPageSize(), req.Msg.GetCursor())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	response := &apiv1.ListBotWebhookFailuresResponse{NextCursor: page.NextCursor}
 	for _, entry := range page.Entries {

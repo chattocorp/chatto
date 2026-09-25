@@ -61,7 +61,7 @@ func TestMessageServiceInteractionPostingCapability(t *testing.T) {
 		if want && err != nil {
 			t.Fatal(err)
 		}
-		if !want && connect.CodeOf(err) != connect.CodePermissionDenied {
+		if !want && errorCode(err) != connect.CodePermissionDenied {
 			t.Fatalf("reply error = %v", err)
 		}
 	}
@@ -77,8 +77,8 @@ func TestMessageServiceInteractionPostingCapability(t *testing.T) {
 func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
-	if _, err := env.messages.FetchLinkPreview(env.ctx, connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: "https://example.test"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated FetchLinkPreview code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.messages.FetchLinkPreview(env.ctx, connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: "https://example.test"})); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated FetchLinkPreview code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	restoreLocalhost := linkpreview.AllowLocalhostForTesting()
@@ -205,16 +205,16 @@ func TestRoomAndThreadTimelineRequiresAuthAndMembership(t *testing.T) {
 	}
 
 	req := connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id})
-	if _, err := env.rooms.GetRoomEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.rooms.GetRoomEvents(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetRoomEvents code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-outsider", "Timeline Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.rooms.GetRoomEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.rooms.GetRoomEvents(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member GetRoomEvents code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -226,23 +226,23 @@ func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testi
 		Body:   "hello",
 	})
 
-	if _, err := env.messages.CreateMessage(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.messages.CreateMessage(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated CreateMessage code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-outsider", "Message Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.messages.CreateMessage(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.CreateMessage(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member CreateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
-	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("denied CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied CreateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -300,23 +300,23 @@ func TestMessageServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testin
 		Emoji:          "thumbsup",
 	})
 
-	if _, err := env.messages.AddReaction(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.messages.AddReaction(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated AddReaction code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "reaction-outsider", "Reaction Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.messages.AddReaction(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.AddReaction(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member AddReaction code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReact); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
-	if _, err := env.messages.AddReaction(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("denied AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.AddReaction(withCaller(env.ctx, env.viewer), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied AddReaction code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -405,7 +405,7 @@ func TestMessageServiceAddReactionMapsPerUserMessageLimit(t *testing.T) {
 	_, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
 		RoomId: room.Id, MessageEventId: event.Id, Emoji: emojis[core.MaxReactionsPerUserPerMessage],
 	}))
-	if got := connect.CodeOf(err); got != connect.CodeResourceExhausted {
+	if got := errorCode(err); got != connect.CodeResourceExhausted {
 		t.Fatalf("AddReaction above limit code = %v, want %v", got, connect.CodeResourceExhausted)
 	}
 }
@@ -494,8 +494,8 @@ func TestMessageServiceValidatesEmoji(t *testing.T) {
 		MessageEventId: event.Id,
 		Emoji:          "totally_bogus",
 	}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("invalid emoji AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	if errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid emoji AddReaction code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
 }
 
@@ -626,8 +626,8 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(tt.req)); connect.CodeOf(err) != tt.code {
-				t.Fatalf("CreateMessage code = %v, want %v", connect.CodeOf(err), tt.code)
+			if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(tt.req)); errorCode(err) != tt.code {
+				t.Fatalf("CreateMessage code = %v, want %v", errorCode(err), tt.code)
 			}
 		})
 	}
@@ -741,8 +741,8 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 		Body:      "flat root reply",
 		InReplyTo: root.GetId(),
 	}))
-	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("flat required reply code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	if errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("flat required reply code = %v, want %v", errorCode(err), connect.CodeFailedPrecondition)
 	}
 
 	if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
@@ -762,16 +762,16 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 		Body:         "forbidden new thread",
 		CreateThread: true,
 	}))
-	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("disabled thread creation code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	if errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("disabled thread creation code = %v, want %v", errorCode(err), connect.CodeFailedPrecondition)
 	}
 	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:            room.Id,
 		Body:              "forbidden thread reply",
 		ThreadRootEventId: root.GetId(),
 	}))
-	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("disabled thread reply code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	if errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("disabled thread reply code = %v, want %v", errorCode(err), connect.CodeFailedPrecondition)
 	}
 }
 
@@ -855,8 +855,8 @@ func TestMessageServiceCreateMessageRejectsAnotherMembersAttachmentAsset(t *test
 	_, err = env.messages.CreateMessage(withCaller(env.ctx, attacker), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id, Body: "alias", AttachmentAssetIds: []string{assetID},
 	}))
-	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("attacker CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	if errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("attacker CreateMessage code = %v, want %v", errorCode(err), connect.CodeFailedPrecondition)
 	}
 }
 
@@ -880,8 +880,8 @@ func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *te
 		Size:        int64(len("denied upload")),
 		Sha256:      hex.EncodeToString(sum[:]),
 	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("denied attachment CreateUpload code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied attachment CreateUpload code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -1004,8 +1004,8 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 				t.Fatalf("GetAssetCount before post: %v", err)
 			}
 			_, err = env.messages.CreateMessage(ctx, connect.NewRequest(tt.req))
-			if connect.CodeOf(err) != tt.code {
-				t.Fatalf("CreateMessage code = %v, want %v", connect.CodeOf(err), tt.code)
+			if errorCode(err) != tt.code {
+				t.Fatalf("CreateMessage code = %v, want %v", errorCode(err), tt.code)
 			}
 			after, err := env.core.GetAssetCount(env.ctx)
 			if err != nil {
@@ -1035,8 +1035,8 @@ func TestMessageServiceCreateMessageRejectsVideoUploadWhenProcessingDisabled(t *
 		Size:        int64(len("video")),
 		Sha256:      hex.EncodeToString(sum[:]),
 	}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("video upload CreateUpload code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	if errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("video upload CreateUpload code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -1087,8 +1087,8 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 		UploadId:    uploadID,
 		Content:     oversized,
 		ChunkSha256: hex.EncodeToString(oversizedSum[:]),
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("oversized chunk code = %v, want invalid_argument", connect.CodeOf(err))
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("oversized chunk code = %v, want invalid_argument", errorCode(err))
 	}
 
 	firstSum := sha256.Sum256(first)
@@ -1154,8 +1154,8 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 	}
 	if _, err := env.assetUploads.GetUpload(ctx, connect.NewRequest(&apiv1.GetUploadRequest{
 		UploadId: cancelCreated.Msg.GetUpload().GetUploadId(),
-	})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("GetUpload after cancel code = %v, want not_found", connect.CodeOf(err))
+	})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("GetUpload after cancel code = %v, want not_found", errorCode(err))
 	}
 }
 
@@ -1193,8 +1193,8 @@ func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
 		Body:              "thread reply",
 		ThreadRootEventId: root.Id,
 	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("CreateMessage thread reply code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("CreateMessage thread reply code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -1231,8 +1231,8 @@ func TestAssetUploadServiceCompleteRechecksAttachmentPermission(t *testing.T) {
 	_, err = env.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{
 		UploadId: created.Msg.GetUpload().GetUploadId(),
 	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("CompleteUpload after attach permission revoked code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("CompleteUpload after attach permission revoked code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -1256,15 +1256,15 @@ func TestAssetUploadServiceRejectsChecksumOffsetAndIncompleteComplete(t *testing
 	uploadID := created.Msg.GetUpload().GetUploadId()
 	if _, err := env.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{
 		UploadId: uploadID,
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("incomplete CompleteUpload code = %v, want invalid_argument", connect.CodeOf(err))
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("incomplete CompleteUpload code = %v, want invalid_argument", errorCode(err))
 	}
 	if _, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
 		UploadId:    uploadID,
 		Content:     []byte("bad"),
 		ChunkSha256: strings.Repeat("0", sha256.Size*2),
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("bad checksum UploadChunk code = %v, want invalid_argument", connect.CodeOf(err))
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("bad checksum UploadChunk code = %v, want invalid_argument", errorCode(err))
 	}
 	chunk := []byte("valid")
 	chunkSum := sha256.Sum256(chunk)
@@ -1273,8 +1273,8 @@ func TestAssetUploadServiceRejectsChecksumOffsetAndIncompleteComplete(t *testing
 		Offset:      1,
 		Content:     chunk,
 		ChunkSha256: hex.EncodeToString(chunkSum[:]),
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("bad offset UploadChunk code = %v, want invalid_argument", connect.CodeOf(err))
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("bad offset UploadChunk code = %v, want invalid_argument", errorCode(err))
 	}
 }
 
@@ -1288,8 +1288,8 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		RoomId:  room.Id,
 		EventId: original.Id,
 		Body:    stringPtr("ignored"),
-	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	})); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated UpdateMessage code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-update-outsider", "Message Update Outsider", "password")
@@ -1300,8 +1300,8 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		RoomId:  room.Id,
 		EventId: original.Id,
 		Body:    stringPtr("ignored"),
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("outsider UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("outsider UpdateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-update-other", "Message Update Other", "password")
@@ -1315,8 +1315,8 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		RoomId:  room.Id,
 		EventId: original.Id,
 		Body:    stringPtr("ignored"),
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("member without manage UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("member without manage UpdateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	authorResp, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
@@ -1343,8 +1343,8 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		RoomId:  room.Id,
 		EventId: original.Id,
 		Body:    stringPtr("hidden edit"),
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("UpdateMessage without message.read code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("UpdateMessage without message.read code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 	if body, err := env.core.GetMessageBody(env.ctx, original.Id); err != nil || body != "author edit" {
 		t.Fatalf("body after denied edit = %q, %v; want author edit, nil", body, err)
@@ -1362,8 +1362,8 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		EventId:           original.Id,
 		Body:              stringPtr("invalid echo edit"),
 		AlsoSendToChannel: &echo,
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("root echo-state UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("root echo-state UpdateMessage code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
 
 	moderator, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-update-moderator", "Message Update Moderator", "password")
@@ -1394,8 +1394,8 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		EventId:           moderated.Id,
 		Body:              stringPtr("moderator echo edit"),
 		AlsoSendToChannel: &echo,
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("moderator echo UpdateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("moderator echo UpdateMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -1413,8 +1413,8 @@ func TestMessageServiceSetAttachmentDescriptionAuthorAndRBAC(t *testing.T) {
 	request := &apiv1.SetAttachmentDescriptionRequest{
 		RoomId: room.Id, EventId: eventID, AttachmentId: assetID, Description: "A photo",
 	}
-	if _, err := env.messages.SetAttachmentDescription(env.ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.messages.SetAttachmentDescription(env.ctx, connect.NewRequest(request)); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated SetAttachmentDescription code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "attachment-description-other", "Attachment Description Other", "password")
@@ -1424,8 +1424,8 @@ func TestMessageServiceSetAttachmentDescriptionAuthorAndRBAC(t *testing.T) {
 	if _, err := env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom other: %v", err)
 	}
-	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, other), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("member SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, other), connect.NewRequest(request)); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("member SetAttachmentDescription code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, other.Id, core.PermMessageManage); err != nil {
 		t.Fatalf("GrantUserRoomPermission: %v", err)
@@ -1458,8 +1458,8 @@ func TestMessageServiceSetAttachmentDescriptionAuthorAndRBAC(t *testing.T) {
 	}
 
 	request.AttachmentId = "unrelated"
-	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, env.viewer), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("unrelated SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, env.viewer), connect.NewRequest(request)); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("unrelated SetAttachmentDescription code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
 }
 
@@ -1484,8 +1484,8 @@ func TestMessageServiceSetAttachmentDescriptionInDM(t *testing.T) {
 		RoomId: dm.Id, EventId: created.Msg.GetMessage().GetId(), AttachmentId: assetID, Description: "A diagram",
 	}
 
-	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, participant), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("DM participant SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, participant), connect.NewRequest(request)); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("DM participant SetAttachmentDescription code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 	if err := env.core.AssignOwnerRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatalf("AssignOwnerRole: %v", err)
@@ -1517,8 +1517,8 @@ func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
 	if _, err := env.messages.DeleteMessage(withCaller(env.ctx, other), connect.NewRequest(&apiv1.DeleteMessageRequest{
 		RoomId:  room.Id,
 		EventId: target.Id,
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("member without manage DeleteMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("member without manage DeleteMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	moderator, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-delete-moderator", "Message Delete Moderator", "password")
@@ -1587,15 +1587,15 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 		RoomId:       room.Id,
 		EventId:      attachmentEvent.Id,
 		AttachmentId: attachment.Id,
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-author DeleteAttachment code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-author DeleteAttachment code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 	if _, err := env.messages.DeleteLinkPreview(withCaller(env.ctx, other), connect.NewRequest(&apiv1.DeleteLinkPreviewRequest{
 		RoomId:  room.Id,
 		EventId: previewEvent.Id,
 		Url:     previewURL,
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-author DeleteLinkPreview code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-author DeleteLinkPreview code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	if _, err := env.messages.DeleteAttachment(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteAttachmentRequest{
@@ -1634,16 +1634,16 @@ func TestRoomServiceRefreshTypingIndicatorRequiresMembershipOnly(t *testing.T) {
 	room := env.createJoinedRoom("message-typing")
 	req := connect.NewRequest(&apiv1.RefreshTypingIndicatorRequest{RoomId: room.Id})
 
-	if _, err := env.rooms.RefreshTypingIndicator(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated RefreshTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.rooms.RefreshTypingIndicator(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated RefreshTypingIndicator code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-typing-outsider", "Message Typing Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.rooms.RefreshTypingIndicator(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("outsider RefreshTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.rooms.RefreshTypingIndicator(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("outsider RefreshTypingIndicator code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
@@ -1751,12 +1751,12 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	tamperedEnvelope := append([]byte(nil), envelope...)
 	tamperedEnvelope[len(tamperedEnvelope)-1] ^= 1
 	tampered := roomTimelineCursorOpaquePrefix + base64.RawURLEncoding.EncodeToString(tamperedEnvelope)
-	if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", tampered); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("tampered cursor code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", tampered); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("tampered cursor code = %v, want invalid_argument", errorCode(err))
 	}
 	for _, invalid := range []string{"bad", "seq:42", "tl:not-base64", "tl:AQ"} {
-		if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("parse invalid cursor %q code = %v, want invalid_argument", invalid, connect.CodeOf(err))
+		if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", invalid); errorCode(err) != connect.CodeInvalidArgument {
+			t.Fatalf("parse invalid cursor %q code = %v, want invalid_argument", invalid, errorCode(err))
 		}
 	}
 }
@@ -1874,8 +1874,8 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if _, err := env.rooms.ListRoomAttachments(env.ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
 		Page:   &apiv1.PageRequest{Limit: 10},
-	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated ListRoomAttachments code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	})); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated ListRoomAttachments code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	resp, err := env.rooms.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{

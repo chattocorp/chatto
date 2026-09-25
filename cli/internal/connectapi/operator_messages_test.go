@@ -51,7 +51,7 @@ func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) 
 	}
 	if _, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
 		RoomId: room.Id, AuthorId: author.Id, CreatedAt: timestamppb.New(created), Body: "body", PreviewTitle: "title",
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("preview without URL error = %v", err)
 	}
 }

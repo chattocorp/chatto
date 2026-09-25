@@ -22,136 +22,152 @@ var (
 	errorLogControlCharRE = regexp.MustCompile(`[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]`)
 )
 
+// connectErrorCodes maps core and framework errors to Connect status codes.
+// The first matching row wins, so keep more specific errors before broader
+// ones. Errors that match no row become CodeInternal with a generic message.
+var connectErrorCodes = []struct {
+	code connect.Code
+	errs []error
+}{
+	{connect.CodeFailedPrecondition, []error{core.ErrSetupUnavailable, core.ErrSetupRequired}},
+	{connect.CodeCanceled, []error{context.Canceled}},
+	{connect.CodeDeadlineExceeded, []error{context.DeadlineExceeded}},
+	{connect.CodeAborted, []error{events.ErrConflict, core.ErrNeighborRevisionChanged}},
+	{connect.CodeUnauthenticated, []error{core.ErrNotAuthenticated}},
+	{connect.CodePermissionDenied, []error{
+		core.ErrPermissionDenied,
+		core.ErrNotRoomMember,
+		core.ErrNotMessageAuthor,
+	}},
+	{connect.CodeFailedPrecondition, []error{
+		core.ErrHumanAccountRequired,
+		core.ErrPrivilegedModeUnavailable,
+		core.ErrBotOwnerPermissionCeiling,
+		core.ErrNeighborMatchesServerOrigin,
+	}},
+	{connect.CodeAlreadyExists, []error{
+		core.ErrRoomNameExists,
+		core.ErrLoginAlreadyTaken,
+		core.ErrEmailAlreadyVerified,
+		core.ErrExternalIdentityAlreadyClaimed,
+		core.ErrRoleAlreadyExists,
+		core.ErrNeighborAlreadyExists,
+	}},
+	{connect.CodeInvalidArgument, []error{
+		core.ErrCustomStatusEmojiRequired,
+		core.ErrCustomStatusEmojiInvalid,
+		core.ErrCustomStatusTextRequired,
+		core.ErrCustomStatusEmojiTooLong,
+		core.ErrCustomStatusTextTooLong,
+		core.ErrCustomStatusExpiryInPast,
+		core.ErrCannotRemoveDMRoomMember,
+		core.ErrExternalIdentityFlowWrongKind,
+		core.ErrExternalIdentityFlowUserBound,
+		core.ErrCurrentPasswordRequired,
+		core.ErrCurrentPasswordInvalid,
+		core.ErrLoginTooShort,
+		core.ErrLoginTooLong,
+		core.ErrLoginInvalidCharacter,
+		core.ErrUsernameBlocked,
+		core.ErrDisplayNameTooLong,
+		core.ErrDisplayNameInvalidCharacter,
+		core.ErrDisplayNameInvalidStart,
+		core.ErrPasswordTooShort,
+		core.ErrPasswordTooLong,
+		core.ErrImplicitRole,
+		core.ErrRoomGroupNameEmpty,
+		core.ErrSidebarLinkLabelEmpty,
+		core.ErrSidebarLinkURLInvalid,
+		core.ErrInvalidRoleName,
+		core.ErrInvalidPermission,
+		core.ErrInvitationInvalid,
+		core.ErrInvalidArgument,
+	}},
+	{connect.CodeNotFound, []error{
+		core.ErrNotFound,
+		core.ErrExternalIdentityNotFound,
+		core.ErrExternalIdentityFlowNotFound,
+		core.ErrExternalIdentityFlowExpired,
+		core.ErrRoleNotFound,
+		core.ErrRoomGroupNotFound,
+		core.ErrSidebarLinkNotFound,
+		core.ErrSidebarItemNotFound,
+		core.ErrMessageNotFound,
+		core.ErrMessageAttachmentNotFound,
+		core.ErrMessageLinkPreviewNotFound,
+		core.ErrNeighborNotFound,
+		jetstream.ErrKeyNotFound,
+	}},
+	{connect.CodeInvalidArgument, []error{core.ErrMessageTooLong}},
+	{connect.CodeResourceExhausted, []error{
+		core.ErrLimitExceeded,
+		core.ErrReactionLimitExceeded,
+		core.ErrPushSubscriptionLimitReached,
+		core.ErrSlowModeActive,
+		core.ErrNeighborLimitReached,
+	}},
+	{connect.CodeFailedPrecondition, []error{
+		core.ErrRoomArchived,
+		core.ErrRoomThreadingPolicy,
+		core.ErrEditWindowExpired,
+		core.ErrFreshAuthRequired,
+		core.ErrPasswordAlreadySet,
+		core.ErrLoginChangeCooldown,
+		core.ErrAdminCannotSetOwnPassword,
+		core.ErrCannotLeaveDMConversation,
+		core.ErrCannotLeaveUniversalRoom,
+		core.ErrCannotRevokeSelfAdmin,
+		core.ErrExternalIdentityLastMethod,
+		core.ErrCannotDeleteSystemRole,
+		core.ErrRoomGroupHasRooms,
+		core.ErrRoomGroupOrderMismatch,
+		core.ErrRoomMoveSourceChanged,
+		core.ErrAssetNotAttachable,
+		core.ErrSidebarLinkSourceChanged,
+		core.ErrSidebarItemPlacement,
+	}},
+}
+
+// connectError converts err to the Connect error that clients receive. It
+// returns existing Connect errors unchanged, including not-modified errors,
+// so repeated calls are safe. errorMappingInterceptor applies it to every
+// handler error.
 func connectError(err error) error {
-	if errors.Is(err, core.ErrSetupUnavailable) || errors.Is(err, core.ErrSetupRequired) {
-		return connect.NewError(connect.CodeFailedPrecondition, err)
-	}
 	if err == nil {
 		return nil
 	}
-	if connect.CodeOf(err) != connect.CodeUnknown {
+	var existing *connect.Error
+	if errors.As(err, &existing) {
 		return err
 	}
-	if errors.Is(err, context.Canceled) {
-		return connect.NewError(connect.CodeCanceled, err)
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return connect.NewError(connect.CodeDeadlineExceeded, err)
-	}
-	if errors.Is(err, events.ErrConflict) {
-		return connect.NewError(connect.CodeAborted, err)
-	}
-	if errors.Is(err, core.ErrNeighborRevisionChanged) {
-		return connect.NewError(connect.CodeAborted, err)
-	}
-	if errors.Is(err, core.ErrNotAuthenticated) {
-		return connect.NewError(connect.CodeUnauthenticated, err)
-	}
-	if errors.Is(err, core.ErrPermissionDenied) ||
-		errors.Is(err, core.ErrNotRoomMember) ||
-		errors.Is(err, core.ErrNotMessageAuthor) {
-		return connect.NewError(connect.CodePermissionDenied, err)
-	}
-	if errors.Is(err, core.ErrHumanAccountRequired) ||
-		errors.Is(err, core.ErrPrivilegedModeUnavailable) ||
-		errors.Is(err, core.ErrBotOwnerPermissionCeiling) ||
-		errors.Is(err, core.ErrNeighborMatchesServerOrigin) {
-		return connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	if errors.Is(err, core.ErrRoomNameExists) {
-		return connect.NewError(connect.CodeAlreadyExists, err)
-	}
-	if errors.Is(err, core.ErrLoginAlreadyTaken) ||
-		errors.Is(err, core.ErrEmailAlreadyVerified) ||
-		errors.Is(err, core.ErrExternalIdentityAlreadyClaimed) ||
-		errors.Is(err, core.ErrRoleAlreadyExists) {
-		return connect.NewError(connect.CodeAlreadyExists, err)
-	}
-	if errors.Is(err, core.ErrNeighborAlreadyExists) {
-		return connect.NewError(connect.CodeAlreadyExists, err)
-	}
-	if errors.Is(err, core.ErrCustomStatusEmojiRequired) ||
-		errors.Is(err, core.ErrCustomStatusEmojiInvalid) ||
-		errors.Is(err, core.ErrCustomStatusTextRequired) ||
-		errors.Is(err, core.ErrCustomStatusEmojiTooLong) ||
-		errors.Is(err, core.ErrCustomStatusTextTooLong) ||
-		errors.Is(err, core.ErrCustomStatusExpiryInPast) ||
-		errors.Is(err, core.ErrCannotRemoveDMRoomMember) ||
-		errors.Is(err, core.ErrExternalIdentityFlowWrongKind) ||
-		errors.Is(err, core.ErrExternalIdentityFlowUserBound) ||
-		errors.Is(err, core.ErrCurrentPasswordRequired) ||
-		errors.Is(err, core.ErrCurrentPasswordInvalid) ||
-		errors.Is(err, core.ErrLoginTooShort) ||
-		errors.Is(err, core.ErrLoginTooLong) ||
-		errors.Is(err, core.ErrLoginInvalidCharacter) ||
-		errors.Is(err, core.ErrUsernameBlocked) ||
-		errors.Is(err, core.ErrDisplayNameTooLong) ||
-		errors.Is(err, core.ErrDisplayNameInvalidCharacter) ||
-		errors.Is(err, core.ErrDisplayNameInvalidStart) ||
-		errors.Is(err, core.ErrPasswordTooShort) ||
-		errors.Is(err, core.ErrPasswordTooLong) ||
-		errors.Is(err, core.ErrImplicitRole) ||
-		errors.Is(err, core.ErrRoomGroupNameEmpty) ||
-		errors.Is(err, core.ErrSidebarLinkLabelEmpty) ||
-		errors.Is(err, core.ErrSidebarLinkURLInvalid) ||
-		errors.Is(err, core.ErrInvalidRoleName) ||
-		errors.Is(err, core.ErrInvalidPermission) ||
-		errors.Is(err, core.ErrInvitationInvalid) ||
-		errors.Is(err, core.ErrInvalidArgument) {
-		return connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if errors.Is(err, core.ErrNotFound) ||
-		errors.Is(err, core.ErrExternalIdentityNotFound) ||
-		errors.Is(err, core.ErrExternalIdentityFlowNotFound) ||
-		errors.Is(err, core.ErrExternalIdentityFlowExpired) ||
-		errors.Is(err, core.ErrRoleNotFound) ||
-		errors.Is(err, core.ErrRoomGroupNotFound) ||
-		errors.Is(err, core.ErrSidebarLinkNotFound) ||
-		errors.Is(err, core.ErrSidebarItemNotFound) ||
-		errors.Is(err, core.ErrMessageNotFound) ||
-		errors.Is(err, core.ErrMessageAttachmentNotFound) ||
-		errors.Is(err, core.ErrMessageLinkPreviewNotFound) ||
-		errors.Is(err, core.ErrNeighborNotFound) ||
-		errors.Is(err, core.ErrRoleNotFound) ||
-		errors.Is(err, jetstream.ErrKeyNotFound) {
-		return connect.NewError(connect.CodeNotFound, err)
-	}
-	if errors.Is(err, core.ErrMessageTooLong) {
-		return connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if errors.Is(err, core.ErrLimitExceeded) ||
-		errors.Is(err, core.ErrReactionLimitExceeded) ||
-		errors.Is(err, core.ErrPushSubscriptionLimitReached) ||
-		errors.Is(err, core.ErrSlowModeActive) {
-		return connect.NewError(connect.CodeResourceExhausted, err)
-	}
-	if errors.Is(err, core.ErrNeighborLimitReached) {
-		return connect.NewError(connect.CodeResourceExhausted, err)
-	}
-	if errors.Is(err, core.ErrRoomArchived) ||
-		errors.Is(err, core.ErrRoomThreadingPolicy) ||
-		errors.Is(err, core.ErrEditWindowExpired) ||
-		errors.Is(err, core.ErrLimitExceeded) ||
-		errors.Is(err, core.ErrFreshAuthRequired) ||
-		errors.Is(err, core.ErrPasswordAlreadySet) ||
-		errors.Is(err, core.ErrLoginChangeCooldown) ||
-		errors.Is(err, core.ErrAdminCannotSetOwnPassword) ||
-		errors.Is(err, core.ErrCannotLeaveDMConversation) ||
-		errors.Is(err, core.ErrCannotLeaveUniversalRoom) ||
-		errors.Is(err, core.ErrCannotRevokeSelfAdmin) ||
-		errors.Is(err, core.ErrExternalIdentityLastMethod) ||
-		errors.Is(err, core.ErrCannotDeleteSystemRole) ||
-		errors.Is(err, core.ErrRoomGroupHasRooms) ||
-		errors.Is(err, core.ErrRoomGroupOrderMismatch) ||
-		errors.Is(err, core.ErrRoomMoveSourceChanged) ||
-		errors.Is(err, core.ErrAssetNotAttachable) ||
-		errors.Is(err, core.ErrSidebarLinkSourceChanged) {
-		return connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	if errors.Is(err, core.ErrSidebarItemPlacement) {
-		return connect.NewError(connect.CodeFailedPrecondition, err)
+	for _, row := range connectErrorCodes {
+		for _, target := range row.errs {
+			if errors.Is(err, target) {
+				return connect.NewError(row.code, err)
+			}
+		}
 	}
 	return connectInternalError(err)
+}
+
+// errorCode returns the Connect code that a client receives for err.
+func errorCode(err error) connect.Code {
+	return connect.CodeOf(connectError(err))
+}
+
+// errorMappingInterceptor converts every handler error with connectError.
+// Handlers can therefore return core errors directly. Install it inside
+// internalErrorLoggingInterceptor so that the logger sees mapped errors.
+func errorMappingInterceptor() connect.Interceptor {
+	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			res, err := next(ctx, req)
+			if err != nil {
+				return nil, connectError(err)
+			}
+			return res, nil
+		}
+	})
 }
 
 func invalidArgument(message string) error {
@@ -188,6 +204,13 @@ func internalServerCause(err error) error {
 		return internal.cause
 	}
 	return err
+}
+
+// LogSafeError returns err as text that is safe to log. It unwraps a hidden
+// internal cause and redacts email addresses, tokens, invite links, and query
+// values. Use it when code outside the Connect handlers logs API errors.
+func LogSafeError(err error) string {
+	return safeInternalErrorForLog(internalServerCause(err))
 }
 
 func logInternalConnectError(err error, attrs ...any) {

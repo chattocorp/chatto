@@ -31,7 +31,7 @@ func (s *operatorAssetService) CreateUpload(ctx context.Context, req *connect.Re
 		SHA256:      req.Msg.GetSha256(),
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&operatorv1.CreateUploadResponse{Upload: apiAssetUpload(upload)}), nil
 }
@@ -46,7 +46,7 @@ func (s *operatorAssetService) UploadChunk(ctx context.Context, req *connect.Req
 		ChunkSHA256: req.Msg.GetChunkSha256(),
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&operatorv1.UploadChunkResponse{Upload: apiAssetUpload(upload)}), nil
 }
@@ -56,7 +56,7 @@ func (s *operatorAssetService) CompleteUpload(ctx context.Context, req *connect.
 		ActorID: core.SystemActorID, Operator: true, UploadID: req.Msg.GetUploadId(),
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&operatorv1.CompleteUploadResponse{AssetId: attachment.GetId()}), nil
 }
@@ -66,7 +66,7 @@ func (s *operatorAssetService) CancelUpload(ctx context.Context, req *connect.Re
 		ActorID: core.SystemActorID, Operator: true, UploadID: req.Msg.GetUploadId(),
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&operatorv1.CancelUploadResponse{Upload: apiAssetUpload(upload)}), nil
 }

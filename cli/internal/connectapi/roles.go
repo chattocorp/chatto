@@ -25,7 +25,7 @@ func (s *publicRoleService) ListRoles(ctx context.Context, _ *connect.Request[ap
 	}
 	catalog, err := s.api.core.ListServerRolesForUser(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListRolesResponse{
 		Roles: publicAPIRoles(catalog.Roles),
@@ -41,7 +41,7 @@ func (s *publicRoleService) GetRole(ctx context.Context, req *connect.Request[ap
 	}
 	role, err := s.api.core.GetServerRole(ctx, req.Msg.GetName())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetRoleResponse{Role: publicAPIRole(role)}), nil
 }
@@ -64,7 +64,7 @@ func (s *publicRoleService) BatchGetRoles(ctx context.Context, req *connect.Requ
 			if errors.Is(err, core.ErrRoleNotFound) {
 				continue
 			}
-			return nil, connectError(err)
+			return nil, err
 		}
 		roles = append(roles, publicAPIRole(role))
 	}
@@ -78,7 +78,7 @@ func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[adminv1.
 	}
 	catalog, err := s.api.core.ListServerRolesForUser(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ListRolesResponse{
 		Roles:                adminAPIRoles(catalog.Roles),
@@ -97,7 +97,7 @@ func (s *roleService) GetRole(ctx context.Context, req *connect.Request[adminv1.
 	}
 	details, err := s.api.core.GetServerRoleDetails(ctx, caller.UserID, req.Msg.GetName())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetRoleResponse{
 		Role:                 adminAPIRole(details.Role),
@@ -119,7 +119,7 @@ func (s *roleService) CreateRole(ctx context.Context, req *connect.Request[admin
 		Pingable:    &pingable,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.CreateRoleResponse{Role: adminAPIRole(role)}), nil
 }
@@ -140,7 +140,7 @@ func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[admin
 		Pingable:    req.Msg.Pingable,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.UpdateRoleResponse{Role: adminAPIRole(role)}), nil
 }
@@ -151,7 +151,7 @@ func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[admin
 		return nil, err
 	}
 	if err := s.api.core.AdminDeleteServerRole(ctx, caller.UserID, req.Msg.GetName()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.DeleteRoleResponse{}), nil
 }
@@ -163,7 +163,7 @@ func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[adm
 	}
 	roles, err := s.api.core.AdminReorderServerRoles(ctx, caller.UserID, req.Msg.GetRoleNames())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: adminAPIRoles(roles)}), nil
 }
@@ -216,11 +216,11 @@ func (s *roleService) ListMembers(ctx context.Context, req *connect.Request[admi
 	}
 	page, err := s.api.core.ListServerRoleMembers(ctx, caller.UserID, req.Msg.GetName(), int(req.Msg.GetPage().GetLimit()), int(req.Msg.GetPage().GetOffset()))
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	members, err := (&roleMemberAssembler{api: s.api}).assemble(ctx, page.UserIDs)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.AdminRoleServiceListMembersResponse{Members: members, Page: apiPageInfo(page.TotalCount, page.HasMore)}), nil
 }

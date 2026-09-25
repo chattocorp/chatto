@@ -74,7 +74,7 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 		AuthorID: req.Msg.GetAuthorId(), AuthorSelectors: parsed.AuthorSelectors,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	providerRequest, err := providerSearchRequest(req.Msg, parsed, scope)
 	if err != nil {
@@ -118,17 +118,17 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	}
 	current, err := s.api.core.MessageSearchReads().HydrateHits(ctx, caller.UserID, scope, hits)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if followedOnly {
 		current, err = s.api.core.MessageSearchReads().FilterFollowedSearchResults(ctx, caller.UserID, current)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 	}
 	messages, err := s.api.hydrateMessageSearchResults(ctx, caller.UserID, current, nil)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	response := &apiv1.SearchMessagesResponse{Results: messages}
@@ -222,7 +222,7 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 		if errors.Is(err, searchsvc.ErrUnavailable) || errors.Is(err, searchsvc.ErrProviderNotReady) || errors.Is(err, searchsvc.ErrInvalidResponse) || errors.As(err, &providerError) {
 			return nil, messageSearchProviderError(err)
 		}
-		return nil, connectError(err)
+		return nil, err
 	}
 	displayPage := &core.FollowedThreadsPage{TotalCount: page.TotalCount, HasMore: page.HasMore}
 	matches := make([]core.MessageSearchResult, 0, len(page.Threads))
@@ -234,11 +234,11 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 	}
 	rows, err := followedThreadsResponse(ctx, s.api, viewerID, displayPage)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	evidence, err := s.api.hydrateMessageSearchResults(ctx, viewerID, matches, rows.Includes)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	byMessage := make(map[string]*apiv1.MessageSearchResult, len(evidence))
 	for _, match := range evidence {

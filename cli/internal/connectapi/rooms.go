@@ -31,7 +31,7 @@ func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[apiv1
 
 	threadingMode, err := coreRoomThreadingMode(req.Msg.GetThreadingMode(), true)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	room, err := s.api.core.RoomCommands().CreateRoom(ctx, core.RoomCreateInput{
 		ActorID:       caller.UserID,
@@ -42,7 +42,7 @@ func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[apiv1
 		ThreadingMode: threadingMode,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.CreateRoomResponse{Room: apiRoom(room)}), nil
 }
@@ -61,7 +61,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 	if req.Msg.ThreadingMode != nil {
 		value, conversionErr := coreRoomThreadingMode(*req.Msg.ThreadingMode, false)
 		if conversionErr != nil {
-			return nil, connectError(conversionErr)
+			return nil, conversionErr
 		}
 		threadingMode = &value
 	}
@@ -75,7 +75,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		ThreadingMode:   threadingMode,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.UpdateRoomResponse{Room: apiRoom(room)}), nil
 }
@@ -91,7 +91,7 @@ func (s *roomService) ArchiveRoom(ctx context.Context, req *connect.Request[apiv
 		RoomID:  req.Msg.RoomId,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ArchiveRoomResponse{Room: apiRoom(room)}), nil
 }
@@ -107,7 +107,7 @@ func (s *roomService) UnarchiveRoom(ctx context.Context, req *connect.Request[ap
 		RoomID:  req.Msg.RoomId,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.UnarchiveRoomResponse{Room: apiRoom(room)}), nil
 }
@@ -123,7 +123,7 @@ func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.J
 		RoomID:  req.Msg.RoomId,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.JoinRoomResponse{Room: apiRoom(room)}), nil
 }
@@ -136,7 +136,7 @@ func (s *roomService) JoinRoomGroup(ctx context.Context, req *connect.Request[ap
 
 	joined, err := s.api.core.RoomDirectoryReads().JoinGroup(ctx, caller.UserID, req.Msg.GetGroupId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.JoinRoomGroupResponse{JoinedRoomIds: joined}), nil
@@ -153,7 +153,7 @@ func (s *roomService) StartDM(ctx context.Context, req *connect.Request[apiv1.St
 		ParticipantIDs: req.Msg.ParticipantIds,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.StartDMResponse{Room: apiRoom(room)}), nil
 }
@@ -167,7 +167,7 @@ func (s *roomService) LeaveRoom(ctx context.Context, req *connect.Request[apiv1.
 		ActorID: caller.UserID,
 		RoomID:  req.Msg.RoomId,
 	}); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.LeaveRoomResponse{}), nil
 }
@@ -183,12 +183,12 @@ func (s *roomService) AddMember(ctx context.Context, req *connect.Request[apiv1.
 		UserID:  req.Msg.UserId,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	user, err := s.api.core.GetUser(ctx, membership.GetUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	member, err := directoryMember(ctx, s.api, user, nil)
 	if err != nil {
@@ -208,7 +208,7 @@ func (s *roomService) RemoveMember(ctx context.Context, req *connect.Request[api
 		UserID:  req.Msg.UserId,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RemoveMemberResponse{Removed: removed}), nil
 }
@@ -229,7 +229,7 @@ func (s *roomService) ListSuspensions(ctx context.Context, req *connect.Request[
 		RoomID:  roomID,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultRoomSuspensionListLimit, maxRoomSuspensionListLimit)
@@ -264,7 +264,7 @@ func (s *roomService) RefreshTypingIndicator(ctx context.Context, req *connect.R
 		RoomID:            req.Msg.RoomId,
 		ThreadRootEventID: threadRootEventID,
 	}); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RefreshTypingIndicatorResponse{}), nil
 }
@@ -299,7 +299,7 @@ func (s *roomService) RemoveUser(ctx context.Context, req *connect.Request[apiv1
 		Suspension: suspension,
 		ExpiresAt:  expiresAt,
 	}); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RemoveUserResponse{}), nil
 }
@@ -315,7 +315,7 @@ func (s *roomService) LiftSuspension(ctx context.Context, req *connect.Request[a
 		UserID:  req.Msg.UserId,
 		Reason:  req.Msg.Reason,
 	}); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.LiftSuspensionResponse{}), nil
 }
@@ -338,7 +338,7 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 	room, err := s.api.core.GetRoom(ctx, core.KindChannel, ban.RoomID)
 	if err != nil {
 		if !errors.Is(err, core.ErrNotFound) && !errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, connectError(err)
+			return nil, err
 		}
 	} else {
 		out.Room = apiRoom(room)
@@ -347,7 +347,7 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 	user, err := s.api.core.GetUser(ctx, ban.UserID)
 	if err != nil {
 		if !errors.Is(err, core.ErrNotFound) && !errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, connectError(err)
+			return nil, err
 		}
 	} else {
 		apiUser, err := directoryMember(ctx, s.api, user, nil)
@@ -360,7 +360,7 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 	moderator, err := s.api.core.GetUser(ctx, ban.ModeratorID)
 	if err != nil {
 		if !errors.Is(err, core.ErrNotFound) && !errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, connectError(err)
+			return nil, err
 		}
 	} else {
 		apiModerator, err := directoryMember(ctx, s.api, moderator, nil)

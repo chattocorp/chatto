@@ -22,7 +22,7 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 
 	linkPreview, err := s.api.core.ResolveLinkPreviewToken(ctx, req.Msg.GetLinkPreviewToken())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	descriptions := make([]core.MessageAttachmentDescriptionInput, 0, len(req.Msg.GetAttachmentDescriptions()))
@@ -47,7 +47,7 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		LinkPreview:            linkPreview,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if result == nil {
 		return nil, connectInternalError(errors.New("message create returned no result"))
@@ -63,7 +63,7 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 	}
 	apiEvent, err := s.hydratePostedEvent(ctx, caller.UserID, kind, result.Event)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.CreateMessageResponse{
 		Message: messageFromTimelineEvent(apiEvent),
@@ -83,11 +83,11 @@ func (s *messageService) SetAttachmentDescription(ctx context.Context, req *conn
 		Description:  req.Msg.Description,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	apiEvent, err := s.hydratePostedEvent(ctx, caller.UserID, kind, event)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.SetAttachmentDescriptionResponse{
 		Message: messageFromTimelineEvent(apiEvent),
@@ -112,11 +112,11 @@ func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request
 		AlsoSendToChannel: req.Msg.AlsoSendToChannel,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	apiEvent, err := s.hydratePostedEvent(ctx, caller.UserID, kind, event)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.UpdateMessageResponse{
 		Message: messageFromTimelineEvent(apiEvent),
@@ -134,7 +134,7 @@ func (s *messageService) DeleteMessage(ctx context.Context, req *connect.Request
 		RoomID:  req.Msg.RoomId,
 		EventID: req.Msg.EventId,
 	}); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeleteMessageResponse{}), nil
 }
@@ -151,7 +151,7 @@ func (s *messageService) DeleteAttachment(ctx context.Context, req *connect.Requ
 		EventID:      req.Msg.EventId,
 		AttachmentID: req.Msg.AttachmentId,
 	}); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeleteAttachmentResponse{}), nil
 }
@@ -168,7 +168,7 @@ func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Req
 		EventID: req.Msg.EventId,
 		URL:     req.Msg.Url,
 	}); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{}), nil
 }

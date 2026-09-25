@@ -25,12 +25,12 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultFollowedThreadLimit, maxFollowedThreadLimit)
 	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, req.Msg.GetIncludeDirectMessageThreads(), limit, offset)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	resp, err := followedThreadsResponse(ctx, s.api, caller.UserID, page)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -41,7 +41,7 @@ func (s *threadService) FollowThread(ctx context.Context, req *connect.Request[a
 		return nil, err
 	}
 	if err := s.api.core.ThreadFollows().FollowThread(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.FollowThreadResponse{
 		State: threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, true),
@@ -54,7 +54,7 @@ func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request
 		return nil, err
 	}
 	if err := s.api.core.ThreadFollows().UnfollowThread(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.UnfollowThreadResponse{
 		State: threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, false),

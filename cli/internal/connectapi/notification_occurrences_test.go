@@ -71,10 +71,10 @@ func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureSignal(t *testi
 	if err != nil || len(visible) != 0 {
 		t.Fatalf("visible future occurrences = (%v, %v), want empty without error", visible, err)
 	}
-	if err := requireSupportedNotificationSignals(stored, future); connect.CodeOf(err) != connect.CodeUnimplemented {
-		t.Fatalf("mixed supported signals code = %v, want unimplemented", connect.CodeOf(err))
+	if err := requireSupportedNotificationSignals(stored, future); errorCode(err) != connect.CodeUnimplemented {
+		t.Fatalf("mixed supported signals code = %v, want unimplemented", errorCode(err))
 	}
-	if deleted, err := env.notifications.deleteVisibleNotificationOccurrences(env.ctx, env.viewer.GetId(), []*notificationv1.NotificationOccurrence{future}); connect.CodeOf(err) != connect.CodeUnimplemented || deleted != 0 {
+	if deleted, err := env.notifications.deleteVisibleNotificationOccurrences(env.ctx, env.viewer.GetId(), []*notificationv1.NotificationOccurrence{future}); errorCode(err) != connect.CodeUnimplemented || deleted != 0 {
 		t.Fatalf("delete future occurrence = (%d, %v), want zero and unimplemented", deleted, err)
 	}
 	if current, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.GetId(), stored.GetId()); err != nil || current.GetId() != stored.GetId() {

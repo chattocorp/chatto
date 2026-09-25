@@ -25,7 +25,7 @@ func (s *permissionService) GetRolePermissionTierMatrix(ctx context.Context, req
 		}
 		matrix, err := s.api.core.GetRolePermissionDMTierMatrix(ctx, caller.UserID)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		return connect.NewResponse(&adminv1.GetRolePermissionTierMatrixResponse{Matrix: apiTierRoles(matrix)}), nil
 	}
@@ -35,7 +35,7 @@ func (s *permissionService) GetRolePermissionTierMatrix(ctx context.Context, req
 	}
 	matrix, err := s.api.core.GetRolePermissionTierMatrix(ctx, caller.UserID, roomID, groupID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetRolePermissionTierMatrixResponse{Matrix: apiTierRoles(matrix)}), nil
 }
@@ -51,7 +51,7 @@ func (s *permissionService) GetRolePermissionMatrix(ctx context.Context, req *co
 	}
 	matrix, err := s.api.core.GetRolePermissionMatrixPage(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetRolePermissionMatrixResponse{Matrix: apiRolePermissionMatrix(matrix), Page: apiPermissionScopePage(matrix.Page)}), nil
 }
@@ -67,7 +67,7 @@ func (s *permissionService) ListRolePermissionDecisions(ctx context.Context, req
 	}
 	matrix, err := s.api.core.GetRolePermissionMatrixPage(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ListRolePermissionDecisionsResponse{
 		RoleName:  matrix.RoleName,
@@ -88,7 +88,7 @@ func (s *permissionService) GetUserPermissionMatrix(ctx context.Context, req *co
 	}
 	matrix, err := s.api.core.GetUserPermissionMatrixPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetUserPermissionMatrixResponse{Matrix: apiUserPermissionMatrix(matrix), Page: apiPermissionScopePage(matrix.Page)}), nil
 }
@@ -104,7 +104,7 @@ func (s *permissionService) ListUserPermissionDecisions(ctx context.Context, req
 	}
 	matrix, err := s.api.core.GetUserPermissionMatrixPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ListUserPermissionDecisionsResponse{
 		UserId:    matrix.UserID,
@@ -125,7 +125,7 @@ func (s *permissionService) ExplainPermissions(ctx context.Context, req *connect
 	}
 	explanations, err := s.api.core.ExplainPermissionsAtScope(ctx, caller.UserID, req.Msg.GetUserId(), target)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ExplainPermissionsResponse{Explanations: apiPermissionExplanations(explanations)}), nil
 }
@@ -144,7 +144,7 @@ func (s *permissionService) SetRolePermission(ctx context.Context, req *connect.
 		return nil, err
 	}
 	if err := s.api.core.SetRolePermissionState(ctx, caller.UserID, req.Msg.GetRoleName(), scope, core.Permission(req.Msg.GetPermission()), state); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.SetRolePermissionResponse{
 		Decision: apiPermissionDecisionUpdate(scope, core.Permission(req.Msg.GetPermission()), req.Msg.GetDecision()),
@@ -165,7 +165,7 @@ func (s *permissionService) SetUserPermission(ctx context.Context, req *connect.
 		return nil, err
 	}
 	if err := s.api.core.SetUserPermissionState(ctx, caller.UserID, req.Msg.GetUserId(), scope, core.Permission(req.Msg.GetPermission()), state); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.SetUserPermissionResponse{
 		Decision: apiPermissionDecisionUpdate(scope, core.Permission(req.Msg.GetPermission()), req.Msg.GetDecision()),

@@ -16,7 +16,7 @@ func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Requ
 
 	preview, err := s.api.core.GetLinkPreview(ctx, req.Msg.Url)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if preview == nil {
 		return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{}), nil
@@ -27,7 +27,7 @@ func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Requ
 	}
 	token, err := s.api.core.CreateLinkPreviewToken(ctx, tokenURL)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{

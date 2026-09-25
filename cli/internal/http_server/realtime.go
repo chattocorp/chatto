@@ -380,13 +380,13 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	failCatchUp := func(logMessage string, err error) {
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
 			s.metrics.realtimeCatchUpTimedOut()
-			s.logger.Warn("Realtime catch-up timed out", "error", err)
+			s.logger.Warn("Realtime catch-up timed out", "error", connectapi.LogSafeError(err))
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
 			}})
 			return
 		}
-		s.logger.Warn(logMessage, "error", err)
+		s.logger.Warn(logMessage, "error", connectapi.LogSafeError(err))
 		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime recovery is temporarily unavailable", true, time.Second)
 	}
 	handleCatchUpWriteError := func(err error) {

@@ -52,9 +52,9 @@ func TestIntegrationRelationshipReads(t *testing.T) {
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "relationship-outsider", "Outsider", "password")
 	require.NoError(t, err)
 	_, err = env.messages.ListReactionUsers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.ListReactionUsersRequest{RoomId: room.Id, MessageEventId: root.Id, Emoji: "thumbsup"}))
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	_, err = env.threads.ListThreadParticipants(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.ListThreadParticipantsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 }
 
 func TestIntegrationReadMarkers(t *testing.T) {
@@ -121,7 +121,7 @@ func TestIntegrationReactionAliasesAndRetractions(t *testing.T) {
 	}
 	require.NoError(t, env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, reply.Id))
 	_, err = env.messages.ListReactionUsers(ctx, connect.NewRequest(&apiv1.ListReactionUsersRequest{RoomId: room.Id, MessageEventId: reply.Id, Emoji: "thumbsup"}))
-	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	require.Equal(t, connect.CodeNotFound, errorCode(err))
 	participants, err := env.threads.ListThreadParticipants(ctx, connect.NewRequest(&apiv1.ListThreadParticipantsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
 	require.NoError(t, err)
 	require.Empty(t, participants.Msg.UserIds)

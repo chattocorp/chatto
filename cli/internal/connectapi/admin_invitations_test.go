@@ -20,7 +20,7 @@ func TestAdminInviteLinkServiceLifecycleAndAuthorization(t *testing.T) {
 	if _, err := env.adminInviteLinks.ListInviteLinks(
 		withCaller(env.ctx, regular),
 		connect.NewRequest(&adminv1.ListInviteLinksRequest{}),
-	); err == nil || connect.CodeOf(err) != connect.CodePermissionDenied {
+	); err == nil || errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular ListInviteLinks error = %v, want permission denied", err)
 	}
 
@@ -30,7 +30,7 @@ func TestAdminInviteLinkServiceLifecycleAndAuthorization(t *testing.T) {
 	ctx := WithRequestBaseURL(withCaller(env.ctx, env.viewer), "https://chat.example")
 	if _, err := env.adminInviteLinks.CreateInviteLink(ctx, connect.NewRequest(&adminv1.CreateInviteLinkRequest{
 		ExpiresAt: &timestamppb.Timestamp{Seconds: 253402300800},
-	})); err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
+	})); err == nil || errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid expiry error = %v, want invalid argument", err)
 	}
 	maxUses := uint32(3)

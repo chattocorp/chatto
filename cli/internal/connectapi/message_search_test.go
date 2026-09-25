@@ -77,7 +77,7 @@ func TestMessageSearchStatusSeparatesConfigurationAndProviderReadiness(t *testin
 	require.Equal(t, apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_UNAVAILABLE, response.Msg.GetState())
 
 	_, err = service.GetStatus(env.ctx, connect.NewRequest(&apiv1.GetStatusRequest{}))
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnauthenticated, errorCode(err))
 }
 
 func TestPublicMessageSearchStatusPreservesProviderState(t *testing.T) {
@@ -213,13 +213,13 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	changedRequest := proto.Clone(secondRequest).(*apiv1.SearchMessagesRequest)
 	changedRequest.Query = "different"
 	_, err = service.SearchMessages(ctx, connect.NewRequest(changedRequest))
-	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	require.Len(t, provider.capturedQueries(), 2)
 
 	otherViewer, err := env.core.CreateUser(ctx, core.SystemActorID, "search-other", "Search Other", "password")
 	require.NoError(t, err)
 	_, err = service.SearchMessages(withCaller(env.ctx, otherViewer), connect.NewRequest(secondRequest))
-	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	require.Len(t, provider.capturedQueries(), 2)
 }
 
@@ -247,11 +247,11 @@ func TestMessageSearchMapsFeatureAndProviderFailures(t *testing.T) {
 	request := connect.NewRequest(&apiv1.SearchMessagesRequest{Query: "search"})
 
 	_, err := service.SearchMessages(ctx, request)
-	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
 
 	env.api.config = config.ChattoConfig{Search: config.SearchConfig{Enabled: true}}
 	_, err = service.SearchMessages(ctx, request)
-	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnavailable, errorCode(err))
 	room, err := env.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, "", "search-failure-room", "")
 	require.NoError(t, err)
 	_, err = env.core.JoinRoom(ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id)
@@ -262,5 +262,5 @@ func TestMessageSearchMapsFeatureAndProviderFailures(t *testing.T) {
 	}}
 	env.api.searchProvider = provider
 	_, err = service.SearchMessages(ctx, request)
-	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnavailable, errorCode(err))
 }

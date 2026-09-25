@@ -17,7 +17,7 @@ func (s *accountService) GetPresencePreference(ctx context.Context, req *connect
 	}
 	p, err := s.api.core.GetPresencePreference(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetPresencePreferenceResponse{Preference: p}), nil
 }
@@ -32,7 +32,7 @@ func (s *accountService) SetPresencePreference(ctx context.Context, req *connect
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.SetPresencePreferenceResponse{Preference: p}), nil
 }
@@ -43,11 +43,11 @@ func (s *accountService) RefreshPresence(ctx context.Context, req *connect.Reque
 		return nil, err
 	}
 	if err := s.api.core.SetPresence(ctx, caller.UserID, core.PresenceStatusOnline); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	p, err := s.api.core.GetPresencePreference(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RefreshPresenceResponse{Preference: p}), nil
 }
@@ -63,11 +63,11 @@ func (s *accountService) SetPresence(ctx context.Context, req *connect.Request[a
 		return nil, err
 	}
 	if err := s.api.core.SetPresenceWithOptions(ctx, caller.UserID, status, req.Msg.UserSelected); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	storedStatus, err := s.api.core.GetUserPresence(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.SetPresenceResponse{
