@@ -60,6 +60,19 @@ async function deferNextAroundRequest(page: Page): Promise<DeferredRequest> {
   return deferNextResponse(page, GET_ROOM_EVENTS_AROUND_ROUTE);
 }
 
+/** Delete saved views from a page outside the app so no open connection blocks the deletion. */
+async function clearSavedViews(page: Page): Promise<void> {
+  await page.goto('/robots.txt');
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase('chatto-saved-views');
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      })
+  );
+}
+
 async function navigateClientSide(page: Page, href: string): Promise<void> {
   const link = page.getByTestId('e2e-client-navigation');
   await page.evaluate((target) => {
@@ -378,8 +391,12 @@ test.describe('jump to message', () => {
     // Establish a fully projected latest window before testing room-switch
     // cancellation. Otherwise the return navigation can fetch between the EVT
     // append and projection update, leaving this test waiting on unrelated
-    // projection convergence rather than the delayed jump response.
-    await page.reload();
+    // projection convergence rather than the delayed jump response. Start
+    // without saved views: the saved window retains every message that
+    // arrived while the room was open, including the jump target.
+    await clearSavedViews(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
     await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const deferred = await deferNextAroundRequest(page);
