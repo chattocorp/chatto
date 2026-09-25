@@ -188,3 +188,84 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
     await page.unrouteAll({ behavior: 'wait' });
   }
 });
+
+test('reloading an open thread renders its saved window before viewer verification', async ({
+  page,
+  chatPage,
+  roomPage
+}) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+  await waitForRoomReady(page);
+  const root = await roomPage.sendMessage('Cached thread root');
+  const rootId = await root.getEventId();
+  await root.openThread();
+  await roomPage.postThreadReply('A cached thread reply');
+  await expect(roomPage.threadPane.getByText('A cached thread reply')).toBeVisible();
+
+  // Wait for the persisted thread window that contains the posted reply.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (rootId) => {
+          return new Promise<boolean>((resolve) => {
+            const request = indexedDB.open('chatto-saved-views', 2);
+            request.onsuccess = () => {
+              const db = request.result;
+              const read = db.transaction('resources').objectStore('resources').getAll();
+              read.onsuccess = () => {
+                resolve(
+                  read.result.some(
+                    (record: { key: string; data: { events?: unknown[] } }) =>
+                      record.key.endsWith(`:${rootId}`) &&
+                      record.key.includes('\u0000thread:') &&
+                      (record.data.events?.length ?? 0) >= 2
+                  )
+                );
+                db.close();
+              };
+            };
+          });
+        }, rootId),
+      { timeout: 20_000 }
+    )
+    .toBe(true);
+
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/chatto.api.v1.ViewerService/GetViewer', async (route) => {
+    await gate;
+    await route.continue();
+  });
+  const requestedCheckpoints: string[] = [];
+  page.on('websocket', (socket) => {
+    if (!socket.url().includes('/api/realtime')) return;
+    socket.on('framesent', ({ payload }) => {
+      if (typeof payload === 'string') return;
+      const subscribe = RealtimeSubscribe.fromBinary(payload);
+      if (subscribe.resumeCursor) requestedCheckpoints.push(subscribe.resumeCursor);
+    });
+  });
+  try {
+    const threadUrl = page.url();
+    await page.reload();
+    expect(page.url()).toBe(threadUrl);
+    // The viewer request is still held, so this content can come only from the snapshot.
+    await expect(roomPage.threadPane.getByText('A cached thread reply')).toBeVisible();
+    await expect(page.locator(`[data-event-id="${rootId}"]`).first()).toBeVisible();
+    release();
+    await waitForRoomReady(page);
+    expect(requestedCheckpoints).toHaveLength(1);
+    await expect(roomPage.threadPane.getByText('A cached thread reply')).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});

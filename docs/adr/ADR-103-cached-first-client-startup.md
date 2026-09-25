@@ -55,9 +55,11 @@ copied profile references. A later verified save can capture the remaining state
 After origin sign-out, a dormant remote bearer session can be selected for
 navigation. Its viewer check starts when that route opens.
 
-Message permalinks use live startup because their target can be outside the
-bounded saved window. The client resolves that target after the live viewer
-and room state are ready.
+Every server route starts from the saved view. A message permalink target can
+be outside the saved window. The client therefore resolves that target through
+a private request, which waits until the viewer is verified. Account settings,
+management forms, and the direct-message opener also wait for the verified
+viewer or live permissions.
 
 The installed app opens the origin chat route so an offline launch can use
 that saved view. It opens the last room saved on the device, or the overview

@@ -16,6 +16,8 @@
   const scope = useServerScope();
   let failed = $state(false);
   let attempt = $state(0);
+  // A saved view has no live viewer; the self-conversation check needs one.
+  const viewerId = $derived(scope.store.currentUser.user?.id);
 
   // Each recipient or retry owns one request. Cleanup prevents late results
   // from navigating after the user leaves or selects a different recipient.
@@ -23,6 +25,8 @@
     const userId = page.params.userId!;
     const serverSegment = page.params.serverId;
     const retry = attempt;
+    const currentViewerId = viewerId;
+    if (!currentViewerId) return;
     let cancelled = false;
     const isCurrent = () =>
       !cancelled && scope.isCurrent() && attempt === retry &&
@@ -32,7 +36,7 @@
     async function openConversation() {
       try {
         const room = await scope.connection.getAPI(createRoomCommandAPI).startDM(
-          userId === scope.store.currentUser.user?.id ? [] : [userId]
+          userId === currentViewerId ? [] : [userId]
         );
         if (!isCurrent()) return;
         if (!room?.id) throw new Error('Conversation is unavailable');

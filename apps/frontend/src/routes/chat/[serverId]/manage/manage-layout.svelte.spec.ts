@@ -73,6 +73,21 @@ describe('management route admission', () => {
     await expect.element(container).toHaveTextContent('Access Denied');
   });
 
+  it('waits for live authority when permissions come from a saved view', async () => {
+    mocks.sync = new RealtimeProjectionSyncState();
+    mocks.sync.restoreSavedProjection('saved-checkpoint');
+    const { container } = render(Layout, {
+      props: { children: testSnippet('<input data-testid="filter" />') }
+    });
+    await tick();
+    expect(container.querySelector('[data-testid="filter"]')).toBeNull();
+    expect(container.textContent).not.toContain('Access Denied');
+
+    mocks.sync.markCaughtUp('live');
+    await tick();
+    expect(container.querySelector('[data-testid="filter"]')).not.toBeNull();
+  });
+
   it('does not admit private content while initial permissions are unknown', async () => {
     mocks.state!.set('loaded', false);
     const { container } = render(Layout, {

@@ -7,7 +7,6 @@ import { preloadPublicLocaleMessages } from '$lib/i18n/messages';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
 import { segmentToServerId } from '$lib/navigation';
-import { supportsSavedViewRoute } from '$lib/navigation/chatRoomRoute';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { loadSavedView } from '$lib/storage/savedViews';
 import { getLastRoom } from '$lib/storage/lastRoom';
@@ -20,7 +19,7 @@ export const ssr = false;
 /** Only the first browser route load can bypass network work for a saved view. */
 let initialLoad = true;
 
-export const load: LayoutLoad = async ({ url, params, route }) => {
+export const load: LayoutLoad = async ({ url, params }) => {
   const originHasBackend = isBackendCapableOrigin(url);
   const coldStart = initialLoad;
   if (coldStart) serverRegistry.init(true);
@@ -43,14 +42,9 @@ export const load: LayoutLoad = async ({ url, params, route }) => {
   initialLoad = false;
   let startupSavedView: SavedView | null = null;
   let publicLocalePromise: Promise<void> | null = null;
-  // Saved data can render rooms and the overview. Forms need a live viewer
-  // before they mount; message permalinks need the live timeline for their jump.
-  if (
-    serverId &&
-    savedUserId &&
-    supportsSavedViewRoute(route.id) &&
-    !isExplicitSignOutRedirectInProgress()
-  ) {
+  // Every server route starts from the saved view. Surfaces that need live
+  // authority, such as account and management forms, wait for verification.
+  if (serverId && savedUserId && !isExplicitSignOutRedirectInProgress()) {
     publicLocalePromise = preloadPublicLocaleMessages();
     const [view] = await Promise.all([loadSavedView(serverId, savedUserId), publicLocalePromise]);
     if (

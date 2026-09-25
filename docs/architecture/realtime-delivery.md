@@ -531,9 +531,10 @@ the saved data. A complete validated snapshot set supplies its applied replay
 cursor, but never current authorization.
 After the saved view paints, the registry starts server discovery and verifies
 the viewer through the existing connection. The root route does not reload.
-This saved startup applies to room and overview routes. Settings and management
-routes require live account data or permissions before forms mount. Message
-permalinks use the live timeline.
+This saved startup applies to every server route. Account settings, management
+forms, and the direct-message opener wait for the verified viewer or live
+permissions before they mount or send. Message permalink lookups wait behind the
+paused private requests.
 The runtime coordinator starts realtime and notification sync when viewer
 verification succeeds. Room and DM selectors keep retained data displayable
 during warm snapshot hydration and retry. Actions stay gated by verified
