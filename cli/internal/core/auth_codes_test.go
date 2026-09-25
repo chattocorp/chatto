@@ -279,7 +279,7 @@ func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
 	}
 }
 
-func TestChattoCore_ExchangeAuthCodeRejectsLegacyGenerationBeforePasswordChange(t *testing.T) {
+func TestChattoCore_ExchangeAuthCodeRejectsGenerationZeroAfterPasswordChange(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

@@ -399,8 +399,8 @@ func (c *ChattoCore) RevokeCookieSession(ctx context.Context, sessionID string) 
 // RevokeCookieSessionsForUser deletes all cookie sessions for a user. Account
 // deletion uses it to erase stored session records. The scan reads every
 // `session.*` record on the server, including bearer access records, so do not
-// call it on latency-sensitive paths;
-// password changes and resets revoke sessions through the auth generation.
+// call it on latency-sensitive paths. Password changes and resets revoke
+// sessions through the auth generation.
 func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID string) (int, error) {
 	if userID == "" {
 		return 0, nil
