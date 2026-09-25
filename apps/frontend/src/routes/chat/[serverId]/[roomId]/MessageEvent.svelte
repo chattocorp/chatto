@@ -13,7 +13,6 @@
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { mapDirectoryRoomDetails } from '$lib/api-client/roomDirectory';
   import { mapDirectoryMember } from '$lib/api-client/directoryMemberView';
   import { avatarUserFromDirectoryMember } from '$lib/state/server/rooms.svelte';
 
@@ -80,9 +79,7 @@
   const activeServerId = $derived(serverScope.serverId);
   const currentUser = $derived(stores.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
-  const isUniversal = $derived(
-    mapDirectoryRoomDetails(stores.projection?.rooms?.get(roomId))?.isUniversal ?? false
-  );
+  const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
