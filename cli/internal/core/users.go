@@ -480,11 +480,6 @@ var ErrLoginAlreadyTaken = fmt.Errorf("login name is already taken")
 // ErrUsernameBlocked is returned when the login name is in the blocked list.
 var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 
-// CheckLoginExists checks if a login name is already taken.
-func (c *ChattoCore) CheckLoginExists(ctx context.Context, login string) (bool, error) {
-	return c.userModel.loginExists(login), nil
-}
-
 // IsLoginAvailable reports whether a login currently passes validation and
 // conflicts with neither reserved names nor existing mention handles. The
 // result is advisory; account creation remains the race-safe authority.

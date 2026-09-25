@@ -438,15 +438,6 @@ func hostnameEndsInNumber(hostname string) bool {
 	return true
 }
 
-func isLoopbackHost(host string) bool {
-	host = strings.ToLower(strings.TrimSuffix(host, "."))
-	if host == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
-}
-
 // CookieEncryptionKey decodes the optional cookie encryption secret into an
 // AES key suitable for securecookie. Empty means cookies are signed only.
 func (c *WebserverConfig) CookieEncryptionKey() ([]byte, error) {

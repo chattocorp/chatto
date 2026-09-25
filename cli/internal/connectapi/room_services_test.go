@@ -529,9 +529,9 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	if _, err := env.core.SetRoomUniversal(env.ctx, core.SystemActorID, core.KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomUniversal: %v", err)
-	}
+	env.updateRoom(t, core.RoomUpdateInput{
+		ActorID: env.newRoomManager(t, "suspension-room-manager", room.Id), RoomID: room.Id, Universal: boolPtr(true),
+	})
 	if _, err := env.rooms.RemoveUser(ctx, connect.NewRequest(&apiv1.RemoveUserRequest{
 		RoomId: room.Id,
 		UserId: target.Id,
@@ -2049,9 +2049,8 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := env.core.SetRoomUniversal(env.ctx, actor.Id, core.KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomUniversal: %v", err)
-	}
+	env.grantRoomManage(t, room.Id, actor.Id)
+	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Universal: boolPtr(true)})
 	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, actor.Id, "access loss target", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
@@ -2198,9 +2197,8 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 	if err != nil {
 		t.Fatalf("CreateRoom implicit: %v", err)
 	}
-	if _, err := env.core.SetRoomUniversal(env.ctx, actor.Id, core.KindChannel, implicitRoom.Id, true); err != nil {
-		t.Fatalf("SetRoomUniversal true: %v", err)
-	}
+	env.grantRoomManage(t, implicitRoom.Id, actor.Id)
+	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: implicitRoom.Id, Universal: boolPtr(true)})
 	stale := createOccurrence(implicitRoom, "implicit-old-source", baseTime)
 
 	for index := 0; index < 3; index++ {
@@ -2213,9 +2211,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 		}
 		createOccurrence(room, fmt.Sprintf("explicit-new-source-%d", index), baseTime.Add(time.Duration(index+1)*time.Second))
 	}
-	if _, err := env.core.SetRoomUniversal(env.ctx, actor.Id, core.KindChannel, implicitRoom.Id, false); err != nil {
-		t.Fatalf("SetRoomUniversal false: %v", err)
-	}
+	env.updateRoom(t, core.RoomUpdateInput{ActorID: actor.Id, RoomID: implicitRoom.Id, Universal: boolPtr(false)})
 
 	response, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{
 		Page: &apiv1.PageRequest{Limit: 1},

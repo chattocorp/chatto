@@ -21,12 +21,6 @@ func reactionKey(messageEventID, emojiName, userID string) string {
 	return fmt.Sprintf("%s.%s.%s", messageEventID, emojiName, userID)
 }
 
-// reactionKeyPrefix returns the key prefix for all reactions on a message.
-// Pattern: {messageEventId}.
-func reactionKeyPrefix(messageEventID string) string {
-	return fmt.Sprintf("%s.", messageEventID)
-}
-
 // parseReactionKey parses a reaction key into its components.
 // Returns messageEventID, emojiName, userID, and an error if parsing fails.
 func parseReactionKey(key string) (string, string, string, error) {

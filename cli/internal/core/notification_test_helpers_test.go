@@ -2,12 +2,12 @@ package core
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 type notificationTestSignalKind string
@@ -58,10 +58,6 @@ func testOccurrencesHaveKinds(occurrences []*notificationv1.NotificationOccurren
 		seen[kind]--
 	}
 	return true
-}
-
-func newNotificationRoomMessageTarget(roomID, eventID string) *notificationv1.NotificationMessageReference {
-	return newNotificationMessageReference(roomID, eventID)
 }
 
 func testNotificationSignal(kind notificationTestSignalKind, roomID, eventID string) *notificationv1.NotificationSignal {
@@ -134,10 +130,6 @@ func (s *NotificationPolicyModel) SetServerNotificationMode(ctx context.Context,
 func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, actorID, roomID string, kind notificationTestSignalKind, mode evtv1.NotificationDeliveryMode) (*NotificationPolicy, error) {
 	patch, mask := testNotificationPolicyPatch(kind, mode)
 	return s.UpdateNotificationPolicy(ctx, actorID, roomID, patch, mask)
-}
-
-func (cm *ConfigModel) notificationRoomMode(userID, roomID string, kind notificationTestSignalKind) evtv1.NotificationDeliveryMode {
-	return notificationModeForSignal(cm.notificationRoomModes(userID, roomID), testNotificationSignal(kind, roomID, "test"))
 }
 
 func testUnsupportedNotificationSignal() *notificationv1.NotificationSignal {

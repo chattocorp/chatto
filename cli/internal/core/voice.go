@@ -9,9 +9,7 @@ import (
 
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
-	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 // VoiceCallToken contains the LiveKit JWT for a client to join a call.
@@ -333,24 +331,4 @@ func (c *ChattoCore) GetActiveCallRoomIDs(context.Context) ([]string, error) {
 		return nil, fmt.Errorf("call model is not initialized")
 	}
 	return c.callModel.activeRoomIDs(), nil
-}
-
-func appendCallJoinedEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source evtv1.CallParticipantEventSource) error {
-	event := newEvent(userID, &evtv1.Event{
-		Event: &evtv1.Event_VoiceCallParticipantJoined{
-			VoiceCallParticipantJoined: &evtv1.CallParticipantJoinedEvent{RoomId: roomID, Source: source},
-		},
-	})
-	_, err := publisher.AppendEventuallyAndWait(ctx, projector, evtstream.RoomAggregate(roomID), event)
-	return err
-}
-
-func appendCallLeftEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source evtv1.CallParticipantEventSource) error {
-	event := newEvent(userID, &evtv1.Event{
-		Event: &evtv1.Event_VoiceCallParticipantLeft{
-			VoiceCallParticipantLeft: &evtv1.CallParticipantLeftEvent{RoomId: roomID, Source: source},
-		},
-	})
-	_, err := publisher.AppendEventuallyAndWait(ctx, projector, evtstream.RoomAggregate(roomID), event)
-	return err
 }

@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -21,6 +19,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"hmans.de/chatto/internal/pushendpoint"
 )
 
@@ -479,14 +478,6 @@ func validatePushClientHost(value string) error {
 		}
 	}
 	return nil
-}
-
-func isLoopbackHostname(hostname string) bool {
-	if strings.EqualFold(hostname, "localhost") {
-		return true
-	}
-	ip := net.ParseIP(hostname)
-	return ip != nil && ip.IsLoopback()
 }
 
 // DeletePushSubscription removes a push subscription by endpoint.

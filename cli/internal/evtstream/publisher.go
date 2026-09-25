@@ -114,22 +114,6 @@ func (p *Publisher) SubjectEventsWithSubjectsAfter(
 	return events, lastSeq, nil
 }
 
-// SubjectEventIDs returns envelope IDs on a subject in stream order.
-func (p *Publisher) SubjectEventIDs(
-	ctx context.Context,
-	subject string,
-) ([]string, uint64, error) {
-	events, lastSeq, err := p.SubjectEvents(ctx, subject)
-	if err != nil {
-		return nil, 0, err
-	}
-	ids := make([]string, 0, len(events))
-	for _, event := range events {
-		ids = append(ids, event.GetId())
-	}
-	return ids, lastSeq, nil
-}
-
 func encodeEvent(event *evtv1.Event) (events.EncodedRecord, error) {
 	if err := validateEvent(event); err != nil {
 		return events.EncodedRecord{}, err

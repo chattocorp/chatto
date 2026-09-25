@@ -513,13 +513,6 @@ func assetDimensions(asset *evtv1.AssetRecord) (int32, int32) {
 	return asset.GetWidth(), asset.GetHeight()
 }
 
-func cloneDeprecatedAsset(storage *evtv1.DeprecatedAsset) *evtv1.DeprecatedAsset {
-	if storage == nil {
-		return nil
-	}
-	return proto.Clone(storage).(*evtv1.DeprecatedAsset)
-}
-
 func cloneAssetRecord(asset *evtv1.AssetRecord) *evtv1.AssetRecord {
 	if asset == nil {
 		return nil
@@ -980,12 +973,6 @@ func AttachmentNeedsVideoProcessing(attachment *evtv1.Attachment, animatedGIF bo
 		return false
 	}
 	return strings.HasPrefix(attachment.GetContentType(), "video/") || animatedGIF
-}
-
-// videoProcessingKey returns the historical SERVER_RUNTIME key for a video's
-// processing state. New processing no longer writes runtime state.
-func videoProcessingKey(attachmentID string) string {
-	return "video." + attachmentID
 }
 
 // AttachmentBinaryStatus is the tri-state result of probing an attachment's

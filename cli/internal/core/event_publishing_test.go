@@ -120,7 +120,12 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
-	if _, err := core.UpdateRoom(ctx, user.Id, KindChannel, room.Id, "serverevents_room_2", "updated"); err != nil {
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+	if _, err := core.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: user.Id, RoomID: room.Id, Name: proto.String("serverevents_room_2"), Description: proto.String("updated"),
+	}); err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
 	}
 	if _, err := core.ArchiveRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
@@ -139,34 +144,6 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 	if _, err := core.js.Stream(ctx, "SERVER_EVENTS"); !errors.Is(err, jetstream.ErrStreamNotFound) {
 		t.Fatalf("legacy stream SERVER_EVENTS lookup error = %v, want ErrStreamNotFound", err)
 	}
-}
-
-// setupRoomWithMessage creates a user, a room, joins the user, and posts one
-// message. Returns the resulting event so the test can use the durable envelope id.
-func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (room, user struct{ Id string }, event *evtv1.Event) {
-	t.Helper()
-
-	createdUser, err := core.CreateUser(ctx, "system", "msguser", "msguser", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	createdRoom, err := core.CreateRoom(ctx, createdUser.Id, KindChannel, "", "general", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	if _, err := core.JoinRoom(ctx, createdUser.Id, KindChannel, createdUser.Id, createdRoom.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
-	}
-
-	posted, err := core.PostMessage(ctx, KindChannel, createdRoom.Id, createdUser.Id, body, nil, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
-	}
-
-	room.Id = createdRoom.Id
-	user.Id = createdUser.Id
-	event = posted
-	return
 }
 
 // TestStreamMyEvents_DeliversMessageRetracted is the integration test for
@@ -264,9 +241,10 @@ func TestStreamMyEvents_DeliversRBACChangeWithoutClosingLegacyStream(t *testing.
 	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom author: %v", err)
 	}
-	if _, err := core.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomUniversal: %v", err)
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, author.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
+	setRoomUniversalForTest(t, ctx, core, author.Id, room.Id, true)
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -473,15 +451,14 @@ func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testin
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomUniversal true: %v", err)
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
 	}
+	setRoomUniversalForTest(t, ctx, core, actor.Id, room.Id, true)
 	if exists, err := core.RoomMembershipExists(ctx, KindChannel, viewer.Id, room.Id); err != nil || !exists {
 		t.Fatalf("RoomMembershipExists before disable = %v, %v; want true, nil", exists, err)
 	}
-	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, false); err != nil {
-		t.Fatalf("SetRoomUniversal false: %v", err)
-	}
+	setRoomUniversalForTest(t, ctx, core, actor.Id, room.Id, false)
 	if exists, err := core.RoomMembershipExists(ctx, KindChannel, viewer.Id, room.Id); err != nil || exists {
 		t.Fatalf("RoomMembershipExists after disable = %v, %v; want false, nil", exists, err)
 	}

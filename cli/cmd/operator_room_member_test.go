@@ -73,12 +73,9 @@ func TestOperatorRoomMemberAddRejectsInvalidTargets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	universal, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "operator-universal-room", "")
+	universal, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "operator-universal-room", "", core.WithUniversalRoom(true))
 	if err != nil {
 		t.Fatalf("CreateRoom universal: %v", err)
-	}
-	if _, err := env.core.SetRoomUniversal(env.ctx, core.SystemActorID, core.KindChannel, universal.GetId(), true); err != nil {
-		t.Fatalf("SetRoomUniversal: %v", err)
 	}
 	archived, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "operator-archived-room", "")
 	if err != nil {

@@ -219,28 +219,6 @@ func (s *S3Client) GetObject(ctx context.Context, key string) (io.ReadCloser, *S
 	}, nil
 }
 
-// GetObjectFromBucket retrieves an object from a specific bucket (for multi-bucket support).
-func (s *S3Client) GetObjectFromBucket(ctx context.Context, bucket, key string) (io.ReadCloser, *S3ObjectInfo, error) {
-	if bucket == "" {
-		bucket = s.bucket
-	}
-
-	physicalKey := s.physicalKey(key)
-	obj, err := s.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(physicalKey),
-	})
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get object: %w", err)
-	}
-
-	return obj.Body, &S3ObjectInfo{
-		Key:         s.logicalKey(physicalKey),
-		Size:        aws.ToInt64(obj.ContentLength),
-		ContentType: aws.ToString(obj.ContentType),
-	}, nil
-}
-
 // DeleteObject deletes an object from S3.
 func (s *S3Client) DeleteObject(ctx context.Context, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{

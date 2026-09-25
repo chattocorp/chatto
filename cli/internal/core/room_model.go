@@ -244,10 +244,6 @@ func (m *RoomModel) messageHydrationState(eventID string) RoomTimelineMessageHyd
 	return m.timeline.Projection().MessageHydrationState(eventID)
 }
 
-func (m *RoomModel) pinnedMessages(roomID string) []PinnedMessageState {
-	return m.timeline.Projection().PinnedMessages(roomID)
-}
-
 func (m *RoomModel) pinnedMessagesWithLatest(roomID string) ([]PinnedMessageState, string) {
 	return m.timeline.Projection().PinnedMessagesWithLatest(roomID)
 }
@@ -290,10 +286,6 @@ func (m *RoomModel) latestOriginalPostAt(roomID, actorID string) (time.Time, boo
 
 func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*TimelineEntry) bool) []*TimelineEntry {
 	return m.timeline.Projection().VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
-}
-
-func (m *RoomModel) roomEventCount(roomID string) int {
-	return m.timeline.Projection().RoomEventCount(roomID)
 }
 
 func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*TimelineEntry) bool) []*TimelineEntry {
@@ -357,10 +349,6 @@ func (m *RoomModel) reactionsForMessage(messageEventID string) []ReactionSummary
 
 func (m *RoomModel) reactionsBatch(eventIDs []string) map[string][]ReactionSummary {
 	return m.reactions.Projection().ReactionsBatch(eventIDs)
-}
-
-func (m *RoomModel) hasReaction(messageEventID, emoji, userID string) bool {
-	return m.reactions.Projection().HasReaction(messageEventID, emoji, userID)
 }
 
 func (m *RoomModel) reactionMutationSnapshot(roomID, messageEventID, emoji, userID string) ReactionMutationSnapshot {

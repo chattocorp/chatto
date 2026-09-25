@@ -153,32 +153,6 @@ func (s *RoomTimelineReadModel) GetMessage(ctx context.Context, actorID, roomID,
 	return &MessageReadResult{Kind: kind, Event: event}, nil
 }
 
-// GetTimelineEvent returns a message's source event after applying current room
-// membership and message-read authorization. Unlike GetMessage, it deliberately permits a
-// deleted message whose encrypted body has already been erased so transports
-// can hydrate the durable timeline tombstone.
-func (s *RoomTimelineReadModel) GetTimelineEvent(ctx context.Context, actorID, roomID, eventID string) (*MessageReadResult, error) {
-	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := s.timelineMessageEntry(room.Id, eventID, true); err != nil {
-		return nil, err
-	}
-	allowed, err := s.core.CanReadMessage(ctx, actorID, kind, room.Id, eventID)
-	if err != nil {
-		return nil, err
-	}
-	if !allowed {
-		return nil, ErrPermissionDenied
-	}
-	event, err := s.timelineMessageEvent(ctx, kind, room.Id, eventID)
-	if err != nil {
-		return nil, err
-	}
-	return &MessageReadResult{Kind: kind, Event: event}, nil
-}
-
 func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, roomID string, eventIDs []string) (*BatchMessagesReadResult, error) {
 	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {

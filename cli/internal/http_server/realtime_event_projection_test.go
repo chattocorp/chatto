@@ -272,12 +272,9 @@ func TestPublicRealtimeEventTranslatesEffectiveUnbanToOrdinaryJoin(t *testing.T)
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
-	room, err := env.core.CreateRoom(env.ctx, owner.GetId(), core.KindChannel, "", "unban-room", "")
+	room, err := env.core.CreateRoom(env.ctx, owner.GetId(), core.KindChannel, "", "unban-room", "", core.WithUniversalRoom(true))
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
-	}
-	if _, err := env.core.SetRoomUniversal(env.ctx, owner.GetId(), core.KindChannel, room.GetId(), true); err != nil {
-		t.Fatalf("SetRoomUniversal: %v", err)
 	}
 	event := &evtv1.Event{Id: "E-UNBAN", ActorId: owner.GetId(), Event: &evtv1.Event_RoomMemberUnbanned{
 		RoomMemberUnbanned: &evtv1.RoomMemberUnbannedEvent{RoomId: room.GetId(), UserId: target.GetId(), Reason: "private"},

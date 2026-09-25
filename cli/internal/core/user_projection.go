@@ -927,11 +927,6 @@ func (p *UserProjection) GetReferenceContext(ctx context.Context, userID string)
 	return nil, false, nil
 }
 
-func (p *UserProjection) GetReference(userID string) (*evtv1.User, bool) {
-	user, ok, _ := p.GetReferenceContext(context.Background(), userID)
-	return user, ok
-}
-
 // ActiveIDs filters membership references using lifecycle metadata only. It
 // does not decrypt profiles or resolve encryption keys.
 func (p *UserProjection) ActiveIDs(userIDs []string) []string {
@@ -1279,10 +1274,6 @@ func (p *UserProjection) HasVerifiedEmail(userID string) bool {
 	defer p.RUnlock()
 	u := p.users[userID]
 	return u != nil && !u.deleted && len(u.verifiedEmail) > 0
-}
-
-func (p *UserProjection) HasVerifiedFactor(userID string) bool {
-	return p.HasVerifiedEmail(userID) || p.auth.HasExternalIdentity(userID)
 }
 
 func (p *UserProjection) HasOAuthConsent(userID, redirectOrigin string) bool {

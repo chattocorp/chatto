@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -14,6 +13,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -457,54 +457,6 @@ func cloneMessageMentions(mentions []*evtv1.MessageMention) []*evtv1.MessageMent
 		}
 	}
 	return result
-}
-
-func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, originalEventID string) error {
-	retractSubject := agg.Subject(evtstream.EventMessageRetracted)
-	var lastErr error
-
-	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, retractSubject)
-		if err != nil {
-			return fmt.Errorf("read echo retract OCC tail: %w", err)
-		}
-		if expectedSeq > 0 {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, expectedSeq)); err != nil {
-				return err
-			}
-		}
-		echoID, ok := c.roomModel.channelEchoEventID(originalEventID)
-		if !ok {
-			return nil
-		}
-
-		event := newEvent(actorID, &evtv1.Event{
-			Event: &evtv1.Event_MessageRetracted{
-				MessageRetracted: &evtv1.MessageRetractedEvent{
-					RoomId:  roomID,
-					EventId: echoID,
-				},
-			},
-		})
-		seq, err := c.EventPublisher.AppendAt(ctx, retractSubject, event, expectedSeq)
-		if err == nil {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seq)); err != nil {
-				return err
-			}
-			c.logger.Debug("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", echoID, "actor_id", actorID)
-			return nil
-		}
-		if !errors.Is(err, events.ErrConflict) {
-			return fmt.Errorf("publish echo retraction: %w", err)
-		}
-		lastErr = err
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
-	}
-	return fmt.Errorf("publish echo retraction after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
 // appendMessageWithOptionalThreadCreated commits the body, reply, requested

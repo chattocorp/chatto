@@ -286,23 +286,6 @@ func (c *ChattoCore) sidebarLinkGroup(ctx context.Context, linkID string) (strin
 	return groupID, nil
 }
 
-func (c *ChattoCore) GetSidebarLinkGroup(ctx context.Context, linkID string) (string, error) {
-	return c.sidebarLinkGroup(ctx, linkID)
-}
-
-func (c *ChattoCore) sidebarLinkInGroup(groupID, linkID string) (*evtv1.SidebarLink, error) {
-	group, ok := c.roomModel.roomGroup(groupID)
-	if !ok {
-		return nil, ErrRoomGroupNotFound
-	}
-	for _, link := range group.GetSidebarLinks() {
-		if link.GetId() == linkID {
-			return link, nil
-		}
-	}
-	return nil, ErrSidebarLinkNotFound
-}
-
 func sidebarLinkFromGroup(group *evtv1.RoomGroup, linkID string) *evtv1.SidebarLink {
 	if group == nil {
 		return nil
@@ -1415,13 +1398,6 @@ func (c *ChattoCore) ListRoomGroupsOrdered(_ context.Context, kind RoomKind) ([]
 		out = append(out, docs[id])
 	}
 	return out, nil
-}
-
-// GetRoomLayoutOrder returns the operator-defined ordering from the
-// RoomModel's layout state. May include IDs of groups that have since
-// been deleted; use ListRoomGroupsOrdered for the reconciled view.
-func (c *ChattoCore) GetRoomLayoutOrder(_ context.Context) ([]string, error) {
-	return c.roomModel.roomLayoutOrder(), nil
 }
 
 // ----------------------------------------------------------------------

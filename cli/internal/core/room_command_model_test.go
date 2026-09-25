@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -8,7 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+// newRoomManagerForTest creates an account with room.manage on roomID and
+// returns its ID. RoomCommands().UpdateRoom authorizes every caller, including
+// SystemActorID, so tests use this account to change room settings.
+func newRoomManagerForTest(t *testing.T, ctx context.Context, c *ChattoCore, login, roomID string) string {
+	t.Helper()
+	manager, err := c.CreateUser(ctx, SystemActorID, login, "Room Manager", "password123")
+	require.NoError(t, err)
+	require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, roomID, manager.Id, PermRoomManage))
+	return manager.Id
+}
+
+// setRoomUniversalForTest changes the universal flag through the production
+// room command path. actorID must hold room.manage on roomID.
+func setRoomUniversalForTest(t *testing.T, ctx context.Context, c *ChattoCore, actorID, roomID string, universal bool) *evtv1.Room {
+	t.Helper()
+	room, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: actorID, RoomID: roomID, Universal: &universal})
+	require.NoError(t, err)
+	return room
+}
 
 func TestRoomCommandModelAuthorization(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -499,9 +521,7 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	require.False(t, canJoin())
 
 	// Universal membership follows effective room.join, not explicit writes.
-	universal, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-universal", "")
-	require.NoError(t, err)
-	_, err = c.SetRoomUniversal(ctx, SystemActorID, KindChannel, universal.Id, true)
+	universal, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-universal", "", WithUniversalRoom(true))
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id,
 		PermissionTargetScope{Kind: MatrixScopeRoom, ID: universal.Id}, PermRoomJoin, PermissionStateAllow))
@@ -542,6 +562,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	require.NoError(t, err)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-retry", "")
 	require.NoError(t, err)
+	roomManagerID := newRoomManagerForTest(t, ctx, c, "retry-room-manager", room.Id)
 	input := RoomUserInput{ActorID: manager.Id, UserID: bot.User.Id, RoomID: room.Id}
 	_, err = c.RoomCommands().AddMember(ctx, input)
 	require.ErrorIs(t, err, ErrPermissionDenied, "global manager cannot bypass the bot allowlist")
@@ -561,7 +582,9 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 			return ErrPermissionDenied
 		}
 		if calls == 2 {
-			_, err := c.UpdateRoom(ctx, SystemActorID, KindChannel, room.Id, room.Name, "concurrent change")
+			_, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+				ActorID: roomManagerID, RoomID: room.Id, Description: stringPtrForCoreTest("concurrent change"),
+			})
 			return err
 		}
 		return c.RoomCommands().authorizeMembershipChange(ctx, input, true)
@@ -582,6 +605,7 @@ func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
 	require.NoError(t, err)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "removal-race", "")
 	require.NoError(t, err)
+	roomManagerID := newRoomManagerForTest(t, ctx, c, "removal-race-room-manager", room.Id)
 	_, err = c.JoinRoom(ctx, target.Id, KindChannel, target.Id, room.Id)
 	require.NoError(t, err)
 
@@ -589,7 +613,8 @@ func TestRoomRemovalRejectsUniversalChangeDuringRetry(t *testing.T) {
 	err = c.removeUserWithoutSuspension(ctx, moderator.Id, KindChannel, room.Id, target.Id, "test removal", func() error {
 		calls++
 		if calls == 2 {
-			_, err := c.SetRoomUniversal(ctx, SystemActorID, KindChannel, room.Id, true)
+			universal := true
+			_, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: roomManagerID, RoomID: room.Id, Universal: &universal})
 			return err
 		}
 		return nil

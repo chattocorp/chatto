@@ -474,23 +474,6 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 }
 
 // ============================================================================
-// Per-Space Bucket Cache Tests
-// ============================================================================
-
-// TestPerSpaceBucketCache_ConcurrentGetOrCreate verifies that concurrent calls to getOrCreate
-// for the same space result in only one bucket being created (double-checked locking works).
-
-// TestPerSpaceBucketCache_CachingWorks verifies that buckets are actually cached
-// and subsequent calls return the same instance without recreating.
-
-// TestPerSpaceBucketCache_DeleteAndRecreate verifies that cache deletion works
-// and that a new bucket is created after deletion. Uses a non-server space so
-// the lazycache code path is exercised (deployment-wide channel and DM room
-// data bypasses the lazycache).
-
-// TestPerSpaceBucketCache_BucketConfigured verifies that storage buckets are correctly configured.
-
-// ============================================================================
 // Instance Event Authorization Tests
 // ============================================================================
 

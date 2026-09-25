@@ -10,7 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+// setRoomSlowModeForTest changes slow mode through the production room command
+// path. managerID must hold room.manage on roomID.
+func setRoomSlowModeForTest(t *testing.T, ctx context.Context, c *ChattoCore, managerID, roomID string, seconds uint32) *evtv1.Room {
+	t.Helper()
+	room, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: managerID, RoomID: roomID, SlowModeSeconds: &seconds})
+	require.NoError(t, err)
+	return room
+}
 
 func TestRoomSlowModeConfiguration(t *testing.T) {
 	chatto, _ := setupTestCore(t)
@@ -51,7 +61,10 @@ func TestRoomSlowModeConfiguration(t *testing.T) {
 	require.NoError(t, err)
 	dm, _, err := chatto.FindOrCreateDM(ctx, manager.Id, []string{participant.Id})
 	require.NoError(t, err)
-	_, err = chatto.SetRoomSlowMode(ctx, manager.Id, KindDM, dm.Id, 5)
+	dmSeconds := uint32(5)
+	_, err = chatto.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{
+		ActorID: manager.Id, RoomID: dm.Id, SlowModeSeconds: &dmSeconds,
+	})
 	require.ErrorIs(t, err, ErrInvalidArgument)
 }
 
@@ -64,6 +77,7 @@ func TestMessageSlowModeEnforcementAndImmediateChanges(t *testing.T) {
 	require.NoError(t, err)
 	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "slow-mode-posting", "")
 	require.NoError(t, err)
+	managerID := newRoomManagerForTest(t, ctx, chatto, "slow-mode-posting-manager", room.Id)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
 	_, err = chatto.JoinRoom(ctx, other.Id, KindChannel, other.Id, room.Id)
@@ -71,8 +85,7 @@ func TestMessageSlowModeEnforcementAndImmediateChanges(t *testing.T) {
 
 	first, err := chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "before slow mode"})
 	require.NoError(t, err)
-	room, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 60)
-	require.NoError(t, err)
+	room = setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 60)
 
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "thread reply", ThreadRootEventID: first.Event.Id,
@@ -86,11 +99,9 @@ func TestMessageSlowModeEnforcementAndImmediateChanges(t *testing.T) {
 	require.Equal(t, next, chatto.Messages().slowModeNextPostAt(room, user.Id, false, next.Add(-time.Nanosecond)))
 	require.True(t, chatto.Messages().slowModeNextPostAt(room, user.Id, false, next).IsZero(), "the exact expiry boundary must allow posting")
 
-	room, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 1)
-	require.NoError(t, err)
+	room = setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 1)
 	require.True(t, chatto.Messages().slowModeNextPostAt(room, user.Id, false, first.Event.GetCreatedAt().AsTime().Add(time.Second)).IsZero(), "decreasing the interval applies immediately")
-	room, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 0)
-	require.NoError(t, err)
+	room = setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 0)
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "disabled"})
 	require.NoError(t, err)
 }
@@ -109,8 +120,8 @@ func TestMessageSlowModeBypassAndPermissionLoss(t *testing.T) {
 			require.NoError(t, err)
 			_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 			require.NoError(t, err)
-			_, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 60)
-			require.NoError(t, err)
+			managerID := newRoomManagerForTest(t, ctx, chatto, "slow-mode-bypass-manager", room.Id)
+			setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 60)
 			require.NoError(t, chatto.GrantUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, testCase.permission))
 
 			_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "bypassed one"})
@@ -134,8 +145,8 @@ func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *test
 	require.NoError(t, err)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	_, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 60)
-	require.NoError(t, err)
+	managerID := newRoomManagerForTest(t, ctx, chatto, "slow-mode-room-manager", room.Id)
+	setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 60)
 
 	first := uploadRoomAttachment(t, chatto, ctx, user.Id, room.Id, "slow-mode-first.png")
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
@@ -159,8 +170,8 @@ func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 	require.NoError(t, err)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	_, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 60)
-	require.NoError(t, err)
+	managerID := newRoomManagerForTest(t, ctx, chatto, "slow-mode-room-manager", room.Id)
+	setRoomSlowModeForTest(t, ctx, chatto, managerID, room.Id, 60)
 	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},

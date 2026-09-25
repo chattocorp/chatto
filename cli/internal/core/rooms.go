@@ -368,180 +368,27 @@ func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
 	return decisions
 }
 
-// SetRoomUniversal updates a channel room's universal membership flag.
-// Authorization: Caller must verify CanManageAnyRoom before calling.
-func (c *ChattoCore) SetRoomUniversal(ctx context.Context, actorID string, kind RoomKind, roomID string, universal bool) (*evtv1.Room, error) {
-	if kind == KindDM {
-		return nil, fmt.Errorf("DM rooms cannot be universal")
-	}
-	agg := evtstream.RoomAggregate(roomID)
-	filter := agg.AllEventsFilter()
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
-		if err != nil {
-			return nil, fmt.Errorf("read universal-room OCC tail: %w", err)
-		}
-		if expectedSeq > 0 {
-			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
-				return nil, fmt.Errorf("wait for room before universal-room change: %w", err)
-			}
-		}
-		room, err := c.GetRoom(ctx, kind, roomID)
-		if err != nil {
-			return nil, err
-		}
-		if room.GetUniversal() == universal {
-			return room, nil
-		}
-		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RoomUniversalChanged{
-			RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: roomID, Universal: universal},
-		}})
-		subject := agg.SubjectFor(event)
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: expectedSeq, FilterSubject: filter,
-		}})
-		if errors.Is(err, events.ErrConflict) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("publish RoomUniversalChangedEvent: %w", err)
-		}
-		pos := events.SubjectPosition(subject, seqs[0])
-		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, pos); err != nil {
-			return nil, err
-		}
-		c.logger.Info("Room universal flag updated", "kind", kind, "room_id", roomID, "universal", universal)
-		return c.GetRoom(ctx, kind, roomID)
-	}
-	return nil, fmt.Errorf("publish universal-room change retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
-}
-
-// SetRoomSlowMode updates a channel room's per-user posting interval.
-// Authorization: Caller must verify room.manage before calling.
-func (c *ChattoCore) SetRoomSlowMode(ctx context.Context, actorID string, kind RoomKind, roomID string, seconds uint32) (*evtv1.Room, error) {
-	if kind == KindDM {
-		return nil, invalidArgument("DM rooms cannot use slow mode")
-	}
-	if seconds > MaxRoomSlowModeSeconds {
-		return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
-	}
-	room, err := c.GetRoom(ctx, kind, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if room.GetSlowModeSeconds() == seconds {
-		return room, nil
-	}
-
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RoomSlowModeChanged{
-		RoomSlowModeChanged: &evtv1.RoomSlowModeChangedEvent{RoomId: roomID, SlowModeSeconds: seconds},
-	}})
-	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, evtstream.RoomAggregate(roomID), event)
-	if err != nil {
-		return nil, fmt.Errorf("publish RoomSlowModeChangedEvent: %w", err)
-	}
-	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
-		return nil, err
-	}
-
-	c.logger.Info("Room slow mode updated", "kind", kind, "room_id", roomID, "seconds", seconds)
-	return c.GetRoom(ctx, kind, roomID)
-}
-
-// SetRoomThreadingMode updates a channel room's threading policy. The room
-// aggregate protects room state, while authorization is evaluated from stable
-// request-time inputs.
-// Authorization: Caller must verify room.manage before calling.
-func (c *ChattoCore) SetRoomThreadingMode(ctx context.Context, actorID string, kind RoomKind, roomID string, mode evtv1.RoomThreadingMode) (*evtv1.Room, error) {
-	return c.setRoomThreadingMode(ctx, actorID, kind, roomID, mode, nil)
-}
-
-func (c *ChattoCore) setRoomThreadingMode(
-	ctx context.Context,
-	actorID string,
-	kind RoomKind,
-	roomID string,
-	mode evtv1.RoomThreadingMode,
-	authorize func(context.Context) error,
-) (*evtv1.Room, error) {
-	if kind == KindDM {
-		return nil, invalidArgument("DM rooms cannot configure threading")
-	}
-	if !IsValidRoomThreadingMode(mode) {
-		return nil, invalidArgument("invalid room threading mode")
-	}
-
-	agg := evtstream.RoomAggregate(roomID)
-	filter := agg.AllEventsFilter()
-	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
-		prepared, err := c.prepareMessageAppendAttempt(ctx, agg, func(attemptCtx context.Context) error {
-			if authorize != nil {
-				return authorize(attemptCtx)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		room, err := c.GetRoom(ctx, kind, roomID)
-		if err != nil {
-			return nil, err
-		}
-		if EffectiveRoomThreadingMode(room) == mode {
-			return room, nil
-		}
-		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RoomThreadingModeChanged{
-			RoomThreadingModeChanged: &evtv1.RoomThreadingModeChangedEvent{RoomId: roomID, ThreadingMode: mode},
-		}})
-		subject := agg.SubjectFor(event)
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: prepared.roomSeq, FilterSubject: filter,
-		}})
-		if errors.Is(err, events.ErrConflict) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("publish RoomThreadingModeChangedEvent: %w", err)
-		}
-		pos := events.SubjectPosition(subject, seqs[0])
-		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, pos); err != nil {
-			return nil, err
-		}
-		c.logger.Info("Room threading mode updated", "kind", kind, "room_id", roomID, "threading_mode", mode.String())
-		return c.GetRoom(ctx, kind, roomID)
-	}
-	return nil, fmt.Errorf("publish threading-mode change retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
-}
-
-// publishRoomEventWithNameOCC publishes a name-claiming room event
+// publishRoomEventWithNameOCCEntries publishes a name-claiming room event
 // (RoomCreated or RoomUpdated) with cluster-wide name uniqueness enforced via
-// JetStream wildcard OCC against `evt.room.>`. When additional entries are
-// supplied, the name-claiming event and those entries commit atomically.
+// JetStream wildcard OCC against `evt.room.>`. The name-claiming event and the
+// additional entries commit atomically.
 //
 // The flow per attempt:
 //  1. Read the catalog name-claim snapshot for the desired `name`;
 //     if any other room holds it, return ErrRoomNameExists immediately.
-//  2. Publish the event, and any additional entries, with the snapshot's
+//  2. Rebuild the additional entries, so that their expected positions and
+//     projection-derived facts describe the same event-log prefix as the
+//     commit attempt.
+//  3. Publish the event, and the additional entries, with the snapshot's
 //     applied evt.room.> seq.
 //     The projected state and OCC token describe the same observed
 //     event-log prefix.
-//  3. JetStream
+//  4. JetStream
 //     rejects with ErrConflict if any evt.room.> message landed in the
 //     read-publish window — backoff briefly and retry.
 //
-// excludeRoomID is the ID to exclude from the uniqueness check —
-// used by UpdateRoom so a room can keep a name it already holds
-// (e.g. case-only changes, or no-op renames).
-func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name string, event *evtv1.Event, excludeRoomID string, additionalEntries ...evtstream.BatchEntry) ([]uint64, error) {
-	return c.publishRoomEventWithNameOCCEntries(ctx, name, event, excludeRoomID, func(context.Context) ([]evtstream.BatchEntry, error) {
-		return append([]evtstream.BatchEntry(nil), additionalEntries...), nil
-	})
-}
-
-// publishRoomEventWithNameOCCEntries is the retry-aware form of
-// publishRoomEventWithNameOCC. It rebuilds additional entries after each OCC
-// conflict so their expected positions and projection-derived facts describe
-// the same event-log prefix as the next commit attempt.
+// excludeRoomID is the ID to exclude from the uniqueness check, so that a
+// room can keep a name it already holds.
 func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 	ctx context.Context,
 	name string,
@@ -559,7 +406,7 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 	case *evtv1.Event_RoomUpdated:
 		roomID = e.RoomUpdated.GetRoomId()
 	default:
-		return nil, fmt.Errorf("publishRoomEventWithNameOCC: unsupported event type %T", e)
+		return nil, fmt.Errorf("publishRoomEventWithNameOCCEntries: unsupported event type %T", e)
 	}
 	publishSubject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	occFilter := evtstream.RoomSubjectFilter()
@@ -611,73 +458,6 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 		}
 	}
 	return nil, fmt.Errorf("room name OCC retry exhausted after %d attempts: %w", maxRoomNameClaimRetries, events.ErrConflict)
-}
-
-// UpdateRoom updates an existing room's mutable fields (name +
-// description). Authorization: Caller must verify CanManageAnyRoom
-// before calling.
-//
-// ADR-035 phase 6: event-only. Renames go through the wildcard-OCC
-// path to enforce cluster-wide name uniqueness (see
-// publishRoomEventWithNameOCC); description-only edits skip the
-// uniqueness check and use a plain per-subject OCC.
-func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKind, room_id, name, description string) (*evtv1.Room, error) {
-	if err := ValidateRoomName(name); err != nil {
-		return nil, err
-	}
-	if err := ValidateRoomDescription(description); err != nil {
-		return nil, err
-	}
-
-	name = normalizeRoomName(name)
-
-	room, err := c.GetRoom(ctx, kind, room_id)
-	if err != nil {
-		return nil, err
-	}
-
-	// "Rename" here means the derived compatibility-normalized, case-folded
-	// comparison key changed. Equivalent display-only edits (for example,
-	// "general" → "General") can skip the wildcard OCC dance.
-	renamed := canonicalRoomName(room.Name) != canonicalRoomName(name)
-
-	room.Name = name
-	room.Description = description
-
-	updatedEvent := newEvent(actorID, &evtv1.Event{
-		Event: &evtv1.Event_RoomUpdated{
-			RoomUpdated: &evtv1.RoomUpdatedEvent{
-				RoomId:      room_id,
-				Name:        name,
-				Description: description,
-			},
-		},
-	})
-
-	var updatedSeq uint64
-	if renamed {
-		seqs, publishErr := c.publishRoomEventWithNameOCC(ctx, name, updatedEvent, room_id)
-		err = publishErr
-		if err == nil {
-			updatedSeq = seqs[0]
-		}
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		updatedSeq, err = c.EventPublisher.Append(ctx, evtstream.RoomAggregate(room_id).SubjectFor(updatedEvent), updatedEvent)
-		if err != nil {
-			return nil, fmt.Errorf("publish RoomUpdatedEvent: %w", err)
-		}
-	}
-
-	c.logger.Info("Room updated", "kind", kind, "room_id", room_id, "name", name)
-
-	updatedSubject := evtstream.RoomAggregate(room_id).SubjectFor(updatedEvent)
-	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(updatedSubject, updatedSeq)); err != nil {
-		return nil, err
-	}
-	return room, nil
 }
 
 // DeleteRoom deletes a room.

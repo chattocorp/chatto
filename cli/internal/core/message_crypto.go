@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -203,10 +203,6 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 		}
 	}
 	return nil, fmt.Errorf("DEK OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
-}
-
-func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID, keyRef string, epoch int32) ([]byte, *evtv1.UserDEKGeneratedEvent, error) {
-	return c.newWrappedUserDEK(ctx, userID, keyRef, epoch, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 }
 
 func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef string, epoch int32, purpose evtv1.UserDEKPurpose) ([]byte, *evtv1.UserDEKGeneratedEvent, error) {

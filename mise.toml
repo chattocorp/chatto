@@ -749,10 +749,23 @@ depends = ["setup-frontend"]
 run = ["pnpm run check:frontend", "pnpm run lint:frontend"]
 
 [tasks.lint-cli]
-description = "Vet the Chatto CLI module"
+description = "Vet the Chatto CLI module and check it for unused code"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go vet ./..."
+tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.1" }
+# The build matrix makes staticcheck report a symbol as unused only when no
+# build tag set uses it.
+run = [
+    "go vet ./...",
+    '''
+staticcheck -checks U1000 -matrix ./... <<'EOF'
+default:
+bootstrap: -tags bootstrap
+test_endpoints: -tags test_endpoints
+integration: -tags integration
+EOF
+''',
+]
 
 [tasks.lint-appconfig]
 description = "Vet application configuration standalone and in the workspace"

@@ -139,13 +139,6 @@ func (publication pubsubEventPublication) subject() (string, error) {
 	}
 }
 
-func validateEvent(event *evtv1.Event) error {
-	if event == nil || event.Event == nil {
-		return fmt.Errorf("%w: event payload is nil or oneof field is unset", ErrInvalidEvent)
-	}
-	return nil
-}
-
 func validatePubSubEvent(event *pubsubv1.PubSubEvent) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: pubsub event payload is nil or oneof field is unset", ErrInvalidEvent)

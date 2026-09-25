@@ -479,6 +479,9 @@ jobs:
       - name: Build frontend
         run: mise build-frontend
 
+      - name: Vet and check for unused Go code
+        run: mise lint-cli
+
       - name: Verify development data seeding
         run: mise x -- node tools/dev-seed-smoke.mjs
 

@@ -25,10 +25,6 @@ const (
 	MaxAvatarDim = 256
 	// MaxLogoDim is the maximum dimension for space logo images.
 	MaxLogoDim = 512
-	// MaxBannerWidth is the maximum width for space banner images (4:3 aspect ratio).
-	MaxBannerWidth = 768
-	// MaxBannerHeight is the maximum height for space banner images (4:3 aspect ratio).
-	MaxBannerHeight = 576
 	// DefaultTransformJPEGQuality is the JPEG quality used by transformed images
 	// unless the caller selects a surface-specific quality (1-100).
 	// 80 provides a good balance between file size and visual quality.
@@ -268,13 +264,6 @@ func ProcessAvatarImageWithConfig(input io.Reader, cfg Config) (io.Reader, error
 	return bytes.NewReader(buf.Bytes()), nil
 }
 
-// ProcessLogoImage reads an image from the input reader, resizes it to fit
-// within MaxLogoDim x MaxLogoDim while maintaining aspect ratio, and
-// encodes it as WebP. Uses default config values.
-func ProcessLogoImage(input io.Reader) (io.Reader, error) {
-	return ProcessLogoImageWithConfig(input, DefaultConfig())
-}
-
 // ProcessLogoImageWithConfig reads an image from the input reader, resizes it to fit
 // within MaxLogoDim x MaxLogoDim while maintaining aspect ratio, and
 // encodes it as WebP. Returns an error if the input exceeds cfg.MaxUploadSize.
@@ -287,35 +276,6 @@ func ProcessLogoImageWithConfig(input io.Reader, cfg Config) (io.Reader, error) 
 
 	// Resize if necessary
 	resized := resizeToFit(img, MaxLogoDim, MaxLogoDim)
-
-	// Encode to WebP (lossless)
-	var buf bytes.Buffer
-	if err := nativewebp.Encode(&buf, resized, nil); err != nil {
-		return nil, fmt.Errorf("failed to encode to webp: %w", err)
-	}
-
-	return bytes.NewReader(buf.Bytes()), nil
-}
-
-// ProcessBannerImage reads an image from the input reader, resizes it to fit
-// within MaxBannerWidth x MaxBannerHeight while maintaining aspect ratio, and
-// encodes it as WebP. Uses default config values.
-func ProcessBannerImage(input io.Reader) (io.Reader, error) {
-	return ProcessBannerImageWithConfig(input, DefaultConfig())
-}
-
-// ProcessBannerImageWithConfig reads an image from the input reader, resizes it to fit
-// within MaxBannerWidth x MaxBannerHeight while maintaining aspect ratio, and
-// encodes it as WebP. Returns an error if the input exceeds cfg.MaxUploadSize.
-func ProcessBannerImageWithConfig(input io.Reader, cfg Config) (io.Reader, error) {
-	// Limit input size to prevent memory exhaustion
-	img, err := decodeBoundedImage(input, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
-	}
-
-	// Resize if necessary
-	resized := resizeToFit(img, MaxBannerWidth, MaxBannerHeight)
 
 	// Encode to WebP (lossless)
 	var buf bytes.Buffer

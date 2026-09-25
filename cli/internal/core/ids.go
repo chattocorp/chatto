@@ -132,11 +132,6 @@ func NewEventID() string {
 	return newID("E")
 }
 
-// NewNotificationID generates a new notification ID with "N" prefix.
-func NewNotificationID() string {
-	return newID("N")
-}
-
 // NewAuthToken generates a new bearer auth token with "cht_AT" prefix.
 // The "cht_" prefix makes tokens recognizable in logs and password managers.
 func NewAuthToken() string {
@@ -160,12 +155,6 @@ func NewBotAPIKey(botUserID string) (string, error) {
 // NewBotAPIKeyID generates a stable opaque API-key credential ID.
 func NewBotAPIKeyID() string {
 	return newID("K")
-}
-
-// NewBotIncomingWebhookCredential creates the show-once action credential for
-// a bot's incoming webhook. The credential authorizes only that HTTP endpoint.
-func NewBotIncomingWebhookCredential(botUserID string) (string, error) {
-	return NewBotIncomingWebhookCredentialForID(botUserID, NewBotIncomingWebhookID())
 }
 
 // NewBotIncomingWebhookID generates a stable opaque webhook credential ID.

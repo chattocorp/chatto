@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -304,57 +303,4 @@ func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(co
 		MaxAttempts: 3,
 		RetryDelay:  25 * time.Millisecond,
 	}, create)
-}
-
-// ============================================================================
-// KV Key Helpers
-// ============================================================================
-
-// These helper functions format keys for NATS KV bucket entries. They stay in
-// the core package since they're only used here and are integral to how core
-// interacts with storage.
-
-// userKey returns the KV key for a user record.
-func userKey(userID string) string {
-	return fmt.Sprintf("user.%s", userID)
-}
-
-// userByLoginKey returns the KV key for a login-to-userID index entry.
-// Login names are lowercase to ensure case-insensitive lookups.
-func userByLoginKey(login string) string {
-	return fmt.Sprintf("user_by_login.%s", strings.ToLower(login))
-}
-
-// userAuthPasswordKey returns the KV key for a user's password hash.
-// This follows the pattern auth.{userId}.{method}.{field} for future extensibility.
-func userAuthPasswordKey(userID string) string {
-	return fmt.Sprintf("auth.%s.password", userID)
-}
-
-// userAvatarKey returns the KV key for a user's avatar asset reference.
-// Avatar assets are stored separately from user profile to avoid overwriting
-// the entire user record when the avatar changes.
-func userAvatarKey(userID string) string {
-	return fmt.Sprintf("user.%s.avatar", userID)
-}
-
-// roomKey returns the KV key for a room record in a space bucket.
-// Pattern: `room.{kind}.{roomID}` where kind is "channel" or "dm".
-func roomKey(kind RoomKind, roomID string) string {
-	return fmt.Sprintf("room.%s.%s", kind, roomID)
-}
-
-// roomKeyPrefix returns the key prefix for listing all rooms of a given
-// kind in a CONFIG bucket. Pattern: `room.{kind}.*`.
-func roomKeyPrefix(kind RoomKind) string {
-	return fmt.Sprintf("room.%s.*", kind)
-}
-
-// roomNameIndexKey returns the KV key that claims a room name within a space.
-// Names are lowercased and trimmed so the claim is case-insensitive. The value
-// stored at this key is the room ID, which lets us recover from partial failures
-// (a stale claim whose room never got written can be reclaimed by the same room
-// trying again).
-func roomNameIndexKey(name string) string {
-	return fmt.Sprintf("room_name_index.%s", strings.ToLower(strings.TrimSpace(name)))
 }

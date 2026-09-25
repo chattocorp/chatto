@@ -496,9 +496,7 @@ func TestConfiguredOwnerRoleCannotDivergeFromEffectiveVisibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
-	if _, err := core.SetRoomUniversal(ctx, otherOwner.Id, KindChannel, room.Id, true); err != nil {
-		t.Fatalf("set room universal: %v", err)
-	}
+	setRoomUniversalForTest(t, ctx, core, otherOwner.Id, room.Id, true)
 	if err := core.DenyRoomPermission(ctx, otherOwner.Id, room.Id, RoleEveryone, PermRoomJoin); err != nil {
 		t.Fatalf("deny everyone room.join: %v", err)
 	}

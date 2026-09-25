@@ -78,42 +78,15 @@ func (c *ChattoCore) emailVerificationCodeKey(userID, email, code string) string
 	return c.emailOTPCodeKey(emailVerificationOTPScope, emailVerificationOTPSubject(userID, email), code)
 }
 
-func (c *ChattoCore) emailVerificationCodeChallengeKey(userID, email string) string {
-	return c.emailOTPChallengeKey(emailVerificationOTPScope, emailVerificationOTPSubject(userID, email))
-}
-
 func emailVerificationOTPSubject(userID, email string) string {
 	return strings.TrimSpace(userID) + "\x00" + strings.ToLower(strings.TrimSpace(email))
 }
 
-// emailHash returns the stable lowercase-SHA256 hex digest used in both
-// the per-email key and the user_by_email index. Centralised so the
-// index and the per-email entries can never drift apart.
+// emailHash returns the stable lookup hash for an email address. The user
+// projection keys verified emails and its email index with it, and auth audit
+// events record it, so all of them agree.
 func emailHash(email string) string {
 	return userPIILookupHash(email)
-}
-
-// verifiedEmailKey returns the KV key for a single verified email.
-// Format: verified_emails.{userID}.{sha256(lowercase(email))}
-//
-// One entry per (user, email) pair lets us add a new email with a single
-// Put (no read-modify-write), list a user's emails with a prefix scan
-// (`verified_emails.{userID}.*`), and decode only the entries we need.
-func verifiedEmailKey(userID, email string) string {
-	return fmt.Sprintf("verified_emails.%s.%s", userID, emailHash(email))
-}
-
-// verifiedEmailPrefix returns the prefix-scan pattern for one user's
-// verified emails.
-func verifiedEmailPrefix(userID string) string {
-	return fmt.Sprintf("verified_emails.%s.*", userID)
-}
-
-// userByEmailKey returns the KV key for the email-to-user index.
-// Uses SHA256 hash of the lowercase email to ensure valid NATS subject characters
-// and case-insensitive uniqueness. Created when an email is verified.
-func userByEmailKey(email string) string {
-	return fmt.Sprintf("user_by_email.%s", emailHash(email))
 }
 
 // ============================================================================
@@ -427,12 +400,6 @@ func (c *ChattoCore) CountUserLimitAccounts(ctx context.Context) (int, error) {
 		ids[userID] = struct{}{}
 	}
 	return len(ids), nil
-}
-
-// CountVerifiedUsers returns the number of distinct users with at least
-// one verified email.
-func (c *ChattoCore) CountVerifiedUsers(ctx context.Context) (int, error) {
-	return len(c.userModel.verifiedUserIDs()), nil
 }
 
 // ListUsersWithVerifiedEmail returns all user IDs that have at least one verified email.

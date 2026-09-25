@@ -99,11 +99,6 @@ func roomIDOfEvent(event *evtv1.Event) string {
 	return ""
 }
 
-// RoomIDOfEvent returns the room aggregate ID carried by a durable event.
-func RoomIDOfEvent(event *evtv1.Event) string {
-	return roomIDOfEvent(event)
-}
-
 // userIDOfUserEvent returns the user aggregate ID carried by a durable user
 // fact that can affect public realtime state. Delivery compares this value
 // with the EVT subject before it trusts the fact.

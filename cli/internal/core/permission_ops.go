@@ -156,29 +156,6 @@ func (c *ChattoCore) GrantUserGroupPermission(ctx context.Context, actorID, grou
 	return err
 }
 
-// DenyUserGroupPermission denies a permission directly to a user at a room
-// group's scope.
-func (c *ChattoCore) DenyUserGroupPermission(ctx context.Context, actorID, groupID, userID string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at group scope", perm)
-	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
-		RbacPermissionDenied: rbacUserPermissionDeniedEvent(ScopeGroup, groupID, userID, perm),
-	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
-	return err
-}
-
-// ClearUserGroupPermissionState clears both the grant and denial for a
-// user-level permission at a specific room group's scope.
-func (c *ChattoCore) ClearUserGroupPermissionState(ctx context.Context, actorID, groupID, userID string, perm Permission) error {
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
-		RbacPermissionCleared: rbacUserPermissionClearedEvent(ScopeGroup, groupID, userID, perm),
-	}})
-	_, err := c.appendRBACEvent(ctx, event, nil)
-	return err
-}
-
 // ----------------------------------------------------------------------------
 // Room-scope role grants
 // ----------------------------------------------------------------------------

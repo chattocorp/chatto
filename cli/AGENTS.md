@@ -195,8 +195,8 @@ authorization, live events, backup and restore, and backend tests.
   contract-scoped generation, while an old binary retains its own schema and
   namespace. Bump the manual token when `Apply`, replay, cutoff, or restore
   semantics change without a schema change.
-- Most current snapshot contracts use semantic token `v1`; Assets and user
-  profile use `v2`, while Room Timeline uses `v3`. Keep password
+- Each codec declares its semantic token in its `snapshotContractID("vN", ...)`
+  call. Read the current token there before you bump it. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.
@@ -360,6 +360,11 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 ```
 
 - Always set a timeout for targeted Go tests.
+- Run `mise lint-cli` before you push backend changes. CI runs it. It runs
+  `go vet` and a staticcheck U1000 check over every build tag set. Delete
+  unused code; do not silence the check.
+- Do not keep production code that only tests call. The U1000 check counts
+  test usage, so it does not find this code.
 - Use table-driven tests where practical.
 - Treat fixture and setup errors as fatal before using returned values. Never
   discard an error from helpers such as `CreateRoom` or `CreateUser` and then
