@@ -179,8 +179,7 @@
     serverInfo,
     roomUnreadStore,
     getMessageAPI: () => serverScope.connection.getAPI(createMessageAPI),
-    getLinkPreviewAPI: () => serverScope.connection.getAPI(createLinkPreviewAPI),
-    isConnectionLost: () => serverScope.connection.showConnectionLostBanner
+    getLinkPreviewAPI: () => serverScope.connection.getAPI(createLinkPreviewAPI)
   });
 
   let expandedDraft = $state(false);

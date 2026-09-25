@@ -548,7 +548,6 @@ export class ServerStateStore {
     }
     await this.waitForRealtimeReconciliation();
     this.requireCurrentRealtimeProjection(generation);
-    this.#serverConnection.resumePrivateActions();
   }
 
   /** Wait for queued event reads without starting catch-up resource reads. */
@@ -812,7 +811,6 @@ export class ServerStateStore {
     ) {
       this.startupPresentationOnly = true;
       this.#serverConnection.pausePrivateRequests();
-      this.#serverConnection.pausePrivateActions();
       this.serverInfo.name = view.serverName;
       this.projection.server = restored.server;
       this.serverInfo.version = view.presentation.serverVersion ?? '';

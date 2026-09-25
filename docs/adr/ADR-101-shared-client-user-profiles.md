@@ -35,7 +35,8 @@ The device snapshot restores public profiles, room resources, and viewer
 display data into the normal stores before connection, as defined in
 [ADR-103](ADR-103-cached-first-client-startup.md). Components use the same
 selectors for restored and live state. Saved grants describe the previous
-display; the connection rejects commands until live catch-up completes.
+display; the connection rejects commands until the server verifies the saved
+viewer. Commands do not wait for realtime catch-up.
 Restoration does not populate `CurrentUserState` or verify the session.
 
 Account settings wait for this owner's data before they initialise edit buffers.

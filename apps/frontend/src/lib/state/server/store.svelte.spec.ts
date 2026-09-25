@@ -370,8 +370,6 @@ class FakeServerConnection {
   invalidatePrivateData = vi.fn();
   pausePrivateRequests = vi.fn();
   resumePrivateRequests = vi.fn();
-  pausePrivateActions = vi.fn();
-  resumePrivateActions = vi.fn();
   cancelPrivateRequests = vi.fn();
   serverId = 'store-event-test';
   connectBaseUrl = 'https://store-event.test';
@@ -920,7 +918,8 @@ describe('ServerStateStore viewer restoration', () => {
   });
 
   it('shows a disk view before viewer loading but keeps transport unauthorized', () => {
-    const store = makeStore(new FakeServerConnection([]));
+    const connection = new FakeServerConnection([]);
+    const store = makeStore(connection);
     store.restoreSavedView(
       savedViewFixture({
         serverId: store.serverId,
@@ -940,8 +939,11 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.isAuthenticated).toBe(false);
     store.verifyStartupViewer('other-viewer');
     expect(store.isAuthenticated).toBe(false);
+    expect(connection.resumePrivateRequests).not.toHaveBeenCalled();
     store.verifyStartupViewer('U1');
     expect(store.isAuthenticated).toBe(true);
+    expect(connection.resumePrivateRequests).toHaveBeenCalledOnce();
+    expect(store.realtimeSync.phase).toBe('stale');
   });
 
   it('keeps a dormant registered server unauthenticated until network startup', () => {

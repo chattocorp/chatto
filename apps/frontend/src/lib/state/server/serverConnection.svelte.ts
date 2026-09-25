@@ -76,17 +76,6 @@ export class ServerConnection {
   readonly #queryScope = `connection-${++nextQueryScope}`;
   #dataGeneration = 0;
   #privateRequestGate: Promise<void> | null = null;
-  #privateActionsPaused = false;
-
-  /** Cached resource grants describe presentation until live catch-up verifies them. */
-  pausePrivateActions(): void {
-    this.#privateActionsPaused = true;
-  }
-
-  /** Enable commands only after all restored resources have been reconciled. */
-  resumePrivateActions(): void {
-    this.#privateActionsPaused = false;
-  }
   #releasePrivateRequests: (() => void) | null = null;
   #cancelPrivateRequests: ((reason: Error) => void) | null = null;
 
@@ -112,7 +101,7 @@ export class ServerConnection {
     void this.#privateRequestGate.catch(() => {});
   }
 
-  /** Release held reads only after the server confirms the saved viewer. */
+  /** Release held reads and permit commands after the server confirms the saved viewer. */
   resumePrivateRequests(): void {
     this.#releasePrivateRequests?.();
     this.#privateRequestGate = null;
@@ -129,10 +118,6 @@ export class ServerConnection {
   }
 
   private async beforePrivateRequest(methodName: string, signal: AbortSignal): Promise<void> {
-    const isRead = /^(Get|List|BatchGet|Search|Check|Fetch|Resolve|Find)/.test(methodName);
-    if (this.#privateActionsPaused && !isRead) {
-      throw new ConnectError('Server connection is not ready', Code.FailedPrecondition);
-    }
     const gate = this.#privateRequestGate;
     if (!gate) return;
     if (!/^(Get|List|BatchGet|Search|Check|Fetch|Resolve|Find)/.test(methodName)) {
