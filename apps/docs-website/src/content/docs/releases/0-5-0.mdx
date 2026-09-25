@@ -10,518 +10,360 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 <ReleaseHero
   version="0.5.0"
   status="Unreleased"
-  summary="0.5.0 adds server-wide message search, native social post previews, richer room and admin tools, upload progress, localized timestamps, and many more interface languages."
+  summary="0.5.0 adds bots and webhooks, server-wide search, persistent notifications, a new composer, and privileged mode for administrators. Read the upgrade notes before you upgrade: every server must review its permissions."
 />
 
+## Using Chatto
+
 <ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Bots" size="large">
+    Create [bot accounts](/guides/integrations/bot-accounts/) that post, reply, and react through the same API as
+    members. Each bot has an owner, its own permissions, and up to 20 named API
+    keys. A bot never gets more access than its owner.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Search across your server" size="large">
-    Find messages across every room you can access, with standalone filters for rooms and authors.
-    Language-aware matching handles common word forms, CJK text, exact phrases, and
-    conservative typos. Press Cmd-K (or Ctrl-K) and prefix a query with `?` to merge the
-    best-ranked matches from all your registered servers into one quick result list.
+    [Find messages](/guides/operations/search/#search-messages) in every room you can read, including threads and direct
+    messages. Filter by room, author, date, or attachments. Type `?` in the
+    Cmd-K finder to search all your servers at once.
   </ReleaseFeatureCard>
 
-<ReleaseFeatureCard
-  title="Rooms are easier to discover and manage"
-  size="large"
->
-  Preview joinable rooms before entering, use natural room names with spaces,
-  punctuation, emoji, and any writing system, and manage explicit channel
-  members from room settings. Context menus put join, leave, read, and
-  management actions directly beside rooms, groups, and servers.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Notifications that stay" size="large">
+    Notifications now stay in one list after you read them, until you delete
+    them. [Choose how each kind of activity reaches you](/guides/operations/notifications-web-push/#notification-policy),
+    per server, room group, or room.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Remove a user from a room">
-  Moderators can remove a user with a reason and let them rejoin when room
-  permissions allow it. A timed or indefinite suspension can prevent rejoining.
-  Universal rooms require a suspension.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="A new composer" size="large">
+    Write in Markdown or in the new [Visual editor](/getting-started/message-formatting/), with a formatting toolbar and
+    keyboard shortcuts. Insert timestamps that every reader sees in their own
+    time zone, and write tables.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Native social post previews">
-  Bluesky and Mastodon links render as native cards with quoted posts, attached
-  media, link cards, and concealed content warnings instead of relying on
-  third-party embeds.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Threads your way">
+    Room managers can [make threads required, encouraged, enabled, or disabled](/guides/operations/community-structure/#threading-mode)
+    for each room. [My Threads](/getting-started/threads/) becomes an inbox that shows the latest reply of
+    each conversation you follow.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="More expressive messages">
-  Insert localized timestamps, render GFM tables, and copy message text from its
-  action menu. Attachment sends now show per-file progress and preserve failed
-  uploads for retry.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Better rooms">
+    Preview a room before you join it. Room names can now contain spaces,
+    emoji, and any writing system. Room managers can turn on
+    [slow mode](/guides/operations/community-structure/#slow-mode).
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="More useful user profiles">
-  Open a user's profile from their user card, add a Markdown bio to your own
-  profile, and see the local time that a user chooses to share. Stored time
-  zones are private by default. You can use your time zone for date formatting
-  without publishing it on your profile. Bios can contain up to 1,000
-  characters. Local times use your preferred 12-hour or 24-hour format. Bots use
-  the same self-profile API when authenticated with their API key. Bot owners
-  and authorized account or bot managers can also upload or remove a bot avatar.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="A new attachment viewer">
+    [Zoom into images](/getting-started/message-formatting/#view-attachments), browse the images of a message as a gallery, and add
+    descriptions that screen readers use. Uploads show their progress, and a
+    failed upload stays in the composer so you can try again.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Notifications that stay useful after you read them">
-  Notifications now stay in one chronological list after you read them. Delete
-  an item whenever you no longer want to retain it; per-signal-class controls
-  distinguish mentions, replies, followed conversations, direct messages, and
-  reactions.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Clearer calls">
+    [Voice boosting and an optional noise gate](/guides/infrastructure/voice-calls/#device-preferences-and-microphone-test) make voices easier to hear. Set
+    the volume of each participant, and see a warning when a connection is
+    poor. Chatto remembers your devices.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="My Threads becomes a conversation inbox">
-  Scan the root and latest reply together, see participants and recent activity,
-  and act without opening the thread. The Unread filter uses the existing thread
-  read cursor. Unread conversations can be marked read, and any conversation can
-  be unfollowed.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Profiles with a bio">
+    Add a [Markdown bio](/getting-started/message-formatting/#profile-bios) to your profile and share your local time if you want.
+    Your time zone stays private until you share it.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Pinned messages">
-  Room managers can pin useful channel messages in a shared sidebar. A subtle
-  dot shows when a newer pin has not been viewed.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="21 languages">
+    Chatto is now available in 21 languages with 29 regional variants.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="More languages and regional choices">
-  Choose from complete regional catalogues for English, German, Dutch, Swedish,
-  French, Spanish, Portuguese, Norwegian, Polish, Ukrainian, Japanese,
-  Esperanto, Simplified Chinese, and Traditional Chinese.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Make Chatto look your way">
+    Choose an [accent color, a flat or 3D style](/getting-started/appearance/), and a contrast level from soft
+    to pure black and white.
+  </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Remote sign-in stays in context" size="small">
-    Authentication for another server opens in a focused popup, keeping your main client
-    mounted while making the remote server's identity and trust boundary clearer.
+  <ReleaseFeatureCard title="Pinned messages" size="small">
+    Room managers can [pin important messages](/guides/operations/pinned-messages/). Pins appear in the room sidebar.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Bluesky and Mastodon previews" size="small">
+    Social posts show as native cards with images, quoted posts, and hidden
+    content warnings.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="See who reacted" size="small">
+    Open the reactions of a message to see who used each emoji.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Presence you control" size="small">
+    Chatto no longer sets you to Away automatically. Your status applies to all
+    your devices on a server.
   </ReleaseFeatureCard>
 </ReleaseFeatureGrid>
 
-## Call permissions
+### Other noteworthy changes
 
-Control call starts, joins, microphone audio, cameras, and screen sharing with
-five independent room-aware permissions. Members can join as listeners without
-microphone or camera access. Existing human access is preserved on upgrade.
-See [call permissions](/guides/infrastructure/voice-calls/#call-permissions) for
-scope, bot access, and the timing of in-call permission changes.
+- Start a thread together with its first message with **Post as thread**.
+- Show a thread beside the room, in a pane that you
+  can resize.
+- The message menu can copy the text, a link, an image,
+  or a link to the message. Code blocks have a copy button.
+- Edited messages show an **Edited** label. A thread
+  reply that was also posted to the room links to that copy.
+- [Put a link in angle brackets](/getting-started/message-formatting/#prevent-a-link-preview), such as
+  `<https://example.com>`, to send it without a preview.
+- HTML attachments open in a sandboxed preview
+  only after you select **Show preview**. Download always gives you the
+  original file.
+- When the server processes videos, you can seek in new
+  videos.
+- The room timeline shows when a call starts and
+  ends. The screen stays awake during a call.
+- Send yourself a test push notification from
+  notification settings.
+- Unjoined rooms in a room group collapse into one row.
+  Rooms, room groups, and servers have context menus.
+- Bots have a **BOT** badge beside their name.
+- The installed app shows your recent chats before it
+  reconnects to the server.
 
-## Running and Integrating Chatto
+### Fixes
+
+- A new direct message stays hidden from the other person until you send the
+  first message.
+- Pasted Markdown links keep their label and destination when you edit the
+  message.
+- An edit that happens at the same time as a deletion cannot restore the
+  deleted message.
+- Audio, GIFs, and videos continue to play when reactions change.
+- Images and videos fit inside narrow messages.
+- The Files panel loads only when you open it.
+- Members with `message.manage` can edit their own messages after the edit
+  window.
+- Each member can add up to 20 different reactions to one message.
+- The installed app asks before it reloads for an update. It no longer reloads
+  while you write.
+- The chat stays visible while Chatto reconnects.
+- Active members stay signed in. Chatto no longer signs them out at a fixed
+  deadline.
+- The app badge shows only important activity.
+- Push notifications on a custom domain open Chatto on that domain.
+- Email verification codes are valid for 30 minutes.
+
+## Running Chatto
 
 <ReleaseFeatureGrid>
-  <ReleaseFeatureCard title="Resource-scoped room administration" size="large">
-    Room and room-group settings now live beside the resources they control. Delegated
-    managers can configure rooms without entering a monolithic server-admin area, while
-    role assignment is bounded by the manager's own authority.
+  <ReleaseFeatureCard title="Privileged mode" size="large">
+    Administrative and moderation permissions stay off during normal use. Enable
+    [privileged mode](/guides/operations/permissions/#privileged-mode) for 15 minutes when you need them. The event log records
+    each activation.
   </ReleaseFeatureCard>
 
-<ReleaseFeatureCard
-  title="Delete accounts from member administration"
-  size="small"
->
-  Admins with `user.delete-any` can permanently delete another human member from
-  the member detail page. They confirm the exact login before deletion; this
-  action does not request the admin's password.
-</ReleaseFeatureCard>
-
-<ReleaseFeatureCard title="Version-aware compatibility">
-  Public server discovery reports the running server version. The multi-server
-  client owns its minimum expected server release and uses explicit release
-  boundaries to show useful upgrade guidance. If a discovered server is
-  incompatible or does not report a valid version, the Server Directory opens
-  that server's own client instead of adding it to the current app.
-</ReleaseFeatureCard>
-
-<ReleaseFeatureCard title="Advertise friendly Chatto servers">
-  Server administrators can maintain a public Neighbor directory. The Server
-  Directory shows direct recommendations from a user's registered servers. It
-  follows a remote server recursively only when both servers advertise each
-  other, for at most two mutual hops. Results appear as requests finish, and one
-  additional batch can load when a user scrolls near the end. Fixed batch,
-  concurrency, timeout, and page-session limits bound browser work. Each result
-  identifies the registered servers that supplied the recommendation. Server
-  profile cards use a tapestry layout. Before discovery starts, the client
-  explains the network disclosure and asks the user to enable discovery once on
-  the device. Public profile images load only from the advertised server origin,
-  without credentials, referrer data, or redirects. Mutuality is a current
-  client observation, not a verified relationship or trust statement.
-</ReleaseFeatureCard>
-
-<ReleaseFeatureCard
-  title="Remote clients connect without allowlists"
-  size="large"
->
-  Browser frontends publish a verifiable CIMD identity and exact callback, while
-  Chatto Desktop uses its built-in identity. Servers accept bearer-authenticated
-  cross-origin API and realtime traffic without CORS or OAuth redirect-origin
-  configuration. Server managers can review successfully authorized clients,
-  label them trusted, or block their access.
-</ReleaseFeatureCard>
-
-<ReleaseFeatureCard title="Bearer sessions renew without another login">
-  Human clients use short-lived access tokens and rotating refresh credentials.
-  The bundled frontend renews the session window in the background and
-  reconnects realtime in place without reopening OAuth, showing a manual
-  warning, or losing the current route. The bundled same-origin client uses only
-  its safer HttpOnly cookie and renews it automatically. Separately hosted
-  browser clients use Chatto OAuth for renewable bearer sessions.
-</ReleaseFeatureCard>
-
-<ReleaseFeatureCard title="Faster, leaner restarts">
-  Encrypted projection snapshots and faster cold replay shorten restart catch-up
-  on servers with substantial history, while more compact timeline state reduces
-  memory use.
-</ReleaseFeatureCard>
-
-<ReleaseFeatureCard title="A more practical permission baseline">
-  The `everyone` role now acts as a scoped default that named roles and
-  direct-user decisions can override at the same or a narrower scope. Fresh
-  announcement rooms also give admins an explicit room-level posting grant. The
-  new `message.read` and `message.read-interactions` permissions separate broad
-  and relationship-scoped channel-room message access from membership. Broad
-  read access includes the narrower interaction permission.
-</ReleaseFeatureCard>
-
-  <ReleaseFeatureCard title="Privileged permissions stay off until you need them">
-    Chatto now keeps administrative and moderation permissions inactive during ordinary
-    use. A human must enable privileged mode for the current server session before these
-    permissions become effective. The activation lasts for 15 minutes and can be ended
-    immediately. Permission controls update without a page reload, and the event log
-    records activation and explicit deactivation. Bot API keys keep their direct
-    permission behavior.
+  <ReleaseFeatureCard title="Set up a server in the browser" size="large">
+    A new server opens a setup wizard for the server name and the owner
+    account. You do not need a command line or email delivery for the first
+    login.
   </ReleaseFeatureCard>
 
-<ReleaseFeatureCard
-  title="Bots activate through normal notifications"
-  size="large"
->
-  Bot integrations can use the same ConnectRPC API and realtime subscription as
-  human clients. Direct messages, direct mentions, replies, and followed-thread
-  activity arrive as exact notification occurrences. A direct mention in a root
-  or reply follows that thread for later activity when notification policy
-  permits it. Live notification hints report created IDs even during Do Not
-  Disturb; clients decide whether to play a sound from current unread state and
-  local preferences. These hints are not durable bot delivery. Each bot can also
-  have up to 20 named API keys. Managers can replace one integration key without
-  stopping the others.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Invite links">
+    Create single-use or reusable [invite links](/guides/operations/identity-login/#invite-only-account-creation) with an expiry date. Set account
+    creation to invite-only to admit new members only through these links.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Visible cleanup health" size="small">
-  Owner diagnostics show whether physical asset cleanup is healthy, catching up,
-  or accumulating retries without exposing asset details.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Room management where the room is">
+    Room settings open from the room itself. Give a member `room.manage` for one
+    room or room group, without access to server administration.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Test Web Push delivery" size="small">
-  Members can send themselves a real test notification from notification
-  settings and get direct feedback when a subscription has expired or delivery
-  fails.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="More precise permissions">
+    [New permissions](/guides/operations/permissions/) control reading messages, calls, and direct messages
+    separately. Moderators can remove a member from a room, with an optional
+    suspension.
+  </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Opt-in community badges" size="small">
-    Operators can publish aggregate online and registered-member counts through
-    Shields.io-compatible endpoints for READMEs and community websites.
+  <ReleaseFeatureCard title="More ways to sign in">
+    Members can add several [verified email addresses](/guides/operations/identity-login/#verified-email-addresses).
+    Operators can [turn off password login](/guides/operations/identity-login/#sso-only-login)
+    for SSO-only servers, and [send email through JMAP](/guides/operations/identity-login/#transactional-email).
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Connect from any Chatto client">
+    [Clients on other origins](/guides/operations/cross-server-connections/) connect without allowlists. Members approve each
+    client, and administrators can trust or block it.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Neighbors">
+    [Recommend other Chatto servers](/guides/operations/neighbors/) in a public directory. Members find them in
+    the Server Directory. This feature is experimental.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Operator CLI for rooms and messages">
+    Create and list rooms, add members, upload attachments, and import
+    historical messages with the [operator CLI](/guides/operations/operator-cli/).
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Faster restarts, less memory">
+    Servers with a long history replay faster and use less memory. Optional
+    encrypted snapshots shorten restarts further.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Delete member accounts" size="small">
+    Administrators can delete another member's account from member
+    administration.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Community badges" size="small">
+    Show online and registered member counts on your website with
+    [Shields.io badges](/guides/integrations/community-shields/).
   </ReleaseFeatureCard>
 </ReleaseFeatureGrid>
+
+### Other noteworthy changes
+
+- Server diagnostics show the health of background workers
+  and asset cleanup.
+- Back up and restore a Docker Compose installation
+  with `docker compose run`. See
+  [Backup and restore](/guides/operations/backup-restore/).
+- The operator CLI can look up users by login or email address and clear a
+  username cooldown.
+- [Password managers](/guides/operations/identity-login/#password-managers) find the password change page
+  through `/.well-known/change-password`. Make sure that your reverse proxy
+  forwards this path.
+- Set `nats.embedded.sync_interval` to control how often
+  embedded NATS writes to disk.
+- The Chatto binary is smaller.
+
+### Fixes
+
+- A server process recovers by itself after a short NATS outage.
+- Chatto sends Web Push requests only to public HTTPS addresses.
+- The event log no longer contains password data.
+- Administrators can rename their own account and reset their own username
+  cooldown.
+- Permission changes show a pending state.
+- The server description limit applies before you save.
+- The Docker Compose setup restarts services after a failure and uses real
+  health checks.
+
+## Integrating with Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="One API for members and bots" size="large">
+    Bots use the same [ConnectRPC API](/guides/integrations/chatto-api/) and realtime connection as the Chatto
+    client. Direct messages, mentions, and replies activate a bot through [normal
+    notifications](/guides/integrations/bot-accounts/#activate-a-bot-from-chatto-activity).
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Webhooks in and out" size="large">
+    Post into rooms with [incoming webhooks](/guides/integrations/bot-accounts/#post-from-an-external-webhook),
+    including [Grafana alerts](/guides/integrations/grafana/) without a custom
+    template. [Outbound webhooks](/guides/integrations/bot-accounts/#outbound-webhooks) send signed requests when someone
+    mentions a bot or sends it a direct message.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Realtime protocol 4">
+    The [realtime connection](/guides/integrations/realtime-protocol/) starts from an exact snapshot, sends semantic
+    events, and resumes after a short disconnection without a full reload.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Model Context Protocol">
+    Connect AI assistants to Chatto through [MCP](/guides/integrations/mcp/). They read and post messages
+    with the permissions of the member or bot that authorized them. This feature
+    is experimental.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+### Other noteworthy changes
+
+- Transfer a bot to a new owner. Its permissions
+  and API keys stay.
+- Chatto keeps outbound webhook delivery logs for 7
+  days.
+- Native apps and command-line tools can receive
+  OAuth callbacks on a loopback address.
+- Server discovery reports the server version.
+- Large lists, such as the room directory and role
+  members, now return pages.
+- Find archived rooms through the room directory
+  API.
 
 ## Upgrade Notes
 
-- Stop all old Chatto server processes and background workers before you start
-  this release. Do not use a rolling update for this cutover. The release stops
-  writing the legacy `AuthorizationFenceAdvancedEvent` but continues to replay
-  all stored events. You do not need to migrate or rewrite EVT data. A rollback
-  is safe after another full stop.
+### Review your permissions before you upgrade
 
-- Regenerate custom API clients for Chatto 0.5.0-alpha.6. Avatar upload and
-  deletion moved from `MyAccountService` to `UserService`, and each request now
-  requires the target user ID. There are no compatibility aliases. Old clients
-  receive `Unimplemented` from new servers, and new clients receive
-  `Unimplemented` from old servers. The bundled client disables avatar editors
-  on servers earlier than 0.5.0-alpha.6.
+**Chatto does not change the permissions of an existing server.** Version 0.5
+adds new permissions. A new server gets default grants for them, but an
+upgraded server does not. If you do not add these grants, members cannot read
+messages after the upgrade.
 
-- Change generated-code imports for `UserService` and its request and response
-  messages from `member_directory` to `user_service`. The protobuf package,
-  wire format, and ConnectRPC procedure paths do not change. Regenerating the
-  client applies this source-only migration.
+Do these steps on every upgraded server:
 
-- Existing experimental MCP connections must authorize again. The tester tool
-  catalog now needs the room and message read/write MCP scopes. A token that
-  has only `chatto:rooms:read` cannot use the expanded catalog.
-- Regenerate custom clients that read `ThreadViewerState`. The
-  `has_unread` field is now `has_unread_replies`. Protobuf tag `2` keeps its
-  Boolean wire type, but the source and ProtoJSON names change. The field now
-  reports only replies after the thread read cursor. Deploy 0.5 clients and
-  servers together. Stored thread follows and read cursors need no migration.
+- **Grant `message.read`.** Without it, members see a permission error instead
+  of messages in channels and direct messages. Only the owner can still read.
+  To keep the 0.4 behavior, allow `message.read` for `everyone` at server scope.
+- **Grant `room.remove-member`** to the moderator and admin roles.
+  `room.ban-member` has no effect in 0.5. Active bans continue as suspensions.
+- **Grant `user.invite` and `bot.manage`** to the admin role. Grant
+  `bot.create` to `everyone` if members can create bots.
+- **Grant `room.manage`** to delegated room managers. Room group management
+  used `role.manage` in 0.4.
+- **Check thread posting.** `message.post` now also allows thread replies. A
+  0.4 setup that allowed `message.post` and denied `message.post-in-thread` now
+  allows replies.
+- **Check `everyone` denies.** An allow for a named role or a user now
+  overrides an `everyone` deny at the same or a narrower scope.
 
-- Custom clients must remove the testimonial fields from
-  `chatto.admin.v1` and use `ListNeighborsResponse.origins` from
-  `chatto.discovery.v1`. Upgrade every replica together. Historical testimonial
-  text remains in `EVT` and backups, and a rollback to a testimonial-capable
-  binary can expose it again.
+Call permissions are new too. Chatto grants them to `everyone` on upgrade, so
+existing call access does not change.
 
-- Upgrade every Chatto replica before you rely on private time zones. An older replica does not
-  understand the sharing setting and can expose a stored time zone. A rollback to an older
-  replica has the same risk.
+Administrators, moderators, and the owner must now enable privileged mode before
+they use their administrative permissions. This also applies to custom
+`room.create` grants.
 
-- Remove `current_password` from `chatto.admin.v1.DeleteUserRequest` in custom
-  clients before you update generated code. A 0.5 server ignores protobuf
-  binary tag `2`, but `current_password` is not part of the 0.5 ProtoJSON
-  schema. A 0.5 client does not send the field. An older server can return
-  `failed_precondition` when the current session is not fresh.
-- The bundled frontend automatically moves a valid 0.4 typed browser session to
-  the SCS-backed `chatto_auth_*` path. The migration keeps the existing opaque
-  server-side session and does not ask the user to sign in again. An expired,
-  revoked, or older `cookie_session.*` record cannot migrate. Affected users must
-  sign in once. After migration, active browser sessions renew automatically
-  without user action. Chatto 0.6 removes this temporary migration bridge.
-- Pre-renewal bearer records are not accepted by 0.5 servers. Affected users sign in once to
-  receive the new access/refresh pair. Upgrade every serving replica and bundled client
-  together: older binaries treat new access records as sliding credentials and are not safe
-  mixed-version peers or rollback targets after issuance. Custom clients must persist and
-  serialize `/oauth/token` refresh grants. Generate one cryptographically random
-  UUID version 4 `refresh_request_id` for each rotation, and keep that same value
-  across a lost-response retry.
-- Before or during the upgrade, grant `message.read` to every existing role or
-  account that must keep broad channel-room message access. Grant
-  `message.read-interactions` where an account or bot must read only related
-  threads. A server-level `everyone` grant for `message.read` preserves broad
-  access and includes the narrow mode. Chatto never migrates, backfills, or
-  reconciles existing RBAC state. Fresh servers receive only the broad grant
-  during empty-stream bootstrap. Existing human accounts inherit these Server
-  decisions in the new DM scope. DM membership remains mandatory but is not
-  sufficient by itself. Upgrade every replica before you rely on a channel or
-  DM deny, missing grant, or narrow-read availability.
-- Bot integrations must not call `RoomService.StartDM`. Chatto 0.5 denies this
-  operation to every bot, including when the DM already exists. A human must
-  start the DM before the bot can read or post in it. Upgrade every replica
-  before you depend on this boundary because an older replica can still accept
-  the call.
-- Bot integrations receive semantic events for all authorized public activity
-  on the normal realtime subscription. Notification state remains available
-  when a bot wants Chatto's attention policy. Save stable event or occurrence
-  IDs and make effects idempotent. During a mixed-replica rollout, an older
-  replica can omit the follow created by a direct root mention. Complete the
-  rollout before you depend on later followed-thread activations.
-- Existing bot API keys stay valid after upgrade and appear as the default
-  named key. Complete the replica rollout before an integration uses a newly
-  added named key because older replicas do not recognize it. The experimental
-  `RotateBotApiKey` method is removed. Create a named key, move the integration,
-  and revoke the old key instead.
-- Remove `webserver.oauth_redirect_origins` or its environment-variable
-  equivalent. Add an exact `webserver.allowed_origins` entry when a reverse
-  proxy serves the bundled frontend from an additional origin. The entry lets
-  that origin use cookie authentication and publishes its matching frontend
-  OAuth identity. It does not control cross-origin API access or authorize
-  foreign clients. `*` permits neither browser cookies nor frontend OAuth
-  metadata. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so
-  upgrade clients and servers together. Pre-0.5 clients cannot use the new
-  remote-server authorization flow.
-- Notification policy reads and writes use only `NotificationPolicyService`.
-  The policy methods on `NotificationService` and their request/response types
-  are removed. Regenerate clients, send an explicit server, room-group, or room
-  scope, and read delivery modes from `response.policy.policy`. Stored policy
-  settings are unchanged. See [API compatibility](/guides/integrations/api-compatibility/).
-- Notifications 2.0 replaces the previous notification service and stored records. Existing
-  pending notifications and notification-level preferences are not migrated, so every account
-  starts with an empty notification list and the new per-signal-class defaults. Integrations must
-  regenerate their clients and move to the new occurrence and policy methods on
-  `NotificationService`; the legacy list/get/dismiss RPCs and realtime fields no longer work.
-  `NotificationOccurrence.signal` is a typed oneof that combines one cause with its exact
-  destination and cause-specific data. Clients must not infer navigation for unsupported
-  variants and may show them as generic, dismissible activity. The bundled client uses binary
-  protobuf for this forward-compatible fallback. ProtoJSON integrations must ignore unknown
-  fields or regenerate before a future signal variant is exposed.
-  Upgrade all replicas and bundled clients together.
-- Existing 0.4 Web Push subscription records remain stored, but 0.5 cannot use
-  them until the browser registers them again. The bundled client performs this
-  refresh without another permission prompt when the user opens it and
-  notification permission is still granted. Push delivery can be unavailable
-  until that first visit.
-- Realtime protocol 4 is required by both the 0.5 client and server. Upgrade every server
-  replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
-  and a 0.5 server does not accept an earlier realtime protocol version. Integrations that use
-  `/api/realtime` must regenerate their clients. Protocol 4 sends authorized public
-  events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
-  15-minute bounded cursor resume with encrypted, viewer-bound tokens.
-  Outbound events and heartbeats use `cursor`; subscribe uses `resume_cursor`.
-  `caught_up.recovery` explicitly reports resume, snapshot, or live-only startup.
-  Posted messages include room kind, thread-root context, and compact mention
-  targets with the caller's original recipient decision. Layout changes use
-  one refresh hint. Asset processing and deletion events identify the affected
-  room and message; processed asset detail stays in message resources.
-  Role metadata and assignments also use normal events. Cosmetic changes and
-  other users' assignments do not force a full reload. Clients must clear
-  private cached data and reload when an event can affect their viewer's
-  permissions.
-  Minimum-cursor RPCs wait for the requested content boundary, with a 10-second
-  server limit, rather than waiting for unrelated projections.
-  The client sends one `RealtimeSubscribe`
-  message. The server can send `snapshot`, `event`, `caught_up`, `heartbeat`,
-  and `close` frames. Snapshot clients receive one atomic frame with canonical
-  resource shapes. `RealtimeEvent` has one source-independent public catalogue;
-  its names and field numbers do not expose EVT or internal pubsub. Session
-  termination uses a non-reconnecting `close` frame. Room and thread timelines stay in the paginated ConnectRPC
-  APIs; protocol 4 has no retained-room control. The additive authenticated
-  `ServerService.GetServerProfile` method remains available for explicit reads. Public server
-  discovery stays unauthenticated.
-  `RoomWithViewerState` now contains DM participant IDs and optional message-history state,
-  and `ListRooms` returns accessible empty DMs. Hide an empty DM from navigation only when
-  `has_message_history` is explicitly false; absence means unknown for an older server.
-- Upgrade every Chatto server replica from 0.4 to 0.5 together rather than using a rolling
-  server deployment. A 0.4 replica can accept a late message edit after another replica has
-  deleted that message and can temporarily render its body again. Once every replica runs
-  0.5, message edits and deletions share one room lifecycle boundary and deletion tombstones
-  remain authoritative during replay.
-- Treat the upgrade as forward-only after a 0.5 server accepts traffic. A 0.4
-  binary does not understand new notification facts, asset lifecycle facts,
-  HLS results, or other 0.5-only events. It can start on the same data but cannot
-  provide the complete server state. Deploy a 0.5 fix when possible. For a full
-  rollback, restore a tested pre-upgrade backup and accept the loss of later
-  writes. Include matching encryption keys in the recovery plan, and back up S3
-  assets separately.
-- Server discovery no longer publishes `compatibility.protocol_capabilities`, which appeared
-  only in unreleased 0.5 development snapshots. The containing `compatibility` message is
-  also gone: clients own their minimum supported server release instead of the server
-  declaring client requirements. Integrations built against one of those snapshots must
-  regenerate from the final 0.5 protobufs and replace capability-list checks with an explicit
-  supported-release table. Do not mix clients and servers across this development-only
-  schema change.
-- Newly processed ordinary videos are HLS-only. Upgrade every replica behind an endpoint
-  before allowing new video uploads because older replicas and older clients cannot serve or
-  play those results. Existing MP4 renditions remain playable and are not backfilled.
-- Review permission configurations that combine an `everyone` deny with named-role or
-  direct-user allows. Same-scope or narrower allows can now override that baseline; upgrade
-  all replicas together so authorization decisions stay consistent during rollout. Existing
-  announcement rooms are not given the new admin posting grant automatically.
-- Upgrade the bundled client and all server replicas together before you depend on privileged
-  mode. Old clients cannot enable elevation-required permissions on a 0.5 server. During a
-  mixed server rollout, an older replica can still accept an elevated operation without an
-  active privileged-mode session.
-- Custom delegated room managers that previously relied on `role.manage` need an effective
-  `room.manage` grant for the resources they should administer. Non-owner role assignment is
-  also limited to permissions the acting manager possesses.
-- Review grants of `room.ban-member` and grant `room.remove-member` where
-  moderated room removal is needed. Chatto does not migrate the old grants.
-  Existing active room bans continue as room suspensions.
-- The deprecated CLI `--passphrase` argument has been removed from backup, restore, key
-  export, and key import commands. Update unattended scripts to use `--passphrase-file` or
-  `--passphrase-stdin`.
-- Dashboards that query `chatto_service_info{service="*_service"}` must migrate to
-  `chatto_model_info{model="*_model"}`.
-- Search is disabled by default. To enable the bundled provider, turn on both `[search]` and
-  `[search_provider]`, give the provider its own protected local directory, and exclude that
-  plaintext-derived index from backups.
+See [Permissions](/guides/operations/permissions/) for the complete list.
 
-## Smaller fixes you'll appreciate
+### Upgrade procedure
 
-### Privacy and presence
+- Make a backup before you upgrade. Back up S3 assets and encryption keys
+  separately.
+- Stop every 0.4 server process and worker before you start 0.5. Do not use a
+  rolling update. Upgrade the bundled client at the same time.
+- You cannot go back to 0.4 after a 0.5 server accepts traffic. To roll back,
+  restore the backup. Writes after the backup are lost.
 
-- Presence no longer changes to Away because of input inactivity or tab visibility. You
-  control Online, Away, Do Not Disturb, and Look offline directly.
-- Presence choices apply to your account on the current server. Changing your status
-  leaves your choices on other servers unchanged, including Look offline and Do Not Disturb.
-- All your devices on that server share your choice. Do Not Disturb suppresses
-  alerts across devices. Look offline shows ordinary Offline presence to other
-  users and suppresses typing indicators, while messages continue to arrive.
+### Configuration
 
-### Messages, media, and calls
+- **Video processing moved.** Rename `video.ffmpeg_path`,
+  `video.ffprobe_path`, `video.max_concurrent`, and `video.temp_dir` to
+  `asset_processing.ffmpeg_path`, `asset_processing.ffprobe_path`,
+  `asset_processing.max_concurrent_jobs`, and `asset_processing.temp_dir`. Set
+  `asset_processing.enabled = true`, or new videos stay in processing. Chatto
+  ignores the old keys without an error. New videos use HLS; existing MP4 videos
+  continue to play. See [Video processing](/guides/infrastructure/video-processing/).
+- Remove `webserver.oauth_redirect_origins`. Clients on other origins no longer
+  need configuration. Use `webserver.allowed_origins` only for additional
+  origins of the bundled client behind your reverse proxy. Chatto does not
+  start if an origin has a path, or if one host has both an HTTP and an HTTPS
+  origin.
+- The Content Security Policy is now enforced. The browser blocks scripts that a
+  reverse proxy adds to the page, and other sites cannot show Chatto in an
+  iframe.
+- Search is off by default. To use it, enable `[search]` and
+  `[search_provider]`. See [Search](/guides/operations/search/).
+- The CLI no longer accepts `--passphrase`. Use `--passphrase-file` or
+  `--passphrase-stdin` in scripts.
+- The `chatto_service_info` metric is removed. Use `chatto_model_info`.
 
-- Empty direct-message conversations stay hidden from the other participant until the first
-  message is sent.
-- Pasted Markdown links preserve their label and destination through repeated edits.
-- Enabling rich composer mode on an empty draft no longer inserts a blank line.
-- Attachment URLs remain stable during normal viewing, preserving audio, converted GIF, and
-  video playback while reactions or other message state changes.
-- The Files panel loads attachments only when you open it, reducing unnecessary work while
-  switching rooms.
-- Attachment descriptions provide image alt text, accessible media and file details, and
-  visible image-viewer captions. Chatto encrypts them with the message author's content key.
-- Fullscreen video's close button stays clear of the iOS status-bar safe area.
-- Active calls in direct messages once again show their indicator and participant avatars in
-  the sidebar.
+### What members notice
 
-### Navigation and notifications
+- The notification list starts empty. Notification settings start with the new
+  defaults.
+- Members stay signed in to the bundled client. Members of other servers in the
+  multi-server client, and OAuth clients, sign in again once.
+- The 0.5 client does not connect to 0.4 servers.
 
-- `VoiceCallService.GetCallToken` is now `CreateCallToken`, matching its purpose
-  of issuing a credential. Update clients and JSON request paths; token behavior
-  is unchanged. See the [migration guide](/guides/integrations/api-compatibility/#call-token-creation-in-05).
+### Custom clients and bots
 
-- Sidebar move and reorder requests now use an explicit room or sidebar-link
-  ID instead of a kind/ID pair. See the [migration guide](/guides/integrations/api-compatibility/#sidebar-item-references-in-05).
-
-- Room and thread read commands now return the same timestamp fields:
-  `last_read_at` and `previous_last_read_at`. Thread clients must replace
-  `previous_read_at`. See the [migration guide](/guides/integrations/api-compatibility/#read-marker-responses-in-05).
-
-- Thread follow and unfollow responses now expose follow state only in `state`.
-  Read `state.following` instead of the removed top-level `following` field. See
-  the [migration guide](/guides/integrations/api-compatibility/#thread-follow-responses-in-05).
-
-- Commands that only reported success now return named empty responses (`{}` in
-  JSON). Clients must use RPC completion and Connect errors instead of the
-  removed success fields. Actual change indicators and counts remain. See the
-  [response migration guide](/guides/integrations/api-compatibility/#empty-command-responses-in-05).
-- Public protobuf request and response types now match their RPC names. OAuth
-  admin enum types use `OauthClientSource` and `OauthClientPolicy`. Regenerate
-  clients and update type references; RPC paths and JSON values are unchanged.
-  See the [type migration guide](/guides/integrations/api-compatibility/#protobuf-type-names-in-05).
-
-- Resource update RPCs now share an update-mask contract. Select a field to set
-  or reset it; unselected fields stay unchanged. JSON clients can clear fields
-  with `null` plus `updateMask`. Empty updates are rejected. Self-service profile
-  edits commit together, so a failed login change cannot leave other edits behind.
-- Integrations must replace the old update commands with `SetCustomStatus`,
-  `ChangePassword`, `ChangeUserPassword`, `SetPresence`, and
-  `RefreshTypingIndicator`. `SetCustomStatus` replaces the complete status;
-  omitted expiry means no expiry. See the
-  [migration guide](/guides/integrations/api-compatibility/#resource-updates-in-05).
-
-- **API migration:** Public user identities now use `User.bot: BotInfo`. Test
-  whether `bot` is present instead of reading `is_bot`; read the owner from
-  `bot.owner_user_id`. Update custom clients for this alpha API change. Stored
-  accounts and events need no migration. See
-  [API Compatibility](/guides/integrations/api-compatibility/#bot-identity).
-- **API migration:** Replace room `BanMember`, `ListBans`, and `UnbanMember`
-  calls with `RemoveUser`, `ListSuspensions`, and `LiftSuspension`. A removal
-  can omit suspension to permit rejoining. See
-  [API Compatibility](/guides/integrations/api-compatibility/#room-removal-and-suspension-in-05).
-- **API migration:** Role and user permission matrix/decision reads now return
-  scope pages: 20 scopes by default, capped at 100. Consume `page` metadata or
-  request one typed `scope`. Offsets count scopes, not decisions. The editors
-  load columns as you scroll. Stored permission rules are unchanged. See
-  [API Compatibility](/guides/integrations/api-compatibility/).
-- **API migration:** Role details no longer embed all assigned users. Replace
-  reads of `AdminRoleService.GetRoleResponse.users` with paginated
-  `AdminRoleService.ListMembers` calls. The default page contains 20 users;
-  the maximum is 100. The existing `role.assign` permission still controls
-  roster access. See [API Compatibility](/guides/integrations/api-compatibility/).
-- **API migration:** `AdminUserService.ListMembers` now returns IDs and page
-  metadata. Load admin rows and role summaries with `BatchGetMembers`. See
-  [Admin member lists](/guides/integrations/api-compatibility/#admin-member-lists).
-- **API migration:** `RoomDirectoryService.ListRooms` now returns pages of 50
-  rooms by default, capped at 100, ordered by room ID. Follow `page.hasMore`
-  and advance the request offset to read the full directory. The bundled client
-  fetches all pages before replacing local state. Room-group and realtime
-  navigation snapshots remain complete.
-
-- Integrations can discover archived rooms with `RoomDirectoryService.ListRooms`
-  by selecting active, archived, or all rooms. The default remains active rooms,
-  and normal room visibility rules apply.
-
-- In a fresh page session, desktop channels open Members and one-to-one or self-DMs
-  open the profile. The sidebar remembers your choice for each room during navigation
-  and refreshes. Browser session restoration retains these choices. Mobile panes open
-  only when you select them.
-- Installed-app badges show exact direct-message counts without presenting unrelated channel
-  notifications as phantom DMs.
-- App badges stay synchronized with the authoritative unread notification occurrences across
-  regular pushes, visible windows, and supported Safari versions.
-- Realtime uses separate internal envelopes for stored facts and NATS Core pubsub activity, plus
-  a dedicated public payload catalogue. Explicit typed mappers keep public payload layouts
-  independent from both internal wire formats. The
-  public union excludes internal event variants and storage-only fields. The
-  WebSocket sends an exact, bounded resource snapshot and then sends public events. Clients use
-  ConnectRPC for resources that are not in the snapshot and for details that are not in an event.
-
-### Administration and interface polish
-
-- Permission changes show an immediate pending state instead of appearing unresponsive.
-- Server descriptions enforce their byte limit before submission and preserve the current
-  draft when a save fails.
-- Admin tables and permission matrices have clearer contrast, grouping, and action states.
-- Secondary actions, selected rows, and prominent dark-theme buttons are easier to see.
-- Remote server discovery continues to work with 0.4 servers that require POST requests.
+Regenerate every custom client from the 0.5 protobufs. The public API and the
+realtime protocol have breaking changes, and 0.5 servers accept only realtime
+protocol 4. See [API compatibility](/guides/integrations/api-compatibility/).
 
 ## GitHub release
 
