@@ -37,6 +37,7 @@ const { mocks } = vi.hoisted(() => {
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
       unreadMarkerEventId: null as string | null,
+      canMarkThreadAsRead: null as (() => boolean) | null,
       appState: {
         isPresent: true
       },
@@ -47,6 +48,7 @@ const { mocks } = vi.hoisted(() => {
 });
 
 const scopeState = new SvelteMap([['serverId', 'server-1']]);
+const authState = new SvelteMap([['authenticated', true]]);
 
 vi.mock('$lib/api-client/readState', () => ({
   createReadStateAPI: () => ({
@@ -71,8 +73,10 @@ vi.mock('$lib/hooks', () => ({
         upToEventId: string | undefined,
         signal: AbortSignal
       ) => unknown;
+      canMarkAsRead?: () => boolean;
     }
   ) => {
+    mocks.canMarkThreadAsRead = options.canMarkAsRead ?? null;
     void options.markAsRead(getTargetId(), undefined, new AbortController().signal);
     return {
       unreadMarkerEventId: mocks.unreadMarkerEventId,
@@ -112,6 +116,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: (serverId: string) => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+      get isAuthenticated() {
+        return authState.get('authenticated')!;
+      },
       readViews: { register: mocks.registerReadView },
       reconcileThreadRead: mocks.reconcileThreadRead,
       retainMessagesForThread:
@@ -286,6 +293,29 @@ describe('ThreadPane', () => {
     expect(pane.className).toContain('lg:w-[90%]');
     expect(pane.className).not.toContain('sm:w-[90%]');
     expect(container.querySelector('[role="slider"]')).toBeNull();
+  });
+
+  it('waits for the saved viewer to be verified before marking the thread as read', async () => {
+    // A cold load shows the saved view before the server accepts commands.
+    authState.set('authenticated', false);
+    try {
+      render(ThreadPane, {
+        props: {
+          roomId: 'room-1',
+          roomName: 'General',
+          threadRootEventId: 'thread-root',
+          onClose: mocks.onClose
+        }
+      });
+      await tick();
+      expect(mocks.canMarkThreadAsRead?.()).toBe(false);
+
+      authState.set('authenticated', true);
+
+      expect(mocks.canMarkThreadAsRead?.()).toBe(true);
+    } finally {
+      authState.set('authenticated', true);
+    }
   });
 
   it.each([null, '2026-07-04T13:00:00Z'])('reconciles a read with previous position %s', async (previousLastReadAt) => {

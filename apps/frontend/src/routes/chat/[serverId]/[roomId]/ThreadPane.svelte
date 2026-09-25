@@ -116,7 +116,9 @@
 
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
-    canMarkAsRead: () => isVisible,
+    // A saved view can show before the server accepts commands. The read
+    // starts when the viewer is verified, as in the room timeline.
+    canMarkAsRead: () => isVisible && stores.isAuthenticated,
     markerWindowFromReadResult: (result, markedAtMs) =>
       result.previousLastReadAt
         ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs }
