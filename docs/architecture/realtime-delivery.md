@@ -533,8 +533,8 @@ After the saved view paints, the registry starts server discovery and verifies
 the viewer through the existing connection. The root route does not reload.
 This saved startup applies to every server route. Account settings, management
 forms, and the direct-message opener wait for the verified viewer or live
-permissions before they mount or send. Message permalink lookups wait behind the
-paused private requests.
+permissions before they mount or send. A message permalink target outside the
+saved window loads through the paused private requests.
 The runtime coordinator starts realtime and notification sync when viewer
 verification succeeds. Room and DM selectors keep retained data displayable
 during warm snapshot hydration and retry. Actions stay gated by verified

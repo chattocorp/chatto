@@ -55,11 +55,11 @@ copied profile references. A later verified save can capture the remaining state
 After origin sign-out, a dormant remote bearer session can be selected for
 navigation. Its viewer check starts when that route opens.
 
-Every server route starts from the saved view. A message permalink target can
-be outside the saved window. The client therefore resolves that target through
-a private request, which waits until the viewer is verified. Account settings,
-management forms, and the direct-message opener also wait for the verified
-viewer or live permissions.
+Every server route starts from the saved view. The client shows a message
+permalink target from the saved window when the window contains it. Other
+targets load through private requests, which wait until the viewer is verified.
+Account settings, management forms, and the direct-message opener also wait for
+the verified viewer or live permissions.
 
 The installed app opens the origin chat route so an offline launch can use
 that saved view. It opens the last room saved on the device, or the overview
