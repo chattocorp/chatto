@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   ensureRoomAvailable: vi.fn(),
   goto: vi.fn(),
   record: vi.fn(),
-  isCurrent: vi.fn(() => true)
+  isCurrent: vi.fn(() => true),
+  currentUser: { user: { id: 'self' } as { id: string } | undefined }
 }));
 
 vi.mock('$app/state', () => ({ page: { get params() { return mocks.page.params; } } }));
@@ -27,7 +28,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     isCurrent: mocks.isCurrent,
     connection: { getAPI: () => ({ startDM: mocks.startDM }) },
     store: {
-      currentUser: { user: { id: 'self' } },
+      get currentUser() {
+        return mocks.currentUser;
+      },
       ensureRoomAvailable: mocks.ensureRoomAvailable
     }
   })
@@ -46,6 +49,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   const page = $state({ params: { serverId: '-', userId: 'recipient' } });
   mocks.page = page;
+  const currentUser = $state<{ user: { id: string } | undefined }>({ user: { id: 'self' } });
+  mocks.currentUser = currentUser;
   mocks.isCurrent.mockReturnValue(true);
   mocks.startDM.mockResolvedValue({ id: 'dm-room' });
   mocks.ensureRoomAvailable.mockResolvedValue(undefined);
@@ -109,6 +114,18 @@ describe('DM destination', () => {
     await new Promise<void>((done) => queueMicrotask(done));
     expect(mocks.ensureRoomAvailable).not.toHaveBeenCalledWith('old-room');
     expect(mocks.goto).toHaveBeenCalledOnce();
+  });
+
+  it('waits for the verified viewer before opening a conversation', async () => {
+    mocks.currentUser.user = undefined;
+    mocks.page.params.userId = 'self';
+    mounted = render(Destination);
+    await expect.element(mounted.getByRole('status', { name: 'Loading...' })).toBeInTheDocument();
+    expect(mocks.startDM).not.toHaveBeenCalled();
+    mocks.currentUser.user = { id: 'self' };
+    flushSync();
+    await vi.waitFor(() => expect(mocks.startDM).toHaveBeenCalledWith([]));
+    expect(mocks.startDM).toHaveBeenCalledOnce();
   });
 
   it('does not navigate after its server scope is replaced', async () => {

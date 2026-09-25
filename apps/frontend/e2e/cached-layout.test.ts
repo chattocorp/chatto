@@ -2,6 +2,7 @@
 
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { holdViewerVerification, readSavedResources } from './fixtures/savedViews';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import type { Page } from '@playwright/test';
 import {
@@ -85,55 +86,25 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
   // Wait for the real persistence owner, without injecting a special cache fixture.
   await expect
     .poll(
-      () =>
-        page.evaluate(async (id) => {
-          return new Promise<boolean>((resolve) => {
-            const request = indexedDB.open('chatto-saved-views', 2);
-            request.onsuccess = () => {
-              const db = request.result;
-              const read = db.transaction('resources').objectStore('resources').getAll();
-              read.onsuccess = () => {
-                resolve(
-                  read.result.some(
-                    (record: {
-                      schemaVersion: number;
-                      key: string;
-                      data: {
-                        events?: {
-                          id: string;
-                          event: { replyCount?: number; reactions?: unknown[] };
-                        }[];
-                      };
-                    }) =>
-                      record.schemaVersion === 1 &&
-                      read.result.some(
-                        (other) => other.key === record.key.replace('timeline:', 'members:')
-                      ) &&
-                      record.data.events?.some(
-                        (event) =>
-                          event.id === id &&
-                          event.event.replyCount === 1 &&
-                          event.event.reactions?.length === 1
-                      )
-                  )
-                );
-                db.close();
-              };
-            };
-          });
-        }, eventId),
+      async () => {
+        const records = await readSavedResources(page);
+        return records.some(
+          (record) =>
+            record.schemaVersion === 1 &&
+            records.some((other) => other.key === record.key.replace('timeline:', 'members:')) &&
+            record.data.events?.some(
+              (event) =>
+                event.id === eventId &&
+                event.event.replyCount === 1 &&
+                event.event.reactions?.length === 1
+            )
+        );
+      },
       { timeout: 20_000 }
     )
     .toBe(true);
 
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route('**/chatto.api.v1.ViewerService/GetViewer', async (route) => {
-    await gate;
-    await route.continue();
-  });
+  const viewer = await holdViewerVerification(page);
   const resumed: RealtimeRecovery[] = [];
   const requestedCheckpoints: string[] = [];
   page.on('websocket', (socket) => {
@@ -168,7 +139,7 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
     });
     const cached = await layout(page, true);
     await page.screenshot({ path: testInfo.outputPath('cached-room.png') });
-    release();
+    viewer.release();
     await waitForRoomReady(page);
     expect(requestedCheckpoints).toHaveLength(1);
     expect(resumed).toContain(RealtimeRecovery.RESUMED);
@@ -184,7 +155,67 @@ test('unchanged cached room keeps message metadata and sidebar geometry through 
     await page.screenshot({ path: testInfo.outputPath('reconciled-room.png') });
     expect(errors).toEqual([]);
   } finally {
-    release();
+    viewer.release();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});
+
+test('reloading an open thread renders its saved window before viewer verification', async ({
+  page,
+  chatPage,
+  roomPage
+}) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+  await waitForRoomReady(page);
+  const root = await roomPage.sendMessage('Cached thread root');
+  const rootId = await root.getEventId();
+  await root.openThread();
+  await roomPage.postThreadReply('A cached thread reply');
+  await expect(roomPage.threadPane.getByText('A cached thread reply')).toBeVisible();
+
+  // Wait for the persisted thread window that contains the posted reply.
+  await expect
+    .poll(
+      async () =>
+        (await readSavedResources(page)).some(
+          (record) =>
+            record.key.includes('\u0000thread:') &&
+            record.key.endsWith(`:${rootId}`) &&
+            (record.data.events?.length ?? 0) >= 2
+        ),
+      { timeout: 20_000 }
+    )
+    .toBe(true);
+
+  const viewer = await holdViewerVerification(page);
+  const requestedCheckpoints: string[] = [];
+  page.on('websocket', (socket) => {
+    if (!socket.url().includes('/api/realtime')) return;
+    socket.on('framesent', ({ payload }) => {
+      if (typeof payload === 'string') return;
+      const subscribe = RealtimeSubscribe.fromBinary(payload);
+      if (subscribe.resumeCursor) requestedCheckpoints.push(subscribe.resumeCursor);
+    });
+  });
+  try {
+    const threadUrl = page.url();
+    await page.reload();
+    expect(page.url()).toBe(threadUrl);
+    // The viewer request is still held, so this content can come only from the snapshot.
+    await expect(roomPage.threadPane.getByText('A cached thread reply')).toBeVisible();
+    await expect(page.locator(`[data-event-id="${rootId}"]`).first()).toBeVisible();
+    viewer.release();
+    await waitForRoomReady(page);
+    expect(requestedCheckpoints).toHaveLength(1);
+    await expect(roomPage.threadPane.getByText('A cached thread reply')).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    viewer.release();
     await page.unrouteAll({ behavior: 'wait' });
   }
 });

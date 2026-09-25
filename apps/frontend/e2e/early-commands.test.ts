@@ -3,6 +3,7 @@
 import { RealtimeSubscribe } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { readSavedResources } from './fixtures/savedViews';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 
 for (const recovery of ['resume', 'snapshot'] as const) {
@@ -20,28 +21,10 @@ for (const recovery of ['resume', 'snapshot'] as const) {
     const seed = await roomPage.sendMessage('Saved room for early commands');
     const seedId = await seed.getEventId();
     await expect
-      .poll(() =>
-        page.evaluate(async (id) => {
-          const db = await new Promise<IDBDatabase>((resolve, reject) => {
-            const request = indexedDB.open('chatto-saved-views', 2);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-          });
-          try {
-            return await new Promise<boolean>((resolve, reject) => {
-              const request = db.transaction('resources').objectStore('resources').getAll();
-              request.onsuccess = () =>
-                resolve(
-                  request.result.some((row) =>
-                    row.data.events?.some((event: { id: string }) => event.id === id)
-                  )
-                );
-              request.onerror = () => reject(request.error);
-            });
-          } finally {
-            db.close();
-          }
-        }, seedId)
+      .poll(async () =>
+        (await readSavedResources(page)).some((record) =>
+          record.data.events?.some((event) => event.id === seedId)
+        )
       )
       .toBe(true);
 

@@ -154,37 +154,25 @@ describe('saved startup route load', () => {
     await pending;
   });
 
-  it('uses live startup for a message permalink outside the saved window', async () => {
+  it.each([
+    ['[roomId]/[threadId]', 'R1/T1'],
+    ['[roomId]/m/[messageId]', 'R1/m/E1'],
+    ['[roomId]/[threadId]/m/[messageId]', 'R1/T1/m/E1'],
+    ['settings/profile', 'settings/profile'],
+    ['manage/server/members', 'manage/server/members']
+  ])('restores the saved view before network work on %s', async (routeId, path) => {
     const { load } = await import('./+layout');
     const result = await load({
-      url: new URL('https://chat.example.test/chat/-/R1/m/E1'),
-      params: { serverId: '-', roomId: 'R1', messageId: 'E1' },
-      route: { id: '/chat/[serverId]/[roomId]/m/[messageId]' }
+      url: new URL(`https://chat.example.test/chat/-/${path}`),
+      params: { serverId: '-' },
+      route: { id: `/chat/[serverId]/${routeId}` }
     } as never);
 
-    expect(result).not.toHaveProperty('startupPending');
-    expect(mocks.loadSavedView).not.toHaveBeenCalled();
-    expect(mocks.restoreSavedView).not.toHaveBeenCalled();
-    expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
-    expect(mocks.loadCurrentUser).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ startupPending: true, user: null });
+    expect(mocks.restoreSavedView).toHaveBeenCalledOnce();
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+    expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
   });
-
-  it.each(['settings/profile', 'settings/account', 'manage/server/members'])(
-    'loads the viewer before mounting %s even when a saved view exists',
-    async (path) => {
-      const { load } = await import('./+layout');
-      const result = await load({
-        url: new URL(`https://chat.example.test/chat/-/${path}`),
-        params: { serverId: '-' },
-        route: { id: `/chat/[serverId]/${path}` }
-      } as never);
-
-      expect(result).toMatchObject({ user: { id: 'U1' } });
-      expect(result).not.toHaveProperty('startupPending');
-      expect(mocks.restoreSavedView).not.toHaveBeenCalled();
-      expect(mocks.loadSavedView).not.toHaveBeenCalled();
-    }
-  );
 
   it('does not restore a view after its local account changes during the disk read', async () => {
     let finishRead: (view: unknown) => void = () => {};
