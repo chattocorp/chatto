@@ -17,7 +17,7 @@ func (s *effectivePermissionService) ListEffectivePermissions(ctx context.Contex
 	}
 	entries, err := s.api.core.ListEffectivePermissions(ctx, caller.UserID, req.Msg.GetUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	result := make([]*apiv1.EffectivePermission, 0, len(entries))
 	for _, entry := range entries {

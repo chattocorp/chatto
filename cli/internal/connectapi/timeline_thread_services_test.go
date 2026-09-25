@@ -293,7 +293,7 @@ func TestRoomAndThreadTimelineGetThreadEventsAroundRootAndReply(t *testing.T) {
 		EventId:           "missing-anchor",
 		Limit:             3,
 	}))
-	if got := connect.CodeOf(err); got != connect.CodeNotFound {
+	if got := errorCode(err); got != connect.CodeNotFound {
 		t.Fatalf("missing anchor code = %v, want %v", got, connect.CodeNotFound)
 	}
 }
@@ -309,16 +309,16 @@ func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
 		RoomId:  room.Id,
 		EventId: reply.Id,
 	})
-	if _, err := env.messages.GetMessage(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated GetMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.messages.GetMessage(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetMessage code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-link-outsider", "Message Link Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.messages.GetMessage(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member GetMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.GetMessage(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member GetMessage code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
@@ -352,8 +352,8 @@ func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
 	if _, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
 		EventId: "missing-anchor",
-	})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing message code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("missing message code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
 }
 
@@ -366,16 +366,16 @@ func TestRoomAndThreadTimelineGetThreadEventsRequiresMembership(t *testing.T) {
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 	})
-	if _, err := env.threads.GetThreadEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated GetThreadEvents code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.threads.GetThreadEvents(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetThreadEvents code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-outsider", "Thread Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.threads.GetThreadEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member GetThreadEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.threads.GetThreadEvents(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member GetThreadEvents code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -647,16 +647,16 @@ func TestRoomAndThreadServicesRequiresAuthAndMembership(t *testing.T) {
 	room := env.createJoinedRoom("read-state-authz")
 
 	req := connect.NewRequest(&apiv1.MarkRoomAsReadRequest{RoomId: room.Id})
-	if _, err := env.rooms.MarkRoomAsRead(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated MarkRoomAsRead code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.rooms.MarkRoomAsRead(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated MarkRoomAsRead code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "read-state-outsider", "Read State Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.rooms.MarkRoomAsRead(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member MarkRoomAsRead code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.rooms.MarkRoomAsRead(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member MarkRoomAsRead code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -722,8 +722,8 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: reply.Id,
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("MarkRoomAsRead reply anchor code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("MarkRoomAsRead reply anchor code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
 	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after reply anchor = %q, %v; want %s", got, err, e2.Id)
@@ -732,8 +732,8 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: "missing-event",
-	})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
 	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after missing event = %q, %v; want %s", got, err, e2.Id)
@@ -777,8 +777,8 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: "missing-event",
-	})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
 	if marker, exists, err := env.core.PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
 		t.Fatalf("reader marker after rejected request = %q exists=%v err=%v, want absent", marker, exists, err)
@@ -880,8 +880,8 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		UpToEventId:       otherReply.Id,
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("MarkThreadAsRead cross-thread anchor code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("MarkThreadAsRead cross-thread anchor code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
 	markerAfterInvalid, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
 	if err != nil {
@@ -895,8 +895,8 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		UpToEventId:       "missing-event",
-	})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("MarkThreadAsRead missing anchor code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("MarkThreadAsRead missing anchor code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
 	markerAfterMissing, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
 	if err != nil {
@@ -978,30 +978,30 @@ func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 	})
-	if _, err := env.threads.FollowThread(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.threads.FollowThread(env.ctx, req); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated FollowThread code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-follow-outsider", "Thread Follow Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.threads.FollowThread(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.threads.FollowThread(withCaller(env.ctx, outsider), req); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member FollowThread code = %v, want %v", errorCode(err), connect.CodePermissionDenied)
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
 	if _, err := env.threads.FollowThread(ctx, connect.NewRequest(&apiv1.FollowThreadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: "missing-root",
-	})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing root FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("missing root FollowThread code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
 	if _, err := env.threads.FollowThread(ctx, connect.NewRequest(&apiv1.FollowThreadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: reply.Id,
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("reply root FollowThread code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+	})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("reply root FollowThread code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
 
 	followResp, err := env.threads.FollowThread(ctx, req)
@@ -1053,8 +1053,8 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 
 	if _, err := env.threads.ListFollowedThreads(env.ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
 		Page: &apiv1.PageRequest{Limit: 20},
-	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated ListFollowedThreads code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	})); errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated ListFollowedThreads code = %v, want %v", errorCode(err), connect.CodeUnauthenticated)
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1253,7 +1253,7 @@ func TestMessageBatchHydratesEchoAndOriginalAfterAuthorizedAliasEdit(t *testing.
 	require.NoError(t, err)
 	text := "alias edit"
 	_, err = env.messages.UpdateMessage(withCaller(env.ctx, other), connect.NewRequest(&apiv1.UpdateMessageRequest{RoomId: room.Id, EventId: echoID, Body: &text}))
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	_, err = env.messages.UpdateMessage(ctx, connect.NewRequest(&apiv1.UpdateMessageRequest{RoomId: room.Id, EventId: echoID, Body: &text}))
 	require.NoError(t, err)
 	batch, err := env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: room.Id, EventIds: []string{reply.Id, echoID}}))

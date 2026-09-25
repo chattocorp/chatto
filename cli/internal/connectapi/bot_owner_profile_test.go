@@ -18,7 +18,7 @@ func TestPublicBotOwnerProfile(t *testing.T) {
 	service := &userService{api: env.api}
 	request := connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{bot.User.Id, reader.Id}})
 	_, err = service.BatchGetUsers(env.ctx, request)
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnauthenticated, errorCode(err))
 	response, err := service.BatchGetUsers(withCaller(env.ctx, reader), request)
 	require.NoError(t, err)
 	require.Len(t, response.Msg.Users, 2)

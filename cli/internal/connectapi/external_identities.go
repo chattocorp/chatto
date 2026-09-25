@@ -24,7 +24,7 @@ type externalIdentityAuthService struct {
 func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Context, req *connect.Request[authv1.GetPendingExternalIdentityRequest]) (*connect.Response[authv1.GetPendingExternalIdentityResponse], error) {
 	flow, err := s.api.core.GetPendingExternalIdentityFlow(ctx, req.Msg.GetToken())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if flow.Kind == core.ExternalIdentityFlowKindCreate {
 		flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
@@ -58,11 +58,11 @@ func availableExternalIdentityLogin(chattoCore *core.ChattoCore, token, hint str
 func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.Context, req *connect.Request[authv1.CreateExternalIdentityAccountRequest]) (*connect.Response[authv1.CreateExternalIdentityAccountResponse], error) {
 	flow, err := s.api.core.GetPendingExternalIdentityCreateFlow(ctx, req.Msg.GetToken())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if s.api.config.Auth.InvitationRequired() {
 		if strings.TrimSpace(flow.InvitationID) == "" {
-			return nil, connectError(core.ErrInvitationInvalid)
+			return nil, core.ErrInvitationInvalid
 		}
 	} else {
 		// Pending flows survive configuration rollouts. Re-evaluate admission
@@ -72,7 +72,7 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), req.Msg.GetDisplayName(), flow.DisplayNameHint)
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	cookieOnly := strings.EqualFold(
 		strings.TrimSpace(req.Header().Get(BrowserAuthenticationModeHeader)),
@@ -82,14 +82,14 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if !cookieOnly {
 		credentials, err = s.api.core.CreateBearerSessionWithSource(ctx, user.GetId(), "external_identity_create")
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 	}
 	var browserSession BrowserSession
 	if cookieOnly {
 		browserSession, err = createBrowserSessionFromContext(ctx, user.GetId(), "external_identity_create")
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 	}
 	if err := s.api.core.RecordLoginSucceeded(ctx, user.GetId(), flow.ProviderType+":"+flow.ProviderID); err != nil {
@@ -99,10 +99,10 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		if browserSession.Revoke != nil {
 			_ = browserSession.Revoke(ctx)
 		}
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	response := connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
 		UserId:                user.GetId(),
@@ -142,14 +142,14 @@ func externalIdentityCreateDisplayName(login, requested, hint string) string {
 func (s *externalIdentityAuthService) ConfirmExternalIdentityLink(ctx context.Context, req *connect.Request[authv1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[authv1.ConfirmExternalIdentityLinkResponse], error) {
 	flow, err := s.api.core.GetPendingExternalIdentityFlow(ctx, req.Msg.GetToken())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	identity, err := s.api.core.ConfirmPendingExternalIdentityLink(ctx, flow)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&authv1.ConfirmExternalIdentityLinkResponse{
 		LinkedIdentity: apiLinkedExternalIdentity(identity, s.api.providerLabels()),
@@ -158,7 +158,7 @@ func (s *externalIdentityAuthService) ConfirmExternalIdentityLink(ctx context.Co
 
 func (s *externalIdentityAuthService) CancelExternalIdentityFlow(ctx context.Context, req *connect.Request[authv1.CancelExternalIdentityFlowRequest]) (*connect.Response[authv1.CancelExternalIdentityFlowResponse], error) {
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&authv1.CancelExternalIdentityFlowResponse{}), nil
 }
@@ -170,7 +170,7 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	}
 	identities, err := s.api.core.ExternalIdentitiesForUser(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),
@@ -185,18 +185,18 @@ func (s *accountService) StartExternalIdentityLink(ctx context.Context, req *con
 	}
 	provider, ok := s.api.authProvider(req.Msg.GetProviderId())
 	if !ok {
-		return nil, connectError(core.ErrNotFound)
+		return nil, core.ErrNotFound
 	}
 	redirectPath := req.Msg.GetRedirectPath()
 	if redirectPath != "" && !isValidInternalRedirectPath(redirectPath) {
-		return nil, connectError(core.ErrInvalidArgument)
+		return nil, core.ErrInvalidArgument
 	}
 	if err := s.api.requireFreshCredential(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	token, err := s.api.core.CreatePendingExternalIdentityLinkStart(ctx, provider.ID, redirectPath, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.StartExternalIdentityLinkResponse{
 		StartUrl: s.api.externalIdentityLinkStartURL(ctx, provider.ID, token),
@@ -209,10 +209,10 @@ func (s *accountService) DisconnectExternalIdentity(ctx context.Context, req *co
 		return nil, err
 	}
 	if err := s.api.requireFreshCredentialOrPassword(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := s.api.core.DisconnectExternalIdentity(ctx, caller.UserID, req.Msg.GetSubjectHash()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DisconnectExternalIdentityResponse{}), nil
 }

@@ -49,18 +49,18 @@ func (s *viewerService) ActivatePrivilegedMode(ctx context.Context, _ *connect.R
 		return nil, err
 	}
 	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
-		return nil, connectError(core.ErrHumanAccountRequired)
+		return nil, core.ErrHumanAccountRequired
 	}
 	available, err := s.api.core.HasAnyPrivilegedModeEntitlement(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !available {
-		return nil, connectError(core.ErrPrivilegedModeUnavailable)
+		return nil, core.ErrPrivilegedModeUnavailable
 	}
 	deadline, err := s.api.setPrivilegedMode(ctx, caller.UserID, true)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	ctx = privilegedModeContext(ctx, deadline)
 	viewer, err := s.api.buildViewer(ctx, caller.UserID)
@@ -80,11 +80,11 @@ func (s *viewerService) DeactivatePrivilegedMode(ctx context.Context, _ *connect
 		return nil, err
 	}
 	if _, err := s.api.setPrivilegedMode(ctx, caller.UserID, false); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	available, err := s.api.core.HasAnyPrivilegedModeEntitlement(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	ctx = privilegedModeContext(ctx, time.Time{})
 	viewer, err := s.api.buildViewer(ctx, caller.UserID)
@@ -136,7 +136,7 @@ func privilegedModeState(available bool, deadline time.Time) *apiv1.PrivilegedMo
 func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerResponse, error) {
 	user, err := a.core.GetUser(ctx, userID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	credential, hasCredential := authctx.CredentialForContext(ctx)
 
@@ -172,7 +172,7 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 		}
 		available, err := a.core.HasAnyPrivilegedModeEntitlement(groupCtx, userID)
 		if err != nil {
-			return connectError(err)
+			return err
 		}
 		deadline := time.Time{}
 		if hasCredential && credential.UserID == userID {
@@ -207,32 +207,32 @@ func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerU
 	group.Go(func() error {
 		var err error
 		hasVerifiedEmail, err = api.core.HasVerifiedEmail(groupCtx, user.GetId())
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		settings, err = api.core.GetUserSettings(groupCtx, user.GetId())
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		apiUser, err = userSummary(groupCtx, api, user, nil)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canDeleteAccount, err = api.core.CanDeleteUser(groupCtx, user.GetId(), user.GetId())
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		lastLoginChange, err = api.core.GetLastLoginChange(groupCtx, user.GetId())
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		hasPassword, err = api.core.HasPassword(groupCtx, user.GetId())
-		return connectError(err)
+		return err
 	})
 	if err := group.Wait(); err != nil {
 		return nil, err
@@ -270,52 +270,52 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 	group.Go(func() error {
 		var err error
 		canManageInvites, err = api.core.HasServerPermission(groupCtx, userID, core.PermUserInvite)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canViewAdmin, err = api.core.HasAnyAdminPermission(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canStartDMs, err = api.core.CanStartDM(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canAdminViewUsers, err = api.core.CanAdminUsersView(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canAdminManageAccounts, err = api.core.CanManageUserAccounts(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canAssignRoles, err = api.core.CanAssignRoles(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canAdminManageRoles, err = api.core.CanManageRoles(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canManageUserPermissions, err = api.core.CanManageUserPermissions(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canAdminViewSystem, err = api.core.CanAdminSystemView(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
 		canAdminViewAudit, err = api.core.CanAdminAuditView(groupCtx, userID)
-		return connectError(err)
+		return err
 	})
 	group.Go(func() error {
 		var err error
@@ -323,7 +323,7 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 			core.LegacySpaceIDForRoomKind(core.KindChannel),
 			core.LegacySpaceIDForRoomKind(core.KindDM),
 		})
-		return connectError(err)
+		return err
 	})
 	if err := group.Wait(); err != nil {
 		return nil, err

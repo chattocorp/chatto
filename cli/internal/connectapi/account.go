@@ -31,7 +31,7 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 
 	updated, err := s.api.core.UpdateOwnUserProfile(ctx, caller.UserID, req.Msg.Login, req.Msg.DisplayName, req.Msg.Bio)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	user, err := requiredUserSummary(ctx, s.api, updated)
@@ -50,23 +50,23 @@ func (s *accountService) ChangePassword(ctx context.Context, req *connect.Reques
 		return nil, invalidArgument("password is required")
 	}
 	if err := core.ValidatePassword(req.Msg.GetPassword()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	hasPassword, err := s.api.core.HasPassword(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !hasPassword {
 		if err := s.api.requireFreshCredential(ctx, caller, ""); err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 	}
 	if err := s.api.core.SetOwnPassword(ctx, caller.UserID, req.Msg.GetCurrentPassword(), req.Msg.GetPassword()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	user, err := s.api.core.GetUser(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	responseUser, err := requiredUserSummary(ctx, s.api, user)
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *accountService) ListVerifiedEmails(ctx context.Context, req *connect.Re
 	}
 	emails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListVerifiedEmailsResponse{VerifiedEmails: verifiedEmailsToAPI(emails)}), nil
 }
@@ -104,7 +104,7 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 	address := strings.ToLower(strings.TrimSpace(req.Msg.GetEmail()))
 	verifiedEmails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	for _, verified := range verifiedEmails {
 		if strings.EqualFold(verified.Email, address) {
@@ -116,7 +116,7 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 		if errors.Is(err, core.ErrEmailVerificationCodeLimitExceeded) || errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
 			return nil, connect.NewError(connect.CodeResourceExhausted, err)
 		}
-		return nil, connectError(err)
+		return nil, err
 	}
 	serverName := "Chatto"
 	if model := s.api.core.ConfigModel(); model != nil {
@@ -150,11 +150,11 @@ func (s *accountService) ConfirmEmailVerification(ctx context.Context, req *conn
 		if errors.Is(err, core.ErrTokenNotFound) || errors.Is(err, core.ErrTokenExpired) || errors.Is(err, core.ErrEmailVerificationCodeInvalid) || errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid or expired verification code"))
 		}
-		return nil, connectError(err)
+		return nil, err
 	}
 	emails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ConfirmEmailVerificationResponse{VerifiedEmails: verifiedEmailsToAPI(emails)}), nil
 }
@@ -168,11 +168,11 @@ func (s *accountService) SetPrimaryEmail(ctx context.Context, req *connect.Reque
 		return nil, err
 	}
 	if err := s.api.core.SetPrimaryVerifiedEmail(ctx, caller.UserID, req.Msg.GetEmail()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	emails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.SetPrimaryEmailResponse{VerifiedEmails: verifiedEmailsToAPI(emails)}), nil
 }
@@ -222,7 +222,7 @@ func (s *accountService) GetSettings(ctx context.Context, _ *connect.Request[api
 	}
 	settings, err := s.api.core.GetUserSettings(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetSettingsResponse{Settings: coreUserSettingsToAPI(settings)}), nil
 }
@@ -252,7 +252,7 @@ func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Reques
 	}
 	settings, err := s.api.core.UpdateUserSettings(ctx, caller.UserID, input)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.UpdateSettingsResponse{
 		Settings: coreUserSettingsToAPI(settings),
@@ -267,7 +267,7 @@ func (s *accountService) RequestAccountDeletion(ctx context.Context, _ *connect.
 
 	token, err := s.api.core.CreateAccountDeletionToken(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RequestAccountDeletionResponse{
 		ConfirmationToken: token,
@@ -287,17 +287,17 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	// at token issuance in core.
 	canDeleteSelf, err := s.api.core.CanDeleteUser(ctx, caller.UserID, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !canDeleteSelf {
-		return nil, connectError(core.ErrPermissionDenied)
+		return nil, core.ErrPermissionDenied
 	}
 
 	if err := s.api.core.ValidateAccountDeletionToken(ctx, req.Msg.GetConfirmationToken(), caller.UserID); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if err := s.api.core.DeleteUser(ctx, caller.UserID, caller.UserID); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{}), nil
 }

@@ -28,7 +28,7 @@ func (s *voiceCallService) ListActiveCalls(ctx context.Context, _ *connect.Reque
 
 	roomIDs, err := s.api.core.GetActiveCallRoomIDs(ctx)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	calls := make([]*apiv1.ActiveCall, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
@@ -39,7 +39,7 @@ func (s *voiceCallService) ListActiveCalls(ctx context.Context, _ *connect.Reque
 				errors.Is(err, core.ErrNotRoomMember) {
 				continue
 			}
-			return nil, connectError(err)
+			return nil, err
 		}
 		calls = append(calls, call)
 	}
@@ -53,7 +53,7 @@ func (s *voiceCallService) GetActiveCall(ctx context.Context, req *connect.Reque
 	}
 	call, err := activeCall(ctx, s.api, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetActiveCallResponse{Call: call}), nil
 }
@@ -82,7 +82,7 @@ func (s *voiceCallService) BatchGetActiveCalls(ctx context.Context, req *connect
 				errors.Is(err, core.ErrNotRoomMember) {
 				continue
 			}
-			return nil, connectError(err)
+			return nil, err
 		}
 		calls = append(calls, call)
 	}
@@ -96,7 +96,7 @@ func (s *voiceCallService) ListCallParticipants(ctx context.Context, req *connec
 	}
 	room, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.ListCallParticipantsResponse{}), nil
@@ -104,7 +104,7 @@ func (s *voiceCallService) ListCallParticipants(ctx context.Context, req *connec
 
 	participants, err := s.api.core.GetCallParticipants(room.GetId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	responseParticipants := make([]*apiv1.CallParticipant, 0, len(participants))
@@ -126,13 +126,13 @@ func (s *voiceCallService) JoinCall(ctx context.Context, req *connect.Request[ap
 		return nil, err
 	}
 	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.JoinCallResponse{}), nil
 	}
 	if err := s.api.core.JoinVoiceCall(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.JoinCallResponse{Joined: true}), nil
 }
@@ -144,7 +144,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 	}
 	_, kind, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
@@ -152,18 +152,18 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 
 	permissions, err := s.api.core.AuthorizeCall(ctx, caller.UserID, req.Msg.GetRoomId(), false)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	user, err := s.api.core.GetUser(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	access, err := s.api.core.GetVoiceCallAccessMaterial(ctx, req.Msg.GetRoomId())
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
 		}
-		return nil, connectError(err)
+		return nil, err
 	}
 	avatarSize := 96
 	avatarURL, _ := s.api.core.GetUserAvatarURL(ctx, caller.UserID, &avatarSize, &avatarSize, "cover")
@@ -182,7 +182,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		access.CallID,
 	)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.CreateCallTokenResponse{
@@ -199,7 +199,7 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 	}
 	_, kind, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
@@ -215,14 +215,14 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 
 	permissions, err := s.api.core.AuthorizeCall(ctx, caller.UserID, req.Msg.GetRoomId(), false)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !permissions.ScreenShare {
-		return nil, connectError(core.ErrPermissionDenied)
+		return nil, core.ErrPermissionDenied
 	}
 	user, err := s.api.core.GetUser(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	access, err := s.api.core.GetVoiceCallPublisherAccessMaterial(ctx, req.Msg.GetRoomId(), caller.UserID)
 	if err != nil {
@@ -232,7 +232,7 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 		if errors.Is(err, core.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
 		}
-		return nil, connectError(err)
+		return nil, err
 	}
 	publisherIdentity := core.NewCallMediaPublisherID()
 	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
@@ -248,7 +248,7 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 		publisherKind,
 	)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.CreateCallMediaPublisherTokenResponse{
@@ -264,13 +264,13 @@ func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[a
 		return nil, err
 	}
 	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.LeaveCallResponse{}), nil
 	}
 	if err := s.api.core.RecordCallParticipantLeft(ctx, req.Msg.GetRoomId(), caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.LeaveCallResponse{Left: true}), nil
 }
@@ -314,7 +314,7 @@ func callParticipant(ctx context.Context, api *API, participant core.CallPartici
 		if errors.Is(err, core.ErrNotFound) {
 			return nil, nil
 		}
-		return nil, connectError(err)
+		return nil, err
 	}
 	avatarSize := 96
 	apiUser, err := userSummary(ctx, api, user, &apiv1.ImageTransformOptions{

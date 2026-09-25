@@ -317,8 +317,8 @@ func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing
 				Body:               "hello",
 				AttachmentAssetIds: tt.assetIDs,
 			}))
-			if connect.CodeOf(err) != tt.wantCode {
-				t.Fatalf("CreateMessage() code = %v, want %v", connect.CodeOf(err), tt.wantCode)
+			if errorCode(err) != tt.wantCode {
+				t.Fatalf("CreateMessage() code = %v, want %v", errorCode(err), tt.wantCode)
 			}
 		})
 	}
@@ -365,151 +365,151 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	adminMembers := adminv1connect.NewAdminUserServiceClient(ts.Client(), ts.URL)
 	adminServer := adminv1connect.NewAdminServerServiceClient(ts.Client(), ts.URL)
 
-	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetRoles code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{Names: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-name BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{Names: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-name BatchGetRoles code = %v, want invalid_argument", errorCode(err))
 	}
 	tooManyRoleNames := make([]string, 101)
 	for i := range tooManyRoleNames {
 		tooManyRoleNames[i] = fmt.Sprintf("role-%d", i)
 	}
-	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{Names: tooManyRoleNames})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{Names: tooManyRoleNames})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetRoles code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetRooms code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetRooms code = %v, want invalid_argument", errorCode(err))
 	}
 	tooManyRoomIDs := make([]string, 101)
 	for i := range tooManyRoomIDs {
 		tooManyRoomIDs[i] = fmt.Sprintf("room-%d", i)
 	}
-	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: tooManyRoomIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetRooms code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := roomDirectory.GetRoomGroup(context.Background(), connect.NewRequest(&apiv1.GetRoomGroupRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty GetRoomGroup code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roomDirectory.GetRoomGroup(context.Background(), connect.NewRequest(&apiv1.GetRoomGroupRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty GetRoomGroup code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetRoomGroups code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetRoomGroups code = %v, want invalid_argument", errorCode(err))
 	}
 	tooManyGroupIDs := make([]string, 101)
 	for i := range tooManyGroupIDs {
 		tooManyGroupIDs[i] = fmt.Sprintf("group-%d", i)
 	}
-	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: tooManyGroupIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: tooManyGroupIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetRoomGroups code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetUsers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetUsers code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetUsers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetUsers code = %v, want invalid_argument", errorCode(err))
 	}
 	tooManyUserIDs := make([]string, 101)
 	for i := range tooManyUserIDs {
 		tooManyUserIDs[i] = fmt.Sprintf("user-%d", i)
 	}
-	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetUsers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: tooManyUserIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetUsers code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetRoomMembers code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: "room", UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: "room", UserIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetRoomMembers code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{UserIds: []string{"user"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-room BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{UserIds: []string{"user"}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-room BatchGetRoomMembers code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: "room", UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: "room", UserIds: tooManyUserIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetRoomMembers code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetMessages code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: "room", EventIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: "room", EventIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetMessages code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{EventIds: []string{"event"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-room BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{EventIds: []string{"event"}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-room BatchGetMessages code = %v, want invalid_argument", errorCode(err))
 	}
 	tooManyEventIDs := make([]string, 101)
 	for i := range tooManyEventIDs {
 		tooManyEventIDs[i] = fmt.Sprintf("event-%d", i)
 	}
-	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: "room", EventIds: tooManyEventIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: "room", EventIds: tooManyEventIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetMessages code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetAssets code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{RoomId: "room", AssetIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{RoomId: "room", AssetIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetAssets code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{AssetIds: []string{"asset"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-room BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{AssetIds: []string{"asset"}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-room BatchGetAssets code = %v, want invalid_argument", errorCode(err))
 	}
 	tooManyAssetIDs := make([]string, 101)
 	for i := range tooManyAssetIDs {
 		tooManyAssetIDs[i] = fmt.Sprintf("asset-%d", i)
 	}
-	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{RoomId: "room", AssetIds: tooManyAssetIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{RoomId: "room", AssetIds: tooManyAssetIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetAssets code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := voice.GetActiveCall(context.Background(), connect.NewRequest(&apiv1.GetActiveCallRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty GetActiveCall code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := voice.GetActiveCall(context.Background(), connect.NewRequest(&apiv1.GetActiveCallRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty GetActiveCall code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetActiveCalls code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetActiveCalls code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{RoomIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetActiveCalls code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{RoomIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetActiveCalls code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetActiveCalls code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{RoomIds: tooManyRoomIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetActiveCalls code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := notificationPolicies.BatchGetNotificationPolicies(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetNotificationPolicies code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := notificationPolicies.BatchGetNotificationPolicies(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetNotificationPolicies code = %v, want invalid_argument", errorCode(err))
 	}
 	tooManyNotificationScopes := make([]*apiv1.NotificationPolicyScope, 101)
 	for index := range tooManyNotificationScopes {
 		tooManyNotificationScopes[index] = serverNotificationPolicyScope()
 	}
-	if _, err := notificationPolicies.BatchGetNotificationPolicies(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{Scopes: tooManyNotificationScopes})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetNotificationPolicies code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := notificationPolicies.BatchGetNotificationPolicies(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{Scopes: tooManyNotificationScopes})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetNotificationPolicies code = %v, want invalid_argument", errorCode(err))
 	}
 
-	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetMembers code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{UserIds: []string{""}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetMembers code = %v, want invalid_argument", errorCode(err))
 	}
-	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{UserIds: tooManyUserIDs})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetMembers code = %v, want invalid_argument", errorCode(err))
 	}
 
 	tooManyBlockedUsernames := make([]string, 1001)
 	for i := range tooManyBlockedUsernames {
 		tooManyBlockedUsernames[i] = fmt.Sprintf("blocked-%d", i)
 	}
-	if _, err := adminServer.UpdateBlockedUsernames(context.Background(), connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{BlockedUsernames: tooManyBlockedUsernames})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many UpdateBlockedUsernames code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := adminServer.UpdateBlockedUsernames(context.Background(), connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{BlockedUsernames: tooManyBlockedUsernames})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many UpdateBlockedUsernames code = %v, want invalid_argument", errorCode(err))
 	}
 }
 
@@ -548,7 +548,7 @@ func TestConnectErrorMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := connect.CodeOf(connectError(tt.err)); got != tt.code {
+			if got := errorCode(connectError(tt.err)); got != tt.code {
 				t.Fatalf("connectError code = %v, want %v", got, tt.code)
 			}
 		})

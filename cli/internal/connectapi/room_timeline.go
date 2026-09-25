@@ -39,21 +39,21 @@ func (s *roomService) GetRoomEvents(ctx context.Context, req *connect.Request[ap
 
 	result, err := s.api.core.RoomTimelineReads().GetRoomEvents(ctx, input)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	page := result.Page
 	resp, err := newRoomTimelineAssembler(s.api).buildPage(ctx, caller.UserID, result.Kind, page.Events, page.HasOlder, page.HasNewer)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	resp.StartCursor, err = s.api.formatRoomTimelineCursor(caller.UserID, req.Msg.RoomId, "", page.StartCursorSeq)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	resp.EndCursor, err = s.api.formatRoomTimelineCursor(caller.UserID, req.Msg.RoomId, "", page.EndCursorSeq)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetRoomEventsResponse{Page: resp}), nil
 }
@@ -65,21 +65,21 @@ func (s *roomService) GetRoomEventsAround(ctx context.Context, req *connect.Requ
 	}
 	result, err := s.api.core.RoomTimelineReads().GetRoomEventsAround(ctx, caller.UserID, req.Msg.RoomId, req.Msg.EventId, int(req.Msg.Limit))
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	around := result.Result
 	page, err := newRoomTimelineAssembler(s.api).buildPage(ctx, caller.UserID, result.Kind, around.Events, around.HasOlder, around.HasNewer)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if len(around.Events) > 0 {
 		page.StartCursor, err = s.api.formatRoomTimelineCursor(caller.UserID, req.Msg.RoomId, "", around.Events[0].Sequence)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		page.EndCursor, err = s.api.formatRoomTimelineCursor(caller.UserID, req.Msg.RoomId, "", around.Events[len(around.Events)-1].Sequence)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 	}
 
@@ -96,11 +96,11 @@ func (s *messageService) GetMessage(ctx context.Context, req *connect.Request[ap
 	}
 	result, err := s.api.core.RoomTimelineReads().GetMessage(ctx, caller.UserID, req.Msg.RoomId, req.Msg.EventId)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	events, _, err := newRoomTimelineAssembler(s.api).hydrateEvents(ctx, caller.UserID, result.Kind, []*core.RoomEvent{{Event: result.Event}})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	var message *apiv1.Message
 	if len(events) > 0 {
@@ -119,7 +119,7 @@ func (s *messageService) BatchGetMessages(ctx context.Context, req *connect.Requ
 	}
 	result, err := s.api.core.RoomTimelineReads().BatchGetMessages(ctx, caller.UserID, req.Msg.RoomId, req.Msg.GetEventIds())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	events := make([]*core.RoomEvent, 0, len(result.Events))
@@ -128,7 +128,7 @@ func (s *messageService) BatchGetMessages(ctx context.Context, req *connect.Requ
 	}
 	apiEvents, _, err := newRoomTimelineAssembler(s.api).hydrateEvents(ctx, caller.UserID, result.Kind, events)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	messages := make([]*apiv1.Message, 0, len(apiEvents))
 	for _, event := range apiEvents {
@@ -163,12 +163,12 @@ func (s *threadService) GetThreadEvents(ctx context.Context, req *connect.Reques
 
 	result, err := s.api.core.RoomTimelineReads().GetThreadEvents(ctx, input)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	page, err := newRoomTimelineAssembler(s.api).buildThreadPage(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, result.Kind, result.Root, result.Replies, result.IncludeRoot)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetThreadEventsResponse{Page: page}), nil
 }
@@ -180,11 +180,11 @@ func (s *threadService) GetThreadEventsAround(ctx context.Context, req *connect.
 	}
 	result, err := s.api.core.RoomTimelineReads().GetThreadEventsAround(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, req.Msg.EventId, int(req.Msg.Limit))
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	page, err := newRoomTimelineAssembler(s.api).buildThreadPage(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId, result.Kind, result.Root, result.Replies, true)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.GetThreadEventsAroundResponse{

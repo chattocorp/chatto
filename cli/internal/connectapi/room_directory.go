@@ -21,7 +21,7 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 	}
 	archiveFilter, err := coreRoomArchiveFilter(req.Msg.GetArchiveFilter())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	limit, offset := apiPagination(req.Msg.GetPage(), 50, 100)
@@ -32,14 +32,14 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 		ArchiveFilter:   archiveFilter,
 	}, limit, offset)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	apiRooms := make([]*apiv1.RoomWithViewerState, 0, len(page.Rooms))
 	for _, room := range page.Rooms {
 		apiRoom, err := s.api.apiRoomWithViewerState(ctx, caller.UserID, room)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		apiRooms = append(apiRooms, apiRoom)
 	}
@@ -68,7 +68,7 @@ func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.
 
 	groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(ctx, caller.UserID, core.RoomDirectoryGroupOptions{})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	apiGroups := make([]*apiv1.RoomGroup, 0, len(groups))
@@ -86,7 +86,7 @@ func (s *roomDirectoryService) GetRoomGroup(ctx context.Context, req *connect.Re
 
 	group, err := s.api.core.RoomDirectoryReads().GetRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId(), core.RoomDirectoryGroupOptions{})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetRoomGroupResponse{Group: apiRoomGroup(group)}), nil
 }
@@ -99,7 +99,7 @@ func (s *roomDirectoryService) BatchGetRoomGroups(ctx context.Context, req *conn
 
 	groups, err := s.api.core.RoomDirectoryReads().BatchGetRoomGroups(ctx, caller.UserID, req.Msg.GetGroupIds(), core.RoomDirectoryGroupOptions{})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	apiGroups := make([]*apiv1.RoomGroup, 0, len(groups))
@@ -117,11 +117,11 @@ func (s *roomDirectoryService) GetRoom(ctx context.Context, req *connect.Request
 
 	room, err := s.api.core.RoomDirectoryReads().GetRoom(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	apiRoom, err := s.api.apiRoomWithViewerState(ctx, caller.UserID, room)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetRoomResponse{Room: apiRoom}), nil
 }
@@ -134,14 +134,14 @@ func (s *roomDirectoryService) BatchGetRooms(ctx context.Context, req *connect.R
 
 	rooms, err := s.api.core.RoomDirectoryReads().BatchGetRooms(ctx, caller.UserID, req.Msg.GetRoomIds())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	apiRooms := make([]*apiv1.RoomWithViewerState, 0, len(rooms))
 	for _, room := range rooms {
 		apiRoom, err := s.api.apiRoomWithViewerState(ctx, caller.UserID, room)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		apiRooms = append(apiRooms, apiRoom)
 	}

@@ -55,7 +55,7 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 	}
 
 	if _, err := s.api.core.SavePushSubscriptionForClientWithCleanupToken(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, req.Msg.GetClientHost(), req.Msg.GetCleanupToken()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.SubscribeResponse{}), nil
@@ -68,7 +68,7 @@ func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.
 	}
 
 	if err := s.api.core.DeletePushSubscription(ctx, caller.UserID, req.Msg.GetEndpoint()); err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&apiv1.UnsubscribeResponse{}), nil

@@ -15,21 +15,21 @@ import (
 func TestAdminRoleMembersPaginationAndAuthorization(t *testing.T) {
 	env := newConnectAPITestEnvWithTimeout(t, 2*time.Minute)
 	request := connect.NewRequest(&adminv1.AdminRoleServiceListMembersRequest{Name: "missing"})
-	if _, err := env.roles.ListMembers(env.ctx, request); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.roles.ListMembers(env.ctx, request); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("anonymous: %v", err)
 	}
 	ctx := withCaller(env.ctx, env.viewer)
-	if _, err := env.roles.ListMembers(ctx, request); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.roles.ListMembers(ctx, request); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("unauthorized missing role: %v", err)
 	}
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleAssign); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := env.roles.ListMembers(ctx, request); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err := env.roles.ListMembers(ctx, request); errorCode(err) != connect.CodeNotFound {
 		t.Fatalf("authorized missing role: %v", err)
 	}
 	// Assignment authority alone must not grant the broader admin user directory.
-	if _, err := env.adminUsers.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.adminUsers.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); errorCode(err) != connect.CodePermissionDenied {
 		t.Fatalf("admin directory: %v", err)
 	}
 	if _, err := env.core.CreateServerRole(env.ctx, core.SystemActorID, "paged", "Paged", ""); err != nil {
@@ -76,7 +76,7 @@ func TestAdminRoleMembersPaginationAndAuthorization(t *testing.T) {
 		})
 	}
 	for _, page := range []*apiv1.PageRequest{{Limit: -1}, {Offset: -1}} {
-		if _, err := env.roles.ListMembers(ctx, connect.NewRequest(&adminv1.AdminRoleServiceListMembersRequest{Name: "paged", Page: page})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		if _, err := env.roles.ListMembers(ctx, connect.NewRequest(&adminv1.AdminRoleServiceListMembersRequest{Name: "paged", Page: page})); errorCode(err) != connect.CodeInvalidArgument {
 			t.Fatalf("invalid page: %v", err)
 		}
 	}

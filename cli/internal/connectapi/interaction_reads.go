@@ -14,7 +14,7 @@ func (s *messageService) ListReactionUsers(ctx context.Context, req *connect.Req
 	limit, offset := apiPagination(req.Msg.GetPage(), 50, 100)
 	page, err := s.api.core.RoomTimelineReads().ListReactionUsers(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetMessageEventId(), req.Msg.GetEmoji(), limit, offset)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListReactionUsersResponse{UserIds: page.UserIDs, Page: apiPageInfo(page.TotalCount, page.HasMore)}), nil
 }
@@ -27,7 +27,7 @@ func (s *threadService) ListThreadParticipants(ctx context.Context, req *connect
 	limit, offset := apiPagination(req.Msg.GetPage(), 50, 100)
 	page, err := s.api.core.RoomTimelineReads().ListThreadParticipants(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetThreadRootEventId(), limit, offset)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListThreadParticipantsResponse{UserIds: page.UserIDs, Page: apiPageInfo(page.TotalCount, page.HasMore)}), nil
 }

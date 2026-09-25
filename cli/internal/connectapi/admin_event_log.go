@@ -29,7 +29,7 @@ func (s *adminEventLogService) ListEvents(ctx context.Context, req *connect.Requ
 		Filter: filter,
 	})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(adminEventLogConnectionToAPI(conn)), nil
 }
@@ -41,7 +41,7 @@ func (s *adminEventLogService) ListEventTypes(ctx context.Context, _ *connect.Re
 	}
 	eventTypes, err := s.api.core.EventLogEventTypes(ctx, caller.UserID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&adminv1.ListEventTypesResponse{EventTypes: eventTypes}), nil
 }
@@ -53,10 +53,10 @@ func (s *adminEventLogService) GetEvent(ctx context.Context, req *connect.Reques
 	}
 	entry, err := s.api.core.GetEventLogEntry(ctx, caller.UserID, req.Msg.GetSequence())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if entry == nil {
-		return nil, connectError(core.ErrNotFound)
+		return nil, core.ErrNotFound
 	}
 	return connect.NewResponse(&adminv1.GetEventResponse{
 		Entry: adminEventLogEntryToAPI(entry),

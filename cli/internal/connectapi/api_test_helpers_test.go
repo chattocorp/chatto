@@ -29,7 +29,7 @@ import (
 
 func requireConnectCode(t testing.TB, err error, want connect.Code) {
 	t.Helper()
-	if got := connect.CodeOf(err); got != want {
+	if got := errorCode(err); got != want {
 		t.Fatalf("connect code = %v, want %v (err = %v)", got, want, err)
 	}
 }

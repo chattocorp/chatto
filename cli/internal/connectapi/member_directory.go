@@ -35,7 +35,7 @@ func (s *userService) ListUsers(ctx context.Context, req *connect.Request[apiv1.
 	limit, offset := userDirectoryPagination(req.Msg.GetPage())
 	members, totalCount, err := s.api.core.GetServerMembers(ctx, req.Msg.GetSearch(), limit, offset)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	out := make([]*apiv1.DirectoryMember, 0, len(members))
@@ -47,7 +47,7 @@ func (s *userService) ListUsers(ctx context.Context, req *connect.Request[apiv1.
 				skipped++
 				continue
 			}
-			return nil, connectError(err)
+			return nil, err
 		}
 		apiMember, err := directoryMember(ctx, s.api, user, member.Roles)
 		if err != nil {
@@ -82,7 +82,7 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 		return nil, invalidArgument("user_id or login is required")
 	}
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	member, err := serverMemberForUser(ctx, s.api, user)
 	if err != nil {
@@ -107,7 +107,7 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 	}
 	members, err := (&directoryUserAssembler{api: s.api}).assemble(ctx, ids)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.BatchGetUsersResponse{Users: members}), nil
 }
@@ -126,7 +126,7 @@ func (s *userService) UploadAvatar(ctx context.Context, req *connect.Request[api
 	}
 	user, err := s.api.core.UpdateUserAvatar(ctx, caller.UserID, req.Msg.GetUserId(), bytes.NewReader(image.GetImage()))
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	responseUser, err := requiredUserSummary(ctx, s.api, user)
 	if err != nil {
@@ -145,7 +145,7 @@ func (s *userService) DeleteAvatar(ctx context.Context, req *connect.Request[api
 	}
 	user, err := s.api.core.ClearUserAvatar(ctx, caller.UserID, req.Msg.GetUserId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	responseUser, err := requiredUserSummary(ctx, s.api, user)
 	if err != nil {
@@ -162,14 +162,14 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 
 	ids, err := s.api.core.ListActiveRoomMemberIDs(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 
 	query := strings.ToLower(strings.TrimSpace(req.Msg.GetSearch()))
 	if query != "" {
 		users, err := s.api.core.ListRoomMemberReferencesForList(ctx, caller.UserID, req.Msg.GetRoomId())
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		ids = ids[:0]
 		for _, user := range users {
@@ -182,7 +182,7 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 	if len(req.Msg.GetPresenceStatuses()) > 0 {
 		presences, err := s.api.core.GetUserPresences(ctx, ids)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		wanted := make(map[apiv1.PresenceStatus]bool, len(req.Msg.GetPresenceStatuses()))
 		for _, status := range req.Msg.GetPresenceStatuses() {
@@ -213,11 +213,11 @@ func (s *roomService) GetMember(ctx context.Context, req *connect.Request[apiv1.
 
 	users, err := s.api.core.GetRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId(), []string{req.Msg.GetUserId()})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	user := findCoreUserByID(users, req.Msg.GetUserId())
 	if user == nil {
-		return nil, connectError(core.ErrNotFound)
+		return nil, core.ErrNotFound
 	}
 	member, err := directoryMember(ctx, s.api, user, nil)
 	if err != nil {
@@ -234,7 +234,7 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 
 	users, err := s.api.core.GetRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetUserIds())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	usersByID := make(map[string]*evtv1.User, len(users))
 	for _, user := range users {
@@ -265,7 +265,7 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 func serverMemberForUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.DirectoryMember, error) {
 	assigned, err := api.core.GetUserRoles(ctx, user.GetId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	var roles []string
 	if !user.GetIsBot() {
@@ -277,7 +277,7 @@ func serverMemberForUser(ctx context.Context, api *API, user *evtv1.User) (*apiv
 func directoryMember(ctx context.Context, api *API, user *evtv1.User, roles []string) (*apiv1.DirectoryMember, error) {
 	presence, err := api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return directoryMemberWithPresence(ctx, api, user, roles, presence)
 }

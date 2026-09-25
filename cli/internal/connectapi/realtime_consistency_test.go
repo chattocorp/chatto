@@ -39,8 +39,8 @@ func TestRealtimeConsistencyInterceptorValidatesViewerBoundCursor(t *testing.T) 
 		t.Fatalf("CreateUser: %v", err)
 	}
 	called = false
-	if _, err := wrapped(withCaller(env.ctx, other), request); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("foreign cursor code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := wrapped(withCaller(env.ctx, other), request); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("foreign cursor code = %v, want invalid_argument", errorCode(err))
 	}
 	if called {
 		t.Fatal("foreign cursor invoked handler")
@@ -71,12 +71,12 @@ func TestRealtimeConsistencyInterceptorDoesNotRunHandlerOnLagTimeout(t *testing.
 	)
 	ctx, cancel := context.WithTimeout(withCaller(env.ctx, env.viewer), 25*time.Millisecond)
 	defer cancel()
-	if _, err := wrapped(ctx, request); connect.CodeOf(err) != connect.CodeDeadlineExceeded {
-		t.Fatalf("lag timeout code = %v, want deadline_exceeded", connect.CodeOf(err))
+	if _, err := wrapped(ctx, request); errorCode(err) != connect.CodeDeadlineExceeded {
+		t.Fatalf("lag timeout code = %v, want deadline_exceeded", errorCode(err))
 	}
 	canceled, cancelNow := context.WithCancel(withCaller(env.ctx, env.viewer))
 	cancelNow()
-	if _, err := wrapped(canceled, request); connect.CodeOf(err) != connect.CodeCanceled {
-		t.Fatalf("cancellation code = %v, want canceled", connect.CodeOf(err))
+	if _, err := wrapped(canceled, request); errorCode(err) != connect.CodeCanceled {
+		t.Fatalf("cancellation code = %v, want canceled", errorCode(err))
 	}
 }

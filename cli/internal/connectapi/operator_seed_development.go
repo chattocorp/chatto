@@ -22,7 +22,7 @@ func (s *operatorSeedService) SeedData(ctx context.Context, req *connect.Request
 	r, err := s.api.core.SeedData(ctx, core.SeedOptions{Seed: req.Msg.Seed,
 		Users: int(req.Msg.Users), Rooms: int(req.Msg.Rooms), Messages: int(req.Msg.Messages), ThreadReplies: int(req.Msg.ThreadReplies)})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	response := &operatorv1.SeedDataResponse{Version: r.Version, Seed: r.Seed}
 	for _, user := range r.Users {

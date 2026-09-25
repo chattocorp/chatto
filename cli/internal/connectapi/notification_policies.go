@@ -62,15 +62,15 @@ func (s *notificationPolicyService) GetNotificationPolicy(ctx context.Context, r
 	}
 	scope, err := coreNotificationPolicyScope(req.Msg.GetScope())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	policy, err := s.api.core.NotificationPolicy().GetScopedNotificationPolicy(ctx, caller.UserID, scope)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := apiScopedNotificationPolicy(policy)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.NotificationPolicyServiceGetNotificationPolicyResponse{Policy: mapped}), nil
 }
@@ -84,19 +84,19 @@ func (s *notificationPolicyService) BatchGetNotificationPolicies(ctx context.Con
 	for _, requested := range req.Msg.GetScopes() {
 		scope, err := coreNotificationPolicyScope(requested)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		scopes = append(scopes, scope)
 	}
 	policies, err := s.api.core.NotificationPolicy().BatchGetNotificationPolicies(ctx, caller.UserID, scopes)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	result := make([]*apiv1.ScopedNotificationPolicy, 0, len(policies))
 	for _, policy := range policies {
 		mapped, err := apiScopedNotificationPolicy(policy)
 		if err != nil {
-			return nil, connectError(err)
+			return nil, err
 		}
 		result = append(result, mapped)
 	}
@@ -114,19 +114,19 @@ func (s *notificationPolicyService) UpdateNotificationPolicy(ctx context.Context
 	}
 	scope, err := coreNotificationPolicyScope(req.Msg.GetScope())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	overrides, err := coreNotificationDeliveryModes(req.Msg.GetOverrides())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	policy, err := s.api.core.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, caller.UserID, scope, overrides, req.Msg.GetUpdateMask())
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	mapped, err := apiScopedNotificationPolicy(policy)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.NotificationPolicyServiceUpdateNotificationPolicyResponse{Policy: mapped}), nil
 }

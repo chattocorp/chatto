@@ -22,11 +22,11 @@ func (s *roomService) ListPinnedMessages(ctx context.Context, req *connect.Reque
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultPinnedMessageListLimit, maxPinnedMessageListLimit)
 	result, err := s.api.core.RoomTimelineReads().ListPinnedMessages(ctx, core.PinnedMessageListInput{ActorID: caller.UserID, RoomID: req.Msg.GetRoomId(), Limit: limit, Offset: offset})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	items, err := newPinnedMessageAssembler(s.api).assemble(ctx, caller.UserID, result.Items)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListPinnedMessagesResponse{
 		PinnedMessages:  items,
@@ -42,18 +42,18 @@ func (s *roomService) CreatePinnedMessage(ctx context.Context, req *connect.Requ
 	}
 	pin, err := s.api.core.RoomCommands().CreatePinnedMessage(ctx, core.PinnedMessageMutationInput{ActorID: caller.UserID, RoomID: req.Msg.GetRoomId(), MessageEventID: req.Msg.GetMessageEventId()})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	result, err := s.api.core.RoomTimelineReads().GetMessage(ctx, caller.UserID, req.Msg.GetRoomId(), pin.MessageEventID)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	pinned, err := newPinnedMessageAssembler(s.api).assemble(ctx, caller.UserID, []core.PinnedMessageItem{{Pin: pin, Event: result.Event}})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	if len(pinned) != 1 {
-		return nil, connectError(errors.New("pinned message hydration returned no result"))
+		return nil, errors.New("pinned message hydration returned no result")
 	}
 	return connect.NewResponse(&apiv1.CreatePinnedMessageResponse{PinnedMessage: pinned[0]}), nil
 }
@@ -65,7 +65,7 @@ func (s *roomService) DeletePinnedMessage(ctx context.Context, req *connect.Requ
 	}
 	deleted, err := s.api.core.RoomCommands().DeletePinnedMessage(ctx, core.PinnedMessageMutationInput{ActorID: caller.UserID, RoomID: req.Msg.GetRoomId(), MessageEventID: req.Msg.GetMessageEventId()})
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeletePinnedMessageResponse{Deleted: deleted}), nil
 }

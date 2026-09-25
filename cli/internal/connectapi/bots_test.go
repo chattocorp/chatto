@@ -122,8 +122,8 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	_, err = service.ReassignBotOwner(ctx, connect.NewRequest(&apiv1.ReassignBotOwnerRequest{
 		BotUserId: bot.GetUser().GetId(), OwnerUserId: recipient.GetId(),
 	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("owner-only ReassignBotOwner code = %v, want permission denied", connect.CodeOf(err))
+	if errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("owner-only ReassignBotOwner code = %v, want permission denied", errorCode(err))
 	}
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.GetId(), core.PermBotManage); err != nil {
 		t.Fatalf("GrantUserPermission bot.manage: %v", err)
@@ -173,11 +173,11 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatal("bot unexpectedly granted dm.start capability")
 	}
 
-	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("bot caller ListBots code = %v, want failed precondition", connect.CodeOf(err))
+	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("bot caller ListBots code = %v, want failed precondition", errorCode(err))
 	}
-	if _, err := service.CreateBotIncomingWebhook(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Denied"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("bot caller CreateBotIncomingWebhook code = %v, want failed precondition", connect.CodeOf(err))
+	if _, err := service.CreateBotIncomingWebhook(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Denied"})); errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("bot caller CreateBotIncomingWebhook code = %v, want failed precondition", errorCode(err))
 	}
 
 	deleted, err := service.DeleteBot(ctx, connect.NewRequest(&apiv1.DeleteBotRequest{BotUserId: bot.GetUser().GetId()}))
@@ -191,8 +191,8 @@ func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "invalid!", DisplayName: "Invalid"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("CreateBot invalid login code = %v", connect.CodeOf(err))
+	if _, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "invalid!", DisplayName: "Invalid"})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("CreateBot invalid login code = %v", errorCode(err))
 	}
 	created, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "no-suffix", DisplayName: "Ceiling Bot"}))
 	if err != nil {
@@ -203,8 +203,8 @@ func TestBotServiceRejectsInvalidLoginAndOwnerCeiling(t *testing.T) {
 		Scope:    &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
 		Decision: adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
 	}))
-	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("over-ceiling code = %v, want failed precondition", connect.CodeOf(err))
+	if errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("over-ceiling code = %v, want failed precondition", errorCode(err))
 	}
 }
 
@@ -216,12 +216,12 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "bot-room-api", "")
 	require.NoError(t, err)
 	_, err = env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: bot.User.Id}))
-	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "owner can inspect its bot before joining")
+	require.Equal(t, connect.CodeNotFound, errorCode(err), "owner can inspect its bot before joining")
 	_, err = env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: env.viewer.Id}))
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "bot ownership must not authorize human lookups")
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err), "bot ownership must not authorize human lookups")
 	add := connect.NewRequest(&apiv1.AddMemberRequest{RoomId: room.Id, UserId: bot.User.Id})
 	_, err = env.rooms.AddMember(ctx, add)
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	require.NoError(t, env.core.SetUserPermissionState(env.ctx, env.viewer.Id, bot.User.Id,
 		core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.Id}, core.PermRoomJoin, core.PermissionStateAllow))
 	added, err := env.rooms.AddMember(ctx, add)
@@ -234,7 +234,7 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, batch.Msg.Members, 1)
 	_, err = env.rooms.BatchGetMembers(ctx, connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: room.Id, UserIds: []string{bot.User.Id, env.viewer.Id}}))
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "mixed lookups cannot expose other accounts")
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err), "mixed lookups cannot expose other accounts")
 	require.NoError(t, env.core.SetUserPermissionState(env.ctx, env.viewer.Id, bot.User.Id,
 		core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.Id}, core.PermRoomJoin, core.PermissionStateNone))
 	removed, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{RoomId: room.Id, UserId: bot.User.Id}))

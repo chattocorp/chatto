@@ -184,19 +184,19 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 	}
 	for _, scope := range []*adminv1.PermissionScope{{}, {Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM}, {Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER, Id: "bad"}} {
 		_, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{RoleName: core.RoleModerator, Scope: scope}))
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("invalid scope code=%v", connect.CodeOf(err))
+		if errorCode(err) != connect.CodeInvalidArgument {
+			t.Fatalf("invalid scope code=%v", errorCode(err))
 		}
 	}
 	_, err = env.permissions.ListRolePermissionDecisions(env.ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{RoleName: "missing"}))
-	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatal("anonymous read accepted")
 	}
 	if err := env.core.ClearUserPermissionState(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
 		t.Fatal(err)
 	}
 	_, err = env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{RoleName: "missing", Page: &apiv1.PageRequest{Offset: 20}}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("revoked reader code=%v", connect.CodeOf(err))
+	if errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("revoked reader code=%v", errorCode(err))
 	}
 }
