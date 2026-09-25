@@ -77,10 +77,7 @@ arrow aligned with the sidebar nav items below.
     lg: 'text-lg'
   };
 
-  const buttonClass = $derived([
-    'pane-header-icon-button',
-    toneClasses[tone]
-  ]);
+  const buttonClass = $derived(['pane-header-icon-button', toneClasses[tone]]);
   const glyphClass = $derived([
     'pane-header-icon-glyph',
     iconSizeClasses[iconSize],
