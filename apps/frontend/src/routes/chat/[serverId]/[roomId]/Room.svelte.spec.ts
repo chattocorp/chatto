@@ -906,6 +906,30 @@ describe('Room interaction bundles', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .not.toBeInTheDocument();
   });
+
+  it('keeps the room interactive while a mobile panel is hidden by the desktop layout', async () => {
+    const setMatchMedia = stubMatchMedia(false);
+    appUi.openMobileRoomSidebarPanel('files');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
+
+    await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]');
+    expect(roomMainPane.hasAttribute('inert')).toBe(true);
+
+    setMatchMedia(true);
+    await tick();
+    expect(roomMainPane.hasAttribute('inert')).toBe(false);
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .not.toBeInTheDocument();
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    expect(appUi.mobileRoomSidebarPanel).toBe('files');
+
+    setMatchMedia(false);
+    await tick();
+    expect(roomMainPane.hasAttribute('inert')).toBe(true);
+    await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]');
+  });
 });
 
 describe('Room local message echo', () => {
