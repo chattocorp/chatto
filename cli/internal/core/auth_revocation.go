@@ -12,7 +12,10 @@ type RuntimeCredentialRevocationResult struct {
 }
 
 // RevokeRuntimeCredentialsForUser deletes currently stored runtime credentials
-// for a user. The auth generation is the revocation guarantee; this scan is cleanup.
+// for a user. The auth generation is the revocation guarantee; this scan is
+// cleanup. Account deletion uses it to erase stored records. The scan reads every
+// runtime credential on the server, one key at a time, so password changes and
+// resets do not call it.
 func (c *ChattoCore) RevokeRuntimeCredentialsForUser(ctx context.Context, userID, reason string) (RuntimeCredentialRevocationResult, error) {
 	var result RuntimeCredentialRevocationResult
 

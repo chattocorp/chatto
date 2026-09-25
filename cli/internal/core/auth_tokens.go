@@ -383,15 +383,16 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 	return tokenData.UserID, true, nil
 }
 
-// RevokeAllAuthTokensForUser deletes all bearer tokens for a user. It is used
-// by password changes/resets and account deletion flows that need immediate
-// bearer-token revocation across clients.
+// RevokeAllAuthTokensForUser deletes all bearer tokens for a user. See
+// RevokeAllAuthTokensForUserWithReason for its cost.
 func (c *ChattoCore) RevokeAllAuthTokensForUser(ctx context.Context, userID string) (int, error) {
 	return c.RevokeAllAuthTokensForUserWithReason(ctx, userID, "explicit")
 }
 
 // RevokeAllAuthTokensForUserWithReason deletes every renewable bearer session
-// for a user and records one revocation audit fact per session.
+// for a user and records one revocation audit fact per session. The scan reads
+// every renewable session on the server, so do not call it on latency-sensitive
+// paths; password changes and resets revoke sessions through the auth generation.
 func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, userID, reason string) (int, error) {
 	if userID == "" {
 		return 0, nil
