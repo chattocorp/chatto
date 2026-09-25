@@ -78,9 +78,9 @@ type AuthTokenData struct {
 	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at,omitempty"`
 	// AuthGenerationRecorded marks a cookie record from a release that always
 	// records AuthGeneration, also when it is 0. A record without it may predate
-	// auth generations. Bearer access records do not set it: their renewable
-	// session holds the authoritative generation, and their encoding must stay
-	// the same across releases for the deterministic retry comparison.
+	// auth generations. Bearer access records do not set it: they always carry a
+	// renewable session ID and the generation of that session, and their encoding
+	// must stay the same across releases for the deterministic retry comparison.
 	AuthGenerationRecorded bool `json:"auth_generation_recorded,omitempty"`
 }
 
@@ -91,8 +91,21 @@ func (d AuthTokenData) runtimeCredential() RuntimeCredential {
 		UserID:                   d.UserID,
 		CreatedAt:                d.CreatedAt,
 		AuthGeneration:           d.AuthGeneration,
-		MayPredateAuthGeneration: !d.AuthGenerationRecorded,
+		MayPredateAuthGeneration: !d.AuthGenerationRecorded && d.RenewableSessionID == "",
 	}
+}
+
+// revokedByAuthGeneration reports whether a newer auth generation already
+// revoked a stored credential. Logout uses it so that a stale credential does
+// not count as a live logout that terminates the user's current sessions.
+func (c *ChattoCore) revokedByAuthGeneration(ctx context.Context, credential RuntimeCredential) (bool, error) {
+	if _, err := c.ValidateRuntimeCredential(ctx, credential); err != nil {
+		if errors.Is(err, ErrAuthenticationRevoked) {
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
 }
 
 // ValidatedRuntimeCredential is the normalized result of validating an opaque
@@ -353,7 +366,9 @@ func (c *ChattoCore) RevokeAuthTokenWithReason(ctx context.Context, token, reaso
 // RevokePresentedRuntimeCredentialWithReason deletes one opaque runtime
 // credential for the requested presentation channel. It returns the owning user
 // ID when the credential existed so HTTP-edge logout can apply one audit and
-// live-session termination flow for bearer and cookie presentations.
+// live-session termination flow for bearer and cookie presentations. A
+// credential that a newer auth generation already revoked is deleted and
+// reported as not revoked.
 func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Context, token string, presentation AuthTokenPresentation, reason string) (string, bool, error) {
 	if token == "" {
 		return "", false, nil
@@ -376,6 +391,15 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 		return "", true, fmt.Errorf("failed to unmarshal runtime credential for revocation: %w", err)
 	}
 	if tokenData.presentationOrDefault() != presentation {
+		return "", false, nil
+	}
+	if stale, err := c.revokedByAuthGeneration(ctx, tokenData.runtimeCredential()); err != nil {
+		return "", false, err
+	} else if stale {
+		if tokenData.RenewableSessionID != "" {
+			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(tokenData.RenewableSessionID))
+		}
+		_ = c.deleteRuntimeStateKey(ctx, key)
 		return "", false, nil
 	}
 

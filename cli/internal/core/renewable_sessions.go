@@ -509,7 +509,9 @@ func (c *ChattoCore) RevokeRefreshTokenWithReason(ctx context.Context, refreshTo
 
 // RevokeRefreshTokenWithReasonResult revokes a renewable session and returns
 // the owning user when the presented refresh credential was authentic and the
-// session still existed.
+// session still existed. A session that a newer auth generation already revoked
+// is deleted and reported as not revoked, so logout does not terminate the
+// user's current sessions.
 func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, refreshToken, reason string) (string, bool, error) {
 	sessionID, _, resourceBound, ok := c.parseRefreshTokenDetails(refreshToken)
 	if !ok {
@@ -523,6 +525,14 @@ func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, ref
 		return "", false, err
 	}
 	if renewableSessionIsResourceBound(session) != resourceBound {
+		return "", false, nil
+	}
+	if stale, err := c.revokedByAuthGeneration(ctx, RuntimeCredential{
+		UserID: session.UserID, CreatedAt: session.CreatedAt, AuthGeneration: session.AuthGeneration,
+	}); err != nil {
+		return "", false, err
+	} else if stale {
+		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID))
 		return "", false, nil
 	}
 	if err := c.revokeRenewableSession(ctx, sessionID, reason); err != nil {
