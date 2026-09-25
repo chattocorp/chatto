@@ -2,6 +2,7 @@ import { test, expect } from './setup';
 import type { Page } from '@playwright/test';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
+import { clearSavedViews } from './fixtures/savedViews';
 
 const VIEWER_RPC_PATH = '/api/connect/chatto.api.v1.ViewerService/GetViewer';
 const VIEWER_RPC_ROUTE = `**${VIEWER_RPC_PATH}`;
@@ -280,6 +281,10 @@ test.describe('Session Expiration Handling', () => {
     // Navigate and wait for full client-side initialization
     await gotoAndWaitForHydration(page, '/chat');
     await authPage.expectLoggedIn();
+
+    // Test live startup. A saved view keeps the page readable with a
+    // reauthentication notice instead of redirecting.
+    await clearSavedViews(page);
 
     // Intercept GetViewer to return an unauthenticated Connect error.
     await page.route(VIEWER_RPC_ROUTE, async (route) => {

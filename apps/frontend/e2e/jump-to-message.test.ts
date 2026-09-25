@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
+import { clearSavedViews } from './fixtures/savedViews';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   getIdsFromUrlViaConnect,
@@ -58,21 +59,6 @@ async function deferNextResponse(page: Page, url: string): Promise<DeferredReque
 
 async function deferNextAroundRequest(page: Page): Promise<DeferredRequest> {
   return deferNextResponse(page, GET_ROOM_EVENTS_AROUND_ROUTE);
-}
-
-/** Delete saved views from a page outside the app so no open connection blocks the deletion. */
-async function clearSavedViews(page: Page): Promise<void> {
-  await page.goto('/robots.txt');
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve, reject) => {
-        const request = indexedDB.deleteDatabase('chatto-saved-views');
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-        request.onblocked = () =>
-          reject(new Error('An open connection blocks saved-view deletion'));
-      })
-  );
 }
 
 async function navigateClientSide(page: Page, href: string): Promise<void> {
@@ -393,14 +379,13 @@ test.describe('jump to message', () => {
     // Establish a fully projected latest window before testing room-switch
     // cancellation. Otherwise the return navigation can fetch between the EVT
     // append and projection update, leaving this test waiting on unrelated
-    // projection convergence rather than the delayed jump response. Start
-    // without saved views: the saved window retains every message that
-    // arrived while the room was open, including the jump target.
-    await clearSavedViews(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
+    // projection convergence rather than the delayed jump response.
+    await page.reload();
     await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
+    // Open the permalink with live startup. A saved window can already contain
+    // the target, and the jump then needs no deferred read.
+    await clearSavedViews(page);
     const deferred = await deferNextAroundRequest(page);
     await page.goto(routes.messageLink(roomId, targetEventId));
     await deferred.waitUntilBlocked();
