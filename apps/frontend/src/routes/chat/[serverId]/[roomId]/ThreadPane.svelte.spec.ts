@@ -742,6 +742,27 @@ describe('ThreadPane', () => {
     expect(mocks.cancelReply).toHaveBeenCalledOnce();
   });
 
+  it('keeps a reply queued for the next thread when the pane switches to it', async () => {
+    const rendered = render(ThreadPane, { props: threadProps });
+    await tick();
+    const input = {
+      roomId: 'room-1',
+      threadRootEventId: 'thread-2',
+      reply: { eventId: 'reply-2', actorDisplayName: 'Bob', excerpt: 'hi' }
+    };
+
+    await rendered.rerender({
+      ...threadProps,
+      threadRootEventId: 'thread-2',
+      composerInput: input
+    });
+
+    await vi.waitFor(() => expect(mocks.startReply).toHaveBeenCalledOnce());
+    expect(mocks.cancelReply.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.startReply.mock.invocationCallOrder[0]
+    );
+  });
+
   it('starts a queued reply once the thread composer is ready', async () => {
     const onComposerInputConsumed = vi.fn();
     const input = {
