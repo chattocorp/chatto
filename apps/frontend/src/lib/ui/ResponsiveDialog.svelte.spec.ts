@@ -230,6 +230,7 @@ describe('responsive task dialogs', () => {
 		dialog.style.animation = 'none';
 		dialog.querySelector<HTMLButtonElement>('header button')!.click();
 		await expect.poll(() => dialog.open).toBe(false);
-		expect(onclose).toHaveBeenCalledOnce();
+		// `close()` clears `open` at once, but the `close` event is a later task.
+		await expect.poll(() => onclose.mock.calls.length).toBe(1);
 	});
 });
