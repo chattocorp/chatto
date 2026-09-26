@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -593,6 +594,90 @@ func TestMCPTokenVerifierAcceptsCurrentBotAPIKey(t *testing.T) {
 	}
 	if token.UserID != bot.User.GetId() || !slices.Equal(token.Scopes, config.MCPOAuthScopes()) {
 		t.Fatalf("bot token info = %#v", token)
+	}
+}
+
+// MCP tools must use the caller's credential. An internal context would give
+// an owner the owner override without privileged mode.
+func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
+	_, nc := testutil.StartSharedNATS(t)
+	chattoCore, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startTestCore(t, chattoCore)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	owner, err := chattoCore.CreateUser(ctx, core.SystemActorID, "mcp-owner", "MCP Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.AssignOwnerRole(ctx, owner.GetId()); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	group, err := chattoCore.CreateRoomGroup(ctx, core.SystemActorID, "MCP Owner Rooms", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	open, err := chattoCore.CreateRoom(ctx, core.SystemActorID, core.KindChannel, group.GetId(), "owner-open", "")
+	if err != nil {
+		t.Fatalf("CreateRoom open: %v", err)
+	}
+	restricted, err := chattoCore.CreateRoom(ctx, core.SystemActorID, core.KindChannel, group.GetId(), "owner-restricted", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := chattoCore.DenyRoomPermission(ctx, core.SystemActorID, restricted.GetId(), core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	generation, err := chattoCore.CurrentAuthGeneration(ctx, owner.GetId())
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	const resource = "https://chat.example/mcp"
+	credentials, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, owner.GetId(), "https://agent.example/client.json", resource, config.MCPOAuthScopes(), generation)
+	if err != nil {
+		t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
+	}
+	handler, err := NewHandler(chattoCore, config.ChattoConfig{
+		Webserver: config.WebserverConfig{URL: "https://chat.example"},
+		MCP:       config.MCPConfig{Enabled: true},
+	}, "test")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	httpClient := server.Client()
+	httpClient.Transport = canonicalHostTransport{base: httpClient.Transport, host: "chat.example"}
+	session, err := mcp.NewClient(&mcp.Implementation{Name: "chatto-test", Version: "test"}, nil).Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: server.URL + "/mcp", DisableStandaloneSSE: true,
+		HTTPClient:   httpClient,
+		OAuthHandler: staticOAuthHandler{token: credentials.AccessToken},
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect MCP client: %v", err)
+	}
+	defer session.Close()
+
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms", Arguments: map[string]any{"limit": 100}})
+	if err != nil {
+		t.Fatalf("CallTool list_rooms: %v", err)
+	}
+	var output listRoomsOutput
+	decodeStructuredContent(t, result.StructuredContent, &output)
+	if !roomResultsContain(output.Rooms, open.GetId()) {
+		t.Fatalf("list_rooms = %#v, want the open room", output.Rooms)
+	}
+	if roomResultsContain(output.Rooms, restricted.GetId()) {
+		t.Fatal("owner MCP session listed a room that only the owner override allows")
+	}
+	// Resource-bound MCP tokens cannot activate privileged mode.
+	if _, err := chattoCore.SetBearerPrivilegedMode(ctx, credentials.AccessToken, true); !errors.Is(err, core.ErrAuthTokenNotFound) {
+		t.Fatalf("SetBearerPrivilegedMode error = %v, want ErrAuthTokenNotFound", err)
 	}
 }
 

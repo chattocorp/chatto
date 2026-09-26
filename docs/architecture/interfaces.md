@@ -142,7 +142,7 @@ writes do not contact the advertised origins.
 background Neighborhood discovery without a session. The call reads
 `neighborhood.directory` from `MEMORY_CACHE` and never contacts another server.
 Its logo and banner URLs use the public `/assets/neighborhood/{sha256}` route.
-See [ADR-105](../adr/ADR-105-server-side-neighborhood-discovery.md).
+See [ADR-106](../adr/ADR-106-server-side-neighborhood-discovery.md).
 
 Public `User` resources expose `bot: BotInfo` for active bots in ordinary
 reads, administrator lists, and realtime snapshot hydration. The bot profile

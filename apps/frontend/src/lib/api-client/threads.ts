@@ -60,6 +60,11 @@ export function createThreadAPI(config: ConnectAPIConfig) {
         query?: string;
         /** Continuation for a non-empty search query. Offset is ignored in this mode. */
         cursor?: string;
+        /**
+         * Ask the server for unread threads only. Ignored in search mode. Servers
+         * without `followedThreadUnreadFilter` support ignore it and return all threads.
+         */
+        unreadOnly?: boolean;
       },
       options: { signal?: AbortSignal } = {}
     ): Promise<FollowedThreadsPage> {
@@ -67,6 +72,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
         const query = input.query?.trim();
         const request = {
           includeDirectMessageThreads: true,
+          unreadOnly: input.unreadOnly ?? false,
           page: { limit: input.limit, offset: input.offset }
         };
         const requestOptions = {

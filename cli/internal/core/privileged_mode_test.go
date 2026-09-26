@@ -380,3 +380,136 @@ func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
 		t.Fatalf("unarmed removal: %v", err)
 	}
 }
+
+// An owner without active privileged mode resolves like any other human.
+func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "gated-owner", "Gated Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if err := c.AssignOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	other, err := c.CreateUser(ctx, SystemActorID, "gated-other", "Gated Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	group, err := c.CreateRoomGroup(ctx, SystemActorID, "Gated", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	open, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "open", "")
+	if err != nil {
+		t.Fatalf("CreateRoom open: %v", err)
+	}
+	restricted, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "restricted", "")
+	if err != nil {
+		t.Fatalf("CreateRoom restricted: %v", err)
+	}
+	for _, perm := range []Permission{PermRoomList, PermRoomJoin, PermMessageRead} {
+		if err := c.DenyRoomPermission(ctx, SystemActorID, restricted.Id, RoleEveryone, perm); err != nil {
+			t.Fatalf("DenyRoomPermission %s: %v", perm, err)
+		}
+	}
+	dm, _, err := c.FindOrCreateDM(ctx, owner.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, other.Id, "gated_checker", "Gated Checker")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	session := func(userID string, deadline time.Time) context.Context {
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Kind:                    authctx.RuntimeCredentialKindCookieSession,
+			UserID:                  userID,
+			Handle:                  "gated-session-" + userID,
+			PrivilegedModeExpiresAt: deadline,
+		})
+	}
+	contexts := []struct {
+		name       string
+		ctx        context.Context
+		overridden bool
+	}{
+		{"inactive", session(owner.Id, time.Time{}), false},
+		{"expired", session(owner.Id, time.Now().Add(-time.Second)), false},
+		{"active", session(owner.Id, time.Now().Add(time.Minute)), true},
+		{"other human", session(other.Id, time.Now().Add(time.Minute)), false},
+		{"bot key", authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Kind:   authctx.RuntimeCredentialKindBotAPIKey,
+			UserID: bot.User.Id,
+			Handle: bot.User.Id,
+		}), false},
+		{"fixed inactive evaluation", withPrivilegedModeEvaluation(session(owner.Id, time.Now().Add(time.Minute)), owner.Id, false), false},
+		{"fixed active evaluation", withPrivilegedModeEvaluation(ctx, owner.Id, true), true},
+		{"internal", ctx, true},
+	}
+	for _, tc := range contexts {
+		t.Run(tc.name, func(t *testing.T) {
+			checks := []struct {
+				name  string
+				check func(context.Context) (bool, error)
+				want  bool
+			}{
+				{"see restricted", func(ctx context.Context) (bool, error) {
+					return c.CanSeeRoom(ctx, owner.Id, KindChannel, restricted.Id)
+				}, tc.overridden},
+				{"join restricted", func(ctx context.Context) (bool, error) {
+					return c.CanJoinRoomAt(ctx, owner.Id, KindChannel, restricted.Id)
+				}, tc.overridden},
+				{"read restricted", func(ctx context.Context) (bool, error) {
+					return c.CanReadMessages(ctx, owner.Id, KindChannel, restricted.Id)
+				}, tc.overridden},
+				{"server.manage", func(ctx context.Context) (bool, error) {
+					return c.HasServerPermission(ctx, owner.Id, PermServerManage)
+				}, tc.overridden},
+				{"see open", func(ctx context.Context) (bool, error) {
+					return c.CanSeeRoom(ctx, owner.Id, KindChannel, open.Id)
+				}, true},
+				{"read open", func(ctx context.Context) (bool, error) {
+					return c.CanReadMessages(ctx, owner.Id, KindChannel, open.Id)
+				}, true},
+				{"read DM", func(ctx context.Context) (bool, error) {
+					return c.CanReadMessages(ctx, owner.Id, KindDM, dm.Id)
+				}, true},
+			}
+			for _, check := range checks {
+				if got, err := check.check(tc.ctx); err != nil || got != check.want {
+					t.Errorf("%s = %v, %v; want %v, nil", check.name, got, err, check.want)
+				}
+			}
+
+			explanation, err := c.PermResolver().ExplainRoomPermission(tc.ctx, owner.Id, KindChannel, restricted.Id, PermMessageRead)
+			if err != nil {
+				t.Fatalf("ExplainRoomPermission: %v", err)
+			}
+			if tc.overridden {
+				if explanation.State != DecisionAllow || explanation.DecidedByRole != RoleOwner {
+					t.Errorf("explanation = %s by %q; want allow by owner", explanation.State, explanation.DecidedByRole)
+				}
+			} else if explanation.State != DecisionDeny || explanation.DecidedByRole != RoleEveryone {
+				t.Errorf("explanation = %s by %q; want deny by everyone", explanation.State, explanation.DecidedByRole)
+			}
+
+			// Entitlement keeps the owner override for discovery and ceilings.
+			if available, err := c.HasAnyPrivilegedModeEntitlement(tc.ctx, owner.Id); err != nil || !available {
+				t.Errorf("privileged-mode entitlement = %v, %v; want true, nil", available, err)
+			}
+			if decision, err := c.PermResolver().resolveEntitlement(tc.ctx, owner.Id, KindChannel, restricted.Id, "", PermMessageRead); err != nil || decision != DecisionAllow {
+				t.Errorf("entitlement message.read = %s, %v; want allow, nil", decision, err)
+			}
+		})
+	}
+
+	// Ordinary grants still apply to an owner outside privileged mode.
+	if err := c.GrantUserRoomPermission(ctx, SystemActorID, restricted.Id, owner.Id, PermRoomJoin); err != nil {
+		t.Fatalf("GrantUserRoomPermission: %v", err)
+	}
+	if allowed, err := c.CanJoinRoomAt(session(owner.Id, time.Time{}), owner.Id, KindChannel, restricted.Id); err != nil || !allowed {
+		t.Fatalf("inactive join with direct grant = %v, %v; want true, nil", allowed, err)
+	}
+}

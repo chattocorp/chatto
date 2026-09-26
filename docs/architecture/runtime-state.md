@@ -201,7 +201,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 | --- | --- |
 | `{sha256}` | Lowercase hexadecimal SHA-256 of a WebP image that Neighborhood discovery re-encoded from a remote logo or banner. `GET /assets/neighborhood/{sha256}` serves it publicly. |
 
-Notes: Backups skip this bucket. Discovery rewrites an image that the current directory still uses after three days, so only unused images reach the seven-day TTL. See [ADR-105](../adr/ADR-105-server-side-neighborhood-discovery.md).
+Notes: Backups skip this bucket. Discovery rewrites an image that the current directory still uses after three days, so only unused images reach the seven-day TTL. See [ADR-106](../adr/ADR-106-server-side-neighborhood-discovery.md).
 
 **PROJECTION_SNAPSHOTS keys:**
 

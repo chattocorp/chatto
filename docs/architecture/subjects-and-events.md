@@ -129,8 +129,8 @@ process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
 Ingress rejects non-deliverable event types from their subjects before protobuf
 decoding, including private `message_body` facts. It then decodes each event and
 waits once for the required local projections. RBAC facts wait for the matching
-RBAC projection and rebuild each connected user's shared effective-room cache
-before later events are considered. Role and permission changes can therefore
+RBAC projection and rebuild the shared effective-room cache of each connected
+user and privileged-mode state before later events are considered. Role and permission changes can therefore
 revoke implicit universal-room visibility without reconnecting.
 
 User-facing message batches guard the room aggregate tail. Posting, editing,
@@ -520,7 +520,8 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 - One process-wide `ChanSubscribe("live.sync.>")` for `PubSubEvent`
   messages and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts.
   Subject classification and decoding happen once. Authorization then applies
-  per connected user using shared room visibility, asset room membership,
+  per connected user and privileged-mode state using shared room visibility,
+  asset room membership,
   user/config/member subject gates, and projection readiness.
 - Live delivery plus protocol-4 bounded replay of authorized public durable
   events. The WebSocket subscribes to the hub before it captures its EVT

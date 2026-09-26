@@ -1117,6 +1117,71 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 	}
 }
 
+// A credential-authenticated asset read uses the caller's privileged-mode
+// state. An owner outside privileged mode reads only what RBAC allows.
+func TestAsset_StableURLBearerAppliesOwnerPrivilegedModeGate(t *testing.T) {
+	env := setupAssetTestServer(t)
+
+	author, err := env.core.CreateUser(env.ctx, "system", "gatedassetauthor", "Gated Asset Author", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create author: %v", err)
+	}
+	owner, err := env.core.CreateUser(env.ctx, "system", "gatedassetowner", "Gated Asset Owner", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create owner: %v", err)
+	}
+	if err := env.core.AssignOwnerRole(env.ctx, owner.Id); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, author.Id, "channel", "", "gated-assets", "")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	for _, userID := range []string{author.Id, owner.Id} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, "channel", userID, room.Id); err != nil {
+			t.Fatalf("Failed to join room: %v", err)
+		}
+	}
+	env.login(t, "gatedassetauthor", "password123")
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "gated asset", createAssetTestPNG(t, 40, 30), "gated.png")
+	stable, err := url.Parse(attachment.GetAssetUrl().GetUrl())
+	if err != nil {
+		t.Fatalf("Failed to parse stable URL: %v", err)
+	}
+	stable.RawQuery = ""
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
+		t.Fatalf("Failed to deny message.read: %v", err)
+	}
+
+	token, err := env.core.CreateAuthToken(env.ctx, owner.Id)
+	if err != nil {
+		t.Fatalf("Failed to create auth token: %v", err)
+	}
+	fetch := func() int {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, env.server.URL+stable.String(), nil)
+		if err != nil {
+			t.Fatalf("Failed to build request: %v", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := (&http.Client{}).Do(req)
+		if err != nil {
+			t.Fatalf("Failed to get stable URL: %v", err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	if status := fetch(); status != http.StatusForbidden {
+		t.Fatalf("owner without privileged mode status = %d, want %d", status, http.StatusForbidden)
+	}
+	if _, err := env.core.SetBearerPrivilegedMode(env.ctx, token, true); err != nil {
+		t.Fatalf("Failed to activate privileged mode: %v", err)
+	}
+	if status := fetch(); status != http.StatusOK {
+		t.Fatalf("owner with privileged mode status = %d, want %d", status, http.StatusOK)
+	}
+}
+
 func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 	env := setupAssetTestServer(t)
 

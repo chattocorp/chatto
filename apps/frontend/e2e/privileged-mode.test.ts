@@ -1,7 +1,11 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
-import { connectPost } from './fixtures/connectHelpers';
+import {
+  connectPost,
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect
+} from './fixtures/connectHelpers';
 import * as routes from './routes';
 
 test('owner explicitly activates and deactivates privileged mode', async ({ page }) => {
@@ -100,4 +104,43 @@ test('Moderation follows effective permission on direct access and mode changes'
   await expect(moderation).toBeVisible();
   await expect(emptySuspensions).toBeVisible();
   expect(pageErrors).toEqual([]);
+});
+
+test('owner sees restricted rooms only while privileged mode is active', async ({ page }) => {
+  await page.goto(routes.root);
+  await loginAsAdminAndUsePrimaryServer(page);
+  const roomName = `vault${Date.now()}`;
+  const roomId = await createRoomViaConnect(
+    page,
+    roomName,
+    await getDefaultRoomGroupIdViaConnect(page)
+  );
+  await connectPost(page, 'chatto.api.v1.RoomService/LeaveRoom', { roomId });
+  for (const permission of ['room.list', 'room.join', 'message.read']) {
+    await connectPost(page, 'chatto.admin.v1.AdminPermissionService/SetRolePermission', {
+      roleName: 'everyone',
+      permission,
+      decision: 'PERMISSION_DECISION_DENY',
+      scope: { kind: 'PERMISSION_SCOPE_KIND_ROOM', id: roomId }
+    });
+  }
+
+  await page.goto(routes.serverOverview);
+  const restrictedRoom = page.getByText(roomName, { exact: true });
+  const enable = page.getByRole('button', { name: 'Enable privileged mode' });
+  const disable = page.getByRole('button', { name: 'Disable privileged mode' });
+  await expect(disable).toBeVisible();
+  await expect(restrictedRoom).toBeVisible();
+
+  await disable.click();
+  await expect(enable).toBeVisible();
+  await expect(restrictedRoom).not.toBeVisible();
+
+  await enable.click();
+  await page
+    .getByRole('dialog', { name: 'Enable privileged mode' })
+    .getByRole('button', { name: 'Enable privileged mode' })
+    .click();
+  await expect(disable).toBeVisible();
+  await expect(restrictedRoom).toBeVisible();
 });

@@ -152,6 +152,8 @@ export class MessageComposerState {
   readonly #mentionSearchDebounce = useDebounce();
   #mentionSearchRequestId = 0;
   #editSeededForEvent = '';
+  /** Draft key of the room or thread the composer currently shows. */
+  #shownDraftKey = '';
   #autocompleteRoomId = '';
   #insertedQuoteRequestId = 0;
   #focusRequested = false;
@@ -178,7 +180,7 @@ export class MessageComposerState {
       getMentionRoleNames: () => this.mentionRoles.map((role) => role.name),
       onPostSuccess: (post, event) => this.#handlePostSuccess(post, event),
       onPostError: dependencies.onPostError,
-      onEditSuccess: () => this.#handleEditSuccess()
+      onEditSuccess: (input) => this.#handleEditSuccess(input)
     });
 
     void dependencies.mentionRolesStore.load();
@@ -446,6 +448,11 @@ export class MessageComposerState {
         this.#autocompleteRoomId = roomId;
         this.autocomplete.resetForRoom();
       }
+      // A reused composer drops its edit when it moves to another room or thread.
+      if (this.#shownDraftKey !== this.draftKey) {
+        if (this.#shownDraftKey && this.isEditing) this.#dropEdit();
+        this.#shownDraftKey = this.draftKey;
+      }
       if (this.isEditing) {
         this.draft.switchKey(this.draftKey);
         this.attachments.restore([]);
@@ -582,7 +589,17 @@ export class MessageComposerState {
     this.#dependencies.roomUnreadStore.setRoomUnread(post.roomId, false);
   }
 
-  #handleEditSuccess(): void {
+  /** Cancels the edit without the edit-exit reset, which would clear the new draft. */
+  #dropEdit(): void {
+    this.#editSeededForEvent = '';
+    this.alsoSendToChannel = false;
+    this.editState.cancelEdit();
+  }
+
+  #handleEditSuccess(input: UpdateMessageInput): void {
+    // A room or thread switch can cancel the edit while its save is in flight.
+    // The composer then shows another draft or edit, so keep it.
+    if (this.editState.eventId !== input.eventId) return;
     this.#resetEditor();
     this.editState.cancelEdit();
   }

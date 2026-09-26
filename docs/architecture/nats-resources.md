@@ -42,7 +42,7 @@ and retry exhaustion fail startup. The JetStream default request timeout is
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
 | Object store | `PROJECTION_SNAPSHOTS` | File | Yes    | Optional encrypted `chatto.core.projection.v1` snapshot objects; configurable TTL defaults to seven days |
 | Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
-| Object store | `NEIGHBORHOOD_IMAGES` | File  | No     | Content-addressed WebP copies of Neighborhood logos and banners; seven-day TTL (ADR-105) |
+| Object store | `NEIGHBORHOOD_IMAGES` | File  | No     | Content-addressed WebP copies of Neighborhood logos and banners; seven-day TTL (ADR-106) |
 | NATS Core    | `live.sync.>`       | None    | No     | Non-durable `pubsubv1.PubSubEvent` values                                    |
 | Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
 

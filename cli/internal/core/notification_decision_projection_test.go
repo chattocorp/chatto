@@ -228,3 +228,38 @@ func applyNotificationDecisionEvents(t *testing.T, projection *NotificationDecis
 		}
 	}
 }
+
+// Notification delivery is not bound to a privileged session, so owners get
+// the same visibility as any other member.
+func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const (
+		roomID   = "R1"
+		ownerID  = "U-owner"
+		memberID = "U-member"
+	)
+	source := &evtv1.Event{Id: "source", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}}
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
+		{Id: "room-deny", Event: &evtv1.Event_RbacPermissionDenied{RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeRoom, roomID, RoleEveryone, PermMessageRead)}},
+		{Id: "owner-user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: ownerID}}},
+		{Id: "member-user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: memberID}}},
+		{Id: "member-allow", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, memberID, PermMessageRead)}},
+		{Id: "owner-role", Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: ownerID, RoleName: RoleOwner}}},
+		{Id: "owner-join", ActorId: ownerID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "member-join", ActorId: memberID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		source,
+	})
+
+	var decisions []notificationRecipientDecision
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
+	}
+	if len(decisions) != 1 || decisions[0].recipientID != memberID {
+		t.Fatalf("decisions = %+v, want only member %q", decisions, memberID)
+	}
+}

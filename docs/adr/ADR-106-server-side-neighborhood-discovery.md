@@ -1,4 +1,4 @@
-# ADR-105: Discover the Neighborhood on the Server
+# ADR-106: Discover the Neighborhood on the Server
 
 **Date:** 2026-09-25
 **Status:** Accepted

@@ -11,6 +11,7 @@ export class RoomNavigationState {
   #pendingThreadQuoteId = 0;
   #pendingThreadReplyId = 0;
   #appliedThreadMessageRoute: string | null = null;
+  #appliedHighlightParam: string | null = null;
 
   prepareThreadOpen(threadRootEventId: string, options: ThreadOpenOptions = {}): void {
     this.pendingThreadHighlight = options.highlightEventId ?? null;
@@ -36,6 +37,27 @@ export class RoomNavigationState {
     if (this.#appliedThreadMessageRoute === route) return null;
     this.#appliedThreadMessageRoute = route;
     return messageEventId;
+  }
+
+  /**
+   * Return a `?highlight=` permalink target once per room, thread, and target.
+   * The effect that reads the parameter can run again before the URL update
+   * that removes it. A missing parameter resets the guard.
+   */
+  consumeHighlightParam(
+    roomId: string,
+    threadRootEventId: string | undefined,
+    eventId: string | null
+  ): string | null {
+    if (!eventId) {
+      this.#appliedHighlightParam = null;
+      return null;
+    }
+
+    const key = `${roomId}:${threadRootEventId ?? ''}:${eventId}`;
+    if (this.#appliedHighlightParam === key) return null;
+    this.#appliedHighlightParam = key;
+    return eventId;
   }
 
   beginHighlight(eventId: string, inThread: boolean): number | null {

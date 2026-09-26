@@ -116,7 +116,9 @@
 
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
-    canMarkAsRead: () => isVisible,
+    // A saved view can show before the server accepts commands. The read
+    // starts when the viewer is verified, as in the room timeline.
+    canMarkAsRead: () => isVisible && stores.isAuthenticated,
     markerWindowFromReadResult: (result, markedAtMs) =>
       result.previousLastReadAt
         ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs }
@@ -174,9 +176,12 @@
   );
 
   // Reload thread events when the thread prop changes. Silent reconnect +
-  // tab-resume catch-ups are owned by the server event bus.
+  // tab-resume catch-ups are owned by the server event bus. The pane stays
+  // mounted across threads, so a jump target or jumped window from the
+  // previous thread must not carry over.
   $effect(() => {
     store.setThread(roomId, threadRootEventId);
+    jumpState.reset();
   });
 
   // Load a permalink target outside the latest page before asking the
@@ -359,6 +364,7 @@
     isLoading={store.isInitialLoading}
     emptyMessage={m('room.thread.not_found')}
     unreadAfterEventId={unread.unreadMarkerEventId}
+    scrollToUnreadOnEntry={true}
     onReachedBottom={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}

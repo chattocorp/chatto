@@ -117,7 +117,7 @@ observation can change between requests.
 
 ### 3. The server stays passive and the client loads public profiles
 
-**Status:** Partially superseded by ADR-105 and Design Decision 14. The server
+**Status:** Partially superseded by ADR-106 and Design Decision 14. The server
 now contacts Neighbors for background Neighborhood discovery, and the Server
 Directory reads the cached result. Neighbor administration writes remain
 passive. The Neighbor administration page still loads public profiles in the
@@ -241,7 +241,7 @@ order reflects discovery order and the budget, not quality.
 
 ### 12. Server Directory discovery requires consent
 
-**Status:** Superseded by Design Decision 14 and ADR-105. The Server Directory
+**Status:** Superseded by Design Decision 14 and ADR-106. The Server Directory
 contacts only registered servers, so it no longer asks for consent. A saved
 consent value from an older client has no effect.
 
@@ -288,7 +288,7 @@ the mutual-hop rules and fixed request limits. It stores the latest result in
 `MEMORY_CACHE` and image copies in `NEIGHBORHOOD_IMAGES`. The public
 `ListNeighborhoodServers` RPC returns only the cached result. The Server
 Directory merges the cached results of all registered servers and does not ask
-for consent. See ADR-105.
+for consent. See ADR-106.
 
 **Why:** A registered server already knows the user's IP address. When it
 contacts other servers, those servers do not see the user's address. A client
@@ -315,7 +315,7 @@ private network addresses. Results can be up to one hour old.
 
 ## Related
 
-- **ADRs:** ADR-033, ADR-034, ADR-040, ADR-044, ADR-045, ADR-105
+- **ADRs:** ADR-033, ADR-034, ADR-040, ADR-044, ADR-045, ADR-106
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-020 (Server Branding &
   Configuration), FDR-031 (Client–Server Compatibility Discovery)
 - **Issues:** [#1669](https://github.com/chattocorp/chatto/issues/1669),

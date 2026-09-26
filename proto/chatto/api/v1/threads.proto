@@ -79,6 +79,10 @@ message ListFollowedThreadsRequest {
   // Include followed direct-message threads. Defaults to false so older
   // clients retain the channel-only result shape.
   bool include_direct_message_threads = 4;
+  // Return only threads with replies that the viewer has not read. The page
+  // total then counts only these threads. Older servers ignore this field and
+  // return all followed threads.
+  bool unread_only = 5;
 }
 
 // Response containing one followed-thread page.

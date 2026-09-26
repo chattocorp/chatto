@@ -1,7 +1,7 @@
 // Package neighborhood discovers public Chatto servers through Neighbor
 // recommendations. The server runs discovery in the background so that
 // clients can show the Neighborhood without contacting the discovered
-// servers directly. See FDR-042 and ADR-105.
+// servers directly. See FDR-042 and ADR-106.
 package neighborhood
 
 import (

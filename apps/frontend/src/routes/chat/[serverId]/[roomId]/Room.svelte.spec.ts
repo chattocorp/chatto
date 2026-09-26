@@ -38,6 +38,8 @@ const { mocks } = vi.hoisted(() => {
       goto: vi.fn(),
       pushState: vi.fn(),
       replaceState: vi.fn(),
+      pageUrl: new URL('https://chat.example.test/chat/-/room-1'),
+      pageState: {} as App.PageState,
       markRoomAsRead: vi.fn(),
       projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       resetTypingDebounce: vi.fn(),
@@ -97,8 +99,12 @@ const scopeState = new SvelteMap([['serverId', 'server-1']]);
 vi.mock('$app/state', () => ({
   page: {
     params: { serverId: '-', roomId: 'room-1' },
-    state: {},
-    url: new URL('https://chat.example.test/chat/-/room-1')
+    get state() {
+      return mocks.pageState;
+    },
+    get url() {
+      return mocks.pageUrl;
+    }
   }
 }));
 
@@ -906,6 +912,30 @@ describe('Room interaction bundles', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .not.toBeInTheDocument();
   });
+
+  it('keeps the room interactive while a mobile panel is hidden by the desktop layout', async () => {
+    const setMatchMedia = stubMatchMedia(false);
+    appUi.openMobileRoomSidebarPanel('files');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
+
+    await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]');
+    expect(roomMainPane.hasAttribute('inert')).toBe(true);
+
+    setMatchMedia(true);
+    await tick();
+    expect(roomMainPane.hasAttribute('inert')).toBe(false);
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .not.toBeInTheDocument();
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    expect(appUi.mobileRoomSidebarPanel).toBe('files');
+
+    setMatchMedia(false);
+    await tick();
+    expect(roomMainPane.hasAttribute('inert')).toBe(true);
+    await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]');
+  });
 });
 
 describe('Room local message echo', () => {
@@ -945,6 +975,56 @@ describe('Room local message echo', () => {
       (await waitForElement(container, '[data-testid="thread-pane-highlight-id"]')).textContent
     ).toBe('thread-message');
     expect(mocks.pendingHighlightConsume).not.toHaveBeenCalled();
+  });
+
+  describe('?highlight= permalinks', () => {
+    afterEach(() => {
+      mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1');
+      mocks.pageState = {};
+      mocks.replaceState.mockReset();
+    });
+
+    it('highlights the target when the router rejects the early URL update', async () => {
+      // A cold load runs this before SvelteKit's router starts.
+      mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1?highlight=msg-linked');
+      mocks.replaceState.mockImplementation(() => {
+        throw new Error('Cannot call replaceState(...) before router is initialized');
+      });
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      try {
+        const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+        await expect
+          .element(q(container, '[data-testid="pending-highlight-id"]'))
+          .toHaveTextContent('msg-linked');
+        await vi.waitFor(() => {
+          expect(warn).toHaveBeenCalledWith(
+            'Failed to remove the highlight parameter:',
+            expect.any(Error)
+          );
+        });
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('highlights once and removes the parameter without dropping page state', async () => {
+      mocks.pageUrl = new URL('https://chat.example.test/chat/-/room-1?highlight=msg-linked');
+      const openModalState = { modal: { type: 'image-viewer' } } as unknown as App.PageState;
+      mocks.pageState = openModalState;
+
+      const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+      await expect
+        .element(q(container, '[data-testid="pending-highlight-id"]'))
+        .toHaveTextContent('msg-linked');
+      await vi.waitFor(() => {
+        expect(mocks.replaceState).toHaveBeenCalledWith('/chat/-/room-1', openModalState);
+      });
+      expect(mocks.replaceState).toHaveBeenCalledOnce();
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce();
+    });
   });
 
   it('keeps root message-link highlights pending until the jump completes', async () => {
