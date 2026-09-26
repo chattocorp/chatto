@@ -77,9 +77,6 @@ export default defineConfig({
           items: [
             "getting-started/introduction",
             "getting-started/quick-start",
-            "getting-started/threads",
-            "getting-started/message-formatting",
-            "getting-started/appearance",
             "getting-started/faq",
           ],
         },
