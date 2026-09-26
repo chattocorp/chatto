@@ -128,6 +128,13 @@ const capabilityKeys = {
   manageInvites: 'user.invite'
 } as const;
 
+/**
+ * Read the viewer for a caller that owns its own reaction to authentication loss.
+ *
+ * An `Unauthenticated` result does not request a new sign-in, because
+ * `CurrentUserState` makes that decision and ignores superseded loads. Other
+ * viewer reads must use a client that keeps the transport's default handling.
+ */
 export async function getViewerStateViaConnect(
   config: ConnectAPIConfig,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
@@ -136,8 +143,6 @@ export async function getViewerStateViaConnect(
   const response = await client.getViewer(
     {},
     {
-      // CurrentUserStore decides whether a rejected viewer read needs a new
-      // sign-in. It ignores results from superseded loads.
       ...skipAuthenticationRequired(),
       ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       ...(options.signal ? { signal: options.signal } : {})
