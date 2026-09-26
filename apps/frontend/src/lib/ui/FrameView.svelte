@@ -7,7 +7,7 @@ available. Use it for large, browsable content that does not fit a dialog.
 
 Render it as a direct child of the app frame. The caller must make the covered
 frame content inert and invisible. The view takes focus when it opens and
-returns focus to the previous element when it closes. Escape and the close
+returns focus to its opener when it closes, if the opener can take focus. Escape and the close
 button call `onclose`.
 -->
 <script lang="ts">
@@ -21,19 +21,27 @@ button call `onclose`.
     title,
     subtitle,
     onclose,
+    opener = null,
     children
   }: {
     title: string;
     subtitle?: string;
     /** Close the view, usually by going back in history. */
     onclose: () => void;
+    /**
+     * The element to focus again on close. Record it before the caller makes
+     * the covered content inert. Without it, the view uses the element that
+     * had focus when it mounted.
+     */
+    opener?: HTMLElement | null;
     children: Snippet;
   } = $props();
 
   let root = $state<HTMLElement>();
 
   onMount(() => {
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const active = document.activeElement;
+    const previous = opener ?? (active instanceof HTMLElement ? active : null);
     root?.focus({ preventScroll: true });
     return () => {
       // The caller removes `inert` from the covered content in the same

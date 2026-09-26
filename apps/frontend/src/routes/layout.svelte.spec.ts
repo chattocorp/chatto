@@ -45,6 +45,7 @@ vi.mock('$app/state', async () => {
   const { fromStore, writable } = await import('svelte/store');
   const routeId = fromStore(writable('/'));
   const url = fromStore(writable(new URL('https://chat.example.test/')));
+  const state = fromStore(writable<App.PageState>({}));
   return {
     page: {
       params: {},
@@ -56,7 +57,12 @@ vi.mock('$app/state', async () => {
           routeId.current = value;
         }
       },
-      state: {},
+      get state() {
+        return state.current;
+      },
+      set state(value: App.PageState) {
+        state.current = value;
+      },
       get url() {
         return url.current;
       },
@@ -462,23 +468,31 @@ describe('root layout notification synchronization', () => {
 describe('root layout frame views', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (page.state as App.PageState).modal = { type: 'addServer' };
+    page.state = { modal: { type: 'addServer' } };
   });
 
   afterEach(() => {
-    delete (page.state as App.PageState).modal;
+    page.state = {};
   });
 
-  it('fills the app frame and covers the frame content on wide screens', async () => {
+  function renderDesktopLayout() {
     installMobileMatchMedia(false);
     sidebarNav.setMobile(false);
-    const { container } = renderLayout();
+    return renderLayout();
+  }
 
-    const view = await vi.waitFor(() => {
+  async function findFrameView(container: HTMLElement) {
+    return vi.waitFor(() => {
       const view = container.querySelector<HTMLElement>('[data-testid="frame-view"]');
       expect(view).not.toBeNull();
       return view!;
     });
+  }
+
+  it('fills the app frame and covers the frame content on wide screens', async () => {
+    const { container } = renderDesktopLayout();
+
+    const view = await findFrameView(container);
     expect(view.parentElement).toBe(q(container, '[data-testid="app-frame"]'));
     expect(container.querySelector('dialog[open]')).toBeNull();
 
@@ -507,5 +521,38 @@ describe('root layout frame views', () => {
     const gutter = q(view.container, '[data-testid="mobile-sidebar-panel"]') as HTMLElement;
     expect(gutter.inert).toBe(false);
     expect(q(view.container, '[data-testid="layout-child"]')!.closest('[inert]')).not.toBeNull();
+  });
+
+  it('returns focus to the Add Server button when the view closes', async () => {
+    page.state = {};
+    const { container } = renderDesktopLayout();
+    const addServer = await vi.waitFor(() => {
+      const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]');
+      expect(link).not.toBeNull();
+      return link!;
+    });
+    addServer.focus();
+
+    page.state = { modal: { type: 'addServer' } };
+    const view = await findFrameView(container);
+    expect(document.activeElement).toBe(view);
+
+    page.state = {};
+    await vi.waitFor(() => expect(document.activeElement).toBe(addServer));
+  });
+
+  it('keeps the view mounted while a dialog opens above it', async () => {
+    const { container } = renderDesktopLayout();
+    const view = await findFrameView(container);
+
+    page.state = { modal: { type: 'aboutChatto' }, frameView: { type: 'addServer' } };
+    await vi.waitFor(() => expect(container.querySelector('dialog[open]')).not.toBeNull());
+    expect(container.querySelector('[data-testid="frame-view"]')).toBe(view);
+    expect(q(container, '[data-testid="layout-child"]')!.closest('[inert]')).not.toBeNull();
+
+    // Back creates a new state object for the view's entry.
+    page.state = { modal: { type: 'addServer' } };
+    await vi.waitFor(() => expect(container.querySelector('dialog[open]')).toBeNull());
+    expect(container.querySelector('[data-testid="frame-view"]')).toBe(view);
   });
 });

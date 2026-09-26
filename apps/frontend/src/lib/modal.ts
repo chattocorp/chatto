@@ -49,6 +49,11 @@ export function isFrameViewModal(modal: ChatModal | undefined): modal is FrameVi
   return modal?.type === 'addServer';
 }
 
+/** The open frame view of a history entry: the current modal or the view below a dialog. */
+export function frameViewInState(state: App.PageState): FrameViewModal | undefined {
+  return isFrameViewModal(state.modal) ? state.modal : state.frameView;
+}
+
 export type LeaveRoomModalState = Extract<ChatModal, { type: 'leaveRoom' }>;
 export type RemoveServerModalState = Extract<ChatModal, { type: 'removeServer' }>;
 export type DeleteMessageContentModalState = Extract<

@@ -99,6 +99,7 @@ const { mocks } = vi.hoisted(() => {
 vi.mock('$app/state', () => ({
   page: {
     data: { serverInfo: { setupRequired: false } },
+    state: {},
     route: { id: '/setup' },
     params: {
       serverId: 'other-server',

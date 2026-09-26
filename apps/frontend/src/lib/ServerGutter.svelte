@@ -6,12 +6,13 @@ is connected to, plus the add-server button pinned to the bottom. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
-  import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions';
   import { m } from '$lib/i18n/messages';
+  import { frameViewInState } from '$lib/modal';
+  import { openGlobalModal } from '$lib/openGlobalModal';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
@@ -32,7 +33,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   void anyServerHasPermission;
 
   const directoryHref = resolve('/chat/servers');
-  const addServerViewOpen = $derived(page.state.modal?.type === 'addServer');
+  const addServerViewOpen = $derived(frameViewInState(page.state)?.type === 'addServer');
   const directoryActive = $derived(page.route.id === '/chat/servers' || addServerViewOpen);
 
   /**
@@ -58,7 +59,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
       sidebarNav.close();
       return;
     }
-    pushState('', { modal: { type: 'addServer' } });
+    openGlobalModal({ type: 'addServer' });
   }
 </script>
 

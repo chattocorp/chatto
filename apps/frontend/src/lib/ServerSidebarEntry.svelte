@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto, pushState } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -10,6 +10,7 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
   import { m } from '$lib/i18n/messages';
+  import { openGlobalModal } from '$lib/openGlobalModal';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
@@ -157,13 +158,7 @@
   function handleRemoveServer(): void {
     if (serverRegistry.isOriginServer(serverId)) return;
     closeContextMenu();
-    pushState('', {
-      modal: {
-        type: 'removeServer',
-        serverId,
-        spaceName: iconServer.name
-      }
-    });
+    openGlobalModal({ type: 'removeServer', serverId, spaceName: iconServer.name });
   }
 
   async function handleSignIn(): Promise<void> {

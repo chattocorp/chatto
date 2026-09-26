@@ -366,8 +366,11 @@ header can open the drawer above the view.
 
 The view has a `PaneHeader` with a close button and a scrolling `PaneContent`,
 so it uses the pane-page rules above. Escape, the close button, and Back close
-it. Declare the modal type with `isFrameViewModal` in `$lib/modal`; the root
-layout renders it in `FrameViewContainer` instead of `ModalContainer`.
+it, and focus goes back to the control that opened it. Declare the modal type
+with `isFrameViewModal` in `$lib/modal`; the root layout renders it in
+`FrameViewContainer` instead of `ModalContainer`. Open all global modals with
+`openGlobalModal` from `$lib/openGlobalModal`. A dialog that opens from the app header then shows above the
+view, and the view keeps its state.
 
 Cards that must adapt to the space they get, not to the device, use a named
 container query. `ServerProfileCard` is an icon tile when its nearest

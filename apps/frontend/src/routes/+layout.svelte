@@ -18,7 +18,7 @@
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
-  import { isFrameViewModal } from '$lib/modal';
+  import { frameViewInState, isFrameViewModal } from '$lib/modal';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
@@ -68,8 +68,22 @@
     return frameViewContainerModule;
   }
 
-  /** A frame view covers the frame content, including the server drawer. */
-  const frameViewOpen = $derived(isFrameViewModal(page.state.modal));
+  /**
+   * A frame view covers the frame content, including the server drawer. It
+   * stays open while a dialog opens above it.
+   */
+  const frameView = $derived(frameViewInState(page.state));
+  const frameViewOpen = $derived(frameView !== undefined);
+  /** The element to focus again when the frame view closes. */
+  let frameViewOpener = $state.raw<HTMLElement | null>(null);
+  // Record the opener before the cover makes it inert and moves focus away.
+  $effect.pre(() => {
+    if (!frameViewOpen) return;
+    untrack(() => {
+      frameViewOpener =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    });
+  });
   $effect(() => {
     if (frameViewOpen && sidebarNav.isMobile) untrack(() => sidebarNav.close());
   });
@@ -167,9 +181,9 @@
         {@render children?.()}
       </MobileSidebarChrome>
 
-      {#if frameViewOpen}
+      {#if frameView}
         {#await loadFrameViewContainer() then { default: FrameViewContainer }}
-          <FrameViewContainer />
+          <FrameViewContainer {frameView} opener={frameViewOpener} />
         {/await}
       {/if}
     </Frame>
@@ -188,7 +202,7 @@
   ]}
 ></div>
 
-{#if page.state.modal && !frameViewOpen}
+{#if page.state.modal && !isFrameViewModal(page.state.modal)}
   {#await loadModalContainer() then { default: ModalContainer }}
     <ModalContainer />
   {/await}

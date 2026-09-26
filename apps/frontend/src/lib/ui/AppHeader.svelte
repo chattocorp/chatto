@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -8,6 +7,7 @@
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import { m } from '$lib/i18n/messages';
+  import { openGlobalModal } from '$lib/openGlobalModal';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import MotdContent from '$lib/ui/MotdContent.svelte';
   import { SERVER_SETTINGS_ROOT_ROUTE } from '$lib/navigation/settingsRoutes';
@@ -42,11 +42,11 @@
     return serverRegistry.firstAuthenticatedServerId();
   });
   function handleSignOut() {
-    pushState('', { modal: { type: 'logout' } });
+    openGlobalModal({ type: 'logout' });
   }
 
   function showAboutChatto() {
-    pushState('', { modal: { type: 'aboutChatto' } });
+    openGlobalModal({ type: 'aboutChatto' });
   }
 </script>
 
@@ -130,7 +130,7 @@
 
   <!-- MOTD -->
   {#if motd}
-    <MotdContent {motd} onclick={() => pushState('', { modal: { type: 'motd', motd } })} />
+    <MotdContent {motd} onclick={() => openGlobalModal({ type: 'motd', motd })} />
   {:else}
     <span class="flex-1"></span>
   {/if}
@@ -138,6 +138,8 @@
   <!-- Actions: About + Logout -->
   <div class="flex shrink-0 items-center gap-3">
     {#if version}
+      <!-- Wide viewports have room to show the client version next to the About action. -->
+      <span class="hidden text-xs tabular-nums md:inline" data-testid="app-header-version">v{version}</span>
       <button
         type="button"
         class="app-header-icon"

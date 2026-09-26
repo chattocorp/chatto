@@ -15,20 +15,53 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('Server Directory (sidebar entry point)', () => {
-	test('sidebar "+" opens the Server Directory in a dialog', async ({ page, chatPage }) => {
+	test('sidebar "+" opens the Server Directory in the app frame', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 		const chatURL = page.url();
+		const addServer = page.getByTitle('Add Server');
+		const view = page.getByRole('region', { name: 'Server Directory' });
 
-		await page.getByTitle('Add Server').click();
-		const dialog = page.getByRole('dialog', { name: 'Add Server' });
-		await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-		await expect(dialog.getByLabel('Server URL')).toBeVisible();
+		await addServer.click();
+		await expect(view).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await expect(view.getByLabel('Server URL')).toBeVisible();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
 		expect(page.url()).toBe(chatURL);
 
 		await page.goBack();
-		await expect(dialog).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
+		await expect(view).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
 		expect(page.url()).toBe(chatURL);
+
+		await addServer.click();
+		await expect(view).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await page.keyboard.press('Escape');
+		await expect(view).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
+		await expect(addServer).toBeFocused();
+
+		await addServer.click();
+		await expect(view).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await view.getByRole('button', { name: 'Close' }).click();
+		await expect(view).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
+		expect(page.url()).toBe(chatURL);
+	});
+
+	test('a header dialog opens above the Server Directory view and keeps it', async ({
+		page,
+		chatPage
+	}) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+		const view = page.getByRole('region', { name: 'Server Directory' });
+
+		await page.getByTitle('Add Server').click();
+		await view.getByLabel('Server URL').fill('chat.example.com');
+		await page.getByRole('button', { name: 'About Chatto' }).click();
+		const about = page.getByRole('dialog');
+		await expect(about).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+
+		await page.goBack();
+		await expect(about).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
+		await expect(view.getByLabel('Server URL')).toHaveValue('chat.example.com');
 	});
 
 	test('the Server Directory route shows the directory as a page', async ({ page }) => {

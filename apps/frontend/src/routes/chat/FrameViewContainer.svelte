@@ -1,28 +1,33 @@
 <!--
 @component
 
-Renders the shallow-routed global modals that fill the app frame. The root
+Renders the shallow-routed global modal that fills the app frame. The root
 layout places it inside the app frame; `ModalContainer` renders all other
-global modals as dialogs.
+global modals as dialogs. The view stays mounted while a dialog opens above it.
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import { isFrameViewModal, type ChatModal } from '$lib/modal';
+  import type { FrameViewModal } from '$lib/modal';
   import AddServerView from './modals/AddServerView.svelte';
 
-  const modal = $derived(page.state.modal);
+  let {
+    frameView,
+    opener = null
+  }: {
+    frameView: FrameViewModal;
+    /** The element that had focus before the view opened. */
+    opener?: HTMLElement | null;
+  } = $props();
 
-  function closeModalFor(expectedModal: ChatModal) {
-    return () => {
-      if (page.state.modal === expectedModal) history.back();
-    };
+  /** Go back only while the view is the current entry, not below a dialog. */
+  function close() {
+    if (page.state.modal?.type === frameView.type) history.back();
   }
 </script>
 
-{#if isFrameViewModal(modal)}
-  {#key modal}
-    {#if modal.type === 'addServer'}
-      <AddServerView onclose={closeModalFor(modal)} />
-    {/if}
-  {/key}
-{/if}
+<!-- History navigation creates new state objects; the view type is the identity. -->
+{#key frameView.type}
+  {#if frameView.type === 'addServer'}
+    <AddServerView onclose={close} {opener} />
+  {/if}
+{/key}

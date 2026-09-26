@@ -1,4 +1,4 @@
-import type { ChatModal } from '$lib/modal';
+import type { ChatModal, FrameViewModal } from '$lib/modal';
 
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
@@ -11,6 +11,8 @@ declare global {
       threadFilter?: 'all' | 'unread';
       welcome?: boolean;
       modal?: ChatModal;
+      /** A frame view that stays open below the dialog in `modal`. */
+      frameView?: FrameViewModal;
     }
     // interface Platform {}
   }

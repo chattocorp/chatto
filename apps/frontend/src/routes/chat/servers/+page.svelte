@@ -2,7 +2,8 @@
 @component
 
 Full-page Server Directory. The standalone client links here before any server
-is registered; the Server Gutter opens the same directory in a dialog instead.
+is registered; the Server Gutter opens the same directory in a view that fills
+the app frame instead.
 -->
 <script lang="ts">
   import ServerDirectory from '$lib/components/ServerDirectory.svelte';

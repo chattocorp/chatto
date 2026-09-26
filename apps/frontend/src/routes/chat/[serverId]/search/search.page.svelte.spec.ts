@@ -25,6 +25,8 @@ vi.mock('$app/navigation', () => ({
   pushState: vi.fn(),
   replaceState: vi.fn()
 }));
+// The UI barrel loads AppHeader, which reads the page state to open modals.
+vi.mock('$app/state', () => ({ page: { state: {} } }));
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
     Object.entries(params ?? {}).reduce(

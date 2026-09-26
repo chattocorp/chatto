@@ -23,6 +23,7 @@ const { mocks } = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+vi.mock('$app/state', () => ({ page: { state: {} } }));
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
     params?.serverId ? path.replace('[serverId]', params.serverId) : path

@@ -10,9 +10,12 @@ Directory so a user can add a server without leaving the current chat view.
   import { FrameView } from '$lib/ui';
 
   let {
-    onclose
+    onclose,
+    opener = null
   }: {
     onclose: () => void;
+    /** The element to focus again when the view closes. */
+    opener?: HTMLElement | null;
   } = $props();
 </script>
 
@@ -20,6 +23,7 @@ Directory so a user can add a server without leaving the current chat view.
   title={m('add_server.directory.title')}
   subtitle={m('add_server.directory.subtitle')}
   {onclose}
+  {opener}
 >
   <ServerDirectory inAddServerView />
 </FrameView>
