@@ -20,6 +20,7 @@ card. Callers supply trusted badges and actions through explicit props.
   import { m } from '$lib/i18n/messages';
   import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
   import { Pill } from '$lib/ui';
+  import { getGradientForName } from '$lib/utils/gradients';
 
   let {
     origin,
@@ -33,7 +34,8 @@ card. Callers supply trusted badges and actions through explicit props.
     iconOpensInNewTab = false,
     iconActionLabel,
     iconActionDisabled = false,
-    testId = 'server-profile-card'
+    testId = 'server-profile-card',
+    headingTag = 'h3'
   }: {
     origin: string;
     /**
@@ -56,6 +58,8 @@ card. Callers supply trusted badges and actions through explicit props.
     iconActionLabel?: string;
     iconActionDisabled?: boolean;
     testId?: string;
+    /** Heading level of the server name, one below the surrounding section. */
+    headingTag?: 'h3' | 'h4';
   } = $props();
 
   const hostname = $derived.by(() => {
@@ -77,24 +81,28 @@ card. Callers supply trusted badges and actions through explicit props.
 </script>
 
 <article
-  class="flex min-h-64 flex-col overflow-hidden rounded-xl border border-border bg-surface"
+  class="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-surface"
   data-testid={testId}
   data-origin={origin}
 >
   {#if bannerURL && failedBannerURL !== bannerURL}
     <img
       alt=""
-      class="h-32 w-full object-cover"
+      class="h-24 w-full object-cover"
       {@attach loadPublicServerImage(bannerURL)}
       onerror={() => (failedBannerURL = bannerURL)}
     />
   {:else}
+    <!-- The name-seeded gradient matches the server's logo fallback. -->
     <div
-      class="h-32 shrink-0 bg-gradient-to-br from-surface-emphasized/80 via-surface-emphasized/45 to-surface"
+      class="h-24 shrink-0 opacity-40"
+      style:background={getGradientForName(logoServer.name)}
+      aria-hidden="true"
+      data-banner-fallback
     ></div>
   {/if}
 
-  <div class="flex flex-1 flex-col gap-4 p-4">
+  <div class="flex flex-1 flex-col gap-3 p-4">
     <div class="flex min-w-0 items-start gap-3">
       {#if iconHref}
         <!-- eslint-disable svelte/no-navigation-without-resolve -- iconHref is a caller-provided external URL -->
@@ -132,9 +140,9 @@ card. Callers supply trusted badges and actions through explicit props.
 
       <div class="min-w-0 flex-1">
         <div class="flex min-w-0 flex-wrap items-center gap-2">
-          <h3 class="min-w-0 truncate font-semibold text-text-top">
+          <svelte:element this={headingTag} class="min-w-0 truncate font-semibold text-text-top">
             <bdi dir="auto">{profile?.name ?? hostname}</bdi>
-          </h3>
+          </svelte:element>
           {#if badge}<Pill tone="success">{badge}</Pill>{/if}
         </div>
         <p class="truncate text-sm text-muted" dir="ltr">{hostname}</p>
@@ -143,7 +151,7 @@ card. Callers supply trusted badges and actions through explicit props.
 
     <div class="flex-1">
       {#if profile?.description}
-        <p class="line-clamp-3 text-sm text-muted"><bdi dir="auto">{profile.description}</bdi></p>
+        <p class="line-clamp-2 text-sm text-muted"><bdi dir="auto">{profile.description}</bdi></p>
       {:else if profile === null}
         <p class="text-sm text-muted">{m('add_server.directory.profile_unavailable')}</p>
       {/if}

@@ -15,16 +15,23 @@ type StoreMock = {
 const mocks = vi.hoisted(() => ({
   servers: [] as ServerMock[],
   stores: new Map<string, StoreMock>(),
-  routeId: '/chat/-/overview'
+  routeId: '/chat/-/overview',
+  pageState: {} as App.PageState,
+  pushState: vi.fn()
 }));
 
 vi.mock('$app/state', () => ({
   page: {
     get route() {
       return { id: mocks.routeId };
+    },
+    get state() {
+      return mocks.pageState;
     }
   }
 }));
+
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
@@ -49,6 +56,8 @@ beforeEach(() => {
   mocks.servers = [];
   mocks.stores = new SvelteMap();
   mocks.routeId = '/chat/-/overview';
+  mocks.pageState = {};
+  mocks.pushState.mockReset();
 });
 
 describe('ServerGutter', () => {
@@ -99,5 +108,37 @@ describe('ServerGutter', () => {
 
     expect(link?.getAttribute('aria-current')).toBe('page');
     expect(link?.className).toContain('server-gutter-item-active');
+  });
+
+  it('opens the Server Directory as a dialog over the current view', () => {
+    const { container } = render(ServerGutter);
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
+
+    link.click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'addServer' } });
+  });
+
+  it('keeps modified clicks as ordinary links', () => {
+    const { container } = render(ServerGutter);
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
+    // Keep the browser from following the link during the test.
+    link.addEventListener('click', (clickEvent) => clickEvent.preventDefault(), { once: true });
+
+    link.dispatchEvent(event);
+
+    expect(mocks.pushState).not.toHaveBeenCalled();
+  });
+
+  it('marks the add action active while the dialog is open', () => {
+    mocks.pageState = { modal: { type: 'addServer' } };
+
+    const { container } = render(ServerGutter);
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
+
+    expect(link.getAttribute('aria-current')).toBe('page');
+    link.click();
+    expect(mocks.pushState).not.toHaveBeenCalled();
   });
 });

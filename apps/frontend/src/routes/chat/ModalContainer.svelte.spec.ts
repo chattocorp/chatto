@@ -193,6 +193,12 @@ vi.mock('$lib/api-client/rooms', () => ({
   })
 }));
 
+vi.mock('$lib/components/ServerDirectory.svelte', async () => {
+  const { default: ServerDirectoryMock } =
+    await import('./ModalContainerServerDirectoryMock.svelte');
+  return { default: ServerDirectoryMock };
+});
+
 vi.mock('$lib/ui/ConfirmDialog.svelte', async () => {
   const { default: ConfirmDialogMock } = await import('./ModalContainerConfirmDialogMock.svelte');
   return { default: ConfirmDialogMock };
@@ -466,6 +472,19 @@ describe('ModalContainer image viewer', () => {
     await Promise.resolve();
 
     expect(mocks.replaceState).not.toHaveBeenCalled();
+  });
+});
+
+describe('ModalContainer add server modal', () => {
+  it('shows the Server Directory in a dialog', async () => {
+    mocks.modal = { type: 'addServer' };
+
+    const { container } = render(ModalContainer);
+
+    await expect.element(q(container, 'dialog')).toHaveAttribute('aria-label', 'Add Server');
+    expect(
+      container.querySelector('[data-testid="server-directory"]')?.getAttribute('data-in-dialog')
+    ).toBe('true');
   });
 });
 

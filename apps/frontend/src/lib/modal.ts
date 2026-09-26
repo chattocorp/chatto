@@ -20,6 +20,7 @@ type RoomModalTarget = {
 export type ChatModal =
   | { type: 'logout' }
   | { type: 'aboutChatto' }
+  | { type: 'addServer' }
   | { type: 'motd'; motd: string }
   | (RoomModalTarget & { type: 'leaveRoom'; roomName: string })
   | { type: 'removeServer'; serverId: string; spaceName: string }

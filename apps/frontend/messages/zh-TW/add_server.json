@@ -14,6 +14,7 @@
       "title": "Server Directory",
       "subtitle": "Discover other Chatto servers",
       "custom_title": "Connect directly",
+      "lookup_description": "Enter the address of any Chatto server to join it.",
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
@@ -22,6 +23,7 @@
         "other": "另有{count}個"
       },
       "joined": "Joined",
+      "joined_title": "Already joined",
       "join": "Join",
       "open": "Open",
       "open_in_new_tab": "在新分頁中開啟",

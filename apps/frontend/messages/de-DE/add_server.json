@@ -14,6 +14,7 @@
       "title": "Serververzeichnis",
       "subtitle": "Andere Chatto-Server entdecken",
       "custom_title": "Direkt verbinden",
+      "lookup_description": "Gib die Adresse eines Chatto-Servers ein, um ihm beizutreten.",
       "find": "Server suchen",
       "servers_title": "Server",
       "servers_description": "Von Servern empfohlen, denen du beigetreten bist. Die Ergebnisse haben keine Rangfolge.",
@@ -22,6 +23,7 @@
         "other": "{count} weitere"
       },
       "joined": "Beigetreten",
+      "joined_title": "Bereits beigetreten",
       "join": "Beitreten",
       "open": "Öffnen",
       "open_in_new_tab": "In neuem Tab öffnen",
