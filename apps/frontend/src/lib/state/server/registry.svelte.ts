@@ -1184,26 +1184,15 @@ class ServerRegistry {
     return this.tryGetStore(serverId)?.isAuthenticated ?? false;
   }
 
-  /**
-   * Choose a server for navigation after sign-out or from chat-wide settings.
-   * A dormant bearer session can be opened; its route verifies the viewer.
-   */
+  /** Choose a server for navigation after sign-out or from chat-wide settings. */
   firstAuthenticatedServerId(excludedId?: string): string | undefined {
     const originId = this.originServer?.id;
     if (originId && originId !== excludedId && this.isAuthenticated(originId)) {
       return originId;
     }
 
-    const active = this.servers.find(
-      (server) => server.id !== excludedId && this.isAuthenticated(server.id)
-    )?.id;
-    if (active) return active;
     return this.servers.find(
-      (server) =>
-        server.id !== excludedId &&
-        !this.isOriginServer(server.id) &&
-        this.sessions.get(server.id)?.token != null &&
-        this.sessions.get(server.id)?.reauthRequiredAt === null
+      (server) => server.id !== excludedId && this.isAuthenticated(server.id)
     )?.id;
   }
 }

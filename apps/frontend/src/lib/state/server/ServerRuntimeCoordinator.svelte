@@ -51,7 +51,7 @@
   });
 
   // Remote session termination is authoritative even when its server is not
-  // the active route. Sign out that server and clear its saved private view.
+  // the active route. Sign out that server.
   $effect(() => {
     const remoteIds = serverRegistry.servers
       .filter((server) => !serverRegistry.isOriginServer(server.id))

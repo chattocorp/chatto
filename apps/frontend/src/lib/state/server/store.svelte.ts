@@ -495,8 +495,6 @@ export class ServerStateStore {
         )
       );
       this.requireCurrentRealtimeProjection(generation);
-    }
-    if (this.#realtimeSnapshotPending) {
       // Retained channel membership can have been read before this snapshot.
       // Recheck it at the snapshot cursor before declaring the view current.
       await Promise.all(
