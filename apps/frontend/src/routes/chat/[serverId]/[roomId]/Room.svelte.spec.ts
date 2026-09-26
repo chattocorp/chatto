@@ -596,7 +596,7 @@ describe('Room interaction bundles', () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     await expect
       .element(q(container, '[data-testid="room-post-denied"]'))
-      .toHaveTextContent('You do not have permission to post messages in this room.');
+      .toHaveTextContent("You can't post messages in this room.");
   });
 
   it.each([true, false])(
@@ -622,8 +622,12 @@ describe('Room interaction bundles', () => {
   });
 
   it.each([
-    [true, true, 'You can only reply in threads you can read.'],
-    [false, true, 'You can only reply in threads you started or where someone mentioned you.']
+    [true, true, "You can't start new conversations in this room, but you can reply in threads."],
+    [
+      false,
+      true,
+      "You can't start new conversations in this room. You can reply in threads you started or where someone mentioned you."
+    ]
   ] as const)(
     'explains reply-only posting with thread grant %s and interaction grant %s',
     async (threads, interactions, notice) => {
@@ -646,7 +650,7 @@ describe('Room interaction bundles', () => {
     await expect
       .element(q(container, '[data-testid="room-post-denied"]'))
       .toHaveTextContent(
-        'You can only reply in threads you started, where someone mentioned you, or where you received a DM.'
+        "You can't start new conversations here. You can reply to messages sent to you, in threads you started, and in threads where someone mentioned you."
       );
   });
 
@@ -661,7 +665,7 @@ describe('Room interaction bundles', () => {
       const { container } = render(Room, { props: { roomId: 'room-1' } });
       await expect
         .element(q(container, '[data-testid="room-post-denied"]'))
-        .toHaveTextContent('You do not have permission to post messages in this room.');
+        .toHaveTextContent("You can't post messages in this room.");
     }
   );
 
