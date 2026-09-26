@@ -73,8 +73,8 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
 - [apps/desktop/AGENTS.md](apps/desktop/AGENTS.md) — desktop integration and native-helper testing guidance.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
-- `.agents/skills/**` — workflow skills. The `chatto/` group and skills with
-  the `chatto-` prefix apply to Chatto. Other skills state their scope.
+- `.agents/skills/*` — workflow skills. Skills with the `chatto-` prefix apply
+  to Chatto. Other skills state their scope.
 - `docs/fdr/INDEX.md` — Chatto feature behavior and rationale.
 - `docs/adr/INDEX.md` — Chatto and explicitly repository-wide architecture
   decisions.
