@@ -6,7 +6,7 @@ import { isMessagePostedEvent } from '$lib/render/timelineEvents';
 import type { UserAvatarUserView } from '$lib/render/users';
 import { unmask } from '$lib/state/room/messages/helpers';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { Query, QueryKey } from '@tanstack/svelte-query';
+import type { Query } from '@tanstack/svelte-query';
 import { registerMessagePreviewQueryCache } from './cacheRegistry';
 import { queryClient } from './client';
 import { serverSessionQueryRoot } from './keys';
@@ -36,7 +36,9 @@ export interface MessagePreview {
  * Key for one linked message preview.
  *
  * The key is scoped to the connection session, so a sign-out or account change
- * never shows a preview that the previous session loaded.
+ * never shows a preview that the previous session loaded. Previews are not
+ * cached after their card unmounts: the room timeline owns message content,
+ * and the card owns refreshed thumbnail URLs.
  */
 export function messagePreviewQueryKey(
   serverId: string,
@@ -85,18 +87,20 @@ function withThumbnailUrls(
 /**
  * Load the preview content of a linked message.
  *
+ * Pass the viewer's accepted realtime cursor as `minimumCursor`, so the read
+ * includes every edit and retraction that the client has already received.
  * Returns null when the message does not exist, is not a posted message, or
  * has neither a body nor attachments.
  */
 export async function fetchMessagePreview(
   serverId: string,
   connection: MessagePreviewConnection,
-  roomId: string,
-  messageId: string
+  target: { roomId: string; messageId: string; minimumCursor?: string; signal?: AbortSignal }
 ): Promise<MessagePreview | null> {
+  const { roomId, messageId, minimumCursor, signal } = target;
   const page = await connection
     .getAPI(createRoomTimelineAPI)
-    .getRoomEventsAround({ roomId, eventId: messageId, limit: 1 });
+    .getRoomEventsAround({ roomId, eventId: messageId, limit: 1, minimumCursor, signal });
   const event = unmask(page.events).find((item) => item.id === messageId);
   const inner = event?.event;
   if (!event || !isMessagePostedEvent(inner)) return null;
@@ -142,58 +146,16 @@ export function withRefreshedPreviewUrls(
   };
 }
 
-type PreviewMatch = (
-  roomId: unknown,
-  eventId: unknown,
-  data: MessagePreview | null | undefined
-) => boolean;
-
-function previewQueryKeys(serverId: string, match: PreviewMatch): QueryKey[] {
-  return queryClient
-    .getQueryCache()
-    .findAll({
-      predicate: (query: Query) => {
-        const key = query.queryKey;
-        return (
-          key[0] === 'server' &&
-          key[1] === serverId &&
-          key[4] === 'message-preview' &&
-          match(key[5], key[6], query.state.data as MessagePreview | null | undefined)
-        );
-      }
-    })
-    .map((query) => query.queryKey);
-}
-
-/**
- * Hide matching previews at once, then load them again with current access.
- * Cancel reads in flight so a late response cannot restore a preview. A
- * cancelled read restores the manually set null, not the older data.
- */
-function purgePreviews(serverId: string, match: PreviewMatch): void {
-  for (const queryKey of previewQueryKeys(serverId, match)) {
-    const filters = { queryKey, exact: true };
-    queryClient.setQueryData(queryKey, null);
-    void queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
-  }
-}
-
-registerMessagePreviewQueryCache({
-  refreshMessage(serverId, roomId, eventId) {
-    for (const queryKey of previewQueryKeys(
-      serverId,
-      (room, event) => room === roomId && event === eventId
-    )) {
-      void queryClient.invalidateQueries({ queryKey, exact: true });
+/** Reload every mounted preview of a server; each keeps its data while it reloads. */
+function refreshMessagePreviews(serverId: string): void {
+  const filters = {
+    predicate: (query: Query) => {
+      const key = query.queryKey;
+      return key[0] === 'server' && key[1] === serverId && key[4] === 'message-preview';
     }
-  },
-  purgeMessage(serverId, roomId, eventId) {
-    purgePreviews(serverId, (room, event) => room === roomId && event === eventId);
-  },
-  purgeRoom(serverId, roomId) {
-    purgePreviews(serverId, (room) => room === roomId);
-  },
-  purgeAuthor(serverId, userId) {
-    purgePreviews(serverId, (_room, _event, data) => data?.actor?.id === userId);
-  }
-});
+  };
+  // Cancel reads that started before the refresh so they cannot answer it.
+  void queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
+}
+
+registerMessagePreviewQueryCache({ refresh: refreshMessagePreviews });

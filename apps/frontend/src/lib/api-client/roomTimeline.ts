@@ -54,6 +54,8 @@ export type RoomTimelineAPI = {
       roomId: string;
       eventId: string;
       limit: number;
+      /** Cancels the request, for example when a query is superseded. */
+      signal?: AbortSignal;
     } & RealtimeBoundedRead
   ): Promise<EventConnectionPage>;
   getMessage(
@@ -100,9 +102,10 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
   const messages = createChattoClient(MessageService, config);
   const rooms = createChattoClient(RoomService, config);
   const threads = createChattoClient(ThreadService, config);
-  const options = (minimumCursor?: string) => ({
+  const options = (minimumCursor?: string, signal?: AbortSignal) => ({
     headers: minimumCursorHeaders(minimumCursor),
-    timeoutMs: minimumCursor ? REALTIME_RESOURCE_TIMEOUT_MS : undefined
+    timeoutMs: minimumCursor ? REALTIME_RESOURCE_TIMEOUT_MS : undefined,
+    signal
   });
   return {
     async getRoomEvents({ roomId, limit, before, after, minimumCursor }) {
@@ -122,9 +125,9 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
       );
       return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
     },
-    async getRoomEventsAround({ roomId, eventId, limit, minimumCursor }) {
+    async getRoomEventsAround({ roomId, eventId, limit, minimumCursor, signal }) {
       const response = await readPage(() =>
-        rooms.getRoomEventsAround({ roomId, eventId, limit }, options(minimumCursor))
+        rooms.getRoomEventsAround({ roomId, eventId, limit }, options(minimumCursor, signal))
       );
       if (!response.page) return emptyEventConnectionPage();
       return roomTimelinePageToEventConnectionPage(response.page);

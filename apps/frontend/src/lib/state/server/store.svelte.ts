@@ -67,11 +67,8 @@ import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
-  purgeRegisteredAuthorMessagePreviews,
-  purgeRegisteredMessagePreview,
   purgeRegisteredRoomMemberQueries,
-  purgeRegisteredRoomMessagePreviews,
-  refreshRegisteredMessagePreview,
+  refreshRegisteredMessagePreviews,
   refreshRegisteredAdminQueries,
   refreshRegisteredAdminProfileQueries,
   refreshRegisteredRoleQueries,
@@ -505,6 +502,8 @@ export class ServerStateStore {
         Object.values(this.#roomMembers).map((store) => store.refresh({ minimumCursor: cursor }))
       );
       this.requireCurrentRealtimeProjection(generation);
+      // A snapshot skips the edits and retractions made during the gap.
+      refreshRegisteredMessagePreviews(this.serverId);
       this.#realtimeSnapshotPending = false;
     }
     await this.waitForRealtimeReconciliation();
@@ -753,7 +752,6 @@ export class ServerStateStore {
       roomId
     );
     scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
-    purgeRegisteredRoomMessagePreviews(this.serverId, roomId);
     this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
     const roomStore = this.#roomMessages[roomId];
     roomStore?.clearForAccessRevocation();
@@ -1148,7 +1146,6 @@ export class ServerStateStore {
       this.updateRoomMembership(roomId, userId, false);
     scrubRegisteredFollowedThreadUser(this.serverId);
     scrubRegisteredRoomMemberUser(this.serverId, userId);
-    purgeRegisteredAuthorMessagePreviews(this.serverId, userId);
     removeRegisteredAdminUserQueries(this.serverId, userId);
     this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
     this.notifications.scrubUser(userId);
@@ -1379,12 +1376,6 @@ export class ServerStateStore {
             payload.case === 'messagePosted',
             payload.case === 'messagePosted' ? payload.value.threadRootEventId : undefined
           );
-        if (roomId && rawValue?.messageEventId) {
-          if (payload.case === 'messageRetracted')
-            purgeRegisteredMessagePreview(this.serverId, roomId, rawValue.messageEventId);
-          else if (payload.case === 'messageEdited' || payload.case === 'assetDeleted')
-            refreshRegisteredMessagePreview(this.serverId, roomId, rawValue.messageEventId);
-        }
         if (payload.case === 'messageRetracted') {
           this.applyLoadedMessageRetraction(
             roomId,

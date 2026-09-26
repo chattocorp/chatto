@@ -16,16 +16,10 @@ type FollowedThreadCache = {
   scrubMessage(serverId: string, roomId: string, eventId: string): void;
   scrubUser(serverId: string): void;
 };
-/** Cached message link previews, keyed by room and message. */
+/** Message link previews of mounted preview cards. */
 type MessagePreviewQueryCache = {
-  /** Reload a preview after its message or attachments change. */
-  refreshMessage(serverId: string, roomId: string, eventId: string): void;
-  /** Hide and reload a preview after its message is retracted. */
-  purgeMessage(serverId: string, roomId: string, eventId: string): void;
-  /** Hide and reload every preview from a room after message access to it is lost. */
-  purgeRoom(serverId: string, roomId: string): void;
-  /** Hide and reload every preview whose author account was deleted. */
-  purgeAuthor(serverId: string, userId: string): void;
+  /** Reload every preview of a server after a snapshot replaced its projection. */
+  refresh(serverId: string): void;
 };
 type RoomMemberQueryCache = {
   invalidateRoom(serverId: string, roomId: string): void;
@@ -90,28 +84,8 @@ export function registerMessagePreviewQueryCache(cache: MessagePreviewQueryCache
   messagePreviewQueryCache = cache;
 }
 
-export function refreshRegisteredMessagePreview(
-  serverId: string,
-  roomId: string,
-  eventId: string
-): void {
-  messagePreviewQueryCache?.refreshMessage(serverId, roomId, eventId);
-}
-
-export function purgeRegisteredMessagePreview(
-  serverId: string,
-  roomId: string,
-  eventId: string
-): void {
-  messagePreviewQueryCache?.purgeMessage(serverId, roomId, eventId);
-}
-
-export function purgeRegisteredRoomMessagePreviews(serverId: string, roomId: string): void {
-  messagePreviewQueryCache?.purgeRoom(serverId, roomId);
-}
-
-export function purgeRegisteredAuthorMessagePreviews(serverId: string, userId: string): void {
-  messagePreviewQueryCache?.purgeAuthor(serverId, userId);
+export function refreshRegisteredMessagePreviews(serverId: string): void {
+  messagePreviewQueryCache?.refresh(serverId);
 }
 
 export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: string): void {

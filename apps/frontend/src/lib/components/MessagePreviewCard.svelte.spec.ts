@@ -223,7 +223,8 @@ function testStore() {
     },
     navigation: {
       rooms: [{ id: 'room_1', name: 'general' }]
-    }
+    },
+    realtimeSync: { resumeCursor: 'cursor-1' }
   };
 }
 
@@ -357,16 +358,21 @@ describe('MessagePreviewCard', () => {
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
   });
 
-  it('renders a remounted card from the cache without loading it again', async () => {
-    timelineResults.push(bodyPreviewResult('Cached preview'));
-    const first = render(MessagePreviewCard, { props: { link: link(), showDismiss: false } });
-    await vi.waitFor(() => expect(first.container.textContent).toContain('Cached preview'));
-    first.unmount();
+  it('reads at the accepted realtime cursor with a cancellable request', async () => {
+    timelineResults.push(bodyPreviewResult('Bounded preview'));
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('Bounded preview'));
 
-    const second = render(MessagePreviewCard, { props: { link: link(), showDismiss: false } });
-
-    expect(second.container.textContent).toContain('Cached preview');
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(getRoomEventsAroundMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: 'room_1',
+        eventId: 'event_1',
+        minimumCursor: 'cursor-1',
+        signal: expect.any(AbortSignal)
+      })
+    );
   });
 
   it('ignores a late response after the target changes', async () => {
