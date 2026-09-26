@@ -1,5 +1,4 @@
-import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
@@ -11,8 +10,6 @@ const { mocks } = vi.hoisted(() => ({
     notifyPageState: () => {},
     closeModal: vi.fn(),
     goto: vi.fn(),
-    replaceState: vi.fn(),
-    refreshAttachmentUrlsForAssets: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
     leaveRoom: vi.fn(),
@@ -72,8 +69,7 @@ vi.mock('$app/state', async () => {
 });
 
 vi.mock('$app/navigation', () => ({
-  goto: mocks.goto,
-  replaceState: mocks.replaceState
+  goto: mocks.goto
 }));
 
 vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
@@ -174,11 +170,6 @@ vi.mock('$lib/state/clientAccount', () => ({
   }
 }));
 
-vi.mock('$lib/attachments/attachmentUrls', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/attachments/attachmentUrls')>()),
-  refreshAttachmentUrlsForAssets: mocks.refreshAttachmentUrlsForAssets
-}));
-
 vi.mock('$lib/api-client/messages', () => ({
   createMessageAPI: () => ({
     deleteMessage: mocks.deleteMessage,
@@ -253,7 +244,6 @@ beforeEach(() => {
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
-  mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(new Map());
   mocks.mutation.mockReturnValue({
     toPromise: () => Promise.resolve({ data: {}, error: null })
   });
@@ -304,169 +294,6 @@ beforeEach(() => {
   mocks.servers = [mocks.originServer];
   mocks.authenticated = { origin: true };
   vi.clearAllMocks();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-describe('ModalContainer image viewer', () => {
-  it('refreshes compressed display and original URLs independently', async () => {
-    vi.useFakeTimers();
-    mocks.modal = {
-      type: 'imageViewer',
-      serverId: 'remote',
-      roomId: 'room_1',
-      eventId: 'event_1',
-      imageItems: [
-        {
-          id: 'att_1',
-          src: '/assets/files/att_1/image/2048x2048/contain?access=old',
-          originalSrc: '/assets/files/att_1?access=old',
-          filename: 'image.jpg'
-        }
-      ],
-      imageIndex: 0
-    };
-    mocks.servers.push({
-      id: 'remote',
-      url: 'https://remote.example.test',
-      name: 'Remote',
-      token: 'remote-token'
-    });
-    mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(
-      new Map([
-        [
-          'att_1',
-          {
-            assetUrl: { url: '/assets/files/att_1?access=fresh' },
-            thumbnailAssetUrl: {
-              url: '/assets/files/att_1/image/2048x2048/contain?access=fresh'
-            }
-          }
-        ]
-      ])
-    );
-
-    render(ModalContainer);
-    await vi.advanceTimersByTimeAsync(22 * 60 * 60 * 1000);
-
-    expect(mocks.refreshAttachmentUrlsForAssets).toHaveBeenCalledWith(
-      expect.anything(),
-      'room_1',
-      ['att_1'],
-      { width: 2048, height: 2048, fit: ImageFitMode.CONTAIN }
-    );
-    expect(mocks.getClient).toHaveBeenCalledWith('remote');
-    expect(mocks.replaceState).toHaveBeenCalledWith('', {
-      modal: {
-        ...mocks.modal,
-        imageItems: [
-          {
-            id: 'att_1',
-            src: 'https://remote.example.test/assets/files/att_1/image/2048x2048/contain?access=fresh',
-            originalSrc: 'https://remote.example.test/assets/files/att_1?access=fresh',
-            filename: 'image.jpg'
-          }
-        ],
-        imageIndex: 0
-      }
-    });
-  });
-
-  it('preserves an image selected while URL refresh is pending', async () => {
-    vi.useFakeTimers();
-    mocks.modal = {
-      type: 'imageViewer',
-      serverId: 'origin',
-      roomId: 'room_1',
-      eventId: 'event_1',
-      imageItems: [
-        { id: 'att_1', src: '/assets/files/att_1?access=old', filename: 'first.jpg' },
-        { id: 'att_2', src: '/assets/files/att_2?access=old', filename: 'second.jpg' }
-      ],
-      imageIndex: 0
-    };
-    let finishRefresh: ((urls: Map<string, unknown>) => void) | undefined;
-    mocks.refreshAttachmentUrlsForAssets.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = resolve;
-        })
-    );
-    mocks.replaceState.mockImplementationOnce(
-      (_url: string, state: { modal?: Record<string, unknown> }) => setModal(state.modal)
-    );
-
-    const { container } = render(ModalContainer);
-    vi.advanceTimersByTime(22 * 60 * 60 * 1000);
-    await vi.waitFor(() => expect(mocks.refreshAttachmentUrlsForAssets).toHaveBeenCalledOnce());
-
-    container.querySelector<HTMLButtonElement>('button[aria-label="Next image"]')?.click();
-    await vi.waitFor(() => {
-      expect(container.textContent).toContain('2 / 2');
-    });
-
-    finishRefresh?.(
-      new Map([
-        [
-          'att_1',
-          {
-            assetUrl: { url: '/assets/files/att_1?access=fresh' },
-            thumbnailAssetUrl: { url: '/assets/files/att_1/thumbnail?access=fresh' }
-          }
-        ]
-      ])
-    );
-
-    await vi.waitFor(() => {
-      expect(mocks.replaceState).toHaveBeenCalledOnce();
-      expect(container.textContent).toContain('2 / 2');
-    });
-  });
-
-  it('does not apply a late refresh to the same room on another server', async () => {
-    vi.useFakeTimers();
-    mocks.modal = {
-      type: 'imageViewer',
-      serverId: 'remote',
-      roomId: 'room_1',
-      eventId: 'event_1',
-      imageItems: [{ id: 'att_1', src: '/assets/files/att_1?access=old' }],
-      imageIndex: 0
-    };
-    let finishRefresh: ((urls: Map<string, unknown>) => void) | undefined;
-    mocks.refreshAttachmentUrlsForAssets.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = resolve;
-        })
-    );
-
-    render(ModalContainer);
-    vi.advanceTimersByTime(22 * 60 * 60 * 1000);
-    await vi.waitFor(() => expect(mocks.getClient).toHaveBeenCalledWith('remote'));
-
-    setModal({
-      ...mocks.modal,
-      serverId: 'origin'
-    });
-    finishRefresh?.(
-      new Map([
-        [
-          'att_1',
-          {
-            assetUrl: { url: '/assets/files/att_1?access=fresh' },
-            thumbnailAssetUrl: { url: '/assets/files/att_1/thumbnail?access=fresh' }
-          }
-        ]
-      ])
-    );
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(mocks.replaceState).not.toHaveBeenCalled();
-  });
 });
 
 describe('ModalContainer sign out modal', () => {

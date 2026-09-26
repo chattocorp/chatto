@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Sesi yerel olarak aç",
     "locally_muted": "Yerel olarak sessize alındı",
     "unknown_device": "Bilinmeyen cihaz",
-    "no_devices": "Hiçbir cihaz bulunamadı",
     "participants": "Katılımcıları arayın",
     "join_failed": "Sesli aramaya katılamadı",
     "encrypted_unsupported": "Bu tarayıcı henüz şifreli sesli aramaları desteklemiyor. En yeni Firefox, Chrome veya Edge'i deneyin.",
@@ -105,8 +104,7 @@
       "stream": "Yayın ses düzeyi",
       "reset": "Ses düzeyini sıfırla",
       "boost_unavailable": "Bu tarayıcıda ses yükseltme kullanılamıyor.",
-      "enable_audio": "Arama sesini etkinleştir",
-      "system_output": "Bu tarayıcı aramalar için sistem ses çıkışını kullanır."
+      "enable_audio": "Arama sesini etkinleştir"
     }
   }
 }

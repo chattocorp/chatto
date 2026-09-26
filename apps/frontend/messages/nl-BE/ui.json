@@ -85,11 +85,9 @@
       "clear": "Duidelijk"
     },
     "expiry": {
-      "label": "Verloopt",
       "24h": "24 uur",
       "7d": "7 dagen",
       "30d": "30 dagen",
-      "indefinite": "Geen vervaldatum",
       "custom": "Aangepast",
       "custom_label": "Aangepaste vervaldatum",
       "error_required": "Kies een vervaldatum.",

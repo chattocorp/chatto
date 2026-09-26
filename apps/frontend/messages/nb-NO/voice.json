@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Slå på lyden lokalt",
     "locally_muted": "Lokalt dempet",
     "unknown_device": "Ukjent enhet",
-    "no_devices": "Ingen enheter funnet",
     "participants": "Ring deltakere",
     "join_failed": "Kunne ikke bli med i taleanrop",
     "encrypted_unsupported": "Denne nettleseren støtter ikke krypterte taleanrop ennå. Prøv den nyeste Firefox, Chrome eller Edge.",
@@ -105,8 +104,7 @@
       "stream": "Strømmevolum",
       "reset": "Tilbakestill volum",
       "boost_unavailable": "Volumforsterkning er ikke tilgjengelig i denne nettleseren.",
-      "enable_audio": "Aktiver samtalelyd",
-      "system_output": "Denne nettleseren bruker systemets lydutgang for samtaler."
+      "enable_audio": "Aktiver samtalelyd"
     }
   }
 }

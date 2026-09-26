@@ -337,6 +337,11 @@ Do not generate playground links for code written into this repository.
   authenticated remote server with an anonymous origin server.
 - Use helpers from `$lib/test-utils` rather than re-rolling connection/context
   mocks.
+- `vitest-setup-client.ts` imports `$lib/query/client` before each browser
+  spec. Because of this, `vi.mock` of `$lib/query/client` or
+  `@tanstack/svelte-query` in a browser spec has no effect. Test against the
+  real `queryClient`: control the reads through the mocked API, and let the
+  setup file clear the cache after each test.
 - Use `expect.element(...)` for DOM assertions and flush after Svelte state
   mutations when needed.
 - For focused component tests, filter to the relevant test instead of initially

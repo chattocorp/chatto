@@ -172,17 +172,6 @@ export function handleAuthError(
   throw err;
 }
 
-export async function withAuth<T>(
-  config: Pick<ConnectAPIConfig, 'serverId' | 'onAuthenticationRequired' | 'renewBearerToken'>,
-  operation: () => Promise<T>
-): Promise<T> {
-  try {
-    return await operation();
-  } catch (err) {
-    handleAuthError(config, err);
-  }
-}
-
 export function isConnectCode(err: unknown, code: Code): boolean {
   return err instanceof ConnectError && err.code === code;
 }

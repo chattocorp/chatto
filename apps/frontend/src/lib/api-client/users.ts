@@ -13,7 +13,7 @@ import type { User } from '@chatto/api-types/api/v1/users_pb';
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
-import { mapOptionalUserSummary, mapUserSummary, type UserSummary } from './userSummary.js';
+import { mapUserSummary, type UserSummary } from './userSummary.js';
 
 export type UserAPIConfig = ConnectAPIConfig;
 
@@ -81,10 +81,6 @@ export function createUserAPI(config: UserAPIConfig) {
 }
 
 export type UserAPI = ReturnType<typeof createUserAPI>;
-
-export function mapDirectoryMemberUserSummary(member: APIDirectoryMember): UserSummary | null {
-  return mapOptionalUserSummary(member.user);
-}
 
 function requiredUser(user: Parameters<typeof mapUserSummary>[0] | undefined) {
   if (!user) throw new Error('avatar response did not include a user');

@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Riattiva l'audio localmente",
     "locally_muted": "Disattivato localmente",
     "unknown_device": "Dispositivo sconosciuto",
-    "no_devices": "Nessun dispositivo trovato",
     "participants": "Chiama i partecipanti",
     "join_failed": "Impossibile partecipare alla chiamata vocale",
     "encrypted_unsupported": "Questo browser non supporta ancora le chiamate vocali crittografate. Prova la versione più recente di Firefox, Chrome o Edge.",
@@ -105,8 +104,7 @@
       "stream": "Volume dello streaming",
       "reset": "Ripristina volume",
       "boost_unavailable": "L’amplificazione del volume non è disponibile in questo browser.",
-      "enable_audio": "Attiva audio della chiamata",
-      "system_output": "Questo browser usa l’uscita audio del sistema per le chiamate."
+      "enable_audio": "Attiva audio della chiamata"
     }
   }
 }

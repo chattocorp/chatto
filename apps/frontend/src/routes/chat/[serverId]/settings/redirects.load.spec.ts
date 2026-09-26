@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { load as settingsRootLoad } from './+page';
-import { load as legacyAppearanceLoad } from './app/+page';
 import { load as legacyTimeLoad } from './preferences/+page';
 
 const mocks = vi.hoisted(() => ({ redirect: vi.fn() }));
@@ -11,13 +10,12 @@ vi.mock('$app/paths', () => ({
     path.replace('[serverId]', params.serverId)
 }));
 
-describe('legacy settings routes', () => {
+describe('settings redirect routes', () => {
   beforeEach(() => mocks.redirect.mockReset());
 
   it.each([
     ['settings root', settingsRootLoad, '/chat/remote/settings/appearance'],
-    ['app', legacyAppearanceLoad, '/chat/remote/settings/appearance'],
-    ['preferences', legacyTimeLoad, '/chat/remote/settings/time']
+    ['0.4 preferences', legacyTimeLoad, '/chat/remote/settings/time']
   ])('redirects %s to its named route', (_name, load, destination) => {
     load({
       params: { serverId: 'remote' },

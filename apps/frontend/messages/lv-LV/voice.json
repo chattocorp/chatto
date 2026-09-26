@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Ieslēgt skaņu lokāli",
     "locally_muted": "Lokāli izslēgts",
     "unknown_device": "Nezināma ierīce",
-    "no_devices": "Netika atrasta neviena ierīce",
     "participants": "Zvaniet dalībniekiem",
     "join_failed": "Neizdevās pievienoties balss zvanam",
     "encrypted_unsupported": "Šī pārlūkprogramma vēl neatbalsta šifrētus balss zvanus. Izmēģiniet jaunāko Firefox, Chrome vai Edge versiju.",
@@ -105,8 +104,7 @@
       "stream": "Straumes skaļums",
       "reset": "Atiestatīt skaļumu",
       "boost_unavailable": "Skaļuma pastiprināšana šajā pārlūkā nav pieejama.",
-      "enable_audio": "Iespējot zvana audio",
-      "system_output": "Šis pārlūks zvaniem izmanto sistēmas audio izvadi."
+      "enable_audio": "Iespējot zvana audio"
     }
   }
 }

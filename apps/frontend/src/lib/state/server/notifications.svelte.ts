@@ -929,22 +929,6 @@ export class NotificationStore {
   }
 
   /**
-   * Get location string for a notification (e.g., "#general in My Server").
-   * Returns null for DM notifications and any notification missing names.
-   * The "in <name>" suffix uses the connected instance display name supplied
-   * by the caller.
-   */
-  getLocationString(
-    notification: NotificationOccurrenceItem,
-    serverName?: string | null
-  ): string | null {
-    const t = notificationTarget(notification);
-    if (t.isDM || !t.roomName) return null;
-    if (!serverName) return `#${t.roomName}`;
-    return `#${t.roomName} in ${serverName}`;
-  }
-
-  /**
    * Build a clean (no `?highlight=`) destination path for a notification.
    * Use this with `PendingHighlightStore.set()` to deliver the highlight
    * intent without polluting the URL.

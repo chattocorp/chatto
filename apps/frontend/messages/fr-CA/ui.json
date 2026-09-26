@@ -85,11 +85,9 @@
       "clear": "Effacer"
     },
     "expiry": {
-      "label": "Expire",
       "24h": "24 h",
       "7d": "7 jours",
       "30d": "30 jours",
-      "indefinite": "Pas d'expiration",
       "custom": "Personnalisé",
       "custom_label": "Expiration personnalisée",
       "error_required": "Choisissez une date d'expiration.",

@@ -846,11 +846,6 @@
   @apply active:bg-(--color-button-action-hover);
 }
 
-@utility btn-success {
-  @apply btn border-(--color-button-success) bg-(--color-button-success) font-semibold text-white hover:border-(--color-button-success-hover) hover:bg-(--color-button-success-hover);
-  @apply active:bg-(--color-button-success-hover);
-}
-
 @utility btn-secondary {
   @apply btn bg-surface-emphasized/60 text-text;
   @apply hover:bg-surface-emphasized active:bg-surface-strong;
@@ -892,11 +887,6 @@
 /* Dense embedded action for toasts and other constrained surfaces. */
 @utility btn-xs {
   @apply min-h-8 min-w-0 px-3 py-1 text-xs;
-}
-
-/* Equal-width icon action used inside the current-call control row. */
-@utility btn-compact {
-  @apply h-10 min-h-10 w-full min-w-0 shrink-0 rounded-md p-0 text-xs;
 }
 
 @utility btn-lg {
@@ -1733,11 +1723,6 @@
 
 @utility menu-entry-leading-sheet {
   @apply mt-0.5;
-}
-
-/* Simple non-interactive tooltip surface for FloatingTooltip. */
-@utility floating-tooltip {
-  @apply max-w-xs rounded-md border border-text/10 bg-surface-emphasized px-2.5 py-1.5 text-xs leading-snug text-text shadow-lg;
 }
 
 /* Fixed mobile drawers cover the browser content down to the viewport edge.

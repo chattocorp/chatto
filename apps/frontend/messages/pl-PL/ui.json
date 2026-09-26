@@ -85,11 +85,9 @@
       "clear": "Wyczyść"
     },
     "expiry": {
-      "label": "Wygasa",
       "24h": "24 godziny",
       "7d": "7 dni",
       "30d": "30 dni",
-      "indefinite": "Brak wygaśnięcia",
       "custom": "Niestandardowe",
       "custom_label": "Niestandardowe wygaśnięcie",
       "error_required": "Wybierz datę ważności.",

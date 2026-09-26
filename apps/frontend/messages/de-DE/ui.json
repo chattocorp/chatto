@@ -85,11 +85,9 @@
       "clear": "Leeren"
     },
     "expiry": {
-      "label": "Läuft ab",
       "24h": "24 Stunden",
       "7d": "7 Tage",
       "30d": "30 Tage",
-      "indefinite": "Kein Ablauf",
       "custom": "Benutzerdefiniert",
       "custom_label": "Benutzerdefinierter Ablauf",
       "error_required": "Wähle ein Ablaufdatum.",

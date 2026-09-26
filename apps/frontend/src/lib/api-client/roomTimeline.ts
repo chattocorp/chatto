@@ -205,14 +205,6 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
   };
 }
 
-export async function timelineUsersForEvents(
-  config: RoomTimelineAPIConfig,
-  events: RoomTimelineEvent[]
-): Promise<Record<string, User>> {
-  const userIds = messageUserIds(messagesFromTimelineEvents(events));
-  return batchTimelineUsers(config, userIds);
-}
-
 export async function timelineUsersForMessages(
   config: RoomTimelineAPIConfig,
   messages: Message[],
@@ -255,15 +247,6 @@ async function batchTimelineUsers(
     if (minimumCursor || requireSuccess) throw error;
     return {};
   }
-}
-
-function messagesFromTimelineEvents(events: RoomTimelineEvent[]): Message[] {
-  const messages: Message[] = [];
-  for (const event of events) {
-    if (event.event.case !== 'messagePosted') continue;
-    if (event.event.value.message) messages.push(event.event.value.message);
-  }
-  return messages;
 }
 
 function messageUserIds(messages: Message[]): string[] {
