@@ -227,7 +227,10 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
-  /** Cursor of the snapshot whose catch-up has applied its reads; null outside that interval. */
+  /**
+   * Cursor of the last snapshot whose data catch-up applied. A new snapshot
+   * clears it. `minimumReadCursor` uses it only while the resume cursor is null.
+   */
   #snapshotReadCursor: string | null = null;
   /** Catch-up reads can replace retained state while live hints arrive. */
   #catchUpResourceReads = 0;
@@ -852,6 +855,8 @@ export class ServerStateStore {
     let adminRoomLayoutChanged = update.reset;
 
     if (update.reset) {
+      // Clear first, so a failed cleanup cannot keep the cursor of an earlier snapshot.
+      this.#snapshotReadCursor = null;
       this.#messageReconciler.reset();
       this.#permissionCheckGeneration++;
       this.checkingPermissions = false;
@@ -863,7 +868,6 @@ export class ServerStateStore {
       }
       const generation = ++this.#realtimeProjectionGeneration;
       this.#realtimeSnapshotPending = true;
-      this.#snapshotReadCursor = null;
       if (!update.retainView) this.#deletedRealtimeUserIds.clear();
       this.#reconciliationError = null;
       this.#pendingResourceRefreshes.clear();
