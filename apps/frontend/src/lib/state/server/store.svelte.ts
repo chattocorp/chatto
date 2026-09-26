@@ -216,7 +216,6 @@ export class ServerStateStore {
   #threadMessageRefCounts: Record<string, number> = Object.create(null);
   #adminRoomLayoutSubscriptions = 0;
 
-  /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
   readonly #privilegedModeAPI: PrivilegedModeAPI;

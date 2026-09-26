@@ -58,7 +58,7 @@ export type RealtimeServerRegistration = {
   projectionSupported: boolean;
   sync: RealtimeProjectionSyncState;
   /** Canonical store reducer that must be present before transport startup. */
-  projectionHandler?: ProjectionHandler;
+  projectionHandler: ProjectionHandler;
   /** Refresh auxiliary state once at the subscription's caught-up boundary. */
   completeProjectionCatchUp?: (cursor: string) => Promise<void>;
   /** Wait for event-triggered reads without fetching unrelated resources. */
@@ -110,24 +110,25 @@ class EventBusManager {
   #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Register the stable bus/reducer surface without necessarily opening a socket. */
-  ensureBus(
-    serverId: string,
-    serverConnection: ServerConnection,
-    realtimeProjectionSupported = true,
-    sync = new RealtimeProjectionSyncState(),
-    projectionHandler?: ProjectionHandler,
-    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
-    waitForProjectionReconciliation?: () => Promise<void>
-  ): TransportController {
+  ensureBus(registration: RealtimeServerRegistration): TransportController {
+    const {
+      serverId,
+      connection: serverConnection,
+      projectionSupported: realtimeProjectionSupported,
+      sync,
+      projectionHandler,
+      completeProjectionCatchUp,
+      waitForProjectionReconciliation
+    } = registration;
     const existing = this.#controllers.get(serverId);
     if (existing) {
-      if (projectionHandler) this.#buses.get(serverId)?.setReducer(projectionHandler);
+      this.#buses.get(serverId)?.setReducer(projectionHandler);
       existing.update(realtimeProjectionSupported);
       return existing;
     }
 
     const bus = new EventBus(serverId);
-    if (projectionHandler) bus.setReducer(projectionHandler);
+    bus.setReducer(projectionHandler);
     let projectionSupported = realtimeProjectionSupported;
     let mode: TransportMode = 'dormant';
     let lastEventAt = Date.now();
@@ -652,15 +653,7 @@ class EventBusManager {
     this.#activeServerId = nextIds.has(activeServerId ?? '') ? activeServerId : null;
 
     for (const registration of registrations) {
-      this.ensureBus(
-        registration.serverId,
-        registration.connection,
-        registration.projectionSupported,
-        registration.sync,
-        registration.projectionHandler,
-        registration.completeProjectionCatchUp,
-        registration.waitForProjectionReconciliation
-      );
+      this.ensureBus(registration);
     }
     // Close the previous live transport before opening the next one so a
     // route change never leaves two persistent sockets, even momentarily.

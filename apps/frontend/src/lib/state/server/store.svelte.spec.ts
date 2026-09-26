@@ -2133,13 +2133,13 @@ describe('ServerStateStore unified realtime resources', () => {
       apiMocks.readRealtimeUsers.mockReturnValueOnce(response.promise);
       const fake = new FakeServerConnection([]);
       const store = makeStore(fake);
-      eventBusManager.ensureBus(
-        store.serverId,
-        fake as unknown as ServerConnection,
-        true,
-        store.realtimeSync,
-        store.realtimeProjectionHandler
-      );
+      eventBusManager.ensureBus({
+        serverId: store.serverId,
+        connection: fake as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: store.realtimeSync,
+        projectionHandler: store.realtimeProjectionHandler
+      });
       const observer = vi.fn<(update: RealtimeProjectionUpdate) => void>();
       eventBusManager.getBus(store.serverId)!.subscribe(observer);
       const deleted = new DirectoryMember({
@@ -2648,13 +2648,13 @@ describe('ServerStateStore unified realtime resources', () => {
     apiMocks.readRealtimeUsers.mockResolvedValueOnce([users]);
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    eventBusManager.ensureBus(
-      store.serverId,
-      fake as unknown as ServerConnection,
-      true,
-      store.realtimeSync,
-      store.realtimeProjectionHandler
-    );
+    eventBusManager.ensureBus({
+      serverId: store.serverId,
+      connection: fake as unknown as ServerConnection,
+      projectionSupported: true,
+      sync: store.realtimeSync,
+      projectionHandler: store.realtimeProjectionHandler
+    });
     const observer = vi.fn();
     eventBusManager.getBus(store.serverId)!.subscribe(observer);
 

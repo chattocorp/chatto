@@ -191,15 +191,15 @@ type LiveBusOptions = {
  */
 function startLiveBus(fake: FakeServerConnection, options: LiveBusOptions = {}): EventBus {
   const projectionSupported = options.projectionSupported ?? true;
-  const controller = eventBusManager.ensureBus(
-    TEST_SERVER,
-    fake as unknown as ServerConnection,
+  const controller = eventBusManager.ensureBus({
+    serverId: TEST_SERVER,
+    connection: fake as unknown as ServerConnection,
     projectionSupported,
-    options.sync,
-    options.reducer,
-    options.completeProjectionCatchUp,
-    options.waitForProjectionReconciliation
-  );
+    sync: options.sync ?? new RealtimeProjectionSyncState(),
+    projectionHandler: options.reducer ?? (() => {}),
+    completeProjectionCatchUp: options.completeProjectionCatchUp,
+    waitForProjectionReconciliation: options.waitForProjectionReconciliation
+  });
   if (projectionSupported) controller.setMode('live');
   return eventBusManager.getBus(TEST_SERVER)!;
 }
@@ -528,32 +528,6 @@ describe('eventBusManager realtime transport', () => {
     expect(socket.closeCalls.at(-1)?.code).toBe(4000);
     expect(socket.closeCalls.at(-1)?.reason).toBe('invalid snapshot frame');
     expect(sync.resumeCursor).toBeNull();
-  });
-
-  it('rejects snapshot recovery before a projection reducer is registered', async () => {
-    const sync = new RealtimeProjectionSyncState();
-    const fake = new FakeServerConnection();
-    startLiveBus(fake, { sync });
-    const socket = sockets[0];
-    socket.open();
-    await socket.receive(snapshotFrame());
-
-    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
-    expect(socket.closeCalls.at(-1)?.reason).toBe('snapshot reducer failed');
-    expect(sync.resumeCursor).toBeNull();
-  });
-
-  it('does not advance the cursor when no projection reducer is registered', async () => {
-    vi.useFakeTimers();
-    const { socket } = await startAndSubscribe();
-
-    await socket.receive(projectionFrame('cursor-must-not-persist'));
-    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
-    expect(socket.closeCalls.at(-1)?.reason).toBe('projection reducer failed');
-    expect(consoleError).toHaveBeenCalledWith(
-      `[eventBus:${TEST_SERVER}] projection reducer failed`,
-      expect.any(Error)
-    );
   });
 
   it('retains the last complete cursor when event resource reconciliation fails', async () => {
@@ -954,19 +928,19 @@ describe('eventBusManager realtime transport', () => {
           serverId: 'active-server',
           connection: active as unknown as ServerConnection,
           projectionSupported: true,
-          sync: activeSync
+          sync: activeSync,
+          projectionHandler: vi.fn()
         },
         {
           serverId: 'inactive-server',
           connection: inactive as unknown as ServerConnection,
           projectionSupported: true,
-          sync: inactiveSync
+          sync: inactiveSync,
+          projectionHandler: vi.fn()
         }
       ],
       'active-server'
     );
-    eventBusManager.getBus('active-server')!.setReducer(vi.fn());
-    eventBusManager.getBus('inactive-server')!.setReducer(vi.fn());
 
     expect(sockets.map((socket) => socket.url)).toEqual([active.realtimeUrl, inactive.realtimeUrl]);
     const inactiveSocket = sockets[1];
@@ -994,19 +968,19 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'first-server',
         connection: first as unknown as ServerConnection,
         projectionSupported: true,
-        sync: firstSync
+        sync: firstSync,
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'second-server',
         connection: second as unknown as ServerConnection,
         projectionSupported: true,
-        sync: secondSync
+        sync: secondSync,
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'first-server');
-    eventBusManager.getBus('first-server')!.setReducer(vi.fn());
-    eventBusManager.getBus('second-server')!.setReducer(vi.fn());
     const firstLive = sockets[0];
     firstLive.open();
     await firstLive.receive(
@@ -1039,20 +1013,19 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'active-before-promotion',
         connection: active as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'promoted-server',
         connection: promotedConnection as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'active-before-promotion');
-    for (const registration of registrations) {
-      eventBusManager.getBus(registration.serverId)!.setReducer(vi.fn());
-    }
     const pollingSocket = sockets[1];
     pollingSocket.open();
     await pollingSocket.receive(heartbeatFrame());
@@ -1084,26 +1057,26 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'active',
         connection: active as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'inactive-a',
         connection: inactiveA as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'inactive-b',
         connection: inactiveB as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'active');
-    for (const registration of registrations) {
-      eventBusManager.getBus(registration.serverId)!.setReducer(vi.fn());
-    }
     expect(sockets.map((socket) => socket.url)).toEqual([
       active.realtimeUrl,
       inactiveA.realtimeUrl
@@ -1133,19 +1106,19 @@ describe('eventBusManager realtime transport', () => {
           serverId: 'periodic-active',
           connection: active as unknown as ServerConnection,
           projectionSupported: true,
-          sync: new RealtimeProjectionSyncState()
+          sync: new RealtimeProjectionSyncState(),
+          projectionHandler: vi.fn()
         },
         {
           serverId: 'periodic-inactive',
           connection: inactive as unknown as ServerConnection,
           projectionSupported: true,
-          sync: inactiveSync
+          sync: inactiveSync,
+          projectionHandler: vi.fn()
         }
       ],
       'periodic-active'
     );
-    eventBusManager.getBus('periodic-active')!.setReducer(vi.fn());
-    eventBusManager.getBus('periodic-inactive')!.setReducer(vi.fn());
 
     expect(sockets).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(59_999);

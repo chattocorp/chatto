@@ -59,9 +59,11 @@ export type ProjectionHandler = (update: RealtimeProjectionUpdate) => void;
  *
  * The server store's reducer applies each update first. Listeners then see the
  * same update in subscription order. A listener error is logged and does not
- * stop other listeners or the transport. A reducer error propagates, because
- * the projection is then out of date; a reset still reaches every listener
- * before the reducer error is thrown.
+ * stop other listeners or the transport, so the event cursor still advances
+ * and the update is not delivered again: a listener must finish its own
+ * cleanup work before it can throw. A reducer error propagates, because the
+ * projection is then out of date; the transport closes and reconnects. A reset
+ * still reaches every listener before the reducer error is thrown.
  */
 export class EventBus {
   #reducer: ProjectionHandler | null = null;
