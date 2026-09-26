@@ -2275,6 +2275,21 @@ describe('MessageComposer', () => {
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
     });
 
+    it('cancels an active reply on Escape before handing Escape to the owner', async () => {
+      const onEscape = vi.fn();
+      roomStateMock.replyState!.startReply('evt_reply', 'Reply target', 'excerpt');
+      const { container } = renderMessageComposer({ roomId: 'room_456', onEscape });
+      const editor = await findEditor(container);
+
+      await pressEditorKey(editor, 'Escape');
+
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      expect(onEscape).not.toHaveBeenCalled();
+
+      await pressEditorKey(editor, 'Escape');
+      expect(onEscape).toHaveBeenCalledOnce();
+    });
+
     it('cancels an edit and restores the next room draft when the room changes', async () => {
       const editState = new EditState();
       roomStateMock.reactiveEditState = editState;
