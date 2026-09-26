@@ -376,9 +376,10 @@ and the view keeps its state.
 Cards that must adapt to the space they get, not to the device, use a named
 container query. `ServerProfileCard` is an icon tile when its nearest
 `@container/server-cards` ancestor is narrower than 40rem: a large centred
-logo, the name and host, the recommendation sources, and the actions, without
-a banner or description.
-Callers adapt their own card content with the `server-tile:` variant. The
+logo, the name and host, and the caller's actions, without a banner or
+description. Callers adapt their own card content with the `server-tile:`
+variant; the Server Directory stacks the recommendation sources above a
+full-width action. The
 container belongs to the grid owner, so one grid can show full cards on a
 wide page and two tile columns on a phone.
 
