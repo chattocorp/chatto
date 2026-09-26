@@ -38,7 +38,7 @@ export function createMemberDirectoryAPI(config: ConnectAPIConfig) {
       { userIds },
       {
         headers: minimumCursorHeaders(minimumCursor),
-        ...(minimumCursor ? { timeoutMs: 10_000 } : {})
+        timeoutMs: minimumCursor ? 10_000 : undefined
       }
     );
     return response.users;
@@ -69,7 +69,7 @@ export function createMemberDirectoryAPI(config: ConnectAPIConfig) {
       const members = await readProfiles(async () => {
         response = await users.listUsers(
           { search, page: { limit, offset } },
-          { ...(options.signal ? { signal: options.signal } : {}) }
+          { signal: options.signal }
         );
         return response.users;
       });
@@ -134,8 +134,8 @@ export function createMemberDirectoryAPI(config: ConnectAPIConfig) {
         },
         {
           headers: minimumCursorHeaders(options.minimumCursor),
-          ...(options.minimumCursor || options.presenceStatuses ? { timeoutMs: 10_000 } : {}),
-          ...(options.signal ? { signal: options.signal } : {})
+          timeoutMs: options.minimumCursor || options.presenceStatuses ? 10_000 : undefined,
+          signal: options.signal
         }
       );
       options.signal?.throwIfAborted();
@@ -187,7 +187,7 @@ export function createMemberDirectoryAPI(config: ConnectAPIConfig) {
       return readProfiles(async () => {
         const response = await rooms.batchGetMembers(
           { roomId, userIds },
-          { ...(options.signal ? { signal: options.signal } : {}) }
+          { signal: options.signal }
         );
         return response.members;
       });

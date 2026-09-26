@@ -102,7 +102,7 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
   const threads = createChattoClient(ThreadService, config);
   const options = (minimumCursor?: string) => ({
     headers: minimumCursorHeaders(minimumCursor),
-    ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
+    timeoutMs: minimumCursor ? REALTIME_RESOURCE_TIMEOUT_MS : undefined
   });
   return {
     async getRoomEvents({ roomId, limit, before, after, minimumCursor }) {

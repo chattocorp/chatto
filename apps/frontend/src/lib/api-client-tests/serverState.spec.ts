@@ -4,7 +4,6 @@ import {
   deleteServerBanner,
   deleteServerLogo,
   getAuthenticatedServerState,
-  getServerConfig,
   getServerSecurityConfig,
   updateBlockedUsernames,
   updateServerConfig,
@@ -19,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   getMotd: vi.fn(),
   getRuntimeConfig: vi.fn(),
   getViewer: vi.fn(),
-  getServerConfig: vi.fn(),
   updateServerConfig: vi.fn(),
   uploadServerLogo: vi.fn(),
   deleteServerLogo: vi.fn(),
@@ -49,7 +47,6 @@ describe('getAuthenticatedServerState', () => {
     mocks.getMotd.mockReset();
     mocks.getRuntimeConfig.mockReset();
     mocks.getViewer.mockReset();
-    mocks.getServerConfig.mockReset();
     mocks.updateServerConfig.mockReset();
     mocks.uploadServerLogo.mockReset();
     mocks.deleteServerLogo.mockReset();
@@ -63,7 +60,6 @@ describe('getAuthenticatedServerState', () => {
       getMotd: mocks.getMotd,
       getRuntimeConfig: mocks.getRuntimeConfig,
       getViewer: mocks.getViewer,
-      getServerConfig: mocks.getServerConfig,
       updateServerConfig: mocks.updateServerConfig,
       uploadServerLogo: mocks.uploadServerLogo,
       deleteServerLogo: mocks.deleteServerLogo,
@@ -141,7 +137,7 @@ describe('getAuthenticatedServerState', () => {
         useBinaryFormat: true
       })
     );
-    expect(mocks.getServer).toHaveBeenCalledWith({});
+    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined });
     expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal: undefined });
     expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal: undefined });
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal: undefined });
@@ -227,7 +223,7 @@ describe('getAuthenticatedServerState', () => {
       bearerToken: null
     });
 
-    expect(mocks.getServer).toHaveBeenCalledWith({});
+    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined });
     expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal: undefined });
     expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal: undefined });
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal: undefined });
@@ -315,31 +311,6 @@ describe('getAuthenticatedServerState', () => {
       logoUrl: 'https://cdn/logo.webp',
       bannerUrl: 'https://cdn/banner.webp'
     });
-  });
-
-  it('loads editable server config through AdminServerService', async () => {
-    mocks.getServerConfig.mockResolvedValue({
-      config: {
-        serverName: 'Connect Server',
-        description: 'Connect description',
-        motd: 'Connect MOTD',
-        welcomeMessage: 'Connect welcome'
-      }
-    });
-
-    const config = {
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    };
-
-    await expect(getServerConfig(config)).resolves.toEqual({
-      name: 'Connect Server',
-      description: 'Connect description',
-      motd: 'Connect MOTD',
-      welcomeMessage: 'Connect welcome'
-    });
-
-    expect(mocks.getServerConfig).toHaveBeenCalledWith({}, { signal: undefined });
   });
 
   it('updates server branding through AdminServerService', async () => {

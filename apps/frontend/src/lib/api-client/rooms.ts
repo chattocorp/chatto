@@ -194,7 +194,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           roomId: input.roomId ?? '',
           page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         suspensions: response.suspensions.map(roomSuspension),

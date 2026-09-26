@@ -86,10 +86,7 @@ export function createRoleAPI(config: ConnectAPIConfig) {
     },
 
     async listAdminRoles(options: { signal?: AbortSignal } = {}): Promise<RoleCatalog> {
-      const response = await adminClient.listRoles(
-        {},
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await adminClient.listRoles({}, { signal: options.signal });
       return {
         roles: response.roles.map(serverRoleFromAdmin),
         viewerCanManageRoles: response.viewerCanManageRoles,
@@ -98,10 +95,7 @@ export function createRoleAPI(config: ConnectAPIConfig) {
     },
 
     async getRole(name: string, options: { signal?: AbortSignal } = {}): Promise<RoleDetails> {
-      const response = await adminClient.getRole(
-        { name },
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await adminClient.getRole({ name }, { signal: options.signal });
       return {
         roles: [],
         role: response.role ? serverRoleFromAdmin(response.role) : null,
@@ -115,10 +109,7 @@ export function createRoleAPI(config: ConnectAPIConfig) {
       page: { limit: number; offset: number },
       options: { signal?: AbortSignal } = {}
     ): Promise<RoleMemberPage> {
-      const response = await adminClient.listMembers(
-        { name, page },
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await adminClient.listMembers({ name, page }, { signal: options.signal });
       return {
         users: response.members.map(roleUser),
         totalCount: Number(response.page?.totalCount ?? 0),

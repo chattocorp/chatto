@@ -94,7 +94,7 @@ export function createAttachmentAPI(config: ConnectAPIConfig): AttachmentAPI {
         },
         {
           headers: minimumCursorHeaders(minimumCursor),
-          ...(minimumCursor ? { timeoutMs: 10_000 } : {})
+          timeoutMs: minimumCursor ? 10_000 : undefined
         }
       );
       return {

@@ -13,10 +13,7 @@ export function createNeighborAPI(config: ConnectAPIConfig) {
 
   return {
     async list(options: { signal?: AbortSignal } = {}): Promise<Neighbor[]> {
-      const response = await client.listNeighbors(
-        {},
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await client.listNeighbors({}, { signal: options.signal });
       return response.neighbors.map(mapNeighbor);
     },
 

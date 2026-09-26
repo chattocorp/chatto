@@ -126,7 +126,7 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
         {
           scope: apiTierMatrixScope(input)
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return response.matrix ? tierRoles(response.matrix) : null;
     },
@@ -142,7 +142,7 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
           page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return response.matrix
         ? { ...rolePermissionMatrix(response.matrix), page: scopePage(response.page) }
@@ -181,7 +181,7 @@ export function createPermissionAPI(config: ConnectAPIConfig) {
           page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return response.matrix
         ? { ...userPermissionMatrix(response.matrix), page: scopePage(response.page) }
