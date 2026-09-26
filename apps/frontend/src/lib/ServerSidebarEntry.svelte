@@ -24,8 +24,7 @@
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
 
-  let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
-    $props();
+  let { serverId }: { serverId: string } = $props();
 
   const serverSegment = $derived(serverIdToSegment(serverId));
 

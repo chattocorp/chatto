@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { queryClient } from '$lib/query/client';
+import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
 
 const mocks = vi.hoisted(() => ({
   canCreateBots: false,
@@ -9,23 +10,15 @@ const mocks = vi.hoisted(() => ({
   batchGetUsers: vi.fn()
 }));
 
-vi.mock('$lib/api-client/viewer', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/viewer')>();
-  return {
-    ...actual,
-    viewerResponseToState: () => ({
-      viewerPermissions: { 'bot.create': mocks.canCreateBots }
-    })
-  };
-});
-
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'server-1',
     store: {
       serverInfo: { supportsFeature: () => true },
       currentUser: { user: { settings: null } },
-      projection: { viewer: {} }
+      get permissions() {
+        return { ...NO_SERVER_PERMISSIONS, loaded: true, canCreateBots: mocks.canCreateBots };
+      }
     },
     connection: {
       queryScope: 'session-1',

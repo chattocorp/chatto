@@ -10,7 +10,6 @@
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
   import { RoomKind } from '$lib/api-client/roomDirectory';
-  import { viewerResponseToState } from '$lib/api-client/viewer';
   import { CopyId } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
   import BotCredentialSection, {
@@ -55,11 +54,10 @@
     serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
   );
   const supportsUserAvatars = $derived(serverScope.store.serverInfo.supportsFeature('userAvatars'));
-  const viewerState = $derived.by(() => {
-    const viewer = serverScope.store.projection.viewer;
-    return viewer ? viewerResponseToState(viewer) : null;
-  });
-  const canManageBots = $derived(viewerState?.viewerPermissions['bot.manage'] ?? false);
+  const permissions = $derived(serverScope.store.permissions);
+  const canManageBots = $derived(permissions.canManageBots);
+  // The owner check compares with the same viewer projection as the permissions.
+  const projectionViewerId = $derived(serverScope.store.navigation.currentUserId);
   const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
   const canReassignOwner = $derived(canManageBots);
   const backHref = $derived(
@@ -98,7 +96,7 @@
   );
   const owner = $derived(ownerQuery.data?.[0] ?? null);
   const canOperateBot = $derived(
-    !!bot && (bot.ownerUserId === viewerState?.user.id || canManageBots)
+    !!bot && (bot.ownerUserId === projectionViewerId || canManageBots)
   );
   const canEditAvatar = $derived(canOperateBot || canManageAccounts);
   const targetKey = $derived(
@@ -513,7 +511,7 @@
   {/if}
   <!-- The bot read can finish before the viewer read. Keep the matrix owner
        during that gap; the server layout blocks input until both are current. -->
-  {#if supportsBots && !botQuery.error && (botQuery.isPending || !viewerState || canOperateBot)}
+  {#if supportsBots && !botQuery.error && (botQuery.isPending || !permissions.loaded || canOperateBot)}
     <div class="mt-6">
       <UserPermissionsMatrix
         userId={botId}

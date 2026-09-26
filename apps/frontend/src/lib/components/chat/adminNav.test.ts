@@ -1,43 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import {
-  getAdminNavItems,
-  type AdminNavChromePermissions,
-  type AdminNavServerPermissions
-} from './adminNav';
+import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '$lib/state/server/permissions';
+import { getAdminNavItems } from './adminNav';
 
-function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChromePermissions {
-  return {
-    canViewAdmin: false,
-    canManage: false,
-    canManageNeighbors: false,
-    canManageRooms: false,
-    canModerate: false,
-    canManageRoles: false,
-    canAssignRoles: false,
-    canManageUserAccounts: false,
-    canManageUserPermissions: false,
-    ...overrides
-  };
-}
-
-function server(overrides: Partial<AdminNavServerPermissions> = {}): AdminNavServerPermissions {
-  return {
-    canViewAdmin: false,
-    canAdminViewUsers: false,
-    canAdminViewRoles: false,
-    canAdminViewAudit: false,
-    canAdminViewSystem: false,
-    canManageInvites: false,
-    ...overrides
-  };
+function permissions(overrides: Partial<ServerPermissions> = {}): ServerPermissions {
+  return { ...NO_SERVER_PERMISSIONS, loaded: true, ...overrides };
 }
 
 describe('getAdminNavItems', () => {
+  it('lists nothing until the viewer permissions load', () => {
+    expect(
+      getAdminNavItems({ serverSegment: 'local', permissions: NO_SERVER_PERMISSIONS })
+    ).toEqual([]);
+  });
+
   it('shows Bots as a server-management surface for every signed-in human', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome(),
-      server: server()
+      permissions: permissions()
     });
 
     expect(items.find((item) => item.label === 'Bots')?.href).toBe(
@@ -48,8 +27,11 @@ describe('getAdminNavItems', () => {
   it('hides Moderation for admin entitlement and unrelated effective permissions', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true, canManage: true }),
-      server: server({ canAdminViewUsers: true })
+      permissions: permissions({
+        canViewAdmin: true,
+        canManageServer: true,
+        canAdminViewUsers: true
+      })
     });
 
     expect(items.some((item) => item.label === 'Moderation')).toBe(false);
@@ -58,8 +40,7 @@ describe('getAdminNavItems', () => {
   it('shows Moderation for effective server-wide ban permission', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canModerate: true }),
-      server: server()
+      permissions: permissions({ canModerateRooms: true })
     });
 
     expect(items.find((item) => item.label === 'Moderation')?.href).toBe(
@@ -70,8 +51,7 @@ describe('getAdminNavItems', () => {
   it('shows Members for admin user viewers', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true }),
-      server: server({ canAdminViewUsers: true })
+      permissions: permissions({ canViewAdmin: true, canAdminViewUsers: true })
     });
 
     expect(items.some((item) => item.label === 'Members')).toBe(true);
@@ -80,8 +60,7 @@ describe('getAdminNavItems', () => {
   it('hides Members for role assignment without admin user view', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true, canAssignRoles: true }),
-      server: server()
+      permissions: permissions({ canViewAdmin: true, canAssignRoles: true })
     });
 
     expect(items.some((item) => item.label === 'Members')).toBe(false);
@@ -90,8 +69,11 @@ describe('getAdminNavItems', () => {
   it('hides Permissions without role management', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true, canAssignRoles: true }),
-      server: server({ canAdminViewRoles: true })
+      permissions: permissions({
+        canViewAdmin: true,
+        canAssignRoles: true,
+        canAdminViewRoles: true
+      })
     });
 
     expect(items.some((item) => item.label === 'Permissions')).toBe(false);
@@ -100,8 +82,7 @@ describe('getAdminNavItems', () => {
   it('shows Permissions for role managers', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true, canManageRoles: true }),
-      server: server()
+      permissions: permissions({ canViewAdmin: true, canAdminManageRoles: true })
     });
 
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
@@ -110,13 +91,11 @@ describe('getAdminNavItems', () => {
   it('shows Invite links only for invitation managers', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true }),
-      server: server()
+      permissions: permissions({ canViewAdmin: true })
     });
     const visible = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true }),
-      server: server({ canManageInvites: true })
+      permissions: permissions({ canViewAdmin: true, canManageInvites: true })
     });
 
     expect(hidden.some((item) => item.label === 'Invite links')).toBe(false);
@@ -128,13 +107,11 @@ describe('getAdminNavItems', () => {
   it('shows Neighbors only for Neighbor managers', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome(),
-      server: server()
+      permissions: permissions()
     });
     const visible = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canManageNeighbors: true }),
-      server: server()
+      permissions: permissions({ canManageNeighbors: true })
     });
 
     expect(hidden.some((item) => item.label === 'Neighbors')).toBe(false);
@@ -146,8 +123,7 @@ describe('getAdminNavItems', () => {
   it('keeps server pages beneath manage/server and rooms as sibling resources', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true, canManage: true, canManageRooms: true }),
-      server: server()
+      permissions: permissions({ canViewAdmin: true, canManageServer: true, canManageRooms: true })
     });
 
     expect(items.find((item) => item.label === 'General')?.href).toBe(

@@ -13,6 +13,7 @@ import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
+import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
 import {
   roomManagementPageTestState,
   roomManagementTestPage
@@ -82,15 +83,17 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
           },
           supportsFeature: () => mocks.serverVersion === '0.5.0'
         },
-        adminRoomLayout: { refresh: mocks.refreshLayout }
+        adminRoomLayout: { refresh: mocks.refreshLayout },
+        permissions: {
+          ...NO_SERVER_PERMISSIONS,
+          loaded: true,
+          canManageRooms: true,
+          canAdminManageRoles: true
+        }
       };
     },
     isCurrent: () => true
   })
-}));
-
-vi.mock('$lib/state/server/chromePermissions.svelte', () => ({
-  getChromePermissions: () => () => ({ canManageRooms: true, canManageRoles: true })
 }));
 
 vi.mock('$lib/api-client/adminRoomLayout', () => ({

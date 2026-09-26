@@ -682,6 +682,59 @@ describe('ServerStateStore viewer', () => {
   });
 });
 
+describe('ServerStateStore permissions', () => {
+  function adminViewer(userId: string): GetViewerResponse {
+    return new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: userId }) }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+      }),
+      viewerPermissions: new ServerViewerPermissions({
+        permissions: [new PermissionGrant({ permission: 'server.manage', granted: true })]
+      })
+    });
+  }
+
+  it('stays unloaded while the viewer projection belongs to another account', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    store.projection.viewer = adminViewer('U2');
+
+    expect(store.permissions.loaded).toBe(false);
+    expect(store.permissions.canAdminViewSystem).toBe(false);
+    expect(store.permissions.canManageServer).toBe(false);
+  });
+
+  it('loads from the viewer projection of the accepted account', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.viewer = adminViewer('U1');
+    expect(store.permissions.loaded).toBe(false);
+
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+
+    expect(store.permissions.loaded).toBe(true);
+    expect(store.permissions.canAdminViewSystem).toBe(true);
+    expect(store.permissions.canManageServer).toBe(true);
+    expect(store.permissions.canManageRooms).toBe(false);
+  });
+
+  it('resets to unloaded when a privacy reset clears the viewer projection', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    store.projection.viewer = adminViewer('U1');
+    expect(store.permissions.loaded).toBe(true);
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
+    );
+
+    expect(store.projection.viewer).toBeNull();
+    expect(store.permissions.loaded).toBe(false);
+    expect(store.permissions.canAdminViewSystem).toBe(false);
+    expect(store.permissions.canManageServer).toBe(false);
+  });
+});
+
 describe('ServerStateStore privileged mode', () => {
   it('reads snapshots with current permissions while reconnect is still pending', async () => {
     const fake = new FakeServerConnection([]);
@@ -715,7 +768,7 @@ describe('ServerStateStore privileged mode', () => {
       user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
       privilegedMode: new PrivilegedModeState({ available: true, active: false })
     });
-    store.setPermissions({ canAdminViewSystem: false } as never);
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.activatePrivilegedMode.mockResolvedValueOnce({
       privilegedMode: new PrivilegedModeState({ available: true, active: true }),
@@ -752,7 +805,7 @@ describe('ServerStateStore privileged mode', () => {
       }),
       privilegedMode: new PrivilegedModeState({ available: true, active: true })
     });
-    store.setPermissions({ canAdminViewSystem: true } as never);
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
       privilegedMode: new PrivilegedModeState({ available: true, active: false }),
@@ -883,9 +936,12 @@ describe('ServerStateStore privileged mode', () => {
     const store = makeStore(fake);
     store.projection.viewer = new GetViewerResponse({
       user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+      }),
       privilegedMode: new PrivilegedModeState({ available: true, active: true })
     });
-    store.setPermissions({ canAdminViewSystem: true } as never);
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
     apiMocks.refreshPrivilegedMode.mockResolvedValueOnce({
       user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
       privilegedMode: new PrivilegedModeState({ available: true, active: false }),

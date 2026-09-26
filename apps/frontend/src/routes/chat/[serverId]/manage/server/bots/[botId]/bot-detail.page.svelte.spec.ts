@@ -6,6 +6,7 @@ import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
+import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
 import { settingsQueryKeys } from '$lib/query/settings';
 import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 import { botDetailPageTestState, botDetailTestPage } from './BotDetailPageTestState.svelte';
@@ -66,20 +67,18 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       },
       currentUser: { user: { settings: mocks.settings } },
       navigation: {
+        currentUserId: 'viewer',
         rooms: [
           { id: 'R-alerts', name: 'alerts', type: RoomKind.CHANNEL },
           { id: 'R-general', name: 'general', type: RoomKind.CHANNEL },
           { id: 'R-dm', name: 'Private conversation', type: RoomKind.DM }
         ]
       },
-      permissions: { canAdminManageAccounts: mocks.canManageAccounts },
-      projection: {
-        viewer: {
-          user: { profile: { id: 'viewer', login: 'viewer', displayName: 'Viewer' } },
-          viewerPermissions: {
-            permissions: [{ permission: 'bot.manage', granted: mocks.canManageBots }]
-          }
-        }
+      permissions: {
+        ...NO_SERVER_PERMISSIONS,
+        loaded: true,
+        canAdminManageAccounts: mocks.canManageAccounts,
+        canManageBots: mocks.canManageBots
       }
     },
     connection: {

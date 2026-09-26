@@ -51,9 +51,7 @@ while mounted and discards cached data when the profile closes. -->
     !!scope.store?.projection.viewer?.user?.profile &&
       !scope.store.projection.viewer.user.profile.bot &&
       (scope.store.projection.viewer.user.profile.id === botOwnerId ||
-        scope.store.projection.viewer.viewerPermissions?.permissions.some(
-          (entry) => entry.permission === 'bot.manage' && entry.granted
-        ))
+        scope.store.permissions.canManageBots)
   );
   const configuration = createQuery(
     () => ({

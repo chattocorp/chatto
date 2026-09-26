@@ -5,7 +5,6 @@
   import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
-  import { viewerResponseToState } from '$lib/api-client/viewer';
   import DataTable from '$lib/ui/DataTable.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
@@ -25,12 +24,7 @@
   const PAGE_SIZE = 20;
   const serverScope = useServerScope();
   const supportsBots = $derived(serverScope.store.serverInfo.supportsFeature('botAccounts'));
-  const canCreateBots = $derived.by(() => {
-    const viewer = serverScope.store.projection.viewer;
-    return viewer
-      ? (viewerResponseToState(viewer).viewerPermissions['bot.create'] ?? false)
-      : false;
-  });
+  const canCreateBots = $derived(serverScope.store.permissions.canCreateBots);
 
   let searchInput = $state('');
   let activeSearch = $state('');

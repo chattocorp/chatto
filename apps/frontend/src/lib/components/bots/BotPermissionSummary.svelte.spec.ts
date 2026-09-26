@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { queryClient } from '$lib/query/client';
+import { NO_SERVER_PERMISSIONS } from '$lib/state/server/permissions';
 import type { EffectivePermission } from '$lib/api-client/effectivePermissions';
 import {
   compactEffectivePermissions,
@@ -24,7 +25,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
           user: { profile: { id: 'viewer' } },
           viewerPermissions: { permissions: [] }
         }
-      }
+      },
+      permissions: { ...NO_SERVER_PERMISSIONS, loaded: true }
     }
   })
 }));
