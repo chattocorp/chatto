@@ -81,6 +81,24 @@ describe('ZoomableImage', () => {
     expect(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)).toBe(
       view.image
     );
+    const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
+    view.image.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(false);
+  });
+
+  it('forgets a touch whose pointer capture ends without pointerup', async () => {
+    const view = await mount();
+    view.stage.setPointerCapture = vi.fn();
+    view.stage.hasPointerCapture = () => false;
+    const rect = view.stage.getBoundingClientRect();
+    // A long-press image menu can end a touch without pointerup.
+    pointer(view.image, 'pointerdown', 1, rect.left + 150, rect.top + 150);
+    pointer(view.stage, 'lostpointercapture', 1, rect.left + 150, rect.top + 150);
+    pointer(view.image, 'pointerdown', 2, rect.left + 200, rect.top + 150);
+    pointer(view.image, 'pointermove', 2, rect.left + 300, rect.top + 150);
+    await tick();
+    await expect.element(view.query.getByText('100%')).toBeVisible();
+    pointer(view.image, 'pointerup', 2, rect.left + 300, rect.top + 150);
   });
 
   it('zooms with a two-pointer pinch and toggles with double-click', async () => {

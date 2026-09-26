@@ -190,6 +190,7 @@ mounted when a signed image URL refreshes and remounts it for another image.
     onpointermove={pointermove}
     onpointerup={pointerend}
     onpointercancel={pointerend}
+    onlostpointercapture={pointerend}
     ondblclick={(event) => zoomAt(zoom === 1 ? 2 : 1, event.clientX, event.clientY)}
   >
     <img
