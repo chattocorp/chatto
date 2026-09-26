@@ -4,7 +4,15 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import { ActivityListRow, EmptyState, PaneHeader } from '$lib/ui';
+  import {
+    ActivityListRow,
+    EmptyState,
+    PageTitle,
+    PaneContent,
+    PaneHeader,
+    Panel,
+    ScrollFader
+  } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -497,143 +505,154 @@
   }
 </script>
 
-<div class="flex h-full w-full flex-col">
+<PageTitle title={m('chat.notifications.title')} />
+
+<div class="pane-page">
   <PaneHeader
     title={m('chat.notifications.title')}
     subtitle={m('chat.notifications.subtitle')}
     showMobileNav
-  >
-    {#snippet actions()}
-      {#if showEnablePush}
-        <Button
-          size="sm"
-          disabled={enablingPush}
-          loading={enablingPush}
-          loadingText={m('settings.notifications.push_prompt.enabling')}
-          label={m('settings.notifications.push_prompt.title')}
-          onclick={enablePushNotifications}
-        >
-          <span class="iconify icon-[uil--bell] text-base" aria-hidden="true"></span>
-          <span>{m('settings.notifications.push_prompt.title')}</span>
-        </Button>
-      {/if}
-      {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
-        <Button
-          variant="danger-secondary"
-          size="sm"
-          disabled={dismissingRead || loadingMore || hasPendingMutation}
-          label={m('chat.notifications.clear_read')}
-          onclick={dismissRead}
-        >
-          <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
-          <span>{m('chat.notifications.clear_read')}</span>
-        </Button>
-      {/if}
-    {/snippet}
-  </PaneHeader>
+  />
 
-  <div class="flex flex-1 flex-col overflow-y-auto">
-    {#if pageError && groups.length === 0}
-      <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
-        <Button variant="secondary" label={m('common.retry')} onclick={retryNotifications}
-          >{m('common.retry')}</Button
-        >
-      </EmptyState>
-    {:else if visibleGroups.length > 0}
-      <div class="selectable-list pb-3" aria-busy={loadingMore}>
-        {#each dateSections as section (section.key)}
-          <section aria-labelledby={`notification-date-${section.key}`}>
-            <DaySeparator
-              id={`notification-date-${section.key}`}
-              label={section.label}
-              testId="notification-date-heading"
-            />
-            {#each section.items as item (rowKey(item))}
-              {@const occurrence = item.group.openTarget}
-              {@const targetSupported = occurrence?.targetSupported !== false}
-              {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
-              {@const actors = notificationActors(item.group)}
-              {@const mutationPending =
-                dismissingRead || pendingMutationKeys.has(mutationKey(item))}
-              <ActivityListRow
-                interactive={targetSupported}
-                pending={mutationPending}
-                disabled={mutationPending || !targetSupported}
-                dimmed={!item.group.unread}
-                important={item.group.unread &&
-                  item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
-                onclick={() => openGroup(item)}
-                rowAttributes={{
-                  'data-testid': 'notification-group',
-                  'data-notification-state': item.group.unread ? 'unread' : 'read',
-                  'data-notification-attention': item.group.unread
-                    ? item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                      ? 'important'
-                      : 'ambient'
-                    : 'none'
-                }}
-              >
-                {#snippet leading()}
-                  <UserAvatarStack users={actors} testId="notification-actor-stack" />
-                {/snippet}
-                {#if item.group.unread}
-                  <span class="sr-only">{m('chat.notifications.unread')}</span>
-                {/if}
-                <span class="min-w-0 flex-1" data-testid="notification-content">
-                  <bdi class="block truncate font-medium" dir="auto">
-                    <AccountNameTokens
-                      text={occurrenceSummary(item.group)}
-                      accounts={summaryAccounts(item.group)}
-                    />
-                  </bdi>
-                  <span class="block truncate text-sm text-muted">
-                    {#if showServerHostname}{item.serverHostname}<span
-                        class="mx-1.5"
-                        aria-hidden="true">·</span
-                      >{/if}
-                    {#if occurrence?.room?.name && !isReaction}
-                      <bdi dir="auto">#{occurrence.room.name}</bdi><span
-                        class="mx-1.5"
-                        aria-hidden="true">·</span
-                      >
-                    {/if}{formatRelativeTime(
-                      item.group.latestAt,
-                      item.timeFormatSettings,
-                      activeLocale
-                    )}
-                  </span>
-                </span>
-                {#snippet actions()}
-                  <button
-                    type="button"
-                    class="icon-action hover:text-danger focus-visible:text-danger"
-                    disabled={mutationPending}
-                    aria-label={m('common.delete')}
-                    title={m('common.delete')}
-                    onclick={() => dismiss(item)}
-                  >
-                    <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
-                  </button>
-                {/snippet}
-              </ActivityListRow>
-            {/each}
-          </section>
-        {/each}
-        {#if pageError}
-          <div class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted" role="alert">
-            <span>{m('common.error.network')}</span>
-            <Button variant="secondary" size="sm" label={m('common.retry')} onclick={loadMore}
-              >{m('common.retry')}</Button
-            >
-          </div>
-        {:else if hasMore}
-          <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
+  <PaneContent fillHeight>
+    <Panel title={m('chat.notifications.list_title')} noPadding fillHeight>
+      {#snippet actions()}
+        {#if showEnablePush}
+          <Button
+            size="sm"
+            disabled={enablingPush}
+            loading={enablingPush}
+            loadingText={m('settings.notifications.push_prompt.enabling')}
+            label={m('settings.notifications.push_prompt.title')}
+            onclick={enablePushNotifications}
+          >
+            <span class="iconify icon-[uil--bell] text-base" aria-hidden="true"></span>
+            <span>{m('settings.notifications.push_prompt.title')}</span>
+          </Button>
         {/if}
-      </div>
-    {:else if !loading}
-      <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
-        {m('chat.notifications.empty_body')}
-      </EmptyState>
-    {/if}
-  </div>
+        {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
+          <Button
+            variant="danger-secondary"
+            size="sm"
+            disabled={dismissingRead || loadingMore || hasPendingMutation}
+            label={m('chat.notifications.clear_read')}
+            onclick={dismissRead}
+          >
+            <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
+            <span>{m('chat.notifications.clear_read')}</span>
+          </Button>
+        {/if}
+      {/snippet}
+      <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
+        <div class="flex min-h-full flex-col">
+          {#if pageError && groups.length === 0}
+            <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
+              <Button variant="secondary" label={m('common.retry')} onclick={retryNotifications}
+                >{m('common.retry')}</Button
+              >
+            </EmptyState>
+          {:else if visibleGroups.length > 0}
+            <div class="selectable-list pb-3" aria-busy={loadingMore}>
+              {#each dateSections as section (section.key)}
+                <section aria-labelledby={`notification-date-${section.key}`}>
+                  <DaySeparator
+                    id={`notification-date-${section.key}`}
+                    label={section.label}
+                    testId="notification-date-heading"
+                  />
+                  {#each section.items as item (rowKey(item))}
+                    {@const occurrence = item.group.openTarget}
+                    {@const targetSupported = occurrence?.targetSupported !== false}
+                    {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
+                    {@const actors = notificationActors(item.group)}
+                    {@const mutationPending =
+                      dismissingRead || pendingMutationKeys.has(mutationKey(item))}
+                    <ActivityListRow
+                      interactive={targetSupported}
+                      pending={mutationPending}
+                      disabled={mutationPending || !targetSupported}
+                      dimmed={!item.group.unread}
+                      important={item.group.unread &&
+                        item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
+                      onclick={() => openGroup(item)}
+                      rowAttributes={{
+                        'data-testid': 'notification-group',
+                        'data-notification-state': item.group.unread ? 'unread' : 'read',
+                        'data-notification-attention': item.group.unread
+                          ? item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
+                            ? 'important'
+                            : 'ambient'
+                          : 'none'
+                      }}
+                    >
+                      {#snippet leading()}
+                        <UserAvatarStack users={actors} testId="notification-actor-stack" />
+                      {/snippet}
+                      {#if item.group.unread}
+                        <span class="sr-only">{m('chat.notifications.unread')}</span>
+                      {/if}
+                      <span class="min-w-0 flex-1" data-testid="notification-content">
+                        <bdi class="block truncate font-medium" dir="auto">
+                          <AccountNameTokens
+                            text={occurrenceSummary(item.group)}
+                            accounts={summaryAccounts(item.group)}
+                          />
+                        </bdi>
+                        <span class="block truncate text-sm text-muted">
+                          {#if showServerHostname}{item.serverHostname}<span
+                              class="mx-1.5"
+                              aria-hidden="true">·</span
+                            >{/if}
+                          {#if occurrence?.room?.name && !isReaction}
+                            <bdi dir="auto">#{occurrence.room.name}</bdi><span
+                              class="mx-1.5"
+                              aria-hidden="true">·</span
+                            >
+                          {/if}{formatRelativeTime(
+                            item.group.latestAt,
+                            item.timeFormatSettings,
+                            activeLocale
+                          )}
+                        </span>
+                      </span>
+                      {#snippet actions()}
+                        <button
+                          type="button"
+                          class="icon-action hover:text-danger focus-visible:text-danger"
+                          disabled={mutationPending}
+                          aria-label={m('common.delete')}
+                          title={m('common.delete')}
+                          onclick={() => dismiss(item)}
+                        >
+                          <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"
+                          ></span>
+                        </button>
+                      {/snippet}
+                    </ActivityListRow>
+                  {/each}
+                </section>
+              {/each}
+              {#if pageError}
+                <div
+                  class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted"
+                  role="alert"
+                >
+                  <span>{m('common.error.network')}</span>
+                  <Button variant="secondary" size="sm" label={m('common.retry')} onclick={loadMore}
+                    >{m('common.retry')}</Button
+                  >
+                </div>
+              {:else if hasMore}
+                <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
+              {/if}
+            </div>
+          {:else if !loading}
+            <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
+              {m('chat.notifications.empty_body')}
+            </EmptyState>
+          {/if}
+        </div>
+      </ScrollFader>
+    </Panel>
+  </PaneContent>
 </div>

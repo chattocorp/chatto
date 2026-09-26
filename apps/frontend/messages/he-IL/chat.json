@@ -8,6 +8,7 @@
     "notifications": {
       "title": "התראות",
       "subtitle": "הנה מה חדש",
+      "list_title": "פעילות אחרונה",
       "clear_read": "מחיקת הודעות שנקראו",
       "empty_title": "אין התראות",
       "empty_body": "כולכם מדורגים!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "השרשורים שלי",
       "subtitle": "שרשורים שאתה עוקב אחריהם",
+      "list_title": "שרשורים במעקב",
       "filter_label": "חוטי סינון",
       "filter_all": "הכל",
       "filter_unread": "לא נקרא",

@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Here's what's new",
+      "list_title": "Recent activity",
       "clear_read": "Dismiss read",
       "empty_title": "No notifications",
       "empty_body": "You're all caught up!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "My Threads",
       "subtitle": "Threads you're following",
+      "list_title": "Followed threads",
       "filter_label": "Filter threads",
       "filter_all": "All",
       "filter_unread": "Unread",

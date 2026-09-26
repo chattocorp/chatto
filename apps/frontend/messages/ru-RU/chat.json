@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Уведомления",
       "subtitle": "Вот что нового",
+      "list_title": "Недавняя активность",
       "clear_read": "Удалить прочитанные",
       "empty_title": "Нет уведомлений",
       "empty_body": "Вы все в плену!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Мои темы",
       "subtitle": "Темы, на которые вы подписаны",
+      "list_title": "Отслеживаемые темы",
       "filter_label": "Фильтровать темы",
       "filter_all": "Все",
       "filter_unread": "Непрочитано",

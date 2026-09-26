@@ -30,7 +30,10 @@
     ActivityListRow,
     EmptyState,
     Hint,
+    PaneContent,
     PaneHeader,
+    Panel,
+    ScrollFader,
     SegmentedControl,
     UnreadDot
   } from '$lib/ui';
@@ -331,197 +334,220 @@
 
 <PageTitle title={m('chat.threads.title')} />
 
-<div class="flex h-full w-full flex-col">
-  <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} showMobileNav>
-    {#snippet actions()}
-      <SegmentedControl
-        label={m('chat.threads.filter_label')}
-        options={filterOptions}
-        value={filter}
-        onchange={setFilter}
-      />
-    {/snippet}
-  </PaneHeader>
+<div class="pane-page">
+  <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} showMobileNav />
 
-  {#if searchEnabled}
-    <div class="shrink-0 p-3">
-      <ChatSearchInput
-        appearance="bordered"
-        label={m('search.in_threads')}
-        placeholder={m('search.query.placeholder')}
-        testid="my-threads-search"
-        focusOnMount
-        value={rawQuery}
-        clearLabel={m('common.clear')}
-        oninput={(event) => scheduleSearch((event.currentTarget as HTMLInputElement).value)}
-        onclear={() => scheduleSearch('')}
-        onsubmit={submitSearch}
-      />
-      {#if searchStatus.status.state === MessageSearchState.DEGRADED}
-        <Hint tone="warning">{m('search.degraded')}</Hint>
+  <PaneContent fillHeight>
+    <div class="flex min-h-0 flex-1 flex-col gap-6">
+      {#if searchEnabled}
+        <Panel title={m('search.in_threads')}>
+          <ChatSearchInput
+            appearance="bordered"
+            label={m('search.in_threads')}
+            placeholder={m('search.query.placeholder')}
+            testid="my-threads-search"
+            focusOnMount
+            value={rawQuery}
+            clearLabel={m('common.clear')}
+            oninput={(event) => scheduleSearch((event.currentTarget as HTMLInputElement).value)}
+            onclear={() => scheduleSearch('')}
+            onsubmit={submitSearch}
+          />
+          {#if searchStatus.status.state === MessageSearchState.DEGRADED}
+            <div class="mt-4">
+              <Hint tone="warning">{m('search.degraded')}</Hint>
+            </div>
+          {/if}
+        </Panel>
       {/if}
-    </div>
-  {/if}
 
-  <div class="flex flex-1 flex-col overflow-y-auto">
-    {#if searchQuery && !searchStatus.available}
-      <SearchAvailability
-        state={searchStatus.status.state}
-        checking={searchStatus.statusLoading && !searchStatus.statusLoaded}
-        error={searchStatus.statusError}
-        onRetry={() => void searchStatus.refreshStatus()}
-        checkingClass="p-6 text-muted"
-      >
-        <LoadingFog class="m-6 h-32" label={m('search.checking')} />
-      </SearchAvailability>
-    {:else if waitingForSearch || (loading && threads.length === 0)}
-      <LoadingFog class="m-6 h-48" />
-    {:else if error}
-      <div class="m-6">
-        <Hint tone="danger">{error}</Hint>
-      </div>
-    {:else if searchQuery && threads.length === 0}
-      <EmptyState icon="icon-[uil--search]" title={m('search.no_threads')}>
-        {m('search.no_results.description')}
-      </EmptyState>
-    {:else if threads.length === 0 && filter === 'all'}
-      <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
-        {m('chat.threads.empty_body')}
-      </EmptyState>
-    {:else if filteredThreads.length === 0 && hasMore}
-      <LoadingFog class="m-6 h-48" />
-    {:else if filteredThreads.length === 0}
-      <EmptyState icon="icon-[uil--comment-check]" title={m('chat.threads.all_caught_up')}>
-        {m('chat.threads.no_unread')}
-      </EmptyState>
-    {:else}
-      <div class="selectable-list pb-3" aria-busy={loadingMore}>
-        {#each dateSections as section (section.key)}
-          <section aria-labelledby={`thread-date-${section.key}`}>
-            <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
-            {#each section.items as thread (thread.threadRootEventId)}
-              {@const actors = rowActors(thread)}
-              {@const primary = primaryEvent(thread)}
-              {@const hasUnreadAttention =
-                thread.hasUnreadReplies &&
-                !serverStore.readViews.covers(thread.roomId, thread.threadRootEventId)}
-              {@const attention = notificationAttentionForThread(
-                serverStore.notifications.attentionOccurrences,
-                thread.roomId,
-                thread.threadRootEventId
-              )}
-              <ActivityListRow
-                pending={actionThreadId === thread.threadRootEventId}
-                disabled={actionThreadId === thread.threadRootEventId}
-                dimmed={!hasUnreadAttention && attention === NotificationAttentionLevel.UNSPECIFIED}
-                important={attention === NotificationAttentionLevel.IMPORTANT}
-                onclick={() => navigateToThread(thread)}
-                rowAttributes={{
-                  'data-testid': 'my-thread-item',
-                  'data-thread-state': hasUnreadAttention ? 'unread' : 'read',
-                  'data-thread-attention':
-                    attention === NotificationAttentionLevel.IMPORTANT
-                      ? 'important'
-                      : attention === NotificationAttentionLevel.AMBIENT
-                        ? 'ambient'
-                        : 'none'
-                }}
+      <Panel title={m('chat.threads.list_title')} noPadding fillHeight>
+        {#snippet actions()}
+          <SegmentedControl
+            label={m('chat.threads.filter_label')}
+            options={filterOptions}
+            value={filter}
+            onchange={setFilter}
+          />
+        {/snippet}
+        <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
+          <div class="flex min-h-full flex-col">
+            {#if searchQuery && !searchStatus.available}
+              <SearchAvailability
+                state={searchStatus.status.state}
+                checking={searchStatus.statusLoading && !searchStatus.statusLoaded}
+                error={searchStatus.statusError}
+                onRetry={() => void searchStatus.refreshStatus()}
+                checkingClass="p-6 text-muted"
               >
-                {#snippet leading()}
-                  <span class="relative flex shrink-0" aria-hidden="true">
-                    <UserAvatarStack users={actors} />
-                    {#if attention !== NotificationAttentionLevel.UNSPECIFIED}
-                      <UnreadDot
-                        color={attention === NotificationAttentionLevel.IMPORTANT
-                          ? 'warning'
-                          : 'ambient'}
-                        overlay
-                        class="absolute -end-1 -top-1"
-                        testid="thread-attention-dot"
-                      />
-                    {/if}
-                  </span>
-                {/snippet}
-
-                {#if hasUnreadAttention}<span class="sr-only"
-                    >{m('chat.threads.filter_unread')}</span
-                  >{/if}
-                {#if attention !== NotificationAttentionLevel.UNSPECIFIED}<span class="sr-only"
-                    >{m('room_list.notifications', { count: 1 })}</span
-                  >{/if}
-                <span class="min-w-0 flex-1" data-testid="thread-content">
-                  <span class="flex min-w-0 items-baseline gap-2">
-                    <bdi class="min-w-0 flex-1 truncate" dir="auto">
-                      {#if actorName(primary)}
-                        <span class="font-medium"
-                          ><AccountName name={actorName(primary)} identity={primary?.actor} />:
-                          <span class="font-normal">{messageExcerpt(primary)}</span></span
-                        >
-                      {:else}
-                        <span>{messageExcerpt(primary)}</span>
-                      {/if}
-                    </bdi>
-                    <span class="shrink-0 text-sm text-muted">
-                      {formatRelativeTime(threadActivityAt(thread), userSettings, activeLocale)}
-                    </span>
-                  </span>
-                  <span class="flex min-w-0 items-baseline gap-2 text-sm text-muted">
-                    <bdi class="min-w-0 flex-1 truncate" dir="auto">
-                      <span class="font-medium"
-                        >{#if thread.isDirectMessage}
-                          <DirectMessageName
-                            participants={thread.directMessageParticipants}
-                            currentUserId={serverStore.currentUser.user?.id}
-                            getDisplayName={getLiveDisplayName}
-                          />
-                        {:else}{roomLabel(thread)}{/if}
-                        {#if thread.latestReply}<span class="font-normal"
-                            >· <AccountName
-                              name={actorName(thread.rootMessage)}
-                              identity={thread.rootMessage?.actor}
-                            />: {messageExcerpt(thread.rootMessage)}</span
-                          >{/if}</span
+                <LoadingFog class="m-6 h-32" label={m('search.checking')} />
+              </SearchAvailability>
+            {:else if waitingForSearch || (loading && threads.length === 0)}
+              <LoadingFog class="m-6 h-48" />
+            {:else if error}
+              <div class="m-6">
+                <Hint tone="danger">{error}</Hint>
+              </div>
+            {:else if searchQuery && threads.length === 0}
+              <EmptyState icon="icon-[uil--search]" title={m('search.no_threads')}>
+                {m('search.no_results.description')}
+              </EmptyState>
+            {:else if threads.length === 0 && filter === 'all'}
+              <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
+                {m('chat.threads.empty_body')}
+              </EmptyState>
+            {:else if filteredThreads.length === 0 && hasMore}
+              <LoadingFog class="m-6 h-48" />
+            {:else if filteredThreads.length === 0}
+              <EmptyState icon="icon-[uil--comment-check]" title={m('chat.threads.all_caught_up')}>
+                {m('chat.threads.no_unread')}
+              </EmptyState>
+            {:else}
+              <div class="selectable-list pb-3" aria-busy={loadingMore}>
+                {#each dateSections as section (section.key)}
+                  <section aria-labelledby={`thread-date-${section.key}`}>
+                    <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
+                    {#each section.items as thread (thread.threadRootEventId)}
+                      {@const actors = rowActors(thread)}
+                      {@const primary = primaryEvent(thread)}
+                      {@const hasUnreadAttention =
+                        thread.hasUnreadReplies &&
+                        !serverStore.readViews.covers(thread.roomId, thread.threadRootEventId)}
+                      {@const attention = notificationAttentionForThread(
+                        serverStore.notifications.attentionOccurrences,
+                        thread.roomId,
+                        thread.threadRootEventId
+                      )}
+                      <ActivityListRow
+                        pending={actionThreadId === thread.threadRootEventId}
+                        disabled={actionThreadId === thread.threadRootEventId}
+                        dimmed={!hasUnreadAttention &&
+                          attention === NotificationAttentionLevel.UNSPECIFIED}
+                        important={attention === NotificationAttentionLevel.IMPORTANT}
+                        onclick={() => navigateToThread(thread)}
+                        rowAttributes={{
+                          'data-testid': 'my-thread-item',
+                          'data-thread-state': hasUnreadAttention ? 'unread' : 'read',
+                          'data-thread-attention':
+                            attention === NotificationAttentionLevel.IMPORTANT
+                              ? 'important'
+                              : attention === NotificationAttentionLevel.AMBIENT
+                                ? 'ambient'
+                                : 'none'
+                        }}
                       >
-                    </bdi>
-                    <span class="shrink-0">{replyCountLabel(thread.replyCount)}</span>
-                  </span>
-                </span>
+                        {#snippet leading()}
+                          <span class="relative flex shrink-0" aria-hidden="true">
+                            <UserAvatarStack users={actors} />
+                            {#if attention !== NotificationAttentionLevel.UNSPECIFIED}
+                              <UnreadDot
+                                color={attention === NotificationAttentionLevel.IMPORTANT
+                                  ? 'warning'
+                                  : 'ambient'}
+                                overlay
+                                class="absolute -end-1 -top-1"
+                                testid="thread-attention-dot"
+                              />
+                            {/if}
+                          </span>
+                        {/snippet}
 
-                {#snippet actions()}
-                  {#if thread.hasUnreadReplies && thread.latestReply}
-                    <button
-                      type="button"
-                      class="icon-action"
-                      disabled={actionThreadId === thread.threadRootEventId}
-                      onclick={() => void markThreadRead(thread)}
-                      title={m('room_list.mark_as_read')}
-                      aria-label={m('room_list.mark_as_read')}
-                    >
-                      <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
-                    </button>
-                  {/if}
-                  <button
-                    type="button"
-                    class="icon-action"
-                    disabled={actionThreadId === thread.threadRootEventId}
-                    onclick={() => void unfollowThread(thread)}
-                    title={m('room.message.meta.unfollow_thread')}
-                    aria-label={m('room.message.meta.unfollow_thread')}
+                        {#if hasUnreadAttention}<span class="sr-only"
+                            >{m('chat.threads.filter_unread')}</span
+                          >{/if}
+                        {#if attention !== NotificationAttentionLevel.UNSPECIFIED}<span
+                            class="sr-only">{m('room_list.notifications', { count: 1 })}</span
+                          >{/if}
+                        <span class="min-w-0 flex-1" data-testid="thread-content">
+                          <span class="flex min-w-0 items-baseline gap-2">
+                            <bdi class="min-w-0 flex-1 truncate" dir="auto">
+                              {#if actorName(primary)}
+                                <span class="font-medium"
+                                  ><AccountName
+                                    name={actorName(primary)}
+                                    identity={primary?.actor}
+                                  />:
+                                  <span class="font-normal">{messageExcerpt(primary)}</span></span
+                                >
+                              {:else}
+                                <span>{messageExcerpt(primary)}</span>
+                              {/if}
+                            </bdi>
+                            <span class="shrink-0 text-sm text-muted">
+                              {formatRelativeTime(
+                                threadActivityAt(thread),
+                                userSettings,
+                                activeLocale
+                              )}
+                            </span>
+                          </span>
+                          <span class="flex min-w-0 items-baseline gap-2 text-sm text-muted">
+                            <bdi class="min-w-0 flex-1 truncate" dir="auto">
+                              <span class="font-medium"
+                                >{#if thread.isDirectMessage}
+                                  <DirectMessageName
+                                    participants={thread.directMessageParticipants}
+                                    currentUserId={serverStore.currentUser.user?.id}
+                                    getDisplayName={getLiveDisplayName}
+                                  />
+                                {:else}{roomLabel(thread)}{/if}
+                                {#if thread.latestReply}<span class="font-normal"
+                                    >· <AccountName
+                                      name={actorName(thread.rootMessage)}
+                                      identity={thread.rootMessage?.actor}
+                                    />: {messageExcerpt(thread.rootMessage)}</span
+                                  >{/if}</span
+                              >
+                            </bdi>
+                            <span class="shrink-0">{replyCountLabel(thread.replyCount)}</span>
+                          </span>
+                        </span>
+
+                        {#snippet actions()}
+                          {#if thread.hasUnreadReplies && thread.latestReply}
+                            <button
+                              type="button"
+                              class="icon-action"
+                              disabled={actionThreadId === thread.threadRootEventId}
+                              onclick={() => void markThreadRead(thread)}
+                              title={m('room_list.mark_as_read')}
+                              aria-label={m('room_list.mark_as_read')}
+                            >
+                              <span class="iconify icon-[uil--check] text-base" aria-hidden="true"
+                              ></span>
+                            </button>
+                          {/if}
+                          <button
+                            type="button"
+                            class="icon-action"
+                            disabled={actionThreadId === thread.threadRootEventId}
+                            onclick={() => void unfollowThread(thread)}
+                            title={m('room.message.meta.unfollow_thread')}
+                            aria-label={m('room.message.meta.unfollow_thread')}
+                          >
+                            <span
+                              class="iconify icon-[uil--bell-slash] text-base"
+                              aria-hidden="true"
+                            ></span>
+                          </button>
+                        {/snippet}
+                      </ActivityListRow>
+                    {/each}
+                  </section>
+                {/each}
+                {#if hasMore}
+                  <div
+                    class="flex min-h-14 justify-center p-4 text-muted"
+                    {@attach loadMoreWhenVisible}
                   >
-                    <span class="iconify icon-[uil--bell-slash] text-base" aria-hidden="true"
-                    ></span>
-                  </button>
-                {/snippet}
-              </ActivityListRow>
-            {/each}
-          </section>
-        {/each}
-        {#if hasMore}
-          <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>
-            {#if loadingMore}{m('common.loading')}{/if}
+                    {#if loadingMore}{m('common.loading')}{/if}
+                  </div>
+                {/if}
+              </div>
+            {/if}
           </div>
-        {/if}
-      </div>
-    {/if}
-  </div>
+        </ScrollFader>
+      </Panel>
+    </div>
+  </PaneContent>
 </div>

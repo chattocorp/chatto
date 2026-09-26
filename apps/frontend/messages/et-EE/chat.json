@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Märguanded",
       "subtitle": "Siin on, mis on uut",
+      "list_title": "Hiljutine tegevus",
       "clear_read": "Kustuta loetud",
       "empty_title": "Märguandeid pole",
       "empty_body": "Olete kõik kinni!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Minu lõimed",
       "subtitle": "Lõimed, mida jälgite",
+      "list_title": "Jälgitavad lõimed",
       "filter_label": "Filtreeri niidid",
       "filter_all": "Kõik",
       "filter_unread": "Lugemata",

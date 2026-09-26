@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",
+      "list_title": "Nylig aktivitet",
       "clear_read": "Fjern leste",
       "empty_title": "Ingen varsler",
       "empty_body": "Dere er helt fanget!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Mine tråder",
       "subtitle": "Tråder du følger",
+      "list_title": "Fulgte tråder",
       "filter_label": "Filtertråder",
       "filter_all": "Alle",
       "filter_unread": "Ulest",

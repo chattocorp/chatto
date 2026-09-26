@@ -8,6 +8,7 @@
     "notifications": {
       "title": "通知",
       "subtitle": "最新动态",
+      "list_title": "最近动态",
       "clear_read": "清除已读",
       "empty_title": "暂无通知",
       "empty_body": "你已查看所有通知！",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "我的话题串",
       "subtitle": "你关注的话题串",
+      "list_title": "关注的话题串",
       "filter_label": "筛选话题串",
       "filter_all": "全部",
       "filter_unread": "未读",

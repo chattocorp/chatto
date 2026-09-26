@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
+      "list_title": "Letzte Aktivität",
       "clear_read": "Gelesene löschen",
       "empty_title": "Keine Benachrichtigungen",
       "empty_body": "Du bist auf dem neuesten Stand!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Meine Threads",
       "subtitle": "Threads, denen du folgst",
+      "list_title": "Gefolgte Threads",
       "filter_label": "Threads filtern",
       "filter_all": "Alle",
       "filter_unread": "Ungelesen",
