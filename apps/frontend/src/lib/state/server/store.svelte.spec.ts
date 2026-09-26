@@ -359,7 +359,7 @@ vi.mock('$lib/api-client/attachments', async (importActual) => {
 });
 
 import { ServerStateStore } from './store.svelte';
-import { loadSavedView } from '$lib/storage/savedViews';
+import { clearSavedView, loadSavedView } from '$lib/storage/savedViews';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import {
   registerFollowedThreadQueryCache,
@@ -840,6 +840,27 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.projection.rooms.has('R1')).toBe(false);
     expect(store.startupPresentationOnly).toBe(false);
   });
+  it('discards a saved view that it cannot decode', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.networkStartupDeferred = true;
+    const view = savedViewFixture({
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    });
+    view.rooms[0].id = 'R2';
+    vi.mocked(clearSavedView).mockClear();
+
+    store.restoreSavedView(view);
+
+    expect(store.savedView).toBeNull();
+    expect(clearSavedView).toHaveBeenCalledWith(store.serverId, 'U1');
+    expect(store.projection.rooms.size).toBe(0);
+    expect(store.startupPresentationOnly).toBe(false);
+    expect(store.realtimeSync.phase).toBe('empty');
+  });
   it('does not read the saved view for a store that has a projection', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.realtimeSync.markCaughtUp('live-cursor');
@@ -1055,7 +1076,7 @@ describe('ServerStateStore viewer restoration', () => {
     const store = makeStore(new FakeServerConnection([]));
     await store.currentUser.load();
     const account = store.currentUser.user;
-    store.currentUser.loading = false;
+    store.networkStartupDeferred = true;
     store.restoreSavedView(
       savedViewFixture({
         serverId: store.serverId,
@@ -1066,6 +1087,8 @@ describe('ServerStateStore viewer restoration', () => {
         rooms: [{ id: 'R1', name: 'general', messages: [] }]
       })
     );
+    store.networkStartupDeferred = false;
+    expect(store.realtimeSync.restoredFromDisk).toBe(true);
     expect(store.currentUser.user).toBe(account);
     store.projection.users.set(
       'U1',

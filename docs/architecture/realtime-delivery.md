@@ -574,11 +574,11 @@ server/viewer replay checkpoint. Timeline records include pagination boundaries;
 membership records include completeness. Missing or invalid records use live
 startup. The server store reads its saved view only while its projection is
 empty. After a restore, or after realtime catch-up starts, route loads and the
-server sidebar do not read it again. The sidebar only keeps a saved copy for
-an unopened server. The store shows a saved view only before its network work
-starts, or after its viewer request ends without a viewer. Every loaded owner can
-be saved without a room-count or dwell-time rule. Lightweight loaded-window
-changes and completed reconciliation barriers
+server sidebar do not read it again. The sidebar only keeps a saved copy. The
+store shows a saved view only before its network work starts, or after its
+viewer request ends without a viewer. Every loaded owner can be saved without a
+room-count or dwell-time rule. Lightweight loaded-window changes and completed
+reconciliation barriers
 schedule capture through a server-owned 100 ms timer; capture runs outside
 reactive dependency tracking. Pending writes coalesce without being cancelled by navigation. Optimistic
 patches block persistence. Local write generations and persistent privacy

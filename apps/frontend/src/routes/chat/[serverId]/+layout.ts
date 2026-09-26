@@ -22,7 +22,8 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
   }
 
   await serverStore.restoreSavedViewFromDisk();
-  // Only a view the store accepted counts; it refuses rejected or corrupt views.
+  // Only a view the store accepted counts. Storage rejects corrupt views, and
+  // the store refuses views of another viewer or of a rejected session.
   const savedView = serverStore.savedView;
   // A dormant server starts its network work after its saved view is ready.
   if (startupServerId !== serverId) serverRegistry.startServerNetwork(serverId);

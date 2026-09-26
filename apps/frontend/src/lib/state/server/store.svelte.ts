@@ -813,8 +813,10 @@ export class ServerStateStore {
 
   /**
    * Keep a device snapshot of the same local viewer as this store's saved
-   * copy. This does not change the projection. A session that needs
-   * reauthentication had its viewer rejected, so its saved view is deleted.
+   * copy, unless the retained copy is newer. This does not change the
+   * projection or decode the view; storage validates views when it reads them.
+   * A session that needs reauthentication had its viewer rejected, so its
+   * saved view is deleted.
    */
   retainSavedView(view: SavedView | null): view is SavedView {
     const session = this.#getSession();
@@ -831,7 +833,7 @@ export class ServerStateStore {
    * Retain a device snapshot and show it in the empty projection. The store
    * shows it only before its network work starts, or after its viewer request
    * ended without a viewer. Otherwise live data follows, and the view is only
-   * retained.
+   * retained. A view that cannot be decoded is deleted.
    */
   restoreSavedView(view: SavedView | null): void {
     if (!this.retainSavedView(view)) return;
