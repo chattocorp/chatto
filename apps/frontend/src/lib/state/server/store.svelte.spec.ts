@@ -345,6 +345,8 @@ vi.mock('$lib/api-client/viewer', async (importActual) => {
   };
 });
 
+vi.mock('$lib/storage/savedViews', { spy: true });
+
 vi.mock('$lib/api-client/attachments', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/attachments')>();
   return {
@@ -357,6 +359,7 @@ vi.mock('$lib/api-client/attachments', async (importActual) => {
 });
 
 import { ServerStateStore } from './store.svelte';
+import { clearSavedView, loadSavedView } from '$lib/storage/savedViews';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import {
   registerFollowedThreadQueryCache,
@@ -739,7 +742,8 @@ describe('ServerStateStore viewer restoration', () => {
     original.saveCurrentView(original.realtimeSync.lastCaughtUpAt!);
     const snapshot = JSON.parse(JSON.stringify(original.savedView));
     const restored = makeStore(new FakeServerConnection([]));
-    restored.restoreSavedView(snapshot, true);
+    restored.currentUser.loading = false;
+    restored.restoreSavedView(snapshot);
 
     expect(restored.messagesForRoom('R1').rootEvents).toEqual(events);
     expect(restored.navigation.rooms).toEqual(original.navigation.rooms);
@@ -770,12 +774,101 @@ describe('ServerStateStore viewer restoration', () => {
     });
     // A copy saved before the session expired is also discarded.
     store.savedView = view;
-    store.restoreSavedView(view, true);
+    store.currentUser.loading = false;
+    store.restoreSavedView(view);
 
     expect(store.startupPresentationOnly).toBe(false);
     expect(store.savedView).toBeNull();
     expect(store.projection.rooms.has('R1')).toBe(false);
     expect(store.realtimeSync.restoredFromDisk).toBe(false);
+  });
+  it('restores the saved view from disk while the projection is empty', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.networkStartupDeferred = true;
+    vi.mocked(loadSavedView).mockResolvedValueOnce(
+      savedViewFixture({
+        serverId: store.serverId,
+        userId: 'U1',
+        serverName: 'Saved server',
+        savedAt: Date.now(),
+        rooms: [{ id: 'R1', name: 'general', messages: [] }]
+      })
+    );
+
+    await store.restoreSavedViewFromDisk();
+
+    expect(loadSavedView).toHaveBeenCalledWith(store.serverId, 'U1');
+    expect(store.projection.rooms.has('R1')).toBe(true);
+    expect(store.realtimeSync.restoredFromDisk).toBe(true);
+  });
+  it('retains a disk view for a dormant sidebar server without showing it', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    // A dormant remote store is deferred and has not loaded its viewer yet.
+    store.networkStartupDeferred = true;
+    expect(store.currentUser.loading).toBe(true);
+    const view = savedViewFixture({
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    });
+    vi.mocked(loadSavedView).mockResolvedValueOnce(view);
+
+    await store.retainSavedViewFromDisk();
+
+    expect(store.savedView).toBe(view);
+    expect(store.projection.rooms.has('R1')).toBe(false);
+    expect(store.startupPresentationOnly).toBe(false);
+    expect(store.realtimeSync.phase).toBe('empty');
+  });
+  it('only retains a saved view while a started store loads its viewer', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    expect(store.networkStartupDeferred).toBe(false);
+    expect(store.currentUser.loading).toBe(true);
+    const view = savedViewFixture({
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    });
+
+    store.restoreSavedView(view);
+
+    expect(store.savedView).toBe(view);
+    expect(store.projection.rooms.has('R1')).toBe(false);
+    expect(store.startupPresentationOnly).toBe(false);
+  });
+  it('discards a saved view that it cannot decode', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.networkStartupDeferred = true;
+    const view = savedViewFixture({
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    });
+    view.rooms[0].id = 'R2';
+    vi.mocked(clearSavedView).mockClear();
+
+    store.restoreSavedView(view);
+
+    expect(store.savedView).toBeNull();
+    expect(clearSavedView).toHaveBeenCalledWith(store.serverId, 'U1');
+    expect(store.projection.rooms.size).toBe(0);
+    expect(store.startupPresentationOnly).toBe(false);
+    expect(store.realtimeSync.phase).toBe('empty');
+  });
+  it('does not read the saved view for a store that has a projection', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeSync.markCaughtUp('live-cursor');
+    vi.mocked(loadSavedView).mockClear();
+
+    await store.restoreSavedViewFromDisk();
+
+    expect(loadSavedView).not.toHaveBeenCalled();
   });
   it('automatically saves loaded rooms without a route dwell timer or recent-room limit', async () => {
     vi.useFakeTimers();
@@ -786,6 +879,7 @@ describe('ServerStateStore viewer restoration', () => {
       name: `Room ${i}`,
       messages: []
     }));
+    store.currentUser.loading = false;
     store.restoreSavedView(
       savedViewFixture({
         serverId: store.serverId,
@@ -793,8 +887,7 @@ describe('ServerStateStore viewer restoration', () => {
         serverName: 'Server',
         savedAt: Date.now(),
         rooms
-      }),
-      true
+      })
     );
     store.projection.viewer = new GetViewerResponse({ user: { profile: { id: 'U1' } } });
     for (const room of rooms) {
@@ -942,6 +1035,7 @@ describe('ServerStateStore viewer restoration', () => {
   it('shows a disk view before viewer loading but keeps transport unauthorized', () => {
     const connection = new FakeServerConnection([]);
     const store = makeStore(connection);
+    store.networkStartupDeferred = true;
     store.restoreSavedView(
       savedViewFixture({
         serverId: store.serverId,
@@ -949,9 +1043,10 @@ describe('ServerStateStore viewer restoration', () => {
         serverName: 'Saved server',
         savedAt: Date.now(),
         rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      }),
-      true
+      })
     );
+    // Startup recovery starts network work before it verifies the viewer.
+    store.networkStartupDeferred = false;
 
     expect(store.currentUser.user).toBeUndefined();
     expect(store.currentUser.loading).toBe(true);
@@ -981,6 +1076,7 @@ describe('ServerStateStore viewer restoration', () => {
     const store = makeStore(new FakeServerConnection([]));
     await store.currentUser.load();
     const account = store.currentUser.user;
+    store.networkStartupDeferred = true;
     store.restoreSavedView(
       savedViewFixture({
         serverId: store.serverId,
@@ -989,9 +1085,10 @@ describe('ServerStateStore viewer restoration', () => {
         serverName: 'Saved server',
         savedAt: Date.now(),
         rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      }),
-      true
+      })
     );
+    store.networkStartupDeferred = false;
+    expect(store.realtimeSync.restoredFromDisk).toBe(true);
     expect(store.currentUser.user).toBe(account);
     store.projection.users.set(
       'U1',
@@ -1487,6 +1584,7 @@ describe('ServerStateStore unified realtime resources', () => {
     'reconciles saved text against live room access: %s',
     (access) => {
       const store = makeStore(new FakeServerConnection([]));
+      store.currentUser.loading = false;
       store.restoreSavedView(
         savedViewFixture({
           serverId: store.serverId,
@@ -1508,8 +1606,7 @@ describe('ServerStateStore unified realtime resources', () => {
               ]
             }
           ]
-        }),
-        true
+        })
       );
       const messages = store.messagesForRoom('R1');
       const retained = messages.rootEvents;
@@ -1556,6 +1653,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('keeps saved text through a failed snapshot read and replaces it on retry', async () => {
     const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.loading = false;
     store.restoreSavedView(
       savedViewFixture({
         serverId: store.serverId,
@@ -1577,8 +1675,7 @@ describe('ServerStateStore unified realtime resources', () => {
             ]
           }
         ]
-      }),
-      true
+      })
     );
     const messages = store.messagesForRoom('R1');
     const api = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)!.value;
@@ -1624,6 +1721,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('removes saved navigation and timeline fallbacks at a privacy reset', () => {
     const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.loading = false;
     store.restoreSavedView(
       savedViewFixture({
         serverId: store.serverId,
@@ -1639,8 +1737,7 @@ describe('ServerStateStore unified realtime resources', () => {
             ]
           }
         ]
-      }),
-      true
+      })
     );
     const messages = store.messagesForRoom('R1');
     expect(store.navigation.rooms).toHaveLength(1);

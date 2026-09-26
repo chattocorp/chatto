@@ -141,6 +141,7 @@ describe('registered server recovery', () => {
     mocks.discovery.mockResolvedValue(profile);
     const previous = await register();
     registry.sessions.update('retry-test', { userId: 'old-user' });
+    previous.currentUser.loading = false;
     previous.restoreSavedView(
       savedViewFixture({
         serverId: 'retry-test',
@@ -148,8 +149,7 @@ describe('registered server recovery', () => {
         serverName: 'Saved server',
         savedAt: Date.now(),
         rooms: [{ id: 'private-room', name: 'private', messages: [] }]
-      }),
-      true
+      })
     );
     mocks.viewer.mockResolvedValue(user);
     await registry.recoverServer('retry-test');
