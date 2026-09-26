@@ -376,7 +376,7 @@ its work plane. See FDR-042.
     {@const profile = customProfile}
     {@const joined = registeredServer(customOrigin)}
     {@const external = opensInServerClient(customOrigin, profile)}
-    <div class="max-w-md">
+    <div class="@container/server-cards max-w-md">
       {#snippet customActions()}
         {@render entryAction(customOrigin, profile, true)}
       {/snippet}
@@ -426,7 +426,7 @@ its work plane. See FDR-042.
     <!-- Cards switch to their compact layout in a narrow container. -->
     <div class="@container/server-cards">
       <div
-        class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[64rem]/server-cards:grid-cols-3"
+        class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[52rem]/server-cards:grid-cols-3"
       >
         {#each entries as entry (entry.origin)}
           {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}

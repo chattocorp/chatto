@@ -182,7 +182,10 @@ describe('Dialog', () => {
       expect(getComputedStyle(body).overflowY).toBe('auto');
       expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
       const header = dialog.querySelector('header') as HTMLElement;
-      expect(header.offsetTop).toBeGreaterThanOrEqual(0);
+      const headerTop = header.getBoundingClientRect().top;
+      body.scrollTop = body.scrollHeight;
+      expect(body.scrollTop).toBeGreaterThan(0);
+      expect(header.getBoundingClientRect().top).toBe(headerTop);
     });
 
     it('covers a narrow mouse window', async () => {

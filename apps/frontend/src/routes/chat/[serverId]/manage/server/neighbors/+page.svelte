@@ -219,7 +219,7 @@
         {:else}
           <div class="@container/server-cards">
             <div
-              class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[64rem]/server-cards:grid-cols-3"
+              class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[52rem]/server-cards:grid-cols-3"
             >
               {#each neighbors as neighbor (neighbor.id)}
                 {#snippet actions()}

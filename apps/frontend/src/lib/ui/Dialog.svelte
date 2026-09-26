@@ -181,7 +181,7 @@ and cannot be combined with semantic actions.
 	class={sheet
 		? ''
 		: fullscreen
-			? 'max-md:inset-0 max-md:m-0 max-md:h-[var(--modal-viewport-height,100dvh)] max-md:max-h-none max-md:w-dvw max-md:max-w-none md:w-fit md:max-w-[calc(100vw-2rem)]'
+			? 'max-md:inset-x-0 max-md:top-0 max-md:bottom-[var(--modal-viewport-bottom,0px)] max-md:m-0 max-md:h-auto max-md:max-h-none max-md:w-auto max-md:max-w-none md:w-fit md:max-w-[calc(100vw-2rem)]'
 			: mediaViewer
 				? 'h-dvh max-h-dvh w-dvw max-w-dvw md:h-fit md:w-fit md:max-w-[calc(100vw-2rem)]'
 				: 'w-fit max-w-[calc(100vw-2rem)]'}

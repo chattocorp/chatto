@@ -278,11 +278,11 @@ Use `fullscreen` for large, browsable content such as the Server Directory.
 Below 768 px, a full-screen dialog covers the whole viewport on every device.
 It has no drag handle, outer frame, or rounded corners. The work plane keeps
 safe-area padding, the header stays visible, and only the body scrolls. The
-dialog follows the visual viewport, so an open on-screen keyboard does not
+dialog ends at the top of an open on-screen keyboard, so the keyboard does not
 hide its lower part. The user closes it with the close button or Back; it has
-no swipe-to-dismiss gesture. From 768 px, it is a centred `xl`-style dialog
-with a fixed height of 85% of the viewport, so its size does not change while
-content loads. Do not use it for short tasks; they keep the bottom sheet.
+no swipe-to-dismiss gesture. From 768 px, it is a centred dialog with the
+width of its `size` and a fixed height of 85% of the viewport, so its size
+does not change while content loads. Do not use it for short tasks; they keep the bottom sheet.
 
 Cards that must adapt to the space they get, not to the device, use a named
 container query. `ServerProfileCard` uses a compact layout when its nearest
