@@ -16,7 +16,7 @@
   const scope = useServerScope();
   let failed = $state(false);
   let attempt = $state(0);
-  // A saved view has no live viewer; the self-conversation check needs one.
+  // The self-conversation check needs the verified viewer.
   const viewerId = $derived(scope.store.currentUser.user?.id);
 
   // Each recipient or retry owns one request. Cleanup prevents late results

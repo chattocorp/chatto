@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Code } from '@connectrpc/connect';
 
 const {
   mockCsrfFetch,
@@ -119,65 +118,6 @@ describe('ServerConnection', () => {
   it('starts with status "connecting"', () => {
     const client = new ServerConnection(makeConfig());
     expect(client.status).toBe('connecting');
-    client.dispose();
-  });
-
-  it('holds reads, rejects actions, and releases reads after viewer verification', async () => {
-    const client = new ServerConnection(makeConfig());
-    client.pausePrivateRequests();
-    const signal = new AbortController().signal;
-    const read = client.apiConfig.beforePrivateRequest!('ListMembers', signal);
-    let settled = false;
-    void read.finally(() => {
-      settled = true;
-    });
-    await Promise.resolve();
-    expect(settled).toBe(false);
-    await expect(
-      client.apiConfig.beforePrivateRequest!('MarkRoomAsRead', signal)
-    ).rejects.toMatchObject({ code: Code.FailedPrecondition });
-
-    client.resumePrivateRequests();
-    await expect(read).resolves.toBeUndefined();
-    client.dispose();
-  });
-
-  it('cancels held reads when their private connection is discarded', async () => {
-    const client = new ServerConnection(makeConfig());
-    client.pausePrivateRequests();
-    const read = client.apiConfig.beforePrivateRequest!(
-      'ListMembers',
-      new AbortController().signal
-    );
-
-    client.dispose();
-    await expect(read).rejects.toMatchObject({ code: Code.Canceled });
-  });
-
-  it('allows commands after viewer verification while realtime remains disconnected', async () => {
-    const client = new ServerConnection(makeConfig());
-    const signal = new AbortController().signal;
-    client.pausePrivateRequests();
-    await expect(
-      client.apiConfig.beforePrivateRequest!('PostMessage', signal)
-    ).rejects.toMatchObject({ code: Code.FailedPrecondition });
-    client.setRealtimeConnectionStatus('disconnected', 6);
-    client.resumePrivateRequests();
-    await expect(
-      client.apiConfig.beforePrivateRequest!('PostMessage', signal)
-    ).resolves.toBeUndefined();
-    client.dispose();
-  });
-
-  it('cancels an aborted read without sending it after viewer verification', async () => {
-    const client = new ServerConnection(makeConfig());
-    client.pausePrivateRequests();
-    const controller = new AbortController();
-    const read = client.apiConfig.beforePrivateRequest!('ListMembers', controller.signal);
-
-    controller.abort();
-    await expect(read).rejects.toMatchObject({ code: Code.Canceled });
-    client.resumePrivateRequests();
     client.dispose();
   });
 

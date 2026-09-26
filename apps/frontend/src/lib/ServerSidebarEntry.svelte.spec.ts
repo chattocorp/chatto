@@ -46,9 +46,6 @@ const { mocks } = vi.hoisted(() => {
         addedAt: 0
       },
       store: {
-        savedView: null,
-        networkStartupDeferred: false,
-        retainSavedViewFromDisk: vi.fn().mockResolvedValue(undefined),
         isAuthenticated: true,
         projection: { viewer: {} as object | null },
         notifications: {
@@ -272,8 +269,6 @@ describe('ServerSidebarEntry', () => {
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
     mocks.store.isAuthenticated = true;
-    mocks.store.savedView = null;
-    mocks.store.networkStartupDeferred = false;
     mocks.listRooms.mockResolvedValue([]);
     mocks.createRoomDirectoryAPI.mockReturnValue({ listRooms: mocks.listRooms });
     mocks.store.notifications.fetch.mockClear();
@@ -604,34 +599,6 @@ describe('ServerSidebarEntry', () => {
     expect(document.body.textContent).toContain('Version custom-build');
   });
 
-  it('keeps a dormant server healthy until its discovery starts', async () => {
-    mocks.store.networkStartupDeferred = true;
-    mocks.store.isAuthenticated = false;
-    mocks.store.projection.viewer = null;
-    mocks.store.serverInfo.version = '';
-    mocks.store.serverInfo.compatibility = {
-      status: 'unknown',
-      reason: 'server-version-unknown'
-    };
-    const { container } = render(ServerSidebarEntry, {
-      props: { serverId: 'remote', currentUserId: 'user-1' }
-    });
-
-    await expect.element(q(container, '[data-testid="server-icon"]')).toBeInTheDocument();
-    expect(q(container, '[data-testid="server-compatibility-warning"]')).toBeNull();
-    expect(q(container, '[data-testid="server-sign-in-required"]')).toBeNull();
-    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
-    expect(icon.classList).not.toContain('opacity-40');
-    expect(icon.title).toBe('Loaded Remote');
-
-    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() =>
-      expect(q(document.body, '[data-testid="server-compatibility-section"]')).not.toBeNull()
-    );
-    expect(q(document.body, '[data-testid="server-compatibility-message"]')).toBeNull();
-    expect(document.body.textContent).not.toContain('Version unknown');
-  });
-
   it('does not warn while server discovery is still loading', async () => {
     mocks.store.serverInfo.loading = true;
     mocks.store.serverInfo.version = '';
@@ -732,10 +699,9 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 
-  it('opens the login menu for a signed-out server with a saved view', async () => {
+  it('opens the login menu for a signed-out server', async () => {
     mocks.server.token = null;
     mocks.store.isAuthenticated = false;
-    mocks.store.savedView = { userId: 'saved-user' } as never;
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
 
     q(container, '[data-testid="server-icon"]')?.click();

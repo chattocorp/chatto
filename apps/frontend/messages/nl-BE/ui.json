@@ -5,12 +5,6 @@
     "open_quick_switcher": "Open snelwisselaar",
     "quick_switcher_shortcut": "Snelle overstap (Cmd+K)",
     "realtime_paused": "Realtime updates onderbroken. Opnieuw verbinding maken...",
-    "saved_view": {
-      "cache_title": "Lokale cache",
-      "cache_description": "Dit apparaat bewaart een beperkte tekstweergave van chats om offline te lezen.",
-      "clear_cache": "Opgeslagen chats wissen",
-      "cache_cleared": "Opgeslagen chats zijn gewist."
-    },
     "update_available": "Er is een nieuwe versie beschikbaar",
     "reload": "Opnieuw laden",
     "sign_out": "Meld u af",

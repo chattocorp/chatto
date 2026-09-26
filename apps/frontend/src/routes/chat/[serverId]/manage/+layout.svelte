@@ -105,12 +105,7 @@
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
 
-  // Saved permissions only render chat. Management forms wait for live authority.
-  const permissionsLoaded = $derived(
-    chromePermissions !== null &&
-      serverPermissions.loaded &&
-      !serverScope.store.realtimeSync.restoredFromDisk
-  );
+  const permissionsLoaded = $derived(chromePermissions !== null && serverPermissions.loaded);
 </script>
 
 {#if !permissionsLoaded}

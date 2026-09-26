@@ -11,7 +11,6 @@ type RegisteredState = {
   checkingPermissions?: boolean;
   userId?: string;
   connectionStatus?: 'connected' | 'disconnected';
-  startupPresentationOnly?: boolean;
 };
 
 const { mocks } = vi.hoisted(() => ({
@@ -20,25 +19,10 @@ const { mocks } = vi.hoisted(() => ({
     routeId: '/chat/[serverId]/[roomId]',
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
-      get startupPresentationOnly(): boolean {
-        return mocks.servers?.get('origin')?.startupPresentationOnly ?? false;
-      },
       get checkingPermissions(): boolean {
         return mocks.servers?.get('origin')?.checkingPermissions ?? false;
       },
       realtimeSync: null as RealtimeProjectionSyncState | null,
-      savedView: null as null | {
-        version: 1;
-        serverId: string;
-        userId: string;
-        serverName: string;
-        savedAt: number;
-        rooms: Array<{
-          id: string;
-          name: string;
-          messages: Array<{ id: string; createdAt: string; author: string; body: string }>;
-        }>;
-      },
       currentUser: {
         loading: false,
         user: { id: 'viewer-1' }
@@ -122,27 +106,11 @@ beforeEach(() => {
   mocks.routeId = '/chat/[serverId]/[roomId]';
   mocks.servers = new SvelteMap([['origin', { reauthRequiredAt: null, userId: 'viewer-1' }]]);
   mocks.store.realtimeSync = new RealtimeProjectionSyncState();
-  mocks.store.savedView = null;
   mocks.store.realtimeSync.markCaughtUp('ready');
 });
 
 describe('server route authentication privacy', () => {
   it('keeps the normal chat view and its draft visible during snapshot replacement', async () => {
-    const savedView = {
-      version: 1 as const,
-      serverId: 'origin',
-      userId: 'viewer-1',
-      serverName: 'Home',
-      savedAt: Date.now(),
-      rooms: [
-        {
-          id: 'room',
-          name: 'Room',
-          messages: [{ id: 'm', createdAt: '', author: 'Member', body: 'Earlier message' }]
-        }
-      ]
-    };
-    mocks.store.savedView = savedView;
     const { container } = render(Layout, {
       props: {
         children: testSnippet('<input data-testid="draft" />')
@@ -152,13 +120,11 @@ describe('server route authentication privacy', () => {
     draft.value = 'Unsent draft';
     mocks.store.realtimeSync!.acceptProjectionEvent(undefined, true);
     await tick();
-    expect(container.querySelector('[data-testid="saved-view-overlay"]')).toBeNull();
     expect(container.querySelector('[data-testid="draft"]')).toBe(draft);
     expect(getComputedStyle(draft).visibility).toBe('visible');
     expect(draft.closest('[inert]')).toBeNull();
     mocks.store.realtimeSync!.markCaughtUp('replacement');
     await tick();
-    expect(container.querySelector('[data-testid="saved-view-overlay"]')).toBeNull();
     expect(container.querySelector('[data-testid="draft"]')).toBe(draft);
     expect(draft.value).toBe('Unsent draft');
   });
@@ -187,15 +153,6 @@ describe('server route authentication privacy', () => {
   });
 
   it('keeps the normal chat view visible during a transport disconnect', async () => {
-    const savedView = {
-      version: 1 as const,
-      serverId: 'origin',
-      userId: 'viewer-1',
-      serverName: 'Home',
-      savedAt: Date.now(),
-      rooms: [{ id: 'room', name: 'Room', messages: [] }]
-    };
-    mocks.store.savedView = savedView;
     const { container } = render(Layout, {
       props: { children: testSnippet('<main data-testid="normal-chat">Chat</main>') }
     });
@@ -210,7 +167,6 @@ describe('server route authentication privacy', () => {
     expect(getComputedStyle(chat!).visibility).toBe('visible');
     expect(chat!.closest('[inert]')).toBeNull();
     expect(container.querySelector('[role="status"]')).toBeNull();
-    expect(container.querySelector('[data-testid="saved-view-overlay"]')).toBeNull();
   });
   it('keeps the page mounted, focused, and interactive during an authority check', async () => {
     const { container } = render(Layout, {
@@ -265,6 +221,5 @@ describe('server route authentication privacy', () => {
 
     expect(container.querySelector('[data-testid="server-chrome"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="private-route"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="saved-view-overlay"]')).toBeNull();
   });
 });

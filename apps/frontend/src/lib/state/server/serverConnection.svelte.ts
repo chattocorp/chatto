@@ -2,7 +2,6 @@ import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
 import { csrfFetch } from '$lib/auth/csrf';
 import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
-import { Code, ConnectError } from '$lib/api-client/connect';
 import { serverRegistry } from './registry.svelte';
 import { disposeUserStore, getUserStore } from './users.svelte';
 
@@ -75,9 +74,6 @@ export class ServerConnection {
   #apis = new WeakMap<object, unknown>();
   readonly #queryScope = `connection-${++nextQueryScope}`;
   #dataGeneration = 0;
-  #privateRequestGate: Promise<void> | null = null;
-  #releasePrivateRequests: (() => void) | null = null;
-  #cancelPrivateRequests: ((reason: Error) => void) | null = null;
 
   /** Generation of private data owned by this connection, independent of navigation. */
   get dataGeneration(): number {
@@ -88,54 +84,6 @@ export class ServerConnection {
   invalidatePrivateData(): void {
     this.#dataGeneration++;
     if (this.#serverId) getUserStore(this.#serverId, this.queryScope).clear();
-  }
-
-  /** Hold private reads while a saved projection is shown before viewer verification. */
-  pausePrivateRequests(): void {
-    if (this.#privateRequestGate) return;
-    this.#privateRequestGate = new Promise<void>((resolve, reject) => {
-      this.#releasePrivateRequests = resolve;
-      this.#cancelPrivateRequests = reject;
-    });
-    // A privacy clear can close the gate before any component starts a read.
-    void this.#privateRequestGate.catch(() => {});
-  }
-
-  /** Release held reads and permit commands after the server confirms the saved viewer. */
-  resumePrivateRequests(): void {
-    this.#releasePrivateRequests?.();
-    this.#privateRequestGate = null;
-    this.#releasePrivateRequests = null;
-    this.#cancelPrivateRequests = null;
-  }
-
-  /** Discard held reads when their private projection is removed. */
-  cancelPrivateRequests(): void {
-    this.#cancelPrivateRequests?.(new ConnectError('Saved view was cleared', Code.Canceled));
-    this.#privateRequestGate = null;
-    this.#releasePrivateRequests = null;
-    this.#cancelPrivateRequests = null;
-  }
-
-  private async beforePrivateRequest(methodName: string, signal: AbortSignal): Promise<void> {
-    const gate = this.#privateRequestGate;
-    if (!gate) return;
-    if (!/^(Get|List|BatchGet|Search|Check|Fetch|Resolve|Find)/.test(methodName)) {
-      throw new ConnectError('Server connection is not ready', Code.FailedPrecondition);
-    }
-    if (signal.aborted) throw new ConnectError('Request was canceled', Code.Canceled);
-    let onAbort: (() => void) | undefined;
-    try {
-      await Promise.race([
-        gate,
-        new Promise<never>((_, reject) => {
-          onAbort = () => reject(new ConnectError('Request was canceled', Code.Canceled));
-          signal.addEventListener('abort', onAbort, { once: true });
-        })
-      ]);
-    } finally {
-      if (onAbort) signal.removeEventListener('abort', onAbort);
-    }
   }
 
   get isConnected() {
@@ -181,7 +129,6 @@ export class ServerConnection {
       baseUrl: this.#connectBaseUrl,
       bearerToken: this.#token,
       dataGeneration: () => this.#dataGeneration,
-      beforePrivateRequest: (methodName, signal) => this.beforePrivateRequest(methodName, signal),
       renewBearerToken:
         this.#serverId && this.#token
           ? (force) => serverRegistry.renewServerAuthentication(this.#serverId!, force)
@@ -476,7 +423,6 @@ export class ServerConnection {
 
   /** Clean up event listeners owned by the connection state object. */
   dispose() {
-    this.cancelPrivateRequests();
     if (this.#serverId) disposeUserStore(this.#serverId, this.queryScope);
     this.#apis = new WeakMap();
     this.#pendingForcedReconnectReason = null;

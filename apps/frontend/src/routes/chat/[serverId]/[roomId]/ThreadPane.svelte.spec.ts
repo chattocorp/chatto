@@ -364,8 +364,7 @@ describe('ThreadPane', () => {
     expect(container.querySelector('[role="slider"]')).toBeNull();
   });
 
-  it('waits for the saved viewer to be verified before marking the thread as read', async () => {
-    // A cold load shows the saved view before the server accepts commands.
+  it('waits for the viewer to be verified before marking the thread as read', async () => {
     authState.set('authenticated', false);
     try {
       render(ThreadPane, {

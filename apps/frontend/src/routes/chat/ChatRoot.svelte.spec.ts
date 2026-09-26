@@ -324,7 +324,7 @@ describe('ChatRoot', () => {
     expect(mocks.stopSessionTermination).toHaveBeenCalledOnce();
   });
 
-  it('installs origin session handling when a saved viewer becomes verified', async () => {
+  it('installs origin session handling when the viewer becomes verified', async () => {
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
     const { container, unmount } = render(ChatRoot, { props: { presenceCache, children } });
     const child = container.querySelector('[data-testid="chat-root-child"]');

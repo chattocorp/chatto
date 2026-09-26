@@ -154,16 +154,6 @@ describe('ServerRuntimeCoordinator', () => {
     );
   });
 
-  it('defers transport while keeping recovery available for the saved view', async () => {
-    render(ServerRuntimeCoordinator, { props: { deferConnections: true } });
-
-    await vi.waitFor(() =>
-      expect(mocks.synchronizeAuthenticatedServers).toHaveBeenCalledWith([], null)
-    );
-    expect(mocks.needsRecovery).toHaveBeenCalled();
-    expect(mocks.getClient).not.toHaveBeenCalled();
-  });
-
   it('clears a remote session when its server confirms termination', async () => {
     render(ServerRuntimeCoordinator);
     await vi.waitFor(() =>

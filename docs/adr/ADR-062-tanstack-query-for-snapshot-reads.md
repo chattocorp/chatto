@@ -40,9 +40,8 @@ The cache has the following boundaries:
   under that server's key prefix during logout, credential replacement, and
   server removal. Authentication failure purges the same prefix immediately.
   A warm chat keeps its normal projection visible while the user reconnects.
-  A bounded saved snapshot populates the normal stores on a cold offline launch;
-  see [ADR-103](ADR-103-cached-first-client-startup.md).
-  It does not restore query results or grant actions.
+  The client does not store chat data on the device; see
+  [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md).
 - Query functions pass TanStack's `AbortSignal` to ConnectRPC so superseded or
   unmounted reads can be cancelled.
 - Mutations update or invalidate only explicitly related keys. Mutation

@@ -5,12 +5,6 @@
     "open_quick_switcher": "Avage kiirlüliti",
     "quick_switcher_shortcut": "Kiirlüliti (Cmd+K)",
     "realtime_paused": "Reaalajas värskendused peatati. Ühenduse taastamine...",
-    "saved_view": {
-      "cache_title": "Kohalik vahemälu",
-      "cache_description": "See seade salvestab piiratud tekstivaate vestlustest võrguühenduseta lugemiseks.",
-      "clear_cache": "Kustuta salvestatud vestlused",
-      "cache_cleared": "Salvestatud vestlused kustutati."
-    },
     "update_available": "Saadaval on uus versioon",
     "reload": "Laadi uuesti",
     "sign_out": "Logi välja",

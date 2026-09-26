@@ -25,7 +25,7 @@ interface AuthFailureOptions {
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
   loading = $state(true);
-  /** Identity confirmed by the latest successful viewer request, excluding a disk view. */
+  /** Identity confirmed by the latest successful viewer request. */
   verifiedUserId = $state<string | null>(null);
   #cookieAuth: boolean;
   #apiConfig?: ConnectAPIConfig;

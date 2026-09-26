@@ -3,14 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     saveReturnUrl: vi.fn(),
-    diskView: null as { serverId: string; userId: string; rooms: unknown[] } | null,
-    startServerNetwork: vi.fn(),
     serverId: 'origin' as string | null,
     origin: true,
     reauthRequiredAt: null as number | null,
     store: {
-      restoreSavedViewFromDisk: vi.fn(),
-      savedView: null as { serverId: string; userId: string; rooms: unknown[] } | null,
       currentUser: {
         loading: false,
         user: { id: 'viewer-1' } as { id: string } | undefined,
@@ -34,7 +30,6 @@ vi.mock('$lib/navigation', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    startServerNetwork: mocks.startServerNetwork,
     tryGetStore: () => (mocks.serverId ? mocks.store : undefined),
     getServer: () =>
       mocks.serverId ? { id: mocks.serverId, reauthRequiredAt: mocks.reauthRequiredAt } : undefined,
@@ -44,14 +39,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 import { load } from './+layout';
 
-function routeLoad(
-  user: { id: string } | null = { id: 'viewer-1' },
-  setupRequired = false,
-  startupServerId?: string
-) {
+function routeLoad(user: { id: string } | null = { id: 'viewer-1' }, setupRequired = false) {
   return load({
     params: { serverId: '-' },
-    parent: async () => ({ user, serverInfo: { setupRequired }, startupServerId }),
+    parent: async () => ({ user, serverInfo: { setupRequired } }),
     url: new URL('https://chat.example.test/chat/-/overview')
   } as never);
 }
@@ -70,12 +61,6 @@ describe('server route layout load', () => {
     mocks.store.currentUser.loading = false;
     mocks.store.currentUser.user = { id: 'viewer-1' };
     mocks.store.currentUser.load.mockResolvedValue(undefined);
-    mocks.store.savedView = null;
-    mocks.diskView = null;
-    // The store accepts a matching disk view; tests override this to model refusal.
-    mocks.store.restoreSavedViewFromDisk.mockImplementation(async () => {
-      if (mocks.diskView) mocks.store.savedView = mocks.diskView;
-    });
   });
 
   it('opens setup for the origin before requiring authentication', async () => {
@@ -141,61 +126,14 @@ describe('server route layout load', () => {
     expect(mocks.saveReturnUrl).not.toHaveBeenCalled();
   });
 
-  it('opens a saved remote view without waiting for its viewer request', async () => {
+  it('redirects when the initial remote viewer request ends without a viewer', async () => {
     mocks.serverId = 'remote';
     mocks.origin = false;
     mocks.store.currentUser.loading = true;
     mocks.store.currentUser.user = undefined;
-    mocks.diskView = { serverId: 'remote', userId: 'remote-viewer', rooms: [] };
-
-    await expect(routeLoad(null)).resolves.toMatchObject({ serverSegment: '-' });
-    expect(mocks.store.restoreSavedViewFromDisk).toHaveBeenCalledOnce();
-    expect(mocks.store.currentUser.load).not.toHaveBeenCalled();
-  });
-
-  it('does not treat a refused saved view as a readable view', async () => {
-    mocks.serverId = 'remote';
-    mocks.origin = false;
-    mocks.store.currentUser.loading = true;
-    mocks.store.currentUser.user = undefined;
-    mocks.diskView = { serverId: 'remote', userId: 'viewer-1', rooms: [] };
-    mocks.store.restoreSavedViewFromDisk.mockImplementation(async () => {});
 
     await expect(routeLoad(null)).rejects.toMatchObject({ status: 302, location: '/login' });
     expect(mocks.store.currentUser.load).toHaveBeenCalledOnce();
-  });
-
-  it('restores a dormant server before starting its requests', async () => {
-    mocks.serverId = 'remote';
-    mocks.origin = false;
-    mocks.store.currentUser.loading = true;
-    mocks.store.currentUser.user = undefined;
-    let finishRestore = () => {};
-    mocks.store.restoreSavedViewFromDisk.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finishRestore = () => {
-            mocks.store.savedView = { serverId: 'remote', userId: 'viewer-1', rooms: [] };
-            resolve();
-          };
-        })
-    );
-
-    const loading = routeLoad(null);
-    await vi.waitFor(() => expect(mocks.store.restoreSavedViewFromDisk).toHaveBeenCalledOnce());
-    expect(mocks.startServerNetwork).not.toHaveBeenCalled();
-    finishRestore();
-
-    await expect(loading).resolves.toMatchObject({ serverSegment: '-' });
-    expect(mocks.startServerNetwork).toHaveBeenCalledWith('remote');
-  });
-
-  it('leaves network startup to the root layout after the first saved paint', async () => {
-    mocks.store.savedView = { serverId: 'origin', userId: 'viewer-1', rooms: [] };
-
-    await expect(routeLoad(null, false, 'origin')).resolves.toMatchObject({ serverSegment: '-' });
-
-    expect(mocks.startServerNetwork).not.toHaveBeenCalled();
   });
 
   it('keeps the shell mounted for reauthentication recovery', async () => {

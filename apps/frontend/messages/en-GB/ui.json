@@ -5,12 +5,6 @@
     "open_quick_switcher": "Open quick switcher",
     "quick_switcher_shortcut": "Quick switcher (Cmd+K)",
     "realtime_paused": "Real-time updates paused. Reconnecting...",
-    "saved_view": {
-      "cache_title": "Device cache",
-      "cache_description": "This device saves a limited text view of chats for offline reading.",
-      "clear_cache": "Clear saved chats",
-      "cache_cleared": "Saved chats cleared."
-    },
     "update_available": "A new version is available",
     "reload": "Reload",
     "sign_out": "Sign out",

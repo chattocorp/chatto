@@ -147,8 +147,7 @@ thread IDs can change while the pane stays mounted.
   const unread = isThread
     ? useUnreadMarker(() => threadRootEventId!, {
         markAsRead: markThreadAsRead,
-        // A saved view can show before the server accepts commands. The read
-        // starts when the viewer is verified, as in the room timeline.
+        // The read starts when the viewer is verified, as in the room timeline.
         canMarkAsRead: () => stores.isAuthenticated,
         markerWindowFromReadResult: (result, markedAtMs) =>
           result.previousLastReadAt

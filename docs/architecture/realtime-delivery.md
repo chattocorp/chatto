@@ -426,7 +426,11 @@ accounts retain a deleted-user row through the shared owner's tombstone. Connect
 rooms do not keep another profile copy. Typing labels prefer that owner when a
 member row also has profile fields. The quick finder
 reads that owner directly without starting profile requests. Server-scoped name
-and avatar views read the same current profiles.
+and avatar views read the same current profiles. The current-user bar also reads
+custom status from this owner for its badge, menu actions, and initial editor
+value. Its viewer snapshot is only a fallback when the profile is not loaded.
+This lets status changes from another session update the bar without a viewer
+reload.
 Three independent presence-filtered scans publish connected members while the
 full directory loads. Each status filter also supplies presence for cached
 profiles. Per-user change versions prevent these previews from replacing newer
@@ -530,26 +534,17 @@ requests a new snapshot.
 A warm replacement keeps the normal route visible. Fresh room permissions
 remove access to affected rooms; cursor-bounded timeline reads replace retained
 message windows when they complete. An interrupted replacement leaves the
-prior view visible while the client requests another snapshot. A cold offline
-launch restores a bounded store snapshot in the normal chat route. Verified access
-revocation clears the disk snapshot and affected timeline position. Explicit sign-out clears
-the saved data. A complete validated snapshot set supplies its applied replay
-cursor, but never current authorization.
-After the saved view paints, the registry starts server discovery and verifies
-the viewer through the existing connection. The root route does not reload.
-This saved startup applies to every server route. Account settings, management
-forms, and the direct-message opener wait for the verified viewer or live
-permissions before they mount or send. A message permalink target outside the
-saved window loads through the paused private requests.
+prior view visible while the client requests another snapshot. The client
+keeps each projection and its resume cursor in memory only. A page load starts
+without a cursor and requests a snapshot. See
+[ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md).
 The runtime coordinator starts realtime and notification sync when viewer
 verification succeeds. Room and DM selectors keep retained data displayable
 during warm snapshot hydration and retry. Actions stay gated by verified
 authority. Verified origin authentication also starts browser-session renewal.
 The chat root installs origin-session termination handling from the registry's
-verified viewer, even when the route still has no loaded viewer. A changed or
-rejected viewer clears the saved private view. A session that already needs
-reauthentication deletes its saved view at startup and uses live startup. When
-the origin rejects its viewer and no loaded data remains, the chat root starts
+verified viewer, even when the route still has no loaded viewer. When the
+origin rejects its viewer and no loaded data remains, the chat root starts
 origin sign-in and keeps the current page as the return path.
 
 `CurrentUserState` owns the complete account and one pending account request for
@@ -557,42 +552,14 @@ each server. Route loading and recovery use that owner. Cookie migration and
 transient retries are request policy, with no separate account cache. The
 registry checks identity changes before it publishes the response. Account
 reset, newer live viewer data, and store disposal reject older responses.
-Saved-view restoration decodes room resources, groups, known profiles, and
-viewer display data into the normal projection. It restores full timeline rows,
-notification state, and loaded member lists into their normal owners.
-Selectors have no saved-data fallback. The connection holds private reads
-until viewer verification and rejects commands until that same check succeeds.
-HTTP commands then proceed independently of realtime catch-up. The composer
+HTTP commands proceed independently of realtime catch-up. The composer
 does not use WebSocket status to disable input or sending; request errors retain
 the draft through the existing submission path.
 Snapshot catch-up replaces retained rows through the normal timeline read;
 member refreshes publish their complete replacement without a partial-page gap.
-IndexedDB stores versioned layout, shared resources, room and thread windows,
-and member-list records. A manifest and all records commit atomically with one
-server/viewer replay checkpoint. Timeline records include pagination boundaries;
-membership records include completeness. Missing or invalid records use live
-startup. The manifest and the resource records each carry a format version. A
-unit test fails when the resource schemas change without a new resource
-version. A read deletes an expired, incompatible, incomplete, or invalid set,
-unless another tab replaced it after the read. This deletion does not record a
-privacy cutoff. A device-wide clear deletes the database, so it also removes a
-database that this frontend cannot open. Sign-out of all servers also deletes
-every other IndexedDB database of the origin. A new database then records the
-device-wide cutoff. The server store reads its saved view only while its projection is
-empty. After a restore, or after realtime catch-up starts, route loads and the
-server sidebar do not read it again. The sidebar only keeps a saved copy. The
-store shows a saved view only before its network work starts, or after its
-viewer request ends without a viewer. Every loaded owner can be saved without a
-room-count or dwell-time rule. Lightweight loaded-window changes and completed
-reconciliation barriers
-schedule capture through a server-owned 100 ms timer; capture runs outside
-reactive dependency tracking. Pending writes coalesce without being cancelled by navigation. Optimistic
-patches block persistence. Local write generations and persistent privacy
-cutoffs, recorded synchronously when a purge is requested, reject older writes. See
-[ADR-104](../adr/ADR-104-checkpointed-client-projection-snapshots.md).
-Saved data does not verify or populate the account-loading owner. Settings
-wait for complete account data; the transport coordinator does not populate
-or clear it. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
+Settings wait for complete account data; the transport coordinator does not
+populate or clear it. See
+[ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for

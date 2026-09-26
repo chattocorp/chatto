@@ -1,5 +1,4 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
-import { savedViewFixture } from '$lib/test-utils/savedView';
 import {
   generateServerId,
   restorePersistedServerState,
@@ -10,7 +9,6 @@ import {
 import { queryClient } from '$lib/query/client';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 
 const accountFields = {
   displayName: 'Account',
@@ -194,20 +192,6 @@ describe('ServerRegistry', () => {
       expect(registry.firstAuthenticatedServerId()).toBe('origin');
       expect(registry.firstAuthenticatedServerId('origin')).toBe('remote');
     });
-
-    it('can navigate to a dormant remote session after origin sign-out', async () => {
-      const registry = await createRegistry();
-      registry.removeAll();
-      registry.addServer(
-        makeServer({ id: 'remote', url: 'https://remote.example.com', token: 'remote-token' })
-      );
-      registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
-      registry.getStore('remote').networkStartupDeferred = true;
-
-      expect(registry.firstAuthenticatedServerId('origin')).toBe('remote');
-      registry.handleAuthenticationRequired('remote');
-      expect(registry.firstAuthenticatedServerId('origin')).toBeUndefined();
-    });
   });
 
   describe('addServer', () => {
@@ -292,66 +276,6 @@ describe('ServerRegistry', () => {
     } finally {
       channel.close();
     }
-  });
-
-  it('clears saved display without creating a live projection', async () => {
-    const registry = await createRegistry();
-    registry.removeAll();
-    registry.init();
-    registry.addServer(makeServer({ id: 'offline', token: 'access', userId: 'U1' }));
-    const store = registry.getStore('offline');
-    store.currentUser.loading = false;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: 'offline',
-        userId: 'U1',
-        serverName: 'Saved server',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      })
-    );
-    expect(store.navigation.rooms).toMatchObject([{ id: 'R1', viewerIsMember: true }]);
-    expect(store.projection.rooms.has('R1')).toBe(true);
-
-    await registry.clearDeviceSavedViews();
-
-    expect(store.savedView).toBeNull();
-    expect(store.navigation.rooms).toEqual([]);
-    expect(store.projection.rooms.has('R1')).toBe(false);
-    expect(store.projection.viewer).toBeNull();
-    expect(store.currentUser.user).toBeUndefined();
-    expect(store.realtimeSync.phase).toBe('empty');
-  });
-
-  it('keeps an authorized live projection when saved chats are cleared', async () => {
-    const registry = await createRegistry();
-    registry.removeAll();
-    registry.init();
-    registry.addServer(makeServer({ id: 'live', token: 'access', userId: 'U1' }));
-    const store = registry.getStore('live');
-    store.currentUser.loading = false;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: 'live',
-        userId: 'U1',
-        serverName: 'Live server',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      })
-    );
-    // A verified live projection must survive removal of its device snapshot.
-    const room = new RoomWithViewerState({
-      room: { id: 'R1', name: 'general' },
-      viewerState: { isMember: true }
-    });
-    store.projection.rooms.set('R1', room);
-    store.realtimeSync.markCaughtUp('authorized');
-
-    await registry.clearDeviceSavedViews();
-
-    expect(store.savedView).toBeNull();
-    expect(store.projection.rooms.get('R1')).toBe(room);
-    expect(store.realtimeSync.phase).toBe('ready');
   });
 
   describe('handleAuthenticationRequired', () => {
