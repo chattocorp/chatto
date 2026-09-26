@@ -146,8 +146,23 @@ export function withRefreshedPreviewUrls(
   };
 }
 
+/**
+ * Cursor of the latest snapshot for each server. A snapshot clears the resume
+ * cursor until catch-up completes, so reads in that interval use this cursor.
+ */
+const snapshotCursors = new Map<string, string>();
+
+/** Return the minimum cursor for a preview read of `serverId`. */
+export function messagePreviewReadCursor(
+  serverId: string,
+  resumeCursor: string | null
+): string | undefined {
+  return resumeCursor ?? snapshotCursors.get(serverId);
+}
+
 /** Reload every mounted preview of a server; each keeps its data while it reloads. */
-function refreshMessagePreviews(serverId: string): void {
+function refreshMessagePreviews(serverId: string, snapshotCursor: string): void {
+  snapshotCursors.set(serverId, snapshotCursor);
   const filters = {
     predicate: (query: Query) => {
       const key = query.queryKey;

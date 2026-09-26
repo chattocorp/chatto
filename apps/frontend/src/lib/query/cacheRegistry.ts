@@ -18,8 +18,8 @@ type FollowedThreadCache = {
 };
 /** Message link previews of mounted preview cards. */
 type MessagePreviewQueryCache = {
-  /** Reload every preview of a server after a snapshot replaced its projection. */
-  refresh(serverId: string): void;
+  /** Reload every preview of a server at the cursor of the snapshot that replaced its projection. */
+  refresh(serverId: string, snapshotCursor: string): void;
 };
 type RoomMemberQueryCache = {
   invalidateRoom(serverId: string, roomId: string): void;
@@ -84,8 +84,8 @@ export function registerMessagePreviewQueryCache(cache: MessagePreviewQueryCache
   messagePreviewQueryCache = cache;
 }
 
-export function refreshRegisteredMessagePreviews(serverId: string): void {
-  messagePreviewQueryCache?.refresh(serverId);
+export function refreshRegisteredMessagePreviews(serverId: string, snapshotCursor: string): void {
+  messagePreviewQueryCache?.refresh(serverId, snapshotCursor);
 }
 
 export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: string): void {
