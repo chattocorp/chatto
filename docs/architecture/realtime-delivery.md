@@ -612,7 +612,9 @@ invalidate pending reads. Empty DMs remain excluded from sidebar navigation.
 
 The browser keeps one in-memory resource view and cursor for each
 authenticated server. Only the active server keeps a persistent socket.
-Inactive servers use bounded periodic catch-up sockets. A page reload restores
+Inactive servers use bounded periodic catch-up sockets. An inactive server
+without usable data gets a catch-up immediately. This includes a server that
+became inactive before its first catch-up completed. A page reload restores
 a compatible complete snapshot set and its cursor when available. Without that
 set, it starts without a cursor and performs new resource reads.
 
