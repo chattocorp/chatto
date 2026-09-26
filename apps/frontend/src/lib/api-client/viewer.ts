@@ -1,5 +1,9 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { authHeaders, createChattoClient, type ConnectAPIConfig } from './connect.js';
+import {
+  createChattoClient,
+  type ConnectAPIConfig,
+  skipAuthenticationRequired
+} from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import {
   TimeFormat,
@@ -10,8 +14,6 @@ import {
 } from '@chatto/api-types/api/v1/viewer_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
-
-export type ViewerAPIConfig = ConnectAPIConfig;
 
 export type CurrentUser = {
   id: string;
@@ -79,12 +81,11 @@ export type PrivilegedModeUpdate = {
   viewerPermissions: ServerViewerPermissions;
 };
 
-export function createPrivilegedModeAPI(config: ViewerAPIConfig): PrivilegedModeAPI {
+export function createPrivilegedModeAPI(config: ConnectAPIConfig): PrivilegedModeAPI {
   const client = createChattoClient(ViewerService, config);
-  const options = () => ({ headers: authHeaders(config) });
   return {
     async activate() {
-      const response = await client.activatePrivilegedMode({}, options());
+      const response = await client.activatePrivilegedMode({});
       if (!response.privilegedMode)
         throw new Error('privileged-mode response did not include state');
       if (!response.capabilities || !response.viewerPermissions)
@@ -96,7 +97,7 @@ export function createPrivilegedModeAPI(config: ViewerAPIConfig): PrivilegedMode
       };
     },
     async deactivate() {
-      const response = await client.deactivatePrivilegedMode({}, options());
+      const response = await client.deactivatePrivilegedMode({});
       if (!response.privilegedMode)
         throw new Error('privileged-mode response did not include state');
       if (!response.capabilities || !response.viewerPermissions)
@@ -108,7 +109,7 @@ export function createPrivilegedModeAPI(config: ViewerAPIConfig): PrivilegedMode
       };
     },
     refresh() {
-      return client.getViewer({}, options());
+      return client.getViewer({});
     }
   };
 }
@@ -127,15 +128,22 @@ const capabilityKeys = {
   manageInvites: 'user.invite'
 } as const;
 
+/**
+ * Read the viewer for a caller that owns its own reaction to authentication loss.
+ *
+ * An `Unauthenticated` result does not request a new sign-in, because
+ * `CurrentUserState` makes that decision and ignores superseded loads. Other
+ * viewer reads must use a client that keeps the transport's default handling.
+ */
 export async function getViewerStateViaConnect(
-  config: ViewerAPIConfig,
+  config: ConnectAPIConfig,
   options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<ViewerState> {
   const client = createChattoClient(ViewerService, config);
   const response = await client.getViewer(
     {},
     {
-      headers: authHeaders(config),
+      ...skipAuthenticationRequired(),
       ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       ...(options.signal ? { signal: options.signal } : {})
     }
@@ -217,7 +225,7 @@ function mapCapabilityGrants(
   return Object.fromEntries((grants ?? []).map((grant) => [grant.capability, grant.granted]));
 }
 
-export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise<CurrentUser> {
+export async function getCurrentUserViaConnect(config: ConnectAPIConfig): Promise<CurrentUser> {
   // Bound session restoration independently of the connection's retry timer.
   return (await getViewerStateViaConnect(config, { timeoutMs: 10_000 })).user;
 }

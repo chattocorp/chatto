@@ -1,16 +1,10 @@
 import { updateMask } from './updateMask';
-import { authHeaders, Code, ConnectError, createChattoClient } from './connect.js';
+import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
 import { RoleService } from '@chatto/api-types/api/v1/roles_connect';
 import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-
-export type RoleAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type ServerRole = {
   name: string;
@@ -60,14 +54,13 @@ export type UpdateRoleInput = {
   pingable?: boolean;
 };
 
-export function createRoleAPI(config: RoleAPIConfig) {
+export function createRoleAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(RoleService, config);
   const adminClient = createChattoClient(AdminRoleService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async listRoles(): Promise<RoleCatalog> {
-      const response = await client.listRoles({}, { headers: headers() });
+      const response = await client.listRoles({});
       return {
         roles: response.roles.map((role) => serverRoleFromPublic(role)),
         viewerCanManageRoles: false,
@@ -77,7 +70,7 @@ export function createRoleAPI(config: RoleAPIConfig) {
 
     async getPublicRole(name: string): Promise<ServerRole | null> {
       try {
-        const response = await client.getRole({ name }, { headers: headers() });
+        const response = await client.getRole({ name });
         return response.role ? serverRoleFromPublic(response.role) : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
@@ -88,14 +81,14 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async batchGetPublicRoles(names: string[]): Promise<ServerRole[]> {
-      const response = await client.batchGetRoles({ names }, { headers: headers() });
+      const response = await client.batchGetRoles({ names });
       return response.roles.map((role) => serverRoleFromPublic(role));
     },
 
     async listAdminRoles(options: { signal?: AbortSignal } = {}): Promise<RoleCatalog> {
       const response = await adminClient.listRoles(
         {},
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         roles: response.roles.map(serverRoleFromAdmin),
@@ -107,7 +100,7 @@ export function createRoleAPI(config: RoleAPIConfig) {
     async getRole(name: string, options: { signal?: AbortSignal } = {}): Promise<RoleDetails> {
       const response = await adminClient.getRole(
         { name },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         roles: [],
@@ -124,7 +117,7 @@ export function createRoleAPI(config: RoleAPIConfig) {
     ): Promise<RoleMemberPage> {
       const response = await adminClient.listMembers(
         { name, page },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         users: response.members.map(roleUser),
@@ -134,27 +127,20 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async createRole(input: CreateRoleInput): Promise<ServerRole> {
-      const response = await adminClient.createRole(input, {
-        headers: headers()
-      });
+      const response = await adminClient.createRole(input);
       return requiredAdminRole(response.role);
     },
 
     async updateRole(input: UpdateRoleInput): Promise<ServerRole> {
-      const response = await adminClient.updateRole(
-        {
-          ...input,
-          updateMask: updateMask(input, ['displayName', 'description', 'pingable'])
-        },
-        {
-          headers: headers()
-        }
-      );
+      const response = await adminClient.updateRole({
+        ...input,
+        updateMask: updateMask(input, ['displayName', 'description', 'pingable'])
+      });
       return requiredAdminRole(response.role);
     },
 
     async deleteRole(name: string): Promise<boolean> {
-      await adminClient.deleteRole({ name }, { headers: headers() });
+      await adminClient.deleteRole({ name });
       return true;
     }
   };

@@ -1,12 +1,5 @@
 import { listAllDirectoryRooms } from './roomPages';
-import {
-  authHeaders,
-  Code,
-  ConnectError,
-  createChattoClient,
-  handleAuthError,
-  type ConnectAPIConfig
-} from './connect.js';
+import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import type {
   RoomGroup,
@@ -18,8 +11,6 @@ import type {
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
-
-export type RoomDirectoryAPIConfig = ConnectAPIConfig;
 
 export type DirectoryRoomSummary = {
   id: string;
@@ -99,35 +90,32 @@ const RoomPermission = {
   React: 'message.react'
 } as const;
 
-export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
+export function createRoomDirectoryAPI(config: ConnectAPIConfig) {
   const directory = createChattoClient(RoomDirectoryService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async listRooms(
       scope: RoomDirectoryScope,
       options: { signal?: AbortSignal } = {}
     ): Promise<DirectoryRoomSummary[]> {
-      try {
-        const rooms = await listAllDirectoryRooms((page) => directory.listRooms(
+      const rooms = await listAllDirectoryRooms((page) =>
+        directory.listRooms(
           { scope, page },
-          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
-        ));
-        return rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+          { ...(options.signal ? { signal: options.signal } : {}) }
+        )
+      );
+      return rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
     },
 
     async getRoom(roomId: string): Promise<DirectoryRoomDetails | null> {
       try {
-        const response = await directory.getRoom({ roomId }, { headers: headers() });
+        const response = await directory.getRoom({ roomId });
         return mapDirectoryRoomDetails(response.room);
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
         }
-        return handleAuthError(config, err);
+        throw err;
       }
     },
 
@@ -135,48 +123,33 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       roomIds: string[],
       options: { signal?: AbortSignal } = {}
     ): Promise<DirectoryRoomDetails[]> {
-      try {
-        const response = await directory.batchGetRooms(
-          { roomIds },
-          { headers: headers(), signal: options.signal }
-        );
-        return response.rooms.flatMap((entry) => {
-          const mapped = mapDirectoryRoomDetails(entry);
-          return mapped ? [mapped] : [];
-        });
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await directory.batchGetRooms({ roomIds }, { signal: options.signal });
+      return response.rooms.flatMap((entry) => {
+        const mapped = mapDirectoryRoomDetails(entry);
+        return mapped ? [mapped] : [];
+      });
     },
 
     async listRoomGroups(): Promise<DirectoryRoomGroup[]> {
-      try {
-        const response = await directory.listRoomGroups({}, { headers: headers() });
-        return response.groups.map(mapRoomGroup);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await directory.listRoomGroups({});
+      return response.groups.map(mapRoomGroup);
     },
 
     async getRoomGroup(groupId: string): Promise<DirectoryRoomGroup | null> {
       try {
-        const response = await directory.getRoomGroup({ groupId }, { headers: headers() });
+        const response = await directory.getRoomGroup({ groupId });
         return response.group ? mapRoomGroup(response.group) : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
         }
-        return handleAuthError(config, err);
+        throw err;
       }
     },
 
     async batchGetRoomGroups(groupIds: string[]): Promise<DirectoryRoomGroup[]> {
-      try {
-        const response = await directory.batchGetRoomGroups({ groupIds }, { headers: headers() });
-        return response.groups.map(mapRoomGroup);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await directory.batchGetRoomGroups({ groupIds });
+      return response.groups.map(mapRoomGroup);
     }
   };
 }

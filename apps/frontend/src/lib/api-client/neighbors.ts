@@ -1,6 +1,6 @@
 import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
 import type { Neighbor as APINeighbor } from '@chatto/api-types/admin/v1/server_pb';
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 
 export type Neighbor = {
   id: string;
@@ -8,50 +8,37 @@ export type Neighbor = {
   revision: string;
 };
 
-export type NeighborAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
-
-export function createNeighborAPI(config: NeighborAPIConfig) {
+export function createNeighborAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(AdminServerService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async list(options: { signal?: AbortSignal } = {}): Promise<Neighbor[]> {
       const response = await client.listNeighbors(
         {},
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return response.neighbors.map(mapNeighbor);
     },
 
     async create(origin: string): Promise<Neighbor> {
-      const response = await client.createNeighbor({ origin }, { headers: headers() });
+      const response = await client.createNeighbor({ origin });
       if (!response.neighbor) throw new Error('Neighbor response was incomplete.');
       return mapNeighbor(response.neighbor);
     },
 
     async update(neighbor: Neighbor, origin: string): Promise<Neighbor> {
-      const response = await client.updateNeighbor(
-        {
-          neighborId: neighbor.id,
-          origin,
-          revision: neighbor.revision,
-          updateMask: { paths: ['origin'] }
-        },
-        { headers: headers() }
-      );
+      const response = await client.updateNeighbor({
+        neighborId: neighbor.id,
+        origin,
+        revision: neighbor.revision,
+        updateMask: { paths: ['origin'] }
+      });
       if (!response.neighbor) throw new Error('Neighbor response was incomplete.');
       return mapNeighbor(response.neighbor);
     },
 
     async delete(neighbor: Neighbor): Promise<void> {
-      await client.deleteNeighbor(
-        { neighborId: neighbor.id, revision: neighbor.revision },
-        { headers: headers() }
-      );
+      await client.deleteNeighbor({ neighborId: neighbor.id, revision: neighbor.revision });
     }
   };
 }

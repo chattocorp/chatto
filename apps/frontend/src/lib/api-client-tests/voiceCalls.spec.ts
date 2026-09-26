@@ -39,7 +39,7 @@ describe('createVoiceCallAPI', () => {
     });
   });
 
-  it('maps call commands without auth headers', async () => {
+  it('maps call commands', async () => {
     mocks.joinCall.mockResolvedValue({ joined: true });
     mocks.leaveCall.mockResolvedValue({ left: true });
     mocks.createCallToken.mockResolvedValue({ token: 'jwt', e2eeKey: 'key', callId: 'call-1' });
@@ -64,8 +64,8 @@ describe('createVoiceCallAPI', () => {
     });
     await expect(api.leaveCall('room-1')).resolves.toBe(true);
 
-    expect(mocks.joinCall).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
-    expect(mocks.createCallToken).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
-    expect(mocks.leaveCall).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
+    expect(mocks.joinCall).toHaveBeenCalledWith({ roomId: 'room-1' });
+    expect(mocks.createCallToken).toHaveBeenCalledWith({ roomId: 'room-1' });
+    expect(mocks.leaveCall).toHaveBeenCalledWith({ roomId: 'room-1' });
   });
 });

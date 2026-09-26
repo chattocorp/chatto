@@ -2,7 +2,6 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { RoomThreadingMode } from '$lib/roomThreading';
 
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -16,7 +15,6 @@ import {
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
   createRoom: vi.fn(),
   updateRoom: vi.fn(),
   joinRoom: vi.fn(),
@@ -102,9 +100,6 @@ describe('createRoomCommandAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createRoom.mockReset();
     mocks.updateRoom.mockReset();
     mocks.joinRoom.mockReset();
@@ -134,7 +129,7 @@ describe('createRoomCommandAPI', () => {
     });
   });
 
-  it('creates a room with bearer auth and maps the response', async () => {
+  it('creates a room and maps the response', async () => {
     mocks.createRoom.mockResolvedValue({
       room: {
         id: 'room-1',
@@ -161,20 +156,19 @@ describe('createRoomCommandAPI', () => {
       threadingMode: RoomThreadingMode.REQUIRED
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://remote.example.test/api/connect',
-      useBinaryFormat: true
-    });
-    expect(mocks.createRoom).toHaveBeenCalledWith(
-      {
-        name: 'general',
-        description: 'General chat',
-        groupId: 'group-1',
-        universal: true,
-        threadingMode: RoomThreadingMode.REQUIRED
-      },
-      { headers: { Authorization: 'Bearer remote-token' } }
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://remote.example.test/api/connect',
+        useBinaryFormat: true
+      })
     );
+    expect(mocks.createRoom).toHaveBeenCalledWith({
+      name: 'general',
+      description: 'General chat',
+      groupId: 'group-1',
+      universal: true,
+      threadingMode: RoomThreadingMode.REQUIRED
+    });
     expect(room).toEqual({
       id: 'room-1',
       name: 'general',
@@ -225,30 +219,24 @@ describe('createRoomCommandAPI', () => {
       threadingMode: RoomThreadingMode.ENCOURAGED
     });
 
-    expect(mocks.updateRoom).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        name: 'renamed',
-        description: 'Updated',
-        universal: true,
-        threadingMode: RoomThreadingMode.ENCOURAGED,
-        updateMask: { paths: ['name', 'description', 'universal', 'threading_mode'] }
-      },
-      { headers: { Authorization: 'Bearer remote-token' } }
-    );
+    expect(mocks.updateRoom).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      name: 'renamed',
+      description: 'Updated',
+      universal: true,
+      threadingMode: RoomThreadingMode.ENCOURAGED,
+      updateMask: { paths: ['name', 'description', 'universal', 'threading_mode'] }
+    });
 
     await api.updateRoom({ roomId: 'room-1', universal: false });
 
-    expect(mocks.updateRoom).toHaveBeenLastCalledWith(
-      {
-        roomId: 'room-1',
-        name: undefined,
-        description: undefined,
-        universal: false,
-        updateMask: { paths: ['universal'] }
-      },
-      { headers: { Authorization: 'Bearer remote-token' } }
-    );
+    expect(mocks.updateRoom).toHaveBeenLastCalledWith({
+      roomId: 'room-1',
+      name: undefined,
+      description: undefined,
+      universal: false,
+      updateMask: { paths: ['universal'] }
+    });
   });
 
   it('uses Connect room and directory membership commands', async () => {
@@ -287,24 +275,12 @@ describe('createRoomCommandAPI', () => {
     await expect(api.removeMember({ roomId: 'room-1', userId: 'user-1' })).resolves.toBe(true);
     await expect(api.joinGroup('group-1')).resolves.toEqual(['room-1', 'room-2']);
 
-    expect(mocks.joinRoom).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
-    expect(mocks.startDM).toHaveBeenCalledWith(
-      { participantIds: ['user-1'] },
-      { headers: undefined }
-    );
-    expect(mocks.leaveRoom).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
-    expect(mocks.addMember).toHaveBeenCalledWith(
-      { roomId: 'room-1', userId: 'user-1' },
-      { headers: undefined }
-    );
-    expect(mocks.removeMember).toHaveBeenCalledWith(
-      { roomId: 'room-1', userId: 'user-1' },
-      { headers: undefined }
-    );
-    expect(mocks.joinRoomGroup).toHaveBeenCalledWith(
-      { groupId: 'group-1' },
-      { headers: undefined }
-    );
+    expect(mocks.joinRoom).toHaveBeenCalledWith({ roomId: 'room-1' });
+    expect(mocks.startDM).toHaveBeenCalledWith({ participantIds: ['user-1'] });
+    expect(mocks.leaveRoom).toHaveBeenCalledWith({ roomId: 'room-1' });
+    expect(mocks.addMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'user-1' });
+    expect(mocks.removeMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'user-1' });
+    expect(mocks.joinRoomGroup).toHaveBeenCalledWith({ groupId: 'group-1' });
   });
 
   it('updates typing indicators through RoomService', async () => {
@@ -317,10 +293,10 @@ describe('createRoomCommandAPI', () => {
 
     await expect(api.refreshTypingIndicator('room-1', 'thread-root-1')).resolves.toBe(true);
 
-    expect(mocks.refreshTypingIndicator).toHaveBeenCalledWith(
-      { roomId: 'room-1', threadRootEventId: 'thread-root-1' },
-      { headers: { Authorization: 'Bearer remote-token' } }
-    );
+    expect(mocks.refreshTypingIndicator).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      threadRootEventId: 'thread-root-1'
+    });
   });
 
   it('sends removal and suspension commands through RoomService', async () => {
@@ -344,22 +320,20 @@ describe('createRoomCommandAPI', () => {
       api.liftSuspension({ roomId: 'room-1', userId: 'user-1', reason: 'appeal' })
     ).resolves.toBe(true);
 
-    expect(mocks.removeUser).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        userId: 'user-1',
-        reason: 'policy',
-        suspension: {
-          case: 'suspensionExpiresAt',
-          value: expect.objectContaining({ toDate: expect.any(Function) })
-        }
-      },
-      { headers: { Authorization: 'Bearer remote-token' } }
-    );
-    expect(mocks.liftSuspension).toHaveBeenCalledWith(
-      { roomId: 'room-1', userId: 'user-1', reason: 'appeal' },
-      { headers: { Authorization: 'Bearer remote-token' } }
-    );
+    expect(mocks.removeUser).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      userId: 'user-1',
+      reason: 'policy',
+      suspension: {
+        case: 'suspensionExpiresAt',
+        value: expect.objectContaining({ toDate: expect.any(Function) })
+      }
+    });
+    expect(mocks.liftSuspension).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      userId: 'user-1',
+      reason: 'appeal'
+    });
   });
 
   it('lists active room suspensions through RoomService and maps hydrated references', async () => {
@@ -473,11 +447,11 @@ describe('createRoomCommandAPI', () => {
 
     expect(mocks.listSuspensions).toHaveBeenCalledWith(
       { roomId: 'room-1', page: { limit: 100, offset: 0 } },
-      { headers: { Authorization: 'Bearer remote-token' }, signal: controller.signal }
+      { signal: controller.signal }
     );
   });
 
-  it('marks the server authentication stale on unauthenticated Connect errors', async () => {
+  it('propagates Connect errors unchanged', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
     mocks.joinRoom.mockRejectedValue(err);
 
@@ -488,7 +462,6 @@ describe('createRoomCommandAPI', () => {
     });
 
     await expect(api.joinRoom('room-1')).rejects.toBe(err);
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 
   it('preserves core-style room length validation messages for CreateRoom', async () => {

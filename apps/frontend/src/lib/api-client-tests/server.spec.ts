@@ -108,11 +108,13 @@ describe('public server discovery', () => {
 
     const info = await getPublicServerInfo('https://chat.example.test');
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://chat.example.test/api/connect',
-      fetch: expect.any(Function),
-      useBinaryFormat: false
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://chat.example.test/api/connect',
+        fetch: expect.any(Function),
+        useBinaryFormat: false
+      })
+    );
     expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined, timeoutMs: 10_000 });
     expect(info).toEqual({
       name: 'Remote Chatto',

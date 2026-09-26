@@ -1,10 +1,9 @@
 import {
-  authHeaders,
   Code,
   ConnectError,
   createChattoClient,
-  REALTIME_MINIMUM_CURSOR_HEADER,
-  type ConnectAPIConfig
+  type ConnectAPIConfig,
+  minimumCursorHeaders
 } from './connect.js';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
@@ -14,8 +13,6 @@ export { mapDirectoryMember, type DirectoryMember } from './directoryMemberView'
 import { getUserStore } from '$lib/state/server/users.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
-
-export type MemberDirectoryAPIConfig = ConnectAPIConfig;
 
 export type MemberDirectoryPage = {
   members: DirectoryMember[];
@@ -27,21 +24,19 @@ export type MemberDirectoryPage = {
   consumedCount?: number;
 };
 
-export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
+export function createMemberDirectoryAPI(config: ConnectAPIConfig) {
   const users = createChattoClient(UserService, config);
   const rooms = createChattoClient(RoomService, config);
-  const headers = () => authHeaders(config);
   const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
   const readProfiles = async (read: () => Promise<APIDirectoryMember[]>) =>
     (store ? await store.readSnapshot(read) : await read()).map(mapDirectoryMember);
   const batchUsers = async (userIds: string[], minimumCursor?: string): Promise<APIDirectoryMember[]> => {
-    const requestHeaders = minimumCursor ? new Headers(headers()) : headers();
-    if (minimumCursor && requestHeaders instanceof Headers) {
-      requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
-    }
     const response = await users.batchGetUsers(
       { userIds },
-      { headers: requestHeaders, ...(minimumCursor ? { timeoutMs: 10_000 } : {}) }
+      {
+        headers: minimumCursorHeaders(minimumCursor),
+        ...(minimumCursor ? { timeoutMs: 10_000 } : {})
+      }
     );
     return response.users;
   };
@@ -68,10 +63,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       const members = await readProfiles(async () => {
         response = await users.listUsers(
           { search, page: { limit, offset } },
-          {
-            headers: headers(),
-            ...(options.signal ? { signal: options.signal } : {})
-          }
+          { ...(options.signal ? { signal: options.signal } : {}) }
         );
         return response.users;
       });
@@ -85,10 +77,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async getUser(userId: string): Promise<DirectoryMember | null> {
       try {
         const members = await readProfiles(async () => {
-          const response = await users.getUser(
-            { target: { case: 'userId', value: userId } },
-            { headers: headers() }
-          );
+          const response = await users.getUser({ target: { case: 'userId', value: userId } });
           return response.user ? [response.user] : [];
         });
         return members[0] ?? null;
@@ -103,10 +92,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async getUserByLogin(login: string): Promise<DirectoryMember | null> {
       try {
         const members = await readProfiles(async () => {
-          const response = await users.getUser(
-            { target: { case: 'login', value: login } },
-            { headers: headers() }
-          );
+          const response = await users.getUser({ target: { case: 'login', value: login } });
           return response.user ? [response.user] : [];
         });
         return members[0] ?? null;
@@ -133,10 +119,6 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
         presenceStatuses?: PresenceStatus[];
       } = {}
     ): Promise<MemberDirectoryPage> {
-      const requestHeaders = options.minimumCursor ? new Headers(headers()) : headers();
-      if (options.minimumCursor && requestHeaders instanceof Headers) {
-        requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, options.minimumCursor);
-      }
       const response = await rooms.listMembers(
         {
           roomId,
@@ -145,7 +127,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
           ...(options.presenceStatuses ? { presenceStatuses: options.presenceStatuses } : {})
         },
         {
-          headers: requestHeaders,
+          headers: minimumCursorHeaders(options.minimumCursor),
           ...(options.minimumCursor || options.presenceStatuses ? { timeoutMs: 10_000 } : {}),
           ...(options.signal ? { signal: options.signal } : {})
         }
@@ -179,7 +161,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async getRoomMember(roomId: string, userId: string): Promise<DirectoryMember | null> {
       try {
         const members = await readProfiles(async () => {
-          const response = await rooms.getMember({ roomId, userId }, { headers: headers() });
+          const response = await rooms.getMember({ roomId, userId });
           return response.member ? [response.member] : [];
         });
         return members[0] ?? null;
@@ -199,10 +181,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       return readProfiles(async () => {
         const response = await rooms.batchGetMembers(
           { roomId, userIds },
-          {
-            headers: headers(),
-            ...(options.signal ? { signal: options.signal } : {})
-          }
+          { ...(options.signal ? { signal: options.signal } : {}) }
         );
         return response.members;
       });

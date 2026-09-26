@@ -8,11 +8,6 @@ export function configureApiClientHooks(hooks: ApiClientHooks): void {
   configuredHooks = hooks;
 }
 
-export function notifyAuthenticationRequired(
-  serverId: string | undefined,
-  localHook?: (serverId: string) => void
-): void {
-  if (!serverId) return;
-  localHook?.(serverId);
+export function notifyAuthenticationRequired(serverId: string): void {
   configuredHooks.onAuthenticationRequired?.(serverId);
 }

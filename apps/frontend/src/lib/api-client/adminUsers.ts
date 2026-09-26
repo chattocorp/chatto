@@ -1,13 +1,11 @@
 import { updateMask } from './updateMask';
-import { authHeaders, createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { createAdminMemberLoader, type AdminMemberBatch } from '$lib/query/adminMembers';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
 import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-
-export type AdminUserManagementAPIConfig = ConnectAPIConfig;
 
 export type AdminManagedUser = {
   id: string;
@@ -88,17 +86,13 @@ export type AdminRoleMutationResult = {
   member: AdminMember | null;
 };
 
-export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfig) {
+export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(AdminUserService, config);
-  const headers = () => authHeaders(config);
   const batchMembers = async (
     userIds: string[],
     signal?: AbortSignal
   ): Promise<AdminMemberBatch> => {
-    const response = await client.batchGetMembers(
-      { userIds },
-      { headers: headers(), ...(signal ? { signal } : {}) }
-    );
+    const response = await client.batchGetMembers({ userIds }, { ...(signal ? { signal } : {}) });
     return {
       users: response.members.map(adminMember),
       roles: response.roles.map(adminRoleSummary)
@@ -131,7 +125,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
             offset: input.offset
           }
         },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       options.signal?.throwIfAborted();
       const members = await loadMembers(response.userIds, options.signal);
@@ -150,7 +144,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     ): Promise<AdminMemberDetails> {
       const response = await client.getMember(
         { target: adminMemberTarget(target) },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         member: response.member ? adminMember(response.member) : null,
@@ -169,7 +163,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     },
 
     async assignRole(userId: string, roleName: string): Promise<AdminRoleMutationResult> {
-      const response = await client.assignRole({ userId, roleName }, { headers: headers() });
+      const response = await client.assignRole({ userId, roleName });
       return {
         changed: true,
         member: response.member ? adminMember(response.member) : null
@@ -177,7 +171,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     },
 
     async revokeRole(userId: string, roleName: string): Promise<AdminRoleMutationResult> {
-      const response = await client.revokeRole({ userId, roleName }, { headers: headers() });
+      const response = await client.revokeRole({ userId, roleName });
       return {
         changed: true,
         member: response.member ? adminMember(response.member) : null
@@ -185,18 +179,15 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     },
 
     async updateUser(input: AdminUpdateUserInput): Promise<AdminManagedUser> {
-      const response = await client.updateUser(
-        { ...input, updateMask: updateMask(input, ['displayName', 'login']) },
-        { headers: headers() }
-      );
+      const response = await client.updateUser({
+        ...input,
+        updateMask: updateMask(input, ['displayName', 'login'])
+      });
       return adminManagedUser(response.user);
     },
 
     async changeUserPassword(userId: string, password: string): Promise<AdminMember> {
-      const response = await client.changeUserPassword(
-        { userId, password },
-        { headers: headers() }
-      );
+      const response = await client.changeUserPassword({ userId, password });
       if (!response.member) {
         throw new Error('admin password response did not include a member');
       }
@@ -204,12 +195,12 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     },
 
     async clearUsernameCooldown(userId: string): Promise<boolean> {
-      await client.clearUsernameCooldown({ userId }, { headers: headers() });
+      await client.clearUsernameCooldown({ userId });
       return true;
     },
 
     async deleteUser(input: AdminDeleteUserInput): Promise<boolean> {
-      await client.deleteUser(input, { headers: headers() });
+      await client.deleteUser(input);
       return true;
     }
   };

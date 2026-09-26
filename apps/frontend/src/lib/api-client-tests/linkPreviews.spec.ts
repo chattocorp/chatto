@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Code, ConnectError } from '@connectrpc/connect';
 import {
   SocialPostAuthor,
@@ -15,8 +14,7 @@ import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  fetchLinkPreview: vi.fn(),
-  handleAuthenticationRequired: vi.fn()
+  fetchLinkPreview: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -36,16 +34,13 @@ describe('createLinkPreviewAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.fetchLinkPreview.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       fetchLinkPreview: mocks.fetchLinkPreview
     });
   });
 
-  it('fetches a preview with bearer auth and maps optional fields', async () => {
+  it('fetches a preview and maps optional fields', async () => {
     mocks.fetchLinkPreview.mockResolvedValue(
       new FetchLinkPreviewResponse({
         preview: new LinkPreview({
@@ -78,10 +73,7 @@ describe('createLinkPreviewAPI', () => {
       embedType: 'generic',
       embedId: null
     });
-    expect(mocks.fetchLinkPreview).toHaveBeenCalledWith(
-      { url: 'https://example.com/story' },
-      { headers: { Authorization: 'Bearer remote-token' } }
-    );
+    expect(mocks.fetchLinkPreview).toHaveBeenCalledWith({ url: 'https://example.com/story' });
   });
 
   it('returns null when the server has no preview', async () => {
@@ -179,7 +171,7 @@ describe('createLinkPreviewAPI', () => {
     });
   });
 
-  it('notifies the server registry when authentication expires', async () => {
+  it('propagates Connect errors unchanged', async () => {
     const err = new ConnectError('auth required', Code.Unauthenticated);
     mocks.fetchLinkPreview.mockRejectedValue(err);
 
@@ -190,6 +182,5 @@ describe('createLinkPreviewAPI', () => {
     });
 
     await expect(api.fetchLinkPreview('https://example.com/story')).rejects.toBe(err);
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 });

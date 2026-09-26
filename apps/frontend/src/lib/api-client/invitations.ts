@@ -4,7 +4,7 @@ import {
   InviteLinkStatus,
   type InviteLink as APIInviteLink
 } from '@chatto/api-types/admin/v1/invitations_pb';
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 
 export type InviteLink = {
   id: string;
@@ -18,20 +18,13 @@ export type InviteLink = {
   revokedAt: string | null;
 };
 
-export type InviteLinkAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
-
-export function createInviteLinkAPI(config: InviteLinkAPIConfig) {
+export function createInviteLinkAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(AdminInviteLinkService, config);
-  const headers = () => authHeaders(config);
   return {
     async list(offset = 0, limit = 100, options: { signal?: AbortSignal } = {}) {
       const response = await client.listInviteLinks(
         { page: { offset, limit } },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         inviteLinks: response.inviteLinks.map(mapInviteLink),
@@ -40,18 +33,15 @@ export function createInviteLinkAPI(config: InviteLinkAPIConfig) {
       };
     },
     async create(input: { maxUses: number | null; expiresAt: string | null }) {
-      const response = await client.createInviteLink(
-        {
-          maxUses: input.maxUses ?? undefined,
-          expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
-        },
-        { headers: headers() }
-      );
+      const response = await client.createInviteLink({
+        maxUses: input.maxUses ?? undefined,
+        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+      });
       if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
       return mapInviteLink(response.inviteLink);
     },
     async revoke(id: string) {
-      const response = await client.revokeInviteLink({ id }, { headers: headers() });
+      const response = await client.revokeInviteLink({ id });
       if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
       return mapInviteLink(response.inviteLink);
     }

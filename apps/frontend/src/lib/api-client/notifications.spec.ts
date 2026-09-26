@@ -14,7 +14,6 @@ const updateNotificationPolicy = vi.hoisted(() => vi.fn());
 const batchGetNotificationPolicies = vi.hoisted(() => vi.fn());
 
 vi.mock('./connect.js', () => ({
-  authHeaders: () => new Headers(),
   createChattoClient: (service: { typeName: string }) =>
     service.typeName === 'chatto.api.v1.NotificationPolicyService'
       ? { batchGetNotificationPolicies, getNotificationPolicy, updateNotificationPolicy }
@@ -208,16 +207,13 @@ describe('notification policy API', () => {
       bearerToken: null
     }).getNotificationPolicy(roomId);
 
-    expect(getNotificationPolicy).toHaveBeenCalledWith(
-      {
-        scope: {
-          scope: roomId
-            ? { case: 'roomId', value: roomId }
-            : { case: 'server', value: expect.anything() }
-        }
-      },
-      { headers: expect.any(Headers) }
-    );
+    expect(getNotificationPolicy).toHaveBeenCalledWith({
+      scope: {
+        scope: roomId
+          ? { case: 'roomId', value: roomId }
+          : { case: 'server', value: expect.anything() }
+      }
+    });
     expect(policy.overrides).toMatchObject({
       directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
       roomMessages: null,
@@ -246,21 +242,18 @@ describe('notification policy API', () => {
         roomId
       );
 
-      expect(updateNotificationPolicy).toHaveBeenCalledWith(
-        {
-          scope: {
-            scope: roomId
-              ? { case: 'roomId', value: roomId }
-              : { case: 'server', value: expect.anything() }
-          },
-          overrides: {
-            directMessages: NotificationDeliveryMode.OFF,
-            roomMessages: NotificationDeliveryMode.UNREAD_BADGE
-          },
-          updateMask: { paths: ['direct_messages', 'room_messages', 'reactions'] }
+      expect(updateNotificationPolicy).toHaveBeenCalledWith({
+        scope: {
+          scope: roomId
+            ? { case: 'roomId', value: roomId }
+            : { case: 'server', value: expect.anything() }
         },
-        { headers: expect.any(Headers) }
-      );
+        overrides: {
+          directMessages: NotificationDeliveryMode.OFF,
+          roomMessages: NotificationDeliveryMode.UNREAD_BADGE
+        },
+        updateMask: { paths: ['direct_messages', 'room_messages', 'reactions'] }
+      });
     }
   );
 
@@ -311,10 +304,9 @@ describe('notification policy API', () => {
       bearerToken: null
     }).getScopedNotificationPolicy({ kind: 'room', id: 'room-1' });
 
-    expect(getNotificationPolicy).toHaveBeenCalledWith(
-      { scope: { scope: { case: 'roomId', value: 'room-1' } } },
-      { headers: expect.any(Headers) }
-    );
+    expect(getNotificationPolicy).toHaveBeenCalledWith({
+      scope: { scope: { case: 'roomId', value: 'room-1' } }
+    });
     expect(policy.scope).toEqual({ kind: 'room', id: 'room-1' });
     expect(policy.effective.reactions).toBe(NotificationDeliveryMode.IN_APP_NOTIFICATION);
   });
@@ -338,14 +330,11 @@ describe('notification policy API', () => {
       }
     );
 
-    expect(updateNotificationPolicy).toHaveBeenCalledWith(
-      {
-        scope: { scope: { case: 'roomGroupId', value: 'group-1' } },
-        overrides: { directMessages: NotificationDeliveryMode.OFF },
-        updateMask: { paths: ['direct_messages', 'reactions'] }
-      },
-      { headers: expect.any(Headers) }
-    );
+    expect(updateNotificationPolicy).toHaveBeenCalledWith({
+      scope: { scope: { case: 'roomGroupId', value: 'group-1' } },
+      overrides: { directMessages: NotificationDeliveryMode.OFF },
+      updateMask: { paths: ['direct_messages', 'reactions'] }
+    });
     expect(policy.scope).toEqual({ kind: 'roomGroup', id: 'group-1' });
   });
 });

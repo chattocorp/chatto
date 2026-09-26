@@ -35,10 +35,7 @@ it('calls the read-only public API once with the target ID and coverage metadata
       coversDescendants: true
     }
   ]);
-  expect(mocks.listEffectivePermissions).toHaveBeenCalledWith(
-    { userId: 'bot' },
-    { headers: { Authorization: 'Bearer token' }, signal }
-  );
+  expect(mocks.listEffectivePermissions).toHaveBeenCalledWith({ userId: 'bot' }, { signal });
   mocks.listEffectivePermissions.mockResolvedValue({ permissions: [{ scope: { kind: 999 } }] });
   await expect(api.listEffectivePermissions('bot')).rejects.toThrow(
     'Unsupported effective permission scope'

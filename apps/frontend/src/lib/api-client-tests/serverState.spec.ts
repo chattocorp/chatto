@@ -135,20 +135,16 @@ describe('getAuthenticatedServerState', () => {
       bearerToken: 'token'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://chat.example.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://chat.example.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.getServer).toHaveBeenCalledWith({});
-    expect(mocks.getMotd).toHaveBeenCalledWith({}, { headers: { Authorization: 'Bearer token' } });
-    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.getViewer).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal: undefined });
+    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal: undefined });
+    expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal: undefined });
     expect(state).toEqual({
       name: 'Remote Chatto',
       version: '9.8.7',
@@ -210,7 +206,7 @@ describe('getAuthenticatedServerState', () => {
     });
   });
 
-  it('maps absent optional fields to null and omits auth headers without a token', async () => {
+  it('maps absent optional fields to null', async () => {
     mocks.getServer.mockResolvedValue({
       profile: {}
     });
@@ -232,9 +228,9 @@ describe('getAuthenticatedServerState', () => {
     });
 
     expect(mocks.getServer).toHaveBeenCalledWith({});
-    expect(mocks.getMotd).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
+    expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal: undefined });
+    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal: undefined });
+    expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal: undefined });
     expect(state.name).toBe('Chatto');
     expect(state.version).toBe('');
     expect(state.logoUrl).toBeNull();
@@ -265,21 +261,12 @@ describe('getAuthenticatedServerState', () => {
     );
 
     expect(mocks.getServer).toHaveBeenCalledWith({}, { signal });
-    expect(mocks.getMotd).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
-    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
-    expect(mocks.getViewer).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
+    expect(mocks.getMotd).toHaveBeenCalledWith({}, { signal });
+    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { signal });
+    expect(mocks.getViewer).toHaveBeenCalledWith({}, { signal });
   });
 
-  it('updates server config with bearer auth and maps the returned profile', async () => {
+  it('updates server config and maps the returned profile', async () => {
     mocks.updateServerConfig.mockResolvedValue({
       publicProfile: {
         name: 'Connect Server',
@@ -306,20 +293,19 @@ describe('getAuthenticatedServerState', () => {
       }
     );
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://chat.example.test/api/connect',
-      useBinaryFormat: true
-    });
-    expect(mocks.updateServerConfig).toHaveBeenCalledWith(
-      {
-        serverName: 'Connect Server',
-        description: 'Connect description',
-        motd: 'Connect MOTD',
-        welcomeMessage: 'Connect welcome',
-        updateMask: { paths: ['server_name', 'description', 'motd', 'welcome_message'] }
-      },
-      { headers: { Authorization: 'Bearer token' } }
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://chat.example.test/api/connect',
+        useBinaryFormat: true
+      })
     );
+    expect(mocks.updateServerConfig).toHaveBeenCalledWith({
+      serverName: 'Connect Server',
+      description: 'Connect description',
+      motd: 'Connect MOTD',
+      welcomeMessage: 'Connect welcome',
+      updateMask: { paths: ['server_name', 'description', 'motd', 'welcome_message'] }
+    });
     expect(profile).toEqual({
       name: 'Connect Server',
       version: '',
@@ -353,10 +339,7 @@ describe('getAuthenticatedServerState', () => {
       welcomeMessage: 'Connect welcome'
     });
 
-    expect(mocks.getServerConfig).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.getServerConfig).toHaveBeenCalledWith({}, { signal: undefined });
   });
 
   it('updates server branding through AdminServerService', async () => {
@@ -403,34 +386,22 @@ describe('getAuthenticatedServerState', () => {
     ).resolves.toMatchObject({ bannerUrl: 'https://cdn/new-banner.webp' });
     await expect(deleteServerBanner(config)).resolves.toMatchObject({ bannerUrl: null });
 
-    expect(mocks.uploadServerLogo).toHaveBeenCalledWith(
-      {
-        image: {
-          image: new Uint8Array([1, 2, 3]),
-          filename: 'logo.png',
-          contentType: 'image/png'
-        }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.deleteServerLogo).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.uploadServerBanner).toHaveBeenCalledWith(
-      {
-        image: {
-          image: new Uint8Array([4, 5, 6]),
-          filename: 'banner.png',
-          contentType: 'image/png'
-        }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.deleteServerBanner).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.uploadServerLogo).toHaveBeenCalledWith({
+      image: {
+        image: new Uint8Array([1, 2, 3]),
+        filename: 'logo.png',
+        contentType: 'image/png'
+      }
+    });
+    expect(mocks.deleteServerLogo).toHaveBeenCalledWith({});
+    expect(mocks.uploadServerBanner).toHaveBeenCalledWith({
+      image: {
+        image: new Uint8Array([4, 5, 6]),
+        filename: 'banner.png',
+        contentType: 'image/png'
+      }
+    });
+    expect(mocks.deleteServerBanner).toHaveBeenCalledWith({});
   });
 
   it('loads and updates security config through AdminServerService', async () => {
@@ -454,16 +425,10 @@ describe('getAuthenticatedServerState', () => {
       blockedUsernames: 'root\nadmin\nreserved'
     });
 
-    expect(mocks.getServerSecurityConfig).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
-    expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith(
-      {
-        blockedUsernames: ['root', 'admin', 'reserved'],
-        updateMask: { paths: ['blocked_usernames'] }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.getServerSecurityConfig).toHaveBeenCalledWith({}, { signal });
+    expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith({
+      blockedUsernames: ['root', 'admin', 'reserved'],
+      updateMask: { paths: ['blocked_usernames'] }
+    });
   });
 });

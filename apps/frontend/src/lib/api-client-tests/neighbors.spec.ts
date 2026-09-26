@@ -53,18 +53,12 @@ describe('createNeighborAPI', () => {
     await expect(api.update(first, second.origin)).resolves.toEqual(second);
     await expect(api.delete(second)).resolves.toBeUndefined();
 
-    expect(mocks.updateNeighbor).toHaveBeenCalledWith(
-      {
-        neighborId: 'N1',
-        origin: 'https://two.example',
-        revision: 'E1',
-        updateMask: { paths: ['origin'] }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.deleteNeighbor).toHaveBeenCalledWith(
-      { neighborId: 'N1', revision: 'E2' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.updateNeighbor).toHaveBeenCalledWith({
+      neighborId: 'N1',
+      origin: 'https://two.example',
+      revision: 'E1',
+      updateMask: { paths: ['origin'] }
+    });
+    expect(mocks.deleteNeighbor).toHaveBeenCalledWith({ neighborId: 'N1', revision: 'E2' });
   });
 });

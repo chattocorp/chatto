@@ -1,15 +1,9 @@
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
 import {
   AdminAssetCleanupHealth,
   AdminDurableWorkerHealth
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
-
-export type AdminDiagnosticsAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type AdminSystemInfo = {
   connection: AdminConnectionInfo;
@@ -143,10 +137,8 @@ export type AdminProjectionMetric = {
   bytes: number;
 };
 
-function adminDiagnosticsClient(config: AdminDiagnosticsAPIConfig) {
-  const client = createChattoClient(AdminDiagnosticsService, config);
-  const headers = authHeaders(config);
-  return { client, headers };
+function adminDiagnosticsClient(config: ConnectAPIConfig) {
+  return createChattoClient(AdminDiagnosticsService, config);
 }
 
 function assetCleanupHealth(
@@ -190,14 +182,11 @@ function durableWorkerHealth(
 }
 
 export async function getAdminSystemInfo(
-  config: AdminDiagnosticsAPIConfig,
+  config: ConnectAPIConfig,
   options: { signal?: AbortSignal } = {}
 ): Promise<AdminSystemInfo> {
-  const { client, headers } = adminDiagnosticsClient(config);
-  const response = await client.getSystemInfo(
-    {},
-    { headers, ...(options.signal ? { signal: options.signal } : {}) }
-  );
+  const client = adminDiagnosticsClient(config);
+  const response = await client.getSystemInfo({}, { signal: options.signal });
   const systemInfo = response.systemInfo;
   const cleanup = response.assetCleanup;
   const cleanupAvailable =

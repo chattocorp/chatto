@@ -1,13 +1,7 @@
-import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
-export type LinkPreviewAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type ComposerLinkPreview = {
   url: string;
@@ -22,17 +16,12 @@ export type ComposerLinkPreview = {
   socialPost?: SocialPostPreviewView | null;
 };
 
-export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
+export function createLinkPreviewAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MessageService, config);
-  const headers = () => authHeaders(config);
   return {
     async fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null> {
-      try {
-        const response = await client.fetchLinkPreview({ url }, { headers: headers() });
-        return composerLinkPreview(response.preview, response.previewToken);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await client.fetchLinkPreview({ url });
+      return composerLinkPreview(response.preview, response.previewToken);
     }
   };
 }
