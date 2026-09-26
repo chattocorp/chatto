@@ -117,6 +117,7 @@
       },
       "saved": "Profilo sukcese ĝisdatigita",
       "save_failed": "Malsukcesis konservi profilon",
+      "conflict": "Ĉi tiu profilo ŝanĝiĝis dum vi redaktis ĝin. Reŝargu la paĝon, poste konservu viajn ŝanĝojn denove.",
       "save_button": "Konservu Ŝanĝojn",
       "bio": {
         "label": "Priskribo",

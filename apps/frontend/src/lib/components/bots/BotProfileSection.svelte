@@ -10,6 +10,7 @@ draft.
   import { untrack } from 'svelte';
   import type { UpdateUserProfileInput, UserSummary } from '$lib/api-client/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
+  import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { m } from '$lib/i18n/messages';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import Panel from '$lib/ui/Panel.svelte';
@@ -32,16 +33,24 @@ draft.
   } = $props();
 
   // Edit buffers, not mirrors: realtime profile updates must not overwrite an
-  // in-progress edit.
-  let displayName = $state(untrack(() => bot.displayName));
-  let login = $state(untrack(() => bot.login));
-  let bio = $state(untrack(() => bot.bio ?? ''));
+  // in-progress edit. Dirty checks compare against the values the form was
+  // seeded with, so a concurrent change to an untouched field is not sent back
+  // with its stale value.
+  const seed = untrack(() => ({
+    displayName: bot.displayName,
+    login: bot.login,
+    bio: bot.bio ?? ''
+  }));
+  let baseline = $state(seed);
+  let displayName = $state(seed.displayName);
+  let login = $state(seed.login);
+  let bio = $state(seed.bio);
   let saving = $state(false);
   let error = $state<string | null>(null);
 
-  const displayNameModified = $derived(displayName !== bot.displayName);
-  const loginModified = $derived(login !== bot.login);
-  const bioModified = $derived(bio !== (bot.bio ?? ''));
+  const displayNameModified = $derived(displayName !== baseline.displayName);
+  const loginModified = $derived(login !== baseline.login);
+  const bioModified = $derived(bio !== baseline.bio);
   const modified = $derived(displayNameModified || loginModified || bioModified);
 
   async function save(event: SubmitEvent) {
@@ -79,13 +88,13 @@ draft.
     try {
       const updated = await onsave(input);
       if (!updated) return;
-      displayName = updated.displayName;
-      login = updated.login;
-      bio = updated.bio ?? '';
+      baseline = { displayName: updated.displayName, login: updated.login, bio: updated.bio ?? '' };
+      displayName = baseline.displayName;
+      login = baseline.login;
+      bio = baseline.bio;
       toast.success(m('settings.bots.profile_saved'));
     } catch (saveError) {
-      error =
-        saveError instanceof Error ? saveError.message : m('settings.bots.profile_save_failed');
+      error = profileSaveErrorMessage(saveError, m('settings.bots.profile_save_failed'));
     } finally {
       saving = false;
     }
@@ -99,6 +108,7 @@ draft.
 >
   <Form onsubmit={save} maxWidth="max-w-md" {error}>
     <TextInput
+      id="bot-profile-display-name"
       label={m('settings.bots.display_name')}
       bind:value={displayName}
       disabled={saving}
@@ -106,6 +116,7 @@ draft.
       oninput={() => (error = null)}
     />
     <TextInput
+      id="bot-profile-login"
       label={m('settings.bots.username')}
       bind:value={login}
       disabled={saving}

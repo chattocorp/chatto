@@ -117,6 +117,7 @@
       },
       "saved": "Profils ir veiksmīgi atjaunināts",
       "save_failed": "Neizdevās saglabāt profilu",
+      "conflict": "Šis profils tika mainīts, kamēr jūs to rediģējāt. Pārlādējiet lapu un pēc tam vēlreiz saglabājiet izmaiņas.",
       "save_button": "Saglabāt izmaiņas",
       "bio": {
         "label": "Apraksts",

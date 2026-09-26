@@ -323,6 +323,22 @@ describe('server member detail queries', () => {
     expect(cached?.member?.login).toBe('renamed');
   });
 
+  it('does not send back an untouched identity field that changed during the edit', async () => {
+    const rendered = render(MemberDetailPage);
+    await settle();
+    setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
+    // A realtime admin refresh delivers the member's own display-name change.
+    queryClient.setQueryData(
+      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice'),
+      details(member('alice', { displayName: 'Changed Elsewhere' }))
+    );
+    flushSync();
+    buttonByText(rendered.container, 'Save').click();
+    await settle();
+
+    expect(mocks.updateUserProfile).toHaveBeenCalledWith('alice', { login: 'renamed' });
+  });
+
   it('uploads the selected member avatar and updates the detail cache', async () => {
     const rendered = render(MemberDetailPage);
     await settle();

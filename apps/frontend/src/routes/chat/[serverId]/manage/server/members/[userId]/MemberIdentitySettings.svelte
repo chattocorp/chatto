@@ -10,6 +10,7 @@
   import type { AdminMember } from '$lib/api-client/adminUsers';
   import type { UpdateUserProfileInput, UserSummary } from '$lib/api-client/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
+  import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
     formatCooldownRemaining,
@@ -37,9 +38,17 @@
   const activeLocale = $derived(getLocale());
   // These are edit buffers, not mirrors. The parent unmounts this component
   // while switching members, so capture the current values once per member.
-  let editLogin = $state(untrack(() => member.login));
-  let editDisplayName = $state(untrack(() => member.displayName));
-  let editBio = $state(untrack(() => member.bio ?? ''));
+  // Dirty checks compare against these seeded values, so a concurrent change
+  // to an untouched field is not sent back with its stale value.
+  const seed = untrack(() => ({
+    login: member.login,
+    displayName: member.displayName,
+    bio: member.bio ?? ''
+  }));
+  let baseline = $state(seed);
+  let editLogin = $state(seed.login);
+  let editDisplayName = $state(seed.displayName);
+  let editBio = $state(seed.bio);
   let identityError = $state<string | null>(null);
   let savingIdentity = $state(false);
   let clearingCooldown = $state(false);
@@ -48,9 +57,9 @@
   let passwordError = $state<string | null>(null);
   let settingPassword = $state(false);
 
-  const loginModified = $derived(!!member && editLogin !== member.login);
-  const displayNameModified = $derived(!!member && editDisplayName !== member.displayName);
-  const bioModified = $derived(!!member && editBio !== (member.bio ?? ''));
+  const loginModified = $derived(editLogin !== baseline.login);
+  const displayNameModified = $derived(editDisplayName !== baseline.displayName);
+  const bioModified = $derived(editBio !== baseline.bio);
   const identityModified = $derived(loginModified || displayNameModified || bioModified);
   const lastLoginChange = $derived(
     member?.lastLoginChange ? new Date(member.lastLoginChange) : null
@@ -103,7 +112,7 @@
     if (bioModified) {
       const result = validateAndNormalizeBio(editBio);
       if (!result.valid || result.normalized === undefined) {
-        identityError = result.error ?? 'Invalid bio';
+        identityError = result.error ?? m('settings.profile.save_failed');
         return;
       }
       input.bio = result.normalized;
@@ -113,13 +122,18 @@
     try {
       const updated = await updateIdentity(input);
       if (updated) {
-        editLogin = updated.login;
-        editDisplayName = updated.displayName;
-        editBio = updated.bio ?? '';
+        baseline = {
+          login: updated.login,
+          displayName: updated.displayName,
+          bio: updated.bio ?? ''
+        };
+        editLogin = baseline.login;
+        editDisplayName = baseline.displayName;
+        editBio = baseline.bio;
         toast.success('User updated');
       }
     } catch (error) {
-      identityError = error instanceof Error ? error.message : 'Failed to update user';
+      identityError = profileSaveErrorMessage(error, 'Failed to update user');
     } finally {
       savingIdentity = false;
     }
@@ -127,9 +141,10 @@
 
   function resetIdentity(): void {
     if (!member) return;
-    editLogin = member.login;
-    editDisplayName = member.displayName;
-    editBio = member.bio ?? '';
+    baseline = { login: member.login, displayName: member.displayName, bio: member.bio ?? '' };
+    editLogin = baseline.login;
+    editDisplayName = baseline.displayName;
+    editBio = baseline.bio;
     identityError = null;
   }
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { render } from 'vitest-browser-svelte';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -310,6 +311,48 @@ describe('Bot detail page', () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain('Username is already taken'));
     expect(login.value).toBe('taken_login');
+  });
+
+  it('does not send back an untouched field that changed during the edit', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement,
+      'renamed_bot'
+    );
+    // A realtime refresh delivers another manager's display-name change.
+    queryClient.setQueryData(
+      settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id'),
+      { ...mocks.bot, displayName: 'Renamed Elsewhere' }
+    );
+    flushSync();
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+        login: 'renamed_bot'
+      })
+    );
+  });
+
+  it('shows a localized message when the profile changed concurrently', async () => {
+    mocks.updateUserProfile.mockRejectedValueOnce(
+      new ConnectError('optimistic concurrency sequence mismatch', Code.Aborted)
+    );
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-display-name"]') as HTMLInputElement,
+      'Conflicting Name'
+    );
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('This profile changed while you were editing it.')
+    );
+    expect(container.textContent).not.toContain('optimistic concurrency');
   });
 
   it('hides bot profile editing on servers without managed profile updates', async () => {

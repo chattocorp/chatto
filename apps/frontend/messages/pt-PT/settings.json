@@ -117,6 +117,7 @@
       },
       "saved": "Perfil atualizado com sucesso",
       "save_failed": "Falha ao guardar perfil",
+      "conflict": "Este perfil mudou enquanto o editava. Recarregue a página e guarde novamente as suas alterações.",
       "save_button": "Guardar alterações",
       "bio": {
         "label": "Bio",

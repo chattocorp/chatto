@@ -117,6 +117,7 @@
       },
       "saved": "Profil byl úspěšně aktualizován",
       "save_failed": "Profil se nepodařilo uložit",
+      "conflict": "Tento profil se během úprav změnil. Znovu načtěte stránku a poté změny uložte znovu.",
       "save_button": "Uložit změny",
       "bio": {
         "label": "Bio",

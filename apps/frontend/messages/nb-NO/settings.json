@@ -117,6 +117,7 @@
       },
       "saved": "Profilen ble oppdatert",
       "save_failed": "Kunne ikke lagre profilen",
+      "conflict": "Denne profilen ble endret mens du redigerte den. Last inn siden på nytt, og lagre endringene igjen.",
       "save_button": "Lagre endringer",
       "bio": {
         "label": "Bio",

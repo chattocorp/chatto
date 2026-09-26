@@ -2,6 +2,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { UserAPI } from '$lib/api-client/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
+  import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
@@ -23,9 +24,17 @@
 
   let { getUserAPI }: { getUserAPI: () => UserAPI } = $props();
 
-  let displayName = $state(currentUser.user?.displayName ?? '');
-  let login = $state(currentUser.user?.login ?? '');
-  let bio = $state(currentUser.user?.bio ?? '');
+  // Dirty checks compare against the seeded values, so a concurrent change to
+  // an untouched field is not sent back with its stale value.
+  const seed = {
+    displayName: currentUser.user?.displayName ?? '',
+    login: currentUser.user?.login ?? '',
+    bio: currentUser.user?.bio ?? ''
+  };
+  let baseline = $state(seed);
+  let displayName = $state(seed.displayName);
+  let login = $state(seed.login);
+  let bio = $state(seed.bio);
   let isSaving = $state(false);
   let error = $state('');
   let successMessage = $state('');
@@ -39,9 +48,9 @@
     currentUser.user?.lastLoginChange ? new Date(currentUser.user.lastLoginChange) : null
   );
   const lastLoginChange = $derived(localLastLoginChange ?? viewerLastLoginChange);
-  const displayNameModified = $derived(displayName !== currentUser.user?.displayName);
-  const loginModified = $derived(login !== currentUser.user?.login);
-  const bioModified = $derived((bio || '') !== (currentUser.user?.bio ?? ''));
+  const displayNameModified = $derived(displayName !== baseline.displayName);
+  const loginModified = $derived(login !== baseline.login);
+  const bioModified = $derived(bio !== baseline.bio);
   const isModified = $derived(displayNameModified || loginModified || bioModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const canBypassLoginCooldown = $derived(serverScope.store.permissions.canAdminManageAccounts);
@@ -143,9 +152,14 @@
         };
       }
 
-      displayName = updated.displayName;
-      login = updated.login;
-      bio = updated.bio ?? '';
+      baseline = {
+        displayName: updated.displayName,
+        login: updated.login,
+        bio: updated.bio ?? ''
+      };
+      displayName = baseline.displayName;
+      login = baseline.login;
+      bio = baseline.bio;
 
       if (normalizedLogin && !canBypassLoginCooldown) {
         localLastLoginChange = new Date();
@@ -153,7 +167,7 @@
 
       successMessage = m('settings.profile.saved');
     } catch (saveError) {
-      error = saveError instanceof Error ? saveError.message : m('settings.profile.save_failed');
+      error = profileSaveErrorMessage(saveError, m('settings.profile.save_failed'));
     } finally {
       isSaving = false;
     }

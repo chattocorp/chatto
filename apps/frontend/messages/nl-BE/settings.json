@@ -117,6 +117,7 @@
       },
       "saved": "Profiel is succesvol bijgewerkt",
       "save_failed": "Kan profiel niet opslaan",
+      "conflict": "Dit profiel is gewijzigd terwijl je het bewerkte. Laad de pagina opnieuw en sla je wijzigingen daarna opnieuw op.",
       "save_button": "Wijzigingen opslaan",
       "bio": {
         "label": "Bio",

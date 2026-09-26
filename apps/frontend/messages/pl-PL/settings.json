@@ -117,6 +117,7 @@
       },
       "saved": "Profil został pomyślnie zaktualizowany",
       "save_failed": "Nie udało się zapisać profilu",
+      "conflict": "Ten profil zmienił się podczas edycji. Odśwież stronę, a następnie ponownie zapisz zmiany.",
       "save_button": "Zapisz zmiany",
       "bio": {
         "label": "Bio",

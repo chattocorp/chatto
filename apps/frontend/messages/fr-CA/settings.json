@@ -117,6 +117,7 @@
       },
       "saved": "Profil mis à jour avec succès",
       "save_failed": "Échec de l'enregistrement du profil",
+      "conflict": "Ce profil a changé pendant que vous le modifiiez. Rechargez la page, puis enregistrez de nouveau vos modifications.",
       "save_button": "Sauvegarder les modifications",
       "bio": {
         "label": "Bio",

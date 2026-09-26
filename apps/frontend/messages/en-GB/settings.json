@@ -117,6 +117,7 @@
       },
       "saved": "Profile updated successfully",
       "save_failed": "Failed to save profile",
+      "conflict": "This profile changed while you were editing it. Reload the page, then save your changes again.",
       "save_button": "Save changes",
       "bio": {
         "label": "Bio",
