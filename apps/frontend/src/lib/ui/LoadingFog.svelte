@@ -1,9 +1,8 @@
-<!-- @component A quiet loading surface with the same drifting light as the startup screen. Give it an explicit size for its context. -->
+<!-- @component A quiet loading surface with a soft highlight that sweeps across it. Give it an explicit size for its context. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import type { ClassValue } from 'svelte/elements';
   import { fade } from 'svelte/transition';
-  import { attachFogGradients } from './fogGradients';
   import { expoOutTransition } from './motion';
 
   let {
@@ -18,6 +17,5 @@
   aria-busy="true"
   aria-label={label}
   data-loading-fog
-  {@attach attachFogGradients}
   in:fade|global={expoOutTransition(120)}
 ></div>

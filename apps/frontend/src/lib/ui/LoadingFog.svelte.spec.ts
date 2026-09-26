@@ -1,5 +1,5 @@
 import '../../app.css';
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import LoadingFog from './LoadingFog.svelte';
 
@@ -9,7 +9,6 @@ it('shows a busy fog and removes it as soon as loading ends', async () => {
   expect(fog.getAttribute('aria-busy')).toBe('true');
   expect(fog.getAttribute('role')).toBe('status');
 
-  await vi.waitFor(() => expect(fog.style.getPropertyValue('--fog-first-x')).not.toBe(''));
   view.unmount();
   expect(fog.isConnected).toBe(false);
   expect(document.querySelector('[data-loading-fog]')).toBeNull();
