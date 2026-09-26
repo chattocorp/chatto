@@ -167,10 +167,3 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - PR bodies should use clean Markup and summarize changes and link relevant FDRs, ADRs, glossary terms, and issues.
 - If a PR closes an issue, include a GitHub closing keyword such as `Closes #123.` in the body.
 
-## Human-owned agent instructions
-
-- Humans maintain all AGENTS.md, CLAUDE.md, and agent skill files, including skill references, metadata, and command prompts.
-- Do not create, edit, delete, rename, or regenerate these files.
-- Do not change them through symlinks, scripts, tools, or other agents.
-- A coding task, review, cleanup, or retrospective does not authorize changes to these files.
-- Report a needed correction briefly in your response. Leave the files unchanged and continue work that does not depend on it.
