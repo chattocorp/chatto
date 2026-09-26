@@ -112,6 +112,8 @@ class EventBusManager {
   #managedServerIds = new Set<string>();
   #activeServerId: string | null = null;
   #pollCycleRunning = false;
+  /** An unready catch-up request arrived while another poll cycle was running. */
+  #unreadyPollCycleRequested = false;
   #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
@@ -770,19 +772,34 @@ class EventBusManager {
     for (const serverId of [...this.#controllers.keys()]) this.stopBus(serverId);
   }
 
-  async #runPollCycle(onlyEmpty: boolean): Promise<void> {
-    if (this.#pollCycleRunning) return;
+  /**
+   * Serially catch up inactive projections. With `onlyUnready`, poll only
+   * projections without usable data: new ones, and ones whose live transport
+   * became dormant before its first catch-up completed. Those would otherwise
+   * stay unreadable until the next periodic cycle.
+   */
+  async #runPollCycle(onlyUnready: boolean): Promise<void> {
+    if (this.#pollCycleRunning) {
+      // The running cycle can already have passed a server that just became
+      // dormant mid-hydration. Run another unready pass after it finishes.
+      if (onlyUnready) this.#unreadyPollCycleRequested = true;
+      return;
+    }
     this.#pollCycleRunning = true;
     try {
       for (const serverId of this.#managedServerIds) {
         if (serverId === this.#activeServerId) continue;
         const controller = this.#controllers.get(serverId);
         if (!controller?.projectionSupported) continue;
-        if (onlyEmpty && controller.sync.phase !== 'empty') continue;
+        if (onlyUnready && controller.sync.hasUsableProjection) continue;
         await controller.pollOnce();
       }
     } finally {
       this.#pollCycleRunning = false;
+    }
+    if (this.#unreadyPollCycleRequested) {
+      this.#unreadyPollCycleRequested = false;
+      await this.#runPollCycle(true);
     }
   }
   #scheduleNextPoll(): void {

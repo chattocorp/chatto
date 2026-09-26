@@ -1106,6 +1106,103 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets[2].url).toBe(inactiveB.realtimeUrl);
   });
 
+  it('immediately catches up a projection that became inactive before its first catch-up', async () => {
+    const home = new FakeServerConnection();
+    const remote = new FakeServerConnection();
+    home.realtimeUrl = 'ws://home.test/api/realtime';
+    remote.realtimeUrl = 'ws://remote.test/api/realtime';
+    const homeSync = new RealtimeProjectionSyncState();
+    homeSync.markCaughtUp('home-ready');
+    const remoteSync = new RealtimeProjectionSyncState();
+    const registrations = [
+      {
+        serverId: 'interrupted-home',
+        connection: home as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: homeSync
+      },
+      {
+        serverId: 'interrupted-remote',
+        connection: remote as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: remoteSync
+      }
+    ];
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'interrupted-remote');
+    for (const registration of registrations) {
+      eventBusManager.getBus(registration.serverId)!.projectionHandlers.add(vi.fn());
+    }
+    sockets[0].open();
+    await sockets[0].receive(snapshotFrame());
+    expect(remoteSync.phase).toBe('hydrating');
+
+    // Leave the remote server before its live socket reaches caught_up.
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'interrupted-home');
+
+    expect(sockets.map((socket) => socket.url)).toEqual([
+      remote.realtimeUrl,
+      home.realtimeUrl,
+      remote.realtimeUrl
+    ]);
+    const poll = sockets[2];
+    poll.open();
+    await poll.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'remote-ready' }) })
+    );
+    expect(remoteSync.hasUsableProjection).toBe(true);
+  });
+
+  it('reruns an unready catch-up that arrives while another poll is in flight', async () => {
+    const home = new FakeServerConnection();
+    const remote = new FakeServerConnection();
+    const other = new FakeServerConnection();
+    home.realtimeUrl = 'ws://home.test/api/realtime';
+    remote.realtimeUrl = 'ws://remote.test/api/realtime';
+    other.realtimeUrl = 'ws://other.test/api/realtime';
+    const homeSync = new RealtimeProjectionSyncState();
+    homeSync.markCaughtUp('home-ready');
+    const registrations = [
+      {
+        serverId: 'overlap-home',
+        connection: home as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: homeSync
+      },
+      {
+        serverId: 'overlap-remote',
+        connection: remote as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState()
+      },
+      {
+        serverId: 'overlap-other',
+        connection: other as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState()
+      }
+    ];
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'overlap-remote');
+    for (const registration of registrations) {
+      eventBusManager.getBus(registration.serverId)!.projectionHandlers.add(vi.fn());
+    }
+    expect(sockets.map((socket) => socket.url)).toEqual([remote.realtimeUrl, other.realtimeUrl]);
+
+    // The remote server goes dormant mid-hydration while the other server's poll runs.
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'overlap-home');
+    expect(sockets).toHaveLength(3);
+    expect(sockets[2].url).toBe(home.realtimeUrl);
+
+    const otherPoll = sockets[1];
+    otherPoll.open();
+    await otherPoll.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'other-ready' }) })
+    );
+    await vi.waitFor(() => expect(sockets).toHaveLength(4));
+    expect(sockets[3].url).toBe(remote.realtimeUrl);
+  });
+
   it('periodically resumes a ready inactive projection with jittered serialized polling', async () => {
     vi.useFakeTimers();
     setRealtimePollRandomForTests(() => 0.5);
