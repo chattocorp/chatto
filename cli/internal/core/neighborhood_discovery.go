@@ -164,23 +164,21 @@ func (d *neighborhoodDiscovery) Run(ctx context.Context, bootDone <-chan struct{
 }
 
 // refreshIfDue runs a discovery pass when the directory is due. When the
-// directory is based on different Neighbors but is younger than the minimum
-// pass interval, it returns the time until that interval ends.
+// directory still does not match the current Neighbors afterwards, it returns
+// the time after which the caller checks again: the rest of the minimum pass
+// interval, or the full interval while another replica holds the lease.
 func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) (time.Duration, error) {
 	sources := d.neighbors()
-	fingerprint := neighborhoodSourceFingerprint(d.selfOrigins, sources)
+	fingerprint := neighborhoodSourceFingerprint(sources)
 	current, err := d.load(ctx)
 	if err != nil {
 		return 0, err
 	}
 	if !d.due(current, fingerprint) {
-		if current.GetSourceFingerprint() == fingerprint {
-			return 0, nil
-		}
-		age := d.now().Sub(current.GetRefreshedAt().AsTime())
-		return max(neighborhoodSourceChangeDelay-age, time.Millisecond), nil
+		return d.pendingChangeRetry(current, fingerprint), nil
 	}
-	_, err = d.lease.TryRun(ctx, func(leaderCtx context.Context) error {
+	var retryAfter time.Duration
+	acquired, err := d.lease.TryRun(ctx, func(leaderCtx context.Context) error {
 		// Another replica can finish a pass between the first check and
 		// lease acquisition.
 		current, err := d.load(leaderCtx)
@@ -188,11 +186,26 @@ func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) (time.Duration
 			return err
 		}
 		if !d.due(current, fingerprint) {
+			retryAfter = d.pendingChangeRetry(current, fingerprint)
 			return nil
 		}
 		return d.refresh(leaderCtx, sources, fingerprint, current)
 	})
-	return 0, err
+	if err == nil && !acquired && current.GetSourceFingerprint() != fingerprint {
+		// The pass on the other replica can use an older Neighbor list.
+		retryAfter = neighborhoodSourceChangeDelay
+	}
+	return retryAfter, err
+}
+
+// pendingChangeRetry returns the rest of the minimum pass interval when the
+// directory is based on different Neighbors, and zero otherwise.
+func (d *neighborhoodDiscovery) pendingChangeRetry(current *cachestatev1.NeighborhoodDirectory, fingerprint string) time.Duration {
+	if current == nil || current.GetSourceFingerprint() == fingerprint {
+		return 0
+	}
+	age := d.now().Sub(current.GetRefreshedAt().AsTime())
+	return max(neighborhoodSourceChangeDelay-age, time.Millisecond)
 }
 
 func (d *neighborhoodDiscovery) due(current *cachestatev1.NeighborhoodDirectory, fingerprint string) bool {
@@ -366,11 +379,14 @@ func loadNeighborhoodDirectory(ctx context.Context, kv jetstream.KeyValue) (*cac
 	return directory, nil
 }
 
-// neighborhoodSourceFingerprint identifies the inputs of a discovery pass.
-func neighborhoodSourceFingerprint(selfOrigins, neighbors []string) string {
-	self := slices.Sorted(slices.Values(selfOrigins))
+// neighborhoodSourceFingerprint identifies the Neighbor set of a discovery
+// pass. Every replica projects the same Neighbors, so replicas agree on it.
+// It excludes the replica's own configured origins: replicas with different
+// origin settings must not start passes against each other. The hourly
+// refresh applies a change to those settings.
+func neighborhoodSourceFingerprint(neighbors []string) string {
 	sources := slices.Sorted(slices.Values(neighbors))
-	sum := sha256.Sum256([]byte(strings.Join(self, "\n") + "\n\n" + strings.Join(sources, "\n")))
+	sum := sha256.Sum256([]byte(strings.Join(sources, "\n")))
 	return hex.EncodeToString(sum[:])
 }
 

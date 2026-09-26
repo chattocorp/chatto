@@ -242,7 +242,24 @@ func TestNeighborhoodDiscoveryReportsPendingNeighborChange(t *testing.T) {
 	require.Zero(t, retryAfter)
 	directory, err := discovery.load(ctx)
 	require.NoError(t, err)
-	require.Equal(t, neighborhoodSourceFingerprint(discovery.selfOrigins, neighbors), directory.GetSourceFingerprint())
+	require.Equal(t, neighborhoodSourceFingerprint(neighbors), directory.GetSourceFingerprint())
+}
+
+type busyLease struct{}
+
+func (busyLease) TryRun(context.Context, func(context.Context) error) (bool, error) {
+	return false, nil
+}
+
+func TestNeighborhoodDiscoveryRetriesWhenAnotherReplicaHoldsTheLease(t *testing.T) {
+	_, discovery, _, _ := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	discovery.lease = busyLease{}
+
+	retryAfter, err := discovery.refreshIfDue(ctx)
+
+	require.NoError(t, err)
+	require.Equal(t, neighborhoodSourceChangeDelay, retryAfter)
 }
 
 func TestNeighborhoodDiscoveryNotifyNeverBlocks(t *testing.T) {
@@ -287,11 +304,11 @@ func TestNeighborhoodDiscoveryDue(t *testing.T) {
 
 func TestNeighborhoodSourceFingerprintIgnoresOrder(t *testing.T) {
 	require.Equal(t,
-		neighborhoodSourceFingerprint([]string{"https://s.example"}, []string{"https://a.example", "https://b.example"}),
-		neighborhoodSourceFingerprint([]string{"https://s.example"}, []string{"https://b.example", "https://a.example"}))
+		neighborhoodSourceFingerprint([]string{"https://a.example", "https://b.example"}),
+		neighborhoodSourceFingerprint([]string{"https://b.example", "https://a.example"}))
 	require.NotEqual(t,
-		neighborhoodSourceFingerprint([]string{"https://s.example"}, []string{"https://a.example"}),
-		neighborhoodSourceFingerprint([]string{"https://other.example"}, []string{"https://a.example"}))
+		neighborhoodSourceFingerprint([]string{"https://a.example"}),
+		neighborhoodSourceFingerprint([]string{"https://a.example", "https://b.example"}))
 }
 
 func TestNeighborhoodHTTPClientRejectsRedirects(t *testing.T) {
