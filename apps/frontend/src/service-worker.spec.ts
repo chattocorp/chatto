@@ -176,6 +176,20 @@ describe('service worker notifications', () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ['a redirect', { type: 'opaqueredirect', status: 0 }],
+    ['a client error', { status: 404 }]
+  ])('passes %s from the network through to the page', async (_name, networkDocument) => {
+    const worker = await importServiceWorker();
+    await worker.dispatch('install');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => networkDocument)
+    );
+
+    expect(await navigate(worker)).toBe(networkDocument);
+  });
+
   it('serves the cached shell when the network is unreachable', async () => {
     const cacheStorage = createMemoryCacheStorage();
     const worker = await importServiceWorker(cacheStorage);

@@ -53,8 +53,9 @@ The service worker keeps its complete, versioned application shell as an
 offline fallback. The shell contains no private data. App navigations load
 the document from the network first. The worker serves the cached shell
 document only when the network request fails or the server returns a server
-error. Without a saved view, a cached document shows no content sooner. It
-only loads the previous frontend version after a deploy.
+error. Without a saved view, a cached document shows no content sooner. Its
+only effect would be that a reload after a deploy loads the previous frontend
+version.
 
 The `chatto-private-cache` cross-tab channel is removed. Its main purpose was
 to delete saved chat views in other tabs. FDR-023 describes how other tabs
