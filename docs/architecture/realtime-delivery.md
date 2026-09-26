@@ -453,7 +453,7 @@ when the client reconnects. Query invalidation also fences late matrix
 mutations independently of component disposal. Room membership or message-read
 changes clear only the affected plaintext stores and fence their older reads.
 Message link previews are snapshot queries of the mounted preview cards. They
-read at the viewer's accepted cursor. A snapshot clears that cursor until
+read at the viewer's resume cursor. A snapshot clears that cursor until
 catch-up completes. After the snapshot data is applied, the cards reload their
 previews at the snapshot cursor and keep them visible during the reload.
 Searches keep their input and refresh their results. Fresh route authorization
