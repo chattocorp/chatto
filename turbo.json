@@ -39,6 +39,7 @@
     "lint": { "dependsOn": ["^build"], "cache": false },
     "@chatto/runling-bot#lint": { "dependsOn": [], "cache": false },
     "test": { "dependsOn": ["^build"], "cache": false },
+    "test:focused": { "dependsOn": ["^build"], "cache": false },
     "prepare": { "dependsOn": ["^build"], "cache": false },
     "build-storybook": { "dependsOn": ["^build"], "cache": false },
     "dev": { "dependsOn": ["^build"], "cache": false, "persistent": true }
