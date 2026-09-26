@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { AccountAPI } from '$lib/api-client/account';
+  import type { UserAPI } from '$lib/api-client/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import Panel from '$lib/ui/Panel.svelte';
@@ -10,6 +10,8 @@
   import {
     formatCooldownRemaining,
     getLoginChangeCooldownRemaining,
+    MAX_BIO_LENGTH,
+    validateAndNormalizeBio,
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin
   } from '$lib/validation';
@@ -19,10 +21,7 @@
   const serverScope = useServerScope();
   const currentUser = serverScope.store.currentUser;
 
-  let { getAccountAPI }: { getAccountAPI: () => AccountAPI } = $props();
-
-  // Keep in sync with the server-side bio length cap.
-  const MAX_BIO_LENGTH = 1000;
+  let { getUserAPI }: { getUserAPI: () => UserAPI } = $props();
 
   let displayName = $state(currentUser.user?.displayName ?? '');
   let login = $state(currentUser.user?.login ?? '');
@@ -84,12 +83,12 @@
 
     let normalizedBio: string | undefined;
     if (bioModified) {
-      const trimmed = bio.trim();
-      if ([...trimmed].length > MAX_BIO_LENGTH) {
-        error = m('settings.profile.bio.too_long', { max: MAX_BIO_LENGTH });
+      const validation = validateAndNormalizeBio(bio);
+      if (!validation.valid) {
+        error = validation.error ?? m('settings.profile.save_failed');
         return;
       }
-      normalizedBio = trimmed;
+      normalizedBio = validation.normalized;
     }
 
     if (!normalizedDisplayName && !normalizedLogin && normalizedBio === undefined) return;
@@ -117,12 +116,14 @@
     normalizedLogin: string | undefined,
     normalizedBio?: string
   ) {
+    const userId = currentUser.user?.id;
+    if (!userId) return;
     isSaving = true;
     error = '';
     successMessage = '';
 
     try {
-      const updated = await getAccountAPI().updateProfile({
+      const updated = await getUserAPI().updateUserProfile(userId, {
         displayName: normalizedDisplayName,
         login: normalizedLogin,
         bio: normalizedBio

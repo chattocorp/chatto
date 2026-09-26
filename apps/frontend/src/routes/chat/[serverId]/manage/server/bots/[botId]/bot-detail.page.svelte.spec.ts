@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   reassignBotOwner: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
+  updateUserProfile: vi.fn(),
   uploadAvatar: vi.fn(),
   deleteAvatar: vi.fn(),
   toastSuccess: vi.fn(),
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   canManageAccounts: false,
   supportsMultipleAPIKeys: true,
   supportsOutboundWebhooks: true,
+  supportsManagedProfiles: true,
   bot: {
     id: 'bot-user-id',
     login: 'helper_bot',
@@ -62,7 +64,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         supportsFeature: (feature: string) =>
           feature === 'botOutboundWebhooks'
             ? mocks.supportsOutboundWebhooks
-            : feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
+            : feature === 'managedUserProfiles'
+              ? mocks.supportsManagedProfiles
+              : feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
       },
       currentUser: { user: { settings: mocks.settings } },
       navigation: {
@@ -94,6 +98,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         reassignBotOwner: mocks.reassignBotOwner,
         createBotIncomingWebhook: mocks.createBotIncomingWebhook,
         revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
+        updateUserProfile: mocks.updateUserProfile,
         uploadAvatar: mocks.uploadAvatar,
         deleteAvatar: mocks.deleteAvatar
       })
@@ -141,6 +146,18 @@ describe('Bot detail page', () => {
     mocks.canManageAccounts = false;
     mocks.supportsMultipleAPIKeys = true;
     mocks.supportsOutboundWebhooks = true;
+    mocks.supportsManagedProfiles = true;
+    mocks.updateUserProfile.mockImplementation(
+      (userId: string, input: { login?: string; displayName?: string; bio?: string }) =>
+        Promise.resolve({
+          id: userId,
+          login: input.login ?? mocks.bot.login,
+          displayName: input.displayName ?? mocks.bot.displayName,
+          bio: input.bio ?? mocks.bot.bio,
+          deleted: false,
+          avatarUrl: null
+        })
+    );
     mocks.listOutboundWebhooks.mockResolvedValue([]);
     mocks.getBot.mockResolvedValue(mocks.bot);
     mocks.batchGetUsers.mockResolvedValue([]);
@@ -255,6 +272,60 @@ describe('Bot detail page', () => {
     expect((container.querySelector('#create-bot-webhook-room') as HTMLSelectElement).value).toBe(
       ''
     );
+  });
+
+  it('saves only the changed bot profile fields and caches the result', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    setInput(
+      container.querySelector('[data-testid="bot-profile-display-name"]') as HTMLInputElement,
+      'Renamed Bot'
+    );
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+        displayName: 'Renamed Bot'
+      })
+    );
+    await vi.waitFor(() => {
+      const cached = queryClient.getQueryData<{ displayName: string; bio: string | null }>(
+        settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id')
+      );
+      expect(cached?.displayName).toBe('Renamed Bot');
+      expect(cached?.bio).toBe('Initial bot bio');
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Bot profile updated');
+  });
+
+  it('keeps the bot profile draft when a save fails', async () => {
+    mocks.updateUserProfile.mockRejectedValueOnce(new Error('Username is already taken'));
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    setInput(login, 'taken_login');
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Username is already taken'));
+    expect(login.value).toBe('taken_login');
+  });
+
+  it('hides bot profile editing on servers without managed profile updates', async () => {
+    mocks.supportsManagedProfiles = false;
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    expect(container.querySelector('[data-testid="bot-profile-login"]')).toBeNull();
+  });
+
+  it('hides bot profile editing from viewers who cannot manage the bot', async () => {
+    mocks.canManageBots = false;
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    expect(container.querySelector('[data-testid="bot-profile-login"]')).toBeNull();
   });
 
   it('uploads the selected bot avatar through the user API', async () => {
@@ -473,13 +544,14 @@ describe('Bot detail page', () => {
     expect(container.textContent).not.toContain('Reassign owner');
   });
 
-  it('shows only avatar management to an account manager who does not manage bots', async () => {
+  it('shows only identity management to an account manager who does not manage bots', async () => {
     mocks.canManageBots = false;
     mocks.canManageAccounts = true;
     const { container } = render(BotDetailPage);
     await settle();
 
     expect(container.textContent).toContain('Upload avatar');
+    expect(container.querySelector('[data-testid="bot-profile-login"]')).not.toBeNull();
     expect(container.textContent).not.toContain('Create API key');
     expect(container.textContent).not.toContain('Create incoming webhook');
     expect(container.textContent).not.toContain('Reassign owner');

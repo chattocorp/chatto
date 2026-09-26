@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { FieldMask, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "../../api/v1/users_pb.js";
 import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
 import { AdminRole } from "./roles_pb.js";
@@ -645,125 +645,6 @@ export class RevokeRoleResponse extends Message<RevokeRoleResponse> {
 
   static equals(a: RevokeRoleResponse | PlainMessage<RevokeRoleResponse> | undefined, b: RevokeRoleResponse | PlainMessage<RevokeRoleResponse> | undefined): boolean {
     return proto3.util.equals(RevokeRoleResponse, a, b);
-  }
-}
-
-/**
- * Request to update a user's identity as a server-admin action.
- *
- * @generated from message chatto.admin.v1.UpdateUserRequest
- */
-export class UpdateUserRequest extends Message<UpdateUserRequest> {
-  /**
-   * Target user ID.
-   *
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  /**
-   * New non-empty display name. The server also rejects control and
-   * confusing invisible characters.
-   *
-   * @generated from field: optional string display_name = 2;
-   */
-  displayName?: string;
-
-  /**
-   * New login identifier, when changing it. The server accepts ASCII letters,
-   * digits, period, underscore, and hyphen, starting with a letter or digit.
-   *
-   * @generated from field: optional string login = 3;
-   */
-  login?: string;
-
-  /**
-   * Editable fields to apply or reset: display_name, login.
-   * Omit to infer populated fields; * selects all editable fields. An explicit
-   * empty mask is invalid. Unselected values are ignored. Selected absent values
-   * reset the field to its default, subject to field validation.
-   *
-   * @generated from field: google.protobuf.FieldMask update_mask = 4;
-   */
-  updateMask?: FieldMask;
-
-  constructor(data?: PartialMessage<UpdateUserRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.UpdateUserRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 3, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "update_mask", kind: "message", T: FieldMask },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserRequest {
-    return new UpdateUserRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateUserRequest {
-    return new UpdateUserRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateUserRequest {
-    return new UpdateUserRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UpdateUserRequest | PlainMessage<UpdateUserRequest> | undefined, b: UpdateUserRequest | PlainMessage<UpdateUserRequest> | undefined): boolean {
-    return proto3.util.equals(UpdateUserRequest, a, b);
-  }
-}
-
-/**
- * Result of an admin user update.
- *
- * @generated from message chatto.admin.v1.UpdateUserResponse
- */
-export class UpdateUserResponse extends Message<UpdateUserResponse> {
-  /**
-   * Updated user profile.
-   *
-   * @generated from field: chatto.api.v1.User user = 1;
-   */
-  user?: User;
-
-  /**
-   * Updated admin member row.
-   *
-   * @generated from field: chatto.admin.v1.AdminMember member = 2;
-   */
-  member?: AdminMember;
-
-  constructor(data?: PartialMessage<UpdateUserResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.UpdateUserResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: User },
-    { no: 2, name: "member", kind: "message", T: AdminMember },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserResponse {
-    return new UpdateUserResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateUserResponse {
-    return new UpdateUserResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateUserResponse {
-    return new UpdateUserResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UpdateUserResponse | PlainMessage<UpdateUserResponse> | undefined, b: UpdateUserResponse | PlainMessage<UpdateUserResponse> | undefined): boolean {
-    return proto3.util.equals(UpdateUserResponse, a, b);
   }
 }
 

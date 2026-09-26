@@ -18,3 +18,5 @@ export {
   MIN_LOGIN_LENGTH,
   LOGIN_CHANGE_COOLDOWN_MS
 } from './login';
+
+export { validateAndNormalizeBio, normalizeBio, MAX_BIO_LENGTH } from './bio';

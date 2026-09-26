@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createAccountAPI } from '$lib/api-client/account';
+  import { createUserAPI } from '$lib/api-client/users';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PaneContent, PaneHeader } from '$lib/ui';
@@ -20,6 +20,6 @@
     {#if serverScope.store.serverInfo.supportsFeature('userAvatars')}
       <AvatarSettings />
     {/if}
-    <ProfileDetailsSettings getAccountAPI={() => serverScope.connection.getAPI(createAccountAPI)} />
+    <ProfileDetailsSettings getUserAPI={() => serverScope.connection.getAPI(createUserAPI)} />
   </div>
 </PaneContent>

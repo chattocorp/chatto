@@ -7,10 +7,15 @@
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { untrack } from 'svelte';
-  import type { AdminManagedUser, AdminMember } from '$lib/api-client/adminUsers';
+  import type { AdminMember } from '$lib/api-client/adminUsers';
+  import type { UpdateUserProfileInput, UserSummary } from '$lib/api-client/users';
+  import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
     formatCooldownRemaining,
     getLoginChangeCooldownRemaining,
+    MAX_BIO_LENGTH,
+    validateAndNormalizeBio,
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin
   } from '$lib/validation';
@@ -18,10 +23,7 @@
   type Props = {
     member: AdminMember;
     isSelf: boolean;
-    updateIdentity: (input: {
-      login?: string;
-      displayName?: string;
-    }) => Promise<AdminManagedUser | null>;
+    updateIdentity: (input: UpdateUserProfileInput) => Promise<UserSummary | null>;
     clearUsernameCooldown: () => Promise<boolean>;
     changePassword: (password: string) => Promise<AdminMember | null>;
   };
@@ -37,6 +39,7 @@
   // while switching members, so capture the current values once per member.
   let editLogin = $state(untrack(() => member.login));
   let editDisplayName = $state(untrack(() => member.displayName));
+  let editBio = $state(untrack(() => member.bio ?? ''));
   let identityError = $state<string | null>(null);
   let savingIdentity = $state(false);
   let clearingCooldown = $state(false);
@@ -47,7 +50,8 @@
 
   const loginModified = $derived(!!member && editLogin !== member.login);
   const displayNameModified = $derived(!!member && editDisplayName !== member.displayName);
-  const identityModified = $derived(loginModified || displayNameModified);
+  const bioModified = $derived(!!member && editBio !== (member.bio ?? ''));
+  const identityModified = $derived(loginModified || displayNameModified || bioModified);
   const lastLoginChange = $derived(
     member?.lastLoginChange ? new Date(member.lastLoginChange) : null
   );
@@ -76,7 +80,7 @@
     if (!member || !identityModified || savingIdentity) return;
 
     identityError = null;
-    const input: { login?: string; displayName?: string } = {};
+    const input: UpdateUserProfileInput = {};
 
     if (displayNameModified) {
       const result = validateAndNormalizeDisplayName(editDisplayName);
@@ -96,12 +100,22 @@
       input.login = result.normalized;
     }
 
+    if (bioModified) {
+      const result = validateAndNormalizeBio(editBio);
+      if (!result.valid || result.normalized === undefined) {
+        identityError = result.error ?? 'Invalid bio';
+        return;
+      }
+      input.bio = result.normalized;
+    }
+
     savingIdentity = true;
     try {
       const updated = await updateIdentity(input);
       if (updated) {
         editLogin = updated.login;
         editDisplayName = updated.displayName;
+        editBio = updated.bio ?? '';
         toast.success('User updated');
       }
     } catch (error) {
@@ -115,6 +129,7 @@
     if (!member) return;
     editLogin = member.login;
     editDisplayName = member.displayName;
+    editBio = member.bio ?? '';
     identityError = null;
   }
 
@@ -177,6 +192,12 @@
         testid="admin-identity-display-name"
         label={m('settings.profile.display_name.label')}
         bind:value={editDisplayName}
+        disabled={savingIdentity}
+      />
+      <UserBioEditor
+        bind:value={editBio}
+        editorKind={userPreferences.composerEditor}
+        maxlength={MAX_BIO_LENGTH}
         disabled={savingIdentity}
       />
       {#snippet footer()}

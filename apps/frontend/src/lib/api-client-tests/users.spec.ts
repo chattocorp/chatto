@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   batchGetUsers: vi.fn(),
+  updateUserProfile: vi.fn(),
   uploadAvatar: vi.fn(),
   deleteAvatar: vi.fn()
 }));
@@ -52,11 +53,13 @@ describe('createUserAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.batchGetUsers.mockReset();
+    mocks.updateUserProfile.mockReset();
     mocks.uploadAvatar.mockReset();
     mocks.deleteAvatar.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       batchGetUsers: mocks.batchGetUsers,
+      updateUserProfile: mocks.updateUserProfile,
       uploadAvatar: mocks.uploadAvatar,
       deleteAvatar: mocks.deleteAvatar
     });
@@ -97,6 +100,34 @@ describe('createUserAPI', () => {
       expect(store.has('U1')).toBe(false);
     }
   );
+
+  it('updates the profile of an explicit user with a sparse update mask', async () => {
+    mocks.updateUserProfile.mockResolvedValue({
+      user: new APIUser({
+        id: 'B1',
+        login: 'helper',
+        displayName: 'Helper',
+        bio: 'Answers questions.',
+        bot: { ownerUserId: 'U1' }
+      })
+    });
+    const api = createUserAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(
+      api.updateUserProfile('B1', { bio: 'Answers questions.', displayName: 'Helper' })
+    ).resolves.toMatchObject({
+      id: 'B1',
+      displayName: 'Helper',
+      bio: 'Answers questions.',
+      bot: { ownerUserId: 'U1' }
+    });
+    expect(mocks.updateUserProfile).toHaveBeenCalledWith({
+      userId: 'B1',
+      bio: 'Answers questions.',
+      displayName: 'Helper',
+      updateMask: { paths: ['display_name', 'bio'] }
+    });
+  });
 
   it('uploads and deletes an avatar for an explicit user', async () => {
     mocks.uploadAvatar.mockResolvedValue({

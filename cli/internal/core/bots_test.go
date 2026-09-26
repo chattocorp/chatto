@@ -720,10 +720,6 @@ func TestGenericAdminMutationsRejectBotAccounts(t *testing.T) {
 		t.Fatalf("CreateBot: %v", err)
 	}
 
-	newName := "Changed"
-	if _, err := c.AdminUpdateUser(ctx, admin.GetId(), bot.User.GetId(), AdminUpdateUserInput{DisplayName: &newName}); !errors.Is(err, ErrHumanAccountRequired) {
-		t.Fatalf("AdminUpdateUser(bot) err = %v, want ErrHumanAccountRequired", err)
-	}
 	if err := c.AdminSetUserPasswordAuthorized(ctx, admin.GetId(), bot.User.GetId(), "password456"); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("AdminSetUserPasswordAuthorized(bot) err = %v, want ErrHumanAccountRequired", err)
 	}
@@ -1447,5 +1443,65 @@ func TestHumanAndBotUsernamesShareValidation(t *testing.T) {
 	}
 	if _, err := c.CreateUser(ctx, SystemActorID, "RENAMED-HELPER", "Collision", "password123"); !errors.Is(err, ErrLoginAlreadyTaken) {
 		t.Fatalf("human login collision with bot = %v, want ErrLoginAlreadyTaken", err)
+	}
+}
+
+func TestBotOwnerUpdatesBotProfile(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "profile-bot-owner", "Profile Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	stranger, err := c.CreateUser(ctx, SystemActorID, "profile-bot-stranger", "Profile Bot Stranger", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser stranger: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "profile_bot", "Profile Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	botID := bot.User.GetId()
+
+	login := "renamed_profile_bot"
+	displayName := "Renamed Profile Bot"
+	bio := "Answers questions about the deploy pipeline."
+	updated, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &login, &displayName, &bio)
+	if err != nil {
+		t.Fatalf("UpdateManagedUserProfile owner: %v", err)
+	}
+	if updated.GetLogin() != login || updated.GetDisplayName() != displayName || updated.GetBio() != bio {
+		t.Fatalf("updated bot = %+v, want login %q display %q bio %q", updated, login, displayName, bio)
+	}
+	bioEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(botID).Subject(evtstream.EventUserBioChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents bot bio: %v", err)
+	}
+	if len(bioEvents) != 1 || bioEvents[0].GetActorId() != owner.GetId() {
+		t.Fatalf("bot bio events = %+v, want one event by the owner", bioEvents)
+	}
+	lastChange, err := c.GetLastLoginChange(ctx, botID)
+	if err != nil {
+		t.Fatalf("GetLastLoginChange: %v", err)
+	}
+	if !lastChange.IsZero() {
+		t.Fatalf("owner login change started the bot cooldown at %v", lastChange)
+	}
+
+	// A second owner rename is not blocked by a cooldown.
+	secondLogin := "profile_bot_again"
+	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &secondLogin, nil, nil); err != nil {
+		t.Fatalf("second owner rename: %v", err)
+	}
+
+	strangerBio := "Hijacked."
+	if _, err := c.UpdateManagedUserProfile(ctx, stranger.GetId(), botID, nil, nil, &strangerBio); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("stranger update err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.UpdateManagedUserProfile(ctx, botID, owner.GetId(), nil, nil, &strangerBio); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("bot updates owner err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, nil); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("empty update err = %v, want ErrInvalidArgument", err)
 	}
 }

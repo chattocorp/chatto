@@ -18,46 +18,9 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## MyAccountService
 
-Self-service account, profile, display preference, presence,
-custom-status, external identity, and account lifecycle commands for the
-authenticated user.
-
-<a id="chatto-api-v1-MyAccountService-UpdateProfile"></a>
-
-### UpdateProfile
-
-Updates the authenticated user's login, display name, and/or bio.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
-```
-
-<a id="chatto-api-v1-UpdateProfileRequest"></a>
-
-#### Input: UpdateProfileRequest
-
-Request to update the authenticated user's profile. Human and bot accounts
-use this same self-service operation. update_mask selects fields to apply
-or reset. Fields outside the mask stay unchanged.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
-| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
-| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
-
-
-<a id="chatto-api-v1-UpdateProfileResponse"></a>
-
-#### Result: UpdateProfileResponse
-
-Result of a profile update.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Updated user profile. |
-
+Self-service account, display preference, presence, custom-status,
+external identity, and account lifecycle commands for the authenticated
+user. Public profile and avatar changes use UserService.
 
 <a id="chatto-api-v1-MyAccountService-ChangePassword"></a>
 

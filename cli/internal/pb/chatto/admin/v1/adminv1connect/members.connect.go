@@ -48,9 +48,6 @@ const (
 	// AdminUserServiceRevokeRoleProcedure is the fully-qualified name of the AdminUserService's
 	// RevokeRole RPC.
 	AdminUserServiceRevokeRoleProcedure = "/chatto.admin.v1.AdminUserService/RevokeRole"
-	// AdminUserServiceUpdateUserProcedure is the fully-qualified name of the AdminUserService's
-	// UpdateUser RPC.
-	AdminUserServiceUpdateUserProcedure = "/chatto.admin.v1.AdminUserService/UpdateUser"
 	// AdminUserServiceChangeUserPasswordProcedure is the fully-qualified name of the AdminUserService's
 	// ChangeUserPassword RPC.
 	AdminUserServiceChangeUserPasswordProcedure = "/chatto.admin.v1.AdminUserService/ChangeUserPassword"
@@ -78,10 +75,6 @@ type AdminUserServiceClient interface {
 	// Revokes a role from a user. Requires role.assign, and non-owner callers may
 	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates a human user's login and/or display name without applying the
-	// username-change cooldown. Requires user.manage-accounts, including when
-	// the caller targets their own account. Preserves the cooldown timestamp.
-	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
 	// cannot target their own account.
@@ -135,12 +128,6 @@ func NewAdminUserServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adminUserServiceMethods.ByName("RevokeRole")),
 			connect.WithClientOptions(opts...),
 		),
-		updateUser: connect.NewClient[v1.UpdateUserRequest, v1.UpdateUserResponse](
-			httpClient,
-			baseURL+AdminUserServiceUpdateUserProcedure,
-			connect.WithSchema(adminUserServiceMethods.ByName("UpdateUser")),
-			connect.WithClientOptions(opts...),
-		),
 		changeUserPassword: connect.NewClient[v1.ChangeUserPasswordRequest, v1.ChangeUserPasswordResponse](
 			httpClient,
 			baseURL+AdminUserServiceChangeUserPasswordProcedure,
@@ -169,7 +156,6 @@ type adminUserServiceClient struct {
 	batchGetMembers       *connect.Client[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse]
 	assignRole            *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
 	revokeRole            *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
-	updateUser            *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
 	changeUserPassword    *connect.Client[v1.ChangeUserPasswordRequest, v1.ChangeUserPasswordResponse]
 	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
 	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
@@ -198,11 +184,6 @@ func (c *adminUserServiceClient) AssignRole(ctx context.Context, req *connect.Re
 // RevokeRole calls chatto.admin.v1.AdminUserService.RevokeRole.
 func (c *adminUserServiceClient) RevokeRole(ctx context.Context, req *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error) {
 	return c.revokeRole.CallUnary(ctx, req)
-}
-
-// UpdateUser calls chatto.admin.v1.AdminUserService.UpdateUser.
-func (c *adminUserServiceClient) UpdateUser(ctx context.Context, req *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
-	return c.updateUser.CallUnary(ctx, req)
 }
 
 // ChangeUserPassword calls chatto.admin.v1.AdminUserService.ChangeUserPassword.
@@ -236,10 +217,6 @@ type AdminUserServiceHandler interface {
 	// Revokes a role from a user. Requires role.assign, and non-owner callers may
 	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates a human user's login and/or display name without applying the
-	// username-change cooldown. Requires user.manage-accounts, including when
-	// the caller targets their own account. Preserves the cooldown timestamp.
-	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
 	// cannot target their own account.
@@ -289,12 +266,6 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 		connect.WithSchema(adminUserServiceMethods.ByName("RevokeRole")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminUserServiceUpdateUserHandler := connect.NewUnaryHandler(
-		AdminUserServiceUpdateUserProcedure,
-		svc.UpdateUser,
-		connect.WithSchema(adminUserServiceMethods.ByName("UpdateUser")),
-		connect.WithHandlerOptions(opts...),
-	)
 	adminUserServiceChangeUserPasswordHandler := connect.NewUnaryHandler(
 		AdminUserServiceChangeUserPasswordProcedure,
 		svc.ChangeUserPassword,
@@ -325,8 +296,6 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 			adminUserServiceAssignRoleHandler.ServeHTTP(w, r)
 		case AdminUserServiceRevokeRoleProcedure:
 			adminUserServiceRevokeRoleHandler.ServeHTTP(w, r)
-		case AdminUserServiceUpdateUserProcedure:
-			adminUserServiceUpdateUserHandler.ServeHTTP(w, r)
 		case AdminUserServiceChangeUserPasswordProcedure:
 			adminUserServiceChangeUserPasswordHandler.ServeHTTP(w, r)
 		case AdminUserServiceClearUsernameCooldownProcedure:
@@ -360,10 +329,6 @@ func (UnimplementedAdminUserServiceHandler) AssignRole(context.Context, *connect
 
 func (UnimplementedAdminUserServiceHandler) RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.RevokeRole is not implemented"))
-}
-
-func (UnimplementedAdminUserServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.UpdateUser is not implemented"))
 }
 
 func (UnimplementedAdminUserServiceHandler) ChangeUserPassword(context.Context, *connect.Request[v1.ChangeUserPasswordRequest]) (*connect.Response[v1.ChangeUserPasswordResponse], error) {

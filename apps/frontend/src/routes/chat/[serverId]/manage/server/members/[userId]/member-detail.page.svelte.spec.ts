@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
+import type { UserSummary } from '$lib/api-client/users';
 import type {
-  AdminManagedUser,
   AdminMember,
   AdminMemberDetails,
   AdminRoleMutationResult,
@@ -20,7 +20,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   getMember: vi.fn(),
-  updateUser: vi.fn(),
+  updateUserProfile: vi.fn(),
   clearUsernameCooldown: vi.fn(),
   changeUserPassword: vi.fn(),
   assignRole: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         getAPI: () =>
           ({
             getMember: mocks.getMember,
-            updateUser: mocks.updateUser,
+            updateUserProfile: mocks.updateUserProfile,
             clearUsernameCooldown: mocks.clearUsernameCooldown,
             changeUserPassword: mocks.changeUserPassword,
             assignRole: mocks.assignRole,
@@ -180,13 +180,15 @@ describe('server member detail queries', () => {
     mocks.getMember.mockImplementation((userId: string) =>
       Promise.resolve(details(member(userId)))
     );
-    mocks.updateUser.mockImplementation(({ userId, login, displayName }) =>
-      Promise.resolve({
-        id: userId,
-        login: login ?? userId,
-        displayName: displayName ?? userId.toUpperCase(),
-        avatarUrl: null
-      } satisfies AdminManagedUser)
+    mocks.updateUserProfile.mockImplementation(
+      (userId: string, { login, displayName }: { login?: string; displayName?: string }) =>
+        Promise.resolve({
+          id: userId,
+          login: login ?? userId,
+          displayName: displayName ?? userId.toUpperCase(),
+          deleted: false,
+          avatarUrl: null
+        } satisfies UserSummary)
     );
     mocks.clearUsernameCooldown.mockResolvedValue(true);
     mocks.changeUserPassword.mockImplementation((userId: string) =>
@@ -314,7 +316,7 @@ describe('server member detail queries', () => {
     buttonByText(rendered.container, 'Save').click();
     await settle();
 
-    expect(mocks.updateUser).toHaveBeenCalledWith({ userId: 'alice', login: 'renamed' });
+    expect(mocks.updateUserProfile).toHaveBeenCalledWith('alice', { login: 'renamed' });
     const cached = queryClient.getQueryData<AdminMemberDetails>(
       adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice')
     );
@@ -417,20 +419,26 @@ describe('server member detail queries', () => {
   });
 
   it('does not apply a mutation result after navigating to another member', async () => {
-    const update = deferred<AdminManagedUser>();
-    mocks.updateUser.mockReturnValueOnce(update.promise);
+    const update = deferred<UserSummary>();
+    mocks.updateUserProfile.mockReturnValueOnce(update.promise);
     const rendered = render(MemberDetailPage);
     await settle();
     setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
     buttonByText(rendered.container, 'Save').click();
-    await vi.waitFor(() => expect(mocks.updateUser).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.updateUserProfile).toHaveBeenCalledOnce());
 
     memberDetailPageTestState.userId = 'bob';
     flushSync();
     await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
     flushSync();
     expect(rendered.container.textContent).toContain('BOB');
-    update.resolve({ id: 'alice', login: 'renamed', displayName: 'ALICE', avatarUrl: null });
+    update.resolve({
+      id: 'alice',
+      login: 'renamed',
+      displayName: 'ALICE',
+      deleted: false,
+      avatarUrl: null
+    });
     await settle();
 
     const bob = queryClient.getQueryData<AdminMemberDetails>(

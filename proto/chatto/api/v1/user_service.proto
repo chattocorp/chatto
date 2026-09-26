@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/common.proto";
 import "chatto/api/v1/member_directory.proto";
@@ -67,6 +68,36 @@ message BatchGetUsersResponse {
   repeated DirectoryMember users = 1;
 }
 
+// Request to update one user's public profile. update_mask selects fields
+// to apply or reset. Fields outside the mask stay unchanged.
+message UpdateUserProfileRequest {
+  // Required target user ID. Self-updates are allowed. Updating another user
+  // requires the applicable account-management or bot-management authority.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New non-empty display name. The server also rejects control and
+  // confusing invisible characters.
+  optional string display_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
+  // New login identifier, when changing it. The server accepts ASCII letters,
+  // digits, period, underscore, and hyphen, starting with a letter or digit.
+  optional string login = 3 [(buf.validate.field).string = {
+    min_len: 2
+    max_len: 32
+  }];
+  // New Markdown biography, when changing it. Empty clears the bio.
+  optional string bio = 4 [(buf.validate.field).string.max_len = 1000];
+  // Editable fields to apply or reset: display_name, login, bio.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 5;
+}
+
+// Result of a user profile update.
+message UpdateUserProfileResponse {
+  // Updated user profile.
+  User user = 1;
+}
+
 // Request to upload and set one user's avatar.
 message UploadAvatarRequest {
   reserved 1 to 3;
@@ -98,7 +129,7 @@ message DeleteAvatarResponse {
   User user = 1;
 }
 
-// Reads users and manages public user avatars.
+// Reads users and manages public user profiles and avatars.
 service UserService {
   // Lists users visible to the authenticated user. Admin-sensitive account
   // fields stay out of this public row shape.
@@ -109,6 +140,15 @@ service UserService {
   // Gets visible user rows for multiple stable user IDs. Unknown IDs are
   // omitted from the response.
   rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
+  // Updates the target user's login, display name, and/or bio. Users can
+  // update themselves. Updating another human requires user.manage-accounts.
+  // Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+  // A bot cannot target another account. A self login change starts the
+  // username-change cooldown and fails while the cooldown is active, unless
+  // the caller has user.manage-accounts. Changes to another account do not
+  // apply or reset the target's cooldown. Unknown or deleted targets return
+  // NOT_FOUND.
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse);
   // Uploads and sets an avatar for the target user. Users can update
   // themselves. Updating another human requires user.manage-accounts.
   // Updating a bot requires ownership, user.manage-accounts, or bot.manage.

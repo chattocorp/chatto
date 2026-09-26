@@ -308,25 +308,33 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	return user, nil
 }
 
-type AdminUpdateUserInput struct {
-	Login       *string
-	DisplayName *string
-	Bio         *string
-}
-
-// AdminUpdateUser updates a human profile without advancing its login cooldown.
-// The actor needs user.manage-accounts, including when editing their own profile.
-func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*evtv1.User, error) {
-	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+// UpdateManagedUserProfile applies one identity patch to targetUserID as an
+// atomic batch. Omitted fields remain unchanged.
+//
+// A self-update delegates to UpdateOwnUserProfile and keeps its login
+// cooldown rules. Updating another account uses the same target-aware policy
+// as avatars: user.manage-accounts for humans; ownership, bot.manage, or
+// user.manage-accounts for bots. Such updates record actorID on the facts and
+// neither apply nor start the target's login cooldown. Conflicts are returned
+// to the caller; replacement values are never replayed after a concurrent
+// profile edit.
+func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targetUserID string, login, displayName, bio *string) (*evtv1.User, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	if input.Login == nil && input.DisplayName == nil && input.Bio == nil {
+	if login == nil && displayName == nil && bio == nil {
 		return nil, fmt.Errorf("%w: at least one of login, display_name, or bio must be provided", ErrInvalidArgument)
 	}
-	if err := c.requireHumanUser(ctx, targetUserID); err != nil {
+	if actorID == targetUserID {
+		return c.UpdateOwnUserProfile(ctx, actorID, login, displayName, bio)
+	}
+	if err := c.authorizeAtStableInputs(ctx, func() error {
+		_, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID)
+		return err
+	}); err != nil {
 		return nil, err
 	}
-	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName, input.Bio, true)
+	return c.updateUserProfileAs(ctx, actorID, targetUserID, login, displayName, bio, false)
 }
 
 // AdminClearLoginChangeCooldown clears a human account's login cooldown.

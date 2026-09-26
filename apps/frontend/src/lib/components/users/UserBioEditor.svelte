@@ -87,6 +87,7 @@ external value changes, such as a successful save, update the mounted editor.
     {indentState}
     {editorApi}
     inputDisabled={disabled}
+    animated={false}
   />
   <div class="input min-w-0 [--composer-min-height:8rem] [&_.ProseMirror]:min-h-32">
     {#key editorKind}

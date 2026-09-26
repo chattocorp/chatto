@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetUsersRequest, BatchGetUsersResponse, DeleteAvatarRequest, DeleteAvatarResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, UploadAvatarRequest, UploadAvatarResponse } from "./user_service_pb.js";
+import { BatchGetUsersRequest, BatchGetUsersResponse, DeleteAvatarRequest, DeleteAvatarResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, UpdateUserProfileRequest, UpdateUserProfileResponse, UploadAvatarRequest, UploadAvatarResponse } from "./user_service_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads users and manages public user avatars.
+ * Reads users and manages public user profiles and avatars.
  *
  * @generated from service chatto.api.v1.UserService
  */
@@ -48,6 +48,24 @@ export const UserService = {
       name: "BatchGetUsers",
       I: BatchGetUsersRequest,
       O: BatchGetUsersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Updates the target user's login, display name, and/or bio. Users can
+     * update themselves. Updating another human requires user.manage-accounts.
+     * Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+     * A bot cannot target another account. A self login change starts the
+     * username-change cooldown and fails while the cooldown is active, unless
+     * the caller has user.manage-accounts. Changes to another account do not
+     * apply or reset the target's cooldown. Unknown or deleted targets return
+     * NOT_FOUND.
+     *
+     * @generated from rpc chatto.api.v1.UserService.UpdateUserProfile
+     */
+    updateUserProfile: {
+      name: "UpdateUserProfile",
+      I: UpdateUserProfileRequest,
+      O: UpdateUserProfileResponse,
       kind: MethodKind.Unary,
     },
     /**
