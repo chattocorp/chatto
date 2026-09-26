@@ -780,7 +780,9 @@ class ServerRegistry {
   #adoptPersistedBearerSession(id: string): void {
     const persisted = readPersistedAuthentication(id);
     const current = this.sessions.get(id);
-    if (!current) return;
+    // A renewal that started before a sign-out can finish after it. A
+    // signed-out session must not take credentials from storage here.
+    if (!current?.token) return;
     if (!persisted?.token) {
       if (current.token) this.clearServerAuthentication(id, false);
       return;

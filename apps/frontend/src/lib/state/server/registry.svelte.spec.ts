@@ -388,6 +388,24 @@ describe('ServerRegistry', () => {
     }
   });
 
+  it('does not take stored credentials into a session that another tab signed out', async () => {
+    const registry = await createRegistry();
+    registry.removeAll();
+    registry.init();
+    registry.addServer(makeServer({ id: 'other-tab', token: 'stale-access', userId: 'U1' }));
+    storeSessionFromOtherTab('other-tab', 'rotated-access', 'U1');
+    const channel = new BroadcastChannel('chatto-private-cache');
+    try {
+      channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
+      await vi.waitFor(() => expect(registry.getServer('other-tab')?.userId).toBeNull());
+      // A renewal that started before the sign-out finishes after it.
+      await expect(registry.renewServerAuthentication('other-tab', true)).resolves.toBeNull();
+      expect(registry.getServer('other-tab')?.token).toBeNull();
+    } finally {
+      channel.close();
+    }
+  });
+
   it('sends one sign-out message that other tabs receive with the signed-out session stored', async () => {
     const registry = await createRegistry();
     registry.removeAll();
