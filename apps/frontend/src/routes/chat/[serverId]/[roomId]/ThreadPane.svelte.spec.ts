@@ -222,6 +222,16 @@ vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
   return { default: ComposerMock };
 });
 
+function threadMessage(id: string, deletedAt: string | null = null) {
+  return {
+    id,
+    createdAt: '2026-07-04T12:00:00Z',
+    actorId: 'test-user',
+    actor: null,
+    event: { kind: TimelineEventKind.MessagePosted, deletedAt }
+  } as never;
+}
+
 function highlight(eventId: string, notificationId: string | null = null) {
   return { roomId: 'room-1', threadRootEventId: 'thread-root', eventId, notificationId };
 }
@@ -531,6 +541,7 @@ describe('ThreadPane', () => {
     await vi.waitFor(() => expect(mocks.refreshCurrentWindow).toHaveBeenCalledWith('older-reply'));
     expect(mocks.jumpToMessage).not.toHaveBeenCalled();
 
+    mocks.threadStore!.threadEvents = [threadMessage('older-reply')];
     resolveRefresh({
       hasOlder: true,
       hasNewer: true,
@@ -672,12 +683,31 @@ describe('ThreadPane', () => {
   });
 
   it('marks a highlighted notification read after the thread jump', async () => {
+    mocks.threadStore!.threadEvents = [threadMessage('reply-1')];
     render(ThreadPane, {
       props: { ...threadProps, highlight: highlight('reply-1', 'notification-1') }
     });
 
     await vi.waitFor(() => expect(mocks.jumpToMessage).toHaveBeenCalledWith('reply-1'));
     await vi.waitFor(() => expect(mocks.markOccurrenceRead).toHaveBeenCalledWith('notification-1'));
+  });
+
+  it('fails a thread highlight whose target is still missing after loading', async () => {
+    const onHighlightComplete = vi.fn();
+    const target = highlight('missing-reply', 'notification-1');
+    mocks.refreshCurrentWindow.mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: false
+    });
+
+    render(ThreadPane, { props: { ...threadProps, highlight: target, onHighlightComplete } });
+
+    await vi.waitFor(() => expect(onHighlightComplete).toHaveBeenCalledWith(target));
+    expect(getToasts().some((toast) => toast.tone === 'error')).toBe(true);
+    expect(mocks.jumpToMessage).not.toHaveBeenCalled();
+    expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
   });
 
   it('reports a thread jump that cannot land on its target', async () => {
@@ -695,18 +725,7 @@ describe('ThreadPane', () => {
 
   it('cancels an edit when the thread message is deleted', async () => {
     mocks.editingEventId = 'reply-1';
-    mocks.threadStore!.threadEvents = [
-      {
-        id: 'reply-1',
-        createdAt: '2026-07-04T12:00:00Z',
-        actorId: 'test-user',
-        actor: null,
-        event: {
-          kind: TimelineEventKind.MessagePosted,
-          deletedAt: '2026-07-04T12:05:00Z'
-        }
-      } as never
-    ];
+    mocks.threadStore!.threadEvents = [threadMessage('reply-1', '2026-07-04T12:05:00Z')];
 
     render(ThreadPane, { props: threadProps });
 

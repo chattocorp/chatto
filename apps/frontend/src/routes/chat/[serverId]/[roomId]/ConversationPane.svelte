@@ -224,13 +224,14 @@ thread IDs can change while the pane stays mounted.
     const current = () =>
       request === highlightRequest && highlight === target && serverScope.isCurrent();
 
+    const isLoaded = () => events.some((event) => event.id === target.eventId);
     void (async () => {
       await tick();
-      if (isThread && !events.some((event) => event.id === target.eventId)) {
-        await messageStore.refreshCurrentWindow(target.eventId);
-      }
+      if (isThread && !isLoaded()) await messageStore.refreshCurrentWindow(target.eventId);
       if (!current()) return;
-      const jumped = await jumpState.jumpToMessage(target.eventId);
+      // A thread can only scroll to a message that its window contains.
+      const jumped =
+        isThread && !isLoaded() ? false : await jumpState.jumpToMessage(target.eventId);
       if (!current()) return;
       if (!jumped) {
         toast.error(m('room.jump_failed'));
