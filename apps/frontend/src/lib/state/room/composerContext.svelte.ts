@@ -160,14 +160,9 @@ export class JumpToMessageState {
   isLoadingNewer = $state(false);
 
   private _jumpFn: ((eventId: string) => Promise<boolean>) | null = null;
-  private _loadNewerFn: (() => Promise<void>) | null = null;
 
   setJumpHandler(fn: (eventId: string) => Promise<boolean>) {
     this._jumpFn = fn;
-  }
-
-  setLoadNewerHandler(fn: () => Promise<void>) {
-    this._loadNewerFn = fn;
   }
 
   async jumpToMessage(eventId: string): Promise<boolean> {
@@ -175,12 +170,6 @@ export class JumpToMessageState {
       return this._jumpFn(eventId);
     }
     return false;
-  }
-
-  async loadNewer(): Promise<void> {
-    if (this._loadNewerFn) {
-      await this._loadNewerFn();
-    }
   }
 
   reset(): void {
@@ -193,7 +182,7 @@ export class JumpToMessageState {
 }
 
 // ---------------------------------------------------------------------------
-// ComposerContext — bundles per-pane state (one per Room or ThreadPane)
+// ComposerContext — bundles per-pane state (one per ConversationPane)
 // ---------------------------------------------------------------------------
 
 export class ComposerContext {
@@ -209,7 +198,7 @@ export const [getComposerContext, setComposerContext] = createContext<ComposerCo
 
 /**
  * Create the composer context and set it in Svelte context.
- * Call from Room.svelte or ThreadPane during initialization.
+ * ConversationPane calls it during initialization, before its children render.
  */
 export function createComposerContext(): ComposerContext {
   const ctx = new ComposerContext();

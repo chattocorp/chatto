@@ -13,6 +13,7 @@ import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore, RoomMembersStore } from '$lib/state/room';
 import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import { getToasts, toast } from '$lib/ui/toast';
 
 const { mocks } = vi.hoisted(() => {
   const queryData = {
@@ -41,6 +42,8 @@ const { mocks } = vi.hoisted(() => {
       pageUrl: new URL('https://chat.example.test/chat/-/room-1'),
       pageState: {} as App.PageState,
       markRoomAsRead: vi.fn(),
+      clearUnreadMarker: vi.fn(),
+      unreadMarkerEventId: null as string | null,
       projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       resetTypingDebounce: vi.fn(),
       query: vi.fn(() => ({
@@ -177,16 +180,18 @@ vi.mock('$lib/hooks', () => ({
     isRoomLoading: false
   }),
   useRoomUnread: () => ({
-    unreadMarkerEventId: null,
-    unreadMarkerWindow: null,
-    markRoomAsRead: mocks.markRoomAsRead,
-    setUnreadMarkerEventId: vi.fn(),
-    clearUnreadMarker: vi.fn()
+    get unreadMarkerEventId() {
+      return mocks.unreadMarkerEventId;
+    },
+    markAsRead: mocks.markRoomAsRead,
+    clearUnreadMarker: mocks.clearUnreadMarker
   }),
   useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionEventHandler = handler;
   },
   usePresenceChange: vi.fn(),
+  // ConversationPane uses this only for thread timelines.
+  useUnreadMarker: vi.fn(),
   createTypingIndicator: () => ({
     userIds: [],
     sendTypingIndicator: vi.fn(),
@@ -318,9 +323,9 @@ vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
   return { default: MessageComposerMock };
 });
 
-vi.mock('./RoomEventsPane.svelte', async () => {
-  const { default: RoomEventsPaneMock } = await import('./RoomLocalEchoRoomEventsPaneMock.svelte');
-  return { default: RoomEventsPaneMock };
+vi.mock('./EventList.svelte', async () => {
+  const { default: EventListContractMock } = await import('./EventListContractMock.svelte');
+  return { default: EventListContractMock };
 });
 
 vi.mock('./ThreadPane.svelte', async () => {
@@ -469,8 +474,16 @@ beforeEach(() => {
   mocks.projectionEventHandler = null;
   mocks.roomFilesRetain.mockReset();
   mocks.roomFilesRetain.mockReturnValue(vi.fn());
-  mocks.messagesForRoom.mockReturnValue(
-    new MessagesStore({} as never, () => 'test-user', mocks.timeline)
+  // Like the server store, create one timeline per room.
+  const messagesByRoom: Record<string, MessagesStore> = Object.create(null);
+  mocks.messagesForRoom.mockImplementation(
+    (roomId: string) =>
+      (messagesByRoom[roomId] ??= new MessagesStore(
+        {} as never,
+        () => 'test-user',
+        { roomId },
+        mocks.timeline
+      ))
   );
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
@@ -493,6 +506,9 @@ beforeEach(() => {
   mocks.hasLimitedMessageAccess = false;
   mocks.canPostInThread = true;
   mocks.canPostInteractions = false;
+  mocks.unreadMarkerEventId = null;
+  mocks.clearUnreadMarker.mockClear();
+  toast.clear();
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
   mocks.markOccurrenceRead.mockReset();
@@ -660,6 +676,32 @@ describe('Room interaction bundles', () => {
     await expect.element(q(container, '[data-testid="room-event-ids"]')).not.toBeInTheDocument();
     await expect.element(q(container, '[data-testid="emit-returned-post"]')).toBeInTheDocument();
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+  });
+
+  it('shows the limited-access timeline without a conversation start marker', async () => {
+    mocks.hasLimitedMessageAccess = true;
+    mocks.timeline.getRoomEvents.mockResolvedValue(emptyTimelinePage());
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() =>
+      expect(q(container, '[data-testid="event-list-empty-message"]')).toHaveTextContent(
+        'No conversations you can read yet.'
+      )
+    );
+    expect(q(container, '[data-testid="event-list-start-marker"]')).toHaveTextContent('false');
+  });
+
+  it('forwards the unread marker and clears it at the bottom of the timeline', async () => {
+    mocks.unreadMarkerEventId = 'room-unread';
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="event-list-unread-after"]'))
+      .toHaveTextContent('room-unread');
+    (q(container, '[data-testid="event-list-reached-bottom"]') as HTMLButtonElement).click();
+    expect(mocks.clearUnreadMarker).toHaveBeenCalledOnce();
   });
 
   it('renders messages when an older server does not report the read permission', async () => {
@@ -1224,6 +1266,59 @@ describe('Room local message echo', () => {
 
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
+  });
+
+  it('shows an error when a room highlight cannot land on its message', async () => {
+    mocks.pendingHighlightConsume.mockReturnValueOnce({
+      eventId: 'msg-linked',
+      notificationId: null
+    });
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: false,
+      hasNewer: false
+    });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('msg-linked');
+    expect(getToasts()).toHaveLength(0);
+
+    (q(container, '[data-testid="fail-highlight"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('');
+    expect(getToasts().some((toast) => toast.tone === 'error')).toBe(true);
+  });
+
+  it('highlights a file message from the room sidebar in the room timeline', async () => {
+    appUi.openDesktopRoomSidebarPanel('files');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: false,
+      hasNewer: false
+    });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    (
+      await waitForElement<HTMLButtonElement>(container, '[data-testid="open-file-message"]')
+    ).click();
+
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('msg-linked');
+    await vi.waitFor(() =>
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledWith({
+        roomId: 'room-1',
+        eventId: 'msg-linked',
+        limit: 50
+      })
+    );
   });
 
   it('clears pending in-room reply state when the room changes', async () => {

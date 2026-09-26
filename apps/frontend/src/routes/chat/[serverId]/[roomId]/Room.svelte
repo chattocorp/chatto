@@ -5,28 +5,14 @@
   import { MediaQuery } from 'svelte/reactivity';
   import { beforeNavigate, goto, pushState, replaceState } from '$app/navigation';
   import { page } from '$app/state';
-  import { dropZone } from '$lib/attachments/dropZone.svelte';
-  import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
-  import MessageComposer, {
-    type MessageComposerApi
-  } from '$lib/components/composer/MessageComposer.svelte';
-  import {
-    useRoomData,
-    useRoomUnread,
-    useProjectionEvent,
-    createTypingIndicator
-  } from '$lib/hooks';
-  import { appState } from '$lib/state/globals.svelte';
+  import { useRoomData } from '$lib/hooks';
   import { m } from '$lib/i18n/messages';
   import {
-    createComposerContext,
     createMentionRoles,
-    getRoomMembers,
     setRoomMembersStore,
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
-  import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
   import {
     getAppUiState,
     getRoomSidebarPresentation,
@@ -41,14 +27,13 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
-  import { toast } from '$lib/ui/toast';
-  import { EmptyState, Hint } from '$lib/ui';
+  import { Hint } from '$lib/ui';
   import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import { tick } from 'svelte';
-  import RoomEventsPane from './RoomEventsPane.svelte';
+  import ConversationPane from './ConversationPane.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import {
@@ -130,7 +115,7 @@
   const navigation = new RoomNavigationState();
 
   function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
-    navigation.prepareThreadOpen(threadRootEventId, options);
+    navigation.prepareThreadOpen(roomId, threadRootEventId, options);
     goto(
       resolve('/chat/[serverId]/[roomId]/[threadId]', {
         serverId: serverSegment,
@@ -145,11 +130,7 @@
   }
 
   // Create context-based state (must be synchronous, before children render)
-  const composerContext = createComposerContext();
   createMentionRoles(() => stores.mentionRoles.roles);
-  const replyState = composerContext.replyState;
-  let replyStateRoomId: string | null = null;
-  const jumpState = composerContext.jumpState;
   const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
@@ -173,12 +154,6 @@
     };
   });
 
-  useTimelineMutations(() => ({
-    serverId: activeServerId,
-    roomId,
-    timeline: roomMessageStore
-  }));
-
   // --- Extracted hooks ---
   const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
   const roomPinsStore = $derived(
@@ -188,26 +163,9 @@
   );
 
   $effect(() => {
-    const currentRoomId = roomId;
-    if (replyStateRoomId === null) {
-      replyStateRoomId = currentRoomId;
-      return;
-    }
-    if (replyStateRoomId === currentRoomId) return;
-    replyStateRoomId = currentRoomId;
-    replyState.cancelReply();
-  });
-
-  $effect(() => {
     if (!stores.isAuthenticated) return;
     void stores.mentionRoles.refresh();
   });
-
-  const unread = useRoomUnread(() => ({
-    roomId,
-    events: roomMessageStore.rootEvents,
-    canReadMessages
-  }));
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived({
@@ -302,11 +260,13 @@
   });
 
   // Resolve the pending highlight once room data has loaded for the
-  // current roomId. Two sources, in priority order:
-  //   1. PendingHighlightStore — set by in-app navigations (notification
+  // current roomId. Three sources, in priority order:
+  //   1. A nested thread message route (/room/thread/m/message).
+  //   2. PendingHighlightStore — set by in-app navigations (notification
   //      clicks, message-link redirects). One-shot, consumed-on-success.
-  //   2. ?highlight= URL param — for shareable permalinks. Stripped after
+  //   3. ?highlight= URL param — for shareable permalinks. Stripped after
   //      consumption so a refresh doesn't re-fire it.
+  // The ConversationPane that shows the target timeline performs the jump.
   $effect(() => {
     if (!room.roomData) return;
     // Room.svelte lives in +layout and is reused across roomId changes; bail
@@ -374,39 +334,10 @@
     }
   }
 
+  /** Ask the pane that shows the target timeline to jump to the message. */
   function applyHighlight(eventId: string, notificationId: string | null = null): void {
-    const requestId = navigation.beginHighlight(eventId, !!threadId);
-    if (requestId === null) return;
-    const targetRoomId = roomId;
-
-    tick().then(async () => {
-      const jumped = await jumpState.jumpToMessage(eventId);
-      if (!serverScope.isCurrent() || targetRoomId !== roomId) return;
-      if (jumped && notificationId) {
-        void stores.notifications.markOccurrenceRead(notificationId).catch((error) => {
-          console.error('Failed to mark displayed notification read:', error);
-        });
-      }
-      if (!jumped && navigation.failMainHighlight(requestId, eventId)) {
-        toast.error(m('room.jump_failed'));
-      }
-    });
+    navigation.beginHighlight(roomId, threadId ?? null, eventId, notificationId);
   }
-
-  // Canonical facts invalidate the explicit reads that own this room's data.
-  useProjectionEvent((event) => {
-    const semantic = event.event?.event;
-    if (!semantic) return;
-    if (semantic.case === 'messagePosted' && semantic.value.roomId === roomId) {
-      if (semantic.value.threadRootEventId) return;
-      const actorId = event.event?.actorId;
-      if (actorId) typingIndicator.removeTypingUser(actorId);
-      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-        unread.markRoomAsRead(roomId, event.event?.id ?? '');
-      }
-      return;
-    }
-  });
 
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
@@ -645,7 +576,8 @@
     appUi.toggleRoomCallWide(activeServerId, roomId);
   }
 
-  function openFileMessage(
+  /** Show a message from a sidebar panel in its thread or in the room timeline. */
+  function openMessage(
     messageEventId: string,
     threadRootEventId: string | null,
     closeMobile = false
@@ -653,54 +585,12 @@
     if (threadRootEventId) {
       openThread(threadRootEventId, { highlightEventId: messageEventId });
     } else {
-      void jumpState.jumpToMessage(messageEventId);
+      navigation.beginHighlight(roomId, null, messageEventId);
     }
     if (closeMobile) {
       appUi.closeMobileRoomSidebarPanel();
     }
   }
-
-  function openSearchResult(
-    messageEventId: string,
-    threadRootEventId: string | null,
-    closeMobile = false
-  ): void {
-    if (threadRootEventId) {
-      openThread(threadRootEventId, { highlightEventId: messageEventId });
-    } else {
-      void jumpState.jumpToMessage(messageEventId);
-    }
-    if (closeMobile) appUi.closeMobileRoomSidebarPanel();
-  }
-
-  function openPinnedMessage(
-    messageEventId: string,
-    threadRootEventId: string | null,
-    closeMobile = false
-  ): void {
-    openFileMessage(messageEventId, threadRootEventId, closeMobile);
-  }
-
-  // Drop zone state for drag-and-drop uploads
-  let isDraggingFiles = $state(false);
-  let composerApi = $state<MessageComposerApi | null>(null);
-
-  // Drop zone attachment - only active when user can post and attach files.
-  const roomDropZone = $derived(
-    room.roomData?.canPostMessage && room.roomData?.canAttach
-      ? dropZone({
-          onDrop: (files) => composerApi?.addFiles(files),
-          onDragStateChange: (dragging) => (isDraggingFiles = dragging)
-        })
-      : undefined
-  );
-
-  // Typing indicator for main room (not thread)
-  const typingIndicator = createTypingIndicator(() => ({
-    roomId,
-    threadRootEventId: null,
-    currentUserId: stores.viewerId
-  }));
 </script>
 
 <svelte:window
@@ -778,9 +668,9 @@
       data-thread-dismiss-surface
       {@attach observeThreadLayout}
     >
-      <div
+      <ConversationPane
         class={[
-          'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
+          'transition-opacity duration-200',
           threadId && canReadMessages && !splitThreadLayout ? 'opacity-30' : '',
           hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
@@ -788,151 +678,124 @@
         inert={(threadId && canReadMessages && !splitThreadLayout) || hasMobileRoomSidebar
           ? true
           : undefined}
-        {@attach roomDropZone}
+        {roomId}
+        messageStore={roomMessageStore}
+        {threadingMode}
+        {canReadMessages}
+        hasLimitedMessageAccess={room.roomData?.hasLimitedMessageAccess ?? false}
+        canPost={permissions.canPostMessage}
+        canAttach={composerCanAttach}
+        composer={{
+          echoToConversation: room.isDM,
+          slowModeSeconds: room.roomData?.room.slowModeSeconds ?? 0,
+          slowModeNextPostAt: room.roomData?.slowModeNextPostAt ?? null,
+          slowModeBypassed: permissions.canManageRoom || permissions.canManageOthersMessage,
+          showCreateThread: composerCanCreateThread,
+          createThreadRequired: composerRequiresThread,
+          createThreadDefault: threadingMode === RoomThreadingMode.ENCOURAGED,
+          threadsEncouraged: threadingMode === RoomThreadingMode.ENCOURAGED,
+          getRecentThreadRootCandidate,
+          autoFocus: !threadId && !hasMobileRoomSidebar,
+          onThreadMessageSent: (threadRootEventId, event) =>
+            openThread(threadRootEventId, { highlightEventId: event?.id })
+        }}
+        highlight={navigation.highlightFor(roomId, null)}
+        onHighlightComplete={(highlight) => navigation.clearHighlight(highlight)}
+        onOpenThread={openThread}
+        onOpenCall={openRoomCall}
+        onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
       >
-        <DropZoneOverlay visible={isDraggingFiles} />
-
-        {#snippet roomPanelActions(panels: RoomSidebarPanel[])}
-          <RoomSidebarToggle
-            mode="mobile"
-            activePanel={activeMobileRoomSidebarProfileUserId ? null : mobileRoomSidebarPanel}
-            {panels}
-            hasActiveCall={hasActiveRoomCall}
-            hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
-            onToggle={toggleMobileRoomSidebarPanel}
-          />
-          <RoomSidebarToggle
-            mode="desktop"
-            activePanel={activeRoomSidebarPanel}
-            {panels}
-            hasActiveCall={hasActiveRoomCall}
-            hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
-            onToggle={toggleDesktopRoomSidebarPanel}
-          />
-        {/snippet}
-
-        {#snippet directMessageTitle()}
-          {#if room.dmData}<DirectMessageName
-              participants={room.dmData.participants}
-              currentUserId={room.dmData.currentUserId}
-              getDisplayName={getLiveDisplayName}
-            />{/if}
-        {/snippet}
-        <PaneHeader
-          title={presentation.title}
-          titleContent={room.isDM && room.dmData?.participants.length
-            ? directMessageTitle
-            : undefined}
-          subtitle={presentation.description}
-          collapseActions
-          hideOnKeyboard
-          actionsLabel={m('room_list.room_actions', { room: room.roomData?.room.name ?? '' })}
-        >
-          {#snippet actions()}
-            {@render roomPanelActions(roomSidebarTogglePanels)}
-            {#if room.isDM && directMessageProfileUserId}
-              <HeaderIconButton
-                icon="icon-[uil--info-circle]"
-                label={m('chat.profile.title')}
-                tone={activeRoomSidebarProfileUserId ? 'active' : 'default'}
-                onclick={() => openDirectMessageProfile(directMessageProfileUserId)}
-              />
-            {/if}
-            {#if showLeaveRoom}
-              <HeaderIconButton
-                icon="icon-[uil--sign-out-alt]"
-                label={m('room.leave.title')}
-                disabled={leavingRoom}
-                onclick={() =>
-                  pushState('', {
-                    modal: {
-                      type: 'leaveRoom',
-                      serverId: activeServerId,
-                      roomId,
-                      roomName: room.roomData!.room.name
-                    }
-                  })}
-              />
-            {/if}
+        {#snippet header()}
+          {#snippet roomPanelActions(panels: RoomSidebarPanel[])}
+            <RoomSidebarToggle
+              mode="mobile"
+              activePanel={activeMobileRoomSidebarProfileUserId ? null : mobileRoomSidebarPanel}
+              {panels}
+              hasActiveCall={hasActiveRoomCall}
+              hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
+              onToggle={toggleMobileRoomSidebarPanel}
+            />
+            <RoomSidebarToggle
+              mode="desktop"
+              activePanel={activeRoomSidebarPanel}
+              {panels}
+              hasActiveCall={hasActiveRoomCall}
+              hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
+              onToggle={toggleDesktopRoomSidebarPanel}
+            />
           {/snippet}
-          {#snippet collapsedActions()}
-            {#if hasActiveRoomCall && roomSidebarTogglePanels.includes('call')}
-              {@render roomPanelActions(['call'])}
-            {/if}
+
+          {#snippet directMessageTitle()}
+            {#if room.dmData}<DirectMessageName
+                participants={room.dmData.participants}
+                currentUserId={room.dmData.currentUserId}
+                getDisplayName={getLiveDisplayName}
+              />{/if}
           {/snippet}
-        </PaneHeader>
+          <PaneHeader
+            title={presentation.title}
+            titleContent={room.isDM && room.dmData?.participants.length
+              ? directMessageTitle
+              : undefined}
+            subtitle={presentation.description}
+            collapseActions
+            hideOnKeyboard
+            actionsLabel={m('room_list.room_actions', { room: room.roomData?.room.name ?? '' })}
+          >
+            {#snippet actions()}
+              {@render roomPanelActions(roomSidebarTogglePanels)}
+              {#if room.isDM && directMessageProfileUserId}
+                <HeaderIconButton
+                  icon="icon-[uil--info-circle]"
+                  label={m('chat.profile.title')}
+                  tone={activeRoomSidebarProfileUserId ? 'active' : 'default'}
+                  onclick={() => openDirectMessageProfile(directMessageProfileUserId)}
+                />
+              {/if}
+              {#if showLeaveRoom}
+                <HeaderIconButton
+                  icon="icon-[uil--sign-out-alt]"
+                  label={m('room.leave.title')}
+                  disabled={leavingRoom}
+                  onclick={() =>
+                    pushState('', {
+                      modal: {
+                        type: 'leaveRoom',
+                        serverId: activeServerId,
+                        roomId,
+                        roomName: room.roomData!.room.name
+                      }
+                    })}
+                />
+              {/if}
+            {/snippet}
+            {#snippet collapsedActions()}
+              {#if hasActiveRoomCall && roomSidebarTogglePanels.includes('call')}
+                {@render roomPanelActions(['call'])}
+              {/if}
+            {/snippet}
+          </PaneHeader>
 
-        {#if postingNotice || room.roomData?.hasLimitedMessageAccess}
-          <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
-            {#if postingNotice}
-              <div data-testid="room-post-denied">
-                <Hint>{postingNotice}</Hint>
-              </div>
-            {/if}
-            {#if room.roomData?.hasLimitedMessageAccess}
-              <div data-testid="limited-message-access">
-                <Hint>
-                  {m(
-                    room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access'
-                  )}
-                </Hint>
-              </div>
-            {/if}
-          </div>
-        {/if}
-
-        {#if canReadMessages}
-          <RoomEventsPane
-            hasLimitedMessageAccess={room.roomData?.hasLimitedMessageAccess ?? false}
-            {roomId}
-            messageStore={roomMessageStore}
-            unreadMarkerEventId={unread.unreadMarkerEventId}
-            onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
-            onOpenThread={openThread}
-            onOpenCall={openRoomCall}
-            pendingHighlightId={navigation.pendingMainHighlightId}
-            onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
-            onHighlightComplete={() => navigation.clearMainHighlight()}
-            typingUserIds={typingIndicator.userIds}
-            typingMembers={getRoomMembers()}
-            {threadingMode}
-          />
-        {:else}
-          <EmptyState icon="icon-[uil--eye-slash]">
-            {m('room.timeline.read_denied')}
-          </EmptyState>
-        {/if}
-
-        <MessageComposer
-          {roomId}
-          echoToConversation={room.isDM}
-          canPost={permissions.canPostMessage}
-          canAttach={composerCanAttach}
-          slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
-          slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
-          slowModeBypassed={permissions.canManageRoom || permissions.canManageOthersMessage}
-          showCreateThread={composerCanCreateThread}
-          createThreadRequired={composerRequiresThread}
-          createThreadDefault={threadingMode === RoomThreadingMode.ENCOURAGED}
-          threadsEncouraged={threadingMode === RoomThreadingMode.ENCOURAGED}
-          {getRecentThreadRootCandidate}
-          autoFocus={!threadId && !hasMobileRoomSidebar}
-          onReady={(api) => (composerApi = api)}
-          onTyping={() => typingIndicator?.sendTypingIndicator()}
-          onMessageSent={(event) => {
-            typingIndicator?.resetDebounce();
-            if (event) {
-              roomMessageStore.ingestEvent(event);
-            } else {
-              void roomMessageStore.refreshCurrentWindow(null);
-            }
-          }}
-          onThreadMessageSent={(threadRootEventId, event) => {
-            typingIndicator?.resetDebounce();
-            openThread(threadRootEventId, { highlightEventId: event?.id });
-          }}
-        />
-      </div>
+          {#if postingNotice || room.roomData?.hasLimitedMessageAccess}
+            <div class="flex shrink-0 flex-col gap-2 p-2" data-testid="room-permission-notices">
+              {#if postingNotice}
+                <div data-testid="room-post-denied">
+                  <Hint>{postingNotice}</Hint>
+                </div>
+              {/if}
+              {#if room.roomData?.hasLimitedMessageAccess}
+                <div data-testid="limited-message-access">
+                  <Hint>
+                    {m(
+                      room.isDM ? 'room.timeline.limited_access_dm' : 'room.timeline.limited_access'
+                    )}
+                  </Hint>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        {/snippet}
+      </ConversationPane>
 
       {#if threadId && (room.roomData || stores.realtimeSync.isRecoveringSnapshot) && canReadMessages}
         {#await loadThreadPane(threadPaneLoadAttempt)}
@@ -967,15 +830,13 @@
             slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
             slowModeBypassed={!!room.roomData?.canManageRoom ||
               !!room.roomData?.canManageOthersMessage}
-            highlightEventId={navigation.pendingThreadHighlight}
-            pendingQuote={navigation.pendingThreadQuote}
-            pendingReply={navigation.pendingThreadReply}
+            highlight={navigation.highlightFor(roomId, threadId)}
+            composerInput={navigation.composerInputFor(roomId, threadId)}
             presentation={threadPanePresentation}
             {threadingMode}
             onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
-            onHighlightComplete={() => navigation.clearThreadHighlight()}
-            onQuoteConsumed={() => navigation.clearThreadQuote()}
-            onReplyConsumed={() => navigation.clearThreadReply()}
+            onHighlightComplete={(highlight) => navigation.clearHighlight(highlight)}
+            onComposerInputConsumed={(input) => navigation.clearComposerInput(input)}
           />
         {:catch}
           <div
@@ -1015,11 +876,11 @@
               onSearchFocused: () => searchFocused('mobile'),
               activeProfileUserId: activeMobileRoomSidebarProfileUserId,
               onOpenFileMessage: (messageEventId, threadRootEventId) =>
-                openFileMessage(messageEventId, threadRootEventId, true),
+                openMessage(messageEventId, threadRootEventId, true),
               onOpenSearchResult: (messageEventId, threadRootEventId) =>
-                openSearchResult(messageEventId, threadRootEventId, true),
+                openMessage(messageEventId, threadRootEventId, true),
               onOpenPin: (messageEventId, threadRootEventId) =>
-                openPinnedMessage(messageEventId, threadRootEventId, true),
+                openMessage(messageEventId, threadRootEventId, true),
               onClose: closeMobileRoomSidebar
             }
           : null}
@@ -1036,9 +897,9 @@
           onSearchFocused: () => searchFocused('desktop'),
           activeProfileUserId: activeDesktopRoomSidebarProfileUserId,
           maximized: isDesktopCallMaximized,
-          onOpenFileMessage: openFileMessage,
-          onOpenSearchResult: openSearchResult,
-          onOpenPin: openPinnedMessage,
+          onOpenFileMessage: openMessage,
+          onOpenSearchResult: openMessage,
+          onOpenPin: openMessage,
           onToggleMaximized: toggleDesktopCallWide,
           onClose: closeDesktopRoomSidebar
         }}

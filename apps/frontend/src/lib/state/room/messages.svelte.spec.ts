@@ -61,7 +61,6 @@ async function hydrateRoomPage(
   vi.mocked(timeline.getRoomEvents).mockResolvedValueOnce(
     roomTimelinePageToEventConnectionPage(page)
   );
-  store.awaitRoomProjection('room-1');
   await store.hydrateRealtimeProjection('fixture-cursor', () => true, true);
 }
 
@@ -393,9 +392,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents: vi.fn(() => pending.promise) })
     );
-    store.setRoom('room-1');
     const row = threadMessageEvent('m1');
     const edited = { ...row, event: { ...row.event, body: 'edited' } };
     store.captureMessageReconciliation()('m1', edited, true);
@@ -409,9 +408,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI()
     );
-    store.setRoom('room-1');
     await settle();
     const row = threadMessageEvent('m1');
     store.ingestEvent(row);
@@ -427,6 +426,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
     const message = threadMessageEvent('m1');
@@ -505,9 +505,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
     await store.ensureEvent('preview');
 
@@ -538,9 +538,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
 
     const loading = store.ensureEvent('preview');
@@ -578,9 +578,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
     store.events = [mainEvent as never];
     await store.ensureEvent('preview');
@@ -614,9 +614,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
     store.events = [threadMessageEvent('main') as never];
     const refreshing = store.refreshCurrentWindow('main');
@@ -654,8 +654,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
   it('reports a successful jump when the target is already loaded', async () => {
     const fake = new FakeQueryClient();
     const timeline = fakeTimelineAPI();
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
     store.events = [threadMessageEvent('m1') as never];
 
@@ -683,8 +687,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: true
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     const jumpState = new JumpToMessageState();
@@ -712,10 +720,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
 
-    store.setRoom('room-1');
     await settle();
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
 
@@ -734,10 +742,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
 
-    store.setRoom('room-1');
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
     initial.resolve(pageFromEvent(threadMessageEvent('loaded-after-boundary')));
     await settle();
@@ -756,11 +764,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    store.setRoom('room-1');
     await settle();
     await expect(store.restoreLatestWindow()).resolves.toBe(true);
 
@@ -783,10 +791,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
 
-    store.setRoom('room-1');
     const replacing = store.jumpToPresent(new JumpToMessageState());
     initial.resolve(pageFromEvent(threadMessageEvent('stale-latest')));
     await settle();
@@ -820,10 +828,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
 
-    store.setRoom('room-1');
     await settle();
     await store.jumpToMessage('historical-target', new JumpToMessageState());
     await expect(store.restoreLatestWindow()).resolves.toBe(true);
@@ -852,11 +860,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    store.setRoom('room-1');
     await settle();
     await store.jumpToMessage('historical-target', new JumpToMessageState());
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
@@ -882,9 +890,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
 
     const jumping = store.jumpToMessage('historical-target', new JumpToMessageState());
@@ -912,8 +920,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       resolveAround = resolve;
     });
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.awaitRoomProjection('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('historical-target', jumpState);
@@ -942,7 +954,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       resolveAround = resolve;
     });
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
 
     const jumpState = new JumpToMessageState();
@@ -982,10 +999,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1', threadRootEventId: 'thread-root' },
       timeline
     );
 
-    store.setThread('room-1', 'thread-root');
     store.events = [threadMessageEvent('cached-thread-plaintext', 'thread-root') as never];
     store.clearForAccessRevocation();
     expect(store.events).toEqual([]);
@@ -1016,9 +1033,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.awaitRoomProjection('room-1');
     await hydrateRoomPage(store, timeline, projectedMessagePage('secret'));
     const late = deferred<EventConnectionPage>();
     vi.mocked(timeline.getRoomEvents).mockReturnValueOnce(late.promise);
@@ -1051,10 +1068,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.awaitRoomProjection('room-1');
-    await store.hydrateRealtimeProjection('current-cursor', () => true);
+    await settle();
 
     const loading = store.loadMore();
     store.resetProjectionState();
@@ -1080,9 +1097,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
-    store.setRoom('room-1');
     await settle();
 
     store.resetProjectionState();
@@ -1103,10 +1120,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
     try {
-      store.setRoom('room-1');
       await vi.waitFor(() => expect(store.isInitialLoading).toBe(false));
       expect(errorLog).not.toHaveBeenCalled();
 
@@ -1128,9 +1145,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
-    store.setRoom('room-1');
     await settle();
 
     const hydration = store.hydrateRealtimeProjection('replacement-cursor', () => true, true);
@@ -1151,6 +1168,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('old-private-row'));
@@ -1186,6 +1204,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('old-private-row'));
@@ -1208,6 +1227,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
     await hydrateRoomPage(store, timeline, projectedMessagePage('private-row'));
@@ -1235,9 +1255,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1', threadRootEventId: 'root' },
       fakeTimelineAPI({ getThreadEvents, getThreadEventsAround })
     );
-    store.setThread('room-1', 'root');
     await settle();
     store.setViewport({ eventId: 'anchor', offset: 17 });
     store.resetProjectionState();
@@ -1274,9 +1294,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
-    store.setRoom('room-1');
     await settle();
 
     store.resetProjectionState();
@@ -1309,9 +1329,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1', threadRootEventId: 'thread-root' },
       fakeTimelineAPI({ getThreadEvents })
     );
-    store.setThread('room-1', 'thread-root');
     await settle();
 
     const loading = store.loadMore();
@@ -1338,8 +1358,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       resolveAround = resolve;
     });
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.awaitRoomProjection('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('missing-target', jumpState);
@@ -1365,8 +1389,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       rejectAround = reject;
     });
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.awaitRoomProjection('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('failed-target', jumpState);
@@ -1387,8 +1415,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       resolveAround = resolve;
     });
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.awaitRoomProjection('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('hydrated-target', jumpState);
@@ -1414,8 +1446,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       rejectAround = reject;
     });
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.awaitRoomProjection('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
     const jumpState = new JumpToMessageState();
     const jumping = store.jumpToMessage('hydrated-target', jumpState);
@@ -1439,8 +1475,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: false
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
     store.events = [threadMessageEvent('m1') as never];
 
@@ -1464,8 +1504,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
         throw new Error('network failed');
       })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     const jumpState = new JumpToMessageState();
@@ -1496,8 +1540,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
           hasNewer: false
         })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     const jumpState = new JumpToMessageState();
@@ -1528,8 +1576,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       resolveInitial = resolve;
     });
     const timeline = fakeTimelineAPI({ getRoomEvents: vi.fn(() => initialPage) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     store.events = [threadMessageEvent('linked-realtime') as never];
 
     const jumpState = new JumpToMessageState();
@@ -1585,8 +1637,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
           hasNewer: true
         })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     const jumpState = new JumpToMessageState();
@@ -1628,7 +1684,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: true
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await hydrateRoomPage(store, timeline, projectedMessagePage('latest-message'));
 
     const jumpState = new JumpToMessageState();
@@ -1677,8 +1738,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
         }),
       getRoomEventsAround: vi.fn(() => aroundPage)
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     const jumpState = new JumpToMessageState();
@@ -1722,8 +1787,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
         })
         .mockImplementationOnce(() => olderPage)
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     let completed = false;
@@ -1752,8 +1821,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
     type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
     const unresolvedAround = new Promise<AroundPage>(() => {});
     const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => unresolvedAround) });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
     store.events = [threadMessageEvent('loaded-target') as never];
 
@@ -1783,8 +1856,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
           hasNewer: false
         })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     expect(store.isInitialLoading).toBe(true);
 
     await store.refreshCurrentWindow();
@@ -1805,9 +1882,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: false
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
-    store.setRoom('room-1');
     await settle();
 
     expect(timeline.getRoomEvents).toHaveBeenCalledWith({ roomId: 'room-1', limit: 50 });
@@ -1839,9 +1920,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
           hasNewer: true
         })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
     await vi.waitFor(() => {
       expect(store.isInitialLoading).toBe(false);
@@ -1853,36 +1937,6 @@ describe('MessagesStore — room lifecycle ownership', () => {
       limit: 50,
       before: 'tl:cursor-join'
     });
-    store.dispose();
-  });
-
-  it('does not refetch or clear events when setRoom is called for the current room', async () => {
-    const loaded = threadMessageEvent('m1');
-    const fake = new FakeQueryClient(
-      roomEventsResult({
-        events: [loaded],
-        startCursor: null,
-        endCursor: null,
-        hasOlder: false,
-        hasNewer: false
-      })
-    );
-    const store = new MessagesStore(
-      fake as unknown as ServerConnection,
-      () => null,
-      timelineFromFixtures(fake)
-    );
-
-    store.setRoom('room-1');
-    await settle();
-    fake.queryMock.mockClear();
-
-    store.setRoom('room-1');
-    await settle();
-
-    expect(fake.queryMock).not.toHaveBeenCalled();
-    expect(store.rootEvents.map((event) => event.id)).toEqual(['m1']);
-    expect(store.isInitialLoading).toBe(false);
     store.dispose();
   });
 
@@ -1900,10 +1954,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -1929,10 +1983,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -1955,9 +2009,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
 
     const stale = store.ensureEvent('preview');
@@ -1988,9 +2042,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
 
     const loading = store.ensureEvent('preview');
@@ -2013,9 +2067,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
 
     const loading = store.ensureEvent('preview');
@@ -2036,9 +2090,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
     store.events = [threadMessageEvent('main') as never];
     const refreshing = store.refreshCurrentWindow('main');
@@ -2068,9 +2122,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
     await store.ensureEvent('echo');
     await store.ensureEvent('retained');
@@ -2125,10 +2179,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2179,10 +2233,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2252,10 +2306,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2297,10 +2351,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2334,10 +2388,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2366,10 +2420,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2397,10 +2451,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2436,10 +2490,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2489,10 +2543,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2528,8 +2582,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       })),
       getRoomEventsAround: vi.fn(async () => pageFromEvent(updated))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     const optimistic = store.beginOptimisticReaction({
@@ -2567,8 +2625,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
       })),
       getRoomEventsAround: vi.fn(async () => pageFromEvent(updated))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
 
     const optimistic = store.beginOptimisticThreadFollow('m1', true);
@@ -2587,8 +2649,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const timeline = fakeTimelineAPI({
       getRoomEventsAround: vi.fn(async () => pageFromEvent(messageWithReaction('preview', 'heart')))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setRoom('room-1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     await settle();
     await store.ensureEvent('preview');
 
@@ -2668,10 +2734,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2722,10 +2788,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2744,17 +2810,17 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('runs an initial fetch on setRoom', async () => {
+  it('runs an initial fetch when it is created', async () => {
     const fake = new FakeQueryClient({
       room: { events: { events: [], hasOlder: false, hasNewer: false } }
     });
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
 
     expect(fake.queryMock).toHaveBeenCalledTimes(1);
@@ -2774,11 +2840,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
     const returnedPost = threadMessageEvent('m-local');
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2804,11 +2870,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
     const returnedReply = threadMessageEvent('r1', 't1');
 
-    store.setRoom('room-1');
     await settle();
 
     store.ingestEvent(returnedReply as never);
@@ -2838,10 +2904,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -2879,10 +2945,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     const previousEvents = store.events;
 
@@ -2903,11 +2969,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       {} as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       fakeTimelineAPI({ getRoomEvents })
     );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    store.setRoom('room-1');
     await settle();
     const result = await store.refreshCurrentWindow();
 
@@ -2931,10 +2997,14 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: true
       }))
     });
-    const store = new MessagesStore({} as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      {} as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    store.setRoom('room-1');
     await settle();
     await store.jumpToMessage('historical', new JumpToMessageState());
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
@@ -2964,10 +3034,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
 
     const result = await store.refreshCurrentWindow();
@@ -3005,10 +3075,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3058,10 +3128,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3102,10 +3172,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3132,10 +3202,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      thread ? { roomId: 'room-1', threadRootEventId: 'root' } : { roomId: 'room-1' },
       fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) })
     );
-    if (thread) store.setThread('room-1', 'root');
-    else store.setRoom('room-1');
     await settle();
     store.ingestEvent({
       ...threadMessageEvent('m3', thread ? 'root' : null),
@@ -3166,9 +3235,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       const store = new MessagesStore(
         new FakeQueryClient() as unknown as ServerConnection,
         () => null,
+        { roomId: 'room-1' },
         fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) })
       );
-      store.setRoom('room-1');
       await settle();
       store.ingestEvent({ ...threadMessageEvent('m3'), actorResolution: 'loading' });
       const refreshing = store.refreshPostedMessage('m3');
@@ -3209,9 +3278,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
       const store = new MessagesStore(
         new FakeQueryClient() as unknown as ServerConnection,
         () => null,
+        { roomId: 'room-1' },
         fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) })
       );
-      store.setRoom('room-1');
       await settle();
       const event = { ...threadMessageEvent('m3'), actorResolution: 'loading' as const };
       store.ingestEvent(event);
@@ -3246,10 +3315,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
 
-    store.setRoom('room-1');
     await settle();
 
     expect(await store.refreshPostedMessage('m3')).toBe(true);
@@ -3260,37 +3329,17 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('discards a posted-message read after the timeline route changes', async () => {
-    const pending = deferred<ReturnType<typeof threadMessageEvent>>();
-    const timeline = fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) });
-    const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection,
-      () => null,
-      timeline
-    );
-
-    store.setRoom('room-1');
-    await settle();
-    const refreshing = store.refreshPostedMessage('m3');
-    store.setRoom('room-2');
-    pending.resolve(threadMessageEvent('m3'));
-
-    expect(await refreshing).toBe(false);
-    expect(store.events).toEqual([]);
-    store.dispose();
-  });
-
   it('discards a posted-message read from a superseded projection generation', async () => {
     const pending = deferred<ReturnType<typeof threadMessageEvent>>();
     const timeline = fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) });
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
     let current = true;
 
-    store.setRoom('room-1');
     await settle();
     const refreshing = store.refreshPostedMessage('m3', 'opaque-cursor', () => current);
     current = false;
@@ -3322,9 +3371,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timeline
     );
-    store.setRoom('room-1');
     await settle();
     store.events = [echo as never];
 
@@ -3370,10 +3419,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
 
-    store.setRoom('room-1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3444,9 +3493,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
           hasNewer: true
         })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
 
-    store.setRoom('room-1');
     await settle();
 
     await store.loadMore();
@@ -3506,9 +3559,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: true
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3542,9 +3599,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
           })
       )
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     const root = threadMessageEvent('t1');
     const updatedRoot = {
       ...root,
@@ -3583,8 +3644,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
           })
       )
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-    store.setThread('room-1', 't1');
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
     await settle();
 
     const refreshing = store.refreshCurrentWindow('t1');
@@ -3630,9 +3695,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
         hasNewer: true
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3689,9 +3758,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
           hasNewer: true
         })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     await settle();
 
     const result = await store.refreshCurrentWindow(null);
@@ -3722,6 +3795,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
+      { roomId: 'room-1' },
       timelineFromFixtures(fake)
     );
     store.dispose();
@@ -3741,9 +3815,13 @@ describe('MessagesStore — thread lifecycle ownership', () => {
         hasNewer: false
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     await settle();
 
     expect(timeline.getThreadEvents).toHaveBeenCalledWith({
@@ -3779,9 +3857,13 @@ describe('MessagesStore — thread lifecycle ownership', () => {
         hasNewer: true
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3802,33 +3884,6 @@ describe('MessagesStore — thread lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('does not refetch or clear events when setThread is called for the current thread', async () => {
-    const fake = new FakeQueryClient();
-    const timeline = fakeTimelineAPI({
-      getThreadEvents: vi.fn(async () => ({
-        events: [threadMessageEvent('t1') as never, threadMessageEvent('r1', 't1') as never],
-        startCursor: null,
-        endCursor: null,
-        hasOlder: false,
-        hasNewer: false
-      }))
-    });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
-
-    store.setThread('room-1', 't1');
-    await settle();
-    vi.mocked(timeline.getThreadEvents).mockClear();
-
-    store.setThread('room-1', 't1');
-    await settle();
-
-    expect(timeline.getThreadEvents).not.toHaveBeenCalled();
-    expect(fake.queryMock).not.toHaveBeenCalled();
-    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
-    expect(store.isInitialLoading).toBe(false);
-    store.dispose();
-  });
-
   it('ingests a returned thread reply immediately and dedupes later subscription delivery', async () => {
     const fake = new FakeQueryClient();
     const timeline = fakeTimelineAPI({
@@ -3840,10 +3895,14 @@ describe('MessagesStore — thread lifecycle ownership', () => {
         hasNewer: false
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
     const returnedReply = threadMessageEvent('r1', 't1');
 
-    store.setThread('room-1', 't1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3867,7 +3926,12 @@ describe('MessagesStore — thread lifecycle ownership', () => {
         hasNewer: false
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
     const otherThreadReply = threadMessageEvent('r-other-thread', 'other-thread');
     const otherRoomReplyBase = threadMessageEvent('r-other-room', 't1');
     const otherRoomReply = {
@@ -3878,7 +3942,6 @@ describe('MessagesStore — thread lifecycle ownership', () => {
       }
     };
 
-    store.setThread('room-1', 't1');
     await settle();
 
     store.ingestEvent(otherThreadReply as never);
@@ -3899,9 +3962,13 @@ describe('MessagesStore — thread lifecycle ownership', () => {
         hasNewer: false
       }))
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     await settle();
     fake.queryMock.mockClear();
 
@@ -3958,9 +4025,13 @@ describe('MessagesStore — thread lifecycle ownership', () => {
           hasNewer: true
         })
     });
-    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
 
-    store.setThread('room-1', 't1');
     await settle();
 
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r51', 'r52']);

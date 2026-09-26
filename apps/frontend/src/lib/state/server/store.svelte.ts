@@ -567,8 +567,9 @@ export class ServerStateStore {
   messagesForRoom(roomId: string): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.setRoom(roomId);
+    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null, {
+      roomId
+    });
     this.#roomMessages[roomId] = store;
     return store;
   }
@@ -790,8 +791,10 @@ export class ServerStateStore {
     const key = `${roomId}\u0000${threadRootEventId}`;
     let store = this.#threadMessages[key];
     if (store) return store;
-    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.setThread(roomId, threadRootEventId);
+    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null, {
+      roomId,
+      threadRootEventId
+    });
     this.#threadMessages[key] = store;
     return store;
   }

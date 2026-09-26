@@ -519,7 +519,7 @@
     if (!replyToId) return;
 
     // Use jump-to-message state which works with the virtualizer.
-    // Both Room (main view) and ThreadPane provide this context.
+    // Every ConversationPane provides this context.
     jumpState.jumpToMessage(replyToId);
   }
 
@@ -614,8 +614,8 @@
         event.id;
       selectedReplyQuoteSnapshot = null;
       onOpenThread(threadRoot);
-      // Note: Thread notifications are dismissed by ThreadPane's $effect when it mounts,
-      // which also handles direct URL navigation to threads.
+      // The thread's ConversationPane marks the thread read. That also covers
+      // direct URL navigation to threads.
     }
   }
 </script>

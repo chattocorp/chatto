@@ -47,6 +47,13 @@ type RoomDeletedPayload = Extract<
   { kind: typeof TimelineEventKind.RoomDeleted }
 >;
 
+/** The timeline that a {@link MessagesStore} owns: a room, or one thread in it. */
+export type MessageTimelineTarget = {
+  roomId: string;
+  /** The thread root event ID, or null for the room timeline. */
+  threadRootEventId?: string | null;
+};
+
 export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
   hasNewer: boolean;
@@ -156,7 +163,8 @@ export class MessagesStore {
   }
 
   private readonly roomTimeline: RoomTimelineAPI;
-  private source: MessageTimelineSource | null = null;
+  /** The room or thread timeline that this store owns for its whole lifetime. */
+  private readonly source: MessageTimelineSource;
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
   private previewEvents = new SvelteMap<string, TimelineEventView | null>();
   private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
@@ -180,31 +188,38 @@ export class MessagesStore {
   #projectionAccessRevoked = false;
   #previewGeneration = 0;
 
+  /**
+   * Create the store for one room or thread timeline and start its first read.
+   * The timeline cannot change later; each room and thread gets its own store.
+   */
   constructor(
     serverConnection: ServerConnection,
     private readonly getCurrentUserId: () => string | null,
+    target: MessageTimelineTarget,
     roomTimeline?: RoomTimelineAPI
   ) {
     this.roomTimeline = roomTimeline ?? roomTimelineFromServerConnection(serverConnection);
+    this.source = target.threadRootEventId
+      ? MessageTimelineSource.thread(this.roomTimeline, target.roomId, target.threadRootEventId)
+      : MessageTimelineSource.room(this.roomTimeline, target.roomId);
+    if (this.scope === 'room') {
+      void this.resetAndFetchLatest();
+    } else {
+      const thisLoad = this.startLoad();
+      void this.fetchCurrent(thisLoad);
+    }
   }
 
   private get scope() {
-    return this.source?.scope ?? null;
+    return this.source.scope;
   }
 
   private get roomId() {
-    return this.source?.roomId ?? '';
+    return this.source.roomId;
   }
 
   private get threadRootEventId() {
-    return this.source?.threadRootEventId ?? '';
-  }
-
-  private selectRoom(roomId: string): MessageTimelineSource {
-    if (!this.source?.matches('room', roomId)) {
-      this.source = MessageTimelineSource.room(this.roomTimeline, roomId);
-    }
-    return this.source;
+    return this.source.threadRootEventId ?? '';
   }
 
   /** Tear down lifecycle listeners. Idempotent. */
@@ -218,13 +233,13 @@ export class MessagesStore {
   /** Root-level events only (excludes thread replies). */
   get rootEvents(): TimelineEventView[] {
     const events = this.events;
-    return this.source?.rootEventsFrom(events) ?? [];
+    return this.source.rootEventsFrom(events);
   }
 
   /** Events that belong to this thread (root + replies). */
   get threadEvents(): TimelineEventView[] {
     const events = this.events;
-    return this.source?.threadEventsFrom(events) ?? [];
+    return this.source.threadEventsFrom(events);
   }
 
   /** Look up an event already known to this room, including off-window preview targets. */
@@ -307,13 +322,12 @@ export class MessagesStore {
     event: TimelineEventView | null,
     insert: boolean
   ) => void {
-    const source = this.source;
     const before = snapshotEventFingerprints(this.events);
     const previews = snapshotEventFingerprints(
       [...this.previewEvents.values()].filter((event): event is TimelineEventView => !!event)
     );
     return (id, event, insert) => {
-      if (!source || this.source !== source || this.#projectionAccessRevoked) return;
+      if (this.#projectionAccessRevoked) return;
       if (!event) {
         this.applyMessageRetraction(id, new SvelteDate().toISOString());
         return;
@@ -455,27 +469,6 @@ export class MessagesStore {
     clearOptimisticThreadFollowForEvent(this.optimisticThreadFollows, eventId);
   }
 
-  setRoom(roomId: string): void {
-    if (this.source?.matches('room', roomId)) return;
-
-    this.clearViewport();
-    this.selectRoom(roomId);
-    this.#jumpId++;
-    this.#windowId++;
-    this.#pendingJumpId = null;
-    void this.resetAndFetchLatest();
-  }
-
-  /** Select a room without issuing a read while its projection prefix is in flight. */
-  awaitRoomProjection(roomId: string): void {
-    if (this.source?.matches('room', roomId)) return;
-    this.startLoad();
-    this.selectRoom(roomId);
-    this.#pendingAuthoritativeLoadId = null;
-    this.resetState();
-    this.isInitialLoading = true;
-  }
-
   /** Supersede a historical jump when this room crosses a route boundary. */
   cancelPendingHistoricalJump(): void {
     this.#jumpId++;
@@ -513,7 +506,6 @@ export class MessagesStore {
     acceptResult: () => boolean,
     replaceWindow = false
   ): Promise<boolean> {
-    if (!this.source) return Promise.resolve(false);
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     // Keep the retained timeline visible until its replacement read settles.
@@ -632,21 +624,6 @@ export class MessagesStore {
     this.seenIds.delete(eventId);
   }
 
-  setThread(roomId: string, threadRootEventId: string): void {
-    if (this.source?.matches('thread', roomId, threadRootEventId)) return;
-
-    this.clearViewport();
-    this.source = MessageTimelineSource.thread(this.roomTimeline, roomId, threadRootEventId);
-    this.#jumpId++;
-    this.#windowId++;
-    this.#pendingJumpId = null;
-
-    const thisLoad = this.startLoad();
-    this.resetState();
-    this.isInitialLoading = true;
-    void this.fetchCurrent(thisLoad);
-  }
-
   /**
    * Route an already-renderable event into the store. Used for historical
    * pages and read-your-writes after mutations that return the posted event.
@@ -689,7 +666,6 @@ export class MessagesStore {
   async loadMore(): Promise<void> {
     const source = this.source;
     if (
-      !source ||
       this.#projectionAccessRevoked ||
       this.isLoadingMore ||
       this.hasReachedStart ||
@@ -704,10 +680,10 @@ export class MessagesStore {
     try {
       const page = await source.fetchPage({ limit: PAGE_SIZE, before });
 
-      // A reset, access revocation, route/scope change, or owner disposal may
-      // have happened while this page was in flight. Never let an older
+      // A reset, access revocation, or owner disposal may have happened while
+      // this page was in flight. Never let an older
       // authorization context reinstall plaintext or overwrite new cursors.
-      if (this.isStale(loadId) || this.#projectionAccessRevoked || this.source !== source) {
+      if (this.isStale(loadId) || this.#projectionAccessRevoked) {
         return;
       }
 
@@ -737,14 +713,14 @@ export class MessagesStore {
       // Yield a frame so the virtualizer can settle before another loadMore.
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
-      if (!this.isStale(loadId) && this.source === source) {
+      if (!this.isStale(loadId)) {
         this.isLoadingMore = false;
       }
     }
   }
 
   async refetchAll(): Promise<void> {
-    const snapshot = [...(this.source?.eventsFrom(this.events) ?? [])];
+    const snapshot = [...this.source.eventsFrom(this.events)];
     for (const event of snapshot) {
       await this.refetchOne(event.id);
     }
@@ -768,7 +744,6 @@ export class MessagesStore {
 
   async loadNewer(jumpState: JumpToMessageState): Promise<void> {
     const source = this.source;
-    if (!source) return;
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
     if (!this.newestCursor) return;
 
@@ -781,7 +756,7 @@ export class MessagesStore {
       });
 
       // User left jumped mode while in flight — abandon the result.
-      if (!jumpState.isJumpedMode || this.source !== source || this.#windowId !== windowId) {
+      if (!jumpState.isJumpedMode || this.#windowId !== windowId) {
         return;
       }
 
@@ -800,7 +775,7 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
-      if (this.source === source && this.#windowId === windowId) {
+      if (this.#windowId === windowId) {
         jumpState.isLoadingNewer = false;
       }
     }
@@ -808,7 +783,7 @@ export class MessagesStore {
 
   async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
     const source = this.source;
-    if (source?.scope !== 'room') return false;
+    if (source.scope !== 'room') return false;
     const jumpId = ++this.#jumpId;
     if (this.events.some((e) => e.id === eventId)) {
       if (this.#pendingJumpId !== null) {
@@ -827,7 +802,7 @@ export class MessagesStore {
     try {
       const around = await source.fetchAround(eventId, PAGE_SIZE);
 
-      if (this.#jumpId !== jumpId || this.source !== source) return false;
+      if (this.#jumpId !== jumpId) return false;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = this.unmaskEvents(rawEvents).map((event) => {
@@ -867,7 +842,7 @@ export class MessagesStore {
       jumpState.scrollToEventId = eventId;
       return true;
     } catch (error) {
-      if (this.#jumpId !== jumpId || this.source !== source) return false;
+      if (this.#jumpId !== jumpId) return false;
       if (this.events.some((event) => event.id === eventId)) {
         jumpState.scrollToEventId = eventId;
         return true;
@@ -879,7 +854,7 @@ export class MessagesStore {
       jumpState.hasOlderMessages = false;
       return false;
     } finally {
-      if (this.#jumpId === jumpId && this.source === source) {
+      if (this.#jumpId === jumpId) {
         this.#pendingJumpId = null;
         this.isInitialLoading = this.#pendingAuthoritativeLoadId !== null;
       }
@@ -887,7 +862,6 @@ export class MessagesStore {
   }
 
   jumpToPresent(jumpState: JumpToMessageState): Promise<boolean> {
-    if (!this.source) return Promise.resolve(false);
     this.clearViewport();
     this.#jumpId++;
     this.#windowId++;
@@ -908,7 +882,6 @@ export class MessagesStore {
     acceptResult: () => boolean = () => true
   ): Promise<RefreshCurrentWindowResult> {
     const source = this.source;
-    if (!source) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
@@ -936,7 +909,7 @@ export class MessagesStore {
         : anchor
           ? await source.fetchAround(anchor, PAGE_SIZE, undefined, minimumCursor)
           : await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
-      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) {
+      if (this.isStale(thisLoad) || !acceptResult()) {
         return skippedRefreshResult();
       }
       const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
@@ -976,25 +949,24 @@ export class MessagesStore {
    * Read and ingest one newly posted message before the wider cursor window is
    * reconciled. This keeps realtime delivery responsive without treating the
    * canonical event as a second message-resource shape. The result reports
-   * whether this same timeline is still active and can be reconciled.
+   * whether the caller still accepts the result and can reconcile the timeline.
    */
   async refreshPostedMessage(
     eventId: string,
     minimumCursor?: string,
     acceptResult: () => boolean = () => true
   ): Promise<boolean> {
-    const source = this.source;
-    if (!source || !eventId) return false;
+    if (!eventId) return false;
 
     const previous = this.events.find((event) => event.id === eventId);
     const previousFingerprint = previous ? eventFingerprint(previous) : null;
     try {
       const event = await this.roomTimeline.getMessage({
-        roomId: source.roomId,
+        roomId: this.roomId,
         eventId,
         minimumCursor
       });
-      if (this.source !== source || !acceptResult()) return false;
+      if (!acceptResult()) return false;
       if (event) {
         const currentIndex = this.events.findIndex((candidate) => candidate.id === eventId);
         const hydrated = this.applyPrivacyBoundaries(event);
@@ -1009,14 +981,14 @@ export class MessagesStore {
       } else this.markAuthorUnavailable(eventId);
       return true;
     } catch (error) {
-      if (this.source !== source || !acceptResult()) return false;
+      if (!acceptResult()) return false;
       this.markAuthorUnavailable(eventId);
       if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
-        return this.source === source;
+        return true;
       }
       console.error('MessagesStore: refreshPostedMessage failed:', error);
       if (minimumCursor) throw error;
-      return this.source === source;
+      return true;
     }
   }
 
@@ -1068,7 +1040,7 @@ export class MessagesStore {
     eventId: string,
     threadRootEventId?: string | null
   ): Promise<TimelineEventView | null> {
-    const page = await this.source?.fetchAround(eventId, 1, threadRootEventId ?? null);
+    const page = await this.source.fetchAround(eventId, 1, threadRootEventId ?? null);
     if (!page) return null;
     return this.unmaskEvents(page.events).find((event) => event.id === eventId) ?? null;
   }
@@ -1274,10 +1246,10 @@ export class MessagesStore {
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
     const hasExistingContinuityEvents = this.events.some(
-      (event) => existingBeforeFetch.has(event.id) && !!this.source?.isContinuityEvent(event)
+      (event) => existingBeforeFetch.has(event.id) && this.source.isContinuityEvent(event)
     );
     const hasFetchedOverlap = fetched.some(
-      (event) => existingBeforeFetch.has(event.id) && !!this.source?.isContinuityEvent(event)
+      (event) => existingBeforeFetch.has(event.id) && this.source.isContinuityEvent(event)
     );
     const discontinuousLatestSnapshot =
       !!options.preserveExistingWindow &&
@@ -1332,7 +1304,7 @@ export class MessagesStore {
       merged.push(e);
     }
 
-    const nextEvents = this.source?.sort(merged) ?? merged;
+    const nextEvents = this.source.sort(merged);
     const changed = !sameEventList(this.events, nextEvents);
 
     if (changed) {
@@ -1374,13 +1346,12 @@ export class MessagesStore {
   }
 
   private async resetAndFetchLatest(): Promise<boolean> {
-    const source = this.source;
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
     const loaded = await this.fetchCurrent(thisLoad);
-    if (this.source === source && !this.isStale(thisLoad)) this.#needsLatestWindow = !loaded;
+    if (!this.isStale(thisLoad)) this.#needsLatestWindow = !loaded;
     return loaded;
   }
 
@@ -1392,7 +1363,6 @@ export class MessagesStore {
     replaceWindow = false
   ): Promise<boolean> {
     const source = this.source;
-    if (!source) return false;
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     try {
       // A removed anchor cannot prevent recovery. Only NotFound falls back;
@@ -1404,10 +1374,10 @@ export class MessagesStore {
           : await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
       } catch (error) {
         if (!anchorEventId || !isConnectCode(error, Code.NotFound)) throw error;
-        if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
+        if (this.isStale(thisLoad) || !acceptResult()) return false;
         page = await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
       }
-      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
+      if (this.isStale(thisLoad) || !acceptResult()) return false;
       if (source.scope === 'room') {
         this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
           preserveExistingWindow: !replaceWindow
@@ -1420,7 +1390,7 @@ export class MessagesStore {
         // reply). Overwriting would drop them.
         this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
       }
-      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
+      if (this.isStale(thisLoad) || !acceptResult()) return false;
       this.#pendingAuthoritativeLoadId = null;
       // A concurrent historical jump still owns its loading state.
       this.isInitialLoading = this.#pendingJumpId !== null;
@@ -1432,7 +1402,7 @@ export class MessagesStore {
       }
       return true;
     } catch (error: unknown) {
-      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
+      if (this.isStale(thisLoad) || !acceptResult()) return false;
       if (
         !(error instanceof StaleResponseError) &&
         !isConnectCode(error, Code.PermissionDenied) &&
@@ -1501,6 +1471,6 @@ export class MessagesStore {
   }
 
   private sortEvents(): void {
-    if (this.source) this.events = this.source.sort(this.events);
+    this.events = this.source.sort(this.events);
   }
 }

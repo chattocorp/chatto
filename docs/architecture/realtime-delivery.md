@@ -504,8 +504,8 @@ Outgoing push payloads omit numeric app badge values.
 
 Each server store owns a RAM-only
 [`ReadViewRegistry`](../../apps/frontend/src/lib/state/server/readViews.svelte.ts).
-Visible thread panes register independently and remove their own registration
-when hidden or unmounted. Exact room and thread targets permit concurrent views;
+Mounted thread panes register independently and remove their own registration
+when they unmount. Exact room and thread targets permit concurrent views;
 a room view does not cover its threads. App focus and visibility gate the shared
 attention rule. Notification badges and sound use this rule without changing
 server rows or counts. Presentation counts subtract only loaded unread

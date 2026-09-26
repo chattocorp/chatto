@@ -8,11 +8,6 @@ export type PendingThreadReply = {
   excerpt: string;
 };
 
-export type PendingThreadReplyRequest = PendingThreadReply & {
-  id: number;
-  threadRootEventId: string;
-};
-
 export type ThreadOpenOptions = {
   highlightEventId?: string;
   quoteText?: QuoteInsertionContent;

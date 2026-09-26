@@ -3,8 +3,8 @@ import { SvelteMap } from 'svelte/reactivity';
 /**
  * Transient store for "next time we land in room X (or thread X/T), highlight
  * event Y." Set by in-app navigations (e.g. notification clicks) before the
- * goto, then consumed by Room.svelte / ThreadPane.svelte once the destination's
- * data has loaded and the room id matches.
+ * goto, then consumed by Room.svelte once the destination's data has loaded and
+ * the room id matches. Room hands the target to the matching ConversationPane.
  *
  * Why not URL params? `?highlight=` is reactive and survives refresh (which
  * means the highlight re-fires every time the URL is parsed), and the
