@@ -162,10 +162,7 @@ function resetSidebar() {
   sidebarNav.setMobile(true);
 }
 
-function renderLayout(
-  content = '<main data-testid="layout-child"></main>',
-  startup: { startupPending: boolean; startupServerId: string } | null = null
-) {
+function renderLayout(content = '<main data-testid="layout-child"></main>') {
   const serverInfo: PublicServerInfo = {
     name: 'Test Server',
     version: 'test',
@@ -182,9 +179,7 @@ function renderLayout(
 
   return render(Layout, {
     props: {
-      data: startup
-        ? { serverInfo: null, serverInfoLoaded: false, user: null, ...startup }
-        : { serverInfo, serverInfoLoaded: true, user: null },
+      data: { serverInfo, serverInfoLoaded: true, user: null },
       children: testSnippet(content)
     }
   });
@@ -211,40 +206,6 @@ describe('OAuth page layout', () => {
   afterEach(() => {
     page.route.id = '/';
     Object.assign(page, { url: new URL('https://chat.example.test/') });
-  });
-
-  it('verifies a saved viewer after paint without remounting the route', async () => {
-    const startupStore = $state({
-      startupPresentationOnly: true,
-      currentUser: { user: undefined },
-      serverInfo: { motd: null },
-      notifications: {
-        attention: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
-      }
-    });
-    vi.mocked(mocks.recoverServer).mockImplementation(async () => {
-      startupStore.startupPresentationOnly = false;
-    });
-    vi.mocked(serverRegistry.tryGetStore).mockReturnValue(startupStore as never);
-    const view = renderLayout(
-      '<main data-testid="layout-child"><div data-testid="timeline" style="height: 20px; overflow: auto"><div style="height: 100px">Message</div></div><input data-testid="composer" /></main>',
-      { startupPending: true, startupServerId: 'origin' }
-    );
-    const child = q(view.container, '[data-testid="layout-child"]')!;
-    const timeline = q(view.container, '[data-testid="timeline"]')!;
-    const composer = q(view.container, '[data-testid="composer"]') as HTMLInputElement;
-    timeline.scrollTop = 24;
-    composer.value = 'draft text';
-
-    await vi.waitFor(() => expect(mocks.recoverServer).toHaveBeenCalledWith('origin'));
-    await tick();
-
-    expect(q(view.container, '[data-testid="layout-child"]')).toBe(child);
-    expect(q(view.container, '[data-testid="timeline"]')).toBe(timeline);
-    expect(q(view.container, '[data-testid="composer"]')).toBe(composer);
-    expect(timeline.scrollTop).toBe(24);
-    expect(composer.value).toBe('draft text');
-    expect(mocks.invalidateAll).not.toHaveBeenCalled();
   });
 
   it('restores the frame when client-side navigation leaves OAuth login', async () => {

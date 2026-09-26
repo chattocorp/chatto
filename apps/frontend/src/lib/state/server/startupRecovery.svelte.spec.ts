@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { savedViewFixture } from '$lib/test-utils/savedView';
-import { Code, ConnectError } from '@connectrpc/connect';
-import { render } from 'vitest-browser-svelte';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
@@ -39,7 +37,6 @@ vi.mock('$lib/api-client/server', () => ({
 import { serverRegistry } from './registry.svelte';
 import { ServerConnection } from './serverConnection.svelte';
 import { emptyServerSession } from './sessions.svelte';
-import ServerRuntimeCoordinator from './ServerRuntimeCoordinator.svelte';
 
 describe('origin startup recovery', () => {
   beforeEach(() => {
@@ -66,13 +63,11 @@ describe('origin startup recovery', () => {
     );
     const store = serverRegistry.getStore('origin');
     store.currentUser.loading = false;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: 'origin',
-        userId: 'U1',
-        serverName: 'Chatto',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    store.projection.rooms.set(
+      'R1',
+      new RoomWithViewerState({
+        room: { id: 'R1', name: 'general' },
+        viewerState: { isMember: true }
       })
     );
     return store;
@@ -109,51 +104,6 @@ describe('origin startup recovery', () => {
     }
   );
 
-  it.each(['timer', 'online'] as const)(
-    'retries a failed saved viewer through %s while realtime stays deferred',
-    async (trigger) => {
-      const store = retainedStore();
-      vi.spyOn(ServerConnection.prototype, 'maintainBrowserSession').mockImplementation(() => {});
-      vi.spyOn(console, 'error').mockImplementation(() => {});
-      mocks.viewer
-        .mockRejectedValueOnce(new Error('offline'))
-        .mockRejectedValueOnce(new Error('offline'))
-        .mockResolvedValueOnce({ id: 'U1', login: 'one', displayName: 'One' });
-      const view = render(ServerRuntimeCoordinator, {
-        props: { deferConnections: true }
-      });
-      try {
-        await serverRegistry.recoverServer('origin');
-        expect(store.startupPresentationOnly).toBe(true);
-        expect(store.isAuthenticated).toBe(false);
-        expect(mocks.viewer).toHaveBeenCalledTimes(2);
-
-        if (trigger === 'online') window.dispatchEvent(new Event('online'));
-
-        await vi.waitFor(() => expect(store.isAuthenticated).toBe(true), { timeout: 4_000 });
-        expect(mocks.viewer).toHaveBeenCalledTimes(3);
-        expect(store.currentUser.verifiedUserId).toBe('U1');
-        expect(store.navigation.rooms.some((room) => room.id === 'R1')).toBe(true);
-        expect(store.projection.rooms.size).toBe(1);
-      } finally {
-        view.unmount();
-      }
-    }
-  );
-
-  it('keeps a disk view read-only after a transient viewer failure', async () => {
-    const store = retainedStore();
-    mocks.viewer.mockRejectedValue(new Error('offline'));
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    await serverRegistry.recoverServer('origin');
-
-    expect(store.startupPresentationOnly).toBe(true);
-    expect(store.isAuthenticated).toBe(false);
-    expect(store.navigation.rooms.some((room) => room.id === 'R1')).toBe(true);
-    vi.restoreAllMocks();
-  });
-
   it('verifies the same viewer without replacing the retained store', async () => {
     const store = retainedStore();
     const renew = vi
@@ -167,12 +117,11 @@ describe('origin startup recovery', () => {
     expect(mocks.viewer).toHaveBeenCalledOnce();
     expect(serverRegistry.getStore('origin')).toBe(store);
     expect(store.navigation.rooms).toEqual(rooms);
-    expect(store.startupPresentationOnly).toBe(false);
     expect(store.isAuthenticated).toBe(true);
     expect(renew).toHaveBeenCalledOnce();
   });
 
-  it('shares the account request between route loading and saved-view recovery', async () => {
+  it('shares the account request between route loading and recovery', async () => {
     const store = retainedStore();
     const { loadCurrentUser } = await import('$lib/auth/loadAuth');
     let finish!: (user: { id: string; login: string; displayName: string }) => void;
@@ -271,22 +220,9 @@ describe('origin startup recovery', () => {
     expect(current.projection.rooms.has('R1')).toBe(false);
   });
 
-  it('clears the saved private view after the viewer is rejected', async () => {
-    const store = retainedStore();
-    mocks.viewer.mockRejectedValueOnce(new ConnectError('unauthenticated', Code.Unauthenticated));
-
-    await serverRegistry.recoverServer('origin');
-
-    expect(store.projection.rooms.has('R1')).toBe(false);
-    expect(store.startupPresentationOnly).toBe(false);
-    expect(store.isAuthenticated).toBe(false);
-    expect(serverRegistry.originSignInRequired).toBe(true);
-  });
-
   it('keeps the reauthentication notice while loaded data remains readable', () => {
     const store = retainedStore();
     store.realtimeSync.markCaughtUp('live');
-    store.verifyStartupViewer('U1');
 
     serverRegistry.handleAuthenticationRequired('origin');
 

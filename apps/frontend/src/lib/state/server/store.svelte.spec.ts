@@ -1,9 +1,7 @@
 import { resetUserStoresForTests } from './users.svelte';
-import { savedViewFixture } from '$lib/test-utils/savedView';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { flushSync } from 'svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import type { RoomFileItem } from '$lib/api-client/attachments';
@@ -50,7 +48,6 @@ import {
   UserLeftRoomEvent,
   MessagePostedEvent,
   MessageEditedEvent,
-  MessageRetractedEvent,
   ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
@@ -344,8 +341,6 @@ vi.mock('$lib/api-client/viewer', async (importActual) => {
   };
 });
 
-vi.mock('$lib/storage/savedViews', { spy: true });
-
 vi.mock('$lib/api-client/attachments', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/attachments')>();
   return {
@@ -358,7 +353,6 @@ vi.mock('$lib/api-client/attachments', async (importActual) => {
 });
 
 import { ServerStateStore } from './store.svelte';
-import { clearSavedView, loadSavedView } from '$lib/storage/savedViews';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import {
   registerFollowedThreadQueryCache,
@@ -370,9 +364,6 @@ import type { RegisteredServer } from './registry.svelte';
 
 class FakeServerConnection {
   invalidatePrivateData = vi.fn();
-  pausePrivateRequests = vi.fn();
-  resumePrivateRequests = vi.fn();
-  cancelPrivateRequests = vi.fn();
   serverId = 'store-event-test';
   connectBaseUrl = 'https://store-event.test';
   reconnectCount = $state(0);
@@ -675,289 +666,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('ServerStateStore viewer restoration', () => {
-  it('round-trips room groups, full message metadata, members, and viewer display state', () => {
-    const original = makeStore(new FakeServerConnection([]));
-    original.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({
-        profile: new User({ id: 'U1', login: 'alice', displayName: 'Alice' })
-      })
-    });
-    original.projection.roomGroups = [new RoomGroup({ id: 'G1', name: 'Projects' })];
-    original.projection.users.set(
-      'U2',
-      new DirectoryMember({
-        user: new User({ id: 'U2', login: 'bob', displayName: 'Bob' })
-      })
-    );
-    original.projection.rooms.set(
-      'R1',
-      new RoomWithViewerState({
-        room: { id: 'R1', name: 'general' },
-        viewerState: {
-          isMember: true,
-          permissions: [{ permission: 'message.read', granted: true }]
-        }
-      })
-    );
-    const events: TimelineEventView[] = [
-      {
-        id: 'M1',
-        createdAt: '2026-09-23T00:00:00Z',
-        actorId: 'U2',
-        event: {
-          kind: TimelineEventKind.MessagePosted,
-          roomId: 'R1',
-          body: 'With metadata',
-          attachments: [],
-          reactions: [{ emoji: '👍', count: 2, hasReacted: true, users: [] }],
-          replyCount: 3,
-          threadExists: true,
-          threadParticipants: [],
-          threadParticipantCount: 2,
-          viewerIsFollowingThread: true,
-          viewerHasUnreadThread: false,
-          pinned: true,
-          canReplyInThread: true
-        }
-      }
-    ];
-    original.messagesForRoom('R1', true).restorePresentation('R1', events);
-    original.membersForRoom('R1').restorePresentation({
-      ids: ['U2'],
-      totalCount: 1,
-      complete: true,
-      presence: [['U2', 1]]
-    });
-    original.realtimePresenceHandler(
-      new RealtimeEvent({
-        actorId: 'U2',
-        event: { case: 'presenceChanged', value: new PresenceChangedEvent({ status: 4 }) }
-      })
-    );
-    original.realtimeSync.markCaughtUp('live-cursor');
-    original.saveCurrentView(original.realtimeSync.lastCaughtUpAt!);
-    const snapshot = JSON.parse(JSON.stringify(original.savedView));
-    const restored = makeStore(new FakeServerConnection([]));
-    restored.currentUser.loading = false;
-    restored.restoreSavedView(snapshot);
-
-    expect(restored.messagesForRoom('R1').rootEvents).toEqual(events);
-    expect(restored.navigation.rooms).toEqual(original.navigation.rooms);
-    expect(restored.projection.roomGroups.map((group) => group.toJson())).toEqual(
-      original.projection.roomGroups.map((group) => group.toJson())
-    );
-    expect(restored.membersForRoom('R1').capturePresentation()).toEqual(
-      original.membersForRoom('R1').capturePresentation()
-    );
-    expect(restored.viewerUser?.displayName).toBe('Alice');
-    expect(restored.projection.users.get('U2')?.user?.presenceStatus).toBe(4);
-    expect(restored.currentUser.verifiedUserId).toBeNull();
-    expect(restored.isAuthenticated).toBe(false);
-    expect(restored.realtimeSync.resumeCursor).toBe('live-cursor');
-  });
-  it('does not restore a saved view for a session that needs reauthentication', () => {
-    const store = makeStore(new FakeServerConnection([]), {
-      ...registered,
-      userId: 'U1',
-      reauthRequiredAt: Date.now()
-    });
-    const view = savedViewFixture({
-      serverId: store.serverId,
-      userId: 'U1',
-      serverName: 'Saved server',
-      savedAt: Date.now(),
-      rooms: [{ id: 'R1', name: 'general', messages: [] }]
-    });
-    // A copy saved before the session expired is also discarded.
-    store.savedView = view;
-    store.currentUser.loading = false;
-    store.restoreSavedView(view);
-
-    expect(store.startupPresentationOnly).toBe(false);
-    expect(store.savedView).toBeNull();
-    expect(store.projection.rooms.has('R1')).toBe(false);
-    expect(store.realtimeSync.restoredFromDisk).toBe(false);
-  });
-  it('restores the saved view from disk while the projection is empty', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.networkStartupDeferred = true;
-    vi.mocked(loadSavedView).mockResolvedValueOnce(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Saved server',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      })
-    );
-
-    await store.restoreSavedViewFromDisk();
-
-    expect(loadSavedView).toHaveBeenCalledWith(store.serverId, 'U1');
-    expect(store.projection.rooms.has('R1')).toBe(true);
-    expect(store.realtimeSync.restoredFromDisk).toBe(true);
-  });
-  it('retains a disk view for a dormant sidebar server without showing it', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    // A dormant remote store is deferred and has not loaded its viewer yet.
-    store.networkStartupDeferred = true;
-    expect(store.currentUser.loading).toBe(true);
-    const view = savedViewFixture({
-      serverId: store.serverId,
-      userId: 'U1',
-      serverName: 'Saved server',
-      savedAt: Date.now(),
-      rooms: [{ id: 'R1', name: 'general', messages: [] }]
-    });
-    vi.mocked(loadSavedView).mockResolvedValueOnce(view);
-
-    await store.retainSavedViewFromDisk();
-
-    expect(store.savedView).toBe(view);
-    expect(store.projection.rooms.has('R1')).toBe(false);
-    expect(store.startupPresentationOnly).toBe(false);
-    expect(store.realtimeSync.phase).toBe('empty');
-  });
-  it('only retains a saved view while a started store loads its viewer', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    expect(store.networkStartupDeferred).toBe(false);
-    expect(store.currentUser.loading).toBe(true);
-    const view = savedViewFixture({
-      serverId: store.serverId,
-      userId: 'U1',
-      serverName: 'Saved server',
-      savedAt: Date.now(),
-      rooms: [{ id: 'R1', name: 'general', messages: [] }]
-    });
-
-    store.restoreSavedView(view);
-
-    expect(store.savedView).toBe(view);
-    expect(store.projection.rooms.has('R1')).toBe(false);
-    expect(store.startupPresentationOnly).toBe(false);
-  });
-  it('discards a saved view that it cannot decode', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.networkStartupDeferred = true;
-    const view = savedViewFixture({
-      serverId: store.serverId,
-      userId: 'U1',
-      serverName: 'Saved server',
-      savedAt: Date.now(),
-      rooms: [{ id: 'R1', name: 'general', messages: [] }]
-    });
-    view.rooms[0].id = 'R2';
-    vi.mocked(clearSavedView).mockClear();
-
-    store.restoreSavedView(view);
-
-    expect(store.savedView).toBeNull();
-    expect(clearSavedView).toHaveBeenCalledWith(store.serverId, 'U1');
-    expect(store.projection.rooms.size).toBe(0);
-    expect(store.startupPresentationOnly).toBe(false);
-    expect(store.realtimeSync.phase).toBe('empty');
-  });
-  it('does not read the saved view for a store that has a projection', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.realtimeSync.markCaughtUp('live-cursor');
-    vi.mocked(loadSavedView).mockClear();
-
-    await store.restoreSavedViewFromDisk();
-
-    expect(loadSavedView).not.toHaveBeenCalled();
-  });
-  it('automatically saves loaded rooms without a route dwell timer or recent-room limit', async () => {
-    vi.useFakeTimers();
-    const store = makeStore(new FakeServerConnection([]));
-    const capture = vi.spyOn(store, 'saveCurrentView');
-    const rooms = Array.from({ length: 15 }, (_, i) => ({
-      id: `R${i}`,
-      name: `Room ${i}`,
-      messages: []
-    }));
-    store.currentUser.loading = false;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Server',
-        savedAt: Date.now(),
-        rooms
-      })
-    );
-    store.projection.viewer = new GetViewerResponse({ user: { profile: { id: 'U1' } } });
-    for (const room of rooms) {
-      const events = savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Server',
-        savedAt: Date.now(),
-        rooms: [
-          {
-            ...room,
-            messages: Array.from({ length: 75 }, (_, i) => ({
-              id: `M${i}`,
-              createdAt: '2026-09-25T00:00:00Z',
-              author: 'Member',
-              body: `Message ${i}`
-            }))
-          }
-        ]
-      }).rooms[0].events;
-      store.messagesForRoom(room.id).restorePresentation(room.id, events, true, {
-        hasNewer: false,
-        startCursor: 'start',
-        endCursor: 'end'
-      });
-    }
-    store.realtimeSync.markCaughtUp('all-loaded-rooms');
-    flushSync();
-    expect(capture).not.toHaveBeenCalled();
-    for (let i = 0; i < 20; i++) {
-      store.realtimeSync.acceptProjectionEvent(`burst-${i}`, false);
-      flushSync();
-    }
-    store.realtimeSync.acceptProjectionEvent('all-loaded-rooms', false);
-    flushSync();
-    vi.advanceTimersByTime(100);
-    expect(capture).toHaveBeenCalledTimes(1);
-    expect(store.savedView?.checkpoint).toBe('all-loaded-rooms');
-    expect(store.savedView?.rooms).toHaveLength(15);
-    expect(
-      store.savedView?.rooms.every(
-        (room) => room.events.length === 75 && room.timeline?.startCursor === 'start'
-      )
-    ).toBe(true);
-    const confirmed = store.savedView;
-    const reaction = store
-      .messagesForRoom('R0')
-      .beginOptimisticReaction({ messageEventId: 'M0', emoji: '👍', action: 'add' });
-    store.realtimeSync.acceptProjectionEvent('while-mutation-pending', false);
-    flushSync();
-    vi.advanceTimersByTime(100);
-    expect(store.savedView).toBe(confirmed);
-    reaction.rollback();
-    flushSync();
-    vi.advanceTimersByTime(100);
-    expect(store.savedView?.checkpoint).toBe('while-mutation-pending');
-    // Pagination alone must still schedule a save on a quiet connection.
-    store
-      .messagesForRoom('R0')
-      .events.push({ ...store.messagesForRoom('R0').events[0], id: 'older' });
-    flushSync();
-    vi.advanceTimersByTime(100);
-    expect(store.savedView?.rooms[0].events).toHaveLength(76);
-    store
-      .membersForRoom('R0')
-      .restorePresentation({ ids: ['U1'], totalCount: 2, complete: false, presence: [] });
-    await Promise.resolve();
-    flushSync();
-    vi.advanceTimersByTime(100);
-    expect(store.savedView?.rooms[0].members?.ids).toEqual(['U1']);
-    store.dispose();
-  });
-
+describe('ServerStateStore viewer', () => {
   it('loads the viewer with the connection renewal hook', async () => {
     const connection = new FakeServerConnection([]);
     const store = makeStore(connection);
@@ -970,133 +679,6 @@ describe('ServerStateStore viewer restoration', () => {
         renewBearerToken: connection.renewBearerToken
       })
     );
-  });
-
-  it('restores normal room stores without granting connection authority', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.currentUser.loading = false;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        viewerName: 'Alice',
-        serverName: 'Saved server',
-        savedAt: Date.now(),
-        rooms: [
-          {
-            id: 'R1',
-            name: 'general',
-            kind: RoomKind.CHANNEL,
-            messages: [
-              {
-                id: 'M1',
-                createdAt: '2026-09-23T00:00:00Z',
-                authorId: 'U2',
-                author: 'Bob',
-                body: 'Saved message'
-              }
-            ]
-          }
-        ]
-      })
-    );
-
-    expect(store.realtimeSync.phase).toBe('stale');
-    expect(store.realtimeSync.resumeCursor).toBe('saved-checkpoint');
-    expect(store.realtimeSync.lastCaughtUpAt).toBeNull();
-    expect(store.projection.rooms.size).toBe(1);
-    expect(store.projection.users.size).toBe(0);
-    expect(store.permissions.loaded).toBe(false);
-    expect(store.navigation.rooms).toMatchObject([
-      {
-        id: 'R1',
-        name: 'general',
-        viewerIsMember: true,
-        viewerCanReadMessages: true,
-        viewerCanJoinRoom: false,
-        viewerCanManageRoom: false
-      }
-    ]);
-    expect(store.navigation.isRoomMember('R1')).toBe(true);
-    expect(store.messagesForRoom('R1').rootEvents[0]?.event).toMatchObject({
-      body: 'Saved message'
-    });
-    expect(store.currentUser.user).toBeUndefined();
-    expect(store.projection.viewer).toBeNull();
-    expect(store.startupPresentationOnly).toBe(true);
-    expect(store.isAuthenticated).toBe(false);
-    const timeline = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)?.value;
-    expect(timeline?.getRoomEvents).not.toHaveBeenCalled();
-  });
-
-  it('shows a disk view before viewer loading but keeps transport unauthorized', () => {
-    const connection = new FakeServerConnection([]);
-    const store = makeStore(connection);
-    store.networkStartupDeferred = true;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Saved server',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      })
-    );
-    // Startup recovery starts network work before it verifies the viewer.
-    store.networkStartupDeferred = false;
-
-    expect(store.currentUser.user).toBeUndefined();
-    expect(store.currentUser.loading).toBe(true);
-    expect(store.projection.viewer).toBeNull();
-    expect(store.realtimeSync.phase).toBe('stale');
-    expect(store.startupPresentationOnly).toBe(true);
-    expect(store.isAuthenticated).toBe(false);
-    store.verifyStartupViewer('other-viewer');
-    expect(store.isAuthenticated).toBe(false);
-    expect(connection.resumePrivateRequests).not.toHaveBeenCalled();
-    store.verifyStartupViewer('U1');
-    expect(store.isAuthenticated).toBe(true);
-    expect(connection.resumePrivateRequests).toHaveBeenCalledOnce();
-    expect(store.realtimeSync.phase).toBe('stale');
-  });
-
-  it('keeps a dormant registered server unauthenticated until network startup', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.networkStartupDeferred = true;
-
-    expect(store.isAuthenticated).toBe(false);
-    store.networkStartupDeferred = false;
-    expect(store.isAuthenticated).toBe(true);
-  });
-
-  it('keeps the complete account separate from saved content and public profiles', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    await store.currentUser.load();
-    const account = store.currentUser.user;
-    store.networkStartupDeferred = true;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        viewerName: 'Old display name',
-        serverName: 'Saved server',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      })
-    );
-    store.networkStartupDeferred = false;
-    expect(store.realtimeSync.restoredFromDisk).toBe(true);
-    expect(store.currentUser.user).toBe(account);
-    store.projection.users.set(
-      'U1',
-      new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Public profile' }) })
-    );
-    expect(store.currentUser.user).toBe(account);
-    store.projection.users.delete('U1');
-    expect(store.currentUser.user).toBe(account);
-    store.clearSavedPresentation();
-    expect(store.currentUser.user).toBe(account);
-    expect(store.currentUser.verifiedUserId).toBe(account?.id);
   });
 });
 
@@ -1542,210 +1124,6 @@ describe('ServerStateStore room search state', () => {
 });
 
 describe('ServerStateStore unified realtime resources', () => {
-  it.each([
-    new RealtimeEvent({
-      event: {
-        case: 'messageEdited',
-        value: new MessageEditedEvent({ roomId: 'R1', messageEventId: 'M1' })
-      }
-    }),
-    new RealtimeEvent({
-      event: {
-        case: 'messageRetracted',
-        value: new MessageRetractedEvent({ roomId: 'R1', messageEventId: 'M1' })
-      }
-    }),
-    new RealtimeEvent({
-      event: {
-        case: 'assetDeleted',
-        value: new AssetDeletedEvent({ roomId: 'R1', messageEventId: 'M1', assetId: 'A1' })
-      }
-    })
-  ])(
-    'discards copied disk content immediately at a message privacy boundary: $event.case',
-    async (event) => {
-      const store = makeStore(new FakeServerConnection([]));
-      store.savedView = savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Example',
-        savedAt: Date.now(),
-        rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      });
-      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ event }));
-      expect(store.savedView).toBeNull();
-      await store.waitForRealtimeReconciliation();
-    }
-  );
-  it.each(['full read', 'limited read', 'no read', 'not a member', 'removed'] as const)(
-    'reconciles saved text against live room access: %s',
-    (access) => {
-      const store = makeStore(new FakeServerConnection([]));
-      store.currentUser.loading = false;
-      store.restoreSavedView(
-        savedViewFixture({
-          serverId: store.serverId,
-          userId: 'U1',
-          serverName: 'Saved server',
-          savedAt: Date.now(),
-          rooms: [
-            {
-              id: 'R1',
-              name: 'general',
-              messages: [
-                {
-                  id: 'M1',
-                  createdAt: '2026-09-23T00:00:00Z',
-                  author: 'Bob',
-                  authorId: 'U2',
-                  body: 'Saved message'
-                }
-              ]
-            }
-          ]
-        })
-      );
-      const messages = store.messagesForRoom('R1');
-      const retained = messages.rootEvents;
-      store.verifyStartupViewer('U1');
-      store.realtimeSync.acceptProjectionEvent(undefined, true);
-      store.realtimeProjectionHandler(
-        new RealtimeProjectionUpdate({ reset: true, retainView: true })
-      );
-      store.realtimeProjectionHandler(
-        new RealtimeProjectionUpdate({
-          resource: roomResource(
-            access === 'removed'
-              ? []
-              : [
-                  new RoomWithViewerState({
-                    room: { id: 'R1' },
-                    viewerState: {
-                      isMember: access !== 'not a member',
-                      permissions: [
-                        { permission: 'message.read', granted: access === 'full read' },
-                        { permission: 'message.read-interactions', granted: access !== 'no read' },
-                        { permission: 'message.post', granted: true }
-                      ]
-                    }
-                  })
-                ]
-          )
-        })
-      );
-      if (access === 'full read') {
-        expect(messages.rootEvents).toEqual(retained);
-        expect(messages.isInitialLoading).toBe(false);
-      } else {
-        expect(messages.rootEvents).toEqual([]);
-        expect(store.savedView).toBeNull();
-        store.realtimeProjectionHandler(
-          new RealtimeProjectionUpdate({ reset: true, retainView: true })
-        );
-        expect(messages.rootEvents).toEqual([]);
-        if (access === 'removed') expect(store.navigation.rooms).toEqual([]);
-      }
-    }
-  );
-
-  it('keeps saved text through a failed snapshot read and replaces it on retry', async () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.currentUser.loading = false;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Saved',
-        savedAt: Date.now(),
-        rooms: [
-          {
-            id: 'R1',
-            name: 'general',
-            messages: [
-              {
-                id: 'saved',
-                author: 'Bob',
-                authorId: 'U2',
-                createdAt: '2026-09-23T00:00:00Z',
-                body: 'Saved text'
-              }
-            ]
-          }
-        ]
-      })
-    );
-    const messages = store.messagesForRoom('R1');
-    const api = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)!.value;
-    const read = vi.mocked(api.getRoomEvents);
-    const freshPage = await api.getRoomEvents('R1');
-    read.mockClear();
-    read.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(freshPage);
-    store.verifyStartupViewer('U1');
-    store.realtimeProjectionHandler(
-      new RealtimeProjectionUpdate({ reset: true, retainView: true })
-    );
-    store.realtimeProjectionHandler(
-      new RealtimeProjectionUpdate({
-        resource: roomResource([
-          new RoomWithViewerState({
-            room: { id: 'R1', name: 'Live room' },
-            viewerState: {
-              isMember: true,
-              permissions: [
-                { permission: 'message.read', granted: true },
-                { permission: 'message.read-interactions', granted: true },
-                { permission: 'message.post', granted: true }
-              ]
-            }
-          })
-        ])
-      })
-    );
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      await expect(store.completeRealtimeCatchUp('first')).rejects.toThrow('offline');
-      expect(messages.rootEvents[0]?.event).toMatchObject({ body: 'Saved text' });
-      expect(store.navigation.rooms[0]?.name).toBe('Live room');
-      await store.completeRealtimeCatchUp('retry');
-      expect(store.messagesForRoom('R1')).toBe(messages);
-      // An authoritative empty page must replace the saved text too.
-      expect(messages.rootEvents).toEqual([]);
-      expect(read).toHaveBeenCalledTimes(2);
-    } finally {
-      error.mockRestore();
-    }
-  });
-
-  it('removes saved navigation and timeline fallbacks at a privacy reset', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.currentUser.loading = false;
-    store.restoreSavedView(
-      savedViewFixture({
-        serverId: store.serverId,
-        userId: 'U1',
-        serverName: 'Saved',
-        savedAt: Date.now(),
-        rooms: [
-          {
-            id: 'R1',
-            name: 'general',
-            messages: [
-              { id: 'saved', author: 'Bob', createdAt: '2026-09-23T00:00:00Z', body: 'Private' }
-            ]
-          }
-        ]
-      })
-    );
-    const messages = store.messagesForRoom('R1');
-    expect(store.navigation.rooms).toHaveLength(1);
-    store.realtimeProjectionHandler(
-      new RealtimeProjectionUpdate({ reset: true, privacyReset: true })
-    );
-    expect(store.savedView?.rooms ?? []).toEqual([]);
-    expect(store.navigation.rooms).toEqual([]);
-    expect(messages.rootEvents).toEqual([]);
-  });
-
   it('keeps the normal room projection and timeline during a warm snapshot', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
@@ -2245,51 +1623,6 @@ describe('ServerStateStore unified realtime resources', () => {
 
     expect(store.projection.users.has('U2')).toBe(false);
     expect(cacheMocks.scrubRoomMemberUser).toHaveBeenCalledWith(store.serverId, 'U2');
-  });
-
-  it('clears the saved view when the viewer account is deleted', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
-    });
-    store.projection.rooms.set(
-      'R1',
-      new RoomWithViewerState({
-        room: { id: 'R1', name: 'Private' },
-        viewerState: {
-          isMember: true,
-          permissions: [{ permission: 'message.read', granted: true }]
-        }
-      })
-    );
-    store.savedView = savedViewFixture({
-      serverId: store.serverId,
-      userId: 'U1',
-      serverName: 'Example',
-      savedAt: Date.now(),
-      rooms: [{ id: 'R1', name: 'Private', messages: [] }]
-    });
-
-    store.realtimeProjectionHandler(userDeleted('U1'));
-
-    expect(store.savedView).toBeNull();
-    store.saveCurrentView(Date.now());
-    expect(store.savedView).toBeNull();
-  });
-
-  it('does not save a stale projection after the connection drops', () => {
-    const store = makeStore(new FakeServerConnection([]));
-    store.projection.viewer = new GetViewerResponse({
-      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
-    });
-    store.realtimeSync.markCaughtUp('cursor-before-disconnect');
-    const caughtUpAt = store.realtimeSync.lastCaughtUpAt;
-    expect(caughtUpAt).not.toBeNull();
-    store.realtimeSync.markStale();
-
-    store.saveCurrentView(caughtUpAt!);
-
-    expect(store.savedView).toBeNull();
   });
 
   it('coalesces the resource hints from a post before starting reads', async () => {
@@ -3227,16 +2560,6 @@ describe('ServerStateStore unified realtime resources', () => {
   it('revokes viewer room access synchronously when the viewer leaves', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
-    store.savedView = savedViewFixture({
-      serverId: store.serverId,
-      userId: 'U1',
-      serverName: 'Example',
-      savedAt: Date.now(),
-      rooms: [
-        { id: 'R1', name: 'Revoked', messages: [] },
-        { id: 'R2', name: 'Retained', messages: [] }
-      ]
-    });
     const messages = store.messagesForRoom('R1');
     const clear = vi.spyOn(messages, 'clearForAccessRevocation');
     await flushPromises();
@@ -3245,7 +2568,6 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
 
     expect(clear).toHaveBeenCalledOnce();
-    expect(store.savedView).toBeNull();
   });
 
   it.each([

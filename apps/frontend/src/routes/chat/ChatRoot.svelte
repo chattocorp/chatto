@@ -30,8 +30,8 @@
     children: Snippet;
   } = $props();
 
-  // The route can keep data.user = null after a saved view starts. Follow the
-  // registry's verified identity so session effects start without a route load.
+  // Follow the registry's verified identity instead of the root load's user, so
+  // session effects start when verification ends without a new route load.
   const rootPresenceCache = untrack(() => presenceCache);
   const originServerId = $derived(serverRegistry.originServer?.id ?? null);
   const verifiedOriginUserId = $derived.by(() => {

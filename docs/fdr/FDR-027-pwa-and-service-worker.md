@@ -1,27 +1,22 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-26
 
 ## Overview
 
-Chatto ships a service worker for push notifications, notification clicks, and an offline application shell. The root worker caches versioned frontend build files and a public login document. IndexedDB keeps limited text data for the normal chat view during an offline launch.
+Chatto ships a service worker for push notifications, notification clicks, and an offline application shell. The root worker caches versioned frontend build files and a public login document. The device keeps no chat data. An offline launch loads the shell, but it cannot show rooms or messages.
 
-Offline launches show saved rooms and messages without server actions. The view is read only and can be out of date. A device cannot learn of a remote revocation while it is offline.
-
-Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps the normal chat layout and its retained data visible while fresh resources arrive. A cold offline launch restores saved rooms and messages in the same layout. The worker does not cache or replay API responses or live-event traffic.
+Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps the normal chat layout and its retained data visible while fresh resources arrive. The worker does not cache or replay API responses or live-event traffic.
 
 ## Behavior
 
 - The foreground app registers the root service worker shortly after startup in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
 - The root worker caches the current version of the application shell. On a later app launch, it serves the complete cached shell immediately. It uses the network when the cache is absent. Narrow push-worker registrations do not manage the shell.
-- The installed app opens the origin chat route. That route uses the last room saved on the device when one exists.
+- The installed app opens the origin chat route. That route opens the last room that the device remembers, or the overview.
 - API, authentication, live, webhook, and uploaded-asset requests use the network.
-- The foreground app saves room layout, loaded room and thread windows, and loaded member lists per server and user. There is no recent-room count, fixed message-row count, or dwell-time rule. Snapshots expire after seven days. The offline storage budget is 20 MB: at most 12 MB for the shell and 8 MB for state. Under byte pressure, the largest optional timeline or membership records are omitted and load fresh when opened.
-- On a cold chat launch, the app shows a matching saved view in the normal chat layout before it checks the session or opens a connection. It keeps server actions disabled until the server confirms the viewer. It then applies missed data or a replacement snapshot. A missing saved view follows the normal online startup path.
-- Every server route uses the saved view on a cold launch. A message permalink shows its target from the saved view when the view contains it. Otherwise, the app loads the target after the server confirms the viewer. Account settings and management pages open after the server confirms the viewer or current permissions.
-- The app clears affected saved content on sign-out, account switch, server removal, account deletion, and verified room access loss. App preferences include a control to clear saved chats on the device.
-- If the server rejects the saved viewer, the app deletes the saved view. For the origin server, the app then opens sign-in and returns to the same page after sign-in. A later launch does not show a saved view for a session that needs sign-in.
+- The shell cache uses at most 12 MB.
+- On each launch, the app loads chat data from the server after it verifies the session. On each page load, it also deletes the `chatto-saved-views` IndexedDB database that 0.5 beta versions created.
 - On activation, the root worker removes older shell caches after the new shell is installed.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
@@ -36,14 +31,14 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 ### 1. Versioned offline shell
 
 **Decision:** The root worker caches only compiled frontend files and a public login document. It serves that version-matched document first for app routes on a later launch. It uses the network when the cache is absent.
-**Why:** The normal chat view must open quickly on a repeat launch, including when the server is slow or offline.
+**Why:** The app shell must open quickly on a repeat launch, including when the server is slow or offline.
 **Tradeoff:** A repeat launch can open the previous installed frontend version until the worker update completes. The shell uses device storage, which the browser can evict under storage pressure.
 
-### 2. Saved text in the normal view
+### 2. No chat data on the device
 
-**Decision:** IndexedDB stores versioned resource snapshots under the server and user identity, with their applied replay checkpoint. The foreground app restores them into the normal stores before it starts connection work. It verifies the viewer before resuming from that checkpoint. A saved viewer is display data; it cannot authorize server actions or a realtime connection. The app clears saved data at explicit privacy boundaries and fences stale writers.
-**Why:** People can read saved text in the familiar chat layout while offline. The saved data does not establish current authorization.
-**Tradeoff:** Automatic saving puts private text on the device. A remote revocation takes effect on this copy only after the device reconnects and verifies it.
+**Decision:** The app does not store rooms, messages, member lists, profiles, or notification state on the device. It keeps them in memory for the page session only. See ADR-107.
+**Why:** A device copy needed purges at each privacy boundary, protection against stale tabs, and capture work during normal use. Its benefit was offline reading and a faster first paint on reload.
+**Tradeoff:** An offline launch shows no chat content. A reload shows loading states until the server responds.
 
 ### 3. Foreground app owns the root registration
 
@@ -65,5 +60,5 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ## Related
 
-- **ADRs:** ADR-047 (direct ticketed asset URLs), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-103 (cached-first client startup), [ADR-104](../adr/ADR-104-checkpointed-client-projection-snapshots.md) (checkpointed client projections)
+- **ADRs:** ADR-047 (direct ticketed asset URLs), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-103 (cached-first client startup, shell decision only), [ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md) (no chat data in device storage)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-034 (Chatto Desktop)

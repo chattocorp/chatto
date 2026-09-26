@@ -88,13 +88,6 @@ export class MessageSearchStore {
     await this.ensureStatus();
   }
 
-  /** Restore capability display while requiring the next live check to refresh it. */
-  restoreStatus(status: MessageSearchStatus): void {
-    this.status = status;
-    this.statusLoaded = true;
-    this.statusNeedsRefresh = true;
-  }
-
   async search(
     input: Omit<MessageSearchInput, 'cursor'>,
     { preserveQuery = false }: MessageSearchOptions = {}

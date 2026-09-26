@@ -1,7 +1,7 @@
 # ADR-104: Persist Checkpointed Client Projections
 
 **Date:** 2026-09-25
-**Status:** Accepted
+**Status:** Superseded by [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md). The client no longer stores projections on the device.
 
 ## Context
 

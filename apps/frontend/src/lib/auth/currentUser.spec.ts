@@ -72,7 +72,7 @@ describe('CurrentUserState', () => {
   });
 
   it('lets the owner check an account change before publishing it', async () => {
-    const savedViewer = { id: 'U1', login: 'alice', displayName: 'Alice' } as CurrentUser;
+    const previousViewer = { id: 'U1', login: 'alice', displayName: 'Alice' } as CurrentUser;
     const otherViewer = { id: 'U2', login: 'bob', displayName: 'Bob' } as CurrentUser;
     const loadViewer = vi.fn().mockResolvedValue(otherViewer);
     const onLoaded = vi.fn();
@@ -87,21 +87,21 @@ describe('CurrentUserState', () => {
       undefined,
       onLoaded
     );
-    state.user = savedViewer;
+    state.user = previousViewer;
 
     await state.load();
 
     expect(onLoaded).toHaveBeenCalledWith(otherViewer);
-    expect(state.user).toBe(savedViewer);
+    expect(state.user).toBe(previousViewer);
     expect(state.verifiedUserId).toBeNull();
   });
 
-  it('does not verify a saved viewer when a network request fails', async () => {
-    const savedViewer = { id: 'U1', login: 'alice', displayName: 'Alice' } as CurrentUser;
+  it('does not verify a previous viewer when a network request fails', async () => {
+    const previousViewer = { id: 'U1', login: 'alice', displayName: 'Alice' } as CurrentUser;
     const loadViewer = vi
       .fn()
       .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValueOnce(savedViewer);
+      .mockResolvedValueOnce(previousViewer);
     const state = new CurrentUserState(
       false,
       {
@@ -111,11 +111,11 @@ describe('CurrentUserState', () => {
       },
       loadViewer
     );
-    state.user = savedViewer;
+    state.user = previousViewer;
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       await state.load();
-      expect(state.user).toBe(savedViewer);
+      expect(state.user).toBe(previousViewer);
       expect(state.verifiedUserId).toBeNull();
       await state.load();
       expect(state.verifiedUserId).toBe('U1');

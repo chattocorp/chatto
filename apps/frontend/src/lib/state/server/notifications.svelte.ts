@@ -89,11 +89,6 @@ export class NotificationStore {
   #pendingReadById = new SvelteMap<string, number>();
   #pendingReadRequestById = new SvelteMap<string, Promise<NotificationOccurrenceItem>>();
   #pendingMutationCount = $state(0);
-
-  /** Snapshot writers wait for optimistic changes and their authoritative reconciliation. */
-  get hasPendingMutations(): boolean {
-    return this.#pendingMutationCount > 0;
-  }
   #mutationIdleWaiters = new SvelteSet<() => void>();
   #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
@@ -184,23 +179,6 @@ export class NotificationStore {
   setUnreadNotificationCount(count: number, importantCount = count): void {
     this.unreadNotificationCount = Math.max(0, count);
     this.importantUnreadNotificationCount = Math.max(0, Math.min(importantCount, count));
-  }
-
-  /** Capture the retained page and its exact counts for the device snapshot. */
-  capturePresentation(): NotificationOccurrencePage {
-    return JSON.parse(
-      JSON.stringify({
-        occurrences: this.occurrences,
-        consumedCount: this.consumedCount,
-        totalCount: this.totalCount,
-        hasMore: this.hasMore,
-        unreadCount: this.unreadNotificationCount,
-        importantUnreadCount: this.importantUnreadNotificationCount,
-        roomUnreadCounts: this.roomUnreadCounts,
-        roomImportantUnreadCounts: this.roomImportantUnreadCounts,
-        nextExpiryAt: this.nextExpiryAt
-      })
-    ) as NotificationOccurrencePage;
   }
 
   /** Replace notification state from the realtime projection. */

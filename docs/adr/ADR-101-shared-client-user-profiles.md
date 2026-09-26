@@ -31,13 +31,7 @@ publishing a new account. Reset and disposal reject late account responses.
 Route loaders and mounted transport components do not keep another account
 cache or clear account data when they unmount.
 
-The device snapshot restores public profiles, room resources, and viewer
-display data into the normal stores before connection, as defined in
-[ADR-103](ADR-103-cached-first-client-startup.md). Components use the same
-selectors for restored and live state. Saved grants describe the previous
-display; the connection rejects commands until the server verifies the saved
-viewer. Commands do not wait for realtime catch-up.
-Restoration does not populate `CurrentUserState` or verify the session.
+Commands do not wait for realtime catch-up.
 
 Account settings wait for this owner's data before they initialise edit buffers.
 A refresh preserves those buffers. A failed refresh can retain the complete
@@ -62,8 +56,9 @@ The shared owner enforces these rules:
 This refines [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md): TanStack
 Query still owns snapshot requests and pagination, but public identities have
 one shared owner across snapshot and realtime consumers. The change adds no
-server API, full-directory download, or external connection. ADR-103 defines
-the bounded device persistence of this shared state.
+server API, full-directory download, or external connection. The client keeps
+this shared state in memory only; see
+[ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md).
 
 ## Consequences
 

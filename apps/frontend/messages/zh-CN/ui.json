@@ -5,12 +5,6 @@
     "open_quick_switcher": "打开快速切换器",
     "quick_switcher_shortcut": "快速切换器 (Cmd+K)",
     "realtime_paused": "实时更新已暂停，正在重新连接...",
-    "saved_view": {
-      "cache_title": "本地缓存",
-      "cache_description": "此设备保存有限的聊天文本视图，供离线阅读。",
-      "clear_cache": "清除已保存的聊天",
-      "cache_cleared": "已清除保存的聊天。"
-    },
     "update_available": "有新版本可用",
     "reload": "重新加载",
     "sign_out": "退出登录",

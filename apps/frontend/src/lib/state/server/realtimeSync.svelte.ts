@@ -1,5 +1,4 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { snapshotBoundaryTime } from '$lib/storage/savedViews';
 
 /** How current one server's client-side resource view is. */
 export type RealtimeProjectionPhase = 'empty' | 'hydrating' | 'ready' | 'stale';
@@ -16,18 +15,14 @@ type CatchUpWaiter = {
 /**
  * Session-local resume state for one server projection.
  *
- * The opaque cursor belongs to the projection rather than a WebSocket. Disk
- * restoration may install it only with the complete, validated snapshot set.
+ * The opaque cursor belongs to the projection rather than a WebSocket. It
+ * exists only in memory, so a page load always starts without one.
  */
 export class RealtimeProjectionSyncState {
   phase = $state<RealtimeProjectionPhase>('empty');
   lastCaughtUpAt = $state<number | null>(null);
-  /** Local acceptance time of the last completed reconciliation barrier. */
-  checkpointAt = $state<number | null>(null);
   /** Keep mounted UI during a warm snapshot, without authorizing private data. */
   isRecoveringSnapshot = $state(false);
-  /** Whether the visible projection came from saved device data and still lacks a verified replacement. */
-  restoredFromDisk = $state(false);
   #resumeCursor = $state<string | null>(null);
   #authorizationRefreshGeneration = 0;
   #completedAuthorizationRefreshGeneration = 0;
@@ -70,24 +65,17 @@ export class RealtimeProjectionSyncState {
       this.phase = 'hydrating';
       this.#resumeCursor = null;
     }
-    if (cursor) {
-      this.#resumeCursor = cursor;
-      this.checkpointAt = snapshotBoundaryTime();
-    }
+    if (cursor) this.#resumeCursor = cursor;
   }
 
   markCaughtUp(cursor: string | undefined, authorizationRefreshGeneration = 0): void {
-    if (cursor) {
-      this.#resumeCursor = cursor;
-      this.checkpointAt = snapshotBoundaryTime();
-    }
+    if (cursor) this.#resumeCursor = cursor;
     this.#completedAuthorizationRefreshGeneration = Math.max(
       this.#completedAuthorizationRefreshGeneration,
       authorizationRefreshGeneration
     );
     const authorizationCurrent = !this.authorizationRefreshRequired;
     this.phase = authorizationCurrent ? 'ready' : 'stale';
-    this.restoredFromDisk = false;
     this.isRecoveringSnapshot = false;
     this.lastCaughtUpAt = authorizationCurrent ? Date.now() : null;
     this.#caughtUpGeneration++;
@@ -134,16 +122,6 @@ export class RealtimeProjectionSyncState {
     if (this.phase === 'ready') this.phase = 'stale';
   }
 
-  /** Restore a validated projection prefix; identity verification still gates transport. */
-  restoreSavedProjection(checkpoint: string): void {
-    if (this.phase !== 'empty') return;
-    this.phase = 'stale';
-    this.restoredFromDisk = true;
-    this.lastCaughtUpAt = null;
-    this.#resumeCursor = checkpoint;
-    this.checkpointAt = null;
-  }
-
   /** Keep mounted state while the next transport refreshes effective permissions. */
   invalidateAuthorization(): number {
     this.markStale();
@@ -156,11 +134,9 @@ export class RealtimeProjectionSyncState {
   reset(): void {
     this.resetGeneration++;
     this.phase = 'empty';
-    this.restoredFromDisk = false;
     this.isRecoveringSnapshot = false;
     this.lastCaughtUpAt = null;
     this.#resumeCursor = null;
-    this.checkpointAt = null;
     this.#authorizationRefreshGeneration = 0;
     this.#completedAuthorizationRefreshGeneration = 0;
     for (const waiter of this.#catchUpWaiters) {

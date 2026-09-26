@@ -49,9 +49,7 @@ In the meantime, Chatto is an excellent Progressive Web App (PWA) on both deskto
 
 ## Can I read chats without a connection?
 
-After you use Chatto online, the installed app can show saved rooms and messages in the normal chat view before the server responds. It opens your last room on the server that hosts the app when that room is saved. You can read the saved view and write a draft while Chatto checks your session. After the server confirms your account, you can send messages while missed updates are still loading. Sending requires a working server connection; failed requests keep your draft and are not queued for automatic retry. Saved content can be out of date. Chatto saves loaded room and thread windows and member lists for each server and signed-in account. Switching rooms does not cancel a save. Only loaded history is saved; storage limits can remove saved windows, and saved content expires after seven days. Images and other uploaded files are not saved for offline use.
-
-Chatto saves this content on your device automatically. To remove it, open App Preferences and select **Clear saved chats**. Signing out or removing a server also clears its saved content on that device. If an administrator removes your access while the device is offline, the saved content remains available until the app reconnects and checks access.
+No. Chatto does not store your chats on your device. The installed app can start without a connection, but rooms and messages load from the server. If the connection drops while Chatto is open, the loaded rooms stay visible. When the connection returns, Chatto loads missed updates, and you can send messages while they load. Sending requires a working server connection; failed requests keep your draft and are not queued for automatic retry.
 
 ## Can I disable the startup animations?
 

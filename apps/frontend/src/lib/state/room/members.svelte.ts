@@ -124,41 +124,6 @@ export class RoomMembersStore {
     return this.filterLoadedMembers(this.activeSearch);
   }
 
-  /** Subscribe to persisted membership fields without resolving shared profiles. */
-  trackSnapshotChanges(): void {
-    void this.#memberIds;
-    void this.totalCount;
-    void this.hasLoadedAll;
-    void this.hasFirstPage;
-    void this.presenceVersion;
-  }
-
-  /** Persist visible membership order without copying its shared profiles. */
-  capturePresentation() {
-    return {
-      ids: [...this.#memberIds],
-      totalCount: this.totalCount,
-      complete: this.hasLoadedAll,
-      presence: [...this.livePresence]
-    };
-  }
-
-  /** Restore display state; the owning server rechecks membership before enabling actions. */
-  restorePresentation(snapshot: {
-    ids: string[];
-    totalCount: number;
-    complete: boolean;
-    presence: [string, PresenceStatus][];
-  }): void {
-    this.#loadId++;
-    this.#memberIds = [...snapshot.ids];
-    this.totalCount = snapshot.totalCount;
-    this.hasFirstPage = true;
-    this.hasLoadedAll = snapshot.complete;
-    this.isInitialLoading = false;
-    this.livePresence = new SvelteMap(snapshot.presence);
-  }
-
   /** Resolve current profiles without adding empty rows for pending identities. */
   private resolveIds(ids: string[]): RoomMember[] {
     return ids.flatMap((id) => this.resolveProfile(id) ?? []);

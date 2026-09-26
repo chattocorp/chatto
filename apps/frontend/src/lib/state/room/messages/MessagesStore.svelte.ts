@@ -476,48 +476,6 @@ export class MessagesStore {
     this.isInitialLoading = true;
   }
 
-  /** Capture the loaded window and its pagination coverage, never optimistic patches. */
-  captureSnapshot() {
-    if (this.isInitialLoading || !this.source || this.#projectionAccessRevoked) return undefined;
-    if (this.optimisticReactions.hasPending || this.optimisticThreadFollows.hasPending)
-      return undefined;
-    return {
-      events: this.scope === 'thread' ? this.threadEvents : this.rootEvents,
-      hasReachedStart: this.hasReachedStart,
-      timeline: {
-        startCursor: this.oldestCursor,
-        endCursor: this.newestCursor,
-        hasNewer: this.#needsLatestWindow
-      }
-    };
-  }
-
-  get hasPendingMutations(): boolean {
-    return this.optimisticReactions.hasPending || this.optimisticThreadFollows.hasPending;
-  }
-
-  /** Restore the same timeline owner with its explicit loaded-window boundaries. */
-  restorePresentation(
-    roomId: string,
-    events: TimelineEventView[],
-    hasReachedStart = false,
-    coverage?: { startCursor?: string; endCursor?: string; hasNewer: boolean },
-    threadRootEventId?: string
-  ): void {
-    if (threadRootEventId) {
-      this.startLoad();
-      this.source = MessageTimelineSource.thread(this.roomTimeline, roomId, threadRootEventId);
-      this.resetState();
-    } else this.awaitRoomProjection(roomId);
-    this.events = events;
-    this.hasReachedStart = hasReachedStart;
-    this.seenIds = new SvelteSet(events.map((event) => event.id));
-    this.isInitialLoading = false;
-    this.oldestCursor = coverage?.startCursor;
-    this.newestCursor = coverage?.endCursor;
-    this.#needsLatestWindow = coverage?.hasNewer ?? false;
-  }
-
   /** Supersede a historical jump when this room crosses a route boundary. */
   cancelPendingHistoricalJump(): void {
     this.#jumpId++;

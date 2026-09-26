@@ -2,7 +2,6 @@ import { test, expect } from './setup';
 import type { Page } from '@playwright/test';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
-import { clearSavedViews, holdViewerVerification, readSavedResources } from './fixtures/savedViews';
 import { createAndLoginTestUser } from './fixtures/testUser';
 
 const VIEWER_RPC_PATH = '/api/connect/chatto.api.v1.ViewerService/GetViewer';
@@ -121,6 +120,19 @@ async function expectLoggedOutRedirect(page: Page): Promise<void> {
     (url) => url.pathname === routes.root || url.pathname === routes.login,
     { timeout: TIMEOUTS.REALTIME_EVENT }
   );
+}
+
+/** Hold viewer verification requests until the returned release function runs. */
+async function holdViewerVerification(page: Page): Promise<{ release: () => void }> {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/chatto.api.v1.ViewerService/GetViewer', async (route) => {
+    await gate;
+    await route.continue();
+  });
+  return { release };
 }
 
 test.describe('Session Expiration Handling', () => {
@@ -267,65 +279,56 @@ test.describe('Session Expiration Handling', () => {
     });
   });
 
-  for (const startup of ['live', 'saved'] as const) {
-    test(`handles repeated expired-session loads without multiple redirects (${startup} startup)`, async ({
-      page,
-      authPage
-    }) => {
-      const timestamp = Date.now();
-      const testLogin = `sessionrapid${timestamp}`;
-      const testPassword = 'testpassword123';
+  test('handles repeated expired-session loads without multiple redirects', async ({
+    page,
+    authPage
+  }) => {
+    const timestamp = Date.now();
+    const testLogin = `sessionrapid${timestamp}`;
+    const testPassword = 'testpassword123';
 
-      // Create and login
-      await authPage.createUserViaApi(testLogin, testPassword);
-      await authPage.login(testLogin, testPassword);
-      await authPage.expectLoggedIn();
+    // Create and login
+    await authPage.createUserViaApi(testLogin, testPassword);
+    await authPage.login(testLogin, testPassword);
+    await authPage.expectLoggedIn();
 
-      // Navigate and wait for full client-side initialization
-      await gotoAndWaitForHydration(page, '/chat');
-      await authPage.expectLoggedIn();
+    // Navigate and wait for full client-side initialization
+    await gotoAndWaitForHydration(page, '/chat');
+    await authPage.expectLoggedIn();
 
-      // A rejected viewer must end at sign-in whether or not a saved view paints first.
-      if (startup === 'live') await clearSavedViews(page);
-      else
-        await expect
-          .poll(async () => (await readSavedResources(page)).length, { timeout: 20_000 })
-          .toBeGreaterThan(0);
-
-      // Intercept GetViewer to return an unauthenticated Connect error.
-      await page.route(VIEWER_RPC_ROUTE, async (route) => {
-        await route.fulfill({
-          status: 401,
-          contentType: 'application/json',
-          headers: { 'Connect-Protocol-Version': '1' },
-          body: JSON.stringify({ code: 'unauthenticated', message: 'authentication required' })
-        });
+    // Intercept GetViewer to return an unauthenticated Connect error.
+    await page.route(VIEWER_RPC_ROUTE, async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        headers: { 'Connect-Protocol-Version': '1' },
+        body: JSON.stringify({ code: 'unauthenticated', message: 'authentication required' })
       });
-
-      await page.goto(routes.settings);
-
-      // Should still end up at landing page.
-      await expectLoggedOutRedirect(page);
-      await authPage.expectLoggedOut();
-
-      // Re-entering the stale protected URL should settle to the same logged-out
-      // route without bouncing between app shells.
-      await page.goto(routes.settings);
-      await expectLoggedOutRedirect(page);
-      await authPage.expectLoggedOut();
-
-      // Clean up route handler
-      await page.unroute(VIEWER_RPC_ROUTE);
-
-      // Page should be stable (not in a redirect loop) — landed at /login, / or /chat
-      await expect(async () => {
-        const url = page.url();
-        expect(url.endsWith('/') || url.includes('/chat') || url.includes('/login')).toBe(true);
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [500, 1000] });
     });
-  }
 
-  test('a session that needs reauthentication starts live instead of from its saved view', async ({
+    await page.goto(routes.settings);
+
+    // Should still end up at landing page.
+    await expectLoggedOutRedirect(page);
+    await authPage.expectLoggedOut();
+
+    // Re-entering the stale protected URL should settle to the same logged-out
+    // route without bouncing between app shells.
+    await page.goto(routes.settings);
+    await expectLoggedOutRedirect(page);
+    await authPage.expectLoggedOut();
+
+    // Clean up route handler
+    await page.unroute(VIEWER_RPC_ROUTE);
+
+    // Page should be stable (not in a redirect loop) — landed at /login, / or /chat
+    await expect(async () => {
+      const url = page.url();
+      expect(url.endsWith('/') || url.includes('/chat') || url.includes('/login')).toBe(true);
+    }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [500, 1000] });
+  });
+
+  test('a session marked for reauthentication verifies its cookie live on reload', async ({
     page,
     chatPage,
     roomPage
@@ -333,17 +336,8 @@ test.describe('Session Expiration Handling', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    const message = `Saved before reauthentication ${Date.now()}`;
+    const message = `Posted before reauthentication ${Date.now()}`;
     await roomPage.sendMessage(message);
-    await expect
-      .poll(
-        async () =>
-          (await readSavedResources(page)).some((record) =>
-            record.data.events?.some((event) => event.event.body === message)
-          ),
-        { timeout: 20_000 }
-      )
-      .toBe(true);
 
     // An earlier launch recorded that the viewer was rejected. The cookie is
     // still valid, so live verification succeeds and clears the record.
@@ -366,7 +360,6 @@ test.describe('Session Expiration Handling', () => {
       const viewerRequested = page.waitForRequest(VIEWER_RPC_PATH_PATTERN);
       await page.reload();
       await viewerRequested;
-      // Saved startup would have painted the room before this request.
       await expect(page.getByText(message)).toHaveCount(0);
       viewer.release();
       await expect(page.getByText(message)).toBeVisible();

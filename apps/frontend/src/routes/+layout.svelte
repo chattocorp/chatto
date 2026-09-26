@@ -22,7 +22,6 @@
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
   import ServerRuntimeCoordinator from '$lib/state/server/ServerRuntimeCoordinator.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { ToastContainer } from '$lib/ui/toast';
   import AppHeader from '$lib/ui/AppHeader.svelte';
   import Frame from '$lib/ui/Frame.svelte';
@@ -41,20 +40,6 @@
     return () => clearTimeout(timer);
   });
 
-  onMount(() => {
-    if (!data.startupPending || !data.startupServerId) return;
-    let secondFrame = 0;
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => {
-        void serverRegistry.recoverServer(data.startupServerId);
-      });
-    });
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      cancelAnimationFrame(secondFrame);
-    };
-  });
-
   function loadModalContainer() {
     modalContainerModule ??= import('./chat/ModalContainer.svelte');
     return modalContainerModule;
@@ -67,12 +52,6 @@
   usePinchZoomPrevention();
 
   const activeServerId = $derived(getActiveServer());
-  const startupPending = $derived(
-    data.startupPending &&
-      !!data.startupServerId &&
-      !!serverRegistry.getServer(data.startupServerId) &&
-      serverRegistry.tryGetStore(data.startupServerId)?.startupPresentationOnly === true
-  );
   const activeRoomId = $derived(chatRoomIdFromRoute(page.route.id, page.params.roomId));
 
   // OAuth windows keep their page content and branding without app navigation.
@@ -123,10 +102,8 @@
 {#if !standaloneOAuth}
   <GlobalKeyboardShortcuts />
 {/if}
-<ServerRuntimeCoordinator deferConnections={startupPending} />
-{#if !startupPending}
-  <NotificationSync />
-{/if}
+<ServerRuntimeCoordinator />
+<NotificationSync />
 <UpdateNotifier />
 
 <svelte:head>

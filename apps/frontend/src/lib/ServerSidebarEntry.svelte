@@ -23,7 +23,6 @@
   import { hardRedirectAfterSignOut } from '$lib/auth/signOut';
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
-  import { onMount } from 'svelte';
 
   let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
     $props();
@@ -34,7 +33,6 @@
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const stores = serverRegistry.getStore(serverId);
-  onMount(() => void stores.retainSavedViewFromDisk());
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const appUi = getAppUiState();
@@ -80,7 +78,7 @@
   );
   const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
   const compatibility = $derived(stores.serverInfo.compatibility);
-  const awaitingDiscovery = $derived(stores.networkStartupDeferred || stores.serverInfo.loading);
+  const awaitingDiscovery = $derived(stores.serverInfo.loading);
   const compatibilityMessage = $derived.by(() => {
     if (awaitingDiscovery) return null;
     switch (compatibility.reason) {
@@ -223,7 +221,7 @@
       }
       return;
     }
-    if (recoveryNeeded && !stores.savedView) {
+    if (recoveryNeeded) {
       event.preventDefault();
       await serverRegistry.recoverServer(serverId);
       if (stores.isAuthenticated && stores.serverInfo.compatibility.status === 'supported') {

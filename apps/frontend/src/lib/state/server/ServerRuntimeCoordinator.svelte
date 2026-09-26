@@ -8,20 +8,9 @@
   import { startServerRecovery } from './serverRecovery';
   import { onSessionTerminated } from '$lib/eventBus.svelte';
 
-  let {
-    deferConnections = false
-  }: {
-    deferConnections?: boolean;
-  } = $props();
-
-  $effect(() => {
-    // A failed viewer check must retry while realtime connections stay deferred.
-    // Each store's networkStartupDeferred gate holds recovery until its first paint.
-    return untrack(() => startServerRecovery(serverRegistry));
-  });
+  $effect(() => untrack(() => startServerRecovery(serverRegistry)));
 
   function realtimeRegistrations() {
-    if (deferConnections) return [];
     return serverRegistry.servers.flatMap((server) => {
       const store = serverRegistry.tryGetStore(server.id);
       return store?.isAuthenticated
