@@ -1,7 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
-import { clearSavedViews } from './fixtures/savedViews';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   getIdsFromUrlViaConnect,
@@ -383,9 +382,6 @@ test.describe('jump to message', () => {
     await page.reload();
     await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-    // Open the permalink with live startup. A saved window can already contain
-    // the target, and the jump then needs no deferred read.
-    await clearSavedViews(page);
     const deferred = await deferNextAroundRequest(page);
     await page.goto(routes.messageLink(roomId, targetEventId));
     await deferred.waitUntilBlocked();

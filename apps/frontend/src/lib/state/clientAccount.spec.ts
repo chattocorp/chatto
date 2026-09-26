@@ -14,8 +14,7 @@ const { mocks } = vi.hoisted(() => ({
     clearLastRoom: vi.fn(),
     clearServerAuthentication: vi.fn(),
     removeServer: vi.fn(),
-    resetToOrigin: vi.fn(),
-    clearAllSavedViews: vi.fn()
+    resetToOrigin: vi.fn()
   }
 }));
 
@@ -31,7 +30,6 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   unsubscribeBeforeLeaving: mocks.unsubscribePushBeforeLeaving
 }));
 vi.mock('$lib/storage/lastRoom', () => ({ clearLastRoom: mocks.clearLastRoom }));
-vi.mock('$lib/storage/savedViews', () => ({ clearAllSavedViews: mocks.clearAllSavedViews }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     get servers() {
@@ -92,12 +90,6 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
     expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(2);
     expect(mocks.resetToOrigin).toHaveBeenCalledOnce();
-    expect(mocks.clearAllSavedViews).toHaveBeenCalledWith(
-      expect.objectContaining({ allDatabases: true })
-    );
-    expect(mocks.clearAllSavedViews.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.notifyLogout.mock.invocationCallOrder[0]
-    );
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
     expect(result).toEqual({ kind: 'hard' });
   });
@@ -141,7 +133,6 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.beginExplicitSignOutRedirect).not.toHaveBeenCalled();
     expect(mocks.signOutServers).not.toHaveBeenCalled();
     expect(mocks.resetToOrigin).not.toHaveBeenCalled();
-    expect(mocks.clearAllSavedViews).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
 });

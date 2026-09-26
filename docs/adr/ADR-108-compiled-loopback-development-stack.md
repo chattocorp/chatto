@@ -1,4 +1,4 @@
-# ADR-107: Run a Compiled Development Stack on Loopback Hostnames
+# ADR-108: Run a Compiled Development Stack on Loopback Hostnames
 
 **Date:** 2026-09-26
 

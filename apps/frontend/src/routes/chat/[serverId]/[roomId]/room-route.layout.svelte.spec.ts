@@ -177,14 +177,6 @@ beforeEach(() => {
 });
 
 describe('room route layout access handling', () => {
-  it('renders saved rooms without constructing a current account', () => {
-    mocks.currentUserId = '';
-    mocks.roomsStore.currentUserId = '';
-    mocks.realtimeSync!.reset();
-    mocks.realtimeSync!.restoreSavedProjection('saved-checkpoint');
-    const { container } = renderLayout();
-    expect(q(container, '[data-testid="room-layout-room"]')).not.toBeNull();
-  });
   it('keeps the room instance mounted while the snapshot viewer is unavailable', async () => {
     const { container } = renderLayout();
     const roomElement = q(container, '[data-testid="room-layout-room"]');

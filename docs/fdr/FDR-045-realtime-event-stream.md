@@ -60,16 +60,14 @@ the stream to build and maintain its local server projection.
 - A client must discard an incomplete snapshot. A new snapshot also starts a
   new local projection generation. Late reads from an earlier generation must
   not replace newer state.
-- The bundled client keeps the same viewer's saved room and timeline mounted
-  while it verifies the viewer and hydrates a warm snapshot. It updates the
-  view in place after fresh resources arrive. The saved view is read-only
-  until the server verifies its viewer and finishes catch-up. A changed or
-  rejected viewer clears that private view.
-- Saved room groups, message metadata, and member lists use the same display
-  as live data. Reconnect changes the layout only when the displayed data
-  changes; it does not add metadata omitted by a separate saved renderer.
-- Saved display state and public user profiles remain separate from the verified
-  account. Restoring display state does not complete account loading. Account
+- The bundled client keeps the same viewer's room and timeline mounted while
+  it hydrates a warm snapshot. It updates the view in place after fresh
+  resources arrive. Reconnect changes the layout only when the displayed data
+  changes. A changed or rejected viewer clears the private view.
+- The client keeps its projection and resume cursor in memory only. A page
+  load starts with a snapshot. See
+  [ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md).
+- Public user profiles remain separate from the verified account. Account
   settings wait for complete live account data before they initialise drafts;
   later refreshes preserve edits. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 - The stream does not guarantee every intermediate transition after a client
@@ -234,8 +232,8 @@ discovery metadata or a new behavioral protocol version.
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
   (process-wide realtime event hub), ADR-091 (semantic realtime events),
   ADR-093 (public realtime event union), ADR-094 (separate durable and pubsub
-  event envelopes), [ADR-104](../adr/ADR-104-checkpointed-client-projection-snapshots.md)
-  (checkpointed client projections)
+  event envelopes), [ADR-107](../adr/ADR-107-keep-chat-data-out-of-device-storage.md)
+  (no chat data in device storage)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

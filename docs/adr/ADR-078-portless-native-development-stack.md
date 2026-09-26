@@ -4,9 +4,9 @@
 
 ## Status
 
-Superseded by [ADR-107](ADR-107-compiled-loopback-development-stack.md)
+Superseded by [ADR-108](ADR-108-compiled-loopback-development-stack.md)
 
-ADR-107 keeps the native processes, the Conductor port allocation, and the
+ADR-108 keeps the native processes, the Conductor port allocation, and the
 archive cleanup. It removes Portless and the Vite process from the default
 stack.
 

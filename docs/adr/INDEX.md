@@ -118,7 +118,8 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-101](ADR-101-shared-client-user-profiles.md)                        | Share Public User Profiles Within Each Client Connection         | Accepted             | 2026-09-21 |
 | [ADR-102](ADR-102-turborepo-workspace-tasks.md)                          | Order Workspace Tasks with Turborepo                             | Accepted             | 2026-09-21 |
 | [ADR-103](ADR-103-cached-first-client-startup.md)                        | Open a Saved Chat View Before Client Connection                  | Partially superseded | 2026-09-23 |
-| [ADR-104](ADR-104-checkpointed-client-projection-snapshots.md)           | Persist Checkpointed Client Projections                          | Accepted             | 2026-09-25 |
+| [ADR-104](ADR-104-checkpointed-client-projection-snapshots.md)           | Persist Checkpointed Client Projections                          | Superseded           | 2026-09-25 |
 | [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)               | Gate the Effective-Owner Override with Privileged Mode           | Accepted             | 2026-09-25 |
 | [ADR-106](ADR-106-server-side-neighborhood-discovery.md)                 | Discover the Neighborhood on the Server                          | Accepted             | 2026-09-25 |
-| [ADR-107](ADR-107-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |
+| [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)               | Keep Chat Data Out of Device Storage                             | Accepted             | 2026-09-26 |
+| [ADR-108](ADR-108-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |

@@ -33,8 +33,6 @@ export type ConnectAPIConfig = {
   renewBearerToken?: (force: boolean) => Promise<string | null>;
   /** Current private-data generation for this exact connection. */
   dataGeneration?: () => number;
-  /** Hold private reads and reject private actions until a restored viewer is verified. */
-  beforePrivateRequest?: (methodName: string, signal: AbortSignal) => Promise<void>;
 };
 
 /** An obsolete response was discarded. No response data escapes this boundary. */
@@ -54,21 +52,6 @@ export function dataGenerationInterceptor(current: () => number): Interceptor {
       throw new StaleResponseError(!read);
     }
     return response;
-  };
-}
-
-/** Let viewer verification through while a restored chat view holds other private calls. */
-export function privateRequestInterceptor(
-  beforeRequest: NonNullable<ConnectAPIConfig['beforePrivateRequest']>
-): Interceptor {
-  return (next) => async (request) => {
-    if (
-      request.service.typeName !== 'chatto.api.v1.ViewerService' ||
-      request.method.name !== 'GetViewer'
-    ) {
-      await beforeRequest(request.method.name, request.signal);
-    }
-    return next(request);
   };
 }
 
@@ -135,10 +118,6 @@ export function createChattoTransport(
     interceptors: [
       // Outermost, so it sees errors from every inner interceptor.
       authenticationRequiredInterceptor(config),
-      // The verification gate must run before the response guard captures its generation.
-      ...(config.beforePrivateRequest
-        ? [privateRequestInterceptor(config.beforePrivateRequest)]
-        : []),
       ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
       bearerRenewalInterceptor(config)
     ]

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { savedViewFixture } from '$lib/test-utils/savedView';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { CurrentUser } from '$lib/api-client/viewer';
 
@@ -77,13 +77,6 @@ describe('registered server recovery', () => {
     expect(registry.needsRecovery('retry-test')).toBe(false);
   });
 
-  it('does not recover a dormant server before it is opened', async () => {
-    const store = await register();
-    store.networkStartupDeferred = true;
-
-    expect(registry.needsRecovery('retry-test')).toBe(false);
-  });
-
   it('retries a viewer-only failure and stops on an authentication rejection', async () => {
     mocks.discovery.mockResolvedValue(profile);
     await register();
@@ -142,14 +135,9 @@ describe('registered server recovery', () => {
     const previous = await register();
     registry.sessions.update('retry-test', { userId: 'old-user' });
     previous.currentUser.loading = false;
-    previous.restoreSavedView(
-      savedViewFixture({
-        serverId: 'retry-test',
-        userId: 'old-user',
-        serverName: 'Saved server',
-        savedAt: Date.now(),
-        rooms: [{ id: 'private-room', name: 'private', messages: [] }]
-      })
+    previous.projection.rooms.set(
+      'private-room',
+      new RoomWithViewerState({ room: { id: 'private-room', name: 'private' } })
     );
     mocks.viewer.mockResolvedValue(user);
     await registry.recoverServer('retry-test');
