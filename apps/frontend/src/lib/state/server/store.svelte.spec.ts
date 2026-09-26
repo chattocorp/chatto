@@ -2459,9 +2459,15 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(refreshMembers).toHaveBeenCalledWith({ minimumCursor: 'opaque-reset-cursor' });
     expect(completed).toBe(false);
     expect(refreshPreviews).not.toHaveBeenCalled();
+    expect(store.minimumReadCursor).toBeUndefined();
     membershipRead.resolve();
     await bootstrap;
-    expect(refreshPreviews).toHaveBeenCalledExactlyOnceWith(store.serverId, 'opaque-reset-cursor');
+    expect(refreshPreviews).toHaveBeenCalledExactlyOnceWith(store.serverId);
+    expect(store.minimumReadCursor).toBe('opaque-reset-cursor');
+
+    // The next snapshot must not reuse the earlier snapshot's cursor.
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    expect(store.minimumReadCursor).toBeUndefined();
   });
 
   it('does not replace mounted timelines after an ordinary resume', async () => {
