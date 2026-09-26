@@ -247,7 +247,6 @@ func (c *ChattoCore) appendNeighborMutation(ctx context.Context, event *evtv1.Ev
 	if err := c.ConfigModel().waitFor(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
 		return fmt.Errorf("wait for Neighbor mutation: %w", err)
 	}
-	c.neighborhoodDiscovery.notifyNeighborsChanged()
 	return nil
 }
 

@@ -52,14 +52,17 @@ seven-day TTL. A pass rewrites an image that it still uses when the image is
 older than three days. Unused images expire without a cleanup pass. The public
 `/assets/neighborhood/{sha256}` route serves only names from this store.
 
-Every replica checks the directory once per minute. A Neighbor change also
-starts a check on the replica that saved it, after a three-second wait that
-merges quick successive edits. A pass is due when the directory is missing or
-one hour old. It is also due after ten minutes when a remote request failed in
-the previous pass, and after ten seconds when the Neighbor set changed. The
-`neighborhood-discovery` lease in `MEMORY_CACHE` lets one replica run a pass at
-a time. The shared directory age sets the cluster-wide rate. The replica checks
-again after it gets the lease.
+Every replica runs one worker that checks the directory every five seconds. A
+check reads the directory and compares a hash of its Neighbor set with the
+local Neighbor projection. A pass is due when the directory is missing or one
+hour old. It is also due after ten minutes when a remote request failed in the
+previous pass, and after ten seconds when the Neighbor set changed. Every
+replica sees a Neighbor change through its projection, so no change signal is
+necessary.
+
+As an interim design, the replicas do not coordinate their passes. When a pass
+is due, each replica can run it and write an equivalent directory. A later
+shared job queue can replace this worker.
 
 ## Consequences
 
@@ -72,10 +75,11 @@ again after it gets the lease.
 - Discovery rejects servers on private network addresses. A Neighborhood of
   internal servers is not available through this RPC.
 - A remote server receives requests once per discovery pass from each
-  recommending server, not once per user visit.
-- Results can be up to one hour old. A Neighbor change appears after a few
-  seconds. A server that was unavailable during a pass can return after about
-  ten minutes.
+  recommending server, not once per user visit. A deployment with several
+  replicas can send these requests once from each replica.
+- Results can be up to one hour old. A Neighbor change appears after about five
+  to fifteen seconds. A server that was unavailable during a pass can return
+  after about ten minutes.
 - A NATS restart removes the memory-backed directory. The next check starts a
   new pass. Backups exclude `NEIGHBORHOOD_IMAGES`.
 - The bundled Server Directory merges the Neighborhoods of all registered

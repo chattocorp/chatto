@@ -62,12 +62,6 @@ func (f *fakeNeighborhoodFetcher) counts() (int, int) {
 	return f.listCalls, f.imageCalls
 }
 
-type immediateLease struct{}
-
-func (immediateLease) TryRun(ctx context.Context, work func(context.Context) error) (bool, error) {
-	return true, work(ctx)
-}
-
 func testPNG(t *testing.T) []byte {
 	t.Helper()
 	img := image.NewNRGBA(image.Rect(0, 0, 4, 4))
@@ -97,7 +91,6 @@ func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDisco
 	discovery := &neighborhoodDiscovery{
 		kv:          core.storage.memoryCacheKV,
 		images:      core.storage.neighborhoodImages,
-		lease:       immediateLease{},
 		fetcher:     fetcher,
 		selfOrigins: []string{neighborhoodTestSelf},
 		neighbors:   func() []string { return neighbors },
@@ -117,8 +110,7 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, directory)
 
-	_, err = discovery.refreshIfDue(ctx)
-	require.NoError(t, err)
+	require.NoError(t, discovery.refreshIfDue(ctx))
 	directory, err = core.NeighborhoodDirectory(ctx)
 	require.NoError(t, err)
 	require.Equal(t, timestamppb.New(*now).AsTime(), directory.GetRefreshedAt().AsTime())
@@ -153,16 +145,14 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 
 	// A fresh directory is not refreshed again.
 	lists, images := fetcher.counts()
-	_, err = discovery.refreshIfDue(ctx)
-	require.NoError(t, err)
+	require.NoError(t, discovery.refreshIfDue(ctx))
 	lists2, images2 := fetcher.counts()
 	require.Equal(t, lists, lists2)
 	require.Equal(t, images, images2)
 
 	// An hourly refresh reuses images while their source URLs are unchanged.
 	*now = now.Add(neighborhoodRefreshAge)
-	_, err = discovery.refreshIfDue(ctx)
-	require.NoError(t, err)
+	require.NoError(t, discovery.refreshIfDue(ctx))
 	lists3, images3 := fetcher.counts()
 	require.Greater(t, lists3, lists2)
 	require.Equal(t, images2, images3)
@@ -171,7 +161,7 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 	require.Equal(t, first.GetLogo().GetObjectName(), refreshed.GetServers()[0].GetLogo().GetObjectName())
 }
 
-func TestNeighborhoodDiscoveryWakesAfterNeighborChange(t *testing.T) {
+func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {
 	core, discovery, fetcher, start := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
 	// The worker reads the clock on its own goroutine.
@@ -186,10 +176,7 @@ func TestNeighborhoodDiscoveryWakesAfterNeighborChange(t *testing.T) {
 		return slices.Clone(neighbors)
 	}
 	fetcher.profiles["https://c.example"] = neighborhood.Profile{Name: "C", Version: "0.5.0"}
-	discovery.changed = make(chan struct{}, 1)
-	// A long periodic interval proves that the change signal starts the check.
-	discovery.checkInterval = time.Hour
-	discovery.changeDebounce = 10 * time.Millisecond
+	discovery.checkInterval = 10 * time.Millisecond
 	bootDone := make(chan struct{})
 	close(bootDone)
 	runCtx, cancel := context.WithCancel(ctx)
@@ -209,7 +196,6 @@ func TestNeighborhoodDiscoveryWakesAfterNeighborChange(t *testing.T) {
 	neighbors = append(neighbors, "https://c.example")
 	mu.Unlock()
 	now.Add(int64(neighborhoodSourceChangeDelay))
-	discovery.notifyNeighborsChanged()
 
 	require.Eventually(t, func() bool {
 		directory, err := core.NeighborhoodDirectory(ctx)
@@ -220,55 +206,6 @@ func TestNeighborhoodDiscoveryWakesAfterNeighborChange(t *testing.T) {
 			return server.GetOrigin() == "https://c.example"
 		})
 	}, 5*time.Second, 10*time.Millisecond)
-}
-
-func TestNeighborhoodDiscoveryReportsPendingNeighborChange(t *testing.T) {
-	_, discovery, _, now := newTestNeighborhoodDiscovery(t)
-	ctx := testContext(t)
-	retryAfter, err := discovery.refreshIfDue(ctx)
-	require.NoError(t, err)
-	require.Zero(t, retryAfter)
-
-	neighbors := []string{"https://a.example", "https://b.example"}
-	discovery.neighbors = func() []string { return neighbors }
-	*now = now.Add(4 * time.Second)
-	retryAfter, err = discovery.refreshIfDue(ctx)
-	require.NoError(t, err)
-	require.Equal(t, neighborhoodSourceChangeDelay-4*time.Second, retryAfter)
-
-	*now = now.Add(retryAfter)
-	retryAfter, err = discovery.refreshIfDue(ctx)
-	require.NoError(t, err)
-	require.Zero(t, retryAfter)
-	directory, err := discovery.load(ctx)
-	require.NoError(t, err)
-	require.Equal(t, neighborhoodSourceFingerprint(neighbors), directory.GetSourceFingerprint())
-}
-
-type busyLease struct{}
-
-func (busyLease) TryRun(context.Context, func(context.Context) error) (bool, error) {
-	return false, nil
-}
-
-func TestNeighborhoodDiscoveryRetriesWhenAnotherReplicaHoldsTheLease(t *testing.T) {
-	_, discovery, _, _ := newTestNeighborhoodDiscovery(t)
-	ctx := testContext(t)
-	discovery.lease = busyLease{}
-
-	retryAfter, err := discovery.refreshIfDue(ctx)
-
-	require.NoError(t, err)
-	require.Equal(t, neighborhoodSourceChangeDelay, retryAfter)
-}
-
-func TestNeighborhoodDiscoveryNotifyNeverBlocks(t *testing.T) {
-	discovery := &neighborhoodDiscovery{changed: make(chan struct{}, 1)}
-	discovery.notifyNeighborsChanged()
-	discovery.notifyNeighborsChanged()
-	var missing *neighborhoodDiscovery
-	missing.notifyNeighborsChanged()
-	require.Len(t, discovery.changed, 1)
 }
 
 func TestNeighborhoodDiscoveryDue(t *testing.T) {

@@ -92,9 +92,7 @@ func initializeCoreServices(
 		return fmt.Errorf("failed to initialize call reconciler lease: %w", err)
 	}
 	initializeProjectionSnapshotWorker(core, infra, projections, cfg, logger)
-	if err := initializeNeighborhoodDiscovery(core, infra, cfg, logger); err != nil {
-		return err
-	}
+	initializeNeighborhoodDiscovery(core, infra, cfg, logger)
 
 	core.mediaModel = NewMediaModel(core)
 	core.callModel = NewCallModel(
