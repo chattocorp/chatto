@@ -25,6 +25,7 @@ import (
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/search"
 )
 
@@ -66,6 +67,10 @@ type HTTPServer struct {
 
 	// Optional test hook for established realtime credential checks.
 	realtimeCredentialCheckEvery time.Duration
+
+	// Optional test hook that replaces the user lookup after a runtime
+	// credential validates.
+	credentialUserLookup func(context.Context, string) (*evtv1.User, error)
 }
 
 const (

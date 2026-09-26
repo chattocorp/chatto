@@ -11,12 +11,17 @@ import (
 	"sort"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+// realtimeSnapshotUserHydrationConcurrency bounds the concurrent key-store and
+// KMS reads that one snapshot uses to decrypt referenced user profiles.
+const realtimeSnapshotUserHydrationConcurrency = 16
 
 // RealtimeSnapshotResources is the finite public resource set captured from
 // one exact ServerContentView generation. Users contains only accounts that
@@ -206,27 +211,45 @@ func (a *API) hydrateRealtimeSnapshotUsers(ctx context.Context, captures map[str
 		userIDs = append(userIDs, userID)
 	}
 	sort.Strings(userIDs)
+	// Each user has its own data-encryption key, and resolving it reads the key
+	// store and the KMS. Hydrate users concurrently so the snapshot does not pay
+	// these round trips once per referenced user.
+	hydrated := make([]*apiv1.DirectoryMember, len(userIDs))
+	hydration, hydrationCtx := errgroup.WithContext(ctx)
+	hydration.SetLimit(realtimeSnapshotUserHydrationConcurrency)
+	for i, userID := range userIDs {
+		capture := captures[userID]
+		hydration.Go(func() error {
+			content, ok, err := a.core.HydrateUserContentSnapshot(hydrationCtx, capture.snapshot)
+			if err != nil {
+				return fmt.Errorf("hydrate referenced user: %w", err)
+			}
+			if !ok || content == nil || content.User == nil {
+				return nil
+			}
+			apiUser, err := a.realtimeSnapshotUser(hydrationCtx, content)
+			if err != nil {
+				return fmt.Errorf("assemble referenced user profile: %w", err)
+			}
+			hydrated[i] = &apiv1.DirectoryMember{
+				User:      apiUser,
+				Roles:     capture.roles,
+				CreatedAt: content.User.GetCreatedAt(),
+			}
+			return nil
+		})
+	}
+	if err := hydration.Wait(); err != nil {
+		return nil, nil, err
+	}
 	members := make([]*apiv1.DirectoryMember, 0, len(userIDs))
 	users := make(map[string]*apiv1.User, len(userIDs))
-	for _, userID := range userIDs {
-		capture := captures[userID]
-		content, ok, err := a.core.HydrateUserContentSnapshot(ctx, capture.snapshot)
-		if err != nil {
-			return nil, nil, fmt.Errorf("hydrate referenced user: %w", err)
-		}
-		if !ok || content == nil || content.User == nil {
+	for i, member := range hydrated {
+		if member == nil {
 			continue
 		}
-		apiUser, err := a.realtimeSnapshotUser(ctx, content)
-		if err != nil {
-			return nil, nil, fmt.Errorf("assemble referenced user profile: %w", err)
-		}
-		users[userID] = apiUser
-		members = append(members, &apiv1.DirectoryMember{
-			User:      apiUser,
-			Roles:     capture.roles,
-			CreatedAt: content.User.GetCreatedAt(),
-		})
+		users[userIDs[i]] = member.GetUser()
+		members = append(members, member)
 	}
 	return members, users, nil
 }

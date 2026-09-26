@@ -26,6 +26,7 @@ const { mocks } = vi.hoisted(() => {
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
+      restoreLatestWindow: vi.fn(),
       setThreadRootFollowState: vi.fn(),
       loadMore: vi.fn(),
       applyLocalMessageDeletion: vi.fn(),
@@ -34,6 +35,7 @@ const { mocks } = vi.hoisted(() => {
       sendTypingIndicator: vi.fn(),
       resetTypingDebounce: vi.fn(),
       jumpToMessage: vi.fn(),
+      storeJumpToMessage: vi.fn(),
       resetJumpState: vi.fn(),
       startReply: vi.fn(),
       cancelReply: vi.fn(),
@@ -153,6 +155,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
           dispose: mocks.disposeMessagesStore,
           ingestEvent: mocks.ingestEvent,
           refreshCurrentWindow: mocks.refreshCurrentWindow,
+          jumpToMessage: mocks.storeJumpToMessage,
+          restoreLatestWindow: mocks.restoreLatestWindow,
           setThreadRootFollowState: mocks.setThreadRootFollowState,
           loadMore: mocks.loadMore,
           applyLocalMessageDeletion: mocks.applyLocalMessageDeletion,
@@ -265,6 +269,14 @@ describe('ThreadPane', () => {
     threadPaneWidth.reset();
     mocks.threadStore = new ThreadPaneTestStore();
     mocks.nextServerThreadStore = new ThreadPaneTestStore();
+    // Like the real store, scroll only to a message that the thread window contains.
+    mocks.storeJumpToMessage.mockImplementation(
+      async (eventId: string, jumpState: { scrollToEventId: string | null }) => {
+        if (!mocks.threadStore!.threadEvents.some((event) => event.id === eventId)) return false;
+        jumpState.scrollToEventId = eventId;
+        return true;
+      }
+    );
     scopeState.set('serverId', 'server-1');
     mocks.appState.isPresent = true;
     mocks.unreadMarkerEventId = null;
@@ -471,6 +483,18 @@ describe('ThreadPane', () => {
     expect(mocks.clearUnreadMarker).toHaveBeenCalledOnce();
   });
 
+  it('returns each thread to its latest replies when the pane opens, switches, or closes', async () => {
+    const rendered = render(ThreadPane, { props: threadProps });
+    await vi.waitFor(() => expect(mocks.restoreLatestWindow).toHaveBeenCalledOnce());
+
+    // Leaving the first thread and opening the second each restore a window.
+    await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(3);
+
+    rendered.unmount();
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(4);
+  });
+
   it('retains decrypted thread history only for the mounted pane lifetime', async () => {
     const rendered = render(ThreadPane, {
       props: {
@@ -528,44 +552,7 @@ describe('ThreadPane', () => {
     );
   });
 
-  it('loads a highlighted reply outside the latest thread page before jumping to it', async () => {
-    let resolveRefresh!: (result: {
-      hasOlder: boolean;
-      hasNewer: boolean;
-      refreshed: boolean;
-      changed: boolean;
-    }) => void;
-    mocks.refreshCurrentWindow.mockReturnValue(
-      new Promise((resolve) => {
-        resolveRefresh = resolve;
-      })
-    );
-
-    render(ThreadPane, {
-      props: {
-        roomId: 'room-1',
-        roomName: 'General',
-        threadRootEventId: 'thread-root',
-        highlight: highlight('older-reply'),
-        onClose: mocks.onClose
-      }
-    });
-
-    await vi.waitFor(() => expect(mocks.refreshCurrentWindow).toHaveBeenCalledWith('older-reply'));
-    expect(mocks.jumpState?.scrollToEventId).toBeNull();
-
-    mocks.threadStore!.threadEvents = [threadMessage('older-reply')];
-    resolveRefresh({
-      hasOlder: true,
-      hasNewer: true,
-      refreshed: true,
-      changed: true
-    });
-
-    await vi.waitFor(() => expect(mocks.jumpState?.scrollToEventId).toBe('older-reply'));
-  });
-
-  it('does not load the window for a highlight that is cleared before it starts', async () => {
+  it('does not jump to a highlight that is cleared before it starts', async () => {
     const props = {
       roomId: 'room-1',
       roomName: 'General',
@@ -580,7 +567,7 @@ describe('ThreadPane', () => {
     await rendered.rerender({ ...props, highlight: null });
     await tick();
 
-    expect(mocks.refreshCurrentWindow).not.toHaveBeenCalled();
+    expect(mocks.storeJumpToMessage).not.toHaveBeenCalled();
     expect(mocks.jumpState?.scrollToEventId).toBeNull();
   });
 
@@ -712,16 +699,13 @@ describe('ThreadPane', () => {
     });
   });
 
-  it('only scrolls for a thread jump outside the highlight flow', async () => {
+  it('passes a reply-link jump to the thread store', async () => {
     render(ThreadPane, { props: threadProps });
     await tick();
 
-    // Reply links jump without loading another window; merging an older window
-    // into the thread can mark its start as reached too early.
-    await expect(mocks.jumpState!.jumpToMessage('older-reply')).resolves.toBe(true);
+    await expect(mocks.jumpState!.jumpToMessage('older-reply')).resolves.toBe(false);
 
-    expect(mocks.jumpState?.scrollToEventId).toBe('older-reply');
-    expect(mocks.refreshCurrentWindow).not.toHaveBeenCalled();
+    expect(mocks.storeJumpToMessage).toHaveBeenCalledWith('older-reply', mocks.jumpState);
   });
 
   it('marks a highlighted notification read after the thread jump', async () => {
@@ -734,15 +718,9 @@ describe('ThreadPane', () => {
     await vi.waitFor(() => expect(mocks.markOccurrenceRead).toHaveBeenCalledWith('notification-1'));
   });
 
-  it('fails a thread highlight whose target is still missing after loading', async () => {
+  it('fails a thread highlight that the store cannot load', async () => {
     const onHighlightComplete = vi.fn();
     const target = highlight('missing-reply', 'notification-1');
-    mocks.refreshCurrentWindow.mockResolvedValue({
-      hasOlder: false,
-      hasNewer: false,
-      refreshed: true,
-      changed: false
-    });
 
     render(ThreadPane, { props: { ...threadProps, highlight: target, onHighlightComplete } });
 

@@ -202,12 +202,7 @@ export class MessagesStore {
     this.source = target.threadRootEventId
       ? MessageTimelineSource.thread(this.roomTimeline, target.roomId, target.threadRootEventId)
       : MessageTimelineSource.room(this.roomTimeline, target.roomId);
-    if (this.scope === 'room') {
-      void this.resetAndFetchLatest();
-    } else {
-      const thisLoad = this.startLoad();
-      void this.fetchCurrent(thisLoad);
-    }
+    void this.resetAndFetchLatest();
   }
 
   private get scope() {
@@ -448,6 +443,8 @@ export class MessagesStore {
 
   /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
   private startLoad(): number {
+    // A superseded loadMore cannot clear its own flag, so clear it here.
+    this.isLoadingMore = false;
     if (this.#pendingAuthoritativeLoadId !== null) {
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
@@ -477,9 +474,11 @@ export class MessagesStore {
     if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
   }
 
-  /** Load the latest room window at a route boundary when retained data needs it. */
+  /**
+   * Cancel a pending jump and load the latest window at a route boundary, when
+   * a jump left the retained window on older events.
+   */
   restoreLatestWindow(): Promise<boolean> {
-    if (this.scope !== 'room') return Promise.resolve(false);
     if (this.recoveryViewport) return Promise.resolve(false);
     this.cancelPendingHistoricalJump();
     if (this.#pendingAuthoritativeLoadId !== null || !this.#needsLatestWindow) {
@@ -781,9 +780,13 @@ export class MessagesStore {
     }
   }
 
+  /**
+   * Scroll to a message. When the window does not contain it, replace the window
+   * with the page around the message and enter jumped mode if newer events exist.
+   * Returns false when the message cannot be loaded or a newer jump supersedes this one.
+   */
   async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
     const source = this.source;
-    if (source.scope !== 'room') return false;
     const jumpId = ++this.#jumpId;
     if (this.events.some((e) => e.id === eventId)) {
       if (this.#pendingJumpId !== null) {
@@ -1012,8 +1015,7 @@ export class MessagesStore {
       }
 
       if (eventData.threadRootEventId === this.threadRootEventId) {
-        this.addEvent(spaceEvent, { sortRoom: false });
-        this.sortEvents();
+        this.addEvent(spaceEvent);
       }
       return;
     }
@@ -1138,11 +1140,11 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(event: TimelineEventView, options: { sortRoom?: boolean } = {}): boolean {
+  private addEvent(event: TimelineEventView, options: { sort?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
-    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortEvents();
+    if (options.sort ?? true) this.sortEvents();
     return true;
   }
 
@@ -1150,9 +1152,10 @@ export class MessagesStore {
     let added = false;
     for (const e of events) {
       this.clearOptimisticVersionForEvent(e.id);
-      added = this.addEvent(e, { sortRoom: false }) || added;
+      added = this.addEvent(e, { sort: false }) || added;
     }
-    if (added && this.scope === 'room') this.sortEvents();
+    // A live event can arrive before an older page of newer events.
+    if (added) this.sortEvents();
   }
 
   private prependEvents(olderEvents: TimelineEventView[]): number {
@@ -1318,7 +1321,11 @@ export class MessagesStore {
         options.latestSnapshot || options.forwardSnapshot
           ? (connection.endCursor ?? previousNewestCursor ?? undefined)
           : (previousNewestCursor ?? connection.endCursor ?? undefined);
-      this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
+      // A page without older events reaches the start only when it joins the
+      // loaded window. A separate older page leaves a gap that paging must fill.
+      const continuesWindow = hasFetchedOverlap || !hasExistingContinuityEvents;
+      this.hasReachedStart =
+        previousHasReachedStart || (continuesWindow && !(connection.hasOlder ?? false));
     } else {
       this.oldestCursor = connection.startCursor ?? undefined;
       this.newestCursor = connection.endCursor ?? undefined;

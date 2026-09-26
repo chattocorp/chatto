@@ -275,14 +275,19 @@ func (c *ChattoCore) WaitForBoot(ctx context.Context) error {
 
 // WaitForProjectionsCurrent blocks until every registered projection has
 // applied the latest stream message matching its filters as of this call.
-// Intended for boot/import diagnostics, not hot request paths.
+// Each target lookup is a broker round trip, so projections wait concurrently.
+// Realtime replay planning calls this once for each WebSocket connection.
 func (c *ChattoCore) WaitForProjectionsCurrent(ctx context.Context) error {
+	waits, waitCtx := errgroup.WithContext(ctx)
 	for _, projection := range c.projections {
-		if err := projection.projector.WaitForCurrent(ctx); err != nil {
-			return fmt.Errorf("%s projection: %w", projection.name, err)
-		}
+		waits.Go(func() error {
+			if err := projection.projector.WaitForCurrent(waitCtx); err != nil {
+				return fmt.Errorf("%s projection: %w", projection.name, err)
+			}
+			return nil
+		})
 	}
-	return nil
+	return waits.Wait()
 }
 
 // ProjectionHealthError returns the first fatal projection error currently

@@ -118,7 +118,11 @@ describe('authenticationRequiredInterceptor', () => {
   const unauthenticated = new ConnectError('session expired', Code.Unauthenticated);
 
   function unaryRequest(contextValues = createContextValues()) {
-    return { contextValues } as never;
+    return {
+      contextValues,
+      service: { typeName: 'chatto.api.v1.RoomService' },
+      method: { name: 'ListMembers' }
+    } as never;
   }
 
   async function reject(
@@ -136,10 +140,13 @@ describe('authenticationRequiredInterceptor', () => {
     return run(onAuthenticationRequired).finally(() => configureApiClientHooks({}));
   }
 
-  it('requests sign-in when a session that cannot renew is rejected', () =>
+  it('reports a rejected session that cannot renew with the rejected request', () =>
     withHook(async (hook) => {
       await reject({ serverId: 'origin' }, unauthenticated);
-      expect(hook).toHaveBeenCalledExactlyOnceWith('origin');
+      expect(hook).toHaveBeenCalledExactlyOnceWith(
+        'origin',
+        'chatto.api.v1.RoomService/ListMembers'
+      );
     }));
 
   it('leaves renewable sessions to the bearer renewal flow', () =>
@@ -181,7 +188,10 @@ describe('authenticationRequiredInterceptor', () => {
         await expect(client.listMembers({ roomId: 'room' })).rejects.toMatchObject({
           code: Code.Unauthenticated
         });
-        expect(hook).toHaveBeenCalledExactlyOnceWith('origin');
+        expect(hook).toHaveBeenCalledExactlyOnceWith(
+          'origin',
+          'chatto.api.v1.RoomService/ListMembers'
+        );
       } finally {
         vi.unstubAllGlobals();
       }

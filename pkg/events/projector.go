@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 )
 
 // ErrProjectionFailed marks a projector that stopped applying events
@@ -1154,18 +1155,32 @@ func (p *Projector) currentTarget(ctx context.Context) (projectionTarget, error)
 	return p.targetForSubjects(ctx, p.subjects)
 }
 
+// targetForSubjects looks up the last message for every filter concurrently.
+// Each lookup is a separate JetStream request, so sequential lookups would cost
+// one broker round trip per filter.
 func (p *Projector) targetForSubjects(ctx context.Context, subjects []string) (projectionTarget, error) {
-	var target projectionTarget
-	for _, subject := range subjects {
-		msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrMsgNotFound) {
-				continue
+	sequences := make([]uint64, len(subjects))
+	lookups, lookupCtx := errgroup.WithContext(ctx)
+	for i, subject := range subjects {
+		lookups.Go(func() error {
+			msg, err := p.stream.GetLastMsgForSubject(lookupCtx, subject)
+			if err != nil {
+				if errors.Is(err, jetstream.ErrMsgNotFound) {
+					return nil
+				}
+				return fmt.Errorf("last msg for subject %q: %w", subject, err)
 			}
-			return projectionTarget{}, fmt.Errorf("last msg for subject %q: %w", subject, err)
-		}
-		if msg.Sequence > target.seq {
-			target = projectionTarget{seq: msg.Sequence}
+			sequences[i] = msg.Sequence
+			return nil
+		})
+	}
+	if err := lookups.Wait(); err != nil {
+		return projectionTarget{}, err
+	}
+	var target projectionTarget
+	for _, sequence := range sequences {
+		if sequence > target.seq {
+			target = projectionTarget{seq: sequence}
 		}
 	}
 	return target, nil

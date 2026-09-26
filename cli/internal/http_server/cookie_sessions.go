@@ -286,10 +286,10 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 		return presentedRuntimeCredential{}, false, nil
 	}
 
-	user, err := s.core.GetUser(c.Request.Context(), userID)
+	user, err := s.credentialUser(c.Request.Context(), userID)
 	if err != nil {
 		log.Warn("Failed to load user from cookie runtime credential", "userId", userID, "error", err)
-		return presentedRuntimeCredential{}, false, nil
+		return presentedRuntimeCredential{}, false, err
 	}
 	privilegedModeExpiresAt := time.Time{}
 	if deadline := record.GetPrivilegedModeExpiresAt(); deadline != nil {

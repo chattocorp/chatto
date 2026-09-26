@@ -190,13 +190,14 @@ mounted when a signed image URL refreshes and remounts it for another image.
     onpointermove={pointermove}
     onpointerup={pointerend}
     onpointercancel={pointerend}
+    onlostpointercapture={pointerend}
     ondblclick={(event) => zoomAt(zoom === 1 ? 2 : 1, event.clientX, event.clientY)}
   >
     <img
       {src}
       {alt}
       draggable="false"
-      class="pointer-events-none h-full w-full object-contain outline-none"
+      class="h-full w-full touch-none object-contain outline-none"
       style={`transform: translate(${offsetX}px, ${offsetY}px) scale(${zoom})`}
       {@attach measureImage}
       {onerror}

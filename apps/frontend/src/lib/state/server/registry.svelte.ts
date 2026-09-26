@@ -7,7 +7,9 @@ import { getPublicServerInfo } from '$lib/api-client/server';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
-import type { CurrentUser } from '$lib/api-client/viewer';
+import { getViewerStateViaConnect, type CurrentUser } from '$lib/api-client/viewer';
+import { connectEndpoint } from '$lib/api-client/connect';
+import { isAuthenticationRequiredError } from '$lib/auth/errors';
 import {
   ServerCatalog,
   type ServerRegistration,
@@ -342,6 +344,8 @@ class ServerRegistry {
   readonly sessions: ServerSessions;
   #stores = new SvelteMap<string, ServerStateStore>();
   #renewalPromises = new Map<string, Promise<string | null>>();
+  /** In-flight viewer checks that confirm a rejected origin cookie session. */
+  #authenticationChecks = new Map<string, Promise<boolean>>();
   #originProbe: Promise<void> | null = null;
   /** Stores whose discovery and viewer startup has been scheduled. */
   #startedServerNetwork = new Set<string>();
@@ -649,6 +653,68 @@ class ServerRegistry {
       store.currentUser.invalidateVerification();
       store.currentUser.loading = false;
     }
+  }
+
+  /**
+   * Report an `Unauthenticated` result from a request that did not itself read
+   * the viewer. `source` names the request for diagnostics.
+   *
+   * A session with a token is marked at once: a renewable session reaches this
+   * only after its refresh grant was rejected, and a fixed token cannot recover.
+   * The origin cookie session is different. It cannot renew itself, so one
+   * rejected request must not end it. The registry reads the viewer once and
+   * marks the session only when that read is also rejected. Reports that arrive
+   * during the read share it.
+   *
+   * Resolves to true when the session needs a new sign-in. Rejects when the
+   * viewer read fails for another reason; the caller then retries later.
+   */
+  confirmAuthenticationRequired(id: string, source: string): Promise<boolean> {
+    console.warn('[auth] request rejected as unauthenticated', { serverId: id, source });
+    const session = this.sessions.get(id);
+    const registration = this.catalog.get(id);
+    if (!session || !registration) return Promise.resolve(false);
+    if (session.reauthRequiredAt !== null) return Promise.resolve(true);
+    if (session.token !== null || !this.isOriginServer(id)) {
+      this.handleAuthenticationRequired(id);
+      return Promise.resolve(true);
+    }
+
+    const existing = this.#authenticationChecks.get(id);
+    if (existing) return existing;
+    const check = this.#confirmCookieAuthenticationRequired(
+      id,
+      registration.url,
+      session.userId
+    ).finally(() => {
+      if (this.#authenticationChecks.get(id) === check) this.#authenticationChecks.delete(id);
+    });
+    this.#authenticationChecks.set(id, check);
+    return check;
+  }
+
+  async #confirmCookieAuthenticationRequired(
+    id: string,
+    url: string,
+    userId: string | null
+  ): Promise<boolean> {
+    try {
+      await getViewerStateViaConnect(
+        { baseUrl: connectEndpoint(url), bearerToken: null },
+        { timeoutMs: 10_000 }
+      );
+      console.warn('[auth] viewer check accepted the origin session; keeping it', {
+        serverId: id
+      });
+      return false;
+    } catch (error) {
+      if (!isAuthenticationRequiredError(error)) throw error;
+    }
+    // A sign-in or sign-out during the check replaced the rejected session.
+    const current = this.sessions.get(id);
+    if (!current || current.token !== null || current.userId !== userId) return false;
+    this.handleAuthenticationRequired(id);
+    return true;
   }
 
   clearAuthenticationRequired(id: string): void {

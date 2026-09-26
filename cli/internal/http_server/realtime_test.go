@@ -1198,3 +1198,28 @@ func TestPrivilegedModeExpiryCancelsAuthorizationAndRequestsReconnect(t *testing
 		t.Fatalf("expiry frame = %+v, want reconnecting privileged_mode_expired", written)
 	}
 }
+
+// A cookie session cannot renew itself, so a failed user lookup for a valid
+// session must ask the browser to reconnect instead of to sign in again.
+func TestRealtimeWebSocketReportsCookieUserLookupFailureAsTemporary(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie-lookup", "RT Cookie Lookup", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	env.login(t, "rt-cookie-lookup", "password123")
+	env.httpServer.credentialUserLookup = func(context.Context, string) (*evtv1.User, error) {
+		return nil, errors.New("key store unavailable")
+	}
+
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
+	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE || !frame.GetClose().GetReconnect() {
+		t.Fatalf("user lookup failure response = %+v, want reconnecting temporarily_unavailable", frame)
+	}
+
+	env.httpServer.credentialUserLookup = nil
+	conn = env.dialRealtime(t)
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+}
