@@ -52,7 +52,6 @@ Run Chatto, Authling, Mailpit, LiveKit, and the Runling bot:
 mise trust
 mise install
 mise setup
-(cd authling && mise trust && mise install && mise deps)
 mise dev
 ```
 
@@ -60,7 +59,8 @@ mise dev
 runs the services in one supervised process group. Turbo restores unchanged
 frontend builds from a cache that all worktrees share. Restart `mise dev` to
 see a change in Chatto, its frontend, or Authling. `mise setup` installs
-dependencies and the LiveKit server. It does not build anything.
+the Chatto and Authling dependencies and the LiveKit server. It does not build
+anything.
 
 All services use plain HTTP. In Conductor, `<workspace>` is the workspace name
 and the base port is `$CONDUCTOR_PORT`. Outside Conductor, `<workspace>` is

@@ -29,7 +29,6 @@ Chatto is built with the help of coding agents. Read [Chatto is Robots](https://
 mise trust
 mise install
 mise setup
-(cd authling && mise trust && mise install && mise deps)
 mise dev
 ```
 

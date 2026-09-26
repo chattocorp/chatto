@@ -39,6 +39,7 @@ run = [
     { task = "setup-natsruntime" },
     { task = "setup-frontend" },
     { task = "setup-livekit" },
+    { task = "setup-authling" },
 ]
 
 # =============================================================================
@@ -115,6 +116,13 @@ depends = ["deps-frontend"]
 description = "Install the LiveKit server that the development stack runs"
 # `mise x` installs the pinned server on first use without activating it globally.
 run = 'mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- server --version'
+
+[tasks.setup-authling]
+description = "Install the Authling tools and dependencies that the development stack runs"
+# Authling owns its toolchain and task catalog in `authling/mise.toml`. This
+# task only calls into it, so Authling can move to its own repository unchanged.
+dir = "authling"
+run = "mise trust && mise install && mise run deps"
 
 # =============================================================================
 # License Metadata

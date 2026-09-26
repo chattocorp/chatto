@@ -2,7 +2,7 @@ version = 1
 name = "Chatto"
 
 [setup]
-script = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
+script = "mise trust && mise install && mise setup"
 
 [cleanup]
 script = "exec tools/stop-workspace-dev.sh"
