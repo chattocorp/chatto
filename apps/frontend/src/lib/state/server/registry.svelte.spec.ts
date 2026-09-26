@@ -261,23 +261,6 @@ describe('ServerRegistry', () => {
     });
   });
 
-  it('clears a remote session when another tab signs out', async () => {
-    const registry = await createRegistry();
-    registry.removeAll();
-    registry.init();
-    registry.addServer(makeServer({ id: 'other-tab', token: 'access', userId: 'U1' }));
-    const channel = new BroadcastChannel('chatto-private-cache');
-    try {
-      channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
-      await vi.waitFor(() => {
-        expect(registry.getServer('other-tab')?.token).toBeNull();
-        expect(registry.getServer('other-tab')?.userId).toBeNull();
-      });
-    } finally {
-      channel.close();
-    }
-  });
-
   /** Store a session as another tab does before it notifies this tab. */
   function storeSessionFromOtherTab(serverId: string, token: string | null, userId: string | null) {
     updatePersistedAuthentication(serverId, { token });
@@ -338,6 +321,73 @@ describe('ServerRegistry', () => {
         expect(registry.getServer('other-tab')?.userId).toBeNull();
       });
       expect(storedToken('other-tab')).toBeNull();
+    } finally {
+      channel.close();
+    }
+  });
+
+  it('signs out in memory without erasing a same-account session that another tab stored', async () => {
+    const registry = await createRegistry();
+    registry.removeAll();
+    registry.init();
+    registry.addServer(makeServer({ id: 'other-tab', token: 'old-access', userId: 'U1' }));
+    const previousStore = registry.getStore('other-tab');
+    // The other tab signed out and back in to the same account. An older
+    // client sends both messages for its sign-out.
+    storeSessionFromOtherTab('other-tab', 'new-access', 'U1');
+    const channel = new BroadcastChannel('chatto-private-cache');
+    try {
+      channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
+      channel.postMessage({ type: 'clear-server', serverId: 'other-tab', userId: 'U1' });
+      await vi.waitFor(() => expect(registry.getStore('other-tab')).not.toBe(previousStore));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(registry.getServer('other-tab')?.token).not.toBe('old-access');
+      expect(storedToken('other-tab')).toBe('new-access');
+    } finally {
+      channel.close();
+    }
+  });
+
+  it('signs out instead of adopting the same account with rotated credentials', async () => {
+    const registry = await createRegistry();
+    registry.removeAll();
+    registry.init();
+    registry.addServer(makeServer({ id: 'other-tab', token: 'stale-access', userId: 'U1' }));
+    // This tab never adopted a rotation, and its read can precede the sign-out write.
+    storeSessionFromOtherTab('other-tab', 'rotated-access', 'U1');
+    // Channels receive a message in creation order, so this observer runs
+    // directly after the registry's handler.
+    const observer = new BroadcastChannel('chatto-private-cache');
+    const observed: unknown[][] = [];
+    observer.onmessage = () =>
+      observed.push([
+        registry.getServer('other-tab')?.token,
+        registry.getServer('other-tab')?.userId
+      ]);
+    const channel = new BroadcastChannel('chatto-private-cache');
+    try {
+      channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
+      await vi.waitFor(() => expect(observed).toEqual([[null, null]]));
+      expect(storedToken('other-tab')).toBe('rotated-access');
+    } finally {
+      observer.close();
+      channel.close();
+    }
+  });
+
+  it('notifies other tabs only after it stores the signed-out session', async () => {
+    const registry = await createRegistry();
+    registry.removeAll();
+    registry.init();
+    registry.addServer(makeServer({ id: 'other-tab', token: 'access', userId: 'U1' }));
+    const channel = new BroadcastChannel('chatto-private-cache');
+    const received: { type: string; storedToken: unknown }[] = [];
+    channel.onmessage = (event) =>
+      received.push({ type: event.data.type, storedToken: storedToken('other-tab') });
+    try {
+      registry.clearServerAuthentication('other-tab');
+      await vi.waitFor(() => expect(received).toHaveLength(1));
+      expect(received).toEqual([{ type: 'sign-out', storedToken: null }]);
     } finally {
       channel.close();
     }

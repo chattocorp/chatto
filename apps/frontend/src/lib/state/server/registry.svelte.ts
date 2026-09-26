@@ -302,18 +302,6 @@ function readPersistedSession(serverId: string): ServerSession {
   return { ...session, ...(authentication ?? emptyServerAuthentication()) };
 }
 
-/** Whether two sessions hold the same credentials and account. */
-function sameStoredSession(a: ServerSession, b: ServerSession): boolean {
-  const first = authenticationFromSession(a);
-  const second = authenticationFromSession(b);
-  return (
-    a.userId === b.userId &&
-    (Object.keys(first) as (keyof ServerAuthentication)[]).every(
-      (key) => first[key] === second[key]
-    )
-  );
-}
-
 const RETIRED_ACCOUNT_DATA_KEYS = [
   'chatto:account-data:authorization',
   'chatto:account-data:device-id',
@@ -372,10 +360,10 @@ class ServerRegistry {
   #originProbe: Promise<void> | null = null;
   /**
    * Tells other tabs that a sign-out, account change, or server removal changed
-   * a server's authentication. A receiving tab adopts the session that the
-   * sender stored and drops its in-memory private data; see
-   * `#applyCrossTabSignOut`. The name predates the removal of saved chat views;
-   * tabs that run older client versions still use it.
+   * a server's authentication. The sender posts after it stores the new state.
+   * A receiving tab drops its in-memory private data without writing storage;
+   * see `#applyCrossTabSignOut`. The name predates the removal of saved chat
+   * views; tabs that run older client versions still use it.
    */
   #cacheChannel: BroadcastChannel | null = null;
   /** Stores whose discovery and viewer startup has been scheduled. */
@@ -643,24 +631,10 @@ class ServerRegistry {
   clearServerAuthentication(id: string, notifyTabs = true): void {
     const server = this.getServer(id);
     if (!server) return;
+    this.#replaceServerAuth(id, emptyServerSession(), { notifyTabs: false });
+    this.tryGetStore(id)?.currentUser.reset();
+    // Other tabs read storage when they receive this, so post after the write.
     if (notifyTabs) this.#cacheChannel?.postMessage({ type: 'sign-out', serverId: id });
-    this.#replaceServerAuth(id, {
-      token: null,
-      refreshToken: null,
-      accessTokenExpiresAt: null,
-      refreshTokenExpiresAt: null,
-      oauthClientId: null,
-      refreshRequestId: null,
-      userId: null,
-      userLogin: null,
-      userDisplayName: null,
-      userAvatarUrl: null,
-      reauthRequiredAt: null
-    });
-    const store = this.tryGetStore(id);
-    if (store) {
-      store.currentUser.reset();
-    }
   }
 
   clearOriginAuthentication(): void {
@@ -875,21 +849,24 @@ class ServerRegistry {
   }
 
   /**
-   * Apply another tab's sign-out or account change. BroadcastChannel delivers
-   * the message after the sender stored its new session, so this tab must not
-   * write its own signed-out state over it. It adopts the stored session
-   * instead. Only when storage still holds this tab's session, because the
-   * sender could not write, does this tab sign out and store that.
+   * Apply another tab's sign-out, account change, or server removal. The
+   * sender has already stored its new state, so this tab never writes storage
+   * here: a write could replace a newer session that the sender stored. When
+   * storage holds a different account, this tab adopts it. Otherwise, it signs
+   * out in memory. It never keeps the previous account, even when storage
+   * still shows it, because that storage read can be older than the sender's
+   * write.
    */
   #applyCrossTabSignOut(id: string): void {
     const current = this.sessions.get(id);
     if (!current || !this.catalog.get(id)) return;
     const stored = readPersistedSession(id);
-    if (sameStoredSession(stored, current)) {
-      this.clearServerAuthentication(id, false);
-      return;
-    }
-    this.#replaceServerAuth(id, stored, { persist: false, notifyTabs: false });
+    const otherAccount = stored.userId !== null && stored.userId !== current.userId;
+    this.#replaceServerAuth(id, otherAccount ? stored : emptyServerSession(), {
+      persist: false,
+      notifyTabs: false
+    });
+    if (!otherAccount) this.tryGetStore(id)?.currentUser.reset();
   }
 
   /** Start discovery and remote viewer recovery for a store once. */
@@ -934,8 +911,6 @@ class ServerRegistry {
     if (!server) {
       return false;
     }
-    this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: id, userId: server.userId });
-
     // Stop event bus subscription
     eventBusManager.stopBus(id);
 
@@ -951,35 +926,27 @@ class ServerRegistry {
     this.catalog.remove(id);
     persistAuthentication(id, emptyServerAuthentication());
     this.#persist();
+    this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: id, userId: server.userId });
     return true;
   }
 
   /** Remove all local registrations and sessions without synchronizing deletions. */
   removeAll(): void {
-    const ids = this.servers.map((server) => server.id);
-    for (const server of this.servers)
-      this.#cacheChannel?.postMessage({
-        type: 'clear-server',
-        serverId: server.id,
-        userId: server.userId
-      });
+    const removed = this.servers.map((server) => ({ serverId: server.id, userId: server.userId }));
+    const ids = removed.map((server) => server.serverId);
     this.#disposeServers(ids);
     for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
     this.sessions.clear();
     this.catalog.reset();
     this.#persist();
+    this.#notifyServersCleared(removed);
   }
 
   /** Clear every session and remote registration while retaining the configured origin. */
   resetToOrigin(): void {
     const origin = this.originServer;
-    const ids = this.servers.map((server) => server.id);
-    for (const server of this.servers)
-      this.#cacheChannel?.postMessage({
-        type: 'clear-server',
-        serverId: server.id,
-        userId: server.userId
-      });
+    const removed = this.servers.map((server) => ({ serverId: server.id, userId: server.userId }));
+    const ids = removed.map((server) => server.serverId);
     this.#disposeServers(ids);
     for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
     this.sessions.clear();
@@ -991,6 +958,13 @@ class ServerRegistry {
       this.settleOriginUnauthenticated();
     }
     this.#persist();
+    this.#notifyServersCleared(removed);
+  }
+
+  /** Tell other tabs about cleared servers after their signed-out state is stored. */
+  #notifyServersCleared(servers: { serverId: string; userId: string | null }[]): void {
+    for (const { serverId, userId } of servers)
+      this.#cacheChannel?.postMessage({ type: 'clear-server', serverId, userId });
   }
 
   #disposeServers(ids: string[]): void {
@@ -1062,14 +1036,6 @@ class ServerRegistry {
     if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
     const previousUserId =
       this.sessions.get(id)?.userId ?? this.#stores.get(id)?.currentUser.user?.id;
-    if (notifyTabs && previousUserId && previousUserId !== data.userId) {
-      this.#cacheChannel?.postMessage({
-        type: 'clear-server',
-        serverId: id,
-        userId: previousUserId
-      });
-    }
-
     eventBusManager.stopBus(id);
     this.#stores.get(id)?.dispose();
     this.#stores.delete(id);
@@ -1080,6 +1046,10 @@ class ServerRegistry {
     if (persist) {
       this.#persistAuthentication(id);
       this.#persist();
+    }
+    // Other tabs read storage when they receive this, so post after the write.
+    if (notifyTabs && previousUserId && previousUserId !== data.userId) {
+      this.#notifyServersCleared([{ serverId: id, userId: previousUserId }]);
     }
     this.#createStore(id, startNetwork);
     return true;
