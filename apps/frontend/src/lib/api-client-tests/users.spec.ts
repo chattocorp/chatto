@@ -24,14 +24,24 @@ vi.mock('@connectrpc/connect-web', () => ({
 
 describe('createUserAPI', () => {
   it('shares a pending profile read with the room directory adapter', async () => {
-    const config = { serverId: 'server', queryScope: 'session', baseUrl: '/api/connect', bearerToken: null };
+    const config = {
+      serverId: 'server',
+      queryScope: 'session',
+      baseUrl: '/api/connect',
+      bearerToken: null
+    };
     const userAPI = createUserAPI(config);
     const directoryAPI = createMemberDirectoryAPI(config);
-    mocks.batchGetUsers.mockResolvedValue({ users: [new APIDirectoryMember({
-      user: { id: 'bot', login: 'bot', bot: { ownerUserId: 'owner' } }
-    })] });
+    mocks.batchGetUsers.mockResolvedValue({
+      users: [
+        new APIDirectoryMember({
+          user: { id: 'bot', login: 'bot', bot: { ownerUserId: 'owner' } }
+        })
+      ]
+    });
     const [summaries, members] = await Promise.all([
-      userAPI.batchGetUsers(['bot']), directoryAPI.batchGetUsers(['bot'])
+      userAPI.batchGetUsers(['bot']),
+      directoryAPI.batchGetUsers(['bot'])
     ]);
     expect(summaries[0].bot?.ownerUserId).toBe('owner');
     expect(members[0].isBot).toBe(true);
@@ -59,25 +69,34 @@ describe('createUserAPI', () => {
       return { user: new APIUser({ id: 'U1', login: 'alice' }) };
     });
     const api = createUserAPI({
-      serverId: 'server', queryScope: 'session', baseUrl: '/api/connect', bearerToken: null
+      serverId: 'server',
+      queryScope: 'session',
+      baseUrl: '/api/connect',
+      bearerToken: null
     });
     await expect(api.deleteAvatar('U1')).resolves.toMatchObject({ id: 'U1', avatarUrl: null });
     expect(store.has('U1')).toBe(false);
   });
 
-  it.each(['delete', 'clear'])('rejects an avatar response after the profile privacy boundary %s', async (boundary) => {
-    const store = getUserStore('server', 'session');
-    mocks.deleteAvatar.mockImplementation(async () => {
-      if (boundary === 'delete') store.delete('U1');
-      else store.clear();
-      return { user: new APIUser({ id: 'U1', login: 'alice' }) };
-    });
-    const api = createUserAPI({
-      serverId: 'server', queryScope: 'session', baseUrl: '/api/connect', bearerToken: null
-    });
-    await expect(api.deleteAvatar('U1')).rejects.toThrow();
-    expect(store.has('U1')).toBe(false);
-  });
+  it.each(['delete', 'clear'])(
+    'rejects an avatar response after the profile privacy boundary %s',
+    async (boundary) => {
+      const store = getUserStore('server', 'session');
+      mocks.deleteAvatar.mockImplementation(async () => {
+        if (boundary === 'delete') store.delete('U1');
+        else store.clear();
+        return { user: new APIUser({ id: 'U1', login: 'alice' }) };
+      });
+      const api = createUserAPI({
+        serverId: 'server',
+        queryScope: 'session',
+        baseUrl: '/api/connect',
+        bearerToken: null
+      });
+      await expect(api.deleteAvatar('U1')).rejects.toThrow();
+      expect(store.has('U1')).toBe(false);
+    }
+  );
 
   it('uploads and deletes an avatar for an explicit user', async () => {
     mocks.uploadAvatar.mockResolvedValue({

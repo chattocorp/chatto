@@ -56,7 +56,10 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flex w-88 max-w-full flex-col gap-2 compact-input:w-72 compact-input:gap-1" onkeydown={handleKeydown}>
+<div
+  class="flex w-88 max-w-full flex-col gap-2 compact-input:w-72 compact-input:gap-1"
+  onkeydown={handleKeydown}
+>
   <!-- Search section -->
   <div class="menu-section p-2 compact-input:p-1">
     <input

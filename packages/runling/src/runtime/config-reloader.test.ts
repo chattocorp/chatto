@@ -1,20 +1,20 @@
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { expect, test, vi } from "vitest";
-import { ConfigReloader } from "./config-reloader.ts";
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { expect, test, vi } from 'vitest';
+import { ConfigReloader } from './config-reloader.ts';
 
-test("loads once by default and does not reload edited project files", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "runling-static-config-"));
-  const path = join(directory, "runling.config.ts");
-  await writeFile(path, "export default { webhooks: {}, sources: {} };\n");
+test('loads once by default and does not reload edited project files', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'runling-static-config-'));
+  const path = join(directory, 'runling.config.ts');
+  await writeFile(path, 'export default { webhooks: {}, sources: {} };\n');
   const loader = new ConfigReloader(path);
   try {
     const original = await loader.load();
     const changed = vi.fn();
     loader.subscribe(changed);
-    await writeFile(path, "export default { invalid: true };\n");
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await writeFile(path, 'export default { invalid: true };\n');
+    await new Promise((resolve) => setTimeout(resolve, 250));
     expect(await loader.load()).toBe(original);
     expect(loader.revision).toBe(1);
     expect(changed).not.toHaveBeenCalled();
@@ -26,8 +26,8 @@ test("loads once by default and does not reload edited project files", async () 
 });
 
 async function fixture(run: (loader: ConfigReloader, path: string) => Promise<void>) {
-  const directory = await mkdtemp(join(tmpdir(), "runling-config-test-"));
-  const path = join(directory, "runling.config.ts");
+  const directory = await mkdtemp(join(tmpdir(), 'runling-config-test-'));
+  const path = join(directory, 'runling.config.ts');
   const loader = new ConfigReloader(path, { watch: true });
   try {
     await run(loader, path);
@@ -37,24 +37,24 @@ async function fixture(run: (loader: ConfigReloader, path: string) => Promise<vo
   }
 }
 
-test("starts empty without a config and watches for its creation", async () => {
+test('starts empty without a config and watches for its creation', async () => {
   await fixture(async (loader, path) => {
     expect(await loader.load()).toEqual({ webhooks: {} });
     expect(loader.error).toBeUndefined();
     expect(await loader.reload()).toEqual({ webhooks: {} });
     expect(loader.error).toBeUndefined();
     const revision = loader.revision;
-    await writeFile(path, "export default { webhooks: {} };\n");
+    await writeFile(path, 'export default { webhooks: {} };\n');
     await vi.waitFor(() => expect(loader.revision).toBeGreaterThan(revision), { timeout: 5000 });
     expect(loader.error).toBeUndefined();
   });
 });
 
-test("retains a previously loaded config if the file is removed", async () => {
-  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+test('retains a previously loaded config if the file is removed', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   try {
     await fixture(async (loader, path) => {
-      await writeFile(path, "export default { webhooks: {} };\n");
+      await writeFile(path, 'export default { webhooks: {} };\n');
       const config = await loader.load();
       await rm(path);
       expect(await loader.reload()).toBe(config);
@@ -65,9 +65,9 @@ test("retains a previously loaded config if the file is removed", async () => {
   }
 });
 
-test("shares the initial load and caches it until reload", async () => {
+test('shares the initial load and caches it until reload', async () => {
   await fixture(async (loader, path) => {
-    await writeFile(path, "export default { webhooks: {} };\n");
+    await writeFile(path, 'export default { webhooks: {} };\n');
     const [first, second] = await Promise.all([loader.load(), loader.load()]);
     expect(second).toBe(first);
     expect(await loader.load()).toBe(first);
@@ -77,13 +77,13 @@ test("shares the initial load and caches it until reload", async () => {
   });
 });
 
-test("recovers when an initially invalid config is corrected", async () => {
-  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+test('recovers when an initially invalid config is corrected', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   try {
     await fixture(async (loader, path) => {
-      await writeFile(path, "export default { invalid: true };\n");
-      await expect(loader.load()).rejects.toThrow("valid Runling configuration");
-      await writeFile(path, "export default { webhooks: {} };\n");
+      await writeFile(path, 'export default { invalid: true };\n');
+      await expect(loader.load()).rejects.toThrow('valid Runling configuration');
+      await writeFile(path, 'export default { webhooks: {} };\n');
       await vi.waitFor(() => expect(loader.error).toBeUndefined(), { timeout: 5000 });
       expect(await loader.load()).toEqual({ webhooks: {} });
     });
@@ -92,12 +92,12 @@ test("recovers when an initially invalid config is corrected", async () => {
   }
 });
 
-test("rejects an existing invalid config and missing imports", async () => {
-  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+test('rejects an existing invalid config and missing imports', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   try {
     await fixture(async (loader, path) => {
-      await writeFile(path, "export default { invalid: true };\n");
-      await expect(loader.load()).rejects.toThrow("valid Runling configuration");
+      await writeFile(path, 'export default { invalid: true };\n');
+      await expect(loader.load()).rejects.toThrow('valid Runling configuration');
     });
     await fixture(async (loader, path) => {
       await writeFile(path, "import './missing.ts'; export default { webhooks: {} };\n");
@@ -108,12 +108,14 @@ test("rejects an existing invalid config and missing imports", async () => {
   }
 });
 
-test("agent subpath imports share the host runtime across config reloads", async () => {
-  const { agent, connectAgent } = await import("./agents/index.ts");
-  const { createWorkflowContext } = await import("./context.ts");
+test('agent subpath imports share the host runtime across config reloads', async () => {
+  const { agent, connectAgent } = await import('./agents/index.ts');
+  const { createWorkflowContext } = await import('./context.ts');
 
   await fixture(async (loader, path) => {
-    await writeFile(path, `
+    await writeFile(
+      path,
+      `
       import { task, Type } from "runling";
       import { agent, connectAgent } from "runling/agents";
       import { startWorkflow } from "runling/web";
@@ -121,15 +123,19 @@ test("agent subpath imports share the host runtime across config reloads", async
         probe: startWorkflow(task({ name: "Probe", input: Type.Null(), output: Type.Any() },
           () => ({ agent, connectAgent })))
       }};
-    `);
+    `
+    );
     for (const config of [await loader.load(), await loader.reload()]) {
       let result: unknown;
-      await config.webhooks.probe!({
-        start: async (task, { input }) => {
-          result = await task(createWorkflowContext(), input);
-          return { id: "probe" };
+      await config.webhooks.probe!(
+        {
+          start: async (task, { input }) => {
+            result = await task(createWorkflowContext(), input);
+            return { id: 'probe' };
+          }
         },
-      }, null);
+        null
+      );
       expect(result).toEqual({ agent, connectAgent });
     }
   });

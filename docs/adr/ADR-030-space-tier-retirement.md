@@ -9,14 +9,14 @@
 
 ADR-027 collapsed the historical three-tier model (Instance → Space → Room) into two tiers (Server → Room) at the conceptual and user-facing layers. ADR-029 finished the cosmetic rename of `Instance` → `Server` across identifiers, public API surfaces, NATS subjects, frontend modules, and docs.
 
-The Space tier is therefore *behaviourally* retired, but its mechanical residue is still load-bearing in four places:
+The Space tier is therefore _behaviourally_ retired, but its mechanical residue is still load-bearing in four places:
 
 1. **A vestigial primary-space record with stale readers.** Every deployment has one `Space` proto stored in `INSTANCE` KV at key `space.{spaceId}` with fields `id`, `name`, `description`. The branding (logo, banner) and the canonical server name/description already live in `INSTANCE_CONFIG` (`ServerConfig` proto + separate `instance.logo`/`instance.banner` keys). Four code paths still read from the Space record anyway (line numbers omitted — these files have since shifted):
    - `cli/internal/core/dm.go` — bootstrap creates a synthetic DM Space record
    - the then-current API mutation path — explicit "until PR(c)" dual-write of name/description
    - `cli/internal/http_server/opengraph.go` — OG metadata reads `space.Name` / `space.Description` (stale; `ServerConfig` is the right source)
    - the thin Space API wrapper
-   These are dead-end reads of stale data. Once they're removed, the persisted `space.{spaceId}` KV record becomes an orphan and can be left alone — one tiny entry per server, zero functional impact.
+     These are dead-end reads of stale data. Once they're removed, the persisted `space.{spaceId}` KV record becomes an orphan and can be left alone — one tiny entry per server, zero functional impact.
 
 2. **`spaceID` plumbing on the core API.** Roughly 80 functions across `cli/internal/core/*.go` still take a `spaceID string` parameter. Every one of them either ignores the value or feeds it into a legacy compatibility mapping, which exists only to map the legacy wire value `space_id = "DM"` to `"dm"` and everything else to `"channel"`. The parameter is a one-bit DM flag dressed up as an ID.
 
@@ -67,13 +67,13 @@ Out of scope (deferred):
 
 ### Phases (PR boundaries)
 
-| Phase | Scope | Risk | Approx. size |
-|---|---|---|---|
-| 1 | Drop the four readers of `space.{spaceId}` KV (opengraph, mutation dual-write, dm init, API wrapper). Replace with `ServerConfig` reads where needed. | Low | ~4 files |
-| 2 | Collapse `spaceID` → `kind` (or drop) across core + tests. | Medium (mechanical but wide) | ~80 signatures, ~15 files |
-| 3 | Delete `spaces.go`, `Space` / `SpaceMembership` proto messages, `Server.primarySpaceId` API field. Retire legacy live deployment-scoped proto residue and rename `SpaceUserPreferences` to its un-prefixed counterpart. Rename `live.server.space.>` subjects. | Low-medium | ~1100 line net deletion + targeted proto/subject renames |
-| 4 | Frontend `$lib/state/space/` → `$lib/state/server/` import sweep. | Low | ~5 files + ~15 importers |
-| 5 | Docs and rules cleanup (stale "space" prose). | Trivial | Small targeted edits |
+| Phase | Scope                                                                                                                                                                                                                                                          | Risk                         | Approx. size                                             |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------- |
+| 1     | Drop the four readers of `space.{spaceId}` KV (opengraph, mutation dual-write, dm init, API wrapper). Replace with `ServerConfig` reads where needed.                                                                                                          | Low                          | ~4 files                                                 |
+| 2     | Collapse `spaceID` → `kind` (or drop) across core + tests.                                                                                                                                                                                                     | Medium (mechanical but wide) | ~80 signatures, ~15 files                                |
+| 3     | Delete `spaces.go`, `Space` / `SpaceMembership` proto messages, `Server.primarySpaceId` API field. Retire legacy live deployment-scoped proto residue and rename `SpaceUserPreferences` to its un-prefixed counterpart. Rename `live.server.space.>` subjects. | Low-medium                   | ~1100 line net deletion + targeted proto/subject renames |
+| 4     | Frontend `$lib/state/space/` → `$lib/state/server/` import sweep.                                                                                                                                                                                              | Low                          | ~5 files + ~15 importers                                 |
+| 5     | Docs and rules cleanup (stale "space" prose).                                                                                                                                                                                                                  | Trivial                      | Small targeted edits                                     |
 
 Each phase is shippable independently. Phases 1 and 2 are good candidates to combine. Phase 3 is the biggest single landing because deleting `spaces.go` cascades into the proto + subject renames cleanly.
 

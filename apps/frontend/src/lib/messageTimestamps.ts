@@ -42,9 +42,7 @@ function timestampTokenText(epochSeconds: number): string {
 }
 
 function parseTimestampParts(localValue: string): DateTimeParts | null {
-  const match = localValue.match(
-    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
-  );
+  const match = localValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
   if (!match) return null;
 
   const [, year, month, day, hour, minute, second = '0'] = match;
@@ -135,11 +133,7 @@ export function parseMessageTimestampToken(value: string): MessageTimestampToken
 }
 
 export function createMessageTimestampToken(epochSeconds: number): string {
-  if (
-    !Number.isSafeInteger(epochSeconds) ||
-    epochSeconds < 0 ||
-    epochSeconds > MAX_UNIX_SECONDS
-  ) {
+  if (!Number.isSafeInteger(epochSeconds) || epochSeconds < 0 || epochSeconds > MAX_UNIX_SECONDS) {
     throw new RangeError('Timestamp is outside the supported Unix seconds range');
   }
   return timestampTokenText(epochSeconds);

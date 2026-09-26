@@ -8,7 +8,12 @@ import { flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { queryClient } from '$lib/query/client';
-import { clearUserStores, getUserStore, resetUserStoresForTests, type UserStore } from '$lib/state/server/users.svelte';
+import {
+  clearUserStores,
+  getUserStore,
+  resetUserStoresForTests,
+  type UserStore
+} from '$lib/state/server/users.svelte';
 
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
@@ -135,8 +140,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
@@ -202,12 +207,7 @@ type User = {
   isBot?: boolean;
 };
 
-function user(
-  id: string,
-  login: string,
-  displayName: string,
-  isBot = false
-): User {
+function user(id: string, login: string, displayName: string, isBot = false): User {
   return {
     id,
     login,
@@ -456,8 +456,16 @@ describe('QuickSwitcher', () => {
     expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).not.toBeNull();
     publishNavigation('second', {
       isInitialLoading: false,
-      rooms: [{ id: 'dm-second', name: '', type: RoomKind.DM, viewerIsMember: true,
-        hasMessageHistory: true, members: [currentUser, user('other', 'river', 'River')] }]
+      rooms: [
+        {
+          id: 'dm-second',
+          name: '',
+          type: RoomKind.DM,
+          viewerIsMember: true,
+          hasMessageHistory: true,
+          members: [currentUser, user('other', 'river', 'River')]
+        }
+      ]
     });
     expect(resultButtons(container)).toHaveLength(2);
     expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
@@ -489,17 +497,37 @@ describe('QuickSwitcher', () => {
       ]
     });
     const { container } = await renderOpenSwitcher();
-    const row = resultButtons(container).find((button) => button.textContent?.includes('Group Helper'))!;
+    const row = resultButtons(container).find((button) =>
+      button.textContent?.includes('Group Helper')
+    )!;
     expect(row.querySelectorAll('.command-palette-leading [role="img"]')).toHaveLength(2);
-    expect(row.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Group Helper');
+    expect(
+      row.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent
+    ).toBe('Group Helper');
   });
 
   it('matches group participants and self-DMs by login and display name', async () => {
     mocks.store.navigation.rooms.push(
-      { id: 'dm-group', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true,
-        members: [currentUser, user('one', 'uniquehandle', 'Cedar'), user('two', 'anotherhandle', 'Maple')] },
-      { id: 'dm-self', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true,
-        members: [currentUser] }
+      {
+        id: 'dm-group',
+        name: '',
+        type: RoomKind.DM,
+        viewerIsMember: true,
+        hasMessageHistory: true,
+        members: [
+          currentUser,
+          user('one', 'uniquehandle', 'Cedar'),
+          user('two', 'anotherhandle', 'Maple')
+        ]
+      },
+      {
+        id: 'dm-self',
+        name: '',
+        type: RoomKind.DM,
+        viewerIsMember: true,
+        hasMessageHistory: true,
+        members: [currentUser]
+      }
     );
     const { container } = await renderOpenSwitcher();
     for (const query of ['uniquehandle', 'Cedar', 'anotherhandle', 'Maple', 'uniquehandle Maple']) {
@@ -520,26 +548,39 @@ describe('QuickSwitcher', () => {
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'empty');
     expect(resultButtons(container)).toHaveLength(0);
-    const rooms = mocks.store.navigation.rooms.map((room) => room.id === 'dm-empty'
-      ? { ...room, hasMessageHistory: true } : room);
+    const rooms = mocks.store.navigation.rooms.map((room) =>
+      room.id === 'dm-empty' ? { ...room, hasMessageHistory: true } : room
+    );
     publishNavigation('origin', { rooms, isInitialLoading: false });
     expect(resultButtons(container)).toHaveLength(1);
 
-    const renamed = rooms.map((room) => room.id === 'dm-empty'
-      ? { ...room, members: [currentUser, user('user-empty', 'newhandle', 'Renamed Conversation')] } : room);
+    const renamed = rooms.map((room) =>
+      room.id === 'dm-empty'
+        ? {
+            ...room,
+            members: [currentUser, user('user-empty', 'newhandle', 'Renamed Conversation')]
+          }
+        : room
+    );
     publishNavigation('origin', { rooms: renamed, isInitialLoading: false });
     expect(resultButtons(container)).toHaveLength(0);
     setSearch(container, 'newhandle');
     expect(resultButtons(container)[0].textContent).toContain('Renamed Conversation');
-    publishNavigation('origin', { rooms: renamed.filter((room) => room.id !== 'dm-empty'), isInitialLoading: false });
+    publishNavigation('origin', {
+      rooms: renamed.filter((room) => room.id !== 'dm-empty'),
+      isInitialLoading: false
+    });
     expect(resultButtons(container)).toHaveLength(0);
     expect(mocks.listUsers).not.toHaveBeenCalled();
   });
 
   it('ignores unauthenticated server loading and keeps message mode independent of catalogue loading', async () => {
     const { container } = await renderOpenSwitcher();
-    stores.set('origin', { ...mocks.store, isAuthenticated: false,
-      navigation: { ...mocks.store.navigation, isInitialLoading: true } });
+    stores.set('origin', {
+      ...mocks.store,
+      isAuthenticated: false,
+      navigation: { ...mocks.store.navigation, isInitialLoading: true }
+    });
     setSearch(container, 'missing');
     expect(container.textContent).toContain('No results');
     publishNavigation('origin', { ...mocks.store.navigation, isInitialLoading: true });
@@ -548,9 +589,12 @@ describe('QuickSwitcher', () => {
   });
 
   it('searches known users locally only while typing and starts their DM destination', async () => {
-    mocks.store.projection.users.set('known', new DirectoryMember({
-      user: { id: 'known', login: 'cedar_handle', displayName: 'Cedar Person' }
-    }));
+    mocks.store.projection.users.set(
+      'known',
+      new DirectoryMember({
+        user: { id: 'known', login: 'cedar_handle', displayName: 'Cedar Person' }
+      })
+    );
     const { container } = await renderOpenSwitcher();
     expect(container.textContent).not.toContain('Cedar Person');
     setSearch(container, 'cedar_handle');
@@ -563,7 +607,12 @@ describe('QuickSwitcher', () => {
 
   it('finds a bot loaded only by the room directory and opens its DM', async () => {
     const bot = new DirectoryMember({
-      user: { id: 'test-bot', login: 'test_bot', displayName: 'TestBot', bot: { ownerUserId: 'owner' } }
+      user: {
+        id: 'test-bot',
+        login: 'test_bot',
+        displayName: 'TestBot',
+        bot: { ownerUserId: 'owner' }
+      }
     });
     getUserStore('origin', 'old-session').set('test-bot', bot);
     getUserStore('other-server', 'test-session').set('test-bot', bot);
@@ -582,14 +631,19 @@ describe('QuickSwitcher', () => {
   });
 
   it('updates cached profiles and respects removal markers and session cleanup', async () => {
-    const profile = new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } });
+    const profile = new DirectoryMember({
+      user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
+    });
     mocks.store.projection.users.set('known', profile);
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'cedar');
     expect(resultButtons(container)).toHaveLength(1);
-    getUserStore('origin', 'test-session').set('known', new DirectoryMember({
-      user: { id: 'known', login: 'maple', displayName: 'Maple' }
-    }));
+    getUserStore('origin', 'test-session').set(
+      'known',
+      new DirectoryMember({
+        user: { id: 'known', login: 'maple', displayName: 'Maple' }
+      })
+    );
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
     setSearch(container, 'maple');
@@ -609,9 +663,12 @@ describe('QuickSwitcher', () => {
   });
 
   it('rejects a cached user selection after access is lost before the row updates', async () => {
-    getUserStore('origin', 'test-session').set('known', new DirectoryMember({
-      user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
-    }));
+    getUserStore('origin', 'test-session').set(
+      'known',
+      new DirectoryMember({
+        user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
+      })
+    );
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'cedar');
     const row = resultButtons(container)[0];
@@ -624,34 +681,60 @@ describe('QuickSwitcher', () => {
 
   it('deduplicates one-to-one and self-DMs but retains group participants as known users', async () => {
     for (const member of [currentUser, teammate, user('group-peer', 'rivergroup', 'River Group')]) {
-      mocks.store.projection.users.set(member.id, new DirectoryMember({
-        user: { id: member.id, login: member.login, displayName: member.displayName }
-      }));
+      mocks.store.projection.users.set(
+        member.id,
+        new DirectoryMember({
+          user: { id: member.id, login: member.login, displayName: member.displayName }
+        })
+      );
     }
     mocks.store.navigation.rooms.push(
-      { id: 'self', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true, members: [currentUser] },
-      { id: 'group', name: '', type: RoomKind.DM, viewerIsMember: true, hasMessageHistory: true,
-        members: [currentUser, user('group-peer', 'rivergroup', 'River Group')] }
+      {
+        id: 'self',
+        name: '',
+        type: RoomKind.DM,
+        viewerIsMember: true,
+        hasMessageHistory: true,
+        members: [currentUser]
+      },
+      {
+        id: 'group',
+        name: '',
+        type: RoomKind.DM,
+        viewerIsMember: true,
+        hasMessageHistory: true,
+        members: [currentUser, user('group-peer', 'rivergroup', 'River Group')]
+      }
     );
     // One group participant has not loaded; membership must still identify a group.
-    mocks.store.projection.rooms.set('group', new RoomWithViewerState({ memberUserIds: ['user-current', 'group-peer', 'unloaded'] }));
+    mocks.store.projection.rooms.set(
+      'group',
+      new RoomWithViewerState({ memberUserIds: ['user-current', 'group-peer', 'unloaded'] })
+    );
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'river');
     expect(resultButtons(container)).toHaveLength(3);
     expect(resultButtons(container).at(-1)?.textContent).toContain('@rivergroup');
-    expect(resultButtons(container).filter((button) => button.textContent?.includes('@river ·'))).toHaveLength(0);
+    expect(
+      resultButtons(container).filter((button) => button.textContent?.includes('@river ·'))
+    ).toHaveLength(0);
     setSearch(container, 'alice');
     expect(resultButtons(container)).toHaveLength(1);
     expect(resultButtons(container)[0].querySelector('[data-testid="you-badge"]')).not.toBeNull();
   });
 
   it('refreshes known profiles and removes them after deletion, reset, or loss of access', async () => {
-    const member = new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } });
+    const member = new DirectoryMember({
+      user: { id: 'known', login: 'cedar', displayName: 'Cedar' }
+    });
     mocks.store.projection.users.set('known', member);
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'cedar');
     expect(resultButtons(container)).toHaveLength(1);
-    mocks.store.projection.users.set('known', new DirectoryMember({ user: { id: 'known', login: 'maple', displayName: 'Maple' } }));
+    mocks.store.projection.users.set(
+      'known',
+      new DirectoryMember({ user: { id: 'known', login: 'maple', displayName: 'Maple' } })
+    );
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
     setSearch(container, 'maple');
@@ -662,7 +745,10 @@ describe('QuickSwitcher', () => {
     mocks.store.projection.users.set('known', member);
     setSearch(container, 'cedar');
     expect(resultButtons(container)).toHaveLength(1);
-    mocks.store.projection.users.set('known', new DirectoryMember({ user: { ...member.user, deleted: true } }));
+    mocks.store.projection.users.set(
+      'known',
+      new DirectoryMember({ user: { ...member.user, deleted: true } })
+    );
     flushSync();
     expect(resultButtons(container)).toHaveLength(0);
     mocks.store.projection.users.set('known', member);
@@ -679,7 +765,10 @@ describe('QuickSwitcher', () => {
 
   it('keeps the same known user ID separate across servers and opens the selected server', async () => {
     mocks.servers.push({ id: 'second', url: 'https://second.example.test', name: 'Second' });
-    mocks.store.projection.users.set('known', new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } }));
+    mocks.store.projection.users.set(
+      'known',
+      new DirectoryMember({ user: { id: 'known', login: 'cedar', displayName: 'Cedar' } })
+    );
     const { container } = await renderOpenSwitcher();
     setSearch(container, 'cedar');
     expect(resultButtons(container)).toHaveLength(2);
@@ -688,9 +777,14 @@ describe('QuickSwitcher', () => {
   });
 
   it('matches bot conversations by login and marks their names', async () => {
-    mocks.store.navigation.rooms.push({ id: 'dm-bot', name: '', type: RoomKind.DM,
-      viewerIsMember: true, hasMessageHistory: true,
-      members: [currentUser, user('user-helper', 'helper_bot', 'Helper', true)] });
+    mocks.store.navigation.rooms.push({
+      id: 'dm-bot',
+      name: '',
+      type: RoomKind.DM,
+      viewerIsMember: true,
+      hasMessageHistory: true,
+      members: [currentUser, user('user-helper', 'helper_bot', 'Helper', true)]
+    });
     const { container } = await renderOpenSwitcher();
 
     setSearch(container, 'helper_bot');
@@ -758,7 +852,11 @@ describe('QuickSwitcher', () => {
     expect(
       buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.textContent
     ).toBe('River TeammateBOT · #search · Workspace Server');
-    expect(buttons[0]!.querySelector('[data-testid="message-search-provenance"] [data-testid="bot-badge"]')).not.toBeNull();
+    expect(
+      buttons[0]!.querySelector(
+        '[data-testid="message-search-provenance"] [data-testid="bot-badge"]'
+      )
+    ).not.toBeNull();
     expect(
       buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.getAttribute('dir')
     ).toBe('auto');
@@ -813,7 +911,9 @@ describe('QuickSwitcher', () => {
 
   it('selects the result under a moving pointer', async () => {
     const { container } = await renderOpenSwitcher();
-    const target = resultButtons(container).find((button) => button.textContent?.includes('xylophone-chat'))!;
+    const target = resultButtons(container).find((button) =>
+      button.textContent?.includes('xylophone-chat')
+    )!;
     target.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
     input(container).dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })

@@ -66,7 +66,12 @@ describe('startup server recovery', () => {
 
   it('does not overlap attempts and cleans up pending work on removal or teardown', async () => {
     let finish!: () => void;
-    registry.recoverServer.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+    registry.recoverServer.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
     stop = startServerRecovery(registry);
     await vi.advanceTimersByTimeAsync(1000);
     window.dispatchEvent(new Event('online'));

@@ -2,9 +2,9 @@ export {
   CatalogValidationError,
   InterpolationError,
   LinguaError,
-  TranslationKindError,
-} from "./errors.js";
-export { createLingua, Lingua } from "./lingua.js";
+  TranslationKindError
+} from './errors.js';
+export { createLingua, Lingua } from './lingua.js';
 export {
   pluralCategories,
   type CountTranslationKey,
@@ -25,5 +25,5 @@ export {
   type TranslationDocument,
   type TranslationModule,
   type TranslationNode,
-  type TranslationObject,
-} from "./types.js";
+  type TranslationObject
+} from './types.js';

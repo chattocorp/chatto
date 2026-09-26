@@ -154,7 +154,6 @@ account deletion, projection reset, and store disposal fence pending cache
 loads. A missing result from a shared read at a different cursor is retried at
 the caller's cursor. Each user request contains at most 100 IDs.
 
-
 ## Exact snapshot and targeted resource reads
 
 `ServerContentView` supplies one exact EVT boundary `E`. The server captures
@@ -169,13 +168,13 @@ KMS cannot stop content-view event application.
 One atomic `snapshot` frame contains these canonical `chatto.api.v1` resource
 shapes:
 
-| Resource | Protobuf value | Client meaning |
-| --- | --- | --- |
-| Server profile | `ServerPublicProfile` | Public server profile at `E` |
-| Rooms | Repeated `RoomWithViewerState` | Complete visible room directory at `E` |
-| Room groups | Repeated `RoomGroup` | Complete visible room-group layout at `E` |
-| Users | Repeated `DirectoryMember` | Only the viewer and users referenced by visible snapshot resources |
-| Active calls | Repeated `ActiveCall` | Complete visible active-call state at `E` |
+| Resource       | Protobuf value                 | Client meaning                                                     |
+| -------------- | ------------------------------ | ------------------------------------------------------------------ |
+| Server profile | `ServerPublicProfile`          | Public server profile at `E`                                       |
+| Rooms          | Repeated `RoomWithViewerState` | Complete visible room directory at `E`                             |
+| Room groups    | Repeated `RoomGroup`           | Complete visible room-group layout at `E`                          |
+| Users          | Repeated `DirectoryMember`     | Only the viewer and users referenced by visible snapshot resources |
+| Active calls   | Repeated `ActiveCall`          | Complete visible active-call state at `E`                          |
 
 The snapshot does not contain the complete user directory. It also excludes
 message and thread timelines, search results, files, pins, and other large or
@@ -660,8 +659,8 @@ server uses Huffman-only DEFLATE for frames of at least 1 KiB.
 
 ## Interface boundary
 
-| Endpoint | Frame schema | Authorization | Description |
-| --- | --- | --- | --- |
+| Endpoint        | Frame schema                                                                                   | Authorization                                                                                                               | Description                                                                        |
+| --------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `/api/realtime` | One binary `RealtimeSubscribe` message, then `chatto.realtime.v1.RealtimeServerFrame` messages | Bearer credential in `RealtimeSubscribe` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 exact snapshots, authorized public events, and 15-minute bounded resume |
 
 Realtime does not replace `chatto.api.v1`. ConnectRPC remains the public API
@@ -686,7 +685,6 @@ state and reset placeholders cannot close notifications. Unknown older rows
 remain displayed when the response is partial. Checks with no matching browser
 notifications make no server request. This path adds no persisted state or
 background control push.
-
 
 Echo post frames resolve body, mentions, and reply attribution from the original
 reply after projection readiness. Canonical edit and reaction events refresh

@@ -1,10 +1,18 @@
-import { input, spawn, task, Type, TimeoutError, type TaskHandle } from "runling";
-import { createChattoImplementation } from "./implement.ts";
-import type { SpecialistUpdate } from "./agent-text.ts";
-import type { ChattoAgentFactory } from "./agent-text.ts";
+import { input, spawn, task, Type, TimeoutError, type TaskHandle } from 'runling';
+import { createChattoImplementation } from './implement.ts';
+import type { SpecialistUpdate } from './agent-text.ts';
+import type { ChattoAgentFactory } from './agent-text.ts';
 
 /** Approval and attempt state belong to one conversation, never the shared webhook. */
-export function createChattoApproval({ directory, model, timeout, createAgent, implement, delegate, say }: {
+export function createChattoApproval({
+  directory,
+  model,
+  timeout,
+  createAgent,
+  implement,
+  delegate,
+  say
+}: {
   directory: string;
   model: string;
   timeout: number;
@@ -13,25 +21,23 @@ export function createChattoApproval({ directory, model, timeout, createAgent, i
   delegate: <T>(child: TaskHandle<string, SpecialistUpdate, T>) => Promise<T>;
   say: (text: string) => Promise<void>;
 }) {
-  const implementationTask =
-    implement ??
-    createChattoImplementation({ createAgent });
+  const implementationTask = implement ?? createChattoImplementation({ createAgent });
 
   let approving = false;
   let implementationAttempted = false;
 
   return task(
     {
-      name: "Approve Chatto implementation",
+      name: 'Approve Chatto implementation',
       input: Type.Object({
-        plan: Type.String({ minLength: 1, maxLength: 20_000 }),
+        plan: Type.String({ minLength: 1, maxLength: 20_000 })
       }),
-      output: Type.String(),
+      output: Type.String()
     },
     async (taskCtx, { plan }) => {
       if (approving || implementationAttempted) {
         throw new Error(
-          "An implementation is already pending or was attempted in this conversation. Start a new DM for another attempt.",
+          'An implementation is already pending or was attempted in this conversation. Start a new DM for another attempt.'
         );
       }
 
@@ -43,7 +49,7 @@ export function createChattoApproval({ directory, model, timeout, createAgent, i
           answer = await input(
             taskCtx,
             `${plan}\n\nReply /implement to implement this exact plan in a new worktree, or send feedback to revise it.`,
-            { timeout },
+            { timeout }
           );
         } catch (error) {
           if (error instanceof TimeoutError && !taskCtx.signal.aborted) {
@@ -51,7 +57,7 @@ export function createChattoApproval({ directory, model, timeout, createAgent, i
           }
           throw error;
         }
-        if (answer.trim() !== "/implement") {
+        if (answer.trim() !== '/implement') {
           return `Implementation was not approved. User feedback: ${answer}`;
         }
 
@@ -60,20 +66,20 @@ export function createChattoApproval({ directory, model, timeout, createAgent, i
 
         try {
           const result = await delegate(
-            spawn(taskCtx, implementationTask, { directory, plan, model }),
+            spawn(taskCtx, implementationTask, { directory, plan, model })
           );
           return `${result.summary}\n\nWorktree: ${result.directory}\nBranch: ${result.branch}\nChecks and tests passed. Review the changes in this worktree.`;
         } catch (error) {
           await say(
             error instanceof Error
               ? error.message
-              : "Implementation failed; inspect the run for details.",
+              : 'Implementation failed; inspect the run for details.'
           ).catch(() => {});
           throw error;
         }
       } finally {
         approving = false;
       }
-    },
+    }
   );
 }

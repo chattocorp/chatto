@@ -68,8 +68,9 @@
     serverStore.serverInfo.supportsFeature('followedThreadUnreadFilter')
   );
   const searchEnabled = $derived(
-    supportsSearch && (searchStatus.statusError ||
-      (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED))
+    supportsSearch &&
+      (searchStatus.statusError ||
+        (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED))
   );
   const searchQuery = $derived(
     searchEnabled && searchInput.scope === inputScope ? searchInput.submitted : ''
@@ -121,15 +122,16 @@
         queryKey: threadQueryKeys.followed(serverId, connection, { query, unreadOnly }),
         enabled: !query || searchStatus.available,
         queryFn: async ({ pageParam, signal }) => {
-          const result = await connection
-            .getAPI(createThreadAPI)
-            .listFollowedThreads({
+          const result = await connection.getAPI(createThreadAPI).listFollowedThreads(
+            {
               limit: PAGE_SIZE,
               offset: typeof pageParam === 'number' ? pageParam : 0,
               cursor: typeof pageParam === 'string' ? pageParam : undefined,
               query,
               unreadOnly
-            }, { signal });
+            },
+            { signal }
+          );
           const pageData = {
             ...result,
             nextOffset: (typeof pageParam === 'number' ? pageParam : 0) + result.threads.length
@@ -282,9 +284,7 @@
 
   function actorName(event: FollowedThread['rootMessage']): string {
     const actor = event?.actor;
-    return actor
-      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
-      : '';
+    return actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : '';
   }
 
   function rowActors(thread: FollowedThread): FollowedThread['participants'] {
@@ -402,7 +402,8 @@
             {#each section.items as thread (thread.threadRootEventId)}
               {@const actors = rowActors(thread)}
               {@const primary = primaryEvent(thread)}
-              {@const hasUnreadAttention = thread.hasUnreadReplies &&
+              {@const hasUnreadAttention =
+                thread.hasUnreadReplies &&
                 !serverStore.readViews.covers(thread.roomId, thread.threadRootEventId)}
               {@const attention = notificationAttentionForThread(
                 serverStore.notifications.attentionOccurrences,
@@ -412,8 +413,7 @@
               <ActivityListRow
                 pending={actionThreadId === thread.threadRootEventId}
                 disabled={actionThreadId === thread.threadRootEventId}
-                dimmed={!hasUnreadAttention &&
-                  attention === NotificationAttentionLevel.UNSPECIFIED}
+                dimmed={!hasUnreadAttention && attention === NotificationAttentionLevel.UNSPECIFIED}
                 important={attention === NotificationAttentionLevel.IMPORTANT}
                 onclick={() => navigateToThread(thread)}
                 rowAttributes={{
@@ -476,9 +476,10 @@
                           />
                         {:else}{roomLabel(thread)}{/if}
                         {#if thread.latestReply}<span class="font-normal"
-                            >· <AccountName name={actorName(thread.rootMessage)} identity={thread.rootMessage?.actor} />: {messageExcerpt(
-                              thread.rootMessage
-                            )}</span
+                            >· <AccountName
+                              name={actorName(thread.rootMessage)}
+                              identity={thread.rootMessage?.actor}
+                            />: {messageExcerpt(thread.rootMessage)}</span
                           >{/if}</span
                       >
                     </bdi>

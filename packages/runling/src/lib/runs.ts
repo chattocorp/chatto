@@ -1,6 +1,6 @@
-import type { RunlingEvent, TokenUsage } from "runling";
+import type { RunlingEvent, TokenUsage } from 'runling';
 
-export type RunStatus = "running" | "completed" | "failed" | "interrupted" | "cancelled";
+export type RunStatus = 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled';
 export interface RunActivity {
   label: string;
   step?: string;
@@ -19,7 +19,7 @@ export interface RunSummary {
   attempt?: number;
   webhook: string;
   workflow: string;
-  source: "webhook" | "web" | "source";
+  source: 'webhook' | 'web' | 'source';
   /** Named event source; absent in older journals and HTTP-started runs. */
   sourceName?: string;
   status: RunStatus;
@@ -35,12 +35,12 @@ export interface RunDetail extends RunSummary {
   events: RunlingEvent[];
 }
 export type RunRecord =
-  | { type: "started"; run: RunDetail }
-  | { type: "resumed"; attempt: number; resumedAt: number }
-  | { type: "event"; event: RunlingEvent }
+  | { type: 'started'; run: RunDetail }
+  | { type: 'resumed'; attempt: number; resumedAt: number }
+  | { type: 'event'; event: RunlingEvent }
   | {
-      type: "finished";
-      status: Exclude<RunStatus, "running">;
+      type: 'finished';
+      status: Exclude<RunStatus, 'running'>;
       finishedAt: number;
       durationMs: number;
       usage: TokenUsage;
@@ -49,15 +49,25 @@ export type RunRecord =
     };
 
 export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
-  if (record.type === "started") return record.run;
-  if (record.type === "resumed") return { ...run, status: "running", attempt: record.attempt, finishedAt: undefined, error: null, output: null,
-    events: [...run.events, { type: "workflow.resumed", attempt: record.attempt, timestamp: run.durationMs ?? 0 }] };
-  if (record.type === "event") {
+  if (record.type === 'started') return record.run;
+  if (record.type === 'resumed')
+    return {
+      ...run,
+      status: 'running',
+      attempt: record.attempt,
+      finishedAt: undefined,
+      error: null,
+      output: null,
+      events: [
+        ...run.events,
+        { type: 'workflow.resumed', attempt: record.attempt, timestamp: run.durationMs ?? 0 }
+      ]
+    };
+  if (record.type === 'event') {
     return {
       ...run,
       events: [...run.events, record.event],
-      usage:
-        record.event.type === "usage.updated" ? record.event.usage : run.usage,
+      usage: record.event.type === 'usage.updated' ? record.event.usage : run.usage
     };
   }
   const { type: _, ...result } = record;

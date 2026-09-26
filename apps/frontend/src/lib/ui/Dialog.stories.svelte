@@ -63,9 +63,7 @@
 
   <Dialog bind:visible={dialogVisible} title="Dialog Title">
     <p>This is the dialog content. It can contain any elements you want.</p>
-    <p class="mt-2">
-      Click outside the dialog to dismiss it. The dialog dims the background.
-    </p>
+    <p class="mt-2">Click outside the dialog to dismiss it. The dialog dims the background.</p>
   </Dialog>
 </Story>
 

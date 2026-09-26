@@ -68,7 +68,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 
 ### 6. Implicit membership, no explicit member records
 
-**Decision:** After the #330 consolidation, every authenticated user is implicitly a member of the server. There's no `ServerMembership` record; the user list *is* the member list.
+**Decision:** After the #330 consolidation, every authenticated user is implicitly a member of the server. There's no `ServerMembership` record; the user list _is_ the member list.
 **Why:** Explicit memberships would require a join-leave workflow that didn't exist (Chatto's earlier design assumed everyone-is-a-member). Removing them reduced storage and code paths without losing functionality. See ADR-027.
 **Tradeoff:** No way to mark someone as "a user on this server but not currently a member". For operators who need that, the suspension flow (FDR-001's user-level deny pattern) handles it.
 

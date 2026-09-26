@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
       - run: mise check-runling
       - run: mise test-runling
       - run: mise test-runling-bot
@@ -110,7 +110,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
       - run: mise check-chattobot
       - run: mise test-chatto-client
       - run: mise test-chatto-bot-client
@@ -129,7 +129,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
-          save-go-build-cache: "true"
+          save-go-build-cache: 'true'
 
       - name: Derive main image version
         id: image-version
@@ -148,7 +148,7 @@ jobs:
       - name: Build frontend for production image
         env:
           CHATTO_BUILD_VERSION: ${{ steps.image-version.outputs.version }}
-          CHATTO_FRONTEND_PRECOMPRESS: "1"
+          CHATTO_FRONTEND_PRECOMPRESS: '1'
         run: mise build-frontend
 
       - name: Verify frontend build version
@@ -249,7 +249,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
 
       - name: Check and test desktop shell
         run: mise test-desktop
@@ -389,7 +389,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
 
       - name: Run workspace typechecks
         run: pnpm run check
@@ -414,13 +414,13 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
 
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
         with:
-          save-cache: "true"
+          save-cache: 'true'
 
       - name: Run workspace unit tests
         run: pnpm test
@@ -647,7 +647,7 @@ jobs:
         timeout-minutes: 15
         with:
           go-build-cache-scope: test-e2e
-          install-ffmpeg: "true"
+          install-ffmpeg: 'true'
 
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
@@ -887,5 +887,5 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
       - run: pnpm run build:docs

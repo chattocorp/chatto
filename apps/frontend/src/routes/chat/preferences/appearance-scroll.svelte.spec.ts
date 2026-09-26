@@ -23,8 +23,8 @@ it('keeps focus inside visible accent swatches after scrolling', async () => {
   // Let initial layout and scroll anchoring finish before the user scrolls.
   await document.fonts.ready;
   await new Promise(requestAnimationFrame);
-  scroll.scrollTop += violet.parentElement!.getBoundingClientRect().top
-    - scroll.getBoundingClientRect().top - 200;
+  scroll.scrollTop +=
+    violet.parentElement!.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 200;
   await new Promise(requestAnimationFrame);
   expect(scroll.scrollTop).toBeGreaterThan(0);
 
@@ -66,6 +66,7 @@ it('keeps focus inside visible accent swatches after scrolling', async () => {
     }
     expect(input.checked).toBe(true);
     expect(document.activeElement).toBe(input);
-    for (const geometry of samples) expect(geometry, color).toEqual([headingTop, frameTop, ...offsets]);
+    for (const geometry of samples)
+      expect(geometry, color).toEqual([headingTop, frameTop, ...offsets]);
   }
 });

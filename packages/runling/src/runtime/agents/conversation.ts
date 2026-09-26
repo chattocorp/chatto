@@ -1,10 +1,10 @@
-import { createChannel } from "../channel.ts";
-import { input } from "../input.ts";
-import { TimeoutError, validateTimeout } from "../timeout.ts";
-import { emitRunlingEvent } from "../events.ts";
-import type { WorkflowContext } from "../context.ts";
-import type { RunlingAgent } from "../agent.ts";
-import { connectAgent, type AgentConnectionOptions } from "./connection.ts";
+import { createChannel } from '../channel.ts';
+import { input } from '../input.ts';
+import { TimeoutError, validateTimeout } from '../timeout.ts';
+import { emitRunlingEvent } from '../events.ts';
+import type { WorkflowContext } from '../context.ts';
+import type { RunlingAgent } from '../agent.ts';
+import { connectAgent, type AgentConnectionOptions } from './connection.ts';
 
 /**
  * Keep an agent conversation open until its idle timeout expires.
@@ -13,9 +13,15 @@ import { connectAgent, type AgentConnectionOptions } from "./connection.ts";
  */
 export async function runAgentConversation(
   ctx: WorkflowContext<string, string>,
-  agent: Pick<RunlingAgent, "runOutcome" | "steer">,
+  agent: Pick<RunlingAgent, 'runOutcome' | 'steer'>,
   prompt: string,
-  { timeout = 900, onBusy, notifications, keepAlive, prepareMessage }: {
+  {
+    timeout = 900,
+    onBusy,
+    notifications,
+    keepAlive,
+    prepareMessage
+  }: {
     timeout?: number;
     onBusy?: (busy: boolean) => void;
     /** Background messages can steer an active turn or wake an idle agent. */
@@ -23,12 +29,12 @@ export async function runAgentConversation(
     /** Omit the idle deadline while work is active; its completion must send a notification. */
     keepAlive?: () => boolean;
     /** Prepare each input once with its trusted origin, including the initial user prompt. */
-    prepareMessage?: AgentConnectionOptions["prepareMessage"];
-  } = {},
+    prepareMessage?: AgentConnectionOptions['prepareMessage'];
+  } = {}
 ): Promise<string> {
   validateTimeout(timeout);
 
-  emitRunlingEvent({ type: "conversation.started" });
+  emitRunlingEvent({ type: 'conversation.started' });
 
   // The connection reads the task inbox even while we await an agent turn.
   // Keep messages it could not steer so they can become the next prompt.
@@ -39,7 +45,7 @@ export async function runAgentConversation(
   const readNextMessage = async (): Promise<string> => {
     const message = await reader.next();
     if (message.done) {
-      throw new Error("Conversation inbox closed");
+      throw new Error('Conversation inbox closed');
     }
 
     queuedMessages--;
@@ -50,7 +56,7 @@ export async function runAgentConversation(
     inbox: ctx.inbox,
     notifications,
     prepareMessage,
-    onText: text => ctx.emit(text),
+    onText: (text) => ctx.emit(text),
     onDelivery: async (text, consumed) => {
       if (consumed) {
         return;
@@ -58,16 +64,16 @@ export async function runAgentConversation(
 
       await pending.send(text);
       queuedMessages++;
-    },
+    }
   });
 
   try {
-    if (prepareMessage) prompt = await prepareMessage(prompt, "user");
+    if (prepareMessage) prompt = await prepareMessage(prompt, 'user');
     while (true) {
       onBusy?.(true);
       const result = await connection.runOutcome(prompt);
       ctx.signal.throwIfAborted();
-      if (result.outcome !== "completed") {
+      if (result.outcome !== 'completed') {
         throw new Error(result.summary);
       }
 
@@ -85,8 +91,8 @@ export async function runAgentConversation(
         // from our queue; the connection signal also reports inbox failures.
         prompt = await input(
           { ...ctx, signal: connection.signal, onInput: readNextMessage },
-          "Waiting for a message",
-          { timeout: keepAlive?.() ? undefined : timeout },
+          'Waiting for a message',
+          { timeout: keepAlive?.() ? undefined : timeout }
         );
       } catch (error) {
         // Idle expiry is normal completion. Cancellation and transport errors

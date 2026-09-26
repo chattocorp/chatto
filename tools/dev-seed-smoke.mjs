@@ -26,7 +26,9 @@ let interrupted = false;
 
 function start(args, env) {
   const child = spawn('mise', args, {
-    cwd: root, env: { ...process.env, ...env }, detached: true,
+    cwd: root,
+    env: { ...process.env, ...env },
+    detached: true,
     stdio: ['ignore', 'pipe', 'pipe']
   });
   children.add(child);
@@ -49,14 +51,23 @@ function start(args, env) {
 }
 
 function signal(child, name) {
-  try { process.kill(-child.pid, name); }
-  catch (error) { if (error.code !== 'ESRCH') throw error; }
+  try {
+    process.kill(-child.pid, name);
+  } catch (error) {
+    if (error.code !== 'ESRCH') throw error;
+  }
 }
 
 async function stop(child) {
   signal(child, 'SIGTERM');
-  const exited = await Promise.race([child.done.then(() => true), delay(5000, undefined, { ref: false }).then(() => false)]);
-  if (!exited) { signal(child, 'SIGKILL'); await child.done; }
+  const exited = await Promise.race([
+    child.done.then(() => true),
+    delay(5000, undefined, { ref: false }).then(() => false)
+  ]);
+  if (!exited) {
+    signal(child, 'SIGKILL');
+    await child.done;
+  }
   children.delete(child);
 }
 
@@ -110,14 +121,23 @@ try {
   const socket = join(data, 'operator/operator.sock');
   while (true) {
     assert.ok(!interrupted, 'Development smoke test interrupted');
-    assert.equal(backend.exitCode, null, `Development backend exited: ${backend.diagnostics.join("; ")}; see ${logPath}`);
+    assert.equal(
+      backend.exitCode,
+      null,
+      `Development backend exited: ${backend.diagnostics.join('; ')}; see ${logPath}`
+    );
     assert.equal(backend.signalCode, null, `Development backend was stopped; see ${logPath}`);
     let ready = false;
     try {
-      ready = (await fetch(`http://127.0.0.1:${base + 1}/readyz`, {
-        signal: AbortSignal.timeout(1000)
-      })).ok && (await stat(socket)).isSocket();
-    } catch { /* Startup has not finished. */ }
+      ready =
+        (
+          await fetch(`http://127.0.0.1:${base + 1}/readyz`, {
+            signal: AbortSignal.timeout(1000)
+          })
+        ).ok && (await stat(socket)).isSocket();
+    } catch {
+      /* Startup has not finished. */
+    }
     if (ready) break;
     assert.ok(Date.now() < deadline, `Development backend did not become ready; see ${logPath}`);
     await delay(100);
@@ -126,18 +146,40 @@ try {
   assert.equal((await stat(dirname(socket))).mode & 0o777, 0o700);
   assert.equal((await stat(socket)).mode & 0o777, 0o600);
 
-  const seed = start(['seed', '--', '--seed', '42', '--users', '3', '--rooms', '2',
-    '--messages', '8', '--thread-replies', '2', '--json'], env);
+  const seed = start(
+    [
+      'seed',
+      '--',
+      '--seed',
+      '42',
+      '--users',
+      '3',
+      '--rooms',
+      '2',
+      '--messages',
+      '8',
+      '--thread-replies',
+      '2',
+      '--json'
+    ],
+    env
+  );
   let output = '';
-  seed.stdout.on('data', (chunk) => { output += chunk; });
+  seed.stdout.on('data', (chunk) => {
+    output += chunk;
+  });
   const result = await Promise.race([
     seed.done,
-    delay(120_000, undefined, { ref: false }).then(() => { throw new Error(`Seed task timed out; see ${logPath}`); })
+    delay(120_000, undefined, { ref: false }).then(() => {
+      throw new Error(`Seed task timed out; see ${logPath}`);
+    })
   ]);
   assert.equal(result.code, 0, `Seed task failed; see ${logPath}`);
   // Mise may prefix each output line when it runs as a nested task.
-  const lines = stripVTControlCharacters(output).split('\n')
-    .map((line) => line.replace(/^\[seed\] /, '')).join('\n');
+  const lines = stripVTControlCharacters(output)
+    .split('\n')
+    .map((line) => line.replace(/^\[seed\] /, ''))
+    .join('\n');
   const begin = lines.indexOf('{');
   const end = lines.lastIndexOf('}');
   assert.ok(begin >= 0 && end >= begin, 'Seed task did not return a JSON manifest');
@@ -151,8 +193,21 @@ try {
 
   // Read a generated account through the same running server, not just the
   // seed response. This also proves the manifest identifies durable resources.
-  const get = start(['exec', '--', './cli/bin/chatto', 'operator', 'user', 'get',
-    manifest.users[0].id, '--operator-socket', socket, '--json'], env);
+  const get = start(
+    [
+      'exec',
+      '--',
+      './cli/bin/chatto',
+      'operator',
+      'user',
+      'get',
+      manifest.users[0].id,
+      '--operator-socket',
+      socket,
+      '--json'
+    ],
+    env
+  );
   const readResult = await Promise.race([
     get.done,
     delay(30_000, undefined, { ref: false }).then(() => {

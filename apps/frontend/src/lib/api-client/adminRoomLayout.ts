@@ -220,9 +220,10 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
 
 function adminRoomLayoutItemInput(item: AdminRoomLayoutItemMutationInput) {
   return {
-    item: item.kind === 'room'
-      ? { case: 'roomId' as const, value: item.id }
-      : { case: 'sidebarLinkId' as const, value: item.id }
+    item:
+      item.kind === 'room'
+        ? { case: 'roomId' as const, value: item.id }
+        : { case: 'sidebarLinkId' as const, value: item.id }
   };
 }
 

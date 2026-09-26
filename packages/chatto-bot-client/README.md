@@ -7,8 +7,8 @@ It does not start a connection, load environment variables, or own a workflow.
 ## Receive and reply
 
 ```ts
-import { createChattoClient } from "@chatto/client";
-import { createBotClient, createDeliveryTracker } from "@chatto/bot-client";
+import { createChattoClient } from '@chatto/client';
+import { createBotClient, createDeliveryTracker } from '@chatto/bot-client';
 
 const client = createChattoClient({ serverUrl, apiKey });
 const bot = await createBotClient(client, { signal });
@@ -22,9 +22,9 @@ await client.consumeRealtime({
     if (deliveries.has(event.id)) return;
     const message = await bot.addressedMessage(event, { signal });
     if (!message) return;
-    await bot.reply(message, "Hello!", signal);
+    await bot.reply(message, 'Hello!', signal);
     deliveries.accept(event.id);
-  },
+  }
 });
 ```
 

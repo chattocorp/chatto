@@ -364,7 +364,7 @@
           {m('settings.profile.status.template.none')}
         </span>
         {#if noStatusSelected}
-          <span class="ms-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+          <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
         {/if}
       </button>
       {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
@@ -382,7 +382,7 @@
           </span>
           <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
           {#if isSelected}
-            <span class="ms-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+            <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
           {/if}
         </button>
       {/each}
@@ -409,7 +409,7 @@
             : m('settings.profile.status.template.custom')}
         </bdi>
         {#if hasActiveCustomStatus}
-          <span class="ms-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+          <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
         {/if}
       </button>
     </div>

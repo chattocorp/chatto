@@ -124,9 +124,7 @@ export function removeRegisteredServerQueries(serverId: string): boolean {
       (listener) => () => listener(serverId)
     )
   ]);
-  const cacheCleared = runResetHandlers([
-    () => removeServerCache?.(serverId)
-  ]);
+  const cacheCleared = runResetHandlers([() => removeServerCache?.(serverId)]);
   return listenersCleared && cacheCleared;
 }
 

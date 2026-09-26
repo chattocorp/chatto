@@ -1,19 +1,19 @@
-import type { InputHandler } from "./input.ts";
-import { spawn, type Run } from "./spawn.ts";
-import { currentRunlingActivity, emitRunlingEvent } from "./events.ts";
-import { isJsonObject, type JsonValue } from "./runtime.ts";
+import type { InputHandler } from './input.ts';
+import { spawn, type Run } from './spawn.ts';
+import { currentRunlingActivity, emitRunlingEvent } from './events.ts';
+import { isJsonObject, type JsonValue } from './runtime.ts';
 import {
   accumulateTokenUsage,
   emptyTokenUsage,
   hasValidTokenCounts,
   type TokenUsage,
-  type TokenUsageInput,
-} from "./usage.ts";
+  type TokenUsageInput
+} from './usage.ts';
 
 export class WorkflowAbortError extends Error {
-  override readonly name = "WorkflowAbortError";
+  override readonly name = 'WorkflowAbortError';
 
-  constructor(reason = "Workflow aborted") {
+  constructor(reason = 'Workflow aborted') {
     super(reason);
   }
 }
@@ -64,7 +64,7 @@ export function createWorkflowContext(): WorkflowContext {
 /** Internal bridge from context accounting to runner events. */
 export function createObservedWorkflowContext(
   onUsage?: (usage: TokenUsage) => void,
-  cancellation?: AbortSignal,
+  cancellation?: AbortSignal
 ): WorkflowContext {
   const total = emptyTokenUsage();
   const controller = new AbortController();
@@ -90,12 +90,14 @@ export function createObservedWorkflowContext(
     },
     get costIncomplete() {
       return total.costIncomplete;
-    },
+    }
   });
 
   return {
     // Use the receiving context so context overrides and nested children keep their signal.
-    spawn(run, ...args) { return spawn(this, run, ...args); },
+    spawn(run, ...args) {
+      return spawn(this, run, ...args);
+    },
     // Direct calls do not allocate channels or retain emitted updates.
     inbox: { async *[Symbol.asyncIterator]() {} },
     async emit() {},
@@ -119,19 +121,19 @@ export function createObservedWorkflowContext(
 
     publishState(state) {
       const taskId = currentRunlingActivity();
-      if (!taskId) throw new Error("Task state can only be published inside a task");
+      if (!taskId) throw new Error('Task state can only be published inside a task');
       if (!isJsonObject(state)) {
-        throw new TypeError("Task state must be a JSON object");
+        throw new TypeError('Task state must be a JSON object');
       }
       const encoded = JSON.stringify(state);
-      if (!encoded) throw new TypeError("Task state must be a JSON object");
-      if (encoded.length > 16_000) throw new Error("Task state exceeds the JSON size limit");
+      if (!encoded) throw new TypeError('Task state must be a JSON object');
+      if (encoded.length > 16_000) throw new Error('Task state exceeds the JSON size limit');
       const snapshot: unknown = JSON.parse(encoded);
       if (!isJsonObject(snapshot)) {
-        throw new TypeError("Task state must be a JSON object");
+        throw new TypeError('Task state must be a JSON object');
       }
       // Detach the event from mutable task data before the journal writes it.
-      emitRunlingEvent({ type: "task.state", taskId, state: snapshot });
-    },
+      emitRunlingEvent({ type: 'task.state', taskId, state: snapshot });
+    }
   };
 }

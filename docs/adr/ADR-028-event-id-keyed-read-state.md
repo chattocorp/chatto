@@ -20,7 +20,7 @@ current.
 
 Each user's per-room read marker (`room_read_status.{userId}.{roomId}` in the per-space RUNTIME KV) used to be the absolute JetStream sequence number of the last-read root message, encoded as 8 BigEndian bytes. `HasUnread` compared that stored seq to the room's current last-root seq.
 
-ADR-026 already removed JetStream sequences from the public API and the event model — clients see only event IDs and timestamps. But the *persisted* read-state value remained sequence-keyed, which becomes a problem for the ADR-027 ("Server consolidation") migration: Phase 4 of #330 will copy / renumber JetStream streams. After renumbering, every stored uint64 sequence is either silently wrong (it now points to a different message) or out of range. We want Phase 4 to be a clean stream copy with no read-state translation logic in the migration script.
+ADR-026 already removed JetStream sequences from the public API and the event model — clients see only event IDs and timestamps. But the _persisted_ read-state value remained sequence-keyed, which becomes a problem for the ADR-027 ("Server consolidation") migration: Phase 4 of #330 will copy / renumber JetStream streams. After renumbering, every stored uint64 sequence is either silently wrong (it now points to a different message) or out of range. We want Phase 4 to be a clean stream copy with no read-state translation logic in the migration script.
 
 ## Decision
 
@@ -40,11 +40,11 @@ occurrences through the read-boundary handshake below.
 
 Members always have a marker — `JoinRoom` and the DM `joinDMRoom` write either the room's current last event ID (room had messages) or an empty-string sentinel (room was empty). The empty string is a real value that means "member with nothing specific read yet"; `HasUnread` treats it as unread once any messages exist, so a brand-new member of an empty room correctly sees later posts as unread.
 
-A *missing* `room_read_event` key, by contrast, only happens for users who were members **before this PR shipped**. On their first `GetLastReadEventID` call post-deploy, the marker is lazy-initialized to the room's current last event ID and persisted, so they're treated as caught up. The legacy `room_read_status` key is never consulted.
+A _missing_ `room_read_event` key, by contrast, only happens for users who were members **before this PR shipped**. On their first `GetLastReadEventID` call post-deploy, the marker is lazy-initialized to the room's current last event ID and persisted, so they're treated as caught up. The legacy `room_read_status` key is never consulted.
 
 The honest semantic is "caught up at first read post-deploy", not strictly "at deploy time": if a deploy-era user's first post-deploy interaction with a room comes after new messages have arrived, those messages are silently swallowed into the lazy-init. For active users this window is small (next page load); for inactive users it's the price of avoiding a per-instance migration step. We accept that trade given Chatto's alpha posture and the fact that read state is the most disposable data class in a chat app.
 
-A related consequence: on a deploy-era user's *first* `markRoomAsRead` call, the API response's `previousLastReadAt` is null (because lazy-init makes the previous and new markers identical). The frontend's "messages since last read" highlight window is therefore empty for that one call. From the next mark-read onwards it works normally.
+A related consequence: on a deploy-era user's _first_ `markRoomAsRead` call, the API response's `previousLastReadAt` is null (because lazy-init makes the previous and new markers identical). The frontend's "messages since last read" highlight window is therefore empty for that one call. From the next mark-read onwards it works normally.
 
 Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `cli/AGENTS.md`.
 
@@ -88,7 +88,7 @@ permanently unread. See ADR-076.
   an event ID from the room timeline projection. `GetEventSequence` remains for
   the separate task of deriving a JetStream consumer start position.
 - **`JoinRoom` / `joinDMRoom` always write a marker**, even for empty rooms. The empty-string sentinel is what lets `GetLastReadEventID` distinguish "fresh member, nothing read" from "deploy-era user, no marker at all".
-- **Auto-mark on `PostMessage` for thread replies looks up the room's last root event** (one extra subject lookup per thread-reply auto-mark) so the marker always points to a real root event ID. Previously this worked by accident because seqs are linear across root and thread events; with event IDs, we have to be explicit. Whether thread replies should dismiss room-level unread *at all* is a separate question for a future ADR.
+- **Auto-mark on `PostMessage` for thread replies looks up the room's last root event** (one extra subject lookup per thread-reply auto-mark) so the marker always points to a real root event ID. Previously this worked by accident because seqs are linear across root and thread events; with event IDs, we have to be explicit. Whether thread replies should dismiss room-level unread _at all_ is a separate question for a future ADR.
 - **Lazy init can silently swallow messages that arrived between deploy and a user's first post-deploy read.** Documented above; accepted.
 - **API contract is unchanged.** `MarkRoomAsReadResult` still returns `lastReadAt` and `previousLastReadAt` times — the same shape the frontend already consumed under ADR-026.
 - **Room and thread reads cross a bounded log boundary.** The durable

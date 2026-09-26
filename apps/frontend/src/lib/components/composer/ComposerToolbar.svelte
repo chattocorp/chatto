@@ -48,7 +48,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
 </script>
 
 <div
-  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:desktop-presentation:mb-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap"
+  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap @min-[560px]/composer:desktop-presentation:mb-1"
   data-testid="composer-action-toolbar"
 >
   <div class="flex items-center gap-0.5">
@@ -68,7 +68,9 @@ Formatting commands live in `ComposerFormattingToolbar`.
     <ComposerTimestampPicker disabled={inputDisabled} {editorApi} {effectiveTimezone} />
   </div>
 
-  <div class="flex max-w-full flex-wrap items-center justify-end gap-0.5 @min-[560px]/composer:flex-nowrap">
+  <div
+    class="flex max-w-full flex-wrap items-center justify-end gap-0.5 @min-[560px]/composer:flex-nowrap"
+  >
     {#if showCreateThread}
       <CompactActionButton
         wrapperClass="mobile-presentation:pill-button-group-touch"

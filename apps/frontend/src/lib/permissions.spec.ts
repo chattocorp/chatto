@@ -58,7 +58,9 @@ describe('PERMISSION_METADATA', () => {
     expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
     expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
     for (const permission of ['message.post-in-thread', 'message.post-in-interactions']) {
-      expect(getIncludedByPermission(['message.post', permission], permission)).toBe('message.post');
+      expect(getIncludedByPermission(['message.post', permission], permission)).toBe(
+        'message.post'
+      );
     }
     expect(
       getIncludedByPermission(

@@ -4,8 +4,14 @@ import sharp from 'sharp';
 
 // App Store icons must have no alpha channel, even when every pixel is opaque.
 // Generate from the shared artwork each sync so replacement artwork stays valid.
-const iconSource = new URL('../../frontend/src/lib/assets/chatto-icon-maskable.png', import.meta.url);
-const iconDestination = new URL('../ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png', import.meta.url);
+const iconSource = new URL(
+  '../../frontend/src/lib/assets/chatto-icon-maskable.png',
+  import.meta.url
+);
+const iconDestination = new URL(
+  '../ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png',
+  import.meta.url
+);
 await sharp(fileURLToPath(iconSource))
   .resize(1024, 1024)
   .flatten({ background: '#c5a4d4' })
@@ -26,7 +32,11 @@ await mkdir(destination, { recursive: true });
 await cp(source, destination, { recursive: true });
 // Capacitor serves index.html for SPA routes. Use SvelteKit's fallback shell.
 await cp(new URL('200.html', source), new URL('index.html', destination));
-await cp(new URL('../node_modules/@capacitor/core/LICENSE', import.meta.url),
-  new URL('capacitor-license.txt', destination));
-await cp(new URL('../node_modules/@capacitor/keyboard/LICENSE', import.meta.url),
-  new URL('capacitor-keyboard-license.txt', destination));
+await cp(
+  new URL('../node_modules/@capacitor/core/LICENSE', import.meta.url),
+  new URL('capacitor-license.txt', destination)
+);
+await cp(
+  new URL('../node_modules/@capacitor/keyboard/LICENSE', import.meta.url),
+  new URL('capacitor-keyboard-license.txt', destination)
+);

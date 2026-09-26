@@ -302,10 +302,10 @@ Do not generate playground links for code written into this repository.
 - `mise dev` creates development bootstrap users. Sign in as `alice` (server
   owner) or `bob` with the password `foobar123`. The `dev-stack-backend` task
   in the root `mise.toml` defines these users.
-- Run `mise x -- pnpm exec prettier --check` on the frontend files that you
-  change. Many files in `main` are not formatted and CI does not run Prettier.
-  Fix only the formatting that your change causes. Do not reformat unrelated
-  files.
+- Format every frontend file that you change with Prettier. Claude Code and
+  Codex hooks format each file after an edit. If you change files in a different
+  way, run `mise x -- pnpm exec prettier --write <paths>` from the repository
+  root before you finish.
 - Do not run frontend checks, tests, builds, or other commands that invoke
   SvelteKit sync concurrently in the same checkout. They share generated
   `.svelte-kit` state and can produce transient missing-type failures.

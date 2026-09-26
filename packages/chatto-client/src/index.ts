@@ -1,10 +1,15 @@
-export { startTyping, withTyping, type TypingUpdate } from "./typing.js";
-import { messageHelpers } from "./messages.js";
-export type { ChattoMessage } from "./messages.js";
-import { consumeRealtime, type ConsumeRealtimeOptions, type WebSocketFactory } from "./realtime.js";
-export type { ConsumeRealtimeOptions, RealtimeCheckpoint, RealtimeStatus, WebSocketFactory } from "./realtime.js";
-export { RealtimeEvent } from "@chatto/api-types/realtime/v1/realtime_pb";
-export { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
+export { startTyping, withTyping, type TypingUpdate } from './typing.js';
+import { messageHelpers } from './messages.js';
+export type { ChattoMessage } from './messages.js';
+import { consumeRealtime, type ConsumeRealtimeOptions, type WebSocketFactory } from './realtime.js';
+export type {
+  ConsumeRealtimeOptions,
+  RealtimeCheckpoint,
+  RealtimeStatus,
+  WebSocketFactory
+} from './realtime.js';
+export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+export { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 
 /** Connection settings supplied by the host; this package never reads environment files. */
 export interface ChattoClientOptions {
@@ -25,7 +30,11 @@ export interface Destination {
 }
 
 /** Send ordered thread messages; workflow adapters supply their cancellation signal. */
-export type ChattoPost = (destination: Destination, body: string, signal: AbortSignal) => Promise<void>;
+export type ChattoPost = (
+  destination: Destination,
+  body: string,
+  signal: AbortSignal
+) => Promise<void>;
 
 /** Refresh a thread's typing indicator once. */
 export type ChattoTyping = (destination: Destination, signal: AbortSignal) => Promise<void>;
@@ -51,8 +60,8 @@ interface ThreadEvent {
 /** Create a bearer-authenticated client for the Chatto 0.5 Connect JSON API. */
 export function createChattoClient(options: ChattoClientOptions) {
   const base = new URL(options.serverUrl);
-  if (!["http:", "https:"].includes(base.protocol) || base.username || base.password) {
-    throw new Error("Use an HTTP or HTTPS Chatto server URL without credentials");
+  if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password) {
+    throw new Error('Use an HTTP or HTTPS Chatto server URL without credentials');
   }
   const request = options.fetch ?? globalThis.fetch;
 
@@ -64,64 +73,94 @@ export function createChattoClient(options: ChattoClientOptions) {
   async function rpc<T>(method: string, body: object, signal?: AbortSignal): Promise<T> {
     signal?.throwIfAborted();
     if (!/^[A-Za-z][A-Za-z0-9]*Service\/[A-Za-z][A-Za-z0-9]*$/.test(method)) {
-      throw new Error("Expected a Chatto resource service and method");
+      throw new Error('Expected a Chatto resource service and method');
     }
     let response: Response;
     try {
       response = await request(new URL(`/api/connect/chatto.api.v1.${method}`, base), {
-        method: "POST",
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${options.apiKey}`,
-          "Content-Type": "application/json",
-          "Connect-Protocol-Version": "1",
+          'Content-Type': 'application/json',
+          'Connect-Protocol-Version': '1'
         },
         body: JSON.stringify(body),
-        redirect: "error",
-        signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(10_000)]),
+        redirect: 'error',
+        signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(10_000)])
       });
     } catch {
       if (signal?.aborted) throw signal.reason;
-      throw new Error("Chatto API request did not complete");
+      throw new Error('Chatto API request did not complete');
     }
     if (!response.ok) throw new Error(`Chatto API returned HTTP ${response.status}`);
     try {
-      return await response.json() as T;
+      return (await response.json()) as T;
     } catch {
       if (signal?.aborted) throw signal.reason;
-      throw new Error("Chatto API returned invalid JSON");
+      throw new Error('Chatto API returned invalid JSON');
     }
   }
 
   /** Send one message without retrying; callers own any uncertain delivery outcome. */
-  function createMessage(destination: Destination, body: string, signal?: AbortSignal, inReplyTo?: string) {
-    return rpc<{ message?: { id?: string } }>("MessageService/CreateMessage", {
-      roomId: destination.roomId, body, threadRootEventId: destination.threadRootId,
-      ...((inReplyTo ?? destination.inReplyTo) ? { inReplyTo: inReplyTo ?? destination.inReplyTo } : {}),
-    }, signal);
+  function createMessage(
+    destination: Destination,
+    body: string,
+    signal?: AbortSignal,
+    inReplyTo?: string
+  ) {
+    return rpc<{ message?: { id?: string } }>(
+      'MessageService/CreateMessage',
+      {
+        roomId: destination.roomId,
+        body,
+        threadRootEventId: destination.threadRootId,
+        ...((inReplyTo ?? destination.inReplyTo)
+          ? { inReplyTo: inReplyTo ?? destination.inReplyTo }
+          : {})
+      },
+      signal
+    );
   }
 
   /** Split at 8000 Unicode code points and send in order; a failed chunk stops delivery. */
-  async function postMessage(destination: Destination, body: string, signal?: AbortSignal): Promise<void> {
+  async function postMessage(
+    destination: Destination,
+    body: string,
+    signal?: AbortSignal
+  ): Promise<void> {
     const characters = Array.from(body);
     for (let offset = 0; offset < Math.max(1, characters.length); offset += 8000) {
-      await createMessage(destination, characters.slice(offset, offset + 8000).join(""), signal);
+      await createMessage(destination, characters.slice(offset, offset + 8000).join(''), signal);
     }
   }
 
   /** Refresh presence once; the host owns periodic refresh and cancellation. */
   async function refreshTyping(destination: Destination, signal?: AbortSignal): Promise<void> {
-    await rpc("RoomService/RefreshTypingIndicator", {
-      roomId: destination.roomId, threadRootEventId: destination.threadRootId,
-    }, signal);
+    await rpc(
+      'RoomService/RefreshTypingIndicator',
+      {
+        roomId: destination.roomId,
+        threadRootEventId: destination.threadRootId
+      },
+      signal
+    );
   }
 
   /** Add a reaction to a message event, which can differ from the thread root. */
-  async function addReaction(roomId: string, messageEventId: string, emoji: string, signal?: AbortSignal): Promise<void> {
-    await rpc("MessageService/AddReaction", { roomId, messageEventId, emoji }, signal);
+  async function addReaction(
+    roomId: string,
+    messageEventId: string,
+    emoji: string,
+    signal?: AbortSignal
+  ): Promise<void> {
+    await rpc('MessageService/AddReaction', { roomId, messageEventId, emoji }, signal);
   }
 
   /** Read all history pages with a 30-second total limit, preserving root-first order. */
-  async function readThread(location: ThreadLocation, signal?: AbortSignal): Promise<ThreadMessage[]> {
+  async function readThread(
+    location: ThreadLocation,
+    signal?: AbortSignal
+  ): Promise<ThreadMessage[]> {
     const rootId = location.threadRootId;
     const readSignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(30_000)]);
     let root: ThreadEvent | undefined;
@@ -131,38 +170,53 @@ export function createChattoClient(options: ChattoClientOptions) {
     do {
       const { page } = await rpc<{
         page?: { events?: ThreadEvent[]; hasOlder?: boolean; startCursor?: string };
-      }>("ThreadService/GetThreadEvents", {
-        roomId: location.roomId, threadRootEventId: rootId, limit: 100,
-        ...(before ? { before } : {}),
-      }, readSignal);
-      if (!page) throw new Error("Chatto did not return the thread page");
+      }>(
+        'ThreadService/GetThreadEvents',
+        {
+          roomId: location.roomId,
+          threadRootEventId: rootId,
+          limit: 100,
+          ...(before ? { before } : {})
+        },
+        readSignal
+      );
+      if (!page) throw new Error('Chatto did not return the thread page');
       const events = page.events ?? [];
-      root ??= events.find(event => event.id === rootId);
-      replies = [...events.filter(event => event.id !== rootId), ...replies];
+      root ??= events.find((event) => event.id === rootId);
+      replies = [...events.filter((event) => event.id !== rootId), ...replies];
       if (!page.hasOlder) break;
       before = page.startCursor;
-      if (!before || cursors.has(before)) throw new Error("Thread pagination did not advance");
+      if (!before || cursors.has(before)) throw new Error('Thread pagination did not advance');
       cursors.add(before);
     } while (true);
 
     const seen = new Set<string>();
-    return [...(root ? [root] : []), ...replies].flatMap(event => {
+    return [...(root ? [root] : []), ...replies].flatMap((event) => {
       if (!event.id || seen.has(event.id)) return [];
       seen.add(event.id);
       const message = event.messagePosted?.message;
       if (!message?.body) return [];
-      return [{
-        id: event.id, authorId: message.actorId,
-        body: message.body,
-      }];
+      return [
+        {
+          id: event.id,
+          authorId: message.actorId,
+          body: message.body
+        }
+      ];
     });
   }
 
   return {
     ...messageHelpers(rpc),
-    rpc, createMessage, postMessage, refreshTyping, addReaction, readThread,
+    rpc,
+    createMessage,
+    postMessage,
+    refreshTyping,
+    addReaction,
+    readThread,
     /** Consume ordered events until cancellation or a terminal failure. */
-    consumeRealtime: (settings: ConsumeRealtimeOptions) => consumeRealtime(base, options.apiKey, options.webSocket, settings),
+    consumeRealtime: (settings: ConsumeRealtimeOptions) =>
+      consumeRealtime(base, options.apiKey, options.webSocket, settings)
   };
 }
 

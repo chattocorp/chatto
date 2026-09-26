@@ -1,6 +1,11 @@
-import { RoomKind, type ChattoClient, type ChattoMessage, type RealtimeEvent } from "@chatto/client";
+import {
+  RoomKind,
+  type ChattoClient,
+  type ChattoMessage,
+  type RealtimeEvent
+} from '@chatto/client';
 
-export type AddressingReason = "direct_message" | "mention" | "reply";
+export type AddressingReason = 'direct_message' | 'mention' | 'reply';
 
 /** Select bot addressing conventions. All three reasons are enabled by default. */
 export interface AddressingOptions {
@@ -21,26 +26,53 @@ export interface AddressedMessage extends ChattoMessage {
  * Self messages, non-message events, and unavailable text are ignored. Lookup
  * errors and cancellation propagate without logging or changing a checkpoint.
  */
-export async function addressedMessage(client: Pick<ChattoClient, "getMessage">, event: RealtimeEvent, {
-  viewerId, signal, reasons: enabled = ["direct_message", "mention", "reply"],
-}: AddressingOptions & { viewerId: string }): Promise<AddressedMessage | undefined> {
+export async function addressedMessage(
+  client: Pick<ChattoClient, 'getMessage'>,
+  event: RealtimeEvent,
+  {
+    viewerId,
+    signal,
+    reasons: enabled = ['direct_message', 'mention', 'reply']
+  }: AddressingOptions & { viewerId: string }
+): Promise<AddressedMessage | undefined> {
   signal?.throwIfAborted();
-  if (!viewerId || event.event.case !== "messagePosted" || !event.id || !event.actorId || event.actorId === viewerId) return;
+  if (
+    !viewerId ||
+    event.event.case !== 'messagePosted' ||
+    !event.id ||
+    !event.actorId ||
+    event.actorId === viewerId
+  )
+    return;
   const message = event.event.value;
   if (message.bodyPlaintext === undefined || !message.roomId) return;
   const reasons: AddressingReason[] = [];
-  if (enabled.includes("direct_message") && message.roomKind === RoomKind.DM) reasons.push("direct_message");
-  if (enabled.includes("mention") && message.mentions.some(mention => mention.includesViewer)) reasons.push("mention");
-  if (enabled.includes("reply") && !reasons.length && message.inReplyTo) {
-    const target = await client.getMessage({ roomId: message.roomId, messageId: message.inReplyTo, signal });
+  if (enabled.includes('direct_message') && message.roomKind === RoomKind.DM)
+    reasons.push('direct_message');
+  if (enabled.includes('mention') && message.mentions.some((mention) => mention.includesViewer))
+    reasons.push('mention');
+  if (enabled.includes('reply') && !reasons.length && message.inReplyTo) {
+    const target = await client.getMessage({
+      roomId: message.roomId,
+      messageId: message.inReplyTo,
+      signal
+    });
     signal?.throwIfAborted();
-    if (target?.authorId === viewerId &&
-        (target.threadRootId || target.id) === (message.threadRootEventId || message.inReplyTo)) reasons.push("reply");
+    if (
+      target?.authorId === viewerId &&
+      (target.threadRootId || target.id) === (message.threadRootEventId || message.inReplyTo)
+    )
+      reasons.push('reply');
   }
   if (!reasons.length) return;
-  return { id: event.id, roomId: message.roomId, authorId: event.actorId, body: message.bodyPlaintext,
+  return {
+    id: event.id,
+    roomId: message.roomId,
+    authorId: event.actorId,
+    body: message.bodyPlaintext,
     ...(message.threadRootEventId ? { threadRootId: message.threadRootEventId } : {}),
     ...(message.inReplyTo ? { inReplyTo: message.inReplyTo } : {}),
-    ...(event.createdAt ? { occurredAt: event.createdAt.toDate().toISOString() } : {}), reasons,
+    ...(event.createdAt ? { occurredAt: event.createdAt.toDate().toISOString() } : {}),
+    reasons
   };
 }

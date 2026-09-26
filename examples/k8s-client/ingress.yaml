@@ -15,7 +15,7 @@ metadata:
   name: chatto-client
   namespace: chatto-client
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
     traefik.ingress.kubernetes.io/router.middlewares: chatto-client-redirect-https@kubernetescrd
 spec:
   ingressClassName: traefik

@@ -107,7 +107,9 @@ it('defaults voice boosting to on and persists opt-out independently of other pr
     expect(restored.effects.polish).toBe(enabled ? 1 : 0);
     expect(restored.microphoneThreshold).toBe(-25);
     expect([restored.microphone, restored.speaker, restored.camera]).toEqual([
-      'chosen', 'speaker', 'camera'
+      'chosen',
+      'speaker',
+      'camera'
     ]);
     expect(restored.joinMuted).toBe(true);
     expect(restored.getParticipantAudio('bob').voiceVolume).toBe(125);

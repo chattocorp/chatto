@@ -1,5 +1,5 @@
 export function toSingleLine(text: string) {
-  return text.replace(/\s+/g, " ").trim();
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 export function containsMalformedToolCall(text: string) {

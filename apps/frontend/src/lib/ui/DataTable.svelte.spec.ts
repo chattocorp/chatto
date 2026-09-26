@@ -180,8 +180,12 @@ describe('DataTable.hoverable', () => {
 
     expect(viewport.className).toContain('data-table-viewport');
     expect(viewport.className).toContain('max-h-[70dvh]');
-    expect((table.parentElement?.parentElement as HTMLElement).className).toContain('overflow-y-auto');
-    expect((table.parentElement?.parentElement as HTMLElement).className).toContain('overflow-x-auto');
+    expect((table.parentElement?.parentElement as HTMLElement).className).toContain(
+      'overflow-y-auto'
+    );
+    expect((table.parentElement?.parentElement as HTMLElement).className).toContain(
+      'overflow-x-auto'
+    );
     expect(header.className).toContain('sticky');
   });
 

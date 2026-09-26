@@ -21,93 +21,93 @@ resolution to request for sidebar-width tiles.
 - `fill` - Whether the video should fill its parent's height instead of using thumbnail aspect-ratio sizing.
 -->
 <script lang="ts">
-	import { formatAccountName } from '$lib/render/accountName';
-	import { onDestroy } from 'svelte';
-	import type { Track } from 'livekit-client';
-	import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-	import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { formatAccountName } from '$lib/render/accountName';
+  import { onDestroy } from 'svelte';
+  import type { Track } from 'livekit-client';
+  import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
 
-	let {
-		track,
-		name,
-		user,
-		showIdentityOverlay = true,
-		fit = 'cover',
-		fill = false
-	}: {
-		track: Track;
-		name: string;
-		user: {
-			id: string;
-			login: string;
-			displayName: string;
-			isBot?: boolean;
-			deleted?: boolean;
-			avatarUrl: string | null;
-			presenceStatus: PresenceStatus;
-		};
-		showIdentityOverlay?: boolean;
-		fit?: 'cover' | 'contain';
-		fill?: boolean;
-	} = $props();
+  let {
+    track,
+    name,
+    user,
+    showIdentityOverlay = true,
+    fit = 'cover',
+    fill = false
+  }: {
+    track: Track;
+    name: string;
+    user: {
+      id: string;
+      login: string;
+      displayName: string;
+      isBot?: boolean;
+      deleted?: boolean;
+      avatarUrl: string | null;
+      presenceStatus: PresenceStatus;
+    };
+    showIdentityOverlay?: boolean;
+    fit?: 'cover' | 'contain';
+    fill?: boolean;
+  } = $props();
 
-	let videoEl = $state<HTMLVideoElement | null>(null);
+  let videoEl = $state<HTMLVideoElement | null>(null);
 
-	// Track what's currently attached to avoid unnecessary detach/reattach cycles.
-	// The parent's audio level polling (60ms) triggers $derived recalculations that
-	// pass the same Track reference — we must not detach/reattach on those no-ops.
-	let attachedTrack: Track | null = null;
-	let attachedEl: HTMLVideoElement | null = null;
+  // Track what's currently attached to avoid unnecessary detach/reattach cycles.
+  // The parent's audio level polling (60ms) triggers $derived recalculations that
+  // pass the same Track reference — we must not detach/reattach on those no-ops.
+  let attachedTrack: Track | null = null;
+  let attachedEl: HTMLVideoElement | null = null;
 
-	$effect(() => {
-		const t = track;
-		const el = videoEl;
+  $effect(() => {
+    const t = track;
+    const el = videoEl;
 
-		if (t === attachedTrack && el === attachedEl) return;
+    if (t === attachedTrack && el === attachedEl) return;
 
-		if (attachedTrack && attachedEl) {
-			attachedTrack.detach(attachedEl);
-		}
+    if (attachedTrack && attachedEl) {
+      attachedTrack.detach(attachedEl);
+    }
 
-		if (t && el) {
-			t.attach(el);
-		}
+    if (t && el) {
+      t.attach(el);
+    }
 
-		attachedTrack = t ?? null;
-		attachedEl = el ?? null;
-	});
+    attachedTrack = t ?? null;
+    attachedEl = el ?? null;
+  });
 
-	onDestroy(() => {
-		if (attachedTrack && attachedEl) {
-			attachedTrack.detach(attachedEl);
-			attachedTrack = null;
-			attachedEl = null;
-		}
-	});
+  onDestroy(() => {
+    if (attachedTrack && attachedEl) {
+      attachedTrack.detach(attachedEl);
+      attachedTrack = null;
+      attachedEl = null;
+    }
+  });
 </script>
 
 <div
-	class={[
-		'relative block w-full overflow-hidden rounded-md',
-		fit === 'contain' ? 'bg-black' : 'bg-surface-emphasized',
-		fill ? 'h-full min-h-0' : 'aspect-video'
-	]}
+  class={[
+    'relative block w-full overflow-hidden rounded-md',
+    fit === 'contain' ? 'bg-black' : 'bg-surface-emphasized',
+    fill ? 'h-full min-h-0' : 'aspect-video'
+  ]}
 >
-	<video
-		bind:this={videoEl}
-		width="640"
-		height="360"
-		class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}
-		title={formatAccountName(name, user)}
-		autoplay
-		playsinline
-		muted
-	></video>
-	{#if showIdentityOverlay}
-		<div
-			class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface)]"
-		>
-			<UserAvatar {user} size="xs" />
-		</div>
-	{/if}
+  <video
+    bind:this={videoEl}
+    width="640"
+    height="360"
+    class={['h-full w-full', fit === 'contain' ? 'object-contain' : 'object-cover']}
+    title={formatAccountName(name, user)}
+    autoplay
+    playsinline
+    muted
+  ></video>
+  {#if showIdentityOverlay}
+    <div
+      class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface)]"
+    >
+      <UserAvatar {user} size="xs" />
+    </div>
+  {/if}
 </div>

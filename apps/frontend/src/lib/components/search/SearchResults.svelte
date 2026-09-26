@@ -61,7 +61,10 @@ mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
         {@attach loadMoreWhenVisible}
         class={['flex h-12 items-center justify-center text-muted', compact && 'text-sm']}
       >
-        {#if store.loadingMore}<LoadingFog class="h-10 w-full" label={m('search.loading_more')} />{/if}
+        {#if store.loadingMore}<LoadingFog
+            class="h-10 w-full"
+            label={m('search.loading_more')}
+          />{/if}
       </div>
     {/if}
   {/if}

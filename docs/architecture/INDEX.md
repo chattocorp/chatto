@@ -40,16 +40,16 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 
 ## Inventories
 
-| Category | Contents |
-| -------- | -------- |
-| [Runtime components](runtime-components.md) | Core models, facades, publishers, workers, and their responsibilities |
-| [Projections](projections.md) | Registered projectors, logical subjects, read models, and snapshot support |
-| [NATS resources](nats-resources.md) | Streams, KV buckets, Object Stores, live roots, persistence, and backup status |
-| [Subjects and events](subjects-and-events.md) | Durable envelopes, subject namespace, event tokens, and transient subjects |
-| [Runtime state](runtime-state.md) | KV and Object Store key shapes, TTLs, security boundaries, and owners |
-| [Durable effects](durable-effects.md) | External effects, recovery guarantees, idempotency, and known gaps |
-| [Interfaces](interfaces.md) | ConnectRPC packages, mounted services, transports, and authentication boundaries |
-| [Realtime delivery](realtime-delivery.md) | WebSocket handshake, server-side fanout, authorization, and catch-up model |
+| Category                                      | Contents                                                                         |
+| --------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Runtime components](runtime-components.md)   | Core models, facades, publishers, workers, and their responsibilities            |
+| [Projections](projections.md)                 | Registered projectors, logical subjects, read models, and snapshot support       |
+| [NATS resources](nats-resources.md)           | Streams, KV buckets, Object Stores, live roots, persistence, and backup status   |
+| [Subjects and events](subjects-and-events.md) | Durable envelopes, subject namespace, event tokens, and transient subjects       |
+| [Runtime state](runtime-state.md)             | KV and Object Store key shapes, TTLs, security boundaries, and owners            |
+| [Durable effects](durable-effects.md)         | External effects, recovery guarantees, idempotency, and known gaps               |
+| [Interfaces](interfaces.md)                   | ConnectRPC packages, mounted services, transports, and authentication boundaries |
+| [Realtime delivery](realtime-delivery.md)     | WebSocket handshake, server-side fanout, authorization, and catch-up model       |
 
 ## Inventory rules
 

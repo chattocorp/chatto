@@ -28,18 +28,26 @@ export function startServerRecovery(registry: RecoveryRegistry): () => void {
       attempt.running = true;
       const current = attempt;
       // The registry reports failure through state. Do not log request details.
-      void registry.recoverServer(id).catch(() => {}).finally(() => {
-        if (disposed || attempts.get(id) !== current) return;
-        current.running = false;
-        current.delay = Math.min(current.delay * 2, 30_000);
-        current.due = Date.now() + current.delay;
-      });
+      void registry
+        .recoverServer(id)
+        .catch(() => {})
+        .finally(() => {
+          if (disposed || attempts.get(id) !== current) return;
+          current.running = false;
+          current.delay = Math.min(current.delay * 2, 30_000);
+          current.due = Date.now() + current.delay;
+        });
     }
   }
 
   const retry = () => tick(true);
-  const resume = () => { paused = false; retry(); };
-  const pause = () => { paused = true; };
+  const resume = () => {
+    paused = false;
+    retry();
+  };
+  const pause = () => {
+    paused = true;
+  };
   // Capacitor dispatches document resume/pause events for native scene changes.
   document.addEventListener('resume', resume);
   document.addEventListener('pause', pause);

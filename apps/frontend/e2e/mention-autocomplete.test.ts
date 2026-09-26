@@ -50,9 +50,9 @@ test.describe('Mention autocomplete', () => {
     await roomPage.messageInput.pressSequentially('hello');
     await roomPage.messageInput.press('Control+Enter');
 
-    await expect(page.locator('[role="article"]', { hasText: `@${user.displayName} hello` })).toBeVisible(
-      { timeout: TIMEOUTS.UI_STANDARD }
-    );
+    await expect(
+      page.locator('[role="article"]', { hasText: `@${user.displayName} hello` })
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
   test('confirms a real role mention before posting', async ({ page, chatPage, roomPage }) => {

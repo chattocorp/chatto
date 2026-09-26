@@ -16,10 +16,9 @@ for concurrent work. The returned **run** has `send()`, `output`, `result`, and
 `cancel()`. Inside the child, use `ctx.inbox`, `ctx.emit()`, and `ctx.signal`.
 
 ```ts
-const run = ctx.spawn((ctx: WorkflowContext<string, string>) =>
-  investigate(ctx, { question }));
+const run = ctx.spawn((ctx: WorkflowContext<string, string>) => investigate(ctx, { question }));
 try {
-  await run.send("Also check private rooms");
+  await run.send('Also check private rooms');
   for await (const message of run.output) {
     // Handle progress or findings while the child works.
   }
@@ -78,13 +77,10 @@ Add `"runling": "runling"` to the `scripts` in your `package.json`.
 Create `workflows/echo.ts`:
 
 ```ts
-import { task } from "runling";
-import { z } from "zod";
+import { task } from 'runling';
+import { z } from 'zod';
 
-export default task(
-  { name: "Echo", input: z.string(), output: z.string() },
-  (ctx, input) => input,
-);
+export default task({ name: 'Echo', input: z.string(), output: z.string() }, (ctx, input) => input);
 ```
 
 Run it with `pnpm runling run workflows/echo.ts "hello"`.
@@ -94,8 +90,8 @@ Much more exciting though is Runling's ability to spin up a long-running process
 Create `runling.config.ts` in the project root:
 
 ```ts
-import { defineWebConfig, startWorkflow } from "runling/web";
-import echo from "./workflows/echo.ts";
+import { defineWebConfig, startWorkflow } from 'runling/web';
+import echo from './workflows/echo.ts';
 
 export default defineWebConfig({
   webhooks: {

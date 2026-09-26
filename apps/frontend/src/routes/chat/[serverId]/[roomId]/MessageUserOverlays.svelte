@@ -117,10 +117,12 @@
 
     toast.success({
       text: m('room.sidebar.remove_success', { name: accountNameToken(0) }),
-      accounts: [{
-        name: member.displayName || member.login,
-        identity: { isBot: member.isBot, deleted: member.deleted }
-      }]
+      accounts: [
+        {
+          name: member.displayName || member.login,
+          identity: { isBot: member.isBot, deleted: member.deleted }
+        }
+      ]
     });
     banDialogUser = null;
   }
@@ -171,7 +173,11 @@
 
 {#if banDialogUser}
   {#await loadBanRoomMemberModal(banRoomMemberModalLoadAttempt)}
-    <Dialog visible title={m('admin.moderation.remove_action')} onclose={() => (banDialogUser = null)}>
+    <Dialog
+      visible
+      title={m('admin.moderation.remove_action')}
+      onclose={() => (banDialogUser = null)}
+    >
       <LoadingFog class="h-24 w-full" />
     </Dialog>
   {:then { default: RemoveRoomUserModal }}

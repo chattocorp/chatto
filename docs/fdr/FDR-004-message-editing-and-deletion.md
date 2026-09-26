@@ -88,7 +88,6 @@ body from EVT.
 **Why:** One content source keeps text, attachments, descriptions, previews, and edit state consistent.
 **Tradeoff:** Reads and content mutations must resolve echo IDs before they access or change content. Physical body-record ownership stays separate so echo deletion cannot erase the original.
 
-
 ### 6. Delete physically removes the body payload, not just hides it
 
 **Decision:** Message body content is stored in private body payload events separate from public post/edit facts. Delete appends the public retraction fact, securely deletes body payload events where the storage backend supports it, and removes attachment storage only after verifying that the asset is durably attached to that exact message. Only the placeholder rendering remains.

@@ -3,11 +3,11 @@ import { onMount, untrack } from 'svelte';
 const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
 type ExpiringAssetUrlRefreshOptions = {
-	getRefreshAt: () => number | null;
-	hasStaleUrl: () => boolean;
-	refresh: () => void | Promise<unknown>;
-	errorMessage: string;
-	refreshOnFocus?: boolean;
+  getRefreshAt: () => number | null;
+  hasStaleUrl: () => boolean;
+  refresh: () => void | Promise<unknown>;
+  errorMessage: string;
+  refreshOnFocus?: boolean;
 };
 
 /**
@@ -18,56 +18,56 @@ type ExpiringAssetUrlRefreshOptions = {
  * while this hook owns only browser lifecycle orchestration.
  */
 export function useExpiringAssetUrlRefresh({
-	getRefreshAt,
-	hasStaleUrl,
-	refresh,
-	errorMessage,
-	refreshOnFocus = true
+  getRefreshAt,
+  hasStaleUrl,
+  refresh,
+  errorMessage,
+  refreshOnFocus = true
 }: ExpiringAssetUrlRefreshOptions): void {
-	async function runRefresh(): Promise<void> {
-		try {
-			await refresh();
-		} catch (error: unknown) {
-			console.warn(errorMessage, error);
-		}
-	}
+  async function runRefresh(): Promise<void> {
+    try {
+      await refresh();
+    } catch (error: unknown) {
+      console.warn(errorMessage, error);
+    }
+  }
 
-	function refreshIfStale(): void {
-		if (hasStaleUrl()) void runRefresh();
-	}
+  function refreshIfStale(): void {
+    if (hasStaleUrl()) void runRefresh();
+  }
 
-	$effect(() => {
-		const refreshAt = getRefreshAt();
-		if (refreshAt === null) return;
-		let timeout: number | undefined;
+  $effect(() => {
+    const refreshAt = getRefreshAt();
+    if (refreshAt === null) return;
+    let timeout: number | undefined;
 
-		const schedule = () => {
-			const delay = refreshAt - Date.now();
-			if (delay <= 0) {
-				if (hasStaleUrl()) untrack(() => void runRefresh());
-				return;
-			}
+    const schedule = () => {
+      const delay = refreshAt - Date.now();
+      if (delay <= 0) {
+        if (hasStaleUrl()) untrack(() => void runRefresh());
+        return;
+      }
 
-			timeout = window.setTimeout(schedule, Math.min(delay, MAX_TIMEOUT_DELAY_MS));
-		};
+      timeout = window.setTimeout(schedule, Math.min(delay, MAX_TIMEOUT_DELAY_MS));
+    };
 
-		schedule();
-		return () => {
-			if (timeout !== undefined) window.clearTimeout(timeout);
-		};
-	});
+    schedule();
+    return () => {
+      if (timeout !== undefined) window.clearTimeout(timeout);
+    };
+  });
 
-	onMount(() => {
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'visible') refreshIfStale();
-		};
+  onMount(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshIfStale();
+    };
 
-		if (refreshOnFocus) window.addEventListener('focus', refreshIfStale);
-		document.addEventListener('visibilitychange', handleVisibilityChange);
+    if (refreshOnFocus) window.addEventListener('focus', refreshIfStale);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-		return () => {
-			if (refreshOnFocus) window.removeEventListener('focus', refreshIfStale);
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-		};
-	});
+    return () => {
+      if (refreshOnFocus) window.removeEventListener('focus', refreshIfStale);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  });
 }

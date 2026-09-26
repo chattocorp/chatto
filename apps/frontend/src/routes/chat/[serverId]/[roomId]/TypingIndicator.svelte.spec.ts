@@ -31,9 +31,14 @@ afterEach(async () => {
 describe('TypingIndicator', () => {
   it('shows the shared badge beside a bot in the typing label', () => {
     const { container } = render(TypingIndicator, {
-      props: { typingUserIds: ['helper'], members: [{ ...member('helper', 'Helper'), isBot: true }] }
+      props: {
+        typingUserIds: ['helper'],
+        members: [{ ...member('helper', 'Helper'), isBot: true }]
+      }
     });
-    expect(q(container, '.typing-label [data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Helper');
+    expect(
+      q(container, '.typing-label [data-testid="bot-badge"]')?.previousElementSibling?.textContent
+    ).toBe('Helper');
     expect(indicatorText(container)).toBe('HelperBOT is typing');
     expect(indicatorText(container)).not.toContain('(BOT)');
   });
@@ -132,9 +137,12 @@ describe('TypingIndicator', () => {
     });
     expect(indicatorText(container)).toBe('Unknown user is typing');
 
-    profiles.set('late', new DirectoryMember({
-      user: { id: 'late', login: 'late', displayName: 'Late Member', bot: {} }
-    }));
+    profiles.set(
+      'late',
+      new DirectoryMember({
+        user: { id: 'late', login: 'late', displayName: 'Late Member', bot: {} }
+      })
+    );
 
     await expect.poll(() => indicatorText(container)).toBe('Late MemberBOT is typing');
     expect(container.querySelectorAll('[data-testid="typing-avatar"]')).toHaveLength(1);
@@ -144,9 +152,12 @@ describe('TypingIndicator', () => {
 
   it('uses the shared profile when a member row has an older name', () => {
     const profiles = new UserStore();
-    profiles.set('alice', new DirectoryMember({
-      user: { id: 'alice', login: 'alice', displayName: 'New Alice' }
-    }));
+    profiles.set(
+      'alice',
+      new DirectoryMember({
+        user: { id: 'alice', login: 'alice', displayName: 'New Alice' }
+      })
+    );
     const { container } = render(TypingIndicator, {
       props: { typingUserIds: ['alice'], members, profiles }
     });

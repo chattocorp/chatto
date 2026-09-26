@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
       - name: Check release version
         working-directory: packages/runling
         env:

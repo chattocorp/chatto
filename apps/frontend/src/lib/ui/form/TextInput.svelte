@@ -53,7 +53,7 @@
     {#if leadingIcon}
       <span
         class={[
-          'pointer-events-none absolute start-2 top-1/2 iconify -translate-y-1/2 text-base text-muted',
+          'iconify pointer-events-none absolute start-2 top-1/2 -translate-y-1/2 text-base text-muted',
           leadingIcon
         ]}
         aria-hidden="true"

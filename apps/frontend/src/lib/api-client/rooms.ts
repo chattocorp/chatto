@@ -44,9 +44,7 @@ export type RoomSuspensionList = {
 };
 
 export type RoomSuspensionChoice =
-  | { kind: 'none' }
-  | { kind: 'indefinite' }
-  | { kind: 'until'; expiresAt: string };
+  { kind: 'none' } | { kind: 'indefinite' } | { kind: 'until'; expiresAt: string };
 
 export type RoomCommandAPI = ReturnType<typeof createRoomCommandAPI>;
 
@@ -244,7 +242,11 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       return true;
     },
 
-    async liftSuspension(input: { roomId: string; userId: string; reason: string }): Promise<boolean> {
+    async liftSuspension(input: {
+      roomId: string;
+      userId: string;
+      reason: string;
+    }): Promise<boolean> {
       await rooms.liftSuspension(input);
       return true;
     }

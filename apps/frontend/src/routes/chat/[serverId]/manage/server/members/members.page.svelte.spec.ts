@@ -99,8 +99,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, avatarUrl: string | null) => avatarUrl,
   getLiveCustomStatus: () => null
 }));
@@ -223,16 +223,17 @@ describe('server admin members pagination', () => {
     observers[0].trigger(true);
     await settle();
     expect(mocks.listMembers).toHaveBeenLastCalledWith(
-      { search: null, limit: 20, offset: 20 }, expect.anything()
+      { search: null, limit: 20, offset: 20 },
+      expect.anything()
     );
     expect(container.textContent).toContain('@member20');
   });
 
   it('keeps role labels when the final ID page is empty', async () => {
-    queueResults(
-      result([{ ...member(0), roles: ['admin'] }], 21, true),
-      { ...result([], 1), roles: [] }
-    );
+    queueResults(result([{ ...member(0), roles: ['admin'] }], 21, true), {
+      ...result([], 1),
+      roles: []
+    });
     const { container } = render(MembersPage);
     await settle();
     expect(container.textContent).toContain('Admin');

@@ -56,9 +56,7 @@ message list layout, and it announces changes politely to screen readers via a
   // the order in which typers were reported.
   let activeUserIds = $derived([...new Set(typingUserIds)]);
   let typingMembers = $derived(
-    activeUserIds
-      .map(resolveMember)
-      .filter((member): member is RoomMember => member != null)
+    activeUserIds.map(resolveMember).filter((member): member is RoomMember => member != null)
   );
 
   let visibleMembers = $derived(typingMembers.slice(0, MAX_TYPING_AVATARS));

@@ -522,9 +522,9 @@ describe('MessageComposer', () => {
       );
       expect(document.activeElement).toBe(editor);
       expect(userPreferences.composerFormattingToolbarVisible).toBe(true);
-      expect(q(first.container, '[data-testid="composer-formatting-shelf"] [role="group"]')).toHaveClass(
-        'pill-button-group-compact'
-      );
+      expect(
+        q(first.container, '[data-testid="composer-formatting-shelf"] [role="group"]')
+      ).toHaveClass('pill-button-group-compact');
 
       first.unmount();
       const second = renderMessageComposer({ roomId: 'formatting-shelf-second' });
@@ -641,7 +641,9 @@ describe('MessageComposer', () => {
         await userEvent.click(surface, { position: { x: 4, y: 4 } });
 
         await expect.element(editor).toHaveFocus();
-        await expect.poll(() => editor.contains(window.getSelection()?.anchorNode ?? null)).toBe(true);
+        await expect
+          .poll(() => editor.contains(window.getSelection()?.anchorNode ?? null))
+          .toBe(true);
         await userEvent.keyboard('X');
         expect(editor.textContent).toBe('FirXst paragraph');
       }
@@ -666,156 +668,215 @@ describe('MessageComposer', () => {
       expect(window.getSelection()?.toString()).toBe('keep this selected');
     });
 
-    it.each(([
-      ['visual', false], ['visual', true], ['markdown', false], ['markdown', true]
-    ] as const).flatMap(([mode, touch]) => [767, 768, 1280].map(viewport => [mode, touch, viewport] as const)))('keeps the %s editor usable across composer widths with touch=%s at viewport=%s', async (mode, touch, viewport) => {
-      await page.viewport(viewport, 900);
-      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-      expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
-      userPreferences.composerEditor = mode;
-      const largeTargets = touch && viewport < 768;
-      const { container } = renderMessageComposer({
-        roomId: 'narrow-composer', showCreateThread: true, showAlsoSendToChannel: true
-      });
-      const editor = await findEditor(container);
-      const row = q(container, '[data-testid="composer-editor-row"]')!;
-      const actions = q(container, '[data-testid="composer-action-toolbar"]')!;
-      const surface = q(container, '[data-testid="composer-input-surface"]')!;
-      for (const draft of ['', 'A readable message\nWith another line']) {
-        if (draft) {
-          await typeInEditor(editor, 'A readable message');
-          await userEvent.keyboard('{Shift>}{Enter}{/Shift}With another line');
-        }
-        editor.focus();
-        const selection = window.getSelection();
-        const anchorNode = selection?.anchorNode;
-        const anchorOffset = selection?.anchorOffset;
-        for (const width of [200, 320, 390, 559, 560, 800, 320]) {
-          // The outer composer adds 8 px padding on each side of its query box.
-          container.style.width = `${width + 16}px`;
-          expect(getComputedStyle(document.body).fontSize).toBe(touch ? '17px' : '16px');
-          const stacked = width < 560 || draft !== '';
-          await expect.poll(() => getComputedStyle(surface).display).toBe(stacked ? 'grid' : 'flex');
-          const formattingToggle = surface.querySelector('button[aria-controls]')!;
-          if (stacked) {
-            expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(row.getBoundingClientRect().bottom);
-            expect(formattingToggle.getBoundingClientRect().top).toBeGreaterThanOrEqual(row.getBoundingClientRect().bottom);
-            expect(row.getBoundingClientRect().width).toBeGreaterThan(width - 30);
-          } else {
-            expect(actions.getBoundingClientRect().top).toBeLessThan(row.getBoundingClientRect().bottom);
-            expect(formattingToggle.getBoundingClientRect().top).toBeLessThan(row.getBoundingClientRect().bottom);
-            if (largeTargets) {
-              const editorCenter = row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
-              for (const button of surface.querySelectorAll('button')) {
-                const box = button.getBoundingClientRect();
-                expect(Math.abs(box.top + box.height / 2 - editorCenter)).toBeLessThanOrEqual(1);
+    it.each(
+      (
+        [
+          ['visual', false],
+          ['visual', true],
+          ['markdown', false],
+          ['markdown', true]
+        ] as const
+      ).flatMap(([mode, touch]) =>
+        [767, 768, 1280].map((viewport) => [mode, touch, viewport] as const)
+      )
+    )(
+      'keeps the %s editor usable across composer widths with touch=%s at viewport=%s',
+      async (mode, touch, viewport) => {
+        await page.viewport(viewport, 900);
+        await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+        expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
+        userPreferences.composerEditor = mode;
+        const largeTargets = touch && viewport < 768;
+        const { container } = renderMessageComposer({
+          roomId: 'narrow-composer',
+          showCreateThread: true,
+          showAlsoSendToChannel: true
+        });
+        const editor = await findEditor(container);
+        const row = q(container, '[data-testid="composer-editor-row"]')!;
+        const actions = q(container, '[data-testid="composer-action-toolbar"]')!;
+        const surface = q(container, '[data-testid="composer-input-surface"]')!;
+        for (const draft of ['', 'A readable message\nWith another line']) {
+          if (draft) {
+            await typeInEditor(editor, 'A readable message');
+            await userEvent.keyboard('{Shift>}{Enter}{/Shift}With another line');
+          }
+          editor.focus();
+          const selection = window.getSelection();
+          const anchorNode = selection?.anchorNode;
+          const anchorOffset = selection?.anchorOffset;
+          for (const width of [200, 320, 390, 559, 560, 800, 320]) {
+            // The outer composer adds 8 px padding on each side of its query box.
+            container.style.width = `${width + 16}px`;
+            expect(getComputedStyle(document.body).fontSize).toBe(touch ? '17px' : '16px');
+            const stacked = width < 560 || draft !== '';
+            await expect
+              .poll(() => getComputedStyle(surface).display)
+              .toBe(stacked ? 'grid' : 'flex');
+            const formattingToggle = surface.querySelector('button[aria-controls]')!;
+            if (stacked) {
+              expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+                row.getBoundingClientRect().bottom
+              );
+              expect(formattingToggle.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+                row.getBoundingClientRect().bottom
+              );
+              expect(row.getBoundingClientRect().width).toBeGreaterThan(width - 30);
+            } else {
+              expect(actions.getBoundingClientRect().top).toBeLessThan(
+                row.getBoundingClientRect().bottom
+              );
+              expect(formattingToggle.getBoundingClientRect().top).toBeLessThan(
+                row.getBoundingClientRect().bottom
+              );
+              if (largeTargets) {
+                const editorCenter =
+                  row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+                for (const button of surface.querySelectorAll('button')) {
+                  const box = button.getBoundingClientRect();
+                  expect(Math.abs(box.top + box.height / 2 - editorCenter)).toBeLessThanOrEqual(1);
+                }
               }
             }
+            const attachment = q(actions, 'button[title="Attach file"]')!.getBoundingClientRect();
+            const timestamp = q(
+              actions,
+              'button[aria-label="Insert timestamp"]'
+            )!.getBoundingClientRect();
+            const send = q(actions, 'button[aria-label="Send message"]')!.getBoundingClientRect();
+            const trailingGroup = q(
+              actions,
+              'button[aria-label="Send message"]'
+            )!.parentElement!.parentElement!.getBoundingClientRect();
+            expect(timestamp.left).toBeGreaterThanOrEqual(attachment.right);
+            expect(send.right).toBeCloseTo(actions.getBoundingClientRect().right, 0);
+            if (timestamp.top === send.top) {
+              expect(trailingGroup.left - timestamp.right).toBeCloseTo(4, 0);
+            } else {
+              // When the groups wrap, each row still ends at the right edge.
+              expect(timestamp.right).toBeCloseTo(actions.getBoundingClientRect().right, 0);
+            }
+            for (const button of surface.querySelectorAll('button')) {
+              expect(button.getBoundingClientRect().height).toBe(largeTargets ? 44 : 28);
+              expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+                largeTargets ? 44 : 28
+              );
+              expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(
+                surface.getBoundingClientRect().right
+              );
+              const icon = button.querySelector('.iconify');
+              if (icon) expect(icon.getBoundingClientRect().width).toBe(largeTargets ? 20 : 15);
+            }
+            expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
+            expect(await findEditor(container)).toBe(editor);
+            expect(
+              editor.contains(document.activeElement) || document.activeElement === editor
+            ).toBe(true);
+            expect(selection?.anchorNode).toBe(anchorNode);
+            expect(selection?.anchorOffset).toBe(anchorOffset);
+            if (draft) expect(editor.textContent).toContain('A readable message');
           }
-          const attachment = q(actions, 'button[title="Attach file"]')!.getBoundingClientRect();
-          const timestamp = q(actions, 'button[aria-label="Insert timestamp"]')!.getBoundingClientRect();
-          const send = q(actions, 'button[aria-label="Send message"]')!.getBoundingClientRect();
-          const trailingGroup = q(actions, 'button[aria-label="Send message"]')!.parentElement!.parentElement!.getBoundingClientRect();
-          expect(timestamp.left).toBeGreaterThanOrEqual(attachment.right);
-          expect(send.right).toBeCloseTo(actions.getBoundingClientRect().right, 0);
-          if (timestamp.top === send.top) {
-            expect(trailingGroup.left - timestamp.right).toBeCloseTo(4, 0);
-          } else {
-            // When the groups wrap, each row still ends at the right edge.
-            expect(timestamp.right).toBeCloseTo(actions.getBoundingClientRect().right, 0);
-          }
-          for (const button of surface.querySelectorAll('button')) {
-            expect(button.getBoundingClientRect().height).toBe(largeTargets ? 44 : 28);
-            expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(largeTargets ? 44 : 28);
-            expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(surface.getBoundingClientRect().right);
-            const icon = button.querySelector('.iconify');
-            if (icon) expect(icon.getBoundingClientRect().width).toBe(largeTargets ? 20 : 15);
-          }
-          expect(surface.scrollWidth).toBeLessThanOrEqual(surface.clientWidth);
-          expect(await findEditor(container)).toBe(editor);
-          expect(editor.contains(document.activeElement) || document.activeElement === editor).toBe(true);
-          expect(selection?.anchorNode).toBe(anchorNode);
-          expect(selection?.anchorOffset).toBe(anchorOffset);
-          if (draft) expect(editor.textContent).toContain('A readable message');
         }
       }
-    });
+    );
 
-    it.each(['visual', 'markdown'] as const)('keeps a wrapped %s draft expanded until cleared or sent', async (mode) => {
-      userPreferences.composerEditor = mode;
-      const { container } = renderMessageComposer({ roomId: 'height-layout', showCreateThread: true });
-      container.style.width = '616px';
-      const editor = await findEditor(container);
-      const surface = q(container, '[data-testid="composer-input-surface"]')!;
-      const row = q(container, '[data-testid="composer-editor-row"]')!;
-      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+    it.each(['visual', 'markdown'] as const)(
+      'keeps a wrapped %s draft expanded until cleared or sent',
+      async (mode) => {
+        userPreferences.composerEditor = mode;
+        const { container } = renderMessageComposer({
+          roomId: 'height-layout',
+          showCreateThread: true
+        });
+        container.style.width = '616px';
+        const editor = await findEditor(container);
+        const surface = q(container, '[data-testid="composer-input-surface"]')!;
+        const row = q(container, '[data-testid="composer-editor-row"]')!;
+        await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
 
-      // This text wraps beside the actions, but fits one line with the full width.
-      await typeInEditor(editor, 'W'.repeat(32));
-      await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
-      await expect.poll(() => row.getBoundingClientRect().height).toBeLessThan(50);
-      const selection = window.getSelection();
-      const anchor = selection?.anchorNode;
-      const offset = selection?.anchorOffset;
-      for (let frame = 0; frame < 3; frame++) {
-        await new Promise(requestAnimationFrame);
-        expect(getComputedStyle(surface).display).toBe('grid');
+        // This text wraps beside the actions, but fits one line with the full width.
+        await typeInEditor(editor, 'W'.repeat(32));
+        await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
+        await expect.poll(() => row.getBoundingClientRect().height).toBeLessThan(50);
+        const selection = window.getSelection();
+        const anchor = selection?.anchorNode;
+        const offset = selection?.anchorOffset;
+        for (let frame = 0; frame < 3; frame++) {
+          await new Promise(requestAnimationFrame);
+          expect(getComputedStyle(surface).display).toBe('grid');
+        }
+        expect(await findEditor(container)).toBe(editor);
+        expect(selection?.anchorNode).toBe(anchor);
+        expect(selection?.anchorOffset).toBe(offset);
+
+        await typeInEditor(editor, '');
+        await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+        await typeInEditor(editor, 'Short draft');
+        expect(getComputedStyle(surface).display).toBe('flex');
+        await typeInEditor(editor, 'W'.repeat(32));
+        await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
+        await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+        await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
+        expect(editor.textContent).not.toContain('W'.repeat(32));
       }
-      expect(await findEditor(container)).toBe(editor);
-      expect(selection?.anchorNode).toBe(anchor);
-      expect(selection?.anchorOffset).toBe(offset);
+    );
 
-      await typeInEditor(editor, '');
-      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
-      await typeInEditor(editor, 'Short draft');
-      expect(getComputedStyle(surface).display).toBe('flex');
-      await typeInEditor(editor, 'W'.repeat(32));
-      await expect.poll(() => getComputedStyle(surface).display).toBe('grid');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
-      await expect.poll(() => getComputedStyle(surface).display).toBe('flex');
-      expect(editor.textContent).not.toContain('W'.repeat(32));
-    });
+    it.each(['visual', 'markdown'] as const)(
+      'retains the mounted %s draft and focus through viewport and capability changes',
+      async (mode) => {
+        userPreferences.composerEditor = mode;
+        const { container } = renderMessageComposer({ roomId: 'responsive-draft' });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, 'Keep this draft');
+        editor.focus();
+        for (const touch of [true, false, true]) {
+          await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+          for (const width of [767, 768, 1280, 390]) {
+            await page.viewport(width, 900);
+            const button = q(container, 'button[aria-label="Send message"]')!;
+            await expect
+              .poll(() => button.getBoundingClientRect().height)
+              .toBe(touch && width < 768 ? 44 : 28);
+            expect(await findEditor(container)).toBe(editor);
+            expect(editor.textContent).toContain('Keep this draft');
+            expect(
+              editor.contains(document.activeElement) || editor === document.activeElement
+            ).toBe(true);
+          }
+        }
+      }
+    );
 
-    it.each(['visual', 'markdown'] as const)('retains the mounted %s draft and focus through viewport and capability changes', async mode => {
-      userPreferences.composerEditor = mode;
-      const { container } = renderMessageComposer({ roomId: 'responsive-draft' });
-      const editor = await findEditor(container);
-      await typeInEditor(editor, 'Keep this draft');
-      editor.focus();
-      for (const touch of [true, false, true]) {
+    it.each(
+      [false, true].flatMap((touch) => [767, 768].map((viewport) => [touch, viewport] as const))
+    )(
+      'keeps formatting controls on one row with touch=%s at viewport=%s',
+      async (touch, viewport) => {
+        await page.viewport(viewport, 900);
+        const largeTargets = touch && viewport < 768;
         await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-        for (const width of [767, 768, 1280, 390]) {
-          await page.viewport(width, 900);
-          const button = q(container, 'button[aria-label="Send message"]')!;
-          await expect.poll(() => button.getBoundingClientRect().height).toBe(touch && width < 768 ? 44 : 28);
-          expect(await findEditor(container)).toBe(editor);
-          expect(editor.textContent).toContain('Keep this draft');
-          expect(editor.contains(document.activeElement) || editor === document.activeElement).toBe(true);
+        expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
+        const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+        await findEditor(container);
+        await openFormattingShelf(container);
+
+        expect(q(container, '[data-testid="message-composer"]')).toHaveClass('@container/composer');
+        const toolbar = q(container, '[data-testid="composer-formatting-toolbar"]')!;
+        expect(toolbar).toHaveClass('overflow-x-auto');
+        for (const button of toolbar.querySelectorAll('button')) {
+          await expect
+            .poll(() => button.getBoundingClientRect().height)
+            .toBe(largeTargets ? 44 : 28);
+          expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+            largeTargets ? 44 : 28
+          );
+          expect(button.querySelector('.iconify')!.getBoundingClientRect().width).toBe(
+            largeTargets ? 20 : 15
+          );
         }
       }
-    });
-
-    it.each([false, true].flatMap(touch => [767, 768].map(viewport => [touch, viewport] as const)))('keeps formatting controls on one row with touch=%s at viewport=%s', async (touch, viewport) => {
-      await page.viewport(viewport, 900);
-      const largeTargets = touch && viewport < 768;
-      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-      expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
-      const { container } = renderMessageComposer({ roomId: 'room_456' });
-
-      await findEditor(container);
-      await openFormattingShelf(container);
-
-      expect(q(container, '[data-testid="message-composer"]')).toHaveClass('@container/composer');
-      const toolbar = q(container, '[data-testid="composer-formatting-toolbar"]')!;
-      expect(toolbar).toHaveClass(
-        'overflow-x-auto'
-      );
-      for (const button of toolbar.querySelectorAll('button')) {
-        await expect.poll(() => button.getBoundingClientRect().height).toBe(largeTargets ? 44 : 28);
-        expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(largeTargets ? 44 : 28);
-        expect(button.querySelector('.iconify')!.getBoundingClientRect().width).toBe(largeTargets ? 20 : 15);
-      }
-    });
+    );
 
     it('hides attachment controls when uploads are not allowed', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456', canAttach: false });
@@ -971,11 +1032,13 @@ describe('MessageComposer', () => {
       await typeEditorLiteralText(editor, '@ping');
       await vi.waitFor(() => expect(mentionSearchMock).toHaveBeenCalledWith('ping'));
       await vi.waitFor(() =>
-        expect(container.querySelector('[data-testid="mention-autocomplete"]')?.textContent)
-          .toContain('@ping-helper')
+        expect(
+          container.querySelector('[data-testid="mention-autocomplete"]')?.textContent
+        ).toContain('@ping-helper')
       );
-      const handles = [...container.querySelectorAll('[data-testid="mention-autocomplete"] bdi')]
-        .map((element) => element.textContent);
+      const handles = [
+        ...container.querySelectorAll('[data-testid="mention-autocomplete"] bdi')
+      ].map((element) => element.textContent);
       expect(handles).toContain('@ping');
     });
 
@@ -1507,7 +1570,9 @@ describe('MessageComposer', () => {
             }
             await settleEditorFocus();
             await userEvent.click(outside);
-            pendingSend.resolve({ event: postedMessageEvent('reply', 'focus-room', 'focus-thread') });
+            pendingSend.resolve({
+              event: postedMessageEvent('reply', 'focus-room', 'focus-thread')
+            });
             await settleEditorFocus();
             await expect.element(outside).toHaveFocus();
           } finally {

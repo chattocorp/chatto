@@ -8,12 +8,17 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string }>,
     activeServer: '',
-    activeStore: undefined as {
-      serverInfo: { motd: string };
-      notifications: {
-        attention: { unreadNotificationCount: number; importantUnreadNotificationCount: number };
-      };
-    } | undefined,
+    activeStore: undefined as
+      | {
+          serverInfo: { motd: string };
+          notifications: {
+            attention: {
+              unreadNotificationCount: number;
+              importantUnreadNotificationCount: number;
+            };
+          };
+        }
+      | undefined,
     authenticated: {} as Record<string, boolean>,
     getStore: vi.fn(),
     pushState: vi.fn(),
@@ -110,7 +115,9 @@ describe('AppHeader', () => {
 
   it('shows notifications when a server is registered', () => {
     mocks.servers = [{ id: 'remote' }];
-    mocks.getStore.mockReturnValue({ notifications: { attention: { unreadNotificationCount: 0 } } });
+    mocks.getStore.mockReturnValue({
+      notifications: { attention: { unreadNotificationCount: 0 } }
+    });
 
     const { container } = render(AppHeader);
 
@@ -131,13 +138,13 @@ describe('AppHeader', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.activeServer = 'remote';
     mocks.authenticated = { remote: true };
-    mocks.getStore.mockReturnValue({ notifications: { attention: { unreadNotificationCount: 0 } } });
+    mocks.getStore.mockReturnValue({
+      notifications: { attention: { unreadNotificationCount: 0 } }
+    });
 
     const { container } = render(AppHeader);
 
-    expect(
-      container.querySelector('a[href="/chat/remote.example.com/settings"]')
-    ).not.toBeNull();
+    expect(container.querySelector('a[href="/chat/remote.example.com/settings"]')).not.toBeNull();
     expect(container.querySelector('a[href="/chat/preferences"]')).toBeNull();
   });
 
@@ -165,43 +172,50 @@ describe('AppHeader', () => {
     }
   });
 
-  it.each([320, 390, 1280])('keeps the header height and truncates the MOTD at %i pixels', async (width) => {
-    mocks.servers = [{ id: 'remote' }];
-    mocks.activeServer = 'remote';
-    const motd = '**Chatto HQ** · https://chatto.run\n\n' + 'Server news. '.repeat(30);
-    await page.viewport(width, 800);
-    try {
-      const empty = render(AppHeader);
-      const emptyHeight = empty.container.querySelector('header')!.getBoundingClientRect().height;
-      await empty.unmount();
-      mocks.activeStore = {
-        serverInfo: { motd },
-        notifications: {
-          attention: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
+  it.each([320, 390, 1280])(
+    'keeps the header height and truncates the MOTD at %i pixels',
+    async (width) => {
+      mocks.servers = [{ id: 'remote' }];
+      mocks.activeServer = 'remote';
+      const motd = '**Chatto HQ** · https://chatto.run\n\n' + 'Server news. '.repeat(30);
+      await page.viewport(width, 800);
+      try {
+        const empty = render(AppHeader);
+        const emptyHeight = empty.container.querySelector('header')!.getBoundingClientRect().height;
+        await empty.unmount();
+        mocks.activeStore = {
+          serverInfo: { motd },
+          notifications: {
+            attention: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
+          }
+        };
+        const { container, getByRole } = render(AppHeader);
+        const header = container.querySelector('header')!;
+        await expect.element(getByRole('link', { name: 'https://chatto.run' })).toBeVisible();
+        expect(header.getBoundingClientRect().height).toBe(emptyHeight);
+        const headerBounds = header.getBoundingClientRect();
+        expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
+        const about = container.querySelector<HTMLButtonElement>(
+          'button[aria-label="About Chatto"]'
+        )!;
+        expect(about.textContent?.trim()).toBe('');
+        expect(about.getBoundingClientRect().width).toBe(44);
+        expect(about.getBoundingClientRect().height).toBe(44);
+        for (const control of header.querySelectorAll<HTMLElement>('.app-header-icon')) {
+          const bounds = control.getBoundingClientRect();
+          expect(bounds.left).toBeGreaterThanOrEqual(headerBounds.left);
+          expect(bounds.right).toBeLessThanOrEqual(headerBounds.right);
         }
-      };
-      const { container, getByRole } = render(AppHeader);
-      const header = container.querySelector('header')!;
-      await expect.element(getByRole('link', { name: 'https://chatto.run' })).toBeVisible();
-      expect(header.getBoundingClientRect().height).toBe(emptyHeight);
-      const headerBounds = header.getBoundingClientRect();
-      expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
-      const about = container.querySelector<HTMLButtonElement>('button[aria-label="About Chatto"]')!;
-      expect(about.textContent?.trim()).toBe('');
-      expect(about.getBoundingClientRect().width).toBe(44);
-      expect(about.getBoundingClientRect().height).toBe(44);
-      for (const control of header.querySelectorAll<HTMLElement>('.app-header-icon')) {
-        const bounds = control.getBoundingClientRect();
-        expect(bounds.left).toBeGreaterThanOrEqual(headerBounds.left);
-        expect(bounds.right).toBeLessThanOrEqual(headerBounds.right);
+        const preview = container.querySelector<HTMLElement>('[data-testid="motd-preview"]')!;
+        expect(preview.scrollWidth).toBeGreaterThan(preview.clientWidth);
+        expect(getComputedStyle(preview).textOverflow).toBe('ellipsis');
+        await getByRole('button', { name: 'Message of the Day' }).click({
+          position: { x: 4, y: 4 }
+        });
+        expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'motd', motd } });
+      } finally {
+        await page.viewport(1280, 720);
       }
-      const preview = container.querySelector<HTMLElement>('[data-testid="motd-preview"]')!;
-      expect(preview.scrollWidth).toBeGreaterThan(preview.clientWidth);
-      expect(getComputedStyle(preview).textOverflow).toBe('ellipsis');
-      await getByRole('button', { name: 'Message of the Day' }).click({ position: { x: 4, y: 4 } });
-      expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'motd', motd } });
-    } finally {
-      await page.viewport(1280, 720);
     }
-  });
+  );
 });

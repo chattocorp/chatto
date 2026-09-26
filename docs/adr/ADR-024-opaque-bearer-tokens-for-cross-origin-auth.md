@@ -19,12 +19,14 @@ To enable a multi-instance client — where a single frontend connects to multip
 ### Options considered
 
 **JWT (JSON Web Tokens):**
+
 - Self-contained (no server-side lookup needed for validation)
 - Standard format with broad library support
 - Requires key rotation, clock synchronization, and a blocklist for revocation
 - Chatto already performs a KV lookup per request to load the user, so JWT's "no server lookup" advantage provides no real benefit
 
 **Opaque tokens in NATS KV:**
+
 - Simple random strings stored as keys in a KV bucket
 - Instant revocation (delete the key)
 - Automatic expiry via NATS KV's built-in TTL
@@ -53,11 +55,13 @@ explicit revocation append safe audit facts to `EVT`; raw access and refresh
 credentials are never copied into runtime values or the event log.
 
 **Auth middleware priority:**
+
 1. Check `Authorization: Bearer <token>` header → validate token → load user
 2. Fall back to the session cookie only when the request has no browser
    `Origin` header or its origin exactly matches `webserver.url`
 
 **OAuth authorization for cross-origin Chatto clients:**
+
 - Clients start at `/oauth/authorize` with a CIMD URL `client_id`, `response_type=code`, PKCE `code_challenge`, and an exact callback `redirect_uri`. Chatto Desktop uses its built-in client ID instead of a CIMD URL.
 - Chatto resolves the client metadata and accepts only an exact redirect URI declared by that identified public client.
 - The first authorization for a client shows the user a consent screen. Approval is remembered per user + client ID through durable user EVT facts; denial is also recorded as an audit fact.

@@ -19,7 +19,7 @@ export function formatAgentInstructions(instructions: readonly string[]) {
   }
 
   return [
-    "Additional instructions for this run:",
-    ...instructions.map((instruction) => `- ${instruction}`),
-  ].join("\n");
+    'Additional instructions for this run:',
+    ...instructions.map((instruction) => `- ${instruction}`)
+  ].join('\n');
 }

@@ -66,6 +66,8 @@
 
 <Story name="Bevel on hover" asChild>
   <div class="w-64">
-    <PillButtonGroup label="Call controls" compact bevelOnHover>{@render controls()}</PillButtonGroup>
+    <PillButtonGroup label="Call controls" compact bevelOnHover
+      >{@render controls()}</PillButtonGroup
+    >
   </div>
 </Story>

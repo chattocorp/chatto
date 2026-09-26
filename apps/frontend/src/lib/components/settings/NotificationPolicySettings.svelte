@@ -145,7 +145,9 @@ Rows are notification causes. Columns follow the current navigation layout.
   const loadError = $derived(
     policiesQuery.error instanceof Error
       ? policiesQuery.error.message
-      : policiesQuery.error ? String(policiesQuery.error) : null
+      : policiesQuery.error
+        ? String(policiesQuery.error)
+        : null
   );
 
   function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy | undefined {
@@ -187,9 +189,7 @@ Rows are notification causes. Columns follow the current navigation layout.
       queryClient.setQueriesData<Record<string, ScopedNotificationPolicy>>(
         { queryKey: queryRoot },
         (current) =>
-          current
-            ? { ...current, [notificationPolicyScopeKey(updated.scope)]: updated }
-            : current
+          current ? { ...current, [notificationPolicyScopeKey(updated.scope)]: updated } : current
       );
       await queryClient.invalidateQueries(
         { queryKey: queryRoot, refetchType: 'active' },

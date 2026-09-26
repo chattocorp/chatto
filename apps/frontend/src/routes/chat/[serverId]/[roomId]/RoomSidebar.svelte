@@ -198,9 +198,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   // Sort names once when membership/search/profile data changes. Presence updates only repartition
   // this stable ordering below, avoiding two full O(n log n) sorts per update.
   function sortByName(list: RoomMember[]): RoomMember[] {
-    return [...list].sort((a, b) =>
-      a.displayName.localeCompare(b.displayName)
-    );
+    return [...list].sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
   const sortedMembers = $derived(sortByName(members));
@@ -640,10 +638,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {/if}
     {/snippet}
     {#snippet badges()}
-      <UserCustomStatusBadge
-        status={member.customStatus}
-        class="shrink-0 text-xs"
-      />
+      <UserCustomStatusBadge status={member.customStatus} class="shrink-0 text-xs" />
       {@render callPresenceIcon(callPresence)}
     {/snippet}
   </UserCard>

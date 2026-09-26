@@ -53,10 +53,7 @@ Room-scoped file list for the room sidebar.
   const fileSections = $derived(
     fileGroups.map((group) => ({
       ...group,
-      persistKey: serverStorageKey(
-        serverId,
-        `collapsible:room-files:${roomId}:${group.id}`
-      ),
+      persistKey: serverStorageKey(serverId, `collapsible:room-files:${roomId}:${group.id}`),
       testid: 'room-file-group-heading'
     }))
   );
@@ -117,18 +114,22 @@ Room-scoped file list for the room sidebar.
         serverId,
         roomId,
         eventId: item.messageEventId,
-        items: [{
-          ...item.attachment,
-          assetUrl: store.assetUrlFor(item),
-          videoProcessing: processing ? {
-            ...processing,
-            status: {
-              PROCESSING: VideoProcessingStatus.Processing,
-              COMPLETED: VideoProcessingStatus.Completed,
-              FAILED: VideoProcessingStatus.Failed
-            }[processing.status]
-          } : null
-        }],
+        items: [
+          {
+            ...item.attachment,
+            assetUrl: store.assetUrlFor(item),
+            videoProcessing: processing
+              ? {
+                  ...processing,
+                  status: {
+                    PROCESSING: VideoProcessingStatus.Processing,
+                    COMPLETED: VideoProcessingStatus.Completed,
+                    FAILED: VideoProcessingStatus.Failed
+                  }[processing.status]
+                }
+              : null
+          }
+        ],
         index: 0
       }
     });
@@ -140,7 +141,7 @@ Room-scoped file list for the room sidebar.
   }
 
   const loadMoreWhenVisible = useLoadMoreWhenVisible({
-    getCursor: () => store.hasMore ? store.items.length : null,
+    getCursor: () => (store.hasMore ? store.items.length : null),
     loadMore: () => store.loadMore()
   });
 
@@ -204,7 +205,10 @@ Room-scoped file list for the room sidebar.
             title={m('room.sidebar.go_to_message')}
             data-testid="room-file-message"
           >
-            <span class="iconify icon-[mdi--arrow-right-circle] text-sm rtl:rotate-180" aria-hidden="true"></span>
+            <span
+              class="iconify icon-[mdi--arrow-right-circle] text-sm rtl:rotate-180"
+              aria-hidden="true"
+            ></span>
           </button>
         {/if}
       </div>

@@ -29,15 +29,18 @@
     if (!currentViewerId) return;
     let cancelled = false;
     const isCurrent = () =>
-      !cancelled && scope.isCurrent() && attempt === retry &&
-      page.params.userId === userId && page.params.serverId === serverSegment;
+      !cancelled &&
+      scope.isCurrent() &&
+      attempt === retry &&
+      page.params.userId === userId &&
+      page.params.serverId === serverSegment;
 
     failed = false;
     async function openConversation() {
       try {
-        const room = await scope.connection.getAPI(createRoomCommandAPI).startDM(
-          userId === currentViewerId ? [] : [userId]
-        );
+        const room = await scope.connection
+          .getAPI(createRoomCommandAPI)
+          .startDM(userId === currentViewerId ? [] : [userId]);
         if (!isCurrent()) return;
         if (!room?.id) throw new Error('Conversation is unavailable');
         await scope.store.ensureRoomAvailable(room.id);
@@ -53,7 +56,9 @@
       }
     }
     untrack(() => void openConversation());
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   });
 </script>
 

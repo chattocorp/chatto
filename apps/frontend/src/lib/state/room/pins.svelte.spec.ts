@@ -1,9 +1,6 @@
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
-import {
-  MessagePinnedEvent,
-  MessageUnpinnedEvent
-} from '@chatto/api-types/realtime/v1/events_pb';
+import { MessagePinnedEvent, MessageUnpinnedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
@@ -134,7 +131,9 @@ describe('RoomPinsStore', () => {
 
   it('applies shared message changes that arrive during initial hydration', async () => {
     let resolve!: (value: ReturnType<typeof pinPage>) => void;
-    const pending = new Promise<ReturnType<typeof pinPage>>((done) => { resolve = done; });
+    const pending = new Promise<ReturnType<typeof pinPage>>((done) => {
+      resolve = done;
+    });
     const api = { list: vi.fn(() => pending), create: vi.fn(), remove: vi.fn() };
     const store = makeStore(api);
     const loading = store.hydrate();

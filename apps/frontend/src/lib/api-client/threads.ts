@@ -1,7 +1,11 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
-import { MessageSearchScope, MessageSearchGroupBy, MessageSearchOrder } from '@chatto/api-types/api/v1/message_search_pb';
+import {
+  MessageSearchScope,
+  MessageSearchGroupBy,
+  MessageSearchOrder
+} from '@chatto/api-types/api/v1/message_search_pb';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { messageToTimelineEvent } from './roomTimeline.js';

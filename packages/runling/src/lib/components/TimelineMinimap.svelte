@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { Activity } from "$lib/timeline.ts";
-  import { zoomWindow, type TimeWindow } from "$lib/timeline-layout.ts";
-  import { overviewSpan, moveOverview } from "$lib/minimap.ts";
-  import { duration } from "$lib/runs.ts";
-  import { middleDrag } from "$lib/middle-drag.ts";
+  import type { Activity } from '$lib/timeline.ts';
+  import { zoomWindow, type TimeWindow } from '$lib/timeline-layout.ts';
+  import { overviewSpan, moveOverview } from '$lib/minimap.ts';
+  import { duration } from '$lib/runs.ts';
+  import { middleDrag } from '$lib/middle-drag.ts';
   let {
     rows,
     view,
@@ -12,7 +12,7 @@
     selected,
     onchange,
     onfit,
-    onzoomstart,
+    onzoomstart
   }: {
     rows: { node: Activity; top: number; height: number }[];
     view: TimeWindow;
@@ -39,7 +39,7 @@
       },
       () => {
         middleDragging = false;
-      },
+      }
     );
   }
   let gesture = $state<{
@@ -54,12 +54,10 @@
   let total = $derived(gesture?.total ?? overviewSpan(elapsed));
   let axis = $derived(gesture?.axis ?? vertical);
   let visible = $derived(Math.min(axis.span, axis.total));
-  let top = $derived(
-    Math.min(vertical.start, Math.max(0, axis.total - visible)),
-  );
+  let top = $derived(Math.min(vertical.start, Math.max(0, axis.total - visible)));
 
   function down(event: PointerEvent) {
-    if (event.pointerType === "mouse" && event.button === 1) return;
+    if (event.pointerType === 'mouse' && event.button === 1) return;
     if ((event.button !== 0 && event.button !== 1) || gesture) return;
     event.preventDefault();
     const element = event.currentTarget as HTMLElement;
@@ -67,11 +65,7 @@
     if (!rect.width || !rect.height) return;
     const x = ((event.clientX - rect.left) / rect.width) * total;
     const y = ((event.clientY - rect.top) / rect.height) * axis.total;
-    const inside =
-      x >= view.start &&
-      x <= view.start + view.span &&
-      y >= top &&
-      y <= top + visible;
+    const inside = x >= view.start && x <= view.start + view.span && y >= top && y <= top + visible;
     gesture = {
       id: event.pointerId,
       rect,
@@ -79,7 +73,7 @@
       axis: { ...axis },
       view: { ...view },
       x: inside || event.button === 1 ? x - view.start : view.span / 2,
-      y: inside || event.button === 1 ? y - top : visible / 2,
+      y: inside || event.button === 1 ? y - top : visible / 2
     };
     element.setPointerCapture(event.pointerId);
     element.focus();
@@ -96,51 +90,46 @@
         { start: g.axis.start, span: Math.min(g.axis.span, g.axis.total) },
         g.axis.total,
         y,
-        g.y,
-      ).start,
+        g.y
+      ).start
     );
   }
   function end(event: PointerEvent) {
     if (gesture?.id !== event.pointerId) return;
     gesture = undefined;
     const element = event.currentTarget as HTMLElement;
-    if (element.hasPointerCapture(event.pointerId))
-      element.releasePointerCapture(event.pointerId);
+    if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
   }
   function preventMiddleDefault(event: MouseEvent) {
     if (event.button === 1) event.preventDefault();
   }
   function key(event: KeyboardEvent) {
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight")
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
       onchange(
         moveOverview(
           view,
           total,
-          view.start + (event.key === "ArrowLeft" ? -1 : 1) * view.span * 0.15,
-          0,
+          view.start + (event.key === 'ArrowLeft' ? -1 : 1) * view.span * 0.15,
+          0
         ),
-        top,
+        top
       );
-    else if (event.key === "ArrowUp" || event.key === "ArrowDown")
+    else if (event.key === 'ArrowUp' || event.key === 'ArrowDown')
       onchange(
         view,
         moveOverview(
           { start: top, span: visible },
           axis.total,
-          top + (event.key === "ArrowUp" ? -1 : 1) * visible * 0.2,
-          0,
-        ).start,
+          top + (event.key === 'ArrowUp' ? -1 : 1) * visible * 0.2,
+          0
+        ).start
       );
-    else if (event.key === "Home") onchange({ ...view, start: 0 }, 0);
-    else if (event.key === "End")
-      onchange(
-        { ...view, start: Math.max(0, total - view.span) },
-        axis.total - visible,
-      );
-    else if (event.key === "+" || event.key === "=")
-      onchange(zoomWindow(view, 0.7), top);
-    else if (event.key === "-") onchange(zoomWindow(view, 1 / 0.7), top);
-    else if (event.key.toLowerCase() === "f") onfit();
+    else if (event.key === 'Home') onchange({ ...view, start: 0 }, 0);
+    else if (event.key === 'End')
+      onchange({ ...view, start: Math.max(0, total - view.span) }, axis.total - visible);
+    else if (event.key === '+' || event.key === '=') onchange(zoomWindow(view, 0.7), top);
+    else if (event.key === '-') onchange(zoomWindow(view, 1 / 0.7), top);
+    else if (event.key.toLowerCase() === 'f') onfit();
     else return;
     event.preventDefault();
     event.stopPropagation();
@@ -151,8 +140,8 @@
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (Two-dimensional overview supports pointer and keyboard navigation.) -->
   <div
     class={[
-      "relative bg-base-100 border border-base-300 rounded-field overflow-hidden touch-none focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
-      gesture || middleDragging ? "cursor-grabbing" : "cursor-grab",
+      'relative bg-base-100 border border-base-300 rounded-field overflow-hidden touch-none focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2',
+      gesture || middleDragging ? 'cursor-grabbing' : 'cursor-grab'
     ]}
     style:height={`${Math.min(160, Math.max(80, rows.length * 3))}px`}
     {@attach attachMiddleDrag}
@@ -178,38 +167,39 @@
         <rect
           class={[
             node.segments
-              ? "fill-base-200"
-              : node.status === "failed" || node.status === "blocked"
-              ? "fill-error light:fill-rose-300"
-              : node.status === "interrupted"
-                ? "fill-neutral light:fill-slate-300"
-                : node.kind === "agent"
-                  ? "fill-secondary light:fill-violet-300"
-                  : node.kind === "command"
-                    ? "fill-accent light:fill-teal-300"
-                    : node.kind === "input"
-                      ? "fill-base-content/20"
-                      : "fill-primary light:fill-blue-300",
+              ? 'fill-base-200'
+              : node.status === 'failed' || node.status === 'blocked'
+                ? 'fill-error light:fill-rose-300'
+                : node.status === 'interrupted'
+                  ? 'fill-neutral light:fill-slate-300'
+                  : node.kind === 'agent'
+                    ? 'fill-secondary light:fill-violet-300'
+                    : node.kind === 'command'
+                      ? 'fill-accent light:fill-teal-300'
+                      : node.kind === 'input'
+                        ? 'fill-base-content/20'
+                        : 'fill-primary light:fill-blue-300',
             node.id === selected &&
-              "stroke-base-content stroke-1 [vector-effect:non-scaling-stroke]",
+              'stroke-base-content stroke-1 [vector-effect:non-scaling-stroke]'
           ]}
           x={(node.startedAt / total) * 1000}
           y={top + height * 0.2}
           width={Math.max(
             1,
-            ((node.durationMs ?? Math.max(0, elapsed - node.startedAt)) /
-              total) *
-              1000,
+            ((node.durationMs ?? Math.max(0, elapsed - node.startedAt)) / total) * 1000
           )}
           height={height * 0.6}
           data-kind={node.kind}
         />
         {#each node.segments ?? [] as segment (segment.id)}
           <rect
-            class={segment.kind === "input" ? "fill-base-300" : "fill-secondary"}
+            class={segment.kind === 'input' ? 'fill-base-300' : 'fill-secondary'}
             x={(segment.startedAt / total) * 1000}
             y={top + height * 0.2}
-            width={Math.max(1, ((segment.durationMs ?? Math.max(0, elapsed - segment.startedAt)) / total) * 1000)}
+            width={Math.max(
+              1,
+              ((segment.durationMs ?? Math.max(0, elapsed - segment.startedAt)) / total) * 1000
+            )}
             height={height * 0.6}
           />
         {/each}
@@ -227,11 +217,13 @@
       style:left={`${(elapsed / total) * 100}%`}
     ></span>
   </div>
-  <div
-    class="flex justify-between items-center text-base-content/60 text-xs mt-1 tabular-nums"
-  >
+  <div class="flex justify-between items-center text-base-content/60 text-xs mt-1 tabular-nums">
     <span>0</span>
-    <span>{rows.length ? `Rows ${Math.min(rows.length, Math.floor(top / axis.total * rows.length) + 1)}–${Math.min(rows.length, Math.ceil((top + visible) / axis.total * rows.length))} of ${rows.length}` : "No rows"}</span>
+    <span
+      >{rows.length
+        ? `Rows ${Math.min(rows.length, Math.floor((top / axis.total) * rows.length) + 1)}–${Math.min(rows.length, Math.ceil(((top + visible) / axis.total) * rows.length))} of ${rows.length}`
+        : 'No rows'}</span
+    >
     <span>{duration(total)}</span>
   </div>
 </div>

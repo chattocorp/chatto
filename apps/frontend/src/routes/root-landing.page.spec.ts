@@ -20,6 +20,10 @@ describe('root landing load', () => {
   });
 
   it('preserves query parameters when redirecting authenticated visitors to chat', async () => {
-    await expectRedirect('https://chat.example.test/?welcome=true', { id: 'user-1' }, '/chat?welcome=true');
+    await expectRedirect(
+      'https://chat.example.test/?welcome=true',
+      { id: 'user-1' },
+      '/chat?welcome=true'
+    );
   });
 });

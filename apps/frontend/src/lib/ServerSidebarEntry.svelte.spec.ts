@@ -141,10 +141,13 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    needsRecovery: () => Boolean(mocks.server.token && mocks.server.reauthRequiredAt === null && !mocks.store.isAuthenticated),
+    needsRecovery: () =>
+      Boolean(
+        mocks.server.token && mocks.server.reauthRequiredAt === null && !mocks.store.isAuthenticated
+      ),
     recoverServer: mocks.recoverServer,
     isOriginServer: mocks.isOriginServer,
-    getServer: vi.fn((id: string) => id === mocks.server.id ? mocks.server : undefined),
+    getServer: vi.fn((id: string) => (id === mocks.server.id ? mocks.server : undefined)),
     getStore: vi.fn(() => mocks.store)
   }
 }));
@@ -378,9 +381,7 @@ describe('ServerSidebarEntry', () => {
       '[data-testid="copy-server-hostname"]'
     ) as HTMLButtonElement;
     await expect.element(copyHostname).toHaveTextContent('Copy Server Hostname');
-    const menuItems = copyHostname
-      .closest('[role="menu"]')
-      ?.querySelectorAll('[role="menuitem"]');
+    const menuItems = copyHostname.closest('[role="menu"]')?.querySelectorAll('[role="menuitem"]');
     expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyHostname);
 
     const remove = Array.from(document.querySelectorAll('button')).find(
@@ -438,9 +439,11 @@ describe('ServerSidebarEntry', () => {
     );
 
     await vi.waitFor(() => expect(q(document.body, `[data-testid="${action}"]`)).not.toBeNull());
-    expect(Array.from(document.body.querySelectorAll('[role="menuitem"]')).some(
-      (item) => item.textContent?.includes('Remove server')
-    )).toBe(false);
+    expect(
+      Array.from(document.body.querySelectorAll('[role="menuitem"]')).some((item) =>
+        item.textContent?.includes('Remove server')
+      )
+    ).toBe(false);
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
@@ -450,7 +453,9 @@ describe('ServerSidebarEntry', () => {
     q(container, '[data-testid="server-icon"]')?.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
     );
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull()
+    );
     const signOut = q(document.body, '[data-testid="server-sign-out"]');
     const removeServer = Array.from(document.body.querySelectorAll('[role="menuitem"]')).find(
       (item) => item.textContent?.includes('Remove server')
@@ -471,7 +476,9 @@ describe('ServerSidebarEntry', () => {
     q(container, '[data-testid="server-icon"]')?.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
     );
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-sign-out"]')?.click();
 
     await vi.waitFor(() => expect(mocks.signOutCurrentServer).toHaveBeenCalledWith('remote'));
@@ -484,7 +491,9 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
     const openSignOutMenu = async () => {
       icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-      await vi.waitFor(() => expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull());
+      await vi.waitFor(() =>
+        expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull()
+      );
       q(document.body, '[data-testid="server-sign-out"]')?.click();
     };
 
@@ -502,7 +511,9 @@ describe('ServerSidebarEntry', () => {
     q(container, '[data-testid="server-icon"]')?.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
     );
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-sign-out"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-sign-out"]')?.click();
 
     await vi.waitFor(() => {
@@ -614,7 +625,9 @@ describe('ServerSidebarEntry', () => {
     expect(icon.title).toBe('Loaded Remote');
 
     icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-compatibility-section"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-compatibility-section"]')).not.toBeNull()
+    );
     expect(q(document.body, '[data-testid="server-compatibility-message"]')).toBeNull();
     expect(document.body.textContent).not.toContain('Version unknown');
   });
@@ -632,7 +645,9 @@ describe('ServerSidebarEntry', () => {
 
     await expect.element(q(container, '[data-testid="server-icon"]')).toBeInTheDocument();
     expect(q(container, '[data-testid="server-compatibility-warning"]')).toBeNull();
-    expect((q(container, '[data-testid="server-icon"]') as HTMLAnchorElement).title).toBe('Loaded Remote');
+    expect((q(container, '[data-testid="server-icon"]') as HTMLAnchorElement).title).toBe(
+      'Loaded Remote'
+    );
   });
 
   it('shows an unreachable status instead of an unknown version and hides read actions', async () => {
@@ -725,7 +740,9 @@ describe('ServerSidebarEntry', () => {
 
     q(container, '[data-testid="server-icon"]')?.click();
 
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
     expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
   });
 
@@ -744,12 +761,12 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
 
     await expect.element(icon).toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
-    await expect.element(icon).toHaveAttribute('aria-label', 'Sign in to reconnect to Loaded Remote');
+    await expect
+      .element(icon)
+      .toHaveAttribute('aria-label', 'Sign in to reconnect to Loaded Remote');
     const reauthMarker = q(container, '[data-testid="server-sign-in-required"]');
     await expect.element(reauthMarker).toBeInTheDocument();
-    expect(
-      reauthMarker?.querySelector('[class~="icon-[uil--exclamation-circle]"]')
-    ).not.toBeNull();
+    expect(reauthMarker?.querySelector('[class~="icon-[uil--exclamation-circle]"]')).not.toBeNull();
     await expect
       .element(q(container, '[data-testid="server-compatibility-warning"]'))
       .not.toBeInTheDocument();
@@ -775,8 +792,12 @@ describe('ServerSidebarEntry', () => {
 
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]');
-    await expect.element(icon).not.toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
-    await expect.element(q(container, '[data-testid="server-sign-in-required"]')).not.toBeInTheDocument();
+    await expect
+      .element(icon)
+      .not.toHaveAttribute('title', 'Sign in to reconnect to Loaded Remote');
+    await expect
+      .element(q(container, '[data-testid="server-sign-in-required"]'))
+      .not.toBeInTheDocument();
   });
 
   it('links the pending origin to setup without a sign-in marker', async () => {
@@ -788,7 +809,9 @@ describe('ServerSidebarEntry', () => {
       const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
       const icon = q(container, 'a');
       await expect.element(icon).toHaveAttribute('href', '/setup');
-      await expect.element(q(container, '[data-testid="server-sign-in-required"]')).not.toBeInTheDocument();
+      await expect
+        .element(q(container, '[data-testid="server-sign-in-required"]'))
+        .not.toBeInTheDocument();
       expect(mocks.beginOriginReauthentication).not.toHaveBeenCalled();
     } finally {
       page.data.serverInfo = { setupRequired: false } as never;
@@ -814,7 +837,9 @@ describe('ServerSidebarEntry', () => {
     });
     q(container, '[data-testid="server-icon"]')?.click();
     expect(mocks.beginOriginReauthentication).not.toHaveBeenCalled();
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-log-in"]')?.click();
 
     await vi.waitFor(() => {
@@ -833,7 +858,9 @@ describe('ServerSidebarEntry', () => {
     });
     const icon = q(container, '[data-testid="server-icon"]');
     icon?.click();
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-log-in"]')?.click();
     icon?.click();
 
@@ -854,12 +881,16 @@ describe('ServerSidebarEntry', () => {
     });
     const icon = q(container, '[data-testid="server-icon"]');
     icon?.click();
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-log-in"]')?.click();
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 
     icon?.click();
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-log-in"]')?.click();
     await vi.waitFor(() => {
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledTimes(2);
@@ -873,12 +904,16 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
 
     icon?.click();
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-log-in"]')?.click();
     await vi.waitFor(() => expect(mocks.startRemoteReauthentication).toHaveBeenCalledOnce());
 
     icon?.click();
-    await vi.waitFor(() => expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="server-log-in"]')).not.toBeNull()
+    );
     q(document.body, '[data-testid="server-log-in"]')?.click();
     await vi.waitFor(() => expect(mocks.startRemoteReauthentication).toHaveBeenCalledTimes(2));
   });
@@ -898,7 +933,9 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
-    await expect.element(q(container, '[data-testid="server-compatibility-warning"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .toBeInTheDocument();
     expect(container.textContent).toContain('L');
   });
 
@@ -910,7 +947,9 @@ describe('ServerSidebarEntry', () => {
 
     await expect.element(icon).not.toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
-    await expect.element(q(container, '[data-testid="server-compatibility-warning"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .toBeInTheDocument();
 
     icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() =>
@@ -942,7 +981,9 @@ describe('ServerSidebarEntry', () => {
     await vi.waitFor(() =>
       expect(q(document.body, '[data-testid="server-connection-message"]')).toBeNull()
     );
-    await expect.element(q(container, '[data-testid="server-compatibility-warning"]')).not.toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .not.toBeInTheDocument();
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
   });
 

@@ -59,7 +59,10 @@ async function openQuickSwitcher(page: Page): Promise<Locator> {
 test.describe('message search', () => {
   test.describe.configure({ timeout: 60_000 });
 
-  test('room search takes focus on desktop open but not after reload', async ({ page, chatPage }) => {
+  test('room search takes focus on desktop open but not after reload', async ({
+    page,
+    chatPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -85,7 +88,10 @@ test.describe('message search', () => {
     await expect(input).not.toBeFocused();
   });
 
-  test('room search takes focus on mobile button and shortcut opens', async ({ page, chatPage }) => {
+  test('room search takes focus on mobile button and shortcut opens', async ({
+    page,
+    chatPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -200,7 +206,9 @@ test.describe('message search', () => {
       await dialog
         .getByPlaceholder('Go somewhere, or type ? to search messages...')
         .fill(`?${term}`);
-      await expect(dialog.getByRole('navigation').getByRole('button').filter({ hasText: body })).toBeVisible({
+      await expect(
+        dialog.getByRole('navigation').getByRole('button').filter({ hasText: body })
+      ).toBeVisible({
         timeout: TIMEOUTS.UI_FAST
       });
       await page.keyboard.press('Escape');

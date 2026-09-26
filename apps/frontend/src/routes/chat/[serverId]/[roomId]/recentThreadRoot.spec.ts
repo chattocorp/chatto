@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
-import {
-  RECENT_THREAD_ROOT_WINDOW_MS,
-  recentThreadRootCandidate
-} from './recentThreadRoot';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import { RECENT_THREAD_ROOT_WINDOW_MS, recentThreadRootCandidate } from './recentThreadRoot';
 
 const now = Date.parse('2026-08-23T12:00:00Z');
 

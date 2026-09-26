@@ -96,8 +96,7 @@ also invalidates the stable sessions issued to that client.
 Refresh uses the public `/oauth/token` endpoint with
 `grant_type=refresh_token`. The request includes the refresh credential, the
 OAuth `client_id` when the session is delegated, and a client-generated
-`refresh_request_id`. The request ID is a cryptographically random UUID version
-4. It is a show-once recovery nonce, so the server stores only its HMAC verifier.
+`refresh_request_id`. The request ID is a cryptographically random UUID version 4. It is a show-once recovery nonce, so the server stores only its HMAC verifier.
 The endpoint accepts the existing JSON and standard form encodings, returns the
 rotated access and refresh credentials with both remaining lifetimes, and marks
 responses non-cacheable.

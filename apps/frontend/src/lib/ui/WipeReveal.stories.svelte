@@ -11,22 +11,22 @@
 </script>
 
 <Story name="Call controls" asChild>
-  <button class="btn-secondary mb-2" onclick={() => (visible = !visible)}>Toggle sidebar</button>
+  <button class="mb-2 btn-secondary" onclick={() => (visible = !visible)}>Toggle sidebar</button>
   {#if visible}
-  <WipeReveal {active} class="w-80">
-    {#snippet children(joined)}
-      {#if joined}
-        <PillButtonGroup label="Call controls">
-          <button class="pill-button">Camera</button>
-          <button class="pill-button-success">Mute</button>
-          <button class="pill-button-danger" onclick={() => (active = false)}>Leave</button>
-        </PillButtonGroup>
-      {:else}
-        <button class="btn-action min-h-12 w-full" onclick={() => (active = true)}
-          >Start call</button
-        >
-      {/if}
-    {/snippet}
-  </WipeReveal>
+    <WipeReveal {active} class="w-80">
+      {#snippet children(joined)}
+        {#if joined}
+          <PillButtonGroup label="Call controls">
+            <button class="pill-button">Camera</button>
+            <button class="pill-button-success">Mute</button>
+            <button class="pill-button-danger" onclick={() => (active = false)}>Leave</button>
+          </PillButtonGroup>
+        {:else}
+          <button class="btn-action min-h-12 w-full" onclick={() => (active = true)}
+            >Start call</button
+          >
+        {/if}
+      {/snippet}
+    </WipeReveal>
   {/if}
 </Story>

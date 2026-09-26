@@ -41,7 +41,9 @@ describe('Toast', () => {
       }
     });
 
-    expect(container.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Helper');
+    expect(
+      container.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent
+    ).toBe('Helper');
     expect(container.textContent).not.toContain('(BOT)');
   });
 

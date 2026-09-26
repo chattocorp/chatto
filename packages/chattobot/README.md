@@ -43,6 +43,7 @@ source and console. Without `--watch`, restart to load code or configuration cha
    the bot after changes. Existing shell environment variables take precedence
    over values in `.env`. OpenRouter and its selected model provider receive
    the prompts and source excerpts sent to the model.
+
 4. From the repository root, run:
 
    ```sh

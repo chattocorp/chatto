@@ -30,7 +30,7 @@
 
 <Story name="Overlay" asChild>
   <div class="relative inline-block rounded-md bg-surface-emphasized p-3">
-    <span class="iconify text-xl icon-[uil--server]"></span>
+    <span class="iconify icon-[uil--server] text-xl"></span>
     <NotificationBadge count={7} overlay class="absolute -top-1 -right-1" />
   </div>
 </Story>

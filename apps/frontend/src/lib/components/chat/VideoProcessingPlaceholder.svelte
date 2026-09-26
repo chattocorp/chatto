@@ -9,7 +9,7 @@
   <LoadingFog class="absolute inset-0 h-full w-full rounded-none" {label} />
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute bottom-3 start-3 rounded border border-border bg-background/85 px-2.5 py-1.5 text-sm text-foreground backdrop-blur-sm"
+    class="text-foreground pointer-events-none absolute start-3 bottom-3 rounded border border-border bg-background/85 px-2.5 py-1.5 text-sm backdrop-blur-sm"
   >
     {label}
   </span>

@@ -1,0 +1,18 @@
+{
+  "description": "Format files after agent edits with Prettier and gofmt.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && mise x -- node tools/format-agent-edits.mjs",
+            "statusMessage": "Formatting edited files",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

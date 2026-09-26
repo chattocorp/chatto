@@ -68,7 +68,9 @@ describe('RoomSidebarToggle', () => {
 
     const buttons = container.querySelectorAll('button');
     expect(buttons[0]?.getAttribute('aria-label')).toContain('Show pinned messages');
-    expect(buttons[0]?.querySelector('.pane-header-icon-glyph')?.className).toContain('pin-outline');
+    expect(buttons[0]?.querySelector('.pane-header-icon-glyph')?.className).toContain(
+      'pin-outline'
+    );
     expect(buttons[0]?.querySelector('[data-testid="unseen-pin-dot"]')?.classList).toContain(
       'bg-attention'
     );

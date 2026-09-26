@@ -1,9 +1,5 @@
 import { expect, test } from './setup';
-import {
-  createAndLoginTestUser,
-  loginAsAdmin,
-  logoutCurrentUser
-} from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdmin, logoutCurrentUser } from './fixtures/testUser';
 import { connectPostResponse } from './fixtures/connectHelpers';
 import * as routes from './routes';
 
@@ -68,9 +64,7 @@ test.describe('Verified email settings', () => {
     const firstUser = await createAndLoginTestUser(page, { loginPrefix: 'emailbindingfirst' });
     await accountPage.goto();
     await expect(page.getByText(firstUser.id ?? '', { exact: true })).toBeVisible();
-    await expect(
-      page.getByText(`${firstUser.login}@example.com`, { exact: true })
-    ).toBeVisible();
+    await expect(page.getByText(`${firstUser.login}@example.com`, { exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Profile', exact: true }).click();
     await page.waitForURL(routes.settingsProfile);
 

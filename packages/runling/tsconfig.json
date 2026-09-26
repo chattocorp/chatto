@@ -29,6 +29,16 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "bin/**/*.ts", "extensions/**/*.ts", "examples/**/*.ts", "test/**/*.ts", "*.ts", ".svelte-kit/ambient.d.ts", ".svelte-kit/non-ambient.d.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.svelte",
+    "bin/**/*.ts",
+    "extensions/**/*.ts",
+    "examples/**/*.ts",
+    "test/**/*.ts",
+    "*.ts",
+    ".svelte-kit/ambient.d.ts",
+    ".svelte-kit/non-ambient.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

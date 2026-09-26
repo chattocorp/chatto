@@ -363,7 +363,9 @@ local to the footer.
       <strong class="font-semibold">{getEmojiDisplayName(tooltipReaction.emoji)}</strong>
       <span class="flex min-w-0 flex-col gap-0.5 text-muted">
         {#each tooltipUsers.users as user (user.id)}
-          <span class="break-words" data-testid="reaction-tooltip-user"><AccountName name={user.displayName} identity={user} /></span>
+          <span class="break-words" data-testid="reaction-tooltip-user"
+            ><AccountName name={user.displayName} identity={user} /></span
+          >
         {/each}
         {#if tooltipUsers.remaining > 0}
           <span class="text-muted/80">

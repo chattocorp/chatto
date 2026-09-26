@@ -80,7 +80,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
   <legend class="sr-only">{label}</legend>
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute inset-y-1 left-0 segmented-selection opacity-0 transition-[width,transform,opacity] duration-[var(--motion-duration-pane)] ease-[var(--ease-out-expo)] [transform:translateX(var(--segmented-indicator-x,0px))] [width:var(--segmented-indicator-width,0px)] group-data-[indicator-ready=true]/segmented:opacity-100 motion-reduce:transition-none"
+    class="pointer-events-none absolute inset-y-1 left-0 [width:var(--segmented-indicator-width,0px)] [transform:translateX(var(--segmented-indicator-x,0px))] segmented-selection opacity-0 transition-[width,transform,opacity] duration-[var(--motion-duration-pane)] ease-[var(--ease-out-expo)] group-data-[indicator-ready=true]/segmented:opacity-100 motion-reduce:transition-none"
   ></span>
 
   {#each options as option (option.value)}
@@ -96,7 +96,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
       />
       <span
         class={[
-          'relative z-10 inline-flex h-full min-w-10 rounded-lg items-center justify-center px-3 text-sm font-medium text-muted transition-[background-color,color] feedback-quick peer-checked:bg-[var(--segmented-fill)] peer-checked:text-text-top peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-[:not(:checked):hover]:bg-surface-emphasized/50 peer-[:not(:checked):hover]:text-text group-data-[indicator-ready=true]/segmented:peer-checked:bg-transparent'
+          'relative z-10 inline-flex h-full min-w-10 items-center justify-center rounded-lg px-3 text-sm font-medium text-muted transition-[background-color,color] feedback-quick peer-checked:bg-[var(--segmented-fill)] peer-checked:text-text-top group-data-[indicator-ready=true]/segmented:peer-checked:bg-transparent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-[:not(:checked):hover]:bg-surface-emphasized/50 peer-[:not(:checked):hover]:text-text'
         ]}
       >
         {option.label}

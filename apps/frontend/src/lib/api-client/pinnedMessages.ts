@@ -13,7 +13,12 @@ export type PinnedMessagesPage = {
 export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
   const rooms = createChattoClient(RoomService, config);
   return {
-    async list(roomId: string, limit: number, offset: number, minimumCursor?: string): Promise<PinnedMessagesPage> {
+    async list(
+      roomId: string,
+      limit: number,
+      offset: number,
+      minimumCursor?: string
+    ): Promise<PinnedMessagesPage> {
       const response = await rooms.listPinnedMessages(
         { roomId, page: { limit, offset } },
         {

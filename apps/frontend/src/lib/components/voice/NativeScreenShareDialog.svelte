@@ -82,7 +82,13 @@ URL when its source changes or leaves the DOM.
   <Button variant="secondary" onclick={close}>{m('common.cancel')}</Button>
 {/snippet}
 
-<Dialog bind:visible title={m('voice.share_screen')} size="lg" onclose={handleClose} {dismissAction}>
+<Dialog
+  bind:visible
+  title={m('voice.share_screen')}
+  size="lg"
+  onclose={handleClose}
+  {dismissAction}
+>
   <div class="flex justify-center">
     <SegmentedControl
       label={m('voice.share_source')}
@@ -128,7 +134,8 @@ URL when its source changes or leaves the DOM.
                   class="size-full object-contain"
                   {@attach previewImage(source.preview)}
                   onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
-                  onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
+                  onerror={(event) =>
+                    ((event.currentTarget as HTMLImageElement).style.display = 'none')}
                 />
               {:else}
                 <span

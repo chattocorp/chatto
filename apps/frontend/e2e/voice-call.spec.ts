@@ -90,10 +90,17 @@ async function leaveCallViaConnect(page: Page, roomId: string): Promise<boolean>
   return data.left ?? false;
 }
 
-async function createCallTokenViaConnect(page: Page, roomId: string): Promise<CreateCallTokenResponse> {
-  return connectPost<CreateCallTokenResponse>(page, 'chatto.api.v1.VoiceCallService/CreateCallToken', {
-    roomId
-  });
+async function createCallTokenViaConnect(
+  page: Page,
+  roomId: string
+): Promise<CreateCallTokenResponse> {
+  return connectPost<CreateCallTokenResponse>(
+    page,
+    'chatto.api.v1.VoiceCallService/CreateCallToken',
+    {
+      roomId
+    }
+  );
 }
 
 async function listActiveCallRoomIdsViaConnect(page: Page): Promise<string[]> {

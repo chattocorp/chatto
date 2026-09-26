@@ -8,7 +8,7 @@ inputs:
   save-cache:
     description: Save the shared browser cache when the job completes
     required: false
-    default: "false"
+    default: 'false'
 runs:
   using: composite
   steps:

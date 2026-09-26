@@ -143,12 +143,7 @@
 >
   <div class="max-w-3xl">
     <Panel title="Spaces" noPadding>
-      <DataTable
-        items={[]}
-        columns={4}
-        header={tableHeader}
-        row={tableRow}
-      >
+      <DataTable items={[]} columns={4} header={tableHeader} row={tableRow}>
         {#snippet empty()}
           <div class="flex min-h-52 flex-col">
             <EmptyState icon="icon-[uil--building]" title="No spaces yet">

@@ -154,7 +154,9 @@ describe('Account settings page', () => {
 
     expect(bobView.container.textContent).not.toContain('alice.private@example.com');
     resolveBobEmails(bobEmails);
-    await vi.waitFor(() => expect(bobView.container.textContent).toContain('bob.private@example.com'));
+    await vi.waitFor(() =>
+      expect(bobView.container.textContent).toContain('bob.private@example.com')
+    );
   });
 
   it('invalidates admin email views after selecting a primary address', async () => {
@@ -207,9 +209,7 @@ describe('Account settings page', () => {
     const { getByRole } = render(AccountPage);
     await settle();
     await getByRole('button', { name: 'Make primary' }).click();
-    const navigationGuard = mocks.beforeNavigate.mock.calls.at(-1)?.[0] as
-      | (() => void)
-      | undefined;
+    const navigationGuard = mocks.beforeNavigate.mock.calls.at(-1)?.[0] as (() => void) | undefined;
     navigationGuard?.();
     resolveSelection(changed);
     await settle();

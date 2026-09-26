@@ -136,20 +136,45 @@
   >
     {#if variant === 'mobile-video'}
       <div class="w-80 max-w-full">
-        <MessageView eventId="evt-video" actor={alice} displayName="Alice" body="A video attachment">
+        <MessageView
+          eventId="evt-video"
+          actor={alice}
+          displayName="Alice"
+          body="A video attachment"
+        >
           {#snippet afterBody()}
-          <MessageAttachments
-            serverId="storybook" {roomId} eventId="evt-video"
-            attachments={[{
-              id: 'video', filename: 'A long video filename that must stay inside the mobile message.mp4',
-              contentType: 'video/mp4', width: 1280, height: 720,
-              videoProcessing: {
-                status: VideoProcessingStatus.Completed, sourceAvailable: true, width: 1280, height: 720,
-                variants: [{ quality: '720p', width: 1280, height: 720, size: 1024,
-                  assetUrl: { url: new URL(videoFixture, window.location.href).href, expiresAt: '2099-01-01T00:00:00Z' } }]
-              }
-            }]}
-          />
+            <MessageAttachments
+              serverId="storybook"
+              {roomId}
+              eventId="evt-video"
+              attachments={[
+                {
+                  id: 'video',
+                  filename: 'A long video filename that must stay inside the mobile message.mp4',
+                  contentType: 'video/mp4',
+                  width: 1280,
+                  height: 720,
+                  videoProcessing: {
+                    status: VideoProcessingStatus.Completed,
+                    sourceAvailable: true,
+                    width: 1280,
+                    height: 720,
+                    variants: [
+                      {
+                        quality: '720p',
+                        width: 1280,
+                        height: 720,
+                        size: 1024,
+                        assetUrl: {
+                          url: new URL(videoFixture, window.location.href).href,
+                          expiresAt: '2099-01-01T00:00:00Z'
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]}
+            />
           {/snippet}
         </MessageView>
       </div>

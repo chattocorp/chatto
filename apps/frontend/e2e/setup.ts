@@ -1,5 +1,10 @@
 import { test as base } from '@playwright/test';
-import { startServer, stopServer, type ServerInfo, type StartServerOptions } from './fixtures/server';
+import {
+  startServer,
+  stopServer,
+  type ServerInfo,
+  type StartServerOptions
+} from './fixtures/server';
 import { composerTestStorageState } from './fixtures/testUser';
 import {
   AccountPage,

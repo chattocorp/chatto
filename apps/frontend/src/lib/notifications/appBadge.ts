@@ -1,9 +1,7 @@
 export const APP_BADGE_REFRESH_MESSAGE_TYPE = 'app-badge-refresh';
 
 export type AppBadgeIntent =
-  | { kind: 'clear' }
-  | { kind: 'flag' }
-  | { kind: 'count'; count: number };
+  { kind: 'clear' } | { kind: 'flag' } | { kind: 'count'; count: number };
 
 type AppBadgeRefreshMessage = {
   type: typeof APP_BADGE_REFRESH_MESSAGE_TYPE;

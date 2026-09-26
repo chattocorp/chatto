@@ -632,8 +632,9 @@ test.describe('Notification dismissal', () => {
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
     const mention = notificationsPage.getNotificationBySummary('mentioned you.');
-    const markedRead = page.waitForResponse((response) =>
-      response.url().includes('NotificationService/MarkNotificationRead') && response.ok()
+    const markedRead = page.waitForResponse(
+      (response) =>
+        response.url().includes('NotificationService/MarkNotificationRead') && response.ok()
     );
     await notificationsPage.clickNotification(mention);
     await page.waitForURL(routes.patterns.anyRoomWithQuery);

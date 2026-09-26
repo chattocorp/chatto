@@ -69,13 +69,13 @@ base64 -i AuthKey_KEY_ID.p8 | tr -d '\n'
 Add these secrets to the protected `desktop-signing` Actions environment, not
 as repository-wide secrets:
 
-| Secret | Value |
-| --- | --- |
-| `CHATTO_MACOS_CERTIFICATE_BASE64` | Base64-encoded `.p12` file |
-| `CHATTO_MACOS_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12` file |
-| `CHATTO_MACOS_NOTARY_API_KEY_BASE64` | Base64-encoded App Store Connect `.p8` key |
-| `CHATTO_MACOS_NOTARY_API_KEY_ID` | App Store Connect API key ID |
-| `CHATTO_MACOS_NOTARY_API_ISSUER_ID` | App Store Connect team issuer ID |
+| Secret                               | Value                                        |
+| ------------------------------------ | -------------------------------------------- |
+| `CHATTO_MACOS_CERTIFICATE_BASE64`    | Base64-encoded `.p12` file                   |
+| `CHATTO_MACOS_CERTIFICATE_PASSWORD`  | Password used when exporting the `.p12` file |
+| `CHATTO_MACOS_NOTARY_API_KEY_BASE64` | Base64-encoded App Store Connect `.p8` key   |
+| `CHATTO_MACOS_NOTARY_API_KEY_ID`     | App Store Connect API key ID                 |
+| `CHATTO_MACOS_NOTARY_API_ISSUER_ID`  | App Store Connect team issuer ID             |
 
 The environment permits deployments only from `chatto-desktop/v*` tags and the
 `main` branch used for manually dispatched verification builds. Its required
@@ -139,6 +139,7 @@ An Azure administrator must complete the one-time service setup:
    `repo:chattocorp@261891647/chatto@1205013299`. The prefix shown by this API
    intentionally omits the job context; an OIDC token requested by the signing
    job appends `:environment:desktop-windows-signing`.
+
 3. Create a Microsoft Entra application and service principal for the release
    workflow. Add a **GitHub Actions deploying Azure resources** federated
    credential for organization `chattocorp` (`261891647`), repository `chatto`
@@ -152,15 +153,15 @@ An Azure administrator must complete the one-time service setup:
    existing `desktop-signing` environment so the two platforms cannot access
    one another's signing credentials.
 
-| Kind | Name | Value |
-| --- | --- | --- |
-| Secret | `CHATTO_WINDOWS_AZURE_CLIENT_ID` | Entra application (client) ID |
-| Secret | `CHATTO_WINDOWS_AZURE_TENANT_ID` | Entra directory (tenant) ID |
-| Secret | `CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| Variable | `CHATTO_WINDOWS_SIGNING_ENDPOINT` | Regional account endpoint, including `https://` |
-| Variable | `CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME` | Artifact Signing account name |
-| Variable | `CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME` | Public Trust certificate profile name |
-| Variable | `CHATTO_WINDOWS_EXPECTED_PUBLISHER` | Complete certificate subject, exactly as Windows reports it |
+| Kind     | Name                                      | Value                                                       |
+| -------- | ----------------------------------------- | ----------------------------------------------------------- |
+| Secret   | `CHATTO_WINDOWS_AZURE_CLIENT_ID`          | Entra application (client) ID                               |
+| Secret   | `CHATTO_WINDOWS_AZURE_TENANT_ID`          | Entra directory (tenant) ID                                 |
+| Secret   | `CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID`    | Azure subscription ID                                       |
+| Variable | `CHATTO_WINDOWS_SIGNING_ENDPOINT`         | Regional account endpoint, including `https://`             |
+| Variable | `CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME`     | Artifact Signing account name                               |
+| Variable | `CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME` | Public Trust certificate profile name                       |
+| Variable | `CHATTO_WINDOWS_EXPECTED_PUBLISHER`       | Complete certificate subject, exactly as Windows reports it |
 
 Configure `desktop-windows-signing` to permit deployments only from
 `chatto-desktop/v*` tags and the `main` branch used for manually dispatched

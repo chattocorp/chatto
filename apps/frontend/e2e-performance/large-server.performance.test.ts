@@ -247,7 +247,8 @@ async function measureLargeServer(
     );
     const memberSearchApiMs = performance.now() - memberSearchStarted;
     expect(Number(memberSearch.page?.totalCount)).toBe(1);
-    const searchIds = memberSearch.userIds ?? memberSearch.members?.map((member) => member.user?.id);
+    const searchIds =
+      memberSearch.userIds ?? memberSearch.members?.map((member) => member.user?.id);
     expect(searchIds).toHaveLength(1);
     // Keep the list timing separate from hydration, as in the admin client.
     const hydratedSearch = await connectPost<BatchGetMembersResponse>(

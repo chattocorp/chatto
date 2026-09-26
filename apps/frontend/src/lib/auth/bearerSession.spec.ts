@@ -5,12 +5,15 @@ import { oauthBearerSession, persistedBearerSession } from './bearerSession';
 
 describe('bearer session responses', () => {
   it('converts a complete OAuth response to absolute persisted expiries', () => {
-    const credentials = oauthBearerSession({
-      access_token: 'access',
-      refresh_token: 'refresh',
-      expires_in: 900,
-      refresh_token_expires_in: 86_400
-    }, 'https://client.example/oauth/client-metadata.json');
+    const credentials = oauthBearerSession(
+      {
+        access_token: 'access',
+        refresh_token: 'refresh',
+        expires_in: 900,
+        refresh_token_expires_in: 86_400
+      },
+      'https://client.example/oauth/client-metadata.json'
+    );
 
     expect(credentials).not.toBeNull();
     if (!credentials) throw new Error('complete OAuth response was rejected');

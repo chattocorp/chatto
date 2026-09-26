@@ -6,8 +6,10 @@
   import { attachFogGradients } from './fogGradients';
   import { expoOutTransition } from './motion';
 
-  let { class: className = '', label = m('common.loading') }: { class?: ClassValue; label?: string } =
-    $props();
+  let {
+    class: className = '',
+    label = m('common.loading')
+  }: { class?: ClassValue; label?: string } = $props();
 </script>
 
 <div

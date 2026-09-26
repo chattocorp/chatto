@@ -5,7 +5,10 @@ import { flushSync } from 'svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { queryClient } from '$lib/query/client';
 import { settingsQueryKeys } from '$lib/query/settings';
-import { refreshRegisteredServerQueries, removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import {
+  refreshRegisteredServerQueries,
+  removeRegisteredServerQueries
+} from '$lib/query/cacheRegistry';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {
@@ -80,7 +83,9 @@ function policy(
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => { resolve = done; });
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -302,23 +307,35 @@ describe('NotificationPolicySettings', () => {
     await vi.waitFor(() => expect(mocks.batch).toHaveBeenCalledTimes(2));
     second.resolve(scopes.slice(0, 3).map((scope) => policy(scope, NotificationDeliveryMode.OFF)));
     await vi.waitFor(() =>
-      expect(container.querySelector(
-        'td[data-notification-scope="room:room-1"][data-notification-field="directMentions"] button'
-      )?.getAttribute('aria-label')).toContain('Effective: Off')
+      expect(
+        container
+          .querySelector(
+            'td[data-notification-scope="room:room-1"][data-notification-field="directMentions"] button'
+          )
+          ?.getAttribute('aria-label')
+      ).toContain('Effective: Off')
     );
 
     first.resolve(scopes.map((scope) => policy(scope)));
     await first.promise;
-    expect(container.querySelector(
-      'td[data-notification-scope="room:room-1"][data-notification-field="directMentions"] button'
-    )?.getAttribute('aria-label')).toContain('Effective: Off');
+    expect(
+      container
+        .querySelector(
+          'td[data-notification-scope="room:room-1"][data-notification-field="directMentions"] button'
+        )
+        ?.getAttribute('aria-label')
+    ).toContain('Effective: Off');
     await vi.waitFor(() =>
-      expect(queryClient.getQueryCache().find({
-        queryKey: settingsQueryKeys.notificationPolicies(
-          'test-server', mocks.connection, scopes.map(notificationPolicyScopeKey)
-        ),
-        exact: true
-      })).toBeUndefined()
+      expect(
+        queryClient.getQueryCache().find({
+          queryKey: settingsQueryKeys.notificationPolicies(
+            'test-server',
+            mocks.connection,
+            scopes.map(notificationPolicyScopeKey)
+          ),
+          exact: true
+        })
+      ).toBeUndefined()
     );
   });
 
@@ -340,11 +357,15 @@ describe('NotificationPolicySettings', () => {
 
     await vi.waitFor(() => expect(mocks.batch).toHaveBeenCalledTimes(2));
     await vi.waitFor(() =>
-      expect(queryClient.getQueryData<Record<string, ScopedNotificationPolicy>>(
-        settingsQueryKeys.notificationPolicies(
-          'test-server', mocks.connection, scopes.map(notificationPolicyScopeKey)
-        )
-      )?.['room:room-1']?.effective.directMentions).toBe(NotificationDeliveryMode.OFF)
+      expect(
+        queryClient.getQueryData<Record<string, ScopedNotificationPolicy>>(
+          settingsQueryKeys.notificationPolicies(
+            'test-server',
+            mocks.connection,
+            scopes.map(notificationPolicyScopeKey)
+          )
+        )?.['room:room-1']?.effective.directMentions
+      ).toBe(NotificationDeliveryMode.OFF)
     );
   });
 
@@ -439,9 +460,11 @@ describe('NotificationPolicySettings', () => {
     removeRegisteredServerQueries('test-server');
     save.resolve(policy({ kind: 'server' }));
     await save.promise;
-    expect(queryClient.getQueriesData({
-      queryKey: settingsQueryKeys.notificationPoliciesRoot('test-server', mocks.connection)
-    })).toEqual([]);
+    expect(
+      queryClient.getQueriesData({
+        queryKey: settingsQueryKeys.notificationPoliciesRoot('test-server', mocks.connection)
+      })
+    ).toEqual([]);
   });
 
   it('keeps a new save pending when an old save finishes after a privacy refresh', async () => {
@@ -449,9 +472,10 @@ describe('NotificationPolicySettings', () => {
     const newSave = deferred<ScopedNotificationPolicy>();
     mocks.update.mockReturnValueOnce(oldSave.promise).mockReturnValueOnce(newSave.promise);
     const { container } = render(NotificationPolicySettings);
-    const button = () => container.querySelector(
-      'td[data-notification-scope="server"][data-notification-field="directMessages"] button'
-    ) as HTMLButtonElement;
+    const button = () =>
+      container.querySelector(
+        'td[data-notification-scope="server"][data-notification-field="directMessages"] button'
+      ) as HTMLButtonElement;
 
     button().click();
     await refreshRegisteredServerQueries('test-server');

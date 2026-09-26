@@ -1,25 +1,25 @@
-import { requireDirectory } from "./directory.ts";
-import { createReadStream } from "node:fs";
-import { lstat, readlink } from "node:fs/promises";
-import { resolve } from "node:path";
-import { createHash, type Hash } from "node:crypto";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { requireDirectory } from './directory.ts';
+import { createReadStream } from 'node:fs';
+import { lstat, readlink } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { createHash, type Hash } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
 
 async function git(cwd: string, args: string[]) {
-  const { stdout } = await exec("git", args, {
+  const { stdout } = await exec('git', args, {
     cwd,
-    encoding: "buffer",
-    maxBuffer: 128 * 1024 * 1024,
+    encoding: 'buffer',
+    maxBuffer: 128 * 1024 * 1024
   });
   return stdout;
 }
 
 async function hasHead(cwd: string) {
   try {
-    await git(cwd, ["rev-parse", "--verify", "HEAD"]);
+    await git(cwd, ['rev-parse', '--verify', 'HEAD']);
     return true;
   } catch {
     return false;
@@ -27,8 +27,7 @@ async function hasHead(cwd: string) {
 }
 
 function updateField(hasher: Hash, value: string | ArrayBuffer | Uint8Array) {
-  const bytes =
-    typeof value === "string" ? new TextEncoder().encode(value) : value;
+  const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
   hasher.update(`${bytes.byteLength}:`);
   hasher.update(bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes);
 }
@@ -57,22 +56,20 @@ async function updateUntrackedFile(hasher: Hash, cwd: string, path: string) {
 
 export async function workingTreeHash(cwd: string) {
   requireDirectory(cwd);
-  const hasher = createHash("sha256");
+  const hasher = createHash('sha256');
   if (await hasHead(cwd)) {
     // The diff alone is empty at every clean commit. Include its base tree,
     // but not commit metadata, so committed file changes remain visible.
-    updateField(hasher, await git(cwd, ["rev-parse", "HEAD^{tree}"]));
-    updateField(hasher, await git(cwd, ["diff", "--binary", "HEAD"]));
+    updateField(hasher, await git(cwd, ['rev-parse', 'HEAD^{tree}']));
+    updateField(hasher, await git(cwd, ['diff', '--binary', 'HEAD']));
   } else {
-    updateField(hasher, await git(cwd, ["diff", "--binary", "--cached"]));
-    updateField(hasher, await git(cwd, ["diff", "--binary"]));
+    updateField(hasher, await git(cwd, ['diff', '--binary', '--cached']));
+    updateField(hasher, await git(cwd, ['diff', '--binary']));
   }
 
   const untrackedFiles = new TextDecoder()
-    .decode(
-      await git(cwd, ["ls-files", "--others", "--exclude-standard", "-z"]),
-    )
-    .split("\0")
+    .decode(await git(cwd, ['ls-files', '--others', '--exclude-standard', '-z']))
+    .split('\0')
     .filter(Boolean)
     .sort();
 
@@ -80,13 +77,13 @@ export async function workingTreeHash(cwd: string) {
     await updateUntrackedFile(hasher, cwd, path);
   }
 
-  return hasher.digest("hex");
+  return hasher.digest('hex');
 }
 
 export class WorkingDirectory {
   private constructor(
     readonly path: string,
-    private readonly initialHash: string,
+    private readonly initialHash: string
   ) {}
 
   static async create(path: string) {
@@ -94,9 +91,7 @@ export class WorkingDirectory {
   }
 
   get hasChanges(): Promise<boolean> {
-    return workingTreeHash(this.path).then(
-      (currentHash) => currentHash !== this.initialHash,
-    );
+    return workingTreeHash(this.path).then((currentHash) => currentHash !== this.initialHash);
   }
 }
 

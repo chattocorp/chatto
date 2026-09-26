@@ -1,6 +1,6 @@
-import { reportMessageReceipt } from "../message-observation.ts";
-import type { AgentResult, AgentRunOptions, RunlingAgent } from "../agent.ts";
-import type { WorkflowContext } from "../context.ts";
+import { reportMessageReceipt } from '../message-observation.ts';
+import type { AgentResult, AgentRunOptions, RunlingAgent } from '../agent.ts';
+import type { WorkflowContext } from '../context.ts';
 
 export interface AgentConnectionOptions {
   /** One consumer for this connection's lifetime. The caller retains missed messages. */
@@ -12,22 +12,18 @@ export interface AgentConnectionOptions {
   /** True means the agent consumed the message, not merely that it was queued. */
   onDelivery?: (text: string, consumed: boolean) => void | Promise<void>;
   /** Prepare trusted source metadata before steering; never infer origin from message text. */
-  prepareMessage?: (text: string, origin: "user" | "notification") => string | Promise<string>;
+  prepareMessage?: (text: string, origin: 'user' | 'notification') => string | Promise<string>;
 }
 
 export interface AgentConnection extends AsyncDisposable {
   /** Cancellation or background inbox failure for the connection lifetime. */
   readonly signal: AbortSignal;
-  runOutcome(
-    prompt: string,
-    options?: Pick<AgentRunOptions, "signal">,
-  ): Promise<AgentResult>;
+  runOutcome(prompt: string, options?: Pick<AgentRunOptions, 'signal'>): Promise<AgentResult>;
   /** Disconnect and cancel pending work. Does not dispose the supplied agent. */
   dispose(): Promise<void>;
 }
 
-type ConnectableAgent = Pick<RunlingAgent, "runOutcome"> &
-  Partial<Pick<RunlingAgent, "steer">>;
+type ConnectableAgent = Pick<RunlingAgent, 'runOutcome'> & Partial<Pick<RunlingAgent, 'steer'>>;
 
 /**
  * Connect an agent to an explicit input stream and asynchronous output handlers.
@@ -36,12 +32,18 @@ type ConnectableAgent = Pick<RunlingAgent, "runOutcome"> &
 export function connectAgent(
   ctx: WorkflowContext<unknown>,
   agent: ConnectableAgent,
-  options: AgentConnectionOptions = {},
+  options: AgentConnectionOptions = {}
 ): AgentConnection {
   const controller = new AbortController();
   const signal = AbortSignal.any([ctx.signal, controller.signal]);
-  const inboxes = ([{ source: options.inbox, origin: "user" }, { source: options.notifications, origin: "notification" }] as const)
-    .flatMap(({ source, origin }) => source ? [{ reader: source[Symbol.asyncIterator](), origin }] : []);
+  const inboxes = (
+    [
+      { source: options.inbox, origin: 'user' },
+      { source: options.notifications, origin: 'notification' }
+    ] as const
+  ).flatMap(({ source, origin }) =>
+    source ? [{ reader: source[Symbol.asyncIterator](), origin }] : []
+  );
   let active = false;
   let disposed = false;
   let disposal: Promise<void> | undefined;
@@ -50,10 +52,7 @@ export function connectAgent(
 
   // Race I/O with cancellation so a pending read or user callback cannot hold
   // the connection open. The underlying operation must still cooperate to stop.
-  async function interruptible<T>(
-    work: Promise<T>,
-    currentSignal = signal,
-  ): Promise<T> {
+  async function interruptible<T>(work: Promise<T>, currentSignal = signal): Promise<T> {
     if (currentSignal.aborted) {
       void work.catch(() => {});
       throw currentSignal.reason;
@@ -63,18 +62,17 @@ export function connectAgent(
     const cancelled = new Promise<never>((_resolve, reject) => {
       onAbort = () => reject(currentSignal.reason);
       if (currentSignal.aborted) onAbort();
-      else currentSignal.addEventListener("abort", onAbort, { once: true });
+      else currentSignal.addEventListener('abort', onAbort, { once: true });
     });
 
     try {
       return await Promise.race([work, cancelled]);
     } finally {
-      currentSignal.removeEventListener("abort", onAbort);
+      currentSignal.removeEventListener('abort', onAbort);
     }
   }
 
-  async function receive(inbox: AsyncIterator<string>, origin: "user" | "notification") {
-
+  async function receive(inbox: AsyncIterator<string>, origin: 'user' | 'notification') {
     while (!disposed && !signal.aborted) {
       const message = await interruptible(Promise.resolve(inbox.next()));
       if (message.done || disposed || signal.aborted) return;
@@ -104,21 +102,21 @@ export function connectAgent(
 
   function startReceiving() {
     if (receiving || !inboxes.length) return;
-    receiving = Promise.all(inboxes.map(({ reader, origin }) => receive(reader, origin))).then(() => {});
+    receiving = Promise.all(inboxes.map(({ reader, origin }) => receive(reader, origin))).then(
+      () => {}
+    );
     void receiving.catch((reason) => controller.abort(reason));
   }
 
   async function runOutcome(
     prompt: string,
-    runOptions: Pick<AgentRunOptions, "signal"> = {},
+    runOptions: Pick<AgentRunOptions, 'signal'> = {}
   ): Promise<AgentResult> {
     signal.throwIfAborted();
-    if (disposed) throw new Error("Agent connection is disposed");
-    if (active) throw new Error("Agent connection already has an active turn");
+    if (disposed) throw new Error('Agent connection is disposed');
+    if (active) throw new Error('Agent connection already has an active turn');
 
-    const turnSignal = runOptions.signal
-      ? AbortSignal.any([signal, runOptions.signal])
-      : signal;
+    const turnSignal = runOptions.signal ? AbortSignal.any([signal, runOptions.signal]) : signal;
     turnSignal.throwIfAborted();
     active = true;
     let output = Promise.resolve();
@@ -136,7 +134,7 @@ export function connectAgent(
             return options.onText?.(text);
           });
           void output.catch((reason) => controller.abort(reason));
-        },
+        }
       });
       startReceiving();
 
@@ -155,16 +153,15 @@ export function connectAgent(
   function dispose(): Promise<void> {
     if (disposal) return disposal;
     disposed = true;
-    controller.abort(new Error("Agent connection is disposed"));
+    controller.abort(new Error('Agent connection is disposed'));
 
     disposal = (async () => {
       // Observe return() even if an arbitrary iterable cannot finish its pending
       // read. Cancellation has already released our own receiver.
-      for (const { reader: inbox } of inboxes) if (inbox.return) {
-        await interruptible(
-          Promise.resolve().then(() => inbox.return!()),
-        ).catch(() => {});
-      }
+      for (const { reader: inbox } of inboxes)
+        if (inbox.return) {
+          await interruptible(Promise.resolve().then(() => inbox.return!())).catch(() => {});
+        }
       await receiving?.catch(() => {});
     })();
     return disposal;

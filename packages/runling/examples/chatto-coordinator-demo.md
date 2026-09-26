@@ -95,7 +95,6 @@ announce completion in the thread. Complete
 specialist results go to the coordinator. Intermediate messages are delivered
 after each assistant message completes; private reasoning is not forwarded.
 
-
 Each specialist returns a complete report. If steering produces another report
 within the same interaction, the returned details retain earlier findings and
 label the latest report as authoritative. Approval timeouts tell the coordinator

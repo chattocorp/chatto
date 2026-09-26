@@ -26,7 +26,13 @@ Use PillButtonGroup directly for joined toolbars.
   } = $props();
 </script>
 
-<div class={['pill-button-group pill-button-group-compact pill-button-group-hover-bevel w-auto shrink-0', touchFriendly && 'pill-button-group-touch', wrapperClass]}>
+<div
+  class={[
+    'pill-button-group pill-button-group-compact w-auto shrink-0 pill-button-group-hover-bevel',
+    touchFriendly && 'pill-button-group-touch',
+    wrapperClass
+  ]}
+>
   <button
     type="button"
     aria-label={label}

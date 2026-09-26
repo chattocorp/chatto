@@ -6,12 +6,10 @@ type HighlightLanguageModule = {
   default: LanguageFn;
 };
 
-const languageModules = import.meta.glob<HighlightLanguageModule>(
-  [
-    '/node_modules/highlight.js/es/languages/*.js',
-    '!/node_modules/highlight.js/es/languages/*.js.js'
-  ]
-);
+const languageModules = import.meta.glob<HighlightLanguageModule>([
+  '/node_modules/highlight.js/es/languages/*.js',
+  '!/node_modules/highlight.js/es/languages/*.js.js'
+]);
 
 const languageImporters = new Map<string, () => Promise<HighlightLanguageModule>>();
 
@@ -21,7 +19,12 @@ for (const [path, importer] of Object.entries(languageModules)) {
 }
 
 function normalizeLanguageToken(value: string): string | null {
-  return value.trim().toLowerCase().match(/[a-z0-9+#_.-]+/)?.[0] ?? null;
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .match(/[a-z0-9+#_.-]+/)?.[0] ?? null
+  );
 }
 
 const languageLoadPromises = new Map<string, Promise<boolean>>();
@@ -82,7 +85,9 @@ export function isCodeLanguageLoaded(language: string | null | undefined): boole
   return Boolean(resolved && (lowlight.registered(normalized) || lowlight.registered(resolved)));
 }
 
-export async function ensureCodeLanguageLoaded(language: string | null | undefined): Promise<boolean> {
+export async function ensureCodeLanguageLoaded(
+  language: string | null | undefined
+): Promise<boolean> {
   const resolved = resolveCodeLanguage(language);
   if (!resolved) return false;
   if (lowlight.registered(resolveCodeLanguage(language) ?? resolved)) return false;
@@ -114,6 +119,8 @@ export async function ensureCodeLanguageLoaded(language: string | null | undefin
 export async function ensureCodeLanguagesLoaded(
   languages: Iterable<string | null | undefined>
 ): Promise<boolean> {
-  const results = await Promise.all([...languages].map((language) => ensureCodeLanguageLoaded(language)));
+  const results = await Promise.all(
+    [...languages].map((language) => ensureCodeLanguageLoaded(language))
+  );
   return results.some(Boolean);
 }

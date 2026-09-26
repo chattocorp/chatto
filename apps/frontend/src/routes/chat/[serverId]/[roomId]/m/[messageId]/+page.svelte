@@ -41,7 +41,7 @@
 
       const threadRootEventId =
         target.event.kind === TimelineEventKind.MessagePosted
-          ? (target.event.threadRootEventId || (target.event.threadExists ? target.id : null))
+          ? target.event.threadRootEventId || (target.event.threadExists ? target.id : null)
           : null;
 
       if (threadRootEventId) {

@@ -40,9 +40,13 @@
     await userEvent.click(canvas.getByRole('button', { name: 'Open menu' }));
     const menu = canvas.getByRole('menu', { name: 'Example actions' });
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    await expect(getComputedStyle(menu).animationName).toBe(reducedMotion ? 'none' : 'overlay-enter');
+    await expect(getComputedStyle(menu).animationName).toBe(
+      reducedMotion ? 'none' : 'overlay-enter'
+    );
     if (!reducedMotion) await expect(getComputedStyle(menu).animationDuration).toBe('0.1s');
-    await expect(getComputedStyle(canvas.getByRole('menuitem', { name: 'Edit' })).transitionDuration).toBe('0s');
+    await expect(
+      getComputedStyle(canvas.getByRole('menuitem', { name: 'Edit' })).transitionDuration
+    ).toBe('0s');
     await userEvent.click(canvas.getByRole('menuitem', { name: 'Copy' }));
     await expect(canvas.queryByRole('menu', { name: 'Example actions' })).not.toBeInTheDocument();
   }}

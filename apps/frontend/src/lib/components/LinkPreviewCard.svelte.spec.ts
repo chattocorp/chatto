@@ -185,11 +185,7 @@ describe('LinkPreviewCard', () => {
 
     openContextMenu(container, '[data-testid="link-preview-card"]');
     (await menuButton('Open link')).click();
-    expect(open).toHaveBeenCalledWith(
-      'https://generic.example',
-      '_blank',
-      'noopener,noreferrer'
-    );
+    expect(open).toHaveBeenCalledWith('https://generic.example', '_blank', 'noopener,noreferrer');
 
     await rerender({
       preview: preview({

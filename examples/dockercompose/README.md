@@ -63,10 +63,10 @@ The included Caddy service is a convenient default, not a requirement. If you
 already run Caddy, nginx, Apache, Traefik, or another public web server, keep it
 and configure two routes:
 
-| Public endpoint | Destination | Purpose |
-| --- | --- | --- |
-| Your Chatto HTTPS hostname | `chatto:4000` | Chatto web app, ConnectRPC APIs, realtime connections, and the LiveKit webhook |
-| Your LiveKit secure WebSocket hostname | `livekit:7880` | LiveKit API and WebSocket signaling |
+| Public endpoint                        | Destination    | Purpose                                                                        |
+| -------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
+| Your Chatto HTTPS hostname             | `chatto:4000`  | Chatto web app, ConnectRPC APIs, realtime connections, and the LiveKit webhook |
+| Your LiveKit secure WebSocket hostname | `livekit:7880` | LiveKit API and WebSocket signaling                                            |
 
 The hostnames can be any names you control. Both need publicly trusted TLS
 certificates. If your proxy is on the Compose network, use the service names
@@ -76,10 +76,10 @@ above. If it runs on the Docker host, publish both upstreams on loopback:
 services:
   chatto:
     ports:
-      - "127.0.0.1:4000:4000"
+      - '127.0.0.1:4000:4000'
   livekit:
     ports:
-      - "127.0.0.1:7880:7880"
+      - '127.0.0.1:7880:7880'
 ```
 
 Then remove the `caddy` service and its volumes from `compose.yml`. Keep the
@@ -94,12 +94,12 @@ does not include the optional Caddy L4 plugin.
 
 Preserve these public ports when using Caddy or your own proxy:
 
-| Public endpoint | Destination | Purpose |
-| --- | --- | --- |
-| Your Chatto and LiveKit hostnames (TCP 443) | Your HTTP proxy | HTTPS and secure WebSocket traffic |
-| TCP 7881 | `livekit:7881` | WebRTC media fallback when direct UDP is unavailable |
-| UDP 3478 | `livekit:3478` | LiveKit's embedded TURN/STUN relay |
-| UDP 7882 | `livekit:7882` | Direct WebRTC media |
+| Public endpoint                             | Destination     | Purpose                                              |
+| ------------------------------------------- | --------------- | ---------------------------------------------------- |
+| Your Chatto and LiveKit hostnames (TCP 443) | Your HTTP proxy | HTTPS and secure WebSocket traffic                   |
+| TCP 7881                                    | `livekit:7881`  | WebRTC media fallback when direct UDP is unavailable |
+| UDP 3478                                    | `livekit:3478`  | LiveKit's embedded TURN/STUN relay                   |
+| UDP 7882                                    | `livekit:7882`  | Direct WebRTC media                                  |
 
 With `rtc.use_external_ip: true`, the LiveKit server sends STUN requests at
 startup to discover the public address it should advertise. Allow DNS and

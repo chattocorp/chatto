@@ -2,12 +2,10 @@
 export function middleDrag(
   element: HTMLElement,
   begin: (event: MouseEvent) => ((dx: number, dy: number) => void) | undefined,
-  finish: () => void = () => {},
+  finish: () => void = () => {}
 ) {
   const host = element.ownerDocument.defaultView!;
-  let drag:
-    | { x: number; y: number; move: (dx: number, dy: number) => void }
-    | undefined;
+  let drag: { x: number; y: number; move: (dx: number, dy: number) => void } | undefined;
   const stop = () => {
     if (!drag) return;
     drag = undefined;
@@ -37,17 +35,17 @@ export function middleDrag(
     if (event.button === 1) event.preventDefault();
   };
   const capture = { capture: true };
-  element.addEventListener("mousedown", down, capture);
-  element.addEventListener("auxclick", auxiliary);
-  host.addEventListener("mousemove", move, capture);
-  host.addEventListener("mouseup", up, capture);
-  host.addEventListener("blur", stop);
+  element.addEventListener('mousedown', down, capture);
+  element.addEventListener('auxclick', auxiliary);
+  host.addEventListener('mousemove', move, capture);
+  host.addEventListener('mouseup', up, capture);
+  host.addEventListener('blur', stop);
   return () => {
     stop();
-    element.removeEventListener("mousedown", down, capture);
-    element.removeEventListener("auxclick", auxiliary);
-    host.removeEventListener("mousemove", move, capture);
-    host.removeEventListener("mouseup", up, capture);
-    host.removeEventListener("blur", stop);
+    element.removeEventListener('mousedown', down, capture);
+    element.removeEventListener('auxclick', auxiliary);
+    host.removeEventListener('mousemove', move, capture);
+    host.removeEventListener('mouseup', up, capture);
+    host.removeEventListener('blur', stop);
   };
 }

@@ -73,9 +73,7 @@
   }
 
   function isCurrentEmailAction(scope: EmailActionScope): boolean {
-    return (
-      isCurrentEmailContext(scope) && scope.navigationGeneration === navigationGeneration
-    );
+    return isCurrentEmailContext(scope) && scope.navigationGeneration === navigationGeneration;
   }
 
   const verificationPath = $derived(
@@ -152,10 +150,7 @@
       return;
     }
     const scope = emailActionScope();
-    if (
-      !scope.userId ||
-      !storePendingEmailVerification(scope.serverId, scope.userId, address)
-    ) {
+    if (!scope.userId || !storePendingEmailVerification(scope.serverId, scope.userId, address)) {
       addEmailError = m('settings.account.email.request_failed');
       return;
     }
@@ -196,7 +191,9 @@
       const memberLists = {
         queryKey: adminQueryKeys.membersRoot(scope.serverId, scope.connection)
       };
-      void queryClient.cancelQueries(memberLists).then(() => queryClient.invalidateQueries(memberLists));
+      void queryClient
+        .cancelQueries(memberLists)
+        .then(() => queryClient.invalidateQueries(memberLists));
       void queryClient.invalidateQueries({
         queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
         exact: true

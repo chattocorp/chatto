@@ -2,7 +2,7 @@ services:
   nats:
     image: nats:latest
     restart: unless-stopped
-    command: ["--config", "/etc/nats/nats-server.conf", "--auth=${NATS_TOKEN}"]
+    command: ['--config', '/etc/nats/nats-server.conf', '--auth=${NATS_TOKEN}']
     volumes:
       - ./nats-server.conf:/etc/nats/nats-server.conf:ro
       - nats_data:/data
@@ -14,11 +14,11 @@ services:
       - --config
       - /etc/livekit.yaml
     ports:
-      - "7882:7882/udp"  # WebRTC media (UDP, must be direct)
-      - "7881:7881/tcp"  # WebRTC media fallback when UDP is unavailable
-      - "3478:3478/udp"  # TURN/STUN relay for NAT traversal
+      - '7882:7882/udp' # WebRTC media (UDP, must be direct)
+      - '7881:7881/tcp' # WebRTC media fallback when UDP is unavailable
+      - '3478:3478/udp' # TURN/STUN relay for NAT traversal
     expose:
-      - "7880"  # WebSocket signaling (proxied through Caddy)
+      - '7880' # WebSocket signaling (proxied through Caddy)
     volumes:
       - ${LIVEKIT_CONFIG_FILE:-./livekit.yaml}:/etc/livekit.yaml:ro
 
@@ -27,12 +27,12 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      PUID: "${PUID:-1000}"
-      PGID: "${PGID:-1000}"
+      PUID: '${PUID:-1000}'
+      PGID: '${PGID:-1000}'
     depends_on:
       - nats
     expose:
-      - "4000"
+      - '4000'
     volumes:
       - ${CHATTO_BACKUP_DIR:-./backups}:/backups
 
@@ -40,10 +40,10 @@ services:
     image: caddy:latest
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     environment:
-      PUBLIC_URL: "${PUBLIC_URL:-chat.example.com}"
+      PUBLIC_URL: '${PUBLIC_URL:-chat.example.com}'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

@@ -1,10 +1,16 @@
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { mapUserPresenceView, mapUserSummary, type UserPresenceView, type UserSummary } from './userSummary';
+import {
+  mapUserPresenceView,
+  mapUserSummary,
+  type UserPresenceView,
+  type UserSummary
+} from './userSummary';
 
-export type DirectoryMember = UserSummary & UserPresenceView & {
-  roles: string[];
-  createdAt: string | null;
-};
+export type DirectoryMember = UserSummary &
+  UserPresenceView & {
+    roles: string[];
+    createdAt: string | null;
+  };
 
 /** Map the canonical public profile to a render snapshot at the API/view boundary. */
 export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember {

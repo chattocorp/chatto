@@ -67,10 +67,7 @@ function crossTabSuspension(serverId: string): CrossTabSuspension | null {
   return crossTabSuspensionState(serverId).suspension;
 }
 
-function setCrossTabSuspension(
-  serverId: string,
-  suspension: CrossTabSuspension | null
-): boolean {
+function setCrossTabSuspension(serverId: string, suspension: CrossTabSuspension | null): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const storage = window.localStorage;
@@ -197,9 +194,7 @@ function withCrossTabLock<T>(serverId: string, operation: () => Promise<T>): Pro
 function enqueue<T>(serverId: string, operation: () => Promise<T>): Promise<T> {
   ensureCrossTabCoordination();
   const previous = operationTails.get(serverId) ?? Promise.resolve();
-  const current = previous
-    .catch(() => undefined)
-    .then(() => withCrossTabLock(serverId, operation));
+  const current = previous.catch(() => undefined).then(() => withCrossTabLock(serverId, operation));
   operationTails.set(serverId, current);
   return current.finally(() => {
     if (operationTails.get(serverId) === current) operationTails.delete(serverId);
