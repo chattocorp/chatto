@@ -78,7 +78,8 @@
       "read_denied": "Você não tem permissão para ler mensagens nesta sala.",
       "limited_access": "Você só pode ver conversas que iniciou ou em que alguém mencionou você.",
       "limited_access_dm": "Você só pode ver conversas que iniciou, recebeu ou em que alguém mencionou você.",
-      "limited_empty": "Ainda não há conversas que você possa ler."
+      "limited_empty": "Ainda não há conversas que você possa ler.",
+      "loading": "Carregando mensagens..."
     },
     "message": {
       "empty": "Nenhuma mensagem ainda",

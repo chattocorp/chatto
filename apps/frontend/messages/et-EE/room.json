@@ -78,7 +78,8 @@
       "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
       "limited_access": "Näed ainult vestlusi, mille oled alustanud või kus keegi on sind maininud.",
       "limited_access_dm": "Näed ainult vestlusi, mille oled alustanud, vastu võtnud või kus keegi on sind maininud.",
-      "limited_empty": "Veel pole vestlusi, mida saad lugeda."
+      "limited_empty": "Veel pole vestlusi, mida saad lugeda.",
+      "loading": "Sõnumite laadimine..."
     },
     "message": {
       "empty": "Sõnumeid pole veel",

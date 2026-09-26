@@ -78,7 +78,8 @@
       "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet.",
       "limited_access": "Du kan bara se konversationer som du startade eller där någon nämnde dig.",
       "limited_access_dm": "Du kan bara se konversationer som du startade, tog emot eller där någon nämnde dig.",
-      "limited_empty": "Det finns inga konversationer du kan läsa ännu."
+      "limited_empty": "Det finns inga konversationer du kan läsa ännu.",
+      "loading": "Läser in meddelanden..."
     },
     "message": {
       "empty": "Inga meddelanden än",

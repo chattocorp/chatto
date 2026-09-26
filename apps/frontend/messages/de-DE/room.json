@@ -78,7 +78,8 @@
       "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen.",
       "limited_access": "Du kannst nur Gespräche sehen, die du begonnen hast oder in denen dich jemand erwähnt hat.",
       "limited_access_dm": "Du kannst nur Gespräche sehen, die du begonnen oder empfangen hast oder in denen dich jemand erwähnt hat.",
-      "limited_empty": "Noch keine Gespräche, die du lesen kannst."
+      "limited_empty": "Noch keine Gespräche, die du lesen kannst.",
+      "loading": "Nachrichten werden geladen..."
     },
     "message": {
       "empty": "Noch keine Nachrichten",

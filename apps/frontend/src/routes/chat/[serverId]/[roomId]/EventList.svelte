@@ -760,11 +760,23 @@
       {@attach restoreViewport(recoveryTarget)}
       {@attach landOnUnreadEntry(unreadEntryLanding)}
     >
-      {#if !isLoading && virtualItems.length === 0}
+      {#if isLoading}
+        <!-- Sits at the bottom, where the newest messages will appear. -->
+        <div
+          role="status"
+          data-testid="timeline-loading"
+          class="flex loading-dots justify-center gap-1.5 py-4 text-muted"
+        >
+          <span class="sr-only">{m('room.timeline.loading')}</span>
+          <span class="loading-dot" aria-hidden="true"></span>
+          <span class="loading-dot [animation-delay:150ms]" aria-hidden="true"></span>
+          <span class="loading-dot [animation-delay:300ms]" aria-hidden="true"></span>
+        </div>
+      {:else if virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>
         </div>
-      {:else if !isLoading}
+      {:else}
         <Virtualizer
           bind:this={virtualizerHandle}
           data={virtualItems}

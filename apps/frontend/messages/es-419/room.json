@@ -78,7 +78,8 @@
       "read_denied": "No tienes permiso para leer mensajes en esta sala.",
       "limited_access": "Solo puedes ver conversaciones que hayas iniciado o en las que alguien te haya mencionado.",
       "limited_access_dm": "Solo puedes ver conversaciones que hayas iniciado, recibido o en las que alguien te haya mencionado.",
-      "limited_empty": "Aún no hay conversaciones que puedas leer."
+      "limited_empty": "Aún no hay conversaciones que puedas leer.",
+      "loading": "Cargando mensajes..."
     },
     "message": {
       "empty": "Aún no hay mensajes",

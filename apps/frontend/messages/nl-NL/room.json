@@ -78,7 +78,8 @@
       "read_denied": "Je hebt geen toestemming om berichten in deze ruimte te lezen.",
       "limited_access": "Je kunt alleen gesprekken zien die je hebt gestart of waarin iemand je heeft vermeld.",
       "limited_access_dm": "Je kunt alleen gesprekken zien die je hebt gestart, ontvangen of waarin iemand je heeft vermeld.",
-      "limited_empty": "Er zijn nog geen gesprekken die je kunt lezen."
+      "limited_empty": "Er zijn nog geen gesprekken die je kunt lezen.",
+      "loading": "Berichten laden..."
     },
     "message": {
       "empty": "Nog geen berichten",

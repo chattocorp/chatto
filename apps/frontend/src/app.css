@@ -1946,6 +1946,33 @@
   }
 }
 
+/* Timeline loading indicator. The reveal waits briefly, so fast loads do not
+   flash the dots. */
+@utility loading-dots {
+  animation: backdrop-enter 200ms ease-out 300ms both;
+}
+
+@utility loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: currentColor;
+  animation: loading-pulse 1s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .quick-switcher[open] {
   animation: quick-switcher-enter 120ms var(--ease-out-expo);
 }
@@ -1980,6 +2007,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .typing-dot,
+  .loading-dots,
+  .loading-dot,
   .quick-switcher[open],
   .quick-switcher[open]::backdrop,
   .image-modal[open] {

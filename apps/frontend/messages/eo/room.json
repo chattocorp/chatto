@@ -78,7 +78,8 @@
       "read_denied": "Vi ne havas permeson legi mesaĝojn en ĉi tiu ĉambro.",
       "limited_access": "Vi povas vidi nur konversaciojn, kiujn vi komencis aŭ en kiuj iu menciis vin.",
       "limited_access_dm": "Vi povas vidi nur konversaciojn, kiujn vi komencis, ricevis aŭ en kiuj iu menciis vin.",
-      "limited_empty": "Ankoraŭ neniuj konversacioj, kiujn vi povas legi."
+      "limited_empty": "Ankoraŭ neniuj konversacioj, kiujn vi povas legi.",
+      "loading": "Ŝarĝante mesaĝojn..."
     },
     "message": {
       "empty": "Ankoraŭ neniuj mesaĝoj",

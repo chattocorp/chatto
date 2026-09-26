@@ -78,7 +78,8 @@
       "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet.",
       "limited_access": "Du kan bare se samtaler du startet, eller der noen nevnte deg.",
       "limited_access_dm": "Du kan bare se samtaler du startet, mottok, eller der noen nevnte deg.",
-      "limited_empty": "Ingen samtaler du kan lese ennå."
+      "limited_empty": "Ingen samtaler du kan lese ennå.",
+      "loading": "Laster inn meldinger ..."
     },
     "message": {
       "empty": "Ingen meldinger ennå",
