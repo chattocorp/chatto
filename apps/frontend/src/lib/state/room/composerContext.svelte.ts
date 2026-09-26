@@ -182,7 +182,7 @@ export class JumpToMessageState {
 }
 
 // ---------------------------------------------------------------------------
-// ComposerContext — bundles per-pane state (one per Room or ThreadPane)
+// ComposerContext — bundles per-pane state (one per ConversationPane)
 // ---------------------------------------------------------------------------
 
 export class ComposerContext {
@@ -198,7 +198,7 @@ export const [getComposerContext, setComposerContext] = createContext<ComposerCo
 
 /**
  * Create the composer context and set it in Svelte context.
- * Call from Room.svelte or ThreadPane during initialization.
+ * ConversationPane calls it during initialization, before its children render.
  */
 export function createComposerContext(): ComposerContext {
   const ctx = new ComposerContext();

@@ -519,7 +519,7 @@
     if (!replyToId) return;
 
     // Use jump-to-message state which works with the virtualizer.
-    // Both Room (main view) and ThreadPane provide this context.
+    // Every ConversationPane provides this context.
     jumpState.jumpToMessage(replyToId);
   }
 

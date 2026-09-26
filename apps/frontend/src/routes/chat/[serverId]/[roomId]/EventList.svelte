@@ -75,7 +75,7 @@
     /** Reports whether a jump-to-message request found and highlighted its target. */
     onScrollToEventComplete?: (landed: boolean) => void;
     onReachedBottom?: () => void;
-    // Suppress auto-scroll while a highlight is pending (used by ThreadPane)
+    // Suppress auto-scroll while a highlight is pending
     pendingHighlightId?: string | null;
     threadingMode?: RoomThreadingMode;
   } = $props();
