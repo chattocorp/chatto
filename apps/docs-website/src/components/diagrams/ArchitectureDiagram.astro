@@ -10,7 +10,7 @@ const arrowStyles = `
 `;
 ---
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" fill="none" role="img" aria-label="Web clients, bots, and the operator CLI connect to the Chatto server's API. The API appends events to the EVT stream in NATS. In-memory projections replay EVT, and the API serves reads from the projections. Durable workers consume events for notifications, webhooks, and cleanup. LiveKit handles calls and S3 stores files, both optional.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -16 640 316" fill="none" role="img" aria-label="Web clients, bots, and the operator CLI connect to the Chatto server's API. The API appends events to the EVT stream in NATS. In-memory projections replay EVT, and the API serves reads from the projections. Durable workers consume events for notifications, webhooks, and cleanup. LiveKit handles calls: the Chatto server issues call tokens, and web clients send call media directly to LiveKit. S3 stores files. Both are optional.">
   <style set:html={baseStyles} />
   <style set:html={arrowStyles} />
   <defs>
@@ -36,6 +36,10 @@ const arrowStyles = `
   <path class="conn" d="M166,77 L216,77" />
   <path class="conn" d="M166,152 C191,152 191,87 216,87" />
   <path class="conn-dash" d="M166,227 C194,227 194,97 216,97" />
+
+  <!-- Web client → LiveKit: call media goes directly to LiveKit -->
+  <path class="conn-dash" d="M91,50 L91,16 Q91,4 103,4 L540,4 Q552,4 552,16 L552,28" />
+  <text class="proto" x="320" y="-2" text-anchor="middle">call media</text>
 
   <!-- API → LiveKit -->
   <path class="conn" d="M422,62 C450,62 450,57 476,57" />

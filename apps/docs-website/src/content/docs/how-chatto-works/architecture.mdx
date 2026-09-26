@@ -17,7 +17,7 @@ does not use a relational database.
 | --------- | ---- | -------- |
 | Chatto server (`chatto run`) | Serves the web client, the ConnectRPC API, the realtime WebSocket, OAuth, webhooks, and asset downloads. Runs the durable workers. | Yes |
 | NATS with JetStream | Stores all data. Chatto can embed it, or connect to an external NATS server or cluster. | Yes |
-| LiveKit | Carries voice and video calls. Chatto issues call tokens and receives LiveKit webhooks. | For calls |
+| LiveKit | Carries voice and video calls. Chatto issues call tokens and receives LiveKit webhooks. Clients send call audio and video directly to LiveKit. | For calls |
 | S3-compatible storage | Stores uploaded files instead of NATS. | No |
 | Asset processing worker | Converts videos and GIFs with ffmpeg. Runs inside `chatto run` or as `chatto asset-processing`. | For video |
 | Search provider | Keeps the full-text search index. Runs inside `chatto run` or as `chatto search-provider`. | For search |
