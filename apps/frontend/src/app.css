@@ -910,36 +910,77 @@
   @apply rounded-md border border-border bg-surface-emphasized/60;
 }
 
-/* Pending content uses seeded simplex-noise paths for three soft light clouds. */
+/* Pending content is a quiet surface with two wide highlights that sweep
+ * across it. Their periods differ, so the overlap changes on every pass. */
 .loading-fog {
   display: block;
   position: relative;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-surface), var(--color-background) 42%);
+  background: color-mix(in srgb, var(--color-surface), var(--color-surface-emphasized) 35%);
+  --loading-shine: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-background), white 60%) 75%,
+    transparent
+  );
+}
+
+/* Each band is as wide as the block. The animation moves it from just outside
+ * the start edge to just outside the end edge. The gradient is horizontal and
+ * the band is skewed, so its side edges are always fully transparent. The
+ * stops follow a smoothstep curve, which prevents visible creases. */
+.loading-fog::before,
+.loading-fog::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--loading-shine) 16%, transparent) 12.5%,
+    color-mix(in srgb, var(--loading-shine) 50%, transparent) 25%,
+    color-mix(in srgb, var(--loading-shine) 84%, transparent) 37.5%,
+    var(--loading-shine),
+    color-mix(in srgb, var(--loading-shine) 84%, transparent) 62.5%,
+    color-mix(in srgb, var(--loading-shine) 50%, transparent) 75%,
+    color-mix(in srgb, var(--loading-shine) 16%, transparent) 87.5%,
+    transparent
+  );
+  transform: translateX(-100%) skewX(var(--loading-shine-skew));
+  animation: loading-shine var(--loading-shine-duration) linear infinite;
 }
 
 .loading-fog::before {
-  content: '';
-  position: absolute;
-  inset: -25%;
-  pointer-events: none;
-  opacity: 0.48;
-  background:
-    radial-gradient(
-      ellipse at var(--fog-first-x, 30%) var(--fog-first-y, 40%),
-      var(--color-surface-strong),
-      transparent 52%
-    ),
-    radial-gradient(
-      ellipse at var(--fog-second-x, 70%) var(--fog-second-y, 60%),
-      var(--color-surface-emphasized),
-      transparent 52%
-    ),
-    radial-gradient(
-      ellipse at var(--fog-third-x, 52%) var(--fog-third-y, 48%),
-      var(--color-background),
-      transparent 52%
-    );
+  --loading-shine-skew: -10deg;
+  --loading-shine-duration: 2.6s;
+}
+
+.loading-fog::after {
+  --loading-shine-skew: -4deg;
+  --loading-shine-duration: 1.6s;
+}
+
+@keyframes loading-shine {
+  to {
+    transform: translateX(100%) skewX(var(--loading-shine-skew));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-fog::before,
+  .loading-fog::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Dark surfaces are lighter than the background, so the same mix reads too
+ * bright. Sink the base toward the background and soften the highlights. */
+:root[data-theme='dark'] .loading-fog {
+  background: color-mix(in srgb, var(--color-surface), var(--color-background) 70%);
+  --loading-shine: color-mix(in srgb, var(--color-surface-emphasized) 40%, transparent);
 }
 
 /* Panel and table header — one surface with a hairline divider. Typography,

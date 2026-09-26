@@ -336,10 +336,10 @@ Follow these defaults:
   replace. A single full-page availability state may use one untitled panel
   because there are no peer sections to distinguish.
 - Use one `LoadingFog` block for a pending content area. Give it a size that
-  keeps the surrounding layout stable. Each block has its own quiet simplex-noise
-  motion and an accessible busy state. It fades in briefly and leaves as soon as
-  content is ready. Motion pauses when the user requests less motion or the tab
-  is hidden; reduced motion also removes the fade.
+  keeps the surrounding layout stable. A soft highlight sweeps across each block,
+  and the block has an accessible busy state. It fades in briefly and leaves as
+  soon as content is ready. When the user requests less motion, the highlight
+  stops and the fade is removed.
 - Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
   dense table or editor should consume the remaining pane height. Ordinary
   forms and document-like pages should remain content-sized.
