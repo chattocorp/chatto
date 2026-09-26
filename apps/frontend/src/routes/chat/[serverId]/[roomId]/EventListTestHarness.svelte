@@ -45,7 +45,7 @@
     onStoreRead?: () => void;
   } = $props();
 
-  const composerContext = createComposerContext({ scroll: true });
+  const composerContext = createComposerContext();
   onMount(() => onComposerReady?.(composerContext));
   // Production panes drive these through the shared jump state.
   $effect.pre(() => {

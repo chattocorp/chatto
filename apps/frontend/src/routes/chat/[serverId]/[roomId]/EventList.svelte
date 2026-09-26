@@ -219,7 +219,6 @@
   // been scrolled up — unmeasured items at the bottom have only estimated heights,
   // causing scrollToIndex to undershoot.
   $effect(() => {
-    if (!scrollState) return;
     const counter = scrollState.scrollRequestCounter;
     if (counter > 0) {
       viewport.requestBottom();
@@ -436,7 +435,7 @@
   // (MessageComposer, TypingIndicator) can synchronously scroll without waiting
   // for ResizeObserver callbacks.
   $effect(() => {
-    if (scrollState && scrollContainer) {
+    if (scrollContainer) {
       scrollState.setContainer(scrollContainer);
       return () => scrollState.setContainer(null);
     }
@@ -444,7 +443,7 @@
 
   // Keep ScrollState's shouldScroll flag in sync with our local state
   $effect(() => {
-    scrollState?.setShouldScroll(viewport.shouldScrollToBottom);
+    scrollState.setShouldScroll(viewport.shouldScrollToBottom);
   });
 
   // Auto-scroll to bottom when new events arrive or existing events update.

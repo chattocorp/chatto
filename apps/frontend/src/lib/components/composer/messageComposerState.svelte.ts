@@ -247,7 +247,6 @@ export class MessageComposerState {
 
   observeResize = (node: HTMLDivElement) => {
     const scrollState = this.#dependencies.context.scrollState;
-    if (!scrollState) return;
     const observer = new ResizeObserver(() => scrollState.scrollToBottomIfSticky());
     observer.observe(node);
     return () => observer.disconnect();
@@ -557,7 +556,7 @@ export class MessageComposerState {
       } else {
         callbacks.onMessageSent?.(event);
       }
-      this.#dependencies.context.scrollState?.requestScrollToBottom();
+      this.#dependencies.context.scrollState.requestScrollToBottom();
       this.#dependencies.context.replyState.cancelReply();
       // Submission clears loading after this callback. Wait for the editor to
       // become editable again before restoring the caret for the next message.
