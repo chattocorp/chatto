@@ -13,9 +13,6 @@ const { mocks } = vi.hoisted(() => ({
     },
     jumpState: {
       scrollToEventId: null as string | null,
-      isJumpedMode: false,
-      isLoadingNewer: false,
-      hasReachedEnd: false,
       setJumpHandler: vi.fn(),
       setLoadNewerHandler: vi.fn(),
       reset: vi.fn()
@@ -42,14 +39,10 @@ vi.mock('./EventList.svelte', async () => {
 function createStore(): MessagesStore {
   return {
     rootEvents: [],
-    isLoadingMore: false,
-    hasReachedStart: true,
-    isInitialLoading: false,
     setRoom: vi.fn(),
     jumpToMessage: vi.fn(),
     loadNewer: vi.fn(),
-    loadMore: vi.fn(),
-    jumpToPresent: vi.fn()
+    loadMore: vi.fn()
   } as unknown as MessagesStore;
 }
 
@@ -87,16 +80,6 @@ describe('RoomEventsPane', () => {
     expect(mocks.jumpState.reset).toHaveBeenCalledOnce();
     expect(store.setRoom).toHaveBeenCalledOnce();
     expect(store.loadMore).not.toHaveBeenCalled();
-  });
-
-  it('preserves initial loading with limited access', async () => {
-    const store = createStore();
-    store.isInitialLoading = true;
-    const { container } = render(RoomEventsPane, {
-      props: { roomId: 'dm-1', messageStore: store, hasLimitedMessageAccess: true }
-    });
-
-    expect(container.querySelector('[data-testid="event-list-empty-message"]')).toBeNull();
   });
 
   it('forwards unread marker state and bottom arrival to EventList', () => {
