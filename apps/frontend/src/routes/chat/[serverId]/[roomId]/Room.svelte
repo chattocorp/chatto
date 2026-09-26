@@ -943,7 +943,9 @@
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
             class={[
-              'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background p-4',
+              // Fade in from transparent so a fast chunk load, which replaces
+              // this placeholder after one frame, does not flash it.
+              'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background p-4 transition-opacity starting:opacity-0',
               splitThreadLayout
                 ? 'relative w-[var(--thread-pane-width)] shrink-0'
                 : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
