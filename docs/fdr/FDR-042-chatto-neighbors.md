@@ -30,12 +30,11 @@ recommendation, not a trust or reciprocal relationship.
   origin, public name, version, description, logo, and banner. It also tells
   whether the called server advertises the result directly and which other
   Neighborhood servers mutually recommend it.
-- The server refreshes the Neighborhood when the cached result is one hour
-  old. After a failed remote request, it refreshes when the cached result is
-  ten minutes old. After a Neighbor change, it refreshes when the cached
-  result is at least two minutes old. One pass permits at most 150 directory
-  requests and 120 profile requests, with six active requests and a
-  ten-second timeout for each request.
+- The server refreshes the Neighborhood when the cached result is one hour old.
+  After a failed remote request, it refreshes when the cached result is ten
+  minutes old. A Neighbor change starts a refresh after a few seconds. One pass
+  permits at most 150 directory requests and 120 profile requests, with six
+  active requests and a ten-second timeout for each request.
 - Neighborhood discovery rejects redirects and servers on loopback, private,
   and link-local network addresses. It stores re-encoded copies of logos and
   banners and serves them from the called server.

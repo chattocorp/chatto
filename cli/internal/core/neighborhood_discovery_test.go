@@ -10,7 +10,9 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -115,7 +117,8 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, directory)
 
-	require.NoError(t, discovery.refreshIfDue(ctx))
+	_, err = discovery.refreshIfDue(ctx)
+	require.NoError(t, err)
 	directory, err = core.NeighborhoodDirectory(ctx)
 	require.NoError(t, err)
 	require.Equal(t, timestamppb.New(*now).AsTime(), directory.GetRefreshedAt().AsTime())
@@ -150,20 +153,105 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 
 	// A fresh directory is not refreshed again.
 	lists, images := fetcher.counts()
-	require.NoError(t, discovery.refreshIfDue(ctx))
+	_, err = discovery.refreshIfDue(ctx)
+	require.NoError(t, err)
 	lists2, images2 := fetcher.counts()
 	require.Equal(t, lists, lists2)
 	require.Equal(t, images, images2)
 
 	// An hourly refresh reuses images while their source URLs are unchanged.
 	*now = now.Add(neighborhoodRefreshAge)
-	require.NoError(t, discovery.refreshIfDue(ctx))
+	_, err = discovery.refreshIfDue(ctx)
+	require.NoError(t, err)
 	lists3, images3 := fetcher.counts()
 	require.Greater(t, lists3, lists2)
 	require.Equal(t, images2, images3)
 	refreshed, err := core.NeighborhoodDirectory(ctx)
 	require.NoError(t, err)
 	require.Equal(t, first.GetLogo().GetObjectName(), refreshed.GetServers()[0].GetLogo().GetObjectName())
+}
+
+func TestNeighborhoodDiscoveryWakesAfterNeighborChange(t *testing.T) {
+	core, discovery, fetcher, start := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	// The worker reads the clock on its own goroutine.
+	var now atomic.Int64
+	now.Store(start.UnixNano())
+	discovery.now = func() time.Time { return time.Unix(0, now.Load()) }
+	var mu sync.Mutex
+	neighbors := []string{"https://a.example"}
+	discovery.neighbors = func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(neighbors)
+	}
+	fetcher.profiles["https://c.example"] = neighborhood.Profile{Name: "C", Version: "0.5.0"}
+	discovery.changed = make(chan struct{}, 1)
+	// A long periodic interval proves that the change signal starts the check.
+	discovery.checkInterval = time.Hour
+	discovery.changeDebounce = 10 * time.Millisecond
+	bootDone := make(chan struct{})
+	close(bootDone)
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- discovery.Run(runCtx, bootDone) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	require.Eventually(t, func() bool {
+		directory, err := core.NeighborhoodDirectory(ctx)
+		return err == nil && directory != nil
+	}, 5*time.Second, 10*time.Millisecond)
+
+	mu.Lock()
+	neighbors = append(neighbors, "https://c.example")
+	mu.Unlock()
+	now.Add(int64(neighborhoodSourceChangeDelay))
+	discovery.notifyNeighborsChanged()
+
+	require.Eventually(t, func() bool {
+		directory, err := core.NeighborhoodDirectory(ctx)
+		if err != nil || directory == nil {
+			return false
+		}
+		return slices.ContainsFunc(directory.GetServers(), func(server *cachestatev1.NeighborhoodServerRecord) bool {
+			return server.GetOrigin() == "https://c.example"
+		})
+	}, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestNeighborhoodDiscoveryReportsPendingNeighborChange(t *testing.T) {
+	_, discovery, _, now := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	retryAfter, err := discovery.refreshIfDue(ctx)
+	require.NoError(t, err)
+	require.Zero(t, retryAfter)
+
+	neighbors := []string{"https://a.example", "https://b.example"}
+	discovery.neighbors = func() []string { return neighbors }
+	*now = now.Add(4 * time.Second)
+	retryAfter, err = discovery.refreshIfDue(ctx)
+	require.NoError(t, err)
+	require.Equal(t, neighborhoodSourceChangeDelay-4*time.Second, retryAfter)
+
+	*now = now.Add(retryAfter)
+	retryAfter, err = discovery.refreshIfDue(ctx)
+	require.NoError(t, err)
+	require.Zero(t, retryAfter)
+	directory, err := discovery.load(ctx)
+	require.NoError(t, err)
+	require.Equal(t, neighborhoodSourceFingerprint(discovery.selfOrigins, neighbors), directory.GetSourceFingerprint())
+}
+
+func TestNeighborhoodDiscoveryNotifyNeverBlocks(t *testing.T) {
+	discovery := &neighborhoodDiscovery{changed: make(chan struct{}, 1)}
+	discovery.notifyNeighborsChanged()
+	discovery.notifyNeighborsChanged()
+	var missing *neighborhoodDiscovery
+	missing.notifyNeighborsChanged()
+	require.Len(t, discovery.changed, 1)
 }
 
 func TestNeighborhoodDiscoveryDue(t *testing.T) {
@@ -185,7 +273,7 @@ func TestNeighborhoodDiscoveryDue(t *testing.T) {
 		{name: "fresh", current: directory(time.Minute, "same"), want: false},
 		{name: "old", current: directory(neighborhoodRefreshAge, "same"), want: true},
 		{name: "future", current: directory(-time.Minute, "same"), want: true},
-		{name: "recent Neighbor change", current: directory(time.Minute, "other"), want: false},
+		{name: "recent Neighbor change", current: directory(5*time.Second, "other"), want: false},
 		{name: "settled Neighbor change", current: directory(neighborhoodSourceChangeDelay, "other"), want: true},
 		{name: "recent incomplete pass", current: incomplete(directory(time.Minute, "same")), want: false},
 		{name: "old incomplete pass", current: incomplete(directory(neighborhoodIncompleteRetryAge, "same")), want: true},

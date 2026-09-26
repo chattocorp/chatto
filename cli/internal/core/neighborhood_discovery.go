@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -39,12 +40,17 @@ const (
 	// next discovery pass.
 	neighborhoodRefreshAge = time.Hour
 	// neighborhoodSourceChangeDelay is the minimum directory age before a
-	// Neighbor change starts a new pass. It merges quick successive edits.
-	neighborhoodSourceChangeDelay = 2 * time.Minute
+	// Neighbor change starts a new pass. It limits the pass rate during a
+	// series of edits.
+	neighborhoodSourceChangeDelay = 10 * time.Second
+	// neighborhoodChangeDebounce is the wait after a local Neighbor change
+	// before the replica checks the directory. It merges quick successive
+	// edits into one pass.
+	neighborhoodChangeDebounce = 3 * time.Second
 	// neighborhoodIncompleteRetryAge is the maximum age of a directory from
 	// a pass with failed remote requests.
 	neighborhoodIncompleteRetryAge = 10 * time.Minute
-	neighborhoodCheckInterval     = time.Minute
+	neighborhoodCheckInterval      = time.Minute
 	// neighborhoodPassTimeout bounds one pass, including image downloads.
 	neighborhoodPassTimeout = 20 * time.Minute
 	// neighborhoodImageTTL is the object store TTL. Discovery rewrites an
@@ -88,43 +94,91 @@ type neighborhoodDiscovery struct {
 	limits      neighborhood.Limits
 	logger      *log.Logger
 	now         func() time.Time
+	// changed receives a signal after a Neighbor mutation on this replica.
+	// The buffer holds one pending signal.
+	changed chan struct{}
+	// checkInterval and changeDebounce override the production timings in
+	// tests.
+	checkInterval  time.Duration
+	changeDebounce time.Duration
 }
 
-// Run checks the directory once per minute after boot and refreshes it when
-// it is missing, old, incomplete for ten minutes, or based on different
-// Neighbors.
+// notifyNeighborsChanged asks the worker on this replica to check the
+// directory soon. Other replicas find the change at their next periodic
+// check. The call never blocks.
+func (d *neighborhoodDiscovery) notifyNeighborsChanged() {
+	if d == nil || d.changed == nil {
+		return
+	}
+	select {
+	case d.changed <- struct{}{}:
+	default:
+	}
+}
+
+// Run checks the directory once per minute after boot, and soon after a
+// Neighbor change on this replica. It refreshes the directory when it is
+// missing, old, incomplete for ten minutes, or based on different Neighbors.
 func (d *neighborhoodDiscovery) Run(ctx context.Context, bootDone <-chan struct{}) error {
 	select {
 	case <-bootDone:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	ticker := time.NewTicker(neighborhoodCheckInterval)
+	checkInterval := cmp.Or(d.checkInterval, neighborhoodCheckInterval)
+	changeDebounce := cmp.Or(d.changeDebounce, neighborhoodChangeDebounce)
+	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 	for {
-		if err := d.refreshIfDue(ctx); err != nil {
+		retryAfter, err := d.refreshIfDue(ctx)
+		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			d.logger.Warn("Neighborhood discovery failed", "stage", "refresh", "error", err)
 		}
+		// A Neighbor change that arrived during the minimum pass interval is
+		// checked again when that interval ends.
+		var retry <-chan time.Time
+		if retryAfter > 0 {
+			retry = time.After(retryAfter)
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
+		case <-retry:
+		case <-d.changed:
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(changeDebounce):
+			}
+			// Signals from edits during the wait belong to this check.
+			select {
+			case <-d.changed:
+			default:
+			}
 		}
 	}
 }
 
-func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) error {
+// refreshIfDue runs a discovery pass when the directory is due. When the
+// directory is based on different Neighbors but is younger than the minimum
+// pass interval, it returns the time until that interval ends.
+func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) (time.Duration, error) {
 	sources := d.neighbors()
 	fingerprint := neighborhoodSourceFingerprint(d.selfOrigins, sources)
 	current, err := d.load(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if !d.due(current, fingerprint) {
-		return nil
+		if current.GetSourceFingerprint() == fingerprint {
+			return 0, nil
+		}
+		age := d.now().Sub(current.GetRefreshedAt().AsTime())
+		return max(neighborhoodSourceChangeDelay-age, time.Millisecond), nil
 	}
 	_, err = d.lease.TryRun(ctx, func(leaderCtx context.Context) error {
 		// Another replica can finish a pass between the first check and
@@ -138,7 +192,7 @@ func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) error {
 		}
 		return d.refresh(leaderCtx, sources, fingerprint, current)
 	})
-	return err
+	return 0, err
 }
 
 func (d *neighborhoodDiscovery) due(current *cachestatev1.NeighborhoodDirectory, fingerprint string) bool {
@@ -381,6 +435,7 @@ func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure
 		limits:    neighborhood.DefaultLimits,
 		logger:    logger.WithPrefix("core.NeighborhoodDiscovery"),
 		now:       time.Now,
+		changed:   make(chan struct{}, 1),
 	}
 	return nil
 }
