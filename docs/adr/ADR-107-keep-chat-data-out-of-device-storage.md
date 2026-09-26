@@ -52,9 +52,9 @@ defines that behavior.
 The service worker keeps its complete, versioned application shell. ADR-103
 defines that shell. The shell contains no private data.
 
-Cross-tab messages for sign-out, account changes, and server removal remain.
-Other tabs clear the affected server's in-memory private data. See FDR-023 for
-how they apply the stored session.
+The `chatto-private-cache` cross-tab channel is removed. Its main purpose was
+to delete saved chat views in other tabs. FDR-023 describes how other tabs
+learn of a sign-out.
 
 On each page load, the client deletes the `chatto-saved-views` IndexedDB
 database that 0.5 beta clients created. A tab that runs an older client can
