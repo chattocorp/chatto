@@ -8,6 +8,7 @@ import {
   bearerRenewalInterceptor,
   createChattoClient,
   dataGenerationInterceptor,
+  minimumCursorHeaders,
   privateRequestInterceptor,
   skipAuthenticationRequired,
   StaleResponseError
@@ -152,9 +153,9 @@ describe('bearerRenewalInterceptor', () => {
       expect(request.header.get('Authorization')).toBe('Bearer access-2');
       expect(next).toHaveBeenCalledTimes(2);
       await expect(
-        authenticationRequiredInterceptor(config)(() => Promise.reject(error))(
-          { contextValues: createContextValues() } as never
-        )
+        authenticationRequiredInterceptor(config)(() => Promise.reject(error))({
+          contextValues: createContextValues()
+        } as never)
       ).rejects.toBe(error);
       expect(onAuthenticationRequired).not.toHaveBeenCalled();
     } finally {
@@ -235,4 +236,53 @@ describe('authenticationRequiredInterceptor', () => {
         vi.unstubAllGlobals();
       }
     }));
+});
+
+describe('createChattoTransport request headers', () => {
+  async function sentHeaders(
+    config: Omit<Parameters<typeof createChattoClient>[1], 'baseUrl'>,
+    minimumCursor?: string
+  ): Promise<Headers> {
+    const fetch = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(new Uint8Array(), {
+          status: 200,
+          headers: { 'Content-Type': 'application/proto' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    try {
+      const client = createChattoClient(RoomService, {
+        baseUrl: 'http://localhost:1234/api/connect',
+        ...config
+      });
+      await client.listMembers(
+        { roomId: 'room' },
+        { headers: minimumCursorHeaders(minimumCursor) }
+      );
+      return new Headers(fetch.mock.calls[0][1]?.headers);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }
+
+  it('sends the renewed bearer token together with the realtime cursor', async () => {
+    const headers = await sentHeaders(
+      { serverId: 'remote', bearerToken: 'stale', renewBearerToken: async () => 'access-1' },
+      'cursor-7'
+    );
+    expect(headers.get('Authorization')).toBe('Bearer access-1');
+    expect(headers.get('Chatto-Realtime-Minimum-Cursor')).toBe('cursor-7');
+  });
+
+  it('sends a fixed bearer token without a renewal function', async () => {
+    const headers = await sentHeaders({ bearerToken: 'fixed-token' });
+    expect(headers.get('Authorization')).toBe('Bearer fixed-token');
+    expect(headers.has('Chatto-Realtime-Minimum-Cursor')).toBe(false);
+  });
+
+  it('sends no bearer token for a cookie session', async () => {
+    const headers = await sentHeaders({ serverId: 'origin', bearerToken: null });
+    expect(headers.has('Authorization')).toBe(false);
+  });
 });
