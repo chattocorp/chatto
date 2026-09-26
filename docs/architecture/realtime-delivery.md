@@ -163,7 +163,8 @@ that boundary. User captures contain encrypted PII, avatar references,
 preferences, and roles from the same generation. The server releases the read
 barrier before it resolves data-encryption keys, assembles user resources,
 encodes protobuf messages, or writes to the WebSocket. Slow key storage or a
-KMS cannot stop content-view event application.
+KMS cannot stop content-view event application. The server resolves the keys
+for at most 16 referenced users at the same time.
 
 One atomic `snapshot` frame contains these canonical `chatto.api.v1` resource
 shapes:
