@@ -160,9 +160,6 @@ thread IDs can change while the pane stays mounted.
       })
     : useRoomUnread(() => ({ roomId, events, canReadMessages }));
 
-  /** The read-state target: the thread root in a thread, otherwise the room. */
-  const readTargetId = $derived(threadRootEventId ?? roomId);
-
   // A reply or a jump belongs to the conversation that started it.
   let replyTargetKey = untrack(() => targetKey);
   $effect(() => {
@@ -279,7 +276,7 @@ thread IDs can change while the pane stays mounted.
     if (actorId) typingIndicator.removeTypingUser(actorId);
     const viewer = stores.currentUser.user;
     if (viewer && actorId !== viewer.id && appState.isPresent) {
-      void unread.markAsRead(readTargetId, projectionEvent.event?.id ?? '');
+      void unread.markAsRead(threadRootEventId ?? roomId, projectionEvent.event?.id ?? '');
     }
   });
 

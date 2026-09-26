@@ -574,7 +574,8 @@
     appUi.toggleRoomCallWide(activeServerId, roomId);
   }
 
-  function openFileMessage(
+  /** Show a message from a sidebar panel in its thread or in the room timeline. */
+  function openMessage(
     messageEventId: string,
     threadRootEventId: string | null,
     closeMobile = false
@@ -587,27 +588,6 @@
     if (closeMobile) {
       appUi.closeMobileRoomSidebarPanel();
     }
-  }
-
-  function openSearchResult(
-    messageEventId: string,
-    threadRootEventId: string | null,
-    closeMobile = false
-  ): void {
-    if (threadRootEventId) {
-      openThread(threadRootEventId, { highlightEventId: messageEventId });
-    } else {
-      navigation.beginHighlight(roomId, null, messageEventId);
-    }
-    if (closeMobile) appUi.closeMobileRoomSidebarPanel();
-  }
-
-  function openPinnedMessage(
-    messageEventId: string,
-    threadRootEventId: string | null,
-    closeMobile = false
-  ): void {
-    openFileMessage(messageEventId, threadRootEventId, closeMobile);
   }
 </script>
 
@@ -894,11 +874,11 @@
               onSearchFocused: () => searchFocused('mobile'),
               activeProfileUserId: activeMobileRoomSidebarProfileUserId,
               onOpenFileMessage: (messageEventId, threadRootEventId) =>
-                openFileMessage(messageEventId, threadRootEventId, true),
+                openMessage(messageEventId, threadRootEventId, true),
               onOpenSearchResult: (messageEventId, threadRootEventId) =>
-                openSearchResult(messageEventId, threadRootEventId, true),
+                openMessage(messageEventId, threadRootEventId, true),
               onOpenPin: (messageEventId, threadRootEventId) =>
-                openPinnedMessage(messageEventId, threadRootEventId, true),
+                openMessage(messageEventId, threadRootEventId, true),
               onClose: closeMobileRoomSidebar
             }
           : null}
@@ -915,9 +895,9 @@
           onSearchFocused: () => searchFocused('desktop'),
           activeProfileUserId: activeDesktopRoomSidebarProfileUserId,
           maximized: isDesktopCallMaximized,
-          onOpenFileMessage: openFileMessage,
-          onOpenSearchResult: openSearchResult,
-          onOpenPin: openPinnedMessage,
+          onOpenFileMessage: openMessage,
+          onOpenSearchResult: openMessage,
+          onOpenPin: openMessage,
           onToggleMaximized: toggleDesktopCallWide,
           onClose: closeDesktopRoomSidebar
         }}
