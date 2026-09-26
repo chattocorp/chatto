@@ -356,6 +356,7 @@ import { ServerStateStore } from './store.svelte';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import {
   registerFollowedThreadQueryCache,
+  registerMessagePreviewQueryCache,
   registerRoomMemberQueryCache,
   registerServerQueryCache
 } from '$lib/query/cacheRegistry';
@@ -2411,6 +2412,8 @@ describe('ServerStateStore unified realtime resources', () => {
   });
 
   it('reconciles latest-value resources and snapshot timelines at catch-up', async () => {
+    const refreshPreviews = vi.fn();
+    registerMessagePreviewQueryCache({ refresh: refreshPreviews });
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
     const members = store.membersForRoom('R1');
@@ -2455,11 +2458,21 @@ describe('ServerStateStore unified realtime resources', () => {
     await flushPromises();
     expect(refreshMembers).toHaveBeenCalledWith({ minimumCursor: 'opaque-reset-cursor' });
     expect(completed).toBe(false);
+    expect(refreshPreviews).not.toHaveBeenCalled();
+    expect(store.minimumReadCursor).toBeUndefined();
     membershipRead.resolve();
     await bootstrap;
+    expect(refreshPreviews).toHaveBeenCalledExactlyOnceWith(store.serverId);
+    expect(store.minimumReadCursor).toBe('opaque-reset-cursor');
+
+    // The next snapshot must not reuse the earlier snapshot's cursor.
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    expect(store.minimumReadCursor).toBeUndefined();
   });
 
   it('does not replace mounted timelines after an ordinary resume', async () => {
+    const refreshPreviews = vi.fn();
+    registerMessagePreviewQueryCache({ refresh: refreshPreviews });
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
     const hydrate = vi.spyOn(messages, 'hydrateRealtimeProjection');
@@ -2467,6 +2480,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     await store.completeRealtimeCatchUp('opaque-resume-cursor');
 
+    expect(refreshPreviews).not.toHaveBeenCalled();
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
       'notifications',
       'opaque-resume-cursor'

@@ -68,6 +68,7 @@ import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineE
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   purgeRegisteredRoomMemberQueries,
+  refreshRegisteredMessagePreviews,
   refreshRegisteredAdminQueries,
   refreshRegisteredAdminProfileQueries,
   refreshRegisteredRoleQueries,
@@ -157,6 +158,15 @@ export class ServerStateStore {
   readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
+
+  /**
+   * Minimum cursor for a read that must include every event this client has
+   * applied. A snapshot clears the resume cursor until catch-up completes; in
+   * that interval, reads use the snapshot cursor once its data is applied.
+   */
+  get minimumReadCursor(): string | undefined {
+    return this.realtimeSync.resumeCursor ?? this.#snapshotReadCursor ?? undefined;
+  }
   /** Display identity is independent of whether this connection has verified its account. */
   get viewerId(): string | null {
     return this.currentUser.user?.id ?? this.#getSession().userId ?? null;
@@ -217,6 +227,11 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
+  /**
+   * Cursor of the last snapshot whose data catch-up applied. A new snapshot
+   * clears it. `minimumReadCursor` uses it only while the resume cursor is null.
+   */
+  #snapshotReadCursor: string | null = null;
   /** Catch-up reads can replace retained state while live hints arrive. */
   #catchUpResourceReads = 0;
   #permissionCheckGeneration = 0;
@@ -501,6 +516,9 @@ export class ServerStateStore {
         Object.values(this.#roomMembers).map((store) => store.refresh({ minimumCursor: cursor }))
       );
       this.requireCurrentRealtimeProjection(generation);
+      // A snapshot skips the edits and retractions made during the gap.
+      this.#snapshotReadCursor = cursor;
+      refreshRegisteredMessagePreviews(this.serverId);
       this.#realtimeSnapshotPending = false;
     }
     await this.waitForRealtimeReconciliation();
@@ -837,6 +855,8 @@ export class ServerStateStore {
     let adminRoomLayoutChanged = update.reset;
 
     if (update.reset) {
+      // Clear first, so a failed cleanup cannot keep the cursor of an earlier snapshot.
+      this.#snapshotReadCursor = null;
       this.#messageReconciler.reset();
       this.#permissionCheckGeneration++;
       this.checkingPermissions = false;

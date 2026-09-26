@@ -2,17 +2,25 @@ import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import '../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
 import type { MessageLink } from '$lib/messageLinks';
 
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
-const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.hoisted(() => ({
-  getRoomEventsAroundMock: vi.fn(),
-  timelineResults: [] as unknown[],
-  refreshAssetUrlsMock: vi.fn()
-}));
+const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock, registryState } =
+  vi.hoisted(() => ({
+    getRoomEventsAroundMock: vi.fn(),
+    timelineResults: [] as unknown[],
+    refreshAssetUrlsMock: vi.fn(),
+    // Reactive server records, so tests can change session state under a mounted card.
+    registryState: {} as {
+      servers: Map<string, Record<string, unknown>>;
+      stores: Map<string, Record<string, unknown>>;
+      connections: Map<string, { queryScope: string; getAPI: unknown }>;
+    }
+  }));
 
 function testImageUrl(label: string): string {
   return `data:image/svg+xml,${encodeURIComponent(
@@ -41,27 +49,25 @@ vi.mock('$lib/api-client/attachments', async (importActual) => ({
   }))
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    tryGetStore: () => ({
-      currentUser: {
-        user: { login: 'viewer' }
+vi.mock('$lib/state/server/registry.svelte', async () => {
+  const { SvelteMap } = await import('svelte/reactivity');
+  registryState.servers = new SvelteMap([
+    ['server_1', { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
+  ]);
+  registryState.stores = new SvelteMap();
+  registryState.connections = new Map();
+  return {
+    serverRegistry: {
+      tryGetStore: (id: string) => registryState.stores.get(id),
+      getServer: (id: string) => registryState.servers.get(id),
+      isOriginServer: (id: string) => id === 'server_1',
+      get originServer() {
+        return { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null };
       },
-      navigation: {
-        rooms: [{ id: 'room_1', name: 'general' }]
-      }
-    }),
-    getServer: (id: string) =>
-      id === 'server_1'
-        ? { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }
-        : undefined,
-    isOriginServer: (id: string) => id === 'server_1',
-    get originServer() {
-      return { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null };
-    },
-    servers: [{ id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
-  }
-}));
+      servers: [{ id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
+    }
+  };
+});
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server_1'
@@ -69,9 +75,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
-    getClient: () => ({
-      getAPI: (factory: (config: never) => unknown) => factory({} as never)
-    })
+    getClient: (id: string) => registryState.connections.get(id)
   }
 }));
 
@@ -205,7 +209,40 @@ function clearedRefreshResult(attachmentId: string) {
   ]);
 }
 
+function testConnection(queryScope: string) {
+  return {
+    queryScope,
+    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+  };
+}
+
+// Reactive, so a test can advance the cursor under a mounted card.
+const readCursor = $state({ value: 'cursor-1' });
+
+function testStore() {
+  return {
+    currentUser: {
+      user: { login: 'viewer' }
+    },
+    navigation: {
+      rooms: [{ id: 'room_1', name: 'general' }]
+    },
+    get minimumReadCursor() {
+      return readCursor.value;
+    }
+  };
+}
+
 beforeEach(() => {
+  readCursor.value = 'cursor-1';
+  registryState.connections.set('server_1', testConnection('session-1'));
+  registryState.stores.set('server_1', testStore());
+  registryState.servers.set('server_1', {
+    id: 'server_1',
+    url: window.location.origin,
+    name: 'Test Server',
+    token: null
+  });
   getRoomEventsAroundMock.mockReset();
   refreshAssetUrlsMock.mockReset();
   timelineResults.length = 0;
@@ -232,6 +269,51 @@ describe('MessagePreviewCard', () => {
     expect(card.textContent).toContain('Stable preview');
   });
 
+  it('keeps the rendered preview when server session state changes', async () => {
+    timelineResults.push(bodyPreviewResult('Resumed preview'));
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    const card = await vi.waitFor(() => {
+      const node = container.querySelector('[data-testid="message-preview-card"]');
+      expect(node).not.toBeNull();
+      return node!;
+    });
+
+    // A reconnect after the app resumes updates the server's session record.
+    registryState.servers.set('server_1', {
+      ...registryState.servers.get('server_1'),
+      token: 'renewed-token'
+    });
+    await tick();
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
+    expect(card.textContent).toContain('Resumed preview');
+  });
+
+  it('reloads the preview when the server store is replaced', async () => {
+    timelineResults.push(bodyPreviewResult('First account preview'));
+    const second = deferred<ReturnType<typeof bodyPreviewResult>>();
+    getRoomEventsAroundMock
+      .mockImplementationOnce(() => Promise.resolve(timelineResults.shift()))
+      .mockReturnValueOnce(second.promise);
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('First account preview'));
+
+    // Sign-out and account changes replace the server's store and connection.
+    registryState.connections.set('server_1', testConnection('session-2'));
+    registryState.stores.set('server_1', testStore());
+    await tick();
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
+    second.resolve(bodyPreviewResult('Second account preview'));
+    await vi.waitFor(() => expect(container.textContent).toContain('Second account preview'));
+  });
+
   it('preserves an outstanding request when an equivalent link object arrives', async () => {
     const pending = deferred<ReturnType<typeof bodyPreviewResult>>();
     getRoomEventsAroundMock.mockReturnValueOnce(pending.promise);
@@ -250,8 +332,7 @@ describe('MessagePreviewCard', () => {
   it.each([
     ['server', { serverId: null }],
     ['room', { roomId: 'room_2' }],
-    ['message', { messageId: 'event_2' }],
-    ['thread', { threadRootEventId: 'thread_2' }]
+    ['message', { messageId: 'event_2' }]
   ] as const)('clears the preview when the %s target changes', async (_field, change) => {
     timelineResults.push(bodyPreviewResult('Previous preview'));
     const { container, rerender } = render(MessagePreviewCard, {
@@ -264,6 +345,54 @@ describe('MessagePreviewCard', () => {
 
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
     expect(getRoomEventsAroundMock).toHaveBeenCalledTimes('serverId' in change ? 1 : 2);
+  });
+
+  it('keeps the preview when only the thread of the link changes', async () => {
+    timelineResults.push(bodyPreviewResult('Thread preview'));
+    const { container, rerender } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    const card = await vi.waitFor(() => {
+      const node = container.querySelector('[data-testid="message-preview-card"]');
+      expect(node).not.toBeNull();
+      return node!;
+    });
+
+    await rerender({ link: { ...link(), threadRootEventId: 'thread_2' } });
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
+  });
+
+  it('does not reload the preview when the accepted cursor advances', async () => {
+    timelineResults.push(bodyPreviewResult('Steady preview'));
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('Steady preview'));
+
+    // Every accepted realtime event advances the cursor.
+    readCursor.value = 'cursor-2';
+    await tick();
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads at the accepted realtime cursor with a cancellable request', async () => {
+    timelineResults.push(bodyPreviewResult('Bounded preview'));
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('Bounded preview'));
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: 'room_1',
+        eventId: 'event_1',
+        minimumCursor: 'cursor-1',
+        signal: expect.any(AbortSignal)
+      })
+    );
   });
 
   it('ignores a late response after the target changes', async () => {

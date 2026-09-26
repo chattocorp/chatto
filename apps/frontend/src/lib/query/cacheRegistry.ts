@@ -16,6 +16,11 @@ type FollowedThreadCache = {
   scrubMessage(serverId: string, roomId: string, eventId: string): void;
   scrubUser(serverId: string): void;
 };
+/** Message link previews of mounted preview cards. */
+type MessagePreviewQueryCache = {
+  /** Reload every preview of a server after a snapshot replaced its projection. */
+  refresh(serverId: string): void;
+};
 type RoomMemberQueryCache = {
   invalidateRoom(serverId: string, roomId: string): void;
   purgeRoom(serverId: string, roomId: string): void;
@@ -32,6 +37,7 @@ let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
 let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
 let followedThreadCache: FollowedThreadCache | undefined;
 let roomMemberQueryCache: RoomMemberQueryCache | undefined;
+let messagePreviewQueryCache: MessagePreviewQueryCache | undefined;
 const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
 const queryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
@@ -71,6 +77,15 @@ export function registerFollowedThreadQueryCache(cache: FollowedThreadCache): vo
 /** Register room-member snapshots without loading TanStack Query into the server-store bundle. */
 export function registerRoomMemberQueryCache(cache: RoomMemberQueryCache): void {
   roomMemberQueryCache = cache;
+}
+
+/** Register message link previews without loading TanStack Query into the server-store bundle. */
+export function registerMessagePreviewQueryCache(cache: MessagePreviewQueryCache): void {
+  messagePreviewQueryCache = cache;
+}
+
+export function refreshRegisteredMessagePreviews(serverId: string): void {
+  messagePreviewQueryCache?.refresh(serverId);
 }
 
 export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: string): void {

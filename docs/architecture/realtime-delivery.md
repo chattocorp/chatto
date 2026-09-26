@@ -452,6 +452,10 @@ refetching them. Checks paused while offline hide their cached data and resume
 when the client reconnects. Query invalidation also fences late matrix
 mutations independently of component disposal. Room membership or message-read
 changes clear only the affected plaintext stores and fence their older reads.
+Message link previews are snapshot queries of the mounted preview cards. They
+read at the viewer's resume cursor. A snapshot clears that cursor until
+catch-up completes. After the snapshot data is applied, the cards reload their
+previews at the snapshot cursor and keep them visible during the reload.
 Searches keep their input and refresh their results. Fresh route authorization
 removes pages whose access was revoked. The shell and other pages remain mounted
 and visible. Search and member checks run even when another resource read fails.
