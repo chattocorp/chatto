@@ -68,7 +68,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
         unreadOnly: input.unreadOnly ?? false,
         page: { limit: input.limit, offset: input.offset }
       };
-      const requestOptions = { ...(options.signal ? { signal: options.signal } : {}) };
+      const requestOptions = { signal: options.signal };
       const response = query
         ? await search
             .searchMessages(

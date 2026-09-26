@@ -38,7 +38,7 @@ export function createUserAPI(config: ConnectAPIConfig) {
             { userIds: ids },
             {
               headers: minimumCursorHeaders(minimumCursor),
-              ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
+              timeoutMs: minimumCursor ? REALTIME_RESOURCE_TIMEOUT_MS : undefined
             }
           )
         ).users;

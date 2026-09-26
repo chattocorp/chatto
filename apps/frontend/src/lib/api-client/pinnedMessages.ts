@@ -18,7 +18,7 @@ export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
         { roomId, page: { limit, offset } },
         {
           headers: minimumCursorHeaders(minimumCursor),
-          ...(minimumCursor ? { timeoutMs: 10_000 } : {})
+          timeoutMs: minimumCursor ? 10_000 : undefined
         }
       );
       await timelineUsersForMessages(

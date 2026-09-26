@@ -99,10 +99,7 @@ export function createRoomDirectoryAPI(config: ConnectAPIConfig) {
       options: { signal?: AbortSignal } = {}
     ): Promise<DirectoryRoomSummary[]> {
       const rooms = await listAllDirectoryRooms((page) =>
-        directory.listRooms(
-          { scope, page },
-          { ...(options.signal ? { signal: options.signal } : {}) }
-        )
+        directory.listRooms({ scope, page }, { signal: options.signal })
       );
       return rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
     },

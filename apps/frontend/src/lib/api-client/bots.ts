@@ -85,7 +85,7 @@ export function createBotAPI(config: ConnectAPIConfig) {
           search: input.search ?? '',
           page: { limit: input.limit, offset: input.offset }
         },
-        { ...(options.signal ? { signal: options.signal } : {}) }
+        { signal: options.signal }
       );
       return {
         bots: response.bots.map(botFromAPI),
@@ -94,10 +94,7 @@ export function createBotAPI(config: ConnectAPIConfig) {
       };
     },
     async getBot(botUserId: string, options: { signal?: AbortSignal } = {}): Promise<Bot> {
-      const response = await client.getBot(
-        { botUserId },
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await client.getBot({ botUserId }, { signal: options.signal });
       return botFromAPI(requiredBot(response.bot));
     },
     async createBot(input: {

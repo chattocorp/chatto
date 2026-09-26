@@ -73,33 +73,6 @@ function mapViewerCapabilities(
   );
 }
 
-function serverClients(config: ConnectAPIConfig) {
-  const discovery = createChattoClient(ServerDiscoveryService, config);
-  const server = createChattoClient(ServerService, config);
-  const viewer = createChattoClient(ViewerService, config);
-  const adminServer = createChattoClient(AdminServerService, config);
-  return { discovery, server, viewer, adminServer };
-}
-
-function mapEditableServerConfig(
-  config:
-    | {
-        serverName?: string;
-        description?: string;
-        motd?: string;
-        welcomeMessage?: string;
-      }
-    | null
-    | undefined
-): EditableServerConfig {
-  return {
-    name: config?.serverName ?? '',
-    description: config?.description ?? '',
-    motd: config?.motd ?? '',
-    welcomeMessage: config?.welcomeMessage ?? ''
-  };
-}
-
 function blockedUsernamesText(entries: readonly string[] | undefined): string {
   return (entries ?? []).join('\n');
 }
@@ -115,13 +88,13 @@ export async function getAuthenticatedServerState(
   config: ConnectAPIConfig,
   options: { signal?: AbortSignal } = {}
 ): Promise<AuthenticatedServerState> {
-  const { discovery, server, viewer } = serverClients(config);
-  const authenticatedCallOptions = { signal: options.signal };
+  const server = createChattoClient(ServerService, config);
+  const callOptions = { signal: options.signal };
   const [discoveryResponse, motdResponse, runtimeResponse, viewerResponse] = await Promise.all([
-    options.signal ? discovery.getServer({}, { signal: options.signal }) : discovery.getServer({}),
-    server.getMotd({}, authenticatedCallOptions),
-    server.getRuntimeConfig({}, authenticatedCallOptions),
-    viewer.getViewer({}, authenticatedCallOptions)
+    createChattoClient(ServerDiscoveryService, config).getServer({}, callOptions),
+    server.getMotd({}, callOptions),
+    server.getRuntimeConfig({}, callOptions),
+    createChattoClient(ViewerService, config).getViewer({}, callOptions)
   ]);
   const profile = mapServerProfile(discoveryResponse.profile);
   const runtime = runtimeResponse.runtime;
@@ -171,21 +144,11 @@ export async function getAuthenticatedServerState(
   };
 }
 
-export async function getServerConfig(
-  config: ConnectAPIConfig,
-  options: { signal?: AbortSignal } = {}
-): Promise<EditableServerConfig> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.getServerConfig({}, { signal: options.signal });
-  return mapEditableServerConfig(response.config);
-}
-
 export async function updateServerConfig(
   config: ConnectAPIConfig,
   input: EditableServerConfig
 ): Promise<EditableServerProfile> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.updateServerConfig({
+  const response = await createChattoClient(AdminServerService, config).updateServerConfig({
     serverName: input.name,
     description: input.description,
     motd: input.motd,
@@ -200,8 +163,7 @@ export async function uploadServerLogo(
   config: ConnectAPIConfig,
   file: File
 ): Promise<EditableServerProfile> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.uploadServerLogo({
+  const response = await createChattoClient(AdminServerService, config).uploadServerLogo({
     image: {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
@@ -212,8 +174,7 @@ export async function uploadServerLogo(
 }
 
 export async function deleteServerLogo(config: ConnectAPIConfig): Promise<EditableServerProfile> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.deleteServerLogo({});
+  const response = await createChattoClient(AdminServerService, config).deleteServerLogo({});
   return mapServerProfile(response.publicProfile);
 }
 
@@ -221,8 +182,7 @@ export async function uploadServerBanner(
   config: ConnectAPIConfig,
   file: File
 ): Promise<EditableServerProfile> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.uploadServerBanner({
+  const response = await createChattoClient(AdminServerService, config).uploadServerBanner({
     image: {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
@@ -233,8 +193,7 @@ export async function uploadServerBanner(
 }
 
 export async function deleteServerBanner(config: ConnectAPIConfig): Promise<EditableServerProfile> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.deleteServerBanner({});
+  const response = await createChattoClient(AdminServerService, config).deleteServerBanner({});
   return mapServerProfile(response.publicProfile);
 }
 
@@ -242,8 +201,10 @@ export async function getServerSecurityConfig(
   config: ConnectAPIConfig,
   options: { signal?: AbortSignal } = {}
 ): Promise<ServerSecurityConfig> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.getServerSecurityConfig({}, { signal: options.signal });
+  const response = await createChattoClient(AdminServerService, config).getServerSecurityConfig(
+    {},
+    { signal: options.signal }
+  );
   return {
     blockedUsernames: blockedUsernamesText(response.blockedUsernames)
   };
@@ -253,8 +214,7 @@ export async function updateBlockedUsernames(
   config: ConnectAPIConfig,
   blockedUsernames: string
 ): Promise<ServerSecurityConfig> {
-  const { adminServer } = serverClients(config);
-  const response = await adminServer.updateBlockedUsernames({
+  const response = await createChattoClient(AdminServerService, config).updateBlockedUsernames({
     blockedUsernames: blockedUsernameEntries(blockedUsernames),
     updateMask: { paths: ['blocked_usernames'] }
   });

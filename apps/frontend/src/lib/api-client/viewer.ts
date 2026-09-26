@@ -144,8 +144,8 @@ export async function getViewerStateViaConnect(
     {},
     {
       ...skipAuthenticationRequired(),
-      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
-      ...(options.signal ? { signal: options.signal } : {})
+      timeoutMs: options.timeoutMs,
+      signal: options.signal
     }
   );
   return viewerResponseToState(response);

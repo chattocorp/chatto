@@ -69,10 +69,7 @@ export function createAdminRoomLayoutAPI(config: ConnectAPIConfig) {
       roomId: string,
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminManagedRoom | null> {
-      const response = await layout.getRoom(
-        { roomId },
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await layout.getRoom({ roomId }, { signal: options.signal });
       return response.room
         ? {
             ...mapAdminRoom(response.room),
@@ -86,10 +83,7 @@ export function createAdminRoomLayoutAPI(config: ConnectAPIConfig) {
       groupId: string,
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminManagedRoomGroup | null> {
-      const response = await layout.getRoomGroup(
-        { groupId },
-        { ...(options.signal ? { signal: options.signal } : {}) }
-      );
+      const response = await layout.getRoomGroup({ groupId }, { signal: options.signal });
       return response.group
         ? {
             group: mapAdminRoomLayoutGroup(response.group),
