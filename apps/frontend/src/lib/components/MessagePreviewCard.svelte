@@ -20,6 +20,7 @@ unknown instance) the component renders nothing.
   import type { MessageLink } from '$lib/messageLinks';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import type { UserAvatarUserView } from '$lib/render/users';
+  import { untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
@@ -123,7 +124,10 @@ unknown instance) the component renders nothing.
   $effect(() => {
     // Capture the target before the async read and track all target fields.
     const target = { serverId, roomId, threadRootEventId, messageId };
-    return loadPreview(target);
+    // Track nothing else. The load reads server session state before its first
+    // await, and a reconnect updates that state. A tracked read would clear the
+    // rendered card and reload it each time the app resumes.
+    return untrack(() => loadPreview(target));
   });
 
   function loadPreview({
