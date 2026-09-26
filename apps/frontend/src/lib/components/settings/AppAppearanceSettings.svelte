@@ -3,12 +3,14 @@
   import { m } from '$lib/i18n/messages';
   import {
     userPreferences,
+    contrastAgeStep,
+    surfaceDepthStep,
     type DisplayTheme,
-    type SurfaceDepth,
     type ThreadPanePresentation
   } from '$lib/state/userPreferences.svelte';
-  import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { ChoiceRow, FormSection, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import AccentColorPicker from './AccentColorPicker.svelte';
+  import SurfaceTonePicker from './SurfaceTonePicker.svelte';
   import RangeField from '$lib/ui/form/RangeField.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
 
@@ -21,6 +23,22 @@
           ? 'settings.preferences.contrast.stronger'
           : 'settings.preferences.contrast.current'
     )}`
+  );
+  const contrastTicks = Array.from({ length: 11 }, (_, index) => 20 + index * contrastAgeStep);
+  const depthTicks = Array.from({ length: 11 }, (_, index) => index * surfaceDepthStep);
+  const depthDisplayValue = $derived(`${userPreferences.surfaceDepth}%`);
+  // Name the former modes where the slider matches them exactly.
+  const depthName = $derived(
+    userPreferences.surfaceDepth === 0
+      ? m('settings.preferences.depth.flat')
+      : userPreferences.surfaceDepth === 50
+        ? m('settings.preferences.depth.three_d')
+        : userPreferences.surfaceDepth === 100
+          ? m('settings.preferences.depth.very_3d')
+          : undefined
+  );
+  const depthValueText = $derived(
+    depthName ? `${depthDisplayValue}, ${depthName}` : depthDisplayValue
   );
   let cacheCleared = $state(false);
 
@@ -50,12 +68,6 @@
     label: string;
     description: string;
   }>);
-
-  const depthOptions = $derived([
-    { value: 'flat', label: m('settings.preferences.depth.flat') },
-    { value: '3d', label: m('settings.preferences.depth.three_d') },
-    { value: 'very-3d', label: m('settings.preferences.depth.very_3d') }
-  ] satisfies Array<{ value: SurfaceDepth; label: string }>);
 
   const threadPaneOptions = $derived([
     {
@@ -102,38 +114,65 @@
       </div>
     </Panel>
 
-    <Panel title={m('settings.preferences.accent.title')} icon="iconify icon-[uil--palette]">
-      <AccentColorPicker
-        value={userPreferences.accentColor}
-        onchange={(value) => (userPreferences.accentColor = value)}
-      />
-    </Panel>
-
-    <Panel title={m('settings.preferences.depth.title')} icon="iconify icon-[uil--layer-group]">
+    <Panel title={m('settings.preferences.customization.title')} icon="iconify icon-[uil--palette]">
       <div class="flex flex-col gap-6">
-        <div class="flex max-w-md flex-col gap-2" role="radiogroup" aria-label={m('settings.preferences.depth.title')}>
-          {#each depthOptions as option (option.value)}
-            <ChoiceRow
-              label={option.label}
-              selected={userPreferences.surfaceDepth === option.value}
-              onclick={() => (userPreferences.surfaceDepth = option.value)}
+        <FormSection title={m('settings.preferences.accent.title')}>
+          <AccentColorPicker
+            value={userPreferences.accentColor}
+            onchange={(value) => (userPreferences.accentColor = value)}
+          />
+        </FormSection>
+        <FormSection title={m('settings.preferences.theme.title')}>
+          {#if userPreferences.effectiveDisplayTheme === 'dark'}
+            <SurfaceTonePicker
+              theme="dark"
+              value={userPreferences.darkSurfaceTone}
+              onchange={(value) => (userPreferences.darkSurfaceTone = value)}
             />
-          {/each}
-        </div>
-        <RangeField
-          id="ui-contrast"
-          label={m('settings.preferences.contrast.label')}
-          min={20}
-          max={40}
-          step={0.5}
-          ticks={[20, 30, 40]}
-          value={userPreferences.contrastAge}
-          displayValue={contrastDisplayValue}
-          ariaValueText={contrastValueText}
-          prominent
-          oninput={(event) =>
-            (userPreferences.contrastAge = (event.currentTarget as HTMLInputElement).valueAsNumber)}
-        />
+          {:else}
+            <SurfaceTonePicker
+              theme="light"
+              value={userPreferences.lightSurfaceTone}
+              onchange={(value) => (userPreferences.lightSurfaceTone = value)}
+            />
+          {/if}
+        </FormSection>
+        <FormSection title={m('settings.preferences.depth.title')}>
+          <div class="@container">
+            <div class="grid gap-3 @min-[36rem]:grid-cols-2">
+              <RangeField
+                id="ui-depth"
+                label={m('settings.preferences.depth.label')}
+                min={0}
+                max={100}
+                step={surfaceDepthStep}
+                ticks={depthTicks}
+                value={userPreferences.surfaceDepth}
+                displayValue={depthDisplayValue}
+                ariaValueText={depthValueText}
+                oninput={(event) =>
+                  (userPreferences.surfaceDepth = (
+                    event.currentTarget as HTMLInputElement
+                  ).valueAsNumber)}
+              />
+              <RangeField
+                id="ui-contrast"
+                label={m('settings.preferences.contrast.label')}
+                min={20}
+                max={40}
+                step={contrastAgeStep}
+                ticks={contrastTicks}
+                value={userPreferences.contrastAge}
+                displayValue={contrastDisplayValue}
+                ariaValueText={contrastValueText}
+                oninput={(event) =>
+                  (userPreferences.contrastAge = (
+                    event.currentTarget as HTMLInputElement
+                  ).valueAsNumber)}
+              />
+            </div>
+          </div>
+        </FormSection>
       </div>
     </Panel>
 

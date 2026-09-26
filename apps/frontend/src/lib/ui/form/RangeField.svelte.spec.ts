@@ -1,5 +1,6 @@
 import '../../../app.css';
 import { describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import RangeField from './RangeField.svelte';
 
@@ -33,7 +34,7 @@ describe('RangeField', () => {
     expect(oninput).toHaveBeenCalledOnce();
   });
 
-  it('fills its container and enlarges the prominent pointer target', () => {
+  it('fills its container and extends the pointer target beyond the track', () => {
     const { container } = render(RangeField, {
       props: {
         id: 'ui-contrast',
@@ -41,17 +42,71 @@ describe('RangeField', () => {
         min: 20,
         max: 40,
         value: 30,
-        displayValue: '30',
-        prominent: true
+        displayValue: '30'
       }
     });
 
     const input = container.querySelector('input') as HTMLInputElement;
     const field = input.closest('label') as HTMLLabelElement;
-    expect(input.style.getPropertyValue('--range-progress')).toBe('50%');
+    const track = container.querySelector('.range-track') as HTMLElement;
+    expect(track.style.getPropertyValue('--range-progress')).toBe('0.5');
     expect(input.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
     expect(field.getBoundingClientRect().width).toBeCloseTo(
       field.parentElement!.getBoundingClientRect().width
     );
   });
+
+  it('draws the grip where the native thumb receives the pointer', () => {
+    const { container } = render(RangeField, {
+      props: {
+        id: 'ui-depth',
+        label: 'Depth',
+        min: 0,
+        max: 100,
+        step: 10,
+        value: 30,
+        displayValue: '30%',
+        ticks: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      }
+    });
+
+    const input = container.querySelector('input') as HTMLInputElement;
+    const grip = container.querySelector('.range-grip') as HTMLElement;
+    const inputBox = input.getBoundingClientRect();
+    const gripBox = grip.getBoundingClientRect();
+    // The native thumb centre travels between half a grip width from each end.
+    const thumbCentre = inputBox.left + gripBox.width / 2 + (inputBox.width - gripBox.width) * 0.3;
+    expect(gripBox.left + gripBox.width / 2).toBeCloseTo(thumbCentre, 0);
+    expect(container.querySelectorAll('.range-tick')).toHaveLength(11);
+    expect(container.querySelectorAll('.range-tick-filled')).toHaveLength(4);
+  });
+
+  it('keeps the bevel lighting on the grip', () => {
+    const { container } = render(RangeField, {
+      props: { id: 'bevel', label: 'Volume', min: 0, max: 100, value: 40, displayValue: '40%' }
+    });
+    const grip = container.querySelector('.range-grip') as HTMLElement;
+    // The hover halo composes with the bevel's inset shadows instead of replacing them.
+    expect(getComputedStyle(grip).boxShadow).toMatch(/inset/);
+  });
+
+  // Hover styling applies only where a pointer can hover; headless CI may report none.
+  it.runIf(matchMedia('(any-hover: hover)').matches)(
+    'highlights the grip while the pointer is over the track',
+    async () => {
+      const { container } = render(RangeField, {
+        props: { id: 'hover', label: 'Volume', min: 0, max: 100, value: 40, displayValue: '40%' }
+      });
+      const track = container.querySelector('.range-track') as HTMLElement;
+      const grip = container.querySelector('.range-grip') as HTMLElement;
+      const active = () => getComputedStyle(track).getPropertyValue('--range-active').trim();
+
+      expect(active()).toBe('');
+      await userEvent.hover(track);
+      expect(active()).toBe('1');
+      expect(getComputedStyle(grip).boxShadow).toMatch(/0px 0px 0px 3px/);
+      await userEvent.unhover(track);
+      expect(active()).toBe('');
+    }
+  );
 });

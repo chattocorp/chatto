@@ -18,35 +18,110 @@
   initial-value: 1;
 }
 
+/* Registered colours interpolate, so theme, tone, accent, and contrast changes
+   fade instead of snapping. Only `:root` transitions them; tokens derived with
+   var(), such as hover shades and links, follow automatically. Keep every value
+   assigned to these properties a valid <color>. */
+@property --color-background {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-surface {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-surface-emphasized {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-surface-strong {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-border {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-input {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-input-border {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-text {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-text-top {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-muted {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-on-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-button-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-neutral-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 :root {
   /* 30 uses the exact existing palette. Each half of the slider mixes toward
      a reviewed endpoint without changing accent, status, focus, or depth. */
   --contrast-soft-mix: 0%;
   --contrast-strong-mix: 0%;
-  --contrast-base-text: var(--color-gray-600);
-  --contrast-soft-text: color-mix(in srgb, var(--color-gray-500), var(--color-gray-400) 45%);
+  --contrast-base-text: var(--tone-600);
+  --contrast-soft-text: color-mix(in srgb, var(--tone-500), var(--tone-400) 45%);
   --contrast-strong-text: var(--color-black);
   --contrast-base-text-top: var(--color-black);
-  --contrast-soft-text-top: var(--color-gray-500);
-  --contrast-base-muted: color-mix(in srgb, var(--color-gray-500), var(--color-gray-600) 75%);
-  --contrast-soft-muted: var(--color-gray-400);
+  --contrast-soft-text-top: var(--tone-500);
+  --contrast-base-muted: color-mix(in srgb, var(--tone-500), var(--tone-600) 75%);
+  --contrast-soft-muted: var(--tone-400);
   --contrast-strong-muted: var(--color-black);
-  --contrast-base-background: var(--color-gray-100);
+  --contrast-base-background: var(--tone-100);
   --contrast-strong-background: var(--color-white);
-  --contrast-base-surface: var(--color-gray-200);
-  --contrast-soft-surface: color-mix(in srgb, var(--color-gray-200), var(--color-gray-100) 55%);
+  --contrast-base-surface: var(--tone-200);
+  --contrast-soft-surface: color-mix(in srgb, var(--tone-200), var(--tone-100) 55%);
   --contrast-strong-surface: var(--color-white);
-  --contrast-base-surface-emphasized: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 55%);
-  --contrast-soft-surface-emphasized: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 30%);
-  --contrast-strong-surface-emphasized: var(--color-gray-100);
-  --contrast-base-surface-strong: var(--color-gray-300);
-  --contrast-soft-surface-strong: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 65%);
-  --contrast-strong-surface-strong: var(--color-gray-200);
-  --contrast-base-border: var(--color-gray-200);
-  --contrast-soft-border: color-mix(in srgb, var(--color-gray-100), var(--color-gray-200) 50%);
+  --contrast-base-surface-emphasized: color-mix(in srgb, var(--tone-200), var(--tone-300) 55%);
+  --contrast-soft-surface-emphasized: color-mix(in srgb, var(--tone-200), var(--tone-300) 30%);
+  --contrast-strong-surface-emphasized: var(--tone-100);
+  --contrast-base-surface-strong: var(--tone-300);
+  --contrast-soft-surface-strong: color-mix(in srgb, var(--tone-200), var(--tone-300) 65%);
+  --contrast-strong-surface-strong: var(--tone-200);
+  --contrast-base-border: var(--tone-200);
+  --contrast-soft-border: color-mix(in srgb, var(--tone-100), var(--tone-200) 50%);
   --contrast-strong-border: var(--color-black);
-  --contrast-base-input-border: var(--color-gray-300);
-  --contrast-soft-input-border: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 70%);
+  --contrast-base-input-border: var(--tone-300);
+  --contrast-soft-input-border: color-mix(in srgb, var(--tone-200), var(--tone-300) 70%);
   --contrast-strong-input-border: var(--color-black);
 
   --inline-direction: 1;
@@ -75,15 +150,6 @@
   --composer-code-title: #8250df;
   --composer-code-literal: #0550ae;
   --composer-code-attribute: #953800;
-}
-
-:root[data-depth='flat'] {
-  --depth-strength: 0;
-}
-
-:root[data-depth='very-3d'] {
-  --depth-strength: 1.75;
-  --depth-width: 1.5;
 }
 
 :root[data-theme='dark'] .composer-code-palette {
@@ -144,10 +210,34 @@
  * `data-theme="dark"`.
  */
 :root {
-  /* Kinda 3D softens decorative depth. Modes never scale focus or boundaries. */
-  transition: --depth-strength 220ms ease-out, --depth-width 220ms ease-out;
-  --depth-strength: 0.75;
-  --depth-width: 1;
+  /* Depth never scales focus or boundaries.
+     Palette colours fade between themes, tones, accents, and contrast steps. */
+  --palette-transition: 240ms ease-out;
+  transition:
+    --depth-strength 220ms ease-out,
+    --depth-width 220ms ease-out,
+    --color-background var(--palette-transition),
+    --color-surface var(--palette-transition),
+    --color-surface-emphasized var(--palette-transition),
+    --color-surface-strong var(--palette-transition),
+    --color-border var(--palette-transition),
+    --color-input var(--palette-transition),
+    --color-input-border var(--palette-transition),
+    --color-text var(--palette-transition),
+    --color-text-top var(--palette-transition),
+    --color-muted var(--palette-transition),
+    --color-action var(--palette-transition),
+    --color-on-action var(--palette-transition),
+    --color-button-action var(--palette-transition),
+    --color-neutral-action var(--palette-transition);
+  /* The Depth slider sets --depth-level from 0 to 100. 0, 50, and 100 give the
+     former Flat, Kinda 3D, and Very 3D modes; other steps interpolate. Strength
+     rises to 0.75 at 50 and to 1.75 at 100; width grows only above 50. */
+  --depth-level: 50;
+  --depth-strength: calc(
+    min(var(--depth-level), 50) * 0.015 + max(var(--depth-level) - 50, 0) * 0.02
+  );
+  --depth-width: calc(1 + max(var(--depth-level) - 50, 0) * 0.01);
   --depth-shadow-xs: 0 1px 2px rgb(0 0 0 / calc(0.05 * var(--depth-strength)));
   --depth-shadow-sm: 0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))), 0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
   color-scheme: light;
@@ -309,34 +399,34 @@
 }
 
 :root[data-theme='dark'] {
-  --contrast-base-text: var(--color-neutral-300);
-  --contrast-soft-text: var(--color-neutral-500);
+  --contrast-base-text: var(--tone-300);
+  --contrast-soft-text: var(--tone-500);
   --contrast-strong-text: var(--color-white);
   --contrast-base-text-top: var(--color-white);
-  --contrast-soft-text-top: var(--color-neutral-500);
-  --contrast-base-muted: var(--color-neutral-400);
-  --contrast-soft-muted: var(--color-neutral-600);
+  --contrast-soft-text-top: var(--tone-500);
+  --contrast-base-muted: var(--tone-400);
+  --contrast-soft-muted: var(--tone-600);
   --contrast-strong-muted: var(--color-white);
-  --contrast-base-background: var(--color-neutral-900);
+  --contrast-base-background: var(--tone-900);
   --contrast-strong-background: var(--color-black);
-  --contrast-base-surface: var(--color-neutral-800);
-  --contrast-soft-surface: color-mix(in srgb, var(--color-neutral-800), var(--color-neutral-900) 35%);
+  --contrast-base-surface: var(--tone-800);
+  --contrast-soft-surface: color-mix(in srgb, var(--tone-800), var(--tone-900) 35%);
   --contrast-strong-surface: var(--color-black);
-  --contrast-base-surface-emphasized: var(--color-neutral-700);
-  --contrast-soft-surface-emphasized: color-mix(in srgb, var(--color-neutral-800), var(--color-neutral-700) 60%);
-  --contrast-strong-surface-emphasized: var(--color-neutral-900);
-  --contrast-base-surface-strong: var(--color-neutral-600);
-  --contrast-soft-surface-strong: color-mix(in srgb, var(--color-neutral-700), var(--color-neutral-600) 60%);
-  --contrast-strong-surface-strong: var(--color-neutral-800);
-  --contrast-base-border: var(--color-neutral-800);
-  --contrast-soft-border: color-mix(in srgb, var(--color-neutral-900), var(--color-neutral-800) 60%);
+  --contrast-base-surface-emphasized: var(--tone-700);
+  --contrast-soft-surface-emphasized: color-mix(in srgb, var(--tone-800), var(--tone-700) 60%);
+  --contrast-strong-surface-emphasized: var(--tone-900);
+  --contrast-base-surface-strong: var(--tone-600);
+  --contrast-soft-surface-strong: color-mix(in srgb, var(--tone-700), var(--tone-600) 60%);
+  --contrast-strong-surface-strong: var(--tone-800);
+  --contrast-base-border: var(--tone-800);
+  --contrast-soft-border: color-mix(in srgb, var(--tone-900), var(--tone-800) 60%);
   --contrast-strong-border: var(--color-white);
-  --contrast-base-input-border: var(--color-neutral-700);
-  --contrast-soft-input-border: color-mix(in srgb, var(--color-neutral-800), var(--color-neutral-700) 65%);
+  --contrast-base-input-border: var(--tone-700);
+  --contrast-soft-input-border: color-mix(in srgb, var(--tone-800), var(--tone-700) 65%);
   --contrast-strong-input-border: var(--color-white);
 
   color-scheme: dark;
-  --segmented-fill: var(--color-neutral-700);
+  --segmented-fill: var(--tone-700);
   --shell-highlight: 0.025;
   --shell-shade: 0.025;
   --shell-edge-highlight: 0.08;
@@ -353,13 +443,13 @@
   --frame-inset-edge: rgb(0 0 0 / calc(0.06 * var(--depth-strength)));
 
   /* See light-mode comment — sits below all surfaces for an inset well look. */
-  --color-input: var(--color-neutral-950);
+  --color-input: var(--tone-950);
 
   --color-action: var(--accent-bright);
   --color-action-hover: color-mix(in srgb, var(--color-action), white 15%);
   --color-on-action: var(--color-neutral-950);
-  --color-neutral-action: var(--color-neutral-600);
-  --color-neutral-action-hover: var(--color-neutral-500);
+  --color-neutral-action: var(--tone-600);
+  --color-neutral-action-hover: var(--tone-500);
   --color-on-neutral-action: var(--color-white);
   --color-link: var(--color-action);
   --color-link-hover: color-mix(in srgb, var(--color-link), white 20%);
@@ -412,6 +502,278 @@
 [data-accent='grey'] {
   --accent-strong: var(--color-neutral-700);
   --accent-bright: var(--color-neutral-300);
+}
+
+/*
+ * Surface tones.
+ *
+ * A tone tints the neutral ramp behind background, surface, border, and text
+ * tokens. The user picks one tone for light and one for dark;
+ * `data-light-tone` and `data-dark-tone` on `<html>` hold both choices, and the
+ * active theme selects between them. A picker sample scopes a single
+ * `data-tone` together with the `data-tone-theme` lightness ramp.
+ *
+ * Each tone supplies only hue and chroma through `--tone-source-*`. Lightness
+ * always comes from the reviewed ramp of the theme, so every tone keeps the
+ * contrast of the original palette at every Contrast setting. Gray (light)
+ * and Neutral (dark) reproduce that palette exactly.
+ */
+:root,
+[data-tone-theme='light'] {
+  --tone-lightness-100: 96.7%;
+  --tone-lightness-200: 92.8%;
+  --tone-lightness-300: 87.2%;
+  --tone-lightness-400: 70.7%;
+  --tone-lightness-500: 55.1%;
+  --tone-lightness-600: 44.6%;
+  --tone-lightness-700: 37.3%;
+  --tone-lightness-800: 27.8%;
+  --tone-lightness-900: 21%;
+  --tone-lightness-950: 13%;
+}
+:root[data-theme='dark'],
+[data-tone-theme='dark'] {
+  --tone-lightness-100: 97%;
+  --tone-lightness-200: 92.2%;
+  --tone-lightness-300: 87%;
+  --tone-lightness-400: 70.8%;
+  --tone-lightness-500: 55.6%;
+  --tone-lightness-600: 43.9%;
+  --tone-lightness-700: 37.1%;
+  --tone-lightness-800: 26.9%;
+  --tone-lightness-900: 20.5%;
+  --tone-lightness-950: 14.5%;
+}
+:root,
+[data-tone] {
+  --tone-100: oklch(from var(--tone-source-100) var(--tone-lightness-100) c h);
+  --tone-200: oklch(from var(--tone-source-200) var(--tone-lightness-200) c h);
+  --tone-300: oklch(from var(--tone-source-300) var(--tone-lightness-300) c h);
+  --tone-400: oklch(from var(--tone-source-400) var(--tone-lightness-400) c h);
+  --tone-500: oklch(from var(--tone-source-500) var(--tone-lightness-500) c h);
+  --tone-600: oklch(from var(--tone-source-600) var(--tone-lightness-600) c h);
+  --tone-700: oklch(from var(--tone-source-700) var(--tone-lightness-700) c h);
+  --tone-800: oklch(from var(--tone-source-800) var(--tone-lightness-800) c h);
+  --tone-900: oklch(from var(--tone-source-900) var(--tone-lightness-900) c h);
+  --tone-950: oklch(from var(--tone-source-950) var(--tone-lightness-950) c h);
+}
+/* Browsers without relative colour syntax keep the original palette and ignore
+   tones; otherwise every tone step, and the registered tokens that use it, would
+   be invalid. */
+@supports not (color: oklch(from red l c h)) {
+  :root,
+  [data-tone-theme='light'] [data-tone],
+  [data-tone-theme='light'][data-tone] {
+    --tone-100: var(--color-gray-100);
+    --tone-200: var(--color-gray-200);
+    --tone-300: var(--color-gray-300);
+    --tone-400: var(--color-gray-400);
+    --tone-500: var(--color-gray-500);
+    --tone-600: var(--color-gray-600);
+    --tone-700: var(--color-gray-700);
+    --tone-800: var(--color-gray-800);
+    --tone-900: var(--color-gray-900);
+    --tone-950: var(--color-gray-950);
+  }
+  :root[data-theme='dark'],
+  [data-tone-theme='dark'] [data-tone],
+  [data-tone-theme='dark'][data-tone] {
+    --tone-100: var(--color-neutral-100);
+    --tone-200: var(--color-neutral-200);
+    --tone-300: var(--color-neutral-300);
+    --tone-400: var(--color-neutral-400);
+    --tone-500: var(--color-neutral-500);
+    --tone-600: var(--color-neutral-600);
+    --tone-700: var(--color-neutral-700);
+    --tone-800: var(--color-neutral-800);
+    --tone-900: var(--color-neutral-900);
+    --tone-950: var(--color-neutral-950);
+  }
+}
+:where(:root) {
+  --tone-source-100: var(--color-gray-100);
+  --tone-source-200: var(--color-gray-200);
+  --tone-source-300: var(--color-gray-300);
+  --tone-source-400: var(--color-gray-400);
+  --tone-source-500: var(--color-gray-500);
+  --tone-source-600: var(--color-gray-600);
+  --tone-source-700: var(--color-gray-700);
+  --tone-source-800: var(--color-gray-800);
+  --tone-source-900: var(--color-gray-900);
+  --tone-source-950: var(--color-gray-950);
+}
+:where(:root[data-theme='dark']) {
+  --tone-source-100: var(--color-neutral-100);
+  --tone-source-200: var(--color-neutral-200);
+  --tone-source-300: var(--color-neutral-300);
+  --tone-source-400: var(--color-neutral-400);
+  --tone-source-500: var(--color-neutral-500);
+  --tone-source-600: var(--color-neutral-600);
+  --tone-source-700: var(--color-neutral-700);
+  --tone-source-800: var(--color-neutral-800);
+  --tone-source-900: var(--color-neutral-900);
+  --tone-source-950: var(--color-neutral-950);
+}
+[data-tone='neutral'],
+:root:not([data-theme='dark'])[data-light-tone='neutral'],
+:root[data-theme='dark'][data-dark-tone='neutral'] {
+  --tone-source-100: var(--color-neutral-100);
+  --tone-source-200: var(--color-neutral-200);
+  --tone-source-300: var(--color-neutral-300);
+  --tone-source-400: var(--color-neutral-400);
+  --tone-source-500: var(--color-neutral-500);
+  --tone-source-600: var(--color-neutral-600);
+  --tone-source-700: var(--color-neutral-700);
+  --tone-source-800: var(--color-neutral-800);
+  --tone-source-900: var(--color-neutral-900);
+  --tone-source-950: var(--color-neutral-950);
+}
+[data-tone='gray'],
+:root:not([data-theme='dark'])[data-light-tone='gray'],
+:root[data-theme='dark'][data-dark-tone='gray'] {
+  --tone-source-100: var(--color-gray-100);
+  --tone-source-200: var(--color-gray-200);
+  --tone-source-300: var(--color-gray-300);
+  --tone-source-400: var(--color-gray-400);
+  --tone-source-500: var(--color-gray-500);
+  --tone-source-600: var(--color-gray-600);
+  --tone-source-700: var(--color-gray-700);
+  --tone-source-800: var(--color-gray-800);
+  --tone-source-900: var(--color-gray-900);
+  --tone-source-950: var(--color-gray-950);
+}
+[data-tone='slate'],
+:root:not([data-theme='dark'])[data-light-tone='slate'],
+:root[data-theme='dark'][data-dark-tone='slate'] {
+  --tone-source-100: var(--color-slate-100);
+  --tone-source-200: var(--color-slate-200);
+  --tone-source-300: var(--color-slate-300);
+  --tone-source-400: var(--color-slate-400);
+  --tone-source-500: var(--color-slate-500);
+  --tone-source-600: var(--color-slate-600);
+  --tone-source-700: var(--color-slate-700);
+  --tone-source-800: var(--color-slate-800);
+  --tone-source-900: var(--color-slate-900);
+  --tone-source-950: var(--color-slate-950);
+}
+[data-tone='stone'],
+:root:not([data-theme='dark'])[data-light-tone='stone'],
+:root[data-theme='dark'][data-dark-tone='stone'] {
+  --tone-source-100: var(--color-stone-100);
+  --tone-source-200: var(--color-stone-200);
+  --tone-source-300: var(--color-stone-300);
+  --tone-source-400: var(--color-stone-400);
+  --tone-source-500: var(--color-stone-500);
+  --tone-source-600: var(--color-stone-600);
+  --tone-source-700: var(--color-stone-700);
+  --tone-source-800: var(--color-stone-800);
+  --tone-source-900: var(--color-stone-900);
+  --tone-source-950: var(--color-stone-950);
+}
+[data-tone='mauve'],
+:root:not([data-theme='dark'])[data-light-tone='mauve'],
+:root[data-theme='dark'][data-dark-tone='mauve'] {
+  --tone-source-100: var(--color-mauve-100);
+  --tone-source-200: var(--color-mauve-200);
+  --tone-source-300: var(--color-mauve-300);
+  --tone-source-400: var(--color-mauve-400);
+  --tone-source-500: var(--color-mauve-500);
+  --tone-source-600: var(--color-mauve-600);
+  --tone-source-700: var(--color-mauve-700);
+  --tone-source-800: var(--color-mauve-800);
+  --tone-source-900: var(--color-mauve-900);
+  --tone-source-950: var(--color-mauve-950);
+}
+[data-tone='olive'],
+:root:not([data-theme='dark'])[data-light-tone='olive'],
+:root[data-theme='dark'][data-dark-tone='olive'] {
+  --tone-source-100: var(--color-olive-100);
+  --tone-source-200: var(--color-olive-200);
+  --tone-source-300: var(--color-olive-300);
+  --tone-source-400: var(--color-olive-400);
+  --tone-source-500: var(--color-olive-500);
+  --tone-source-600: var(--color-olive-600);
+  --tone-source-700: var(--color-olive-700);
+  --tone-source-800: var(--color-olive-800);
+  --tone-source-900: var(--color-olive-900);
+  --tone-source-950: var(--color-olive-950);
+}
+[data-tone='mist'],
+:root:not([data-theme='dark'])[data-light-tone='mist'],
+:root[data-theme='dark'][data-dark-tone='mist'] {
+  --tone-source-100: var(--color-mist-100);
+  --tone-source-200: var(--color-mist-200);
+  --tone-source-300: var(--color-mist-300);
+  --tone-source-400: var(--color-mist-400);
+  --tone-source-500: var(--color-mist-500);
+  --tone-source-600: var(--color-mist-600);
+  --tone-source-700: var(--color-mist-700);
+  --tone-source-800: var(--color-mist-800);
+  --tone-source-900: var(--color-mist-900);
+  --tone-source-950: var(--color-mist-950);
+}
+[data-tone='taupe'],
+:root:not([data-theme='dark'])[data-light-tone='taupe'],
+:root[data-theme='dark'][data-dark-tone='taupe'] {
+  --tone-source-100: var(--color-taupe-100);
+  --tone-source-200: var(--color-taupe-200);
+  --tone-source-300: var(--color-taupe-300);
+  --tone-source-400: var(--color-taupe-400);
+  --tone-source-500: var(--color-taupe-500);
+  --tone-source-600: var(--color-taupe-600);
+  --tone-source-700: var(--color-taupe-700);
+  --tone-source-800: var(--color-taupe-800);
+  --tone-source-900: var(--color-taupe-900);
+  --tone-source-950: var(--color-taupe-950);
+}
+/* Calculated tones peak in chroma at the middle steps and taper toward the
+   lightest and darkest surfaces. */
+[data-tone='midnight'],
+:root:not([data-theme='dark'])[data-light-tone='midnight'],
+:root[data-theme='dark'][data-dark-tone='midnight'],
+[data-tone='forest'],
+:root:not([data-theme='dark'])[data-light-tone='forest'],
+:root[data-theme='dark'][data-dark-tone='forest'],
+[data-tone='plum'],
+:root:not([data-theme='dark'])[data-light-tone='plum'],
+:root[data-theme='dark'][data-dark-tone='plum'],
+[data-tone='clay'],
+:root:not([data-theme='dark'])[data-light-tone='clay'],
+:root[data-theme='dark'][data-dark-tone='clay'] {
+  --tone-source-100: oklch(50% calc(var(--tone-chroma) * 0.2) var(--tone-hue));
+  --tone-source-200: oklch(50% calc(var(--tone-chroma) * 0.3) var(--tone-hue));
+  --tone-source-300: oklch(50% calc(var(--tone-chroma) * 0.45) var(--tone-hue));
+  --tone-source-400: oklch(50% calc(var(--tone-chroma) * 0.75) var(--tone-hue));
+  --tone-source-500: oklch(50% calc(var(--tone-chroma) * 1) var(--tone-hue));
+  --tone-source-600: oklch(50% calc(var(--tone-chroma) * 1) var(--tone-hue));
+  --tone-source-700: oklch(50% calc(var(--tone-chroma) * 0.95) var(--tone-hue));
+  --tone-source-800: oklch(50% calc(var(--tone-chroma) * 0.85) var(--tone-hue));
+  --tone-source-900: oklch(50% calc(var(--tone-chroma) * 0.75) var(--tone-hue));
+  --tone-source-950: oklch(50% calc(var(--tone-chroma) * 0.6) var(--tone-hue));
+}
+[data-tone='midnight'],
+:root:not([data-theme='dark'])[data-light-tone='midnight'],
+:root[data-theme='dark'][data-dark-tone='midnight'] {
+  --tone-hue: 262;
+  --tone-chroma: 0.08;
+}
+[data-tone='forest'],
+:root:not([data-theme='dark'])[data-light-tone='forest'],
+:root[data-theme='dark'][data-dark-tone='forest'] {
+  --tone-hue: 160;
+  --tone-chroma: 0.065;
+}
+[data-tone='plum'],
+:root:not([data-theme='dark'])[data-light-tone='plum'],
+:root[data-theme='dark'][data-dark-tone='plum'] {
+  --tone-hue: 318;
+  --tone-chroma: 0.075;
+}
+[data-tone='clay'],
+:root:not([data-theme='dark'])[data-light-tone='clay'],
+:root[data-theme='dark'][data-dark-tone='clay'] {
+  --tone-hue: 45;
+  --tone-chroma: 0.06;
 }
 
 @theme {
@@ -898,62 +1260,165 @@
 }
 
 /* Form input utilities */
-@utility range-prominent-field {
+/* Range fields gain a visible boundary as contrast increases. */
+@utility range-field {
   box-shadow: 0 0 0 1px color-mix(in srgb, transparent, var(--color-border) var(--contrast-strong-mix));
 }
 
-@utility range-prominent {
+/* RangeField draws its slider from control primitives: a recessed well like
+ * text inputs, a lit fill in the primary action colour, and a raised grip like
+ * a segmented selection. `--range-progress` (0–1) positions the fill and grip.
+ * A transparent native input covers the travel; its thumb matches the grip
+ * width so pointer positions land where the grip is drawn.
+ */
+@utility range-track {
+  @apply control-frame relative block h-7 bg-input;
+  @apply transition-[border-color,box-shadow] feedback-quick;
+  --range-inset: 3px;
+  --range-grip-width: 1.75rem;
+
+  /* Pointer hover and dragging lift the grip and strengthen the fill. */
+  @media (any-hover: hover) {
+    &:hover:not(:has(.range-input:disabled)) {
+      --range-active: 1;
+    }
+  }
+
+  &:has(.range-input:active:not(:disabled)) {
+    --range-active: 1;
+  }
+
+  &:has(.range-input:focus-visible) {
+    @apply border-action ring-2 ring-action/35;
+  }
+}
+
+@utility range-travel {
+  position: absolute;
+  inset: var(--range-inset);
+  pointer-events: none;
+}
+
+@utility range-fill {
+  @apply shell-lighting rounded-lg;
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: calc((100% - var(--range-grip-width)) * var(--range-progress) + var(--range-grip-width));
+  background-color: color-mix(
+    in srgb,
+    var(--color-button-action),
+    var(--color-button-action-hover) calc(var(--range-active, 0) * 100%)
+  );
+}
+
+/* Stops sit on the grip's centre line; filled stops take the fill's label colour. */
+@utility range-tick {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  inset-inline-start: calc(
+    (100% - var(--range-grip-width)) * var(--range-tick) + var(--range-grip-width) / 2 - 2px
+  );
+  translate: 0 -50%;
+  background-color: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+
+@utility range-tick-filled {
+  background-color: color-mix(in srgb, var(--color-on-button-action) 45%, transparent);
+}
+
+@utility range-grip {
+  @apply shell-lighting rounded-lg border border-input-border shadow-[var(--depth-shadow-sm)];
+  /* Compose with the bevel's inset shadows; the halo appears while the pointer
+     is over the track or dragging. */
+  --tw-shadow:
+    var(--depth-shadow-sm),
+    0 0 0 calc(var(--range-active, 0) * 3px) color-mix(in srgb, var(--color-action) 35%, transparent);
+  position: absolute;
+  inset-block: 0;
+  width: var(--range-grip-width);
+  inset-inline-start: calc((100% - var(--range-grip-width)) * var(--range-progress));
+  /* A pale knob stands out against both the fill and the empty well. */
+  background-color: var(--color-white);
+
+  :root[data-theme='dark'] & {
+    background-color: var(--tone-300);
+  }
+
+  /* Two short grooves mark the grip as draggable. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: 32%;
+    inset-inline-start: 50%;
+    width: 6px;
+    translate: calc(-50% * var(--inline-direction)) 0;
+    border-inline: 1px solid var(--tone-400);
+  }
+}
+
+/* Forced colours replace the drawn fill and grip; keep them visible. */
+@media (forced-colors: active) {
+  .range-fill {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  .range-grip {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+
+  /* Forced colours remove the focus ring's box shadow. */
+  .range-track:has(.range-input:focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
+
+@utility range-input {
+  position: absolute;
+  inset-inline-start: var(--range-inset);
+  /* Extend the 28px track to a 44px pointer target; offsets include its 1px frame. */
+  top: calc(-0.5rem - 1px);
+  width: calc(100% - 2 * var(--range-inset));
+  height: calc(100% + 1rem + 2px);
+  margin: 0;
   appearance: none;
   background: transparent;
-  @apply rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+  opacity: 0;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
 
   &::-webkit-slider-runnable-track {
-    height: 0.75rem;
-    border: 1px solid var(--color-input-border);
-    border-radius: 9999px;
-    background: linear-gradient(
-      var(--range-direction, to right),
-      var(--color-action) var(--range-progress),
-      var(--color-surface-strong) var(--range-progress)
-    );
+    height: 100%;
+    background: transparent;
   }
 
   &::-webkit-slider-thumb {
     appearance: none;
-    width: 1.75rem;
-    height: 1.75rem;
-    margin-top: -0.5625rem;
-    border: 3px solid var(--color-surface);
-    border-radius: 50%;
-    background: var(--color-action);
-    box-shadow: 0 0 0 1px var(--color-input-border);
+    width: var(--range-grip-width);
+    height: 100%;
   }
 
   &::-moz-range-track {
-    height: 0.75rem;
-    border: 1px solid var(--color-input-border);
-    border-radius: 9999px;
-    background: var(--color-surface-strong);
-  }
-
-  &::-moz-range-progress {
-    height: 0.75rem;
-    border-radius: 9999px;
-    background: var(--color-action);
+    height: 100%;
+    background: transparent;
   }
 
   &::-moz-range-thumb {
-    width: 1.375rem;
-    height: 1.375rem;
-    border: 3px solid var(--color-surface);
-    border-radius: 50%;
-    background: var(--color-action);
-    box-shadow: 0 0 0 1px var(--color-input-border);
+    width: var(--range-grip-width);
+    height: 100%;
+    border: 0;
+    border-radius: 0;
   }
-}
-
-:root[dir='rtl'] .range-prominent {
-  --range-direction: to left;
 }
 
 @utility input {

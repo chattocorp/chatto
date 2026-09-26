@@ -217,6 +217,9 @@
       "save_button": "Konservi horajn agordojn",
       "saved": "Horaj agordoj konservitaj",
       "save_failed": "Ne eblis konservi horajn agordojn",
+      "customization": {
+        "title": "Agordo de etoso"
+      },
       "accent": {
         "title": "Akcenta koloro",
         "blue": "Blua",
@@ -227,8 +230,22 @@
         "orange": "Oranĝa",
         "pink": "Rozkolora",
         "violet": "Viola",
-        "grey": "Griza",
-        "preview": "Antaŭrigardo"
+        "grey": "Griza"
+      },
+      "tone": {
+        "title": "Fona koloro",
+        "neutral": "Neŭtrala",
+        "gray": "Griza",
+        "slate": "Ŝistogriza",
+        "stone": "Ŝtona",
+        "mauve": "Malva",
+        "olive": "Oliva",
+        "mist": "Nebula",
+        "taupe": "Taŭpa",
+        "midnight": "Noktomeza",
+        "forest": "Arbara",
+        "plum": "Pruna",
+        "clay": "Argila"
       },
       "contrast": {
         "label": "Kontrasto",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "Interfaca stilo",
+        "label": "Profundo",
         "flat": "Plata",
         "three_d": "Iom 3D",
         "very_3d": "Tre 3D"

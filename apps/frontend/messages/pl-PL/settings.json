@@ -217,6 +217,9 @@
       "save_button": "Zapisz ustawienia czasu",
       "saved": "Ustawienia czasu zapisane",
       "save_failed": "Nie udało się zapisać ustawień czasu",
+      "customization": {
+        "title": "Dostosowanie motywu"
+      },
       "accent": {
         "title": "Kolor akcentu",
         "blue": "Niebieski",
@@ -227,8 +230,22 @@
         "orange": "Pomarańczowy",
         "pink": "Różowy",
         "violet": "Fioletowy",
-        "grey": "Szary",
-        "preview": "Podgląd"
+        "grey": "Szary"
+      },
+      "tone": {
+        "title": "Kolor tła",
+        "neutral": "Neutralny",
+        "gray": "Szary",
+        "slate": "Łupkowy",
+        "stone": "Kamienny",
+        "mauve": "Malwowy",
+        "olive": "Oliwkowy",
+        "mist": "Mglisty",
+        "taupe": "Szarobrązowy",
+        "midnight": "Północ",
+        "forest": "Leśny",
+        "plum": "Śliwkowy",
+        "clay": "Gliniany"
       },
       "contrast": {
         "label": "Kontrast",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "Styl interfejsu",
+        "label": "Głębia",
         "flat": "Płaski",
         "three_d": "Trochę 3D",
         "very_3d": "Wyraźne 3D"

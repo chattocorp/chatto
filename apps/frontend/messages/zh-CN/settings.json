@@ -217,6 +217,9 @@
       "save_button": "保存时间设置",
       "saved": "时间设置已保存",
       "save_failed": "无法保存时间设置",
+      "customization": {
+        "title": "主题自定义"
+      },
       "accent": {
         "title": "强调色",
         "blue": "蓝色",
@@ -227,8 +230,22 @@
         "orange": "橙色",
         "pink": "粉色",
         "violet": "紫色",
-        "grey": "灰色",
-        "preview": "预览"
+        "grey": "灰色"
+      },
+      "tone": {
+        "title": "背景色",
+        "neutral": "中性色",
+        "gray": "灰色",
+        "slate": "石板灰",
+        "stone": "岩石色",
+        "mauve": "淡紫色",
+        "olive": "橄榄色",
+        "mist": "雾色",
+        "taupe": "灰褐色",
+        "midnight": "午夜色",
+        "forest": "森林绿",
+        "plum": "梅红色",
+        "clay": "陶土色"
       },
       "contrast": {
         "label": "对比度",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "界面风格",
+        "label": "深度",
         "flat": "平面",
         "three_d": "有点 3D",
         "very_3d": "强烈 3D"
