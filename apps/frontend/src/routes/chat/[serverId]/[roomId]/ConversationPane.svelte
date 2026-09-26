@@ -171,8 +171,8 @@ thread IDs can change while the pane stays mounted.
     jumpState.reset();
   });
 
-  // Register before any child can request a jump. The store loads a target
-  // that the window does not contain.
+  // Register before any child can request a jump. The store loads the window
+  // around a target that the loaded window does not contain.
   jumpState.setJumpHandler(async (eventId: string) => {
     if (!canReadMessages) return false;
     return messageStore.jumpToMessage(eventId, jumpState);
@@ -187,8 +187,7 @@ thread IDs can change while the pane stays mounted.
     if (payload && 'deletedAt' in payload && payload.deletedAt) editState.cancelEdit();
   });
 
-  // Jump to each highlight request once. A thread waits for its first page, so
-  // the page that loads the target joins the latest replies.
+  // Jump to each highlight request once.
   let handledHighlight: PendingHighlight | null = null;
   let highlightRequest = 0;
   $effect(() => {
@@ -198,7 +197,6 @@ thread IDs can change while the pane stays mounted.
       highlightRequest += 1;
       return;
     }
-    if (isThread && messageStore.isInitialLoading) return;
     if (handledHighlight === target) return;
     handledHighlight = target;
     const request = ++highlightRequest;

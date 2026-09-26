@@ -538,22 +538,7 @@ describe('ThreadPane', () => {
     );
   });
 
-  it('waits for the first thread page before it jumps to a highlight', async () => {
-    mocks.threadStore!.isInitialLoading = true;
-    render(ThreadPane, { props: { ...threadProps, highlight: highlight('older-reply') } });
-    await tick();
-    expect(mocks.storeJumpToMessage).not.toHaveBeenCalled();
-
-    mocks.threadStore!.threadEvents = [threadMessage('older-reply')];
-    mocks.threadStore!.isInitialLoading = false;
-
-    await vi.waitFor(() =>
-      expect(mocks.storeJumpToMessage).toHaveBeenCalledWith('older-reply', mocks.jumpState)
-    );
-    expect(mocks.jumpState?.scrollToEventId).toBe('older-reply');
-  });
-
-  it('does not load the window for a highlight that is cleared before it starts', async () => {
+  it('does not jump to a highlight that is cleared before it starts', async () => {
     const props = {
       roomId: 'room-1',
       roomName: 'General',
@@ -700,7 +685,7 @@ describe('ThreadPane', () => {
     });
   });
 
-  it('lets the thread store load a reply-link target', async () => {
+  it('passes a reply-link jump to the thread store', async () => {
     render(ThreadPane, { props: threadProps });
     await tick();
 

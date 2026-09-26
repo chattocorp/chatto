@@ -3655,21 +3655,23 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('loads a thread jump target and keeps the latest replies', async () => {
+  it('replaces a thread window around a jump target and returns to the latest replies', async () => {
+    const latest = {
+      events: [
+        threadMessageEvent('t1') as never,
+        threadMessageEvent('r80', 't1') as never,
+        threadMessageEvent('r81', 't1') as never
+      ],
+      startCursor: 'tl:cursor-80',
+      endCursor: 'tl:cursor-81',
+      hasOlder: true,
+      hasNewer: false
+    };
     const timeline = fakeTimelineAPI({
-      getThreadEvents: vi.fn(async () => ({
-        events: [
-          threadMessageEvent('t1') as never,
-          threadMessageEvent('r80', 't1') as never,
-          threadMessageEvent('r81', 't1') as never
-        ],
-        startCursor: 'tl:cursor-80',
-        endCursor: 'tl:cursor-81',
-        hasOlder: true,
-        hasNewer: false
-      })),
+      getThreadEvents: vi.fn(async () => latest),
       getThreadEventsAround: vi.fn(async () => ({
         events: [
+          threadMessageEvent('t1') as never,
           threadMessageEvent('r10', 't1') as never,
           threadMessageEvent('r11', 't1') as never
         ],
@@ -3699,8 +3701,15 @@ describe('MessagesStore — room lifecycle ownership', () => {
       eventId: 'r10',
       limit: 50
     });
-    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r10', 'r11', 'r80', 'r81']);
+    // The window holds only the target's page, so no gap separates it from the latest replies.
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r10', 'r11']);
+    expect(store.hasReachedStart).toBe(false);
     expect(jumpState.scrollToEventId).toBe('r10');
+    expect(jumpState.isJumpedMode).toBe(true);
+
+    await expect(store.jumpToPresent(jumpState)).resolves.toBe(true);
+
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r80', 'r81']);
     expect(jumpState.isJumpedMode).toBe(false);
     store.dispose();
   });
