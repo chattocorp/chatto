@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Activar el silencio localmente",
     "locally_muted": "Silenciado localmente",
     "unknown_device": "Dispositivo desconocido",
-    "no_devices": "No se encontraron dispositivos",
     "participants": "Llamar a participantes",
     "join_failed": "No se pudo unir a la llamada de voz",
     "encrypted_unsupported": "Este navegador aún no admite llamadas de voz cifradas. Pruebe las últimas versiones Firefox, Chrome o Edge.",
@@ -105,8 +104,7 @@
       "stream": "Volumen de la transmisión",
       "reset": "Restablecer volumen",
       "boost_unavailable": "La amplificación de volumen no está disponible en este navegador.",
-      "enable_audio": "Activar audio de la llamada",
-      "system_output": "Este navegador usa la salida de audio del sistema para las llamadas."
+      "enable_audio": "Activar audio de la llamada"
     }
   }
 }

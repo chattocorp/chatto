@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Activer le son localement",
     "locally_muted": "Muet localement",
     "unknown_device": "Appareil inconnu",
-    "no_devices": "Aucun appareil trouvé",
     "participants": "Appeler les participants",
     "join_failed": "Échec de la participation à l'appel vocal",
     "encrypted_unsupported": "Ce navigateur ne prend pas encore en charge les appels vocaux cryptés. Essayez la dernière version Firefox, Chrome ou Edge.",
@@ -105,8 +104,7 @@
       "stream": "Volume du flux",
       "reset": "Réinitialiser le volume",
       "boost_unavailable": "L’amplification du volume est indisponible dans ce navigateur.",
-      "enable_audio": "Activer le son de l’appel",
-      "system_output": "Ce navigateur utilise la sortie audio du système pour les appels."
+      "enable_audio": "Activer le son de l’appel"
     }
   }
 }

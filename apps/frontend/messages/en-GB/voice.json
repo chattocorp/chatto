@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Unmute locally",
     "locally_muted": "Locally muted",
     "unknown_device": "Unknown device",
-    "no_devices": "No devices found",
     "participants": "Call participants",
     "join_failed": "Failed to join voice call",
     "encrypted_unsupported": "This browser does not support encrypted voice calls yet. Try the latest Firefox, Chrome, or Edge.",
@@ -105,8 +104,7 @@
       "stream": "Stream volume",
       "reset": "Reset volume",
       "boost_unavailable": "Volume boost is unavailable in this browser.",
-      "enable_audio": "Enable call audio",
-      "system_output": "This browser uses the system audio output for calls."
+      "enable_audio": "Enable call audio"
     }
   }
 }

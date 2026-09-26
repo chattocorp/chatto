@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Lokal Stummschaltung aufheben",
     "locally_muted": "Lokal stummgeschaltet",
     "unknown_device": "Unbekanntes Gerät",
-    "no_devices": "Keine Geräte gefunden",
     "participants": "Anrufteilnehmende",
     "join_failed": "Sprachanruf konnte nicht beigetreten werden",
     "encrypted_unsupported": "Dieser Browser unterstützt verschlüsselte Sprachanrufe noch nicht. Versuche es mit der aktuellen Version von Firefox, Chrome oder Edge.",
@@ -105,8 +104,7 @@
       "stream": "Stream-Lautstärke",
       "reset": "Lautstärke zurücksetzen",
       "boost_unavailable": "Die Lautstärkeverstärkung ist in diesem Browser nicht verfügbar.",
-      "enable_audio": "Anrufton aktivieren",
-      "system_output": "Dieser Browser verwendet die Systemaudioausgabe für Anrufe."
+      "enable_audio": "Anrufton aktivieren"
     }
   }
 }

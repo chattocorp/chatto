@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Tühista kohapeal vaigistus",
     "locally_muted": "Lokaalselt vaigistatud",
     "unknown_device": "Tundmatu seade",
-    "no_devices": "Ühtegi seadet ei leitud",
     "participants": "Helista osalejatele",
     "join_failed": "Häälkõnega liitumine ebaõnnestus",
     "encrypted_unsupported": "See brauser ei toeta veel krüpteeritud häälkõnesid. Proovige uusimat Firefoxi, Chrome'i või Edge'i.",
@@ -105,8 +104,7 @@
       "stream": "Ülekande helitugevus",
       "reset": "Lähtesta helitugevus",
       "boost_unavailable": "Heli võimendamine pole selles brauseris saadaval.",
-      "enable_audio": "Luba kõne heli",
-      "system_output": "See brauser kasutab kõnede jaoks süsteemi heliväljundit."
+      "enable_audio": "Luba kõne heli"
     }
   }
 }

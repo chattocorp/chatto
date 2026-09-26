@@ -41,7 +41,6 @@
     "locally_unmute_participant": "仅在本地取消静音",
     "locally_muted": "已在本地静音",
     "unknown_device": "未知设备",
-    "no_devices": "未找到设备",
     "participants": "通话参与者",
     "join_failed": "加入语音通话失败",
     "encrypted_unsupported": "此浏览器暂不支持加密语音通话。请尝试使用最新版 Firefox、Chrome 或 Edge。",
@@ -105,8 +104,7 @@
       "stream": "直播音量",
       "reset": "重置音量",
       "boost_unavailable": "此浏览器不支持音量增强。",
-      "enable_audio": "启用通话音频",
-      "system_output": "此浏览器使用系统音频输出进行通话。"
+      "enable_audio": "启用通话音频"
     }
   }
 }

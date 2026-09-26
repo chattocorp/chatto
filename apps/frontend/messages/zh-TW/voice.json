@@ -41,7 +41,6 @@
     "locally_unmute_participant": "取消本機靜音",
     "locally_muted": "已在本機靜音",
     "unknown_device": "未知裝置",
-    "no_devices": "找不到裝置",
     "participants": "通話參與者",
     "join_failed": "無法加入語音通話",
     "encrypted_unsupported": "此瀏覽器尚不支援加密語音通話。請改用最新版 Firefox、Chrome 或 Edge。",
@@ -105,8 +104,7 @@
       "stream": "串流音量",
       "reset": "重設音量",
       "boost_unavailable": "此瀏覽器不支援音量增強。",
-      "enable_audio": "啟用通話音訊",
-      "system_output": "此瀏覽器使用系統音訊輸出進行通話。"
+      "enable_audio": "啟用通話音訊"
     }
   }
 }

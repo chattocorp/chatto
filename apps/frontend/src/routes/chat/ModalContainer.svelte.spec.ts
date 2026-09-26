@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
@@ -10,8 +10,6 @@ const { mocks } = vi.hoisted(() => ({
     notifyPageState: () => {},
     closeModal: vi.fn(),
     goto: vi.fn(),
-    replaceState: vi.fn(),
-    refreshAttachmentUrlsForAssets: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
     leaveRoom: vi.fn(),
@@ -71,8 +69,7 @@ vi.mock('$app/state', async () => {
 });
 
 vi.mock('$app/navigation', () => ({
-  goto: mocks.goto,
-  replaceState: mocks.replaceState
+  goto: mocks.goto
 }));
 
 vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
@@ -173,11 +170,6 @@ vi.mock('$lib/state/clientAccount', () => ({
   }
 }));
 
-vi.mock('$lib/attachments/attachmentUrls', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/attachments/attachmentUrls')>()),
-  refreshAttachmentUrlsForAssets: mocks.refreshAttachmentUrlsForAssets
-}));
-
 vi.mock('$lib/api-client/messages', () => ({
   createMessageAPI: () => ({
     deleteMessage: mocks.deleteMessage,
@@ -252,7 +244,6 @@ beforeEach(() => {
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
-  mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(new Map());
   mocks.mutation.mockReturnValue({
     toPromise: () => Promise.resolve({ data: {}, error: null })
   });
@@ -303,10 +294,6 @@ beforeEach(() => {
   mocks.servers = [mocks.originServer];
   mocks.authenticated = { origin: true };
   vi.clearAllMocks();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
 });
 
 describe('ModalContainer sign out modal', () => {
