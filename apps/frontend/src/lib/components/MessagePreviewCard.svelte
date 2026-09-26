@@ -4,7 +4,8 @@
 Displays a preview card for a Chatto message link (e.g. pasted in the composer
 or embedded in a posted message). The message is fetched through the appropriate
 instance's Connect timeline API; if it can't be loaded (not found, no permission,
-unknown instance) the component renders nothing.
+unknown instance) the component renders nothing. The shared query cache keeps
+the loaded preview, so a remounted card or a reconnect renders it at once.
 
 **Props:**
 - `link` — Parsed MessageLink from `$lib/messageLinks`.
@@ -15,30 +16,31 @@ unknown instance) the component renders nothing.
   import { formatAccountName } from '$lib/render/accountName';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
+  import { createQuery, skipToken } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
-  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
-  import type { UserAvatarUserView } from '$lib/render/users';
-  import { untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
+  import { queryClient } from '$lib/query/client';
+  import {
+    fetchMessagePreview,
+    messagePreviewQueryKey,
+    withRefreshedPreviewUrls,
+    type MessagePreview,
+    type MessagePreviewAttachment
+  } from '$lib/query/messagePreview';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
   import { createAttachmentAPI } from '$lib/api-client/attachments';
-  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
-  import { unmask } from '$lib/state/room/messages/helpers';
   import {
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
     refreshAttachmentUrlsForAssets,
-    withAssetUrlRetryParam,
-    type ExpiringAssetUrl
+    withAssetUrlRetryParam
   } from '$lib/attachments/attachmentUrls';
-  import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
   import { ScrollFader } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
@@ -55,27 +57,6 @@ unknown instance) the component renders nothing.
     showDismiss?: boolean;
   } = $props();
 
-  interface Attachment {
-    id: string;
-    filename: string;
-    contentType: string;
-    description: string | null;
-    thumbnailAssetUrl: ExpiringAssetUrl | null;
-    videoThumbnailAssetUrl: ExpiringAssetUrl | null;
-    thumbnailUrl: string | null;
-  }
-
-  let preview = $state<{
-    serverId: string;
-    roomId: string;
-    threadRootEventId?: string;
-    eventId: string;
-    body: string | null;
-    attachments: Attachment[];
-    actor: UserAvatarUserView | null;
-    spaceName: string | null;
-    roomName: string | null;
-  } | null>(null);
   const thumbnailRetrySalts = new SvelteMap<string, number>();
   let refreshPromise: Promise<void> | null = null;
   const failedThumbnailRefreshes = new SvelteSet<string>();
@@ -86,25 +67,45 @@ unknown instance) the component renders nothing.
     fit: ImageFitMode.COVER
   };
 
-  function roomName(serverId: string, roomId: string): string | null {
-    return (
-      serverRegistry.tryGetStore(serverId)?.navigation.rooms.find((room) => room.id === roomId)
-        ?.name ?? null
-    );
-  }
+  // A registered server always has a store and a connection. Sign-out and
+  // account changes replace both, and the new connection has a new query scope.
+  const store = $derived(link.serverId ? serverRegistry.tryGetStore(link.serverId) : undefined);
+  const connection = $derived(
+    store && link.serverId ? serverConnectionManager.getClient(link.serverId) : undefined
+  );
+  const queryKey = $derived(
+    connection && link.serverId
+      ? messagePreviewQueryKey(link.serverId, connection, link.roomId, link.messageId)
+      : ['message-preview', 'unavailable']
+  );
 
-  function normalizePreviewAssetUrl(
-    serverId: string,
-    value: ExpiringAssetUrl | null | undefined
-  ): ExpiringAssetUrl | null {
-    if (!value) return null;
-    return {
-      ...value,
-      url: assetUrlForServer(serverId, value.url) ?? value.url
-    };
-  }
+  const previewQuery = createQuery(
+    () => {
+      const { serverId, roomId, messageId } = link;
+      const currentConnection = connection;
+      return {
+        queryKey,
+        queryFn:
+          serverId && currentConnection
+            ? () => fetchMessagePreview(serverId, currentConnection, roomId, messageId)
+            : skipToken
+      };
+    },
+    () => queryClient
+  );
 
-  function previewThumbnailUrl(attachment: Attachment): string | null {
+  // Show nothing while loading and when the message can't be loaded (not
+  // found, no permission, unknown server).
+  const preview = $derived<MessagePreview | null>(previewQuery.data ?? null);
+
+  const spaceName = $derived(
+    link.serverId ? (serverRegistry.getServer(link.serverId)?.name ?? null) : null
+  );
+  const roomName = $derived(
+    store?.navigation.rooms.find((room) => room.id === link.roomId)?.name ?? null
+  );
+
+  function previewThumbnailUrl(attachment: MessagePreviewAttachment): string | null {
     if (brokenThumbnailIds.has(attachment.id)) return null;
     const thumbnailAssetUrl = attachment.contentType.startsWith('video/')
       ? (attachment.videoThumbnailAssetUrl ?? attachment.thumbnailAssetUrl)
@@ -112,103 +113,6 @@ unknown instance) the component renders nothing.
     if (!thumbnailAssetUrl) return null;
     const salt = thumbnailRetrySalts.get(attachment.id);
     return salt ? withAssetUrlRetryParam(thumbnailAssetUrl.url, salt) : thumbnailAssetUrl.url;
-  }
-
-  // Parent updates can replace the link object without changing its target.
-  // Track scalar values so those updates do not clear or reload the preview.
-  const serverId = $derived(link.serverId);
-  const roomId = $derived(link.roomId);
-  const threadRootEventId = $derived(link.threadRootEventId);
-  const messageId = $derived(link.messageId);
-
-  $effect(() => {
-    // Capture the target before the async read and track all target fields.
-    const target = { serverId, roomId, threadRootEventId, messageId };
-    // Also reload when the server's store is replaced or removed. That marks a
-    // private-data boundary: sign-out, an account change, or server removal.
-    if (serverId) serverRegistry.tryGetStore(serverId);
-    // Track nothing else. The load reads server session state before its first
-    // await, and a reconnect updates that state. A tracked read would clear the
-    // rendered card and reload it each time the app resumes.
-    return untrack(() => loadPreview(target));
-  });
-
-  function loadPreview({
-    serverId,
-    roomId,
-    threadRootEventId,
-    messageId
-  }: Pick<MessageLink, 'serverId' | 'roomId' | 'threadRootEventId' | 'messageId'>) {
-    preview = null;
-    if (!serverId) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const server = serverRegistry.getServer(serverId);
-        if (!server) return;
-        const page = await serverConnectionManager
-          .getClient(serverId)
-          .getAPI(createRoomTimelineAPI)
-          .getRoomEventsAround({
-            roomId,
-            eventId: messageId,
-            limit: 1
-          });
-
-        if (cancelled) return;
-
-        const ev = unmask(page.events).find((item) => item.id === messageId);
-        const inner = ev?.event;
-        if (!ev || !isMessagePostedEvent(inner)) {
-          return;
-        }
-
-        const attachments = inner.attachments;
-
-        // Need at least a body or attachments for a meaningful preview
-        if (!inner.body && attachments.length === 0) {
-          return;
-        }
-
-        preview = {
-          serverId,
-          roomId,
-          threadRootEventId,
-          eventId: messageId,
-          body: inner.body ?? null,
-          attachments: attachments.map((a: MessageAttachmentView) => {
-            const thumbnailAssetUrl = normalizePreviewAssetUrl(serverId, a.thumbnailAssetUrl);
-            const videoThumbnailAssetUrl = normalizePreviewAssetUrl(
-              serverId,
-              a.videoProcessing?.thumbnailAssetUrl
-            );
-            const displayThumbnailAssetUrl = a.contentType.startsWith('video/')
-              ? (videoThumbnailAssetUrl ?? thumbnailAssetUrl)
-              : thumbnailAssetUrl;
-            return {
-              id: a.id,
-              filename: a.filename,
-              contentType: a.contentType,
-              description: a.description ?? null,
-              thumbnailAssetUrl,
-              videoThumbnailAssetUrl,
-              thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
-            };
-          }),
-          actor: ev.actor ?? null,
-          spaceName: server.name ?? null,
-          roomName: roomName(serverId, roomId)
-        };
-      } catch {
-        // Fail silently — no preview shown.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
   }
 
   const displayName = $derived(
@@ -245,52 +149,23 @@ unknown instance) the component renders nothing.
 
   async function refreshPreviewAttachmentUrls(): Promise<void> {
     if (!preview || refreshPromise) return refreshPromise ?? undefined;
+    if (!connection || !link.serverId) return undefined;
 
-    const current = preview;
-    if (!serverRegistry.getServer(current.serverId)) return undefined;
+    // Write fresh URLs to the preview that requested them, even if the link
+    // target changed while the request was in flight.
+    const key = queryKey;
+    const serverId = link.serverId;
     refreshPromise = refreshAttachmentUrlsForAssets(
-      serverConnectionManager.getClient(current.serverId).getAPI(createAttachmentAPI),
-      current.roomId,
-      current.attachments.map((attachment) => attachment.id),
+      connection.getAPI(createAttachmentAPI),
+      link.roomId,
+      preview.attachments.map((attachment) => attachment.id),
       PREVIEW_THUMBNAIL_REFRESH
     )
       .then((freshUrls) => {
         if (freshUrls.size === 0) return;
-        if (
-          !preview ||
-          preview.serverId !== current.serverId ||
-          preview.roomId !== current.roomId ||
-          preview.eventId !== current.eventId
-        ) {
-          return;
-        }
-
-        preview = {
-          ...preview,
-          attachments: preview.attachments.map((attachment) => {
-            const freshAttachment = freshUrls.get(attachment.id);
-            if (!freshAttachment) return attachment;
-
-            const thumbnailAssetUrl = normalizePreviewAssetUrl(
-              current.serverId,
-              freshAttachment.thumbnailAssetUrl
-            );
-            const videoThumbnailAssetUrl = normalizePreviewAssetUrl(
-              current.serverId,
-              freshAttachment.videoThumbnailAssetUrl
-            );
-            const displayThumbnailAssetUrl = attachment.contentType.startsWith('video/')
-              ? (videoThumbnailAssetUrl ?? thumbnailAssetUrl)
-              : thumbnailAssetUrl;
-
-            return {
-              ...attachment,
-              thumbnailAssetUrl,
-              videoThumbnailAssetUrl,
-              thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
-            };
-          })
-        };
+        queryClient.setQueryData<MessagePreview | null>(key, (current) =>
+          current ? withRefreshedPreviewUrls(serverId, current, freshUrls) : current
+        );
       })
       .catch(() => {
         // Fail silently — the preview can still render text and file labels.
@@ -302,7 +177,7 @@ unknown instance) the component renders nothing.
     return refreshPromise;
   }
 
-  function refreshAfterThumbnailError(attachment: Attachment) {
+  function refreshAfterThumbnailError(attachment: MessagePreviewAttachment) {
     if (failedThumbnailRefreshes.has(attachment.id)) {
       brokenThumbnailIds.add(attachment.id);
       return;
@@ -333,15 +208,15 @@ unknown instance) the component renders nothing.
   }
 
   function navigateToPreview() {
-    if (!preview) return;
-    const serverId = serverIdToSegment(preview.serverId);
-    if (preview.threadRootEventId) {
+    if (!preview || !link.serverId) return;
+    const serverId = serverIdToSegment(link.serverId);
+    if (link.threadRootEventId) {
       goto(
         resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
           serverId,
-          roomId: preview.roomId,
-          threadId: preview.threadRootEventId,
-          messageId: preview.eventId
+          roomId: link.roomId,
+          threadId: link.threadRootEventId,
+          messageId: link.messageId
         })
       );
       return;
@@ -350,8 +225,8 @@ unknown instance) the component renders nothing.
     goto(
       resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
         serverId,
-        roomId: preview.roomId,
-        messageId: preview.eventId
+        roomId: link.roomId,
+        messageId: link.messageId
       })
     );
   }
@@ -380,11 +255,11 @@ unknown instance) the component renders nothing.
       >
         <div class="mt-1 h-8 w-1 shrink-0 rounded-full bg-action/70"></div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
-          {#if preview.spaceName || preview.roomName}
+          {#if spaceName || roomName}
             <span class="truncate text-xs tracking-wide text-muted">
-              {#if preview.spaceName}<bdi>{preview.spaceName}</bdi>{/if}
-              {#if preview.spaceName && preview.roomName}&nbsp;·&nbsp;{/if}
-              {#if preview.roomName}<bdi>#{preview.roomName}</bdi>{/if}
+              {#if spaceName}<bdi>{spaceName}</bdi>{/if}
+              {#if spaceName && roomName}&nbsp;·&nbsp;{/if}
+              {#if roomName}<bdi>#{roomName}</bdi>{/if}
             </span>
           {/if}
           <div class="flex min-w-0 items-center gap-2">
@@ -411,10 +286,7 @@ unknown instance) the component renders nothing.
           scrollClass="max-h-52 overscroll-contain"
         >
           <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
-            <MessageContent
-              body={bodyMarkdown}
-              viewerLogin={serverRegistry.tryGetStore(preview.serverId)?.currentUser.user?.login}
-            />
+            <MessageContent body={bodyMarkdown} viewerLogin={store?.currentUser.user?.login} />
           </div>
         </ScrollFader>
       {/if}
