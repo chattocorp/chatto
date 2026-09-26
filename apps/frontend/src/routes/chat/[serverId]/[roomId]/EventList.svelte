@@ -141,7 +141,6 @@
       ? formatDayLabel(viewport.firstVisibleAt, userSettings, activeLocale)
       : null
   );
-  const reloadsTimelineOnReturn = $derived(isJumpedMode);
 
   // First apply structural timeline filtering. Context-free tombstones are a
   // separate stage so row removal cannot be mistaken for a newly arrived message.
@@ -182,7 +181,7 @@
   const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
-    lastEditableMessageCtx?.setFinder(() => {
+    lastEditableMessageCtx.setFinder(() => {
       return findLastEditableMessage({
         events: filteredEvents,
         currentUserId: currentUser.user?.id,
@@ -836,7 +835,7 @@
   {#if !viewport.shouldScrollToBottom}
     <button
       transition:fade={{ duration: 150 }}
-      onclick={reloadsTimelineOnReturn ? handleJumpToPresentClick : scrollToBottom}
+      onclick={isJumpedMode ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
@@ -846,7 +845,7 @@
           <span class="text-muted/40">|</span>
         {/if}
         <span>
-          {!reloadsTimelineOnReturn && viewport.hasNewMessages
+          {!isJumpedMode && viewport.hasNewMessages
             ? m('room.unread_separator')
             : m('room.jump_to_present')}
         </span>
