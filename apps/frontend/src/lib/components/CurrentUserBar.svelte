@@ -15,8 +15,13 @@ sidebar. Shows the avatar with presence and the live display name.
   import { goto } from '$app/navigation';
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
+  import { deleteCustomStatus } from '$lib/api-client/userStatus';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
+  import {
+    getLiveCustomStatus,
+    getLiveDisplayName,
+    type CustomUserStatus
+  } from '$lib/state/userProfiles.svelte';
   import { setPresenceStatus } from '$lib/presenceTracking';
   import { presencePreferences } from '$lib/state/server/presencePreference.svelte';
   import { buildDirectMessagePresentation } from '$lib/render/users';
@@ -76,6 +81,12 @@ sidebar. Shows the avatar with presence and the live display name.
   );
 
   const login = $derived(activeServerUser?.login ?? '');
+  // The public profile receives status changes from every session of this account.
+  const customStatus = $derived(
+    activeServerUser
+      ? getLiveCustomStatus(activeServerUser.id, activeServerUser.customStatus)
+      : null
+  );
   const activeCallRoomId = $derived(
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
   );
@@ -117,6 +128,7 @@ sidebar. Shows the avatar with presence and the live display name.
   const presenceLabel = $derived.by(() => presenceStatusLabel(currentPresence));
   let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
   let customStatusDialogVisible = $state(false);
+  let clearingCustomStatus = $state(false);
   let privilegedModeDialogVisible = $state(false);
   let privilegedModeLoading = $state(false);
   const privilegedMode = $derived(activeStore.projection.viewer?.privilegedMode);
@@ -186,6 +198,33 @@ sidebar. Shows the avatar with presence and the live display name.
     customStatusDialogVisible = true;
   }
 
+  /** Keep a pending clear attached to the account and menu that started it. */
+  async function clearCustomStatus() {
+    if (clearingCustomStatus || !activeServerUser || !customStatus) return;
+    const store = activeStore;
+    const userId = activeServerUser.id;
+    const serverId = activeServerId;
+    const menuAnchor = statusMenuAnchor;
+    const config = customStatusAPIConfig();
+    clearingCustomStatus = true;
+    try {
+      const customStatus = await deleteCustomStatus(config);
+      if (store.currentUser.user?.id === userId) {
+        store.currentUser.user = { ...store.currentUser.user, customStatus };
+      }
+      if (activeServerId === serverId && activeServerUser?.id === userId) {
+        if (statusMenuAnchor === menuAnchor) statusMenuAnchor = null;
+        toast.success(m('settings.profile.status.cleared'));
+      }
+    } catch {
+      if (activeServerId === serverId && activeServerUser?.id === userId) {
+        toast.error(m('settings.profile.status.clear_failed'));
+      }
+    } finally {
+      clearingCustomStatus = false;
+    }
+  }
+
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
     const store = activeStore;
     if (!store.currentUser.user) return;
@@ -230,7 +269,7 @@ sidebar. Shows the avatar with presence and the live display name.
   {#if activeServerUser && customStatusDialogVisible}
     {#await loadCustomStatusEditor(customStatusEditorLoadAttempt) then { default: UserCustomStatusEditor }}
       <UserCustomStatusEditor
-        status={activeServerUser.customStatus}
+        status={customStatus}
         config={customStatusAPIConfig()}
         {sheet}
         onChange={updateCurrentCustomStatus}
@@ -328,7 +367,7 @@ sidebar. Shows the avatar with presence and the live display name.
         </button>
       {/snippet}
       {#snippet badges()}
-        <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
+        <UserCustomStatusBadge status={customStatus} class="text-xs" />
       {/snippet}
       {#snippet actions()}
         {#if voiceCallState?.connected}
@@ -420,11 +459,25 @@ sidebar. Shows the avatar with presence and the live display name.
       {/each}
     </MenuSection>
     <MenuSection>
-      <MenuItem dataTestid="current-user-custom-status-action" onclick={openCustomStatusDialog}>
+      {#if customStatus}
+        <MenuItem
+          dataTestid="current-user-clear-status-action"
+          icon="icon-[uil--times]"
+          busy={clearingCustomStatus}
+          onclick={clearCustomStatus}
+        >
+          {m('settings.profile.status.clear_button')}
+        </MenuItem>
+      {/if}
+      <MenuItem
+        dataTestid="current-user-custom-status-action"
+        disabled={clearingCustomStatus}
+        onclick={openCustomStatusDialog}
+      >
         {#snippet leading()}
           <span class="grid size-full place-items-center">
-            {#if activeServerUser.customStatus}
-              {activeServerUser.customStatus.emoji}
+            {#if customStatus}
+              {customStatus.emoji}
             {:else}
               <span class="iconify icon-[uil--comment-alt-edit] text-muted"></span>
             {/if}

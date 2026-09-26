@@ -426,7 +426,11 @@ accounts retain a deleted-user row through the shared owner's tombstone. Connect
 rooms do not keep another profile copy. Typing labels prefer that owner when a
 member row also has profile fields. The quick finder
 reads that owner directly without starting profile requests. Server-scoped name
-and avatar views read the same current profiles.
+and avatar views read the same current profiles. The current-user bar also reads
+custom status from this owner for its badge, menu actions, and initial editor
+value. Its viewer snapshot is only a fallback when the profile is not loaded.
+This lets status changes from another session update the bar without a viewer
+reload.
 Three independent presence-filtered scans publish connected members while the
 full directory loads. Each status filter also supplies presence for cached
 profiles. Per-user change versions prevent these previews from replacing newer
