@@ -8,13 +8,6 @@ type AdminRoomGroupQueryReconciler = (serverId: string, visibleGroupIds: readonl
 type FollowedThreadViewerState = {
   hasUnreadReplies?: boolean;
 };
-type FollowedThreadSummary = {
-  roomId: string;
-  threadRootEventId: string;
-  replyCount: number;
-  lastReplyAt: string | null;
-  hasUnreadReplies?: boolean;
-};
 type FollowedThreadCache = {
   reset(serverId: string): void;
   refresh(serverId: string): void;
@@ -22,7 +15,6 @@ type FollowedThreadCache = {
   scrubRoom(serverId: string, roomId: string): void;
   scrubMessage(serverId: string, roomId: string, eventId: string): void;
   scrubUser(serverId: string): void;
-  updateSummary(serverId: string, summary: FollowedThreadSummary): void;
 };
 type RoomMemberQueryCache = {
   invalidateRoom(serverId: string, roomId: string): void;
@@ -123,13 +115,6 @@ export function scrubRegisteredFollowedThreadMessage(
 
 export function scrubRegisteredFollowedThreadUser(serverId: string): void {
   followedThreadCache?.scrubUser(serverId);
-}
-
-export function updateRegisteredFollowedThreadSummary(
-  serverId: string,
-  summary: FollowedThreadSummary
-): void {
-  followedThreadCache?.updateSummary(serverId, summary);
 }
 
 /** Purge private reads and fence mutations at session or protocol recovery boundaries. */

@@ -2206,16 +2206,6 @@ export class ServerStateStore {
     return null;
   }
 
-  /**
-   * Indicator for the DM area only. Kept for consumers that want a DM-only
-   * answer instead of the combined server indicator.
-   */
-  dmIndicator(): ServerIndicator {
-    if (this.notifications.hasDMNotifications()) return 'notification';
-    // We no longer track DM unread separately — `hasAnyUnread` covers it.
-    return null;
-  }
-
   private playCallTransitionSound(
     eventId: string,
     kind: 'join' | 'leave',
