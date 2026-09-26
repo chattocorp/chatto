@@ -145,7 +145,7 @@
   }
 
   // Create context-based state (must be synchronous, before children render)
-  const composerContext = createComposerContext({ scroll: true });
+  const composerContext = createComposerContext();
   createMentionRoles(() => stores.mentionRoles.roles);
   const replyState = composerContext.replyState;
   let replyStateRoomId: string | null = null;

@@ -10,7 +10,6 @@ export {
   createComposerContext
 } from './composerContext.svelte';
 export type {
-  ComposerContextOptions,
   EditableMessage,
   FindLastEditableMessage,
   QuoteInsertionContent,

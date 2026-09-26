@@ -80,7 +80,7 @@
     store,
     isCurrent: () => true
   });
-  const composerContext = createComposerContext({ scroll: true });
+  const composerContext = createComposerContext();
   createMentionRoles();
   const roomMembers = createRoomMembers();
   roomMembers.members = [

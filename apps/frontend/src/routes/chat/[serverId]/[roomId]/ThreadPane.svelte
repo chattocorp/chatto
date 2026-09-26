@@ -134,10 +134,9 @@
   }));
 
   // Create thread-scoped contexts that shadow the parent Room's contexts.
-  // `{ scroll: true }` gives the thread its own ScrollState so the composer's
-  // scroll-to-bottom-on-own-post request lands on the *thread's* EventList,
-  // not the main room's.
-  const composerContext = createComposerContext({ scroll: true });
+  // The thread's own ScrollState makes the composer's scroll-to-bottom-on-own-post
+  // request land on the *thread's* EventList, not the main room's.
+  const composerContext = createComposerContext();
   const replyState = composerContext.replyState;
   let consumedQuoteId = 0;
   let consumedReplyId = 0;

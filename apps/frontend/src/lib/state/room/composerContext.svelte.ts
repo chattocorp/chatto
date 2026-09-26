@@ -196,22 +196,13 @@ export class JumpToMessageState {
 // ComposerContext — bundles per-pane state (one per Room or ThreadPane)
 // ---------------------------------------------------------------------------
 
-export interface ComposerContextOptions {
-  /** Whether to create a ScrollState (Room uses it, ThreadPane doesn't). */
-  scroll?: boolean;
-}
-
 export class ComposerContext {
   readonly editState = new EditState();
   readonly replyState = new ReplyState();
   readonly quoteInsertionState = new QuoteInsertionState();
   readonly lastEditableMessage = new LastEditableMessageContext();
   readonly jumpState = new JumpToMessageState();
-  readonly scrollState: ScrollState | null;
-
-  constructor(options?: ComposerContextOptions) {
-    this.scrollState = options?.scroll ? new ScrollState() : null;
-  }
+  readonly scrollState = new ScrollState();
 }
 
 export const [getComposerContext, setComposerContext] = createContext<ComposerContext>();
@@ -220,8 +211,8 @@ export const [getComposerContext, setComposerContext] = createContext<ComposerCo
  * Create the composer context and set it in Svelte context.
  * Call from Room.svelte or ThreadPane during initialization.
  */
-export function createComposerContext(options?: ComposerContextOptions): ComposerContext {
-  const ctx = new ComposerContext(options);
+export function createComposerContext(): ComposerContext {
+  const ctx = new ComposerContext();
   setComposerContext(ctx);
   return ctx;
 }
