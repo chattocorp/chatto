@@ -1137,20 +1137,19 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'interrupted-home',
         connection: home as unknown as ServerConnection,
         projectionSupported: true,
-        sync: homeSync
+        sync: homeSync,
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'interrupted-remote',
         connection: remote as unknown as ServerConnection,
         projectionSupported: true,
-        sync: remoteSync
+        sync: remoteSync,
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'interrupted-remote');
-    for (const registration of registrations) {
-      eventBusManager.getBus(registration.serverId)!.projectionHandlers.add(vi.fn());
-    }
     sockets[0].open();
     await sockets[0].receive(snapshotFrame());
     expect(remoteSync.phase).toBe('hydrating');
@@ -1185,26 +1184,26 @@ describe('eventBusManager realtime transport', () => {
         serverId: 'overlap-home',
         connection: home as unknown as ServerConnection,
         projectionSupported: true,
-        sync: homeSync
+        sync: homeSync,
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'overlap-remote',
         connection: remote as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       },
       {
         serverId: 'overlap-other',
         connection: other as unknown as ServerConnection,
         projectionSupported: true,
-        sync: new RealtimeProjectionSyncState()
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
       }
     ];
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'overlap-remote');
-    for (const registration of registrations) {
-      eventBusManager.getBus(registration.serverId)!.projectionHandlers.add(vi.fn());
-    }
     expect(sockets.map((socket) => socket.url)).toEqual([remote.realtimeUrl, other.realtimeUrl]);
 
     // The remote server goes dormant mid-hydration while the other server's poll runs.
