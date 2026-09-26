@@ -137,6 +137,7 @@ a side stripe or cast shadow for navigation selection.
 | Transient feedback                          | `toast`                                                                                | Persistent inline copy that disappears automatically         |
 | Empty collection or search result           | `EmptyState`                                                                           | Bespoke centered placeholder markup                          |
 | Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                              |
+| Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                   |
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                               |
 
 `Select` uses a native control and plain-text options. The shared
@@ -340,6 +341,10 @@ Follow these defaults:
   and the block has an accessible busy state. It fades in briefly and leaves as
   soon as content is ready. When the user requests less motion, the highlight
   stops and the fade is removed.
+- A conversation timeline grows from the bottom and has no stable size to
+  reserve. Use `LoadingDots` at the bottom of a pending timeline instead of
+  `LoadingFog`. The dots appear after a short delay, so fast loads do not
+  show them. When the user requests less motion, the dots stay still.
 - Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
   dense table or editor should consume the remaining pane height. Ordinary
   forms and document-like pages should remain content-sized.

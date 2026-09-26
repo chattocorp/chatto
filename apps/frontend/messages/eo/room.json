@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "Jen la komenco de ĉi tiu konversacio.",
       "read_denied": "Vi ne havas permeson legi mesaĝojn en ĉi tiu ĉambro.",
-      "limited_empty": "Ankoraŭ neniuj konversacioj, kiujn vi povas legi."
+      "limited_empty": "Ankoraŭ neniuj konversacioj, kiujn vi povas legi.",
+      "loading": "Ŝarĝante mesaĝojn..."
     },
     "message": {
       "empty": "Ankoraŭ neniuj mesaĝoj",

@@ -15,8 +15,23 @@ import {
 
 declare const self: ServiceWorkerGlobalScope;
 
+/**
+ * Identifies one build. Compiled file names carry content hashes, so the key
+ * changes with each build even when local builds repeat the version name.
+ */
+function buildKey(paths: readonly string[]): string {
+  const text = paths.join('\n');
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 const SHELL_CACHE_PREFIX = 'chatto-shell-';
-const SHELL_CACHE = `${SHELL_CACHE_PREFIX}${version}`;
+// Each build installs into its own cache. A shared cache would keep the files
+// of earlier builds and exceed the storage budget.
+const SHELL_CACHE = `${SHELL_CACHE_PREFIX}${version}-${buildKey(build)}`;
 const MAX_SHELL_BYTES = 12_000_000;
 const ownsAppShell = new URL(self.registration.scope).pathname === '/';
 const shellAssets = new Set(build.map((path) => new URL(path, self.location.origin).pathname));
@@ -76,7 +91,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/** Serve a complete versioned shell immediately; compiled assets are immutable. */
+/**
+ * Serve compiled assets from the versioned shell; they are immutable. App
+ * navigations use the network first, so a reload after a deploy loads the new
+ * frontend. The cached shell document is the fallback when the server is
+ * unreachable or fails.
+ */
 self.addEventListener('fetch', (event) => {
   if (!ownsAppShell) return;
   const request = event.request;
@@ -99,10 +119,18 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/chat' ||
     url.pathname.startsWith('/chat/');
   if (request.mode === 'navigate' && appNavigation) {
+    const cachedShell = async () => (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
     event.respondWith(
       (async () => {
-        const cached = await (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
-        return cached ?? fetch(request);
+        try {
+          const response = await fetch(request);
+          if (response.status < 500) return response;
+          return (await cachedShell()) ?? response;
+        } catch (error) {
+          const cached = await cachedShell();
+          if (cached) return cached;
+          throw error;
+        }
       })()
     );
   }

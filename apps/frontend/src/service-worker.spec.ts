@@ -1,9 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$service-worker', () => ({
+const serviceWorkerBuild = vi.hoisted(() => ({
   build: ['/_app/immutable/entry.js'],
   version: 'test-version'
 }));
+
+vi.mock('$service-worker', () => ({
+  get build() {
+    return serviceWorkerBuild.build;
+  },
+  get version() {
+    return serviceWorkerBuild.version;
+  }
+}));
+
+/** Returns the only installed shell cache. */
+async function openShellCache(cacheStorage: ReturnType<typeof createMemoryCacheStorage>) {
+  const names = (await cacheStorage.keys()).filter((name) => name.startsWith('chatto-shell-'));
+  expect(names).toHaveLength(1);
+  return cacheStorage.open(names[0]);
+}
 
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
@@ -134,27 +150,89 @@ describe('service worker notifications', () => {
     expect(worker.handlers.has('fetch')).toBe(true);
   });
 
-  it('serves a cached chat document without waiting for navigation fetch', async () => {
-    const cacheStorage = createMemoryCacheStorage();
-    const worker = await importServiceWorker(cacheStorage);
-    await worker.dispatch('install');
-    const fetch = vi.fn();
-    vi.stubGlobal('fetch', fetch);
+  async function navigate(
+    worker: Awaited<ReturnType<typeof importServiceWorker>>,
+    url = 'https://chatto.example/chat/-/R1'
+  ): Promise<unknown> {
     let response: Promise<unknown> | undefined;
-
-    const handler = worker.handlers.get('fetch')?.[0];
-    handler?.({
-      request: { url: 'https://chatto.example/chat/-/R1', method: 'GET', mode: 'navigate' },
+    worker.handlers.get('fetch')?.[0]?.({
+      request: { url, method: 'GET', mode: 'navigate' },
       respondWith: (pending: Promise<unknown>) => {
         response = pending;
       }
     } as never);
-
     expect(response).toBeDefined();
-    expect(await response).toBe(
-      await (await cacheStorage.open('chatto-shell-test-version')).match('/login')
+    return response;
+  }
+
+  it('loads app navigations from the network so a reload gets a new deploy', async () => {
+    const worker = await importServiceWorker();
+    await worker.dispatch('install');
+    const networkDocument = { status: 200 };
+    const fetch = vi.fn(async () => networkDocument);
+    vi.stubGlobal('fetch', fetch);
+
+    expect(await navigate(worker)).toBe(networkDocument);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['a redirect', { type: 'opaqueredirect', status: 0 }],
+    ['a client error', { status: 404 }]
+  ])('passes %s from the network through to the page', async (_name, networkDocument) => {
+    const worker = await importServiceWorker();
+    await worker.dispatch('install');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => networkDocument)
     );
-    expect(fetch).not.toHaveBeenCalled();
+
+    expect(await navigate(worker)).toBe(networkDocument);
+  });
+
+  it('serves the cached shell when the network is unreachable', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const worker = await importServiceWorker(cacheStorage);
+    await worker.dispatch('install');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      })
+    );
+
+    expect(await navigate(worker)).toBe(await (await openShellCache(cacheStorage)).match('/login'));
+  });
+
+  it('serves the cached shell when the server fails', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const worker = await importServiceWorker(cacheStorage);
+    await worker.dispatch('install');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ status: 502 }))
+    );
+
+    expect(await navigate(worker)).toBe(await (await openShellCache(cacheStorage)).match('/login'));
+  });
+
+  it('reports the network result when no shell is cached', async () => {
+    const worker = await importServiceWorker();
+    const failedDocument = { status: 503 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => failedDocument)
+    );
+    expect(await navigate(worker)).toBe(failedDocument);
+
+    const networkError = new TypeError('Failed to fetch');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw networkError;
+      })
+    );
+    await expect(navigate(worker)).rejects.toBe(networkError);
   });
 
   it('deletes retired shell and foreground badge caches during activation', async () => {
@@ -168,11 +246,31 @@ describe('service worker notifications', () => {
     await worker.dispatch('install');
     await worker.dispatch('activate');
 
-    await expect(cacheStorage.keys()).resolves.toEqual([
-      'unrelated-cache',
-      'chatto-shell-test-version'
-    ]);
+    const names = await cacheStorage.keys();
+    expect(names).toHaveLength(2);
+    expect(names[0]).toBe('unrelated-cache');
+    expect(names[1]).toMatch(/^chatto-shell-test-version-/);
     expect(worker.clients.claim).toHaveBeenCalledOnce();
+  });
+
+  it('installs each build into its own cache when the version name repeats', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const previousWorker = await importServiceWorker(cacheStorage);
+    await previousWorker.dispatch('install');
+    await previousWorker.dispatch('activate');
+
+    vi.resetModules();
+    serviceWorkerBuild.build = ['/_app/immutable/entry.next.js'];
+    try {
+      const worker = await importServiceWorker(cacheStorage);
+      await worker.dispatch('install');
+      await worker.dispatch('activate');
+
+      const shell = await openShellCache(cacheStorage);
+      await expect(shell.keys()).resolves.toEqual(['/_app/immutable/entry.next.js', '/login']);
+    } finally {
+      serviceWorkerBuild.build = ['/_app/immutable/entry.js'];
+    }
   });
 
   it.each(['legacy', 'declarative', 'event'])(

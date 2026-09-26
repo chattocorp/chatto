@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "See on selle vestluse algus.",
       "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
-      "limited_empty": "Veel pole vestlusi, mida saad lugeda."
+      "limited_empty": "Veel pole vestlusi, mida saad lugeda.",
+      "loading": "Sõnumite laadimine..."
     },
     "message": {
       "empty": "Sõnumeid pole veel",

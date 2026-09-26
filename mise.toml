@@ -759,6 +759,16 @@ description = "Run frontend unit tests"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend"
 
+# Arguments go to Vitest, for example:
+#   mise test-frontend-focused -- src/path/Component.svelte.spec.ts -t 'substring'
+# Turbo builds the workspace packages that the specs import first. Always
+# select specs: without arguments, Vitest runs all projects at the same time
+# and uses much more memory than `mise test-frontend`.
+[tasks.test-frontend-focused]
+description = "Run selected frontend Vitest specs"
+depends = ["setup-frontend"]
+run = "pnpm run test:frontend:focused"
+
 [tasks.test-lingua]
 description = "Test the JSON internationalisation runtime package"
 depends = ["setup-frontend"]

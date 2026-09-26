@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "這是這段對話的開端。",
       "read_denied": "你沒有權限閱讀此房間中的訊息。",
-      "limited_empty": "還沒有你可以閱讀的對話。"
+      "limited_empty": "還沒有你可以閱讀的對話。",
+      "loading": "正在載入訊息..."
     },
     "message": {
       "empty": "尚無訊息",

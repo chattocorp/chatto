@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "这是本次对话的开端。",
       "read_denied": "你没有权限阅读此房间中的消息。",
-      "limited_empty": "还没有你可以阅读的对话。"
+      "limited_empty": "还没有你可以阅读的对话。",
+      "loading": "正在加载消息..."
     },
     "message": {
       "empty": "暂无消息",

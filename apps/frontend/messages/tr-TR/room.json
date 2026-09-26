@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "Bu, bu konuşmanın başlangıcıdır.",
       "read_denied": "Bu odadaki mesajları okuma izniniz yok.",
-      "limited_empty": "Henüz okuyabileceğiniz konuşma yok."
+      "limited_empty": "Henüz okuyabileceğiniz konuşma yok.",
+      "loading": "Mesajlar yükleniyor..."
     },
     "message": {
       "empty": "Henüz mesaj yok",

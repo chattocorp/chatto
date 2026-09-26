@@ -119,7 +119,9 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     // 9. Forget the local client-side registration and connect the same
     // remote again. The remote user session skips login, but a local callback
     // requires consent for every authorization because another local process
-    // can claim the handoff.
+    // can claim the handoff. Leave the app first: its account lookup after the
+    // join writes the full server list and can restore the removed entry.
+    await page.goto('/robots.txt');
     await page.evaluate(() => {
       const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
       localStorage.setItem(

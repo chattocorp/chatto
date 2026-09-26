@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "This is the beginning of this conversation.",
       "read_denied": "You do not have permission to read messages in this room.",
-      "limited_empty": "No conversations you can read yet."
+      "limited_empty": "No conversations you can read yet.",
+      "loading": "Loading messages..."
     },
     "message": {
       "empty": "No messages yet",

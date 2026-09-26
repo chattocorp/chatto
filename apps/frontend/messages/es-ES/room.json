@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "Este es el comienzo de esta conversación.",
       "read_denied": "No tienes permiso para leer mensajes en esta sala.",
-      "limited_empty": "Aún no hay conversaciones que puedas leer."
+      "limited_empty": "Aún no hay conversaciones que puedas leer.",
+      "loading": "Cargando mensajes..."
     },
     "message": {
       "empty": "Aún no hay mensajes",

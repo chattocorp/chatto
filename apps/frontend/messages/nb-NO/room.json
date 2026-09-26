@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "Dette er begynnelsen på denne samtalen.",
       "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet.",
-      "limited_empty": "Ingen samtaler du kan lese ennå."
+      "limited_empty": "Ingen samtaler du kan lese ennå.",
+      "loading": "Laster inn meldinger ..."
     },
     "message": {
       "empty": "Ingen meldinger ennå",

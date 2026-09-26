@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "ここから会話が始まります。",
       "read_denied": "このルームのメッセージを読む権限がありません。",
-      "limited_empty": "読める会話はまだありません。"
+      "limited_empty": "読める会話はまだありません。",
+      "loading": "メッセージを読み込んでいます..."
     },
     "message": {
       "empty": "まだメッセージはありません",

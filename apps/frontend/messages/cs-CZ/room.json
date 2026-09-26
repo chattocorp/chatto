@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "Toto je začátek tohoto rozhovoru.",
       "read_denied": "Nemáte oprávnění číst zprávy v této místnosti.",
-      "limited_empty": "Zatím žádné konverzace, které můžete číst."
+      "limited_empty": "Zatím žádné konverzace, které můžete číst.",
+      "loading": "Načítání zpráv..."
     },
     "message": {
       "empty": "Zatím žádné zprávy",

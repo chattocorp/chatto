@@ -49,8 +49,13 @@ A reconnect without a page load resumes from the in-memory cursor and keeps
 the mounted view. [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md)
 defines that behavior.
 
-The service worker keeps its complete, versioned application shell. ADR-103
-defines that shell. The shell contains no private data.
+The service worker keeps its complete, versioned application shell as an
+offline fallback. The shell contains no private data. App navigations load
+the document from the network first. The worker serves the cached shell
+document only when the network request fails or the server returns a server
+error. Without a saved view, a cached document shows no content sooner. Its
+only effect would be that a reload after a deploy loads the previous frontend
+version.
 
 The `chatto-private-cache` cross-tab channel is removed. Its main purpose was
 to delete saved chat views in other tabs. FDR-023 describes how other tabs
@@ -61,13 +66,14 @@ database that 0.5 beta clients created. A tab that runs an older client can
 create the database again, so the deletion runs on every load. Remove this
 cleanup when no supported client version can create the database.
 
-This decision supersedes ADR-104. It supersedes ADR-103, except for the
-service worker shell.
+This decision supersedes ADR-103 and ADR-104.
 
 ## Consequences
 
 - A reload or cold launch shows loading states until the server responds. An
   offline launch shows no chat content.
+- The first reload after a deploy loads the new frontend version. An online
+  launch waits for the server's document before the shell starts.
 - Privacy boundaries clear memory only. Disk purges, invalidation cutoffs, and
   the private-request hold are no longer necessary.
 - No snapshot capture runs during normal use.

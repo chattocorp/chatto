@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "To początek tej rozmowy.",
       "read_denied": "Nie masz uprawnień do odczytywania wiadomości w tym pokoju.",
-      "limited_empty": "Nie ma jeszcze rozmów, które możesz przeczytać."
+      "limited_empty": "Nie ma jeszcze rozmów, które możesz przeczytać.",
+      "loading": "Wczytywanie wiadomości..."
     },
     "message": {
       "empty": "Nie ma jeszcze żadnych wiadomości",

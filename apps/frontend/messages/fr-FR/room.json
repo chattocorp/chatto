@@ -72,7 +72,8 @@
     "timeline": {
       "beginning": "Ceci est le début de cette conversation.",
       "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon.",
-      "limited_empty": "Aucune conversation que tu peux lire pour le moment."
+      "limited_empty": "Aucune conversation que tu peux lire pour le moment.",
+      "loading": "Chargement des messages..."
     },
     "message": {
       "empty": "Aucun message pour l'instant",
