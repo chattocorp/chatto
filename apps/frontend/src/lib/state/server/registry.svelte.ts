@@ -343,12 +343,6 @@ class ServerRegistry {
   #stores = new SvelteMap<string, ServerStateStore>();
   #renewalPromises = new Map<string, Promise<string | null>>();
   #originProbe: Promise<void> | null = null;
-  /**
-   * Tells other tabs to drop a server's in-memory private data after a sign-out,
-   * account change, or server removal. The name predates the removal of saved
-   * chat views; tabs that run older client versions still use it.
-   */
-  #cacheChannel: BroadcastChannel | null = null;
   /** Stores whose discovery and viewer startup has been scheduled. */
   #startedServerNetwork = new Set<string>();
 
@@ -611,10 +605,9 @@ class ServerRegistry {
     store.currentUser.reset();
   }
 
-  clearServerAuthentication(id: string, notifyTabs = true): void {
+  clearServerAuthentication(id: string): void {
     const server = this.getServer(id);
     if (!server) return;
-    if (notifyTabs) this.#cacheChannel?.postMessage({ type: 'sign-out', serverId: id });
     this.#replaceServerAuth(id, {
       token: null,
       refreshToken: null,
@@ -779,7 +772,7 @@ class ServerRegistry {
     const current = this.sessions.get(id);
     if (!current) return;
     if (!persisted?.token) {
-      if (current.token) this.clearServerAuthentication(id, false);
+      if (current.token) this.clearServerAuthentication(id);
       return;
     }
     if (
@@ -820,26 +813,6 @@ class ServerRegistry {
    * Call once from the root layout's script init (before any $derived reads stores).
    */
   init(): void {
-    if (!this.#cacheChannel && typeof BroadcastChannel !== 'undefined') {
-      this.#cacheChannel = new BroadcastChannel('chatto-private-cache');
-      this.#cacheChannel.onmessage = (event: MessageEvent) => {
-        const data: unknown = event.data;
-        if (!data || typeof data !== 'object' || !('type' in data)) return;
-        if (data.type === 'sign-out' && 'serverId' in data && typeof data.serverId === 'string') {
-          this.clearServerAuthentication(data.serverId, false);
-        } else if (
-          data.type === 'clear-server' &&
-          'serverId' in data &&
-          typeof data.serverId === 'string'
-        ) {
-          const oldUserId =
-            'userId' in data && typeof data.userId === 'string' ? data.userId : null;
-          if (oldUserId && this.getServer(data.serverId)?.userId === oldUserId) {
-            this.clearServerAuthentication(data.serverId, false);
-          }
-        }
-      };
-    }
     for (const registration of this.registrations) {
       if (!this.#stores.has(registration.id)) this.#createStore(registration.id);
     }
@@ -887,8 +860,6 @@ class ServerRegistry {
     if (!server) {
       return false;
     }
-    this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: id, userId: server.userId });
-
     // Stop event bus subscription
     eventBusManager.stopBus(id);
 
@@ -910,12 +881,6 @@ class ServerRegistry {
   /** Remove all local registrations and sessions without synchronizing deletions. */
   removeAll(): void {
     const ids = this.servers.map((server) => server.id);
-    for (const server of this.servers)
-      this.#cacheChannel?.postMessage({
-        type: 'clear-server',
-        serverId: server.id,
-        userId: server.userId
-      });
     this.#disposeServers(ids);
     for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
     this.sessions.clear();
@@ -927,12 +892,6 @@ class ServerRegistry {
   resetToOrigin(): void {
     const origin = this.originServer;
     const ids = this.servers.map((server) => server.id);
-    for (const server of this.servers)
-      this.#cacheChannel?.postMessage({
-        type: 'clear-server',
-        serverId: server.id,
-        userId: server.userId
-      });
     this.#disposeServers(ids);
     for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
     this.sessions.clear();
@@ -1002,16 +961,6 @@ class ServerRegistry {
     startNetwork = true
   ): boolean {
     if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
-    const previousUserId =
-      this.sessions.get(id)?.userId ?? this.#stores.get(id)?.currentUser.user?.id;
-    if (previousUserId && previousUserId !== data.userId) {
-      this.#cacheChannel?.postMessage({
-        type: 'clear-server',
-        serverId: id,
-        userId: previousUserId
-      });
-    }
-
     eventBusManager.stopBus(id);
     this.#stores.get(id)?.dispose();
     this.#stores.delete(id);

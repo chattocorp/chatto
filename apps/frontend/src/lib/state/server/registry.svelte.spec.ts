@@ -261,23 +261,6 @@ describe('ServerRegistry', () => {
     });
   });
 
-  it('clears a remote session when another tab signs out', async () => {
-    const registry = await createRegistry();
-    registry.removeAll();
-    registry.init();
-    registry.addServer(makeServer({ id: 'other-tab', token: 'access', userId: 'U1' }));
-    const channel = new BroadcastChannel('chatto-private-cache');
-    try {
-      channel.postMessage({ type: 'sign-out', serverId: 'other-tab' });
-      await vi.waitFor(() => {
-        expect(registry.getServer('other-tab')?.token).toBeNull();
-        expect(registry.getServer('other-tab')?.userId).toBeNull();
-      });
-    } finally {
-      channel.close();
-    }
-  });
-
   describe('handleAuthenticationRequired', () => {
     it('marks remote instances as needing reauth without removing them', async () => {
       const registry = await createRegistry();
