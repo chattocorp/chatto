@@ -14,7 +14,7 @@ A really good chat application for teams and communities, free and easy to self-
 - [Releases](https://github.com/chattocorp/chatto/releases)
 - [Security Policy](SECURITY.md)
 
-Chatto is built with coding agents. Read [Chatto is Robots](https://www.hmans.dev/blog/chatto-is-robots) to learn how.
+Chatto is built with the help of coding agents. Read [Chatto is Robots](https://www.hmans.dev/blog/chatto-is-robots) to learn more.
 
 ## What Is in This Repository
 
