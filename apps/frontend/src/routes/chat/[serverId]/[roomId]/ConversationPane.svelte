@@ -5,9 +5,9 @@ One conversation timeline with its composer: the room timeline, or one thread.
 The room view and the thread pane both render it.
 
 The pane owns the per-conversation state: the composer context, the typing
-indicator, unread handling, realtime read updates, timeline activation,
-jump-to-message, pending highlights and composer input, and file drops. The
-owner supplies the header and the posting policy.
+indicator, unread handling, realtime read updates, jump-to-message, pending
+highlights and composer input, and file drops. The owner supplies the header
+and the posting policy.
 
 `threadRootEventId` selects the timeline kind when the pane mounts, so an
 owner must keep it null or non-null for the pane's lifetime. The room and
@@ -212,6 +212,7 @@ thread IDs can change while the pane stays mounted.
     const isLoaded = () => events.some((event) => event.id === target.eventId);
     void (async () => {
       await tick();
+      if (!current()) return;
       if (isThread && !isLoaded()) await messageStore.refreshCurrentWindow(target.eventId);
       if (!current()) return;
       // A thread can only scroll to a message that its window contains.

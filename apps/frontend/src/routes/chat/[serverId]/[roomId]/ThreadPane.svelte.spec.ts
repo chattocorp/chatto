@@ -566,6 +566,25 @@ describe('ThreadPane', () => {
     await vi.waitFor(() => expect(mocks.jumpState?.scrollToEventId).toBe('older-reply'));
   });
 
+  it('does not load the window for a highlight that is cleared before it starts', async () => {
+    const props = {
+      roomId: 'room-1',
+      roomName: 'General',
+      threadRootEventId: 'thread-root',
+      onClose: mocks.onClose
+    };
+    const rendered = render(ThreadPane, {
+      props: { ...props, highlight: highlight('older-reply') }
+    });
+
+    // Clear the highlight before the pane's first tick.
+    await rendered.rerender({ ...props, highlight: null });
+    await tick();
+
+    expect(mocks.refreshCurrentWindow).not.toHaveBeenCalled();
+    expect(mocks.jumpState?.scrollToEventId).toBeNull();
+  });
+
   it('updates the thread follow button optimistically while the RPC is pending', async () => {
     let resolveFollow!: (value: {
       following: boolean;
