@@ -945,7 +945,7 @@
             class={[
               // Start transparent. When the chunk loads quickly, the real pane
               // replaces this placeholder before it becomes visible.
-              'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background p-4 transition-opacity starting:opacity-0 motion-reduce:transition-none',
+              'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background p-4 transition-opacity motion-reduce:transition-none starting:opacity-0',
               splitThreadLayout
                 ? 'relative w-[var(--thread-pane-width)] shrink-0'
                 : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
