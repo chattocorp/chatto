@@ -189,7 +189,6 @@ describe('useRoomData projection selector', () => {
       expect(room.roomData?.canReadMessages).toBe(true);
       expect(room.roomData?.canPostMessage).toBe(true);
       expect(room.roomData?.canPostInThread).toBe(true);
-      expect(room.roomData?.canPostInteractions).toBe(true);
       expect(room.roomData?.canAttach).toBe(true);
       expect(room.roomData?.canReact).toBe(true);
       expect(room.dmData?.participantIds).toEqual(['dm-a']);

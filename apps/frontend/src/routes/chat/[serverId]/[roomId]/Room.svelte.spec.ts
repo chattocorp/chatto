@@ -70,7 +70,6 @@ const { mocks } = vi.hoisted(() => {
       canPostMessage: true,
       hasLimitedMessageAccess: false,
       canPostInThread: true,
-      canPostInteractions: false,
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
@@ -147,7 +146,6 @@ vi.mock('$lib/hooks', () => ({
       canPostMessage: mocks.canPostMessage,
       hasLimitedMessageAccess: mocks.hasLimitedMessageAccess,
       canPostInThread: mocks.canPostInThread,
-      canPostInteractions: mocks.canPostInteractions,
       canAttach: false,
       canReact: true,
       canManageOthersMessage: false,
@@ -505,7 +503,6 @@ beforeEach(() => {
   mocks.canPostMessage = true;
   mocks.hasLimitedMessageAccess = false;
   mocks.canPostInThread = true;
-  mocks.canPostInteractions = false;
   mocks.unreadMarkerEventId = null;
   mocks.clearUnreadMarker.mockClear();
   toast.clear();
