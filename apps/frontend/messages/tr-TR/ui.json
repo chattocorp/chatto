@@ -5,12 +5,6 @@
     "open_quick_switcher": "Hızlı değiştiriciyi aç",
     "quick_switcher_shortcut": "Hızlı değiştirici (Cmd+K)",
     "realtime_paused": "Gerçek zamanlı güncellemeler duraklatıldı. Yeniden bağlanılıyor...",
-    "saved_view": {
-      "cache_title": "Yerel önbellek",
-      "cache_description": "Bu cihaz, çevrimdışı okumak için sohbetlerin sınırlı bir metin görünümünü kaydeder.",
-      "clear_cache": "Kaydedilen sohbetleri temizle",
-      "cache_cleared": "Kaydedilen sohbetler temizlendi."
-    },
     "update_available": "Yeni bir sürüm mevcut",
     "reload": "Yeniden yükle",
     "sign_out": "Oturumu kapat",

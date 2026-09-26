@@ -5,12 +5,6 @@
     "open_quick_switcher": "Abrir conmutador rápido",
     "quick_switcher_shortcut": "Conmutador rápido (Cmd+K)",
     "realtime_paused": "Actualizaciones en tiempo real pausadas. Reconectando...",
-    "saved_view": {
-      "cache_title": "Caché local",
-      "cache_description": "Este dispositivo guarda una vista de texto limitada de los chats para leer sin conexión.",
-      "clear_cache": "Borrar chats guardados",
-      "cache_cleared": "Se borraron los chats guardados."
-    },
     "update_available": "Una nueva versión está disponible",
     "reload": "Recargar",
     "sign_out": "Cerrar sesión",

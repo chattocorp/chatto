@@ -6,7 +6,6 @@ import { Codecs, globalSlot, serverSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
-import { clearAllSavedViews, clearSavedView } from '$lib/storage/savedViews';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import type { CurrentUser } from '$lib/api-client/viewer';
 import {
@@ -344,6 +343,11 @@ class ServerRegistry {
   #stores = new SvelteMap<string, ServerStateStore>();
   #renewalPromises = new Map<string, Promise<string | null>>();
   #originProbe: Promise<void> | null = null;
+  /**
+   * Tells other tabs to drop a server's in-memory private data after a sign-out,
+   * account change, or server removal. The name predates the removal of saved
+   * chat views; tabs that run older client versions still use it.
+   */
   #cacheChannel: BroadcastChannel | null = null;
   /** Stores whose discovery and viewer startup has been scheduled. */
   #startedServerNetwork = new Set<string>();
@@ -399,12 +403,7 @@ class ServerRegistry {
     const origin = this.originServer;
     if (!origin || origin.reauthRequiredAt == null) return false;
     const store = this.tryGetStore(origin.id);
-    return (
-      !!store &&
-      !store.currentUser.user &&
-      !store.startupPresentationOnly &&
-      !store.realtimeSync.hasDisplayableView
-    );
+    return !!store && !store.currentUser.user && !store.realtimeSync.hasDisplayableView;
   }
 
   /**
@@ -583,7 +582,6 @@ class ServerRegistry {
     const previousUserId = origin.userId ?? this.tryGetStore(origin.id)?.currentUser.user?.id;
     if (previousUserId && previousUserId !== user.id) {
       this.#replaceServerAuth(origin.id, cookieSession);
-      this.tryGetStore(origin.id)?.verifyStartupViewer(user.id);
       return;
     }
     if (
@@ -601,7 +599,6 @@ class ServerRegistry {
       this.#replaceServerAuth(origin.id, cookieSession);
     }
     this.originProbed = true;
-    this.tryGetStore(origin.id)?.verifyStartupViewer(user.id);
   }
 
   /** Settle the origin cookie-auth store when root load found no user. */
@@ -618,7 +615,6 @@ class ServerRegistry {
     const server = this.getServer(id);
     if (!server) return;
     if (notifyTabs) this.#cacheChannel?.postMessage({ type: 'sign-out', serverId: id });
-    void clearSavedView(id);
     this.#replaceServerAuth(id, {
       token: null,
       refreshToken: null,
@@ -644,13 +640,6 @@ class ServerRegistry {
     this.clearServerAuthentication(origin.id);
   }
 
-  /** Clear all locally saved read-only views on this device. */
-  async clearDeviceSavedViews(): Promise<void> {
-    this.#cacheChannel?.postMessage({ type: 'clear-all' });
-    for (const store of this.#stores.values()) store.clearSavedPresentation();
-    await clearAllSavedViews();
-  }
-
   handleAuthenticationRequired(id: string): void {
     const session = this.sessions.get(id);
     if (!session || session.reauthRequiredAt !== null) return;
@@ -665,10 +654,6 @@ class ServerRegistry {
     const store = this.tryGetStore(id);
     if (store) {
       store.currentUser.invalidateVerification();
-      if (store.startupPresentationOnly) {
-        store.clearSavedPresentation();
-        void clearSavedView(id, session.userId ?? undefined);
-      }
       store.currentUser.loading = false;
     }
   }
@@ -834,20 +819,13 @@ class ServerRegistry {
    * Bootstrap the registry: create stores for all registered servers.
    * Call once from the root layout's script init (before any $derived reads stores).
    */
-  init(deferNetwork = false): void {
+  init(): void {
     if (!this.#cacheChannel && typeof BroadcastChannel !== 'undefined') {
       this.#cacheChannel = new BroadcastChannel('chatto-private-cache');
       this.#cacheChannel.onmessage = (event: MessageEvent) => {
         const data: unknown = event.data;
         if (!data || typeof data !== 'object' || !('type' in data)) return;
-        if (data.type === 'clear-all') {
-          for (const store of this.#stores.values()) store.clearSavedPresentation();
-          void clearAllSavedViews();
-        } else if (
-          data.type === 'sign-out' &&
-          'serverId' in data &&
-          typeof data.serverId === 'string'
-        ) {
+        if (data.type === 'sign-out' && 'serverId' in data && typeof data.serverId === 'string') {
           this.clearServerAuthentication(data.serverId, false);
         } else if (
           data.type === 'clear-server' &&
@@ -856,32 +834,22 @@ class ServerRegistry {
         ) {
           const oldUserId =
             'userId' in data && typeof data.userId === 'string' ? data.userId : null;
-          const current = this.getServer(data.serverId);
-          if (oldUserId && current?.userId === oldUserId) {
+          if (oldUserId && this.getServer(data.serverId)?.userId === oldUserId) {
             this.clearServerAuthentication(data.serverId, false);
-          } else if (oldUserId) {
-            void clearSavedView(data.serverId, oldUserId);
-          } else {
-            const store = this.tryGetStore(data.serverId);
-            if (store) store.clearSavedPresentation();
-            void clearSavedView(data.serverId);
           }
         }
       };
     }
     for (const registration of this.registrations) {
-      if (!this.#stores.has(registration.id)) {
-        this.#createStore(registration.id, !deferNetwork);
-      } else if (!deferNetwork) this.startServerNetwork(registration.id);
+      if (!this.#stores.has(registration.id)) this.#createStore(registration.id);
     }
   }
 
-  /** Start discovery and remote viewer recovery after a saved view has painted. */
-  startServerNetwork(serverId: string): void {
+  /** Start discovery and remote viewer recovery for a store once. */
+  #startServerNetwork(serverId: string): void {
     const store = this.#stores.get(serverId);
     if (!store || this.#startedServerNetwork.has(serverId)) return;
     this.#startedServerNetwork.add(serverId);
-    store.networkStartupDeferred = false;
     void store.serverInfo.init().catch(() => {
       // Recovery observes the discovery error on the store.
     });
@@ -920,7 +888,6 @@ class ServerRegistry {
       return false;
     }
     this.#cacheChannel?.postMessage({ type: 'clear-server', serverId: id, userId: server.userId });
-    void clearSavedView(id);
 
     // Stop event bus subscription
     eventBusManager.stopBus(id);
@@ -949,7 +916,6 @@ class ServerRegistry {
         serverId: server.id,
         userId: server.userId
       });
-    for (const id of ids) void clearSavedView(id);
     this.#disposeServers(ids);
     for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
     this.sessions.clear();
@@ -967,7 +933,6 @@ class ServerRegistry {
         serverId: server.id,
         userId: server.userId
       });
-    for (const id of ids) void clearSavedView(id);
     this.#disposeServers(ids);
     for (const id of ids) persistAuthentication(id, emptyServerAuthentication());
     this.sessions.clear();
@@ -1045,7 +1010,6 @@ class ServerRegistry {
         serverId: id,
         userId: previousUserId
       });
-      void clearSavedView(id, previousUserId);
     }
 
     eventBusManager.stopBus(id);
@@ -1125,16 +1089,13 @@ class ServerRegistry {
   needsRecovery(id: string): boolean {
     const store = this.#stores.get(id);
     const session = this.sessions.get(id);
-    if (!store || !session || store.networkStartupDeferred) return false;
+    if (!store || !session) return false;
     return (
       store.serverInfo.error !== null ||
-      (this.isOriginServer(id) && store.startupPresentationOnly) ||
       Boolean(
         session.token &&
         session.reauthRequiredAt === null &&
-        (!store.currentUser.user ||
-          store.currentUser.verifiedUserId === null ||
-          store.startupPresentationOnly) &&
+        (!store.currentUser.user || store.currentUser.verifiedUserId === null) &&
         !store.currentUser.loading
       )
     );
@@ -1144,7 +1105,7 @@ class ServerRegistry {
   async recoverServer(id: string): Promise<void> {
     const store = this.#stores.get(id);
     if (!store) return;
-    this.startServerNetwork(id);
+    this.#startServerNetwork(id);
     if (store.serverInfo.error !== null) await store.serverInfo.init();
     if (this.#stores.get(id) !== store || store.serverInfo.error !== null) return;
     const session = this.sessions.get(id);
@@ -1152,9 +1113,7 @@ class ServerRegistry {
       !session ||
       (!this.isOriginServer(id) && !session.token) ||
       session.reauthRequiredAt !== null ||
-      (store.currentUser.user &&
-        store.currentUser.verifiedUserId !== null &&
-        !store.startupPresentationOnly)
+      (store.currentUser.user && store.currentUser.verifiedUserId !== null)
     )
       return;
     await store.currentUser.load();
@@ -1184,8 +1143,7 @@ class ServerRegistry {
       const store = this.#stores.get(id);
       if (!store) return;
       store.currentUser.accept(user);
-      store.verifyStartupViewer(user.id);
-      this.startServerNetwork(id);
+      this.#startServerNetwork(id);
       this.sessions.update(id, {
         userId: user.id,
         userLogin: user.login,
@@ -1209,19 +1167,14 @@ class ServerRegistry {
       serverConnection,
       undefined,
       () => {
-        if (
-          this.isOriginServer(serverId) &&
-          !store.currentUser.user &&
-          !store.startupPresentationOnly
-        ) {
+        if (this.isOriginServer(serverId) && !store.currentUser.user) {
           this.clearOriginAuthentication();
         } else this.handleAuthenticationRequired(serverId);
       },
       (user) => this.#acceptViewer(serverId, store, user)
     );
-    store.networkStartupDeferred = !startNetwork;
     this.#stores.set(serverId, store);
-    if (startNetwork) this.startServerNetwork(serverId);
+    if (startNetwork) this.#startServerNetwork(serverId);
 
     return store;
   }
@@ -1231,26 +1184,15 @@ class ServerRegistry {
     return this.tryGetStore(serverId)?.isAuthenticated ?? false;
   }
 
-  /**
-   * Choose a server for navigation after sign-out or from chat-wide settings.
-   * A dormant bearer session can be opened; its route verifies the viewer.
-   */
+  /** Choose a server for navigation after sign-out or from chat-wide settings. */
   firstAuthenticatedServerId(excludedId?: string): string | undefined {
     const originId = this.originServer?.id;
     if (originId && originId !== excludedId && this.isAuthenticated(originId)) {
       return originId;
     }
 
-    const active = this.servers.find(
-      (server) => server.id !== excludedId && this.isAuthenticated(server.id)
-    )?.id;
-    if (active) return active;
     return this.servers.find(
-      (server) =>
-        server.id !== excludedId &&
-        !this.isOriginServer(server.id) &&
-        this.sessions.get(server.id)?.token != null &&
-        this.sessions.get(server.id)?.reauthRequiredAt === null
+      (server) => server.id !== excludedId && this.isAuthenticated(server.id)
     )?.id;
   }
 }

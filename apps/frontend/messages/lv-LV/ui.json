@@ -5,12 +5,6 @@
     "open_quick_switcher": "Atveriet ātro pārslēdzēju",
     "quick_switcher_shortcut": "Ātrais pārslēdzējs (Cmd+K)",
     "realtime_paused": "Reāllaika atjauninājumi ir apturēti. Notiek savienojuma atjaunošana...",
-    "saved_view": {
-      "cache_title": "Vietējā kešatmiņa",
-      "cache_description": "Šī ierīce saglabā ierobežotu tērzēšanas teksta skatu lasīšanai bezsaistē.",
-      "clear_cache": "Dzēst saglabātās sarunas",
-      "cache_cleared": "Saglabātās sarunas ir dzēstas."
-    },
     "update_available": "Ir pieejama jauna versija",
     "reload": "Pārlādēt",
     "sign_out": "Izrakstīties",

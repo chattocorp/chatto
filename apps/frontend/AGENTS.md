@@ -268,19 +268,13 @@ Do not generate playground links for code written into this repository.
   stale append reads, and version per-resource async refreshes so older
   responses cannot restore deleted or superseded data.
 - Keep the realtime resume cursor owned by the exact per-server projection it
-  advances. Persist it only together with a complete, versioned projection
-  snapshot in one atomic transaction. Restore the cursor only after validating
-  the complete snapshot set, and verify the viewer before starting replay.
-  Missing, incompatible, or incomplete snapshots must start without a cursor.
-  Socket teardown must not discard the retained projection or its cursor. See
-  [ADR-104](../../docs/adr/ADR-104-checkpointed-client-projection-snapshots.md).
-- A cold load of any `/chat/[serverId]/…` route renders the saved view before
-  the server verifies the viewer. Do not add route allowlists for saved
-  startup. A surface that needs live authority must wait for it: account forms
-  wait for the live `currentUser.user`, and management pages wait until
-  `realtimeSync.restoredFromDisk` is false. Commands and private reads wait
-  behind the connection's private-request pause. See
-  [ADR-103](../../docs/adr/ADR-103-cached-first-client-startup.md).
+  advances. Socket teardown must not discard the retained projection or its
+  cursor.
+- Do not store chat data on the device. Projections, timelines, member lists,
+  notification state, and the resume cursor exist only in memory, so a page
+  load starts without a cursor and receives a fresh snapshot. Device storage
+  holds only the server catalogue, authentication records, and UI preferences.
+  See [ADR-107](../../docs/adr/ADR-107-keep-chat-data-out-of-device-storage.md).
 - Treat undecodable realtime frames and unknown top-level frames as fatal for
   that socket. Protocol 4 makes additive semantic event variants
   skippable because the common cursor stays outside the event `oneof`.
@@ -323,12 +317,10 @@ Do not generate playground links for code written into this repository.
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
-- A cold `page.goto` or `page.reload` of a server route uses the saved view when
-  one exists. The saved room window keeps every message that arrived while the
-  room was open. A test that needs live startup must call `clearSavedViews`
-  from `e2e/fixtures/savedViews.ts` immediately before the cold load. Use
-  `readSavedResources` to wait for saved data and `holdViewerVerification` to
-  observe the saved view before verification.
+- A cold `page.goto` or `page.reload` starts without a resume cursor and loads
+  fresh data from the server. To test resume or catch-up behavior, keep the
+  page loaded and force a reconnect, for example by closing the socket from a
+  `page.routeWebSocket` handler (see `e2e/early-commands.test.ts`).
 - Page objects that open a canonical entry route must model its actual landing
   page. If a method promises a child page, first open the entry route, then
   select and wait for that child page. When an entry route changes, inspect all

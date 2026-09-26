@@ -178,10 +178,9 @@ reports `RESUMED`; a live-only fallback does not claim to have repaired a gap.
 The bundled client keeps its normal mounted chat view during a warm reconnect.
 An expired cursor starts replacement reads while the prior rooms and timeline
 remain visible. Fresh resources replace them and verified access loss removes
-affected content. A cold offline launch restores checkpointed resource snapshots
-into the normal stores without server actions. After viewer verification, a
-complete compatible snapshot set can seed bounded replay. See
-[ADR-104](ADR-104-checkpointed-client-projection-snapshots.md).
+affected content. The client keeps its resume cursor in memory only, so a page
+load starts with a snapshot. See
+[ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md).
 
 Role and permission changes have public semantic events in both live delivery
 and replay. Clients update role displays normally and discard private data

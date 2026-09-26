@@ -11,7 +11,7 @@ function redirectToLogin(url: URL): never {
 }
 
 export const load: LayoutLoad = async ({ params, parent, url }) => {
-  const { user, serverInfo, startupServerId } = await parent();
+  const { user, serverInfo } = await parent();
   const serverId = segmentToServerId(params.serverId);
   const serverStore = serverId ? serverRegistry.tryGetStore(serverId) : undefined;
 
@@ -21,15 +21,8 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     redirect(302, resolve('/setup'));
   }
 
-  await serverStore.restoreSavedViewFromDisk();
-  // Only a view the store accepted counts. Storage rejects corrupt views, and
-  // the store refuses views of another viewer or of a rejected session.
-  const savedView = serverStore.savedView;
-  // A dormant server starts its network work after its saved view is ready.
-  if (startupServerId !== serverId) serverRegistry.startServerNetwork(serverId);
-
   let reauthRequired = serverRegistry.getServer(serverId)?.reauthRequiredAt != null;
-  if (!savedView && !reauthRequired && !serverRegistry.isOriginServer(serverId)) {
+  if (!reauthRequired && !serverRegistry.isOriginServer(serverId)) {
     // Registry initialisation begins remote viewer loading before route loads.
     // Await it only while the first request is still in flight.
     if (serverStore.currentUser.loading) await serverStore.currentUser.load();
@@ -42,10 +35,10 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
   const authenticated = serverRegistry.isOriginServer(serverId)
     ? user !== null
     : serverStore.currentUser.user !== undefined;
-  if (!reauthRequired && !authenticated && !savedView) redirectToLogin(url);
+  if (!reauthRequired && !authenticated) redirectToLogin(url);
 
   // Do not read child params here. SvelteKit re-runs a load when a param that
-  // it read changes, and this load restores saved views and checks access.
+  // it read changes, and this load checks access.
   return {
     serverSegment: params.serverId
   };

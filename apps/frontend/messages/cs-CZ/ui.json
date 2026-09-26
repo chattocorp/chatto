@@ -5,12 +5,6 @@
     "open_quick_switcher": "Otevřete rychlý přepínač",
     "quick_switcher_shortcut": "Rychlý přepínač (Cmd+K)",
     "realtime_paused": "Aktualizace v reálném čase pozastaveny. Opětovné připojení...",
-    "saved_view": {
-      "cache_title": "Místní mezipaměť",
-      "cache_description": "Toto zařízení ukládá omezený textový pohled na chaty pro čtení offline.",
-      "clear_cache": "Vymazat uložené chaty",
-      "cache_cleared": "Uložené chaty byly vymazány."
-    },
     "update_available": "K dispozici je nová verze",
     "reload": "Znovu načíst",
     "sign_out": "Odhlaste se",

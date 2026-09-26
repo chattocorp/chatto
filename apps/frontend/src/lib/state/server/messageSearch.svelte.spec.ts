@@ -40,27 +40,6 @@ function api(overrides: Partial<MessageSearchAPI> = {}): MessageSearchAPI {
 }
 
 describe('MessageSearchStore', () => {
-  it('retains restored search availability while verifying it with the server', async () => {
-    let finish!: (value: MessageSearchStatus) => void;
-    const client = api({
-      getStatus: vi.fn(
-        () =>
-          new Promise<MessageSearchStatus>((resolve) => {
-            finish = resolve;
-          })
-      )
-    });
-    const store = new MessageSearchStore(client);
-    store.restoreStatus({ state: MessageSearchState.READY, retryAfterMs: null });
-    const refresh = store.ensureStatus();
-    await Promise.resolve();
-    expect(client.getStatus).toHaveBeenCalledOnce();
-    expect(store.statusLoaded).toBe(true);
-    expect(store.available).toBe(true);
-    finish({ state: MessageSearchState.DISABLED, retryAfterMs: null });
-    await refresh;
-    expect(store.available).toBe(false);
-  });
   it('does not request private search data before viewer verification', async () => {
     let canLoad = false;
     const client = api();

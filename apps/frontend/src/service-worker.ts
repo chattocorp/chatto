@@ -3,7 +3,7 @@
 
 /**
  * Service worker for push notifications and a versioned offline application shell.
- * Private content lives only in the bounded IndexedDB saved-view store.
+ * The worker caches no private content. See ADR-107.
  */
 
 import { APP_BADGE_REFRESH_MESSAGE_TYPE, updateAppBadge } from '$lib/notifications/appBadge';

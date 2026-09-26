@@ -28,9 +28,7 @@ The frontend is server-agnostic by default. It doesn't assume it is served by a 
 1. **Probe-based origin detection**: Discover an HTTP or HTTPS origin through
    `chatto.discovery.v1.ServerDiscoveryService.GetServer`. Register it when
    discovery succeeds. Native shell origins cannot host the backend and are
-   not probed. Normal route loading waits for origin discovery and registration;
-   a saved-view startup defers network work until after the first paint, as
-   specified in [ADR-103](ADR-103-cached-first-client-startup.md).
+   not probed. Route loading waits for origin discovery and registration.
 2. **No `isHome` flag**: The origin server is identified by comparing `server.url` to `window.location.origin` at runtime — no stored flag.
 3. **Cookie-only origin auth**: The client uses the HttpOnly cookie for the
    server that serves the SPA. Dedicated browser authentication does not issue
@@ -112,9 +110,9 @@ revocation, and expiry contract.
 - Users approve the first OAuth authorization for each client; Chatto remembers consent per user + stable client ID without an operator-managed registration table.
 - Signing in to each Chatto server remains a separate authorization and creates
   a device-local session.
-- Normal startup waits for network discovery and account loading. Saved-view
-  startup can render before these checks complete, but the saved view grants
-  no authority to perform server actions.
+- Startup waits for network discovery and account loading. The client stores
+  no chat data on the device; see
+  [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md).
 
 ### Trade-offs
 

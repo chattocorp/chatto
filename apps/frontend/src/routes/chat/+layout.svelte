@@ -22,8 +22,8 @@
   const presenceCache = createPresenceCache();
 </script>
 
-<!-- Keep the saved viewer's tree through verification and route loads. Only
-     an actual identity change resets origin-scoped effects and local UI state. -->
+<!-- Keep the viewer's tree through verification and route loads. Only an
+     actual identity change resets origin-scoped effects and local UI state. -->
 {#key serverRegistry.originServer?.userId}
   <ChatRoot {presenceCache}>
     {@render children?.()}
