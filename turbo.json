@@ -1,6 +1,5 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "cacheDir": ".turbo/cache",
   "remoteCache": { "enabled": false },
   "envMode": "loose",
   "globalDependencies": ["mise.toml", ".npmrc"],
@@ -11,6 +10,30 @@
     "@chatto/lingua#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "@chatto/client#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
     "@chatto/bot-client#build": { "dependsOn": ["^build"], "cache": true, "outputs": ["dist/**"] },
+    "chatto-frontend#build": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!e2e/**",
+        "!e2e-performance/**",
+        "!.storybook/**",
+        "!*.md",
+        "!playwright*.config.ts",
+        "!src/**/*.spec.*",
+        "!src/**/*.test.*",
+        "!src/**/*.stories.*",
+        "!src/**/*TestHarness.svelte"
+      ],
+      "outputs": ["build/**"],
+      "env": ["CHATTO_BUILD_VERSION", "CHATTO_FRONTEND_PRECOMPRESS"]
+    },
+    "runling#build": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": ["$TURBO_DEFAULT$", "!test/**", "!**/*.test.*", "!docs/**", "!examples/**"],
+      "outputs": ["dist/**"]
+    },
     "check": { "dependsOn": ["^build"], "cache": false },
     "@chatto/runling-bot#check": { "dependsOn": [], "cache": false },
     "lint": { "dependsOn": ["^build"], "cache": false },

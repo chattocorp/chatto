@@ -43,9 +43,10 @@ Use `mise check-chattobot` and `mise test-chattobot` to verify it.
 Root pnpm scripts use Turborepo to build workspace dependencies before their
 consumers. Prefer `mise` tasks or root scripts such as `mise x -- pnpm run
 check:frontend`; a command inside a package only runs that package's script.
-Library builds use a local `.turbo/cache`; app builds and verification tasks
-run without Turbo caching. Remote caching and telemetry are disabled by the
-repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
+Turbo caches library, frontend, and Runling builds. All Git worktrees share
+the cache in the main checkout's `.turbo/cache`, so a new worktree restores
+unchanged builds. Verification tasks run without Turbo caching. Remote caching
+and telemetry are disabled by the repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
 for the task and cache boundaries.
 
 Run Chatto, Authling, Mailpit, LiveKit, and the Runling bot:
@@ -59,10 +60,10 @@ mise dev
 ```
 
 `mise dev` builds the frontend and a Chatto binary that includes it. Then it
-runs the services in one supervised process group. The builds run only when
-their sources change. Restart `mise dev` to see a change in Chatto, its
-frontend, or Authling. `mise setup` builds the shared API types, Lingua, and
-Runling packages.
+runs the services in one supervised process group. Turbo restores unchanged
+frontend builds from a cache that all worktrees share. Restart `mise dev` to
+see a change in Chatto, its frontend, or Authling. `mise setup` installs
+dependencies and the LiveKit server. It does not build anything.
 
 All services use plain HTTP. In Conductor, `<workspace>` is the workspace name
 and the base port is `$CONDUCTOR_PORT`. Outside Conductor, `<workspace>` is
