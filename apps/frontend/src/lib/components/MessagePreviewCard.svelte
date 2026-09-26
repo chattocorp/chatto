@@ -86,7 +86,7 @@ preview on screen.
           ? ({ signal }: { signal: AbortSignal }) =>
               fetchMessagePreview(target.serverId, target.client, roomId, messageId, signal)
           : skipToken,
-        // The card owns the preview: do not keep it after the card unmounts.
+        // Drop the preview when the last card that shows it unmounts.
         gcTime: 0
       };
     },
