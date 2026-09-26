@@ -217,65 +217,70 @@
         {:else if neighbors.length === 0}
           <EmptyState icon="icon-[uil--server-connection]" title={m('admin.neighbors.empty')} />
         {:else}
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {#each neighbors as neighbor (neighbor.id)}
-              {#snippet actions()}
-                <div class="flex flex-col gap-3">
-                  {#if editTarget?.neighbor.id === neighbor.id}
-                    <TextInput
-                      id={`neighbor-origin-${neighbor.id}`}
-                      label={m('admin.neighbors.origin')}
-                      labelHidden
-                      bind:value={editOrigin}
-                      disabled={updateMutationState.isPending}
-                    />
-                  {/if}
-
-                  <div class="flex justify-end gap-2">
+          <div class="@container/server-cards">
+            <div
+              class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[64rem]/server-cards:grid-cols-3"
+            >
+              {#each neighbors as neighbor (neighbor.id)}
+                {#snippet actions()}
+                  <div class="flex flex-col gap-3">
                     {#if editTarget?.neighbor.id === neighbor.id}
-                      <Button size="sm" variant="secondary" onclick={cancelEdit}>
-                        {m('admin.neighbors.cancel')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        loading={updateMutationState.isPending}
-                        disabled={!normalizedEditOrigin || normalizedEditOrigin === neighbor.origin}
-                        onclick={() =>
-                          editTarget &&
-                          normalizedEditOrigin &&
-                          updateMutationState.mutate({
-                            ...editTarget,
-                            origin: normalizedEditOrigin
-                          })}
-                      >
-                        {m('admin.neighbors.save')}
-                      </Button>
-                    {:else}
-                      <Button size="sm" variant="secondary" onclick={() => startEdit(neighbor)}>
-                        <span class="iconify icon-[uil--edit]"></span>
-                        {m('admin.neighbors.edit')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onclick={() => (deleteTarget = { ...mutationVariables(), neighbor })}
-                      >
-                        <span class="iconify icon-[uil--trash-alt]"></span>
-                        {m('admin.neighbors.delete')}
-                      </Button>
+                      <TextInput
+                        id={`neighbor-origin-${neighbor.id}`}
+                        label={m('admin.neighbors.origin')}
+                        labelHidden
+                        bind:value={editOrigin}
+                        disabled={updateMutationState.isPending}
+                      />
                     {/if}
+
+                    <div class="flex justify-end gap-2">
+                      {#if editTarget?.neighbor.id === neighbor.id}
+                        <Button size="sm" variant="secondary" onclick={cancelEdit}>
+                          {m('admin.neighbors.cancel')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          loading={updateMutationState.isPending}
+                          disabled={!normalizedEditOrigin ||
+                            normalizedEditOrigin === neighbor.origin}
+                          onclick={() =>
+                            editTarget &&
+                            normalizedEditOrigin &&
+                            updateMutationState.mutate({
+                              ...editTarget,
+                              origin: normalizedEditOrigin
+                            })}
+                        >
+                          {m('admin.neighbors.save')}
+                        </Button>
+                      {:else}
+                        <Button size="sm" variant="secondary" onclick={() => startEdit(neighbor)}>
+                          <span class="iconify icon-[uil--edit]"></span>
+                          {m('admin.neighbors.edit')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onclick={() => (deleteTarget = { ...mutationVariables(), neighbor })}
+                        >
+                          <span class="iconify icon-[uil--trash-alt]"></span>
+                          {m('admin.neighbors.delete')}
+                        </Button>
+                      {/if}
+                    </div>
                   </div>
-                </div>
-              {/snippet}
-              <ServerProfileCard
-                origin={neighbor.origin}
-                profile={profilesQuery.isPending
-                  ? undefined
-                  : (profilesByOrigin.get(neighbor.origin) ?? null)}
-                {actions}
-                testId="neighbor-card"
-              />
-            {/each}
+                {/snippet}
+                <ServerProfileCard
+                  origin={neighbor.origin}
+                  profile={profilesQuery.isPending
+                    ? undefined
+                    : (profilesByOrigin.get(neighbor.origin) ?? null)}
+                  {actions}
+                  testId="neighbor-card"
+                />
+              {/each}
+            </div>
           </div>
         {/if}
       </Panel>

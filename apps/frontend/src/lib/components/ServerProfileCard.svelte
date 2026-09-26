@@ -3,6 +3,10 @@
 
 One public Chatto server profile. Server-supplied content stays inside the
 card. Callers supply trusted badges and actions through explicit props.
+
+Place cards inside an `@container/server-cards` element. When that container
+is narrower than 40rem, the card uses its compact layout: a thin banner strip,
+a smaller logo, and tighter spacing.
 -->
 <script lang="ts" module>
   import type { PublicServerInfo } from '$lib/api-client/server';
@@ -88,14 +92,14 @@ card. Callers supply trusted badges and actions through explicit props.
   {#if bannerURL && failedBannerURL !== bannerURL}
     <img
       alt=""
-      class="h-24 w-full object-cover"
+      class="h-24 w-full object-cover @max-[40rem]/server-cards:h-10"
       {@attach loadPublicServerImage(bannerURL)}
       onerror={() => (failedBannerURL = bannerURL)}
     />
   {:else}
     <!-- The name-seeded gradient matches the server's logo fallback. -->
     <div
-      class="h-24 shrink-0 opacity-40"
+      class="h-24 shrink-0 opacity-40 @max-[40rem]/server-cards:h-10"
       class:bg-surface-emphasized={profile === undefined}
       style:background={profile === undefined ? undefined : getGradientForName(logoServer.name)}
       aria-hidden="true"
@@ -103,7 +107,9 @@ card. Callers supply trusted badges and actions through explicit props.
     ></div>
   {/if}
 
-  <div class="flex flex-1 flex-col gap-3 p-4">
+  <div
+    class="flex flex-1 flex-col gap-3 p-4 @max-[40rem]/server-cards:gap-2 @max-[40rem]/server-cards:p-3"
+  >
     <div class="flex min-w-0 items-start gap-3">
       {#if iconHref}
         <!-- eslint-disable svelte/no-navigation-without-resolve -- iconHref is a caller-provided external URL -->
@@ -111,7 +117,7 @@ card. Callers supply trusted badges and actions through explicit props.
           href={iconHref}
           target={iconOpensInNewTab ? '_blank' : undefined}
           rel={iconOpensInNewTab ? 'noopener noreferrer' : undefined}
-          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96]"
+          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] @max-[40rem]/server-cards:-mt-6 @max-[40rem]/server-cards:h-10 @max-[40rem]/server-cards:w-10 @max-[40rem]/server-cards:rounded-lg"
           aria-label={accessibleIconActionLabel}
           title={accessibleIconActionLabel}
           data-testid={`${testId}-icon-action`}
@@ -122,7 +128,7 @@ card. Callers supply trusted badges and actions through explicit props.
       {:else if onIconClick}
         <button
           type="button"
-          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] disabled:pointer-events-none disabled:cursor-not-allowed"
+          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] disabled:pointer-events-none disabled:cursor-not-allowed @max-[40rem]/server-cards:-mt-6 @max-[40rem]/server-cards:h-10 @max-[40rem]/server-cards:w-10 @max-[40rem]/server-cards:rounded-lg"
           aria-label={accessibleIconActionLabel}
           title={accessibleIconActionLabel}
           disabled={iconActionDisabled}
@@ -133,7 +139,7 @@ card. Callers supply trusted badges and actions through explicit props.
         </button>
       {:else}
         <div
-          class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized"
+          class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized @max-[40rem]/server-cards:-mt-6 @max-[40rem]/server-cards:h-10 @max-[40rem]/server-cards:w-10 @max-[40rem]/server-cards:rounded-lg"
         >
           <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
         </div>

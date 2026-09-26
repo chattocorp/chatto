@@ -39,9 +39,10 @@ recommendation, not a trust or reciprocal relationship.
   and link-local network addresses. It stores re-encoded copies of logos and
   banners and serves them from the called server.
 - The Add Server action in the Server Gutter opens the Server Directory in a
-  history-backed dialog. The browser Back action closes it. The
-  `/chat/servers` route shows the same directory as a page. The standalone
-  client uses this page before it registers a server.
+  history-backed dialog. The browser Back action closes it. Below 768 px, the
+  dialog covers the whole screen; in a narrow space, the server cards use a
+  compact layout. The `/chat/servers` route shows the same directory as a page.
+  The standalone client uses this page before it registers a server.
 - The Server Directory starts with a direct server-address lookup, followed
   by the recommendations.
 - The Server Directory loads the cached Neighborhood of each server that is

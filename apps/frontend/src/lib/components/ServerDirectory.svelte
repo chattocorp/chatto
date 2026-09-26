@@ -348,7 +348,7 @@ its work plane. See FDR-042.
 
 {#snippet lookupBody()}
   <Form onsubmit={probeCustomServer} error={customError}>
-    <div class="flex flex-col items-stretch gap-3 sm:flex-row">
+    <div class="flex items-stretch gap-2">
       <div class="min-w-0 flex-1">
         <TextInput
           id="add-server-url"
@@ -423,34 +423,39 @@ its work plane. See FDR-042.
       {m('add_server.directory.empty_body')}
     </EmptyState>
   {:else}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {#each entries as entry (entry.origin)}
-        {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
-        {@const joined = registeredServer(entry.origin)}
-        {@const external = opensInServerClient(entry.origin, profile)}
-        {#snippet cardActions()}
-          <div class="flex items-center gap-3">
-            {@render recommendationSources(entry, 'line-clamp-2 flex-1')}
-            {@render entryAction(entry.origin, profile, false)}
-          </div>
-        {/snippet}
-        <ServerProfileCard
-          origin={entry.origin}
-          imageOrigin={entry.imageOrigin}
-          profile={entry.profile}
-          badge={joined ? m('add_server.directory.joined') : undefined}
-          iconHref={external ? entry.origin : undefined}
-          iconOpensInNewTab={external}
-          onIconClick={external || (!joined && !canJoin(profile))
-            ? undefined
-            : () => openOrJoin(entry.origin, profile)}
-          iconActionLabel={actionLabel(entry.origin, profile)}
-          iconActionDisabled={pendingOrigin === entry.origin}
-          actions={cardActions}
-          testId="server-directory-entry"
-          headingTag={inDialog ? 'h4' : 'h3'}
-        />
-      {/each}
+    <!-- Cards switch to their compact layout in a narrow container. -->
+    <div class="@container/server-cards">
+      <div
+        class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[64rem]/server-cards:grid-cols-3"
+      >
+        {#each entries as entry (entry.origin)}
+          {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
+          {@const joined = registeredServer(entry.origin)}
+          {@const external = opensInServerClient(entry.origin, profile)}
+          {#snippet cardActions()}
+            <div class="flex items-center gap-3">
+              {@render recommendationSources(entry, 'line-clamp-2 flex-1')}
+              {@render entryAction(entry.origin, profile, false)}
+            </div>
+          {/snippet}
+          <ServerProfileCard
+            origin={entry.origin}
+            imageOrigin={entry.imageOrigin}
+            profile={entry.profile}
+            badge={joined ? m('add_server.directory.joined') : undefined}
+            iconHref={external ? entry.origin : undefined}
+            iconOpensInNewTab={external}
+            onIconClick={external || (!joined && !canJoin(profile))
+              ? undefined
+              : () => openOrJoin(entry.origin, profile)}
+            iconActionLabel={actionLabel(entry.origin, profile)}
+            iconActionDisabled={pendingOrigin === entry.origin}
+            actions={cardActions}
+            testId="server-directory-entry"
+            headingTag={inDialog ? 'h4' : 'h3'}
+          />
+        {/each}
+      </div>
     </div>
   {/if}
 {/snippet}

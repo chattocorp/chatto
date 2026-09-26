@@ -42,6 +42,7 @@ and cannot be combined with semantic actions.
 		footerDetails,
 		mediaViewer = false,
 		imageViewer = false,
+		fullscreen = false,
 		visible = $bindable(false),
 		title,
 		titleContent,
@@ -61,10 +62,16 @@ and cannot be combined with semantic actions.
 		mediaViewer?: boolean;
 		/** Image-first viewer uses a larger desktop stage. */
 		imageViewer?: boolean;
+		/**
+		 * Fill the viewport below 768 px on every device, with a scrolling body
+		 * and a persistent header. Wider windows show a centred dialog with a
+		 * fixed height. Use it for large, browsable content.
+		 */
+		fullscreen?: boolean;
 		onclose?: () => void;
 	} & ActionContent = $props();
 	const narrowTouch = new MediaQuery(NARROW_TOUCH_QUERY, false);
-	const sheet = $derived(narrowTouch.current && !mediaViewer);
+	const sheet = $derived(narrowTouch.current && !mediaViewer && !fullscreen);
 	const id = $props.id();
 	const titleId = `${id}-title`;
 	const widths = { sm: '400px', md: '600px', lg: '800px', xl: 'min(90vw, 1440px)' };
@@ -173,9 +180,11 @@ and cannot be combined with semantic actions.
 	onkeydown={handleKeydown}
 	class={sheet
 		? ''
-		: mediaViewer
-			? 'h-dvh max-h-dvh w-dvw max-w-dvw md:h-fit md:w-fit md:max-w-[calc(100vw-2rem)]'
-			: 'w-fit max-w-[calc(100vw-2rem)]'}
+		: fullscreen
+			? 'max-md:inset-0 max-md:m-0 max-md:h-[var(--modal-viewport-height,100dvh)] max-md:max-h-none max-md:w-dvw max-md:max-w-none md:w-fit md:max-w-[calc(100vw-2rem)]'
+			: mediaViewer
+				? 'h-dvh max-h-dvh w-dvw max-w-dvw md:h-fit md:w-fit md:max-w-[calc(100vw-2rem)]'
+				: 'w-fit max-w-[calc(100vw-2rem)]'}
 >
 	{#snippet children(close, handle)}
 		<div
@@ -183,11 +192,13 @@ and cannot be combined with semantic actions.
 				'dialog-frame flex max-w-full flex-col overflow-hidden bg-surface shadow-xl',
 				sheet
 					? 'task-sheet sheet-frame w-full'
-					: mediaViewer
-						? imageViewer
-							? 'h-dvh max-h-dvh w-full md:h-[92dvh] md:max-h-[92dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
-							: 'h-dvh max-h-dvh w-full md:h-[85dvh] md:max-h-[85dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
-						: 'max-h-[78vh] w-max rounded-lg border border-text/10 floating-frame p-2'
+					: fullscreen
+						? 'h-full w-full md:h-[85dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
+						: mediaViewer
+							? imageViewer
+								? 'h-dvh max-h-dvh w-full md:h-[92dvh] md:max-h-[92dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
+								: 'h-dvh max-h-dvh w-full md:h-[85dvh] md:max-h-[85dvh] md:w-max md:rounded-lg md:border md:border-text/10 md:floating-frame md:p-2'
+							: 'max-h-[78vh] w-max rounded-lg border border-text/10 floating-frame p-2'
 			]}
 			style:--dialog-baseline-width={imageViewer ? 'min(96vw, 1600px)' : widths[size]}
 		>
@@ -199,8 +210,11 @@ and cannot be combined with semantic actions.
 					sheet
 						? 'sheet-content w-full rounded-md bg-background floating-inset p-3'
 						: 'w-max bg-background p-3',
-					!sheet && (mediaViewer ? 'md:rounded-md md:floating-inset' : 'rounded-md floating-inset'),
-					mediaViewer &&
+					!sheet &&
+						(mediaViewer || fullscreen
+							? 'md:rounded-md md:floating-inset'
+							: 'rounded-md floating-inset'),
+					(mediaViewer || fullscreen) &&
 						'ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))]'
 				]}
 			>
@@ -235,7 +249,8 @@ and cannot be combined with semantic actions.
 						'dialog-body min-h-0 w-0 min-w-full text-text',
 						mediaViewer
 							? 'flex flex-1 flex-col overflow-hidden'
-							: 'overflow-y-auto overscroll-contain'
+							: 'overflow-y-auto overscroll-contain',
+						fullscreen && 'flex-1'
 					]}
 				>
 					{@render body()}
