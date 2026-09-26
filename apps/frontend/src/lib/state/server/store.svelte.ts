@@ -158,6 +158,15 @@ export class ServerStateStore {
   readonly projection: ServerProjectionStore;
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
+
+  /**
+   * Minimum cursor for a read that must include every event this client has
+   * applied. A snapshot clears the resume cursor until catch-up completes; in
+   * that interval, reads use the snapshot cursor once its data is applied.
+   */
+  get minimumReadCursor(): string | undefined {
+    return this.realtimeSync.resumeCursor ?? this.#snapshotReadCursor ?? undefined;
+  }
   /** Display identity is independent of whether this connection has verified its account. */
   get viewerId(): string | null {
     return this.currentUser.user?.id ?? this.#getSession().userId ?? null;
@@ -218,6 +227,8 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
+  /** Cursor of the snapshot whose catch-up has applied its reads; null outside that interval. */
+  #snapshotReadCursor: string | null = null;
   /** Catch-up reads can replace retained state while live hints arrive. */
   #catchUpResourceReads = 0;
   #permissionCheckGeneration = 0;
@@ -503,7 +514,8 @@ export class ServerStateStore {
       );
       this.requireCurrentRealtimeProjection(generation);
       // A snapshot skips the edits and retractions made during the gap.
-      refreshRegisteredMessagePreviews(this.serverId, cursor);
+      this.#snapshotReadCursor = cursor;
+      refreshRegisteredMessagePreviews(this.serverId);
       this.#realtimeSnapshotPending = false;
     }
     await this.waitForRealtimeReconciliation();
@@ -851,6 +863,7 @@ export class ServerStateStore {
       }
       const generation = ++this.#realtimeProjectionGeneration;
       this.#realtimeSnapshotPending = true;
+      this.#snapshotReadCursor = null;
       if (!update.retainView) this.#deletedRealtimeUserIds.clear();
       this.#reconciliationError = null;
       this.#pendingResourceRefreshes.clear();

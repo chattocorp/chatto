@@ -27,7 +27,6 @@ preview on screen; a snapshot after a long disconnect reloads it in place.
   import {
     fetchMessagePreview,
     messagePreviewQueryKey,
-    messagePreviewReadCursor,
     withRefreshedPreviewUrls,
     type MessagePreview,
     type MessagePreviewAttachment
@@ -93,10 +92,7 @@ preview on screen; a snapshot after a long disconnect reloads it in place.
                 fetchMessagePreview(serverId, currentConnection, {
                   roomId,
                   messageId,
-                  minimumCursor: messagePreviewReadCursor(
-                    serverId,
-                    currentStore.realtimeSync.resumeCursor
-                  ),
+                  minimumCursor: currentStore.minimumReadCursor,
                   signal
                 })
             : skipToken,

@@ -3,11 +3,7 @@ import { QueryObserver } from '@tanstack/svelte-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { refreshRegisteredMessagePreviews } from './cacheRegistry';
 import { queryClient } from './client';
-import {
-  messagePreviewQueryKey,
-  messagePreviewReadCursor,
-  type MessagePreview
-} from './messagePreview';
+import { messagePreviewQueryKey, type MessagePreview } from './messagePreview';
 
 const connection = { queryScope: 'message-preview-test' };
 
@@ -49,7 +45,7 @@ describe('message preview snapshot refresh', () => {
     queryClient.setQueryData(otherServerKey, preview('other server'));
     await vi.waitFor(() => expect(observer.getCurrentResult().data).toEqual(preview('before gap')));
 
-    refreshRegisteredMessagePreviews('server-1', 'snapshot-cursor');
+    refreshRegisteredMessagePreviews('server-1');
     await vi.waitFor(() => expect(observer.getCurrentResult().isFetching).toBe(true));
 
     expect(observer.getCurrentResult().data).toEqual(preview('before gap'));
@@ -70,18 +66,10 @@ describe('message preview snapshot refresh', () => {
     const unsubscribe = observer.subscribe(() => {});
     await vi.waitFor(() => expect(observer.getCurrentResult().isFetching).toBe(true));
 
-    refreshRegisteredMessagePreviews('server-1', 'snapshot-cursor');
+    refreshRegisteredMessagePreviews('server-1');
     early.resolve(preview('before gap'));
 
     await vi.waitFor(() => expect(observer.getCurrentResult().data).toEqual(preview('after gap')));
     unsubscribe();
-  });
-
-  it('reads at the snapshot cursor until the stream accepts a newer cursor', () => {
-    refreshRegisteredMessagePreviews('server-3', 'snapshot-cursor');
-
-    expect(messagePreviewReadCursor('server-3', null)).toBe('snapshot-cursor');
-    expect(messagePreviewReadCursor('server-3', 'accepted-cursor')).toBe('accepted-cursor');
-    expect(messagePreviewReadCursor('server-4', null)).toBeUndefined();
   });
 });
