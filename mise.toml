@@ -13,6 +13,8 @@ uv = "0.11.30"
 _.file = '.env'
 CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}"
+# The development stack runs this pinned LiveKit server through `mise x`.
+CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.13.5"
 # Browser-facing development services use `<service>.<workspace>.localhost`.
 # These names resolve to loopback without DNS or /etc/hosts changes. They also
 # give concurrent workspaces separate cookie scopes, because cookies ignore ports.
@@ -25,8 +27,10 @@ CHATTO_DEV_AUTHLING_CLIENT_SECRET = "development-only-chatto-authling-client-sec
 # Setup
 # =============================================================================
 
+# Setup installs dependencies and tools only. Build tasks create binaries and
+# package dists when a task needs them.
 [tasks.setup]
-description = "Set up the development environment"
+description = "Install development dependencies and tools"
 run = [
     { task = "setup-appconfig" },
     { task = "setup-cli" },
@@ -34,9 +38,7 @@ run = [
     { task = "setup-events" },
     { task = "setup-natsruntime" },
     { task = "setup-frontend" },
-    { task = "build-api-types" },
-    { task = "build-lingua" },
-    { task = "build-runling" },
+    { task = "setup-livekit" },
 ]
 
 # =============================================================================
@@ -108,6 +110,11 @@ depends = ["deps-natsruntime"]
 [tasks.setup-frontend]
 description = "Set up the frontend module"
 depends = ["deps-frontend"]
+
+[tasks.setup-livekit]
+description = "Install the LiveKit server that the development stack runs"
+# `mise x` installs the pinned server on first use without activating it globally.
+run = 'mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- server --version'
 
 # =============================================================================
 # License Metadata
@@ -215,18 +222,7 @@ run = "pnpm turbo run test --filter=@chatto/runling-bot"
 [tasks.build-runling]
 description = "Build the Runling runtime and web console"
 depends = ["setup-frontend"]
-run = ["pnpm run build:runling", "touch packages/runling/dist/.mise-build-stamp"]
-sources = [
-    "pnpm-lock.yaml",
-    "packages/runling/package.json",
-    "packages/runling/tsconfig*.json",
-    "packages/runling/vite.config.ts",
-    "packages/runling/svelte.config.js",
-    "packages/runling/src/**/*",
-    "packages/runling/extensions/**/*",
-    "!packages/runling/**/*.test.*",
-]
-outputs = ["packages/runling/dist/.mise-build-stamp"]
+run = "pnpm run build:runling"
 
 [tasks.build-chatto-client]
 description = "Build the framework-neutral Chatto integration client"
@@ -282,39 +278,11 @@ run = "pnpm --filter runling test:package"
 description = "Build the frontend application"
 depends = ["setup-frontend"]
 dir = "apps/frontend"
+# Turbo restores an unchanged build from the cache that all worktrees share.
 run = [
     "pnpm --dir ../.. run build:frontend",
-    "touch build/.mise-build-stamp",
     "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
 ]
-sources = [
-    "../../.npmrc",
-    "../../package.json",
-    "../../pnpm-lock.yaml",
-    "../../pnpm-workspace.yaml",
-    "../../turbo.json",
-    "../../mise.toml",
-    "../../packages/api-types/package.json",
-    "../../packages/api-types/tsconfig.json",
-    "../../packages/api-types/src/**/*",
-    "../../packages/lingua/package.json",
-    "../../packages/lingua/tsconfig.json",
-    "../../packages/lingua/src/**/*",
-    "package.json",
-    "messages/**/*",
-    "scripts/check-bundle-size.mjs",
-    "../../tools/prepare-embedded-frontend.sh",
-    "src/**/*",
-    "!src/**/*.spec.*",
-    "!src/**/*.test.*",
-    "!src/**/*.stories.*",
-    "!src/**/*TestHarness.svelte",
-    "static/**/*",
-    "svelte.config.js",
-    "tsconfig.json",
-    "vite.config.ts",
-]
-outputs = ["build/.mise-build-stamp", "../../cli/internal/http_server/.client/.gitkeep"]
 
 [tasks.build-dev-cli]
 description = "Build the development CLI application for the current architecture"
@@ -454,7 +422,7 @@ env = {
 run = '''
 set -eu
 livekit_config=$(printf 'port: %s\nrtc:\n  tcp_port: %s\n  udp_port: %s\n  use_external_ip: false\n  enable_loopback_candidate: true\nkeys:\n  devkey: compose-only-livekit-secret-change-me\nwebhook:\n  urls:\n    - http://127.0.0.1:%s/webhooks/livekit\n  api_key: devkey\nlogging:\n  level: info\n' "$CHATTO_DEV_LIVEKIT_PORT" "$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT" "$CHATTO_DEV_LIVEKIT_UDP_PORT" "$CHATTO_DEV_BACKEND_PORT")
-exec mise x 'go:github.com/livekit/livekit-server/cmd/server@v1.13.5' -- \
+exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- \
   server --bind 127.0.0.1 --node-ip 127.0.0.1 --config-body "$livekit_config"
 '''
 
