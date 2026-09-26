@@ -16,6 +16,17 @@ type FollowedThreadCache = {
   scrubMessage(serverId: string, roomId: string, eventId: string): void;
   scrubUser(serverId: string): void;
 };
+/** Cached message link previews, keyed by room and message. */
+type MessagePreviewQueryCache = {
+  /** Reload a preview after its message or attachments change. */
+  refreshMessage(serverId: string, roomId: string, eventId: string): void;
+  /** Hide and reload a preview after its message is retracted. */
+  purgeMessage(serverId: string, roomId: string, eventId: string): void;
+  /** Hide and reload every preview from a room after message access to it is lost. */
+  purgeRoom(serverId: string, roomId: string): void;
+  /** Hide and reload every preview whose author account was deleted. */
+  purgeAuthor(serverId: string, userId: string): void;
+};
 type RoomMemberQueryCache = {
   invalidateRoom(serverId: string, roomId: string): void;
   purgeRoom(serverId: string, roomId: string): void;
@@ -32,6 +43,7 @@ let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
 let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
 let followedThreadCache: FollowedThreadCache | undefined;
 let roomMemberQueryCache: RoomMemberQueryCache | undefined;
+let messagePreviewQueryCache: MessagePreviewQueryCache | undefined;
 const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
 const queryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
@@ -71,6 +83,35 @@ export function registerFollowedThreadQueryCache(cache: FollowedThreadCache): vo
 /** Register room-member snapshots without loading TanStack Query into the server-store bundle. */
 export function registerRoomMemberQueryCache(cache: RoomMemberQueryCache): void {
   roomMemberQueryCache = cache;
+}
+
+/** Register message link previews without loading TanStack Query into the server-store bundle. */
+export function registerMessagePreviewQueryCache(cache: MessagePreviewQueryCache): void {
+  messagePreviewQueryCache = cache;
+}
+
+export function refreshRegisteredMessagePreview(
+  serverId: string,
+  roomId: string,
+  eventId: string
+): void {
+  messagePreviewQueryCache?.refreshMessage(serverId, roomId, eventId);
+}
+
+export function purgeRegisteredMessagePreview(
+  serverId: string,
+  roomId: string,
+  eventId: string
+): void {
+  messagePreviewQueryCache?.purgeMessage(serverId, roomId, eventId);
+}
+
+export function purgeRegisteredRoomMessagePreviews(serverId: string, roomId: string): void {
+  messagePreviewQueryCache?.purgeRoom(serverId, roomId);
+}
+
+export function purgeRegisteredAuthorMessagePreviews(serverId: string, userId: string): void {
+  messagePreviewQueryCache?.purgeAuthor(serverId, userId);
 }
 
 export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: string): void {

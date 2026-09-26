@@ -18,6 +18,7 @@ const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock, registry
     registryState: {} as {
       servers: Map<string, Record<string, unknown>>;
       stores: Map<string, Record<string, unknown>>;
+      connections: Map<string, { queryScope: string; getAPI: unknown }>;
     }
   }));
 
@@ -54,6 +55,7 @@ vi.mock('$lib/state/server/registry.svelte', async () => {
     ['server_1', { id: 'server_1', url: window.location.origin, name: 'Test Server', token: null }]
   ]);
   registryState.stores = new SvelteMap();
+  registryState.connections = new Map();
   return {
     serverRegistry: {
       tryGetStore: (id: string) => registryState.stores.get(id),
@@ -73,9 +75,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
-    getClient: () => ({
-      getAPI: (factory: (config: never) => unknown) => factory({} as never)
-    })
+    getClient: (id: string) => registryState.connections.get(id)
   }
 }));
 
@@ -209,6 +209,13 @@ function clearedRefreshResult(attachmentId: string) {
   ]);
 }
 
+function testConnection(queryScope: string) {
+  return {
+    queryScope,
+    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+  };
+}
+
 function testStore() {
   return {
     currentUser: {
@@ -221,6 +228,7 @@ function testStore() {
 }
 
 beforeEach(() => {
+  registryState.connections.set('server_1', testConnection('session-1'));
   registryState.stores.set('server_1', testStore());
   registryState.servers.set('server_1', {
     id: 'server_1',
@@ -288,7 +296,8 @@ describe('MessagePreviewCard', () => {
     });
     await vi.waitFor(() => expect(container.textContent).toContain('First account preview'));
 
-    // Sign-out and account changes replace the server's store.
+    // Sign-out and account changes replace the server's store and connection.
+    registryState.connections.set('server_1', testConnection('session-2'));
     registryState.stores.set('server_1', testStore());
     await tick();
 
@@ -316,8 +325,7 @@ describe('MessagePreviewCard', () => {
   it.each([
     ['server', { serverId: null }],
     ['room', { roomId: 'room_2' }],
-    ['message', { messageId: 'event_2' }],
-    ['thread', { threadRootEventId: 'thread_2' }]
+    ['message', { messageId: 'event_2' }]
   ] as const)('clears the preview when the %s target changes', async (_field, change) => {
     timelineResults.push(bodyPreviewResult('Previous preview'));
     const { container, rerender } = render(MessagePreviewCard, {
@@ -330,6 +338,35 @@ describe('MessagePreviewCard', () => {
 
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
     expect(getRoomEventsAroundMock).toHaveBeenCalledTimes('serverId' in change ? 1 : 2);
+  });
+
+  it('keeps the preview when only the thread of the link changes', async () => {
+    timelineResults.push(bodyPreviewResult('Thread preview'));
+    const { container, rerender } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+    const card = await vi.waitFor(() => {
+      const node = container.querySelector('[data-testid="message-preview-card"]');
+      expect(node).not.toBeNull();
+      return node!;
+    });
+
+    await rerender({ link: { ...link(), threadRootEventId: 'thread_2' } });
+
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
+  });
+
+  it('renders a remounted card from the cache without loading it again', async () => {
+    timelineResults.push(bodyPreviewResult('Cached preview'));
+    const first = render(MessagePreviewCard, { props: { link: link(), showDismiss: false } });
+    await vi.waitFor(() => expect(first.container.textContent).toContain('Cached preview'));
+    first.unmount();
+
+    const second = render(MessagePreviewCard, { props: { link: link(), showDismiss: false } });
+
+    expect(second.container.textContent).toContain('Cached preview');
+    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a late response after the target changes', async () => {
