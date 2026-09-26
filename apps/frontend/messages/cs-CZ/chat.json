@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Oznámení",
       "subtitle": "Zde je novinka",
+      "list_title": "Nedávná aktivita",
       "clear_read": "Odstranit přečtené",
       "empty_title": "Žádná upozornění",
       "empty_body": "Už jste všichni chyceni!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Moje vlákna",
       "subtitle": "Vlákna, která sledujete",
+      "list_title": "Sledovaná vlákna",
       "filter_label": "Filtrační závity",
       "filter_all": "všechny",
       "filter_unread": "Nepřečteno",

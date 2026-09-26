@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Paziņojumi",
       "subtitle": "Lūk, kas jauns",
+      "list_title": "Nesenās aktivitātes",
       "clear_read": "Dzēst izlasītos",
       "empty_title": "Nav paziņojumu",
       "empty_body": "Jūs visi esat nokļuvuši!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Mani pavedieni",
       "subtitle": "Pavedieni, kuriem sekojat",
+      "list_title": "Sekotie pavedieni",
       "filter_label": "Filtru pavedieni",
       "filter_all": "Visi",
       "filter_unread": "Nelasīts",

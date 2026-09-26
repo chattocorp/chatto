@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Voici les nouveautés",
+      "list_title": "Activité récente",
       "clear_read": "Effacer les notifications lues",
       "empty_title": "Aucune notification",
       "empty_body": "Vous êtes tous rattrapés !",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Mes discussions",
       "subtitle": "Sujets que vous suivez",
+      "list_title": "Discussions suivies",
       "filter_label": "Filtrer les fils de discussion",
       "filter_all": "Tous",
       "filter_unread": "Non lu",

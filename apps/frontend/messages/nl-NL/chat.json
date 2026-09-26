@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Meldingen",
       "subtitle": "Dit is wat er nieuw is",
+      "list_title": "Recente activiteit",
       "clear_read": "Gelezen wissen",
       "empty_title": "Geen meldingen",
       "empty_body": "Jullie zijn helemaal in beslag genomen!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Mijn discussies",
       "subtitle": "Discussies die je volgt",
+      "list_title": "Gevolgde discussies",
       "filter_label": "Discussies filteren",
       "filter_all": "Allemaal",
       "filter_unread": "Ongelezen",

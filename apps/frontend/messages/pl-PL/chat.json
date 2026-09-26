@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Powiadomienia",
       "subtitle": "Oto nowości",
+      "list_title": "Ostatnia aktywność",
       "clear_read": "Usuń przeczytane",
       "empty_title": "Brak powiadomień",
       "empty_body": "Wszyscy jesteście zajęci!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Moje wątki",
       "subtitle": "Wątki, które obserwujesz",
+      "list_title": "Obserwowane wątki",
       "filter_label": "Filtruj wątki",
       "filter_all": "Wszystko",
       "filter_unread": "Nieprzeczytane",

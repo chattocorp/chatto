@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Sciigoj",
       "subtitle": "Jen kio estas nova",
+      "list_title": "Lasta aktiveco",
       "clear_read": "Forigi legitajn",
       "empty_title": "Neniuj sciigoj",
       "empty_body": "Vi ĉiuj estas kaptitaj!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Miaj Fadenoj",
       "subtitle": "Fadenoj, kiujn vi sekvas",
+      "list_title": "Sekvataj fadenoj",
       "filter_label": "Filtri fadenojn",
       "filter_all": "Ĉiuj",
       "filter_unread": "Nelegita",

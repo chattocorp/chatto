@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Bildirimler",
       "subtitle": "İşte yenilikler",
+      "list_title": "Son etkinlik",
       "clear_read": "Okunanları temizle",
       "empty_title": "Bildirim yok",
       "empty_body": "Hepiniz yakalandınız!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Konularım",
       "subtitle": "Takip ettiğiniz konular",
+      "list_title": "Takip edilen konular",
       "filter_label": "Konuları filtrele",
       "filter_all": "Hepsi",
       "filter_unread": "Okunmamış",

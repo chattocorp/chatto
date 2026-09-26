@@ -8,6 +8,7 @@
     "notifications": {
       "title": "Notificaciones",
       "subtitle": "Esto es lo nuevo",
+      "list_title": "Actividad reciente",
       "clear_read": "Borrar leídas",
       "empty_title": "Sin notificaciones",
       "empty_body": "¡Están todos atrapados!",
@@ -64,6 +65,7 @@
     "threads": {
       "title": "Mis hilos",
       "subtitle": "Temas que estás siguiendo",
+      "list_title": "Hilos seguidos",
       "filter_label": "Filtrar hilos",
       "filter_all": "Todos",
       "filter_unread": "No leído",
