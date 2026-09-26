@@ -2,9 +2,8 @@
 @component
 
 The Server Directory: a direct server-address lookup and the merged cached
-Neighborhoods of all registered servers. The `/chat/servers` page shows each
-section in a titled panel; the Add Server dialog shows the sections directly on
-its work plane. See FDR-042.
+Neighborhoods of all registered servers. Each section sits in a titled panel,
+both on the `/chat/servers` page and in the Add Server view. See FDR-042.
 -->
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
@@ -42,15 +41,14 @@ its work plane. See FDR-042.
   import { toast } from '$lib/ui/toast';
 
   let {
-    inDialog = false
+    inAddServerView = false
   }: {
     /**
-     * The directory is the content of the history-backed Add Server dialog.
-     * Sections then sit on the dialog's work plane with one lower heading
-     * level. Opening, joining, or signing in to a server replaces the
-     * dialog's history entry while it is open, so Back does not reopen it.
+     * The directory is the content of the history-backed Add Server view.
+     * Opening, joining, or signing in to a server replaces the view's history
+     * entry while it is open, so Back does not reopen it.
      */
-    inDialog?: boolean;
+    inAddServerView?: boolean;
   } = $props();
 
   /** A live profile from a direct lookup, or a cached Server Directory profile. */
@@ -193,11 +191,11 @@ its work plane. See FDR-042.
   }
 
   /**
-   * Sign-in can finish after the dialog closes. Replace history only when the
-   * Add Server dialog is still the current entry at that time.
+   * Sign-in can finish after the view closes. Replace history only when the
+   * Add Server view is still the current entry at that time.
    */
   const signInOptions: ServerOAuthFlowOptions = {
-    replaceHistory: () => inDialog && page.state.modal?.type === 'addServer'
+    replaceHistory: () => inAddServerView && page.state.modal?.type === 'addServer'
   };
 
   /**
@@ -212,7 +210,7 @@ its work plane. See FDR-042.
     try {
       if (joined && serverRegistry.isAuthenticated(joined.id)) {
         await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(joined.id) }), {
-          replaceState: inDialog
+          replaceState: inAddServerView
         });
       } else if (joined) {
         await startRemoteReauthentication(joined, signInOptions);
@@ -317,33 +315,15 @@ its work plane. See FDR-042.
   </p>
 {/snippet}
 
-<!-- The page frames each section in a titled Panel. The dialog already owns
-     one work plane, so its sections sit directly on it. -->
 {#snippet directorySection(
-  id: string,
   title: string,
   description: string,
   count: number | undefined,
   body: Snippet
 )}
-  {#if inDialog}
-    <section class="flex flex-col gap-4" aria-labelledby={id}>
-      <div class="flex flex-col gap-1">
-        <h3 {id} class="text-base font-semibold text-balance text-text-top">
-          {title}
-          {#if count !== undefined}
-            <span class="font-normal text-muted tabular-nums">({count})</span>
-          {/if}
-        </h3>
-        <p class="text-sm text-pretty text-muted">{description}</p>
-      </div>
-      {@render body()}
-    </section>
-  {:else}
-    <Panel {title} subtitle={description} {count}>
-      <div class="flex flex-col gap-4">{@render body()}</div>
-    </Panel>
-  {/if}
+  <Panel {title} subtitle={description} {count}>
+    <div class="flex flex-col gap-4">{@render body()}</div>
+  </Panel>
 {/snippet}
 
 {#snippet lookupBody()}
@@ -376,9 +356,12 @@ its work plane. See FDR-042.
     {@const profile = customProfile}
     {@const joined = registeredServer(customOrigin)}
     {@const external = opensInServerClient(customOrigin, profile)}
-    <!-- The card follows the section width, like the directory grid. -->
+    <!-- The card follows the section width and uses the directory grid's
+         narrow columns, so a lookup result matches a directory tile. -->
     <div class="@container/server-cards">
-      <div class="max-w-md">
+      <div
+        class="grid grid-cols-2 gap-3 @[40rem]/server-cards:block @[40rem]/server-cards:max-w-md"
+      >
         {#snippet customActions()}
           {@render entryAction(customOrigin, profile, true)}
         {/snippet}
@@ -395,7 +378,6 @@ its work plane. See FDR-042.
           iconActionDisabled={pendingOrigin === customOrigin}
           actions={customActions}
           testId="server-directory-entry"
-          headingTag={inDialog ? 'h4' : 'h3'}
         />
       </div>
     </div>
@@ -426,19 +408,22 @@ its work plane. See FDR-042.
       {m('add_server.directory.empty_body')}
     </EmptyState>
   {:else}
-    <!-- Cards switch to their compact layout in a narrow container. -->
+    <!-- Cards become two columns of icon tiles in a narrow container. -->
     <div class="@container/server-cards">
       <div
-        class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[52rem]/server-cards:grid-cols-3"
+        class="grid grid-cols-2 gap-3 @[40rem]/server-cards:gap-4 @[52rem]/server-cards:grid-cols-3"
       >
         {#each entries as entry (entry.origin)}
           {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
           {@const joined = registeredServer(entry.origin)}
           {@const external = opensInServerClient(entry.origin, profile)}
           {#snippet cardActions()}
+            <!-- Tiles keep the recommendation sources for assistive technology only. -->
             <div class="flex items-center gap-3">
-              {@render recommendationSources(entry, 'line-clamp-2 flex-1')}
-              {@render entryAction(entry.origin, profile, false)}
+              {@render recommendationSources(entry, 'line-clamp-2 flex-1 server-tile:sr-only')}
+              <div class="shrink-0 server-tile:w-full server-tile:*:w-full">
+                {@render entryAction(entry.origin, profile, false)}
+              </div>
             </div>
           {/snippet}
           <ServerProfileCard
@@ -455,7 +440,6 @@ its work plane. See FDR-042.
             iconActionDisabled={pendingOrigin === entry.origin}
             actions={cardActions}
             testId="server-directory-entry"
-            headingTag={inDialog ? 'h4' : 'h3'}
           />
         {/each}
       </div>
@@ -463,9 +447,8 @@ its work plane. See FDR-042.
   {/if}
 {/snippet}
 
-<div class={['flex flex-col', inDialog ? 'gap-8' : 'gap-6']}>
+<div class="flex flex-col gap-6">
   {@render directorySection(
-    'server-directory-lookup-title',
     m('add_server.directory.custom_title'),
     m('add_server.directory.lookup_description'),
     undefined,
@@ -473,7 +456,6 @@ its work plane. See FDR-042.
   )}
 
   {@render directorySection(
-    'server-directory-recommended-title',
     m('add_server.directory.servers_title'),
     m('add_server.directory.servers_description'),
     entries.length || undefined,

@@ -5,8 +5,9 @@ One public Chatto server profile. Server-supplied content stays inside the
 card. Callers supply trusted badges and actions through explicit props.
 
 Place cards inside an `@container/server-cards` element. When that container
-is narrower than 40rem, the card uses its compact layout: a thin banner strip,
-a smaller logo, and tighter spacing.
+is narrower than 40rem, the card is an icon tile: a large centred logo with the
+name and host below it, no banner, and no description. Callers can use the
+`server-tile:` variant to adapt their details and actions to the tile.
 -->
 <script lang="ts" module>
   import type { PublicServerInfo } from '$lib/api-client/server';
@@ -38,8 +39,7 @@ a smaller logo, and tighter spacing.
     iconOpensInNewTab = false,
     iconActionLabel,
     iconActionDisabled = false,
-    testId = 'server-profile-card',
-    headingTag = 'h3'
+    testId = 'server-profile-card'
   }: {
     origin: string;
     /**
@@ -62,8 +62,6 @@ a smaller logo, and tighter spacing.
     iconActionLabel?: string;
     iconActionDisabled?: boolean;
     testId?: string;
-    /** Heading level of the server name, one below the surrounding section. */
-    headingTag?: 'h3' | 'h4';
   } = $props();
 
   const hostname = $derived.by(() => {
@@ -92,14 +90,14 @@ a smaller logo, and tighter spacing.
   {#if bannerURL && failedBannerURL !== bannerURL}
     <img
       alt=""
-      class="h-24 w-full object-cover @max-[40rem]/server-cards:h-10"
+      class="h-24 w-full object-cover server-tile:hidden"
       {@attach loadPublicServerImage(bannerURL)}
       onerror={() => (failedBannerURL = bannerURL)}
     />
   {:else}
     <!-- The name-seeded gradient matches the server's logo fallback. -->
     <div
-      class="h-24 shrink-0 opacity-40 @max-[40rem]/server-cards:h-10"
+      class="h-24 shrink-0 opacity-40 server-tile:hidden"
       class:bg-surface-emphasized={profile === undefined}
       style:background={profile === undefined ? undefined : getGradientForName(logoServer.name)}
       aria-hidden="true"
@@ -108,16 +106,18 @@ a smaller logo, and tighter spacing.
   {/if}
 
   <div
-    class="flex flex-1 flex-col gap-3 p-4 @max-[40rem]/server-cards:gap-2 @max-[40rem]/server-cards:p-3"
+    class="flex flex-1 flex-col gap-3 p-4 server-tile:gap-2 server-tile:p-3 server-tile:text-center"
   >
-    <div class="flex min-w-0 items-start gap-3">
+    <div
+      class="flex min-w-0 items-start gap-3 server-tile:flex-col server-tile:items-center server-tile:gap-2"
+    >
       {#if iconHref}
         <!-- eslint-disable svelte/no-navigation-without-resolve -- iconHref is a caller-provided external URL -->
         <a
           href={iconHref}
           target={iconOpensInNewTab ? '_blank' : undefined}
           rel={iconOpensInNewTab ? 'noopener noreferrer' : undefined}
-          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] @max-[40rem]/server-cards:-mt-6 @max-[40rem]/server-cards:h-10 @max-[40rem]/server-cards:w-10 @max-[40rem]/server-cards:rounded-lg"
+          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] server-tile:mt-0 server-tile:h-16 server-tile:w-16 server-tile:rounded-2xl"
           aria-label={accessibleIconActionLabel}
           title={accessibleIconActionLabel}
           data-testid={`${testId}-icon-action`}
@@ -128,7 +128,7 @@ a smaller logo, and tighter spacing.
       {:else if onIconClick}
         <button
           type="button"
-          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] disabled:pointer-events-none disabled:cursor-not-allowed @max-[40rem]/server-cards:-mt-6 @max-[40rem]/server-cards:h-10 @max-[40rem]/server-cards:w-10 @max-[40rem]/server-cards:rounded-lg"
+          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] disabled:pointer-events-none disabled:cursor-not-allowed server-tile:mt-0 server-tile:h-16 server-tile:w-16 server-tile:rounded-2xl"
           aria-label={accessibleIconActionLabel}
           title={accessibleIconActionLabel}
           disabled={iconActionDisabled}
@@ -139,17 +139,17 @@ a smaller logo, and tighter spacing.
         </button>
       {:else}
         <div
-          class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized @max-[40rem]/server-cards:-mt-6 @max-[40rem]/server-cards:h-10 @max-[40rem]/server-cards:w-10 @max-[40rem]/server-cards:rounded-lg"
+          class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized server-tile:mt-0 server-tile:h-16 server-tile:w-16 server-tile:rounded-2xl"
         >
           <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
         </div>
       {/if}
 
-      <div class="min-w-0 flex-1">
-        <div class="flex min-w-0 flex-wrap items-center gap-2">
-          <svelte:element this={headingTag} class="min-w-0 truncate font-semibold text-text-top">
+      <div class="min-w-0 flex-1 server-tile:w-full">
+        <div class="flex min-w-0 flex-wrap items-center gap-2 server-tile:justify-center">
+          <h3 class="max-w-full min-w-0 truncate font-semibold text-text-top">
             <bdi dir="auto">{profile?.name ?? hostname}</bdi>
-          </svelte:element>
+          </h3>
           {#if badge}<Pill tone="success">{badge}</Pill>{/if}
         </div>
         <p class="truncate text-sm text-muted" dir="ltr">{hostname}</p>
@@ -158,7 +158,9 @@ a smaller logo, and tighter spacing.
 
     <div class="flex-1">
       {#if profile?.description}
-        <p class="line-clamp-2 text-sm text-muted"><bdi dir="auto">{profile.description}</bdi></p>
+        <p class="line-clamp-2 text-sm text-muted server-tile:hidden">
+          <bdi dir="auto">{profile.description}</bdi>
+        </p>
       {:else if profile === null}
         <p class="text-sm text-muted">{m('add_server.directory.profile_unavailable')}</p>
       {/if}

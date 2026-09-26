@@ -433,14 +433,14 @@ describe('Server Directory page', () => {
     });
   });
 
-  it('replaces the dialog history entry when it opens a joined server', async () => {
+  it('replaces the view history entry when it opens a joined server', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://a.example', cached('Alpha'))],
       failedSourceCount: 0,
       sourceCount: 2
     });
 
-    const { container } = render(ServerDirectory, { inDialog: true });
+    const { container } = render(ServerDirectory, { inAddServerView: true });
     await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
     button(container, 'Open')?.click();
 
@@ -474,7 +474,7 @@ describe('Server Directory page', () => {
     });
   });
 
-  it('replaces the dialog history entry when it joins or signs in to a server', async () => {
+  it('replaces the view history entry when it joins or signs in to a server', async () => {
     mocks.authenticated.clear();
     mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
     mocks.loadServerDirectory.mockResolvedValue({
@@ -488,7 +488,7 @@ describe('Server Directory page', () => {
 
     mocks.pageState = { modal: { type: 'addServer' } };
 
-    const { container } = render(ServerDirectory, { inDialog: true });
+    const { container } = render(ServerDirectory, { inAddServerView: true });
     await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
     button(container, 'Join')?.click();
     await vi.waitFor(() => expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalled());
@@ -500,7 +500,7 @@ describe('Server Directory page', () => {
     expect(joinOptions.replaceHistory()).toBe(true);
     expect(signInOptions.replaceHistory()).toBe(true);
 
-    // Sign-in can finish after the user closed the dialog. The chat entry
+    // Sign-in can finish after the user closed the view. The chat entry
     // that is current then must stay in history.
     mocks.pageState = {};
     expect(joinOptions.replaceHistory()).toBe(false);
@@ -512,7 +512,7 @@ describe('Server Directory page', () => {
     mocks.getPublicServerInfo.mockResolvedValue(customProfile);
     mocks.pageState = { modal: { type: 'addServer' } };
 
-    const { container } = render(ServerDirectory, { inDialog: true });
+    const { container } = render(ServerDirectory, { inAddServerView: true });
     const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
     input.value = 'custom.example';
     input.dispatchEvent(new Event('input', { bubbles: true }));

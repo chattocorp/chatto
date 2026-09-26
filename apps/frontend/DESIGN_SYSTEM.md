@@ -274,21 +274,8 @@ submit button or `Button`'s `defaultAction` where appropriate. Reserve `footer`
 and `footerDetails` for specialized viewer controls. The prop types prevent
 combining a custom footer with semantic actions. `footerDetails` requires `footer`.
 
-Use `fullscreen` for large, browsable content such as the Server Directory.
-Below 768 px, a full-screen dialog covers the whole viewport on every device.
-It has no drag handle, outer frame, or rounded corners. The work plane keeps
-safe-area padding, the header stays visible, and only the body scrolls. The
-dialog ends at the top of an open on-screen keyboard, so the keyboard does not
-hide its lower part. The user closes it with the close button or Back; it has
-no swipe-to-dismiss gesture. From 768 px, it is a centred dialog with the
-width of its `size` and a fixed height of 85% of the viewport, so its size
-does not change while content loads. Do not use it for short tasks; they keep the bottom sheet.
-
-Cards that must adapt to the space they get, not to the device, use a named
-container query. `ServerProfileCard` uses a compact layout when its nearest
-`@container/server-cards` ancestor is narrower than 40rem. The container
-belongs to the grid owner, so one card grid can be wide on a page and compact
-in a narrow dialog.
+Do not put large, browsable content such as the Server Directory in a dialog.
+Use a frame view (see Standard Pane Pages).
 
 Use the `sm` baseline size for short confirmations, `md` for ordinary custom
 dialogs, and `lg` for dense content such as screen selection. Footer actions
@@ -366,6 +353,29 @@ Panel titles are structural navigation, not decorative headings. Do not omit
 them merely because the page header already names the overall feature: the
 page title answers “where am I?”, while panel titles answer “what is in this
 section?”.
+
+### Frame Views
+
+A frame view is a history-backed pane page that fills the app frame. Use
+`FrameView` for large, browsable content that the user opens from anywhere,
+such as the Server Directory. It covers the Server Gutter, the sidebars, and
+the main area; the app header stays available. The covered route content stays
+mounted but is inert and invisible, so it keeps its state. On narrow screens,
+opening a frame view closes the server drawer. The sidebar button in the app
+header can open the drawer above the view.
+
+The view has a `PaneHeader` with a close button and a scrolling `PaneContent`,
+so it uses the pane-page rules above. Escape, the close button, and Back close
+it. Declare the modal type with `isFrameViewModal` in `$lib/modal`; the root
+layout renders it in `FrameViewContainer` instead of `ModalContainer`.
+
+Cards that must adapt to the space they get, not to the device, use a named
+container query. `ServerProfileCard` is an icon tile when its nearest
+`@container/server-cards` ancestor is narrower than 40rem: a large centred
+logo, the name and host, and the actions, without a banner or description.
+Callers adapt their own card content with the `server-tile:` variant. The
+container belongs to the grid owner, so one grid can show full cards on a
+wide page and two tile columns on a phone.
 
 ### Settings And Preferences
 

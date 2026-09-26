@@ -156,64 +156,6 @@ describe('Dialog', () => {
     });
   });
 
-  describe('fullscreen', () => {
-    // Layout offsets ignore the entrance animation's scale transform.
-    function expectViewportCover(dialog: HTMLDialogElement) {
-      expect(dialog.offsetTop).toBe(0);
-      expect(dialog.offsetLeft).toBe(0);
-      expect(dialog.offsetWidth).toBe(window.innerWidth);
-      expect(dialog.offsetHeight).toBe(window.innerHeight);
-    }
-
-    it('covers a narrow touch screen instead of opening a bottom sheet', async () => {
-      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
-      await page.viewport(390, 720);
-      const { container } = renderDialog({
-        visible: true,
-        fullscreen: true,
-        title: 'Directory',
-        children: testSnippet('<div style="height: 3000px">Long content</div>')
-      });
-
-      const dialog = q(container, 'dialog') as HTMLDialogElement;
-      expectViewportCover(dialog);
-      expect(dialog.classList.contains('bottom-sheet')).toBe(false);
-      const body = dialog.querySelector('.dialog-body') as HTMLElement;
-      expect(getComputedStyle(body).overflowY).toBe('auto');
-      expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
-      const header = dialog.querySelector('header') as HTMLElement;
-      const headerTop = header.getBoundingClientRect().top;
-      body.scrollTop = body.scrollHeight;
-      expect(body.scrollTop).toBeGreaterThan(0);
-      expect(header.getBoundingClientRect().top).toBe(headerTop);
-    });
-
-    it('covers a narrow mouse window', async () => {
-      await page.viewport(600, 720);
-      const { container } = renderDialog({
-        visible: true,
-        fullscreen: true,
-        children: testSnippet('<span>Content</span>')
-      });
-
-      expectViewportCover(q(container, 'dialog') as HTMLDialogElement);
-    });
-
-    it('keeps a centred dialog with a fixed height on wide screens', async () => {
-      const { container } = renderDialog({
-        visible: true,
-        fullscreen: true,
-        size: 'xl',
-        children: testSnippet('<span>Short content</span>')
-      });
-
-      const dialog = q(container, 'dialog') as HTMLDialogElement;
-      const frame = q(container, FRAME) as HTMLElement;
-      expect(dialog.offsetWidth).toBeLessThan(window.innerWidth);
-      expect(frame.offsetHeight).toBeCloseTo(window.innerHeight * 0.85, -1);
-    });
-  });
-
   describe('content area', () => {
     it('has content wrapper div', async () => {
       const { container } = renderDialog({

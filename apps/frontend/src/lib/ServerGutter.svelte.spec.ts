@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { SvelteMap } from 'svelte/reactivity';
+import { sidebarNav } from '$lib/state/globals.svelte';
 
 type ServerMock = {
   id: string;
@@ -128,7 +129,7 @@ describe('ServerGutter', () => {
     return cancelledByGutter;
   }
 
-  it('opens the Server Directory as a dialog over the current view', () => {
+  it('opens the Server Directory as a view over the current route', () => {
     const { container } = render(ServerGutter);
 
     expect(clickAddServer(container)).toBe(true);
@@ -148,13 +149,29 @@ describe('ServerGutter', () => {
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
-  it('marks the add action active while the dialog is open', () => {
+  it('marks the add action active and only closes the drawer while the view is open', () => {
     mocks.pageState = { modal: { type: 'addServer' } };
+    sidebarNav.setMobile(true);
+    sidebarNav.toggle();
+
+    try {
+      const { container } = render(ServerGutter);
+      const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
+
+      expect(link.getAttribute('aria-current')).toBe('page');
+      expect(clickAddServer(container)).toBe(true);
+      expect(mocks.pushState).not.toHaveBeenCalled();
+      expect(sidebarNav.isOpen).toBe(false);
+    } finally {
+      sidebarNav.setMobile(false);
+    }
+  });
+
+  it('keeps the link behavior on the Server Directory page', () => {
+    mocks.routeId = '/chat/servers';
 
     const { container } = render(ServerGutter);
-    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
 
-    expect(link.getAttribute('aria-current')).toBe('page');
     expect(clickAddServer(container)).toBe(false);
     expect(mocks.pushState).not.toHaveBeenCalled();
   });

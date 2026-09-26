@@ -4,11 +4,23 @@
   import { m } from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
 
-  let { children }: { children?: Snippet } = $props();
+  let {
+    covered = false,
+    children
+  }: {
+    /**
+     * A frame view covers the frame. The route content becomes inert and
+     * invisible but stays mounted. Wide windows also hide the Server Gutter;
+     * narrow windows keep the drawer so the header's sidebar button still works.
+     */
+    covered?: boolean;
+    children?: Snippet;
+  } = $props();
 
   const progress = $derived(sidebarNav.isMobile ? sidebarNav.progress : 1);
   const dragging = $derived(sidebarNav.dragOffset !== null);
   const mobileClosed = $derived(sidebarNav.drawerClosed);
+  const gutterCovered = $derived(covered && !sidebarNav.isMobile);
 
   /** Use the work plane's actual width for drawer transforms and swipe progress. */
   function observePanelWidth(node: HTMLDivElement) {
@@ -59,12 +71,15 @@
       'max-md:fixed max-md:start-0 max-md:mobile-sidebar-insets max-md:w-17 max-md:touch-pan-y',
       // Mobile: always rendered so we can animate transform.
       // Desktop: hide entirely when closed (no overlay; layout reflows).
-      sidebarNav.isMobile || sidebarNav.isOpen ? 'flex' : 'hidden'
+      sidebarNav.isMobile || sidebarNav.isOpen ? 'flex' : 'hidden',
+      gutterCovered && 'invisible'
     ]}
-    inert={mobileClosed}
+    inert={mobileClosed || gutterCovered}
   >
     <ServerGutter />
   </div>
 
-  {@render children?.()}
+  <div class={['contents', covered && 'invisible']} inert={covered}>
+    {@render children?.()}
+  </div>
 </div>

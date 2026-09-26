@@ -38,6 +38,17 @@ export type ChatModal =
       assetUrl: ExpiringAssetUrl | null;
     });
 
+/**
+ * Global modals that fill the app frame as a `FrameView` instead of opening a
+ * dialog. The app header stays available; the covered frame content is inert.
+ */
+export type FrameViewModal = Extract<ChatModal, { type: 'addServer' }>;
+
+/** Tell whether a modal opens as a frame view. */
+export function isFrameViewModal(modal: ChatModal | undefined): modal is FrameViewModal {
+  return modal?.type === 'addServer';
+}
+
 export type LeaveRoomModalState = Extract<ChatModal, { type: 'leaveRoom' }>;
 export type RemoveServerModalState = Extract<ChatModal, { type: 'removeServer' }>;
 export type DeleteMessageContentModalState = Extract<

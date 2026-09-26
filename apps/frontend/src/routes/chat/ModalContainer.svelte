@@ -2,7 +2,6 @@
   import { page } from '$app/state';
   import type { ChatModal } from '$lib/modal';
   import AboutChattoModal from './modals/AboutChattoModal.svelte';
-  import AddServerModal from './modals/AddServerModal.svelte';
   import MotdModal from './modals/MotdModal.svelte';
   import DeleteMessageContentModal from './modals/DeleteMessageContentModal.svelte';
   import AttachmentViewerModal from './modals/AttachmentViewerModal.svelte';
@@ -28,8 +27,6 @@
       <SignOutDialog onclose={closeModal} />
     {:else if modal.type === 'aboutChatto'}
       <AboutChattoModal onclose={closeModal} />
-    {:else if modal.type === 'addServer'}
-      <AddServerModal onclose={closeModal} />
     {:else if modal.type === 'motd'}
       <MotdModal motd={modal.motd} onclose={closeModal} />
     {:else if modal.type === 'leaveRoom'}

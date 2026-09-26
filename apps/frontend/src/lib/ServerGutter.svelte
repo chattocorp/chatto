@@ -12,6 +12,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions';
   import { m } from '$lib/i18n/messages';
+  import { sidebarNav } from '$lib/state/globals.svelte';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
@@ -31,16 +32,16 @@ is connected to, plus the add-server button pinned to the bottom. See the
   void anyServerHasPermission;
 
   const directoryHref = resolve('/chat/servers');
-  const directoryActive = $derived(
-    page.route.id === '/chat/servers' || page.state.modal?.type === 'addServer'
-  );
+  const addServerViewOpen = $derived(page.state.modal?.type === 'addServer');
+  const directoryActive = $derived(page.route.id === '/chat/servers' || addServerViewOpen);
 
   /**
-   * Open the Server Directory as a history-backed dialog over the current view.
+   * Open the Server Directory as a history-backed view that fills the app frame.
    * Modified clicks keep the link behavior, and the full page stays in place
-   * when it is already open.
+   * when it is already open. The mobile drawer can open above an open view;
+   * the add action then only closes the drawer.
    */
-  function openAddServerDialog(event: MouseEvent) {
+  function openAddServerView(event: MouseEvent) {
     if (
       event.defaultPrevented ||
       event.button !== 0 ||
@@ -48,11 +49,15 @@ is connected to, plus the add-server button pinned to the bottom. See the
       event.ctrlKey ||
       event.shiftKey ||
       event.altKey ||
-      directoryActive
+      page.route.id === '/chat/servers'
     ) {
       return;
     }
     event.preventDefault();
+    if (addServerViewOpen) {
+      sidebarNav.close();
+      return;
+    }
     pushState('', { modal: { type: 'addServer' } });
   }
 </script>
@@ -80,7 +85,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
       title={m('chat.server_gutter.add_server')}
       aria-label={m('chat.server_gutter.add_server')}
       aria-current={directoryActive ? 'page' : undefined}
-      onclick={openAddServerDialog}
+      onclick={openAddServerView}
       class={['server-gutter-item cursor-pointer', directoryActive && 'server-gutter-item-active']}
     >
       <span class="iconify icon-[uil--plus]"></span>

@@ -54,6 +54,10 @@ function bannerHeight(card: Element): number {
   return (card.querySelector('[data-banner-fallback]') as HTMLElement).offsetHeight;
 }
 
+function logoSize(card: Element): number {
+  return (card.querySelector('[data-testid$="-icon-action"]') as HTMLElement).offsetWidth;
+}
+
 afterEach(() => {
   document.body.querySelectorAll(':scope > div[style]').forEach((host) => host.remove());
 });
@@ -82,12 +86,18 @@ describe('Server Directory layout', () => {
     expect(bannerHeight(cards[0]!)).toBe(96);
   });
 
-  it('uses compact cards, including an address-lookup result, in a narrow space', async () => {
+  it('shows two columns of icon tiles, including an address-lookup result, in a narrow space', async () => {
     const { host, input } = await renderWithLookupResult(366);
 
-    for (const card of host.querySelectorAll('[data-testid="server-directory-entry"]')) {
-      expect(bannerHeight(card)).toBe(40);
+    const cards = [...host.querySelectorAll<HTMLElement>('[data-testid="server-directory-entry"]')];
+    for (const card of cards) {
+      expect(bannerHeight(card)).toBe(0);
+      expect(logoSize(card)).toBe(64);
+      expect(card.offsetWidth).toBeLessThan(366 / 2);
     }
+    // The lookup result comes first; the two directory tiles share one row.
+    const [, first, second] = cards;
+    expect(first!.getBoundingClientRect().top).toBe(second!.getBoundingClientRect().top);
     const button = host.querySelector<HTMLButtonElement>('form button[type="submit"]')!;
     expect(button.getBoundingClientRect().top).toBe(input.getBoundingClientRect().top);
   });
@@ -104,7 +114,7 @@ describe('Server Directory layout', () => {
 /** Render the directory at a width and look up one server by address. */
 async function renderWithLookupResult(width: number) {
   mocks.loadServerDirectory.mockResolvedValue({
-    entries: [entry('https://a.example', 'A')],
+    entries: [entry('https://a.example', 'A'), entry('https://b.example', 'B')],
     failedSourceCount: 0,
     sourceCount: 1
   });
@@ -124,7 +134,7 @@ async function renderWithLookupResult(width: number) {
   const { host } = renderAtWidth(width);
 
   await vi.waitFor(() =>
-    expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(1)
+    expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(2)
   );
   const input = host.querySelector<HTMLInputElement>('#add-server-url')!;
   input.value = 'custom.example';
@@ -132,7 +142,7 @@ async function renderWithLookupResult(width: number) {
   flushSync();
   host.querySelector('form')!.requestSubmit();
   await vi.waitFor(() =>
-    expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(2)
+    expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(3)
   );
   return { host, input };
 }

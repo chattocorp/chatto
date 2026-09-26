@@ -120,6 +120,9 @@
     @slot;
   }
 }
+/* Server cards are icon tiles while their `@container/server-cards` is
+ * narrower than 40rem. The grid owner defines the container. */
+@custom-variant server-tile (@container server-cards (width < 40rem));
 
 /* Opt in to reclaiming header space while the software keyboard is open. */
 @utility keyboard-hide-mobile {

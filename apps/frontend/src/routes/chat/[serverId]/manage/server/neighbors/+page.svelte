@@ -219,7 +219,7 @@
         {:else}
           <div class="@container/server-cards">
             <div
-              class="grid grid-cols-1 gap-4 @max-[40rem]/server-cards:gap-3 @[40rem]/server-cards:grid-cols-2 @[52rem]/server-cards:grid-cols-3"
+              class="grid grid-cols-1 gap-4 @[40rem]/server-cards:grid-cols-2 @[52rem]/server-cards:grid-cols-3 server-tile:gap-3"
             >
               {#each neighbors as neighbor (neighbor.id)}
                 {#snippet actions()}
@@ -234,7 +234,7 @@
                       />
                     {/if}
 
-                    <div class="flex justify-end gap-2">
+                    <div class="flex flex-wrap justify-end gap-2 server-tile:justify-center">
                       {#if editTarget?.neighbor.id === neighbor.id}
                         <Button size="sm" variant="secondary" onclick={cancelEdit}>
                           {m('admin.neighbors.cancel')}

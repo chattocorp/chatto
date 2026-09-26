@@ -8,8 +8,7 @@
     forms and ConfirmDialog for destructive or high-risk confirmations. The padded outer frame
     has subtle lighting; the solid content surface has a soft inset shadow to give it depth.
     Narrow touch-capable windows use task sheets. Mouse windows and wide touch screens use
-    centred dialogs. Full-screen dialogs cover the viewport below 768 px on every device.
-    Resize the viewport and emulate touch to compare the presentations.
+    centred dialogs. Resize the viewport and emulate touch to compare both presentations.
   `.trim();
 
   const { Story } = defineMeta({
@@ -34,30 +33,7 @@
   let referenceDialogVisible = $state(false);
   let longDialogVisible = $state(false);
   let adaptiveDialogVisible = $state(false);
-  let fullscreenDialogVisible = $state(false);
 </script>
-
-<Story
-  name="Full screen on small screens"
-  asChild
-  parameters={{
-    docs: {
-      description: {
-        story:
-          'Large, browsable content. Below 768 px the dialog covers the whole viewport on every device, with a persistent header and a scrolling body. Wider windows show a centred dialog with a fixed height.'
-      }
-    }
-  }}
->
-  <Button onclick={() => (fullscreenDialogVisible = true)}>Open directory</Button>
-  <Dialog bind:visible={fullscreenDialogVisible} title="Add Server" size="xl" fullscreen>
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {#each Array.from({ length: 12 }, (_, index) => index + 1) as item (item)}
-        <div class="rounded-lg border border-border bg-surface p-4">Server {item}</div>
-      {/each}
-    </div>
-  </Dialog>
-</Story>
 
 <Story name="Extra large document viewer" asChild>
   <Button onclick={() => (extraLargeDialogVisible = true)}>Open document viewer</Button>

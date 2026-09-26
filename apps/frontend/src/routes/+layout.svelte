@@ -4,7 +4,7 @@
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
@@ -18,6 +18,7 @@
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
+  import { isFrameViewModal } from '$lib/modal';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
@@ -30,6 +31,8 @@
 
   let { data, children } = $props();
   let modalContainerModule: Promise<typeof import('./chat/ModalContainer.svelte')> | null = null;
+  let frameViewContainerModule: Promise<typeof import('./chat/FrameViewContainer.svelte')> | null =
+    null;
 
   // Shell precaching fetches the full compiled build. Delay registration so
   // those requests do not contend with the page's initial navigation.
@@ -59,6 +62,17 @@
     modalContainerModule ??= import('./chat/ModalContainer.svelte');
     return modalContainerModule;
   }
+
+  function loadFrameViewContainer() {
+    frameViewContainerModule ??= import('./chat/FrameViewContainer.svelte');
+    return frameViewContainerModule;
+  }
+
+  /** A frame view covers the frame content, including the server drawer. */
+  const frameViewOpen = $derived(isFrameViewModal(page.state.modal));
+  $effect(() => {
+    if (frameViewOpen && sidebarNav.isMobile) untrack(() => sidebarNav.close());
+  });
 
   setAuthServerInfo(() => data.serverInfo);
   const appUi = provideAppUiState();
@@ -149,9 +163,15 @@
     <AppHeader />
 
     <Frame class="relative flex-col">
-      <MobileSidebarChrome>
+      <MobileSidebarChrome covered={frameViewOpen}>
         {@render children?.()}
       </MobileSidebarChrome>
+
+      {#if frameViewOpen}
+        {#await loadFrameViewContainer() then { default: FrameViewContainer }}
+          <FrameViewContainer />
+        {/await}
+      {/if}
     </Frame>
   </div>
 {/if}
@@ -168,7 +188,7 @@
   ]}
 ></div>
 
-{#if page.state.modal}
+{#if page.state.modal && !frameViewOpen}
   {#await loadModalContainer() then { default: ModalContainer }}
     <ModalContainer />
   {/await}

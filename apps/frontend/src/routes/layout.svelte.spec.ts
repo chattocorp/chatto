@@ -131,6 +131,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/components/ServerDirectory.svelte', async () => ({
+  default: (await import('./chat/ChatRootTestStub.svelte')).default
+}));
+
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     originClient: mocks.originClient,
@@ -140,11 +144,11 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
 
 import Layout from './+layout.svelte';
 
-function installMobileMatchMedia() {
+function installMobileMatchMedia(matches = true) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: vi.fn(() => ({
-      matches: true,
+      matches,
       media: '(max-width: 767px)',
       onchange: null,
       addEventListener: vi.fn(),
@@ -452,5 +456,56 @@ describe('root layout notification synchronization', () => {
 
     await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
     expect(container.querySelector('[data-testid="chat-root-component-stub"]')).not.toBeNull();
+  });
+});
+
+describe('root layout frame views', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (page.state as App.PageState).modal = { type: 'addServer' };
+  });
+
+  afterEach(() => {
+    delete (page.state as App.PageState).modal;
+  });
+
+  it('fills the app frame and covers the frame content on wide screens', async () => {
+    installMobileMatchMedia(false);
+    sidebarNav.setMobile(false);
+    const { container } = renderLayout();
+
+    const view = await vi.waitFor(() => {
+      const view = container.querySelector<HTMLElement>('[data-testid="frame-view"]');
+      expect(view).not.toBeNull();
+      return view!;
+    });
+    expect(view.parentElement).toBe(q(container, '[data-testid="app-frame"]'));
+    expect(container.querySelector('dialog[open]')).toBeNull();
+
+    const child = q(container, '[data-testid="layout-child"]')!;
+    expect(child.closest('[inert]')).not.toBeNull();
+    expect(getComputedStyle(child).visibility).toBe('hidden');
+    const gutter = q(container, '[data-testid="mobile-sidebar-panel"]') as HTMLElement;
+    expect(gutter.inert).toBe(true);
+    expect(getComputedStyle(gutter).visibility).toBe('hidden');
+
+    const header = container.querySelector<HTMLElement>('.app-header')!;
+    expect(header.closest('[inert]')).toBeNull();
+  });
+
+  it('closes the server drawer and lets the header open it above the view', async () => {
+    installMobileMatchMedia();
+    resetSidebar();
+    sidebarNav.toggle();
+    expect(sidebarNav.isOpen).toBe(true);
+
+    const view = renderLayout();
+    await expect.element(view.getByTestId('frame-view')).toBeInTheDocument();
+    expect(sidebarNav.isOpen).toBe(false);
+
+    await view.getByRole('button', { name: 'Toggle sidebar' }).click();
+    const gutter = q(view.container, '[data-testid="mobile-sidebar-panel"]') as HTMLElement;
+    expect(gutter.inert).toBe(false);
+    expect(q(view.container, '[data-testid="layout-child"]')!.closest('[inert]')).not.toBeNull();
   });
 });

@@ -15,6 +15,7 @@ export { default as FormSection } from './FormSection.svelte';
 export { default as FloatingPopover } from './FloatingPopover.svelte';
 export { default as CompactActionButton } from './CompactActionButton.svelte';
 export { default as Frame } from './Frame.svelte';
+export { default as FrameView } from './FrameView.svelte';
 export { default as HeaderIconButton } from './HeaderIconButton.svelte';
 export { default as HelpTooltip } from './HelpTooltip.svelte';
 export { default as Hint } from './Hint.svelte';
