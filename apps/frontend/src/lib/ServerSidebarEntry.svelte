@@ -24,7 +24,6 @@
   import { clientAccount } from '$lib/state/clientAccount';
   import { toast } from '$lib/ui/toast';
   import { onMount } from 'svelte';
-  import { loadSavedView } from '$lib/storage/savedViews';
 
   let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
     $props();
@@ -35,12 +34,7 @@
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const stores = serverRegistry.getStore(serverId);
-  onMount(() => {
-    const userId = serverRegistry.getServer(serverId)?.userId ?? null;
-    void loadSavedView(serverId, userId).then((view) => {
-      if (view && serverRegistry.getServer(serverId)?.userId === userId) stores.restoreSavedView(view);
-    });
-  });
+  onMount(() => void stores.restoreSavedViewFromDisk());
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const appUi = getAppUiState();

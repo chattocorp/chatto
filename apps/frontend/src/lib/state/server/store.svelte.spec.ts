@@ -345,6 +345,8 @@ vi.mock('$lib/api-client/viewer', async (importActual) => {
   };
 });
 
+vi.mock('$lib/storage/savedViews', { spy: true });
+
 vi.mock('$lib/api-client/attachments', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/attachments')>();
   return {
@@ -357,6 +359,7 @@ vi.mock('$lib/api-client/attachments', async (importActual) => {
 });
 
 import { ServerStateStore } from './store.svelte';
+import { loadSavedView } from '$lib/storage/savedViews';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import {
   registerFollowedThreadQueryCache,
@@ -776,6 +779,34 @@ describe('ServerStateStore viewer restoration', () => {
     expect(store.savedView).toBeNull();
     expect(store.projection.rooms.has('R1')).toBe(false);
     expect(store.realtimeSync.restoredFromDisk).toBe(false);
+  });
+  it('restores the saved view from disk while the projection is empty', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.networkStartupDeferred = true;
+    vi.mocked(loadSavedView).mockResolvedValueOnce(
+      savedViewFixture({
+        serverId: store.serverId,
+        userId: 'U1',
+        serverName: 'Saved server',
+        savedAt: Date.now(),
+        rooms: [{ id: 'R1', name: 'general', messages: [] }]
+      })
+    );
+
+    await store.restoreSavedViewFromDisk();
+
+    expect(loadSavedView).toHaveBeenCalledWith(store.serverId, 'U1');
+    expect(store.projection.rooms.has('R1')).toBe(true);
+    expect(store.realtimeSync.restoredFromDisk).toBe(true);
+  });
+  it('does not read the saved view for a store that has a projection', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeSync.markCaughtUp('live-cursor');
+    vi.mocked(loadSavedView).mockClear();
+
+    await store.restoreSavedViewFromDisk();
+
+    expect(loadSavedView).not.toHaveBeenCalled();
   });
   it('automatically saves loaded rooms without a route dwell timer or recent-room limit', async () => {
     vi.useFakeTimers();

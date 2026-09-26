@@ -68,7 +68,7 @@ import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
-import { clearSavedView, saveView, type SavedView } from '$lib/storage/savedViews';
+import { clearSavedView, loadSavedView, saveView, type SavedView } from '$lib/storage/savedViews';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   purgeRegisteredRoomMemberQueries,
@@ -790,6 +790,19 @@ export class ServerStateStore {
     this.activeCallRooms.clearRoom(roomId);
     this.notifications.clearRoom(roomId);
     this.clearRoomMessageAccess(roomId, forgetStores);
+  }
+
+  /**
+   * Read this viewer's saved view from device storage and restore it. Only an
+   * empty projection can show a saved view, so a store that restored one or
+   * synced live data returns before it reads storage. While network startup is
+   * deferred, the view is restored as a pre-connection view.
+   */
+  async restoreSavedViewFromDisk(): Promise<void> {
+    if (this.realtimeSync.phase !== 'empty') return;
+    const view = await loadSavedView(this.serverId, this.#getSession().userId);
+    // restoreSavedView checks the view against the viewer after the read.
+    this.restoreSavedView(view, this.networkStartupDeferred);
   }
 
   /**
