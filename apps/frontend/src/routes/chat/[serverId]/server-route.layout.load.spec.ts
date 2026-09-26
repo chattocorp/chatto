@@ -73,6 +73,10 @@ describe('server route layout load', () => {
     mocks.store.savedView = null;
     mocks.store.networkStartupDeferred = false;
     mocks.loadSavedView.mockResolvedValue(null);
+    // The store accepts a matching view; tests override this to model refusal.
+    mocks.store.restoreSavedView.mockImplementation((view: typeof mocks.store.savedView) => {
+      if (view) mocks.store.savedView = view;
+    });
   });
 
   it('opens setup for the origin before requiring authentication', async () => {
@@ -90,6 +94,26 @@ describe('server route layout load', () => {
     mocks.serverId = null;
 
     await expectLoginRedirect();
+  });
+
+  it('does not read the room param, so room switches do not re-run it', async () => {
+    const params = new Proxy(
+      { serverId: '-', roomId: 'room-1' },
+      {
+        get(target, key) {
+          if (key === 'roomId') throw new Error('server layout load read params.roomId');
+          return Reflect.get(target, key);
+        }
+      }
+    );
+
+    await expect(
+      load({
+        params,
+        parent: async () => ({ user: { id: 'viewer-1' }, serverInfo: { setupRequired: false } }),
+        url: new URL('https://chat.example.test/chat/-/room-1')
+      } as never)
+    ).resolves.toEqual({ serverSegment: '-' });
   });
 
   it('uses the parent origin viewer without a second viewer request', async () => {
@@ -129,6 +153,18 @@ describe('server route layout load', () => {
     await expect(routeLoad(null)).resolves.toMatchObject({ serverSegment: '-' });
     expect(mocks.store.restoreSavedView).toHaveBeenCalledWith(savedView, false);
     expect(mocks.store.currentUser.load).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a refused saved view as a readable view', async () => {
+    mocks.serverId = 'remote';
+    mocks.origin = false;
+    mocks.store.currentUser.loading = true;
+    mocks.store.currentUser.user = undefined;
+    mocks.loadSavedView.mockResolvedValue({ serverId: 'remote', userId: 'viewer-1', rooms: [] });
+    mocks.store.restoreSavedView.mockImplementation(() => {});
+
+    await expect(routeLoad(null)).rejects.toMatchObject({ status: 302, location: '/login' });
+    expect(mocks.store.currentUser.load).toHaveBeenCalledOnce();
   });
 
   it('restores a dormant server before starting its requests', async () => {

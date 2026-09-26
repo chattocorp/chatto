@@ -97,7 +97,7 @@ describe('createThreadAPI', () => {
     const page = await api.listFollowedThreads({ limit: 20, offset: 40 });
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { includeDirectMessageThreads: true, page: { limit: 20, offset: 40 } },
+      { includeDirectMessageThreads: true, unreadOnly: false, page: { limit: 20, offset: 40 } },
       {
         headers: { Authorization: 'Bearer remote-token' }
       }
@@ -149,6 +149,21 @@ describe('createThreadAPI', () => {
     expect(page.nextCursor).toBeNull();
   });
 
+  it('asks the server for unread threads only when requested', async () => {
+    mocks.listFollowedThreads.mockResolvedValue({ threads: [], page: {} });
+    const api = createThreadAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await api.listFollowedThreads({ limit: 20, offset: 0, unreadOnly: true });
+
+    expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
+      { includeDirectMessageThreads: true, unreadOnly: true, page: { limit: 20, offset: 0 } },
+      { headers: undefined }
+    );
+  });
+
   it('passes cancellation through when listing followed threads', async () => {
     mocks.listFollowedThreads.mockResolvedValue({ threads: [], page: {} });
     const signal = new AbortController().signal;
@@ -160,7 +175,7 @@ describe('createThreadAPI', () => {
     await api.listFollowedThreads({ limit: 20, offset: 0 }, { signal });
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { includeDirectMessageThreads: true, page: { limit: 20, offset: 0 } },
+      { includeDirectMessageThreads: true, unreadOnly: false, page: { limit: 20, offset: 0 } },
       { headers: undefined, signal }
     );
   });

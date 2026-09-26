@@ -22,10 +22,14 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     redirect(302, resolve('/setup'));
   }
 
-  const savedView = startupServerId === serverId
-    ? serverStore.savedView
-    : await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null);
-  serverStore.restoreSavedView(savedView, serverStore.networkStartupDeferred);
+  serverStore.restoreSavedView(
+    startupServerId === serverId
+      ? serverStore.savedView
+      : await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null),
+    serverStore.networkStartupDeferred
+  );
+  // Only a view the store accepted counts; it refuses rejected or corrupt views.
+  const savedView = serverStore.savedView;
   // A dormant server starts its network work after its saved view is ready.
   if (startupServerId !== serverId) serverRegistry.startServerNetwork(serverId);
 
@@ -45,10 +49,9 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     : serverStore.currentUser.user !== undefined;
   if (!reauthRequired && !authenticated && !savedView) redirectToLogin(url);
 
+  // Do not read child params here. SvelteKit re-runs a load when a param that
+  // it read changes, and this load restores saved views and checks access.
   return {
-    serverSegment: params.serverId,
-
-    /** The currently active room (from child route params). */
-    roomId: params.roomId
+    serverSegment: params.serverId
   };
 };

@@ -42,6 +42,25 @@ type participantMetadata struct {
 	CallID        string `json:"callId,omitempty"`
 	PublisherKind string `json:"publisherKind,omitempty"`
 	OwnerIdentity string `json:"ownerIdentity,omitempty"`
+	// PrivilegedUntil is the Unix time at which the privileged mode of the
+	// issuing session ends. Zero means inactive. Call reconciliation evaluates
+	// the participant with this state, so the owner override ends with it.
+	PrivilegedUntil int64 `json:"privilegedUntil,omitempty"`
+}
+
+// privilegedUntilUnix encodes a privileged-mode deadline for participant
+// metadata. A zero deadline stays zero.
+func privilegedUntilUnix(deadline time.Time) int64 {
+	if deadline.IsZero() {
+		return 0
+	}
+	return deadline.Unix()
+}
+
+// privilegedModeActive reports whether the metadata's privileged-mode
+// deadline is still in the future.
+func (md participantMetadata) privilegedModeActive(now time.Time) bool {
+	return md.PrivilegedUntil > 0 && now.Before(time.Unix(md.PrivilegedUntil, 0))
 }
 
 // ParseParticipantMetadata parses JSON metadata from a LiveKit participant.
@@ -124,10 +143,12 @@ func ParseLiveKitRoomServerID(lkRoomName string) string {
 
 // GenerateVoiceCallToken creates a LiveKit join token for a user.
 // The login, avatar URL, and bot status are embedded as JSON metadata so the
-// frontend can render identity without additional queries.
+// frontend can render identity without additional queries. privilegedUntil is
+// the privileged-mode deadline of the requesting session; see
+// PrivilegedModeDeadline.
 // Authorization: Caller must verify current membership and call.join, then
 // pass the resolved publishing permissions.
-func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, isBot bool, e2eeKey string, permissions CallPermissions, callID ...string) (*VoiceCallToken, error) {
+func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, isBot bool, e2eeKey string, permissions CallPermissions, privilegedUntil time.Time, callID ...string) (*VoiceCallToken, error) {
 	at := lkauth.NewAccessToken(apiKey, apiSecret)
 	grant := &lkauth.VideoGrant{
 		RoomJoin: true,
@@ -146,7 +167,7 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 	if len(callID) > 0 {
 		activeCallID = callID[0]
 	}
-	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, IsBot: isBot, CallID: activeCallID})
+	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, IsBot: isBot, CallID: activeCallID, PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
 	if err != nil {
 		return nil, fmt.Errorf("marshal participant metadata: %w", err)
 	}
@@ -162,8 +183,9 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 // GenerateCallMediaPublisherToken creates a publish-only LiveKit credential
 // for a native companion process. The companion has its own opaque identity so
 // it cannot evict the owner's primary LiveKit connection.
+// privilegedUntil is the privileged-mode deadline of the requesting session.
 // Authorization: Caller must verify room membership and active participation.
-func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdentity, ownerIdentity, displayName, e2eeKey, callID, publisherKind string) (*VoiceCallToken, error) {
+func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdentity, ownerIdentity, displayName, e2eeKey, callID, publisherKind string, privilegedUntil time.Time) (*VoiceCallToken, error) {
 	grant := &lkauth.VideoGrant{RoomJoin: true, Room: roomName}
 	grant.SetCanSubscribe(false)
 	grant.SetCanPublishData(false)
@@ -181,9 +203,10 @@ func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdent
 		SetValidFor(CallMediaPublisherTokenTTL)
 
 	md, err := json.Marshal(participantMetadata{
-		CallID:        callID,
-		PublisherKind: publisherKind,
-		OwnerIdentity: ownerIdentity,
+		CallID:          callID,
+		PublisherKind:   publisherKind,
+		OwnerIdentity:   ownerIdentity,
+		PrivilegedUntil: privilegedUntilUnix(privilegedUntil),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal media publisher metadata: %w", err)

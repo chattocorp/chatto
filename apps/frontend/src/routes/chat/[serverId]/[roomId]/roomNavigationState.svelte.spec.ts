@@ -72,6 +72,16 @@ describe('RoomNavigationState', () => {
     expect(state.consumeThreadMessageRoute('room-1', 'thread-1', 'message-1')).toBe('message-1');
   });
 
+  it('consumes a highlight parameter once until the parameter disappears', () => {
+    const state = new RoomNavigationState();
+
+    expect(state.consumeHighlightParam('room-1', undefined, 'message-1')).toBe('message-1');
+    expect(state.consumeHighlightParam('room-1', undefined, 'message-1')).toBeNull();
+    expect(state.consumeHighlightParam('room-1', 'thread-1', 'message-1')).toBe('message-1');
+    expect(state.consumeHighlightParam('room-1', 'thread-1', null)).toBeNull();
+    expect(state.consumeHighlightParam('room-1', 'thread-1', 'message-1')).toBe('message-1');
+  });
+
   it('fences stale failed main-room highlight requests', () => {
     const state = new RoomNavigationState();
     const firstRequest = state.beginHighlight('message-1', false);

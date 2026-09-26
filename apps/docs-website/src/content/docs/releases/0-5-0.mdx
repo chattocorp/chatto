@@ -318,7 +318,10 @@ existing call access does not change.
 
 Administrators, moderators, and the owner must now enable privileged mode before
 they use their administrative permissions. This also applies to custom
-`room.create` grants.
+`room.create` grants. Owners also need privileged mode to see, join, or read
+rooms that deny these actions to `everyone`, and to post in the announcements
+room. Give an owner the `admin` role or a room-level allow if they need this
+access during normal use.
 
 See [Permissions](/guides/operations/permissions/) for the complete list.
 

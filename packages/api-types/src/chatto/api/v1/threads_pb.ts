@@ -342,6 +342,15 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
    */
   includeDirectMessageThreads = false;
 
+  /**
+   * Return only threads with replies that the viewer has not read. The page
+   * total then counts only these threads. Older servers ignore this field and
+   * return all followed threads.
+   *
+   * @generated from field: bool unread_only = 5;
+   */
+  unreadOnly = false;
+
   constructor(data?: PartialMessage<ListFollowedThreadsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -352,6 +361,7 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 3, name: "page", kind: "message", T: PageRequest },
     { no: 4, name: "include_direct_message_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "unread_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsRequest {

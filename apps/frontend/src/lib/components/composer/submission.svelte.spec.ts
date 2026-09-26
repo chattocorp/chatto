@@ -104,7 +104,11 @@ describe('ComposerSubmissionState', () => {
 
   it('updates messages and reports failures without leaking loading state', async () => {
     await state.editMessage({ roomId: 'room_1', eventId: 'event_1', body: 'Updated' });
-    expect(onEditSuccess).toHaveBeenCalledOnce();
+    expect(onEditSuccess).toHaveBeenCalledExactlyOnceWith({
+      roomId: 'room_1',
+      eventId: 'event_1',
+      body: 'Updated'
+    });
 
     updateMessage.mockRejectedValueOnce(new Error('edit failed'));
     await state.editMessage({ roomId: 'room_1', eventId: 'event_1', body: 'Again' });

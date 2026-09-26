@@ -73,7 +73,10 @@ requests a private preference read. This transient signal has no cursor and is
 not stored in EVT. Other viewers receive no frame for it. Public presence
 transitions come from the effective-status hub. Invisible
 heartbeats and expiry do not produce repeated Offline transitions. Typing is
-checked against the private choice at publication and delivery.
+checked against the private choice at publication and delivery. At delivery,
+each process reads the sender's choice once per typing event, and only when it
+has a local member of the room other than the sender. The hub does not hold its
+lock during this read.
 
 Common metadata and the cursor are outside the event `oneof`. A client can
 ignore a new event variant and still retain its cursor after it accepts the
@@ -276,9 +279,12 @@ timed-out, and rejected catch-ups.
 Privileged-mode changes keep the mounted client state and resume cursor. The
 client reconnects and reads current viewer, room, and room-group resources
 before it marks catch-up complete. The server cancels authorized work at the session's privilege
-deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. The client
-then reads effective permissions with privileged mode inactive. See
-[ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md).
+deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not
+write a live event after that deadline. The periodic credential check sends
+the same close when another connection of the session ends privileged mode. The client then reads effective
+permissions and rooms with privileged mode inactive. See
+[ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
+[ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).
 
 For a valid short gap, the handler subscribes to the process-wide live hub,
 captures an EVT cutoff, waits until `ServerContentView` reaches that cutoff
@@ -345,9 +351,10 @@ safe fallback. Neither path advances the cursor past the fact.
 `MyEventsHub` owns one NATS Core subscription to `live.sync.>` and one to
 `live.evt.>` per Chatto process. It classifies subjects before decoding, waits
 for `ServerContentView` once for content facts, and fans immutable decoded
-events into count- and byte-bounded session queues. Sessions for one user
-share room-visibility state. There are no per-client NATS or JetStream
-consumers.
+events into count- and byte-bounded session queues. Sessions of one user with
+the same privileged-mode state share room-visibility state. The hub makes each
+membership, read, and visibility decision with that fixed state (ADR-105).
+There are no per-client NATS or JetStream consumers.
 
 Historical message-post facts remain in EVT and reach the internal
 `live.evt.>` feed. The hub and resume replay omit them from public live
@@ -541,7 +548,10 @@ during warm snapshot hydration and retry. Actions stay gated by verified
 authority. Verified origin authentication also starts browser-session renewal.
 The chat root installs origin-session termination handling from the registry's
 verified viewer, even when the route still has no loaded viewer. A changed or
-rejected viewer clears the saved private view.
+rejected viewer clears the saved private view. A session that already needs
+reauthentication deletes its saved view at startup and uses live startup. When
+the origin rejects its viewer and no loaded data remains, the chat root starts
+origin sign-in and keeps the current page as the return path.
 
 `CurrentUserState` owns the complete account and one pending account request for
 each server. Route loading and recovery use that owner. Cookie migration and

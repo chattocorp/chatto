@@ -755,6 +755,28 @@ describe('ServerStateStore viewer restoration', () => {
     expect(restored.isAuthenticated).toBe(false);
     expect(restored.realtimeSync.resumeCursor).toBe('live-cursor');
   });
+  it('does not restore a saved view for a session that needs reauthentication', () => {
+    const store = makeStore(new FakeServerConnection([]), {
+      ...registered,
+      userId: 'U1',
+      reauthRequiredAt: Date.now()
+    });
+    const view = savedViewFixture({
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    });
+    // A copy saved before the session expired is also discarded.
+    store.savedView = view;
+    store.restoreSavedView(view, true);
+
+    expect(store.startupPresentationOnly).toBe(false);
+    expect(store.savedView).toBeNull();
+    expect(store.projection.rooms.has('R1')).toBe(false);
+    expect(store.realtimeSync.restoredFromDisk).toBe(false);
+  });
   it('automatically saves loaded rooms without a route dwell timer or recent-room limit', async () => {
     vi.useFakeTimers();
     const store = makeStore(new FakeServerConnection([]));
@@ -1134,6 +1156,50 @@ describe('ServerStateStore privileged mode', () => {
         }
       ]);
     }
+  });
+
+  it('adds and removes rooms whose visibility follows privileged mode', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    });
+    store.realtimeSync.markCaughtUp('cursor-before');
+    const room = (id: string, name: string) =>
+      new RoomWithViewerState({
+        room: { id, name },
+        viewerState: {
+          isMember: false,
+          permissions: [
+            { permission: 'room.list', granted: true },
+            { permission: 'room.join', granted: true }
+          ]
+        }
+      });
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({ resource: roomResource([room('R1', 'general')]) })
+    );
+    apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+      if (family !== 'rooms') return [];
+      const rooms = [room('R1', 'general')];
+      // Owners see restricted rooms only while privileged mode is active.
+      if (store.projection.viewer?.privilegedMode?.active) rooms.push(room('R2', 'restricted'));
+      return [roomResource(rooms)];
+    });
+    fake.forceReconnect.mockImplementation(() => {
+      const generation = store.realtimeSync.pendingAuthorizationRefreshGeneration;
+      void store
+        .completeRealtimeCatchUp('cursor-after')
+        .then(() => store.realtimeSync.markCaughtUp('cursor-after', generation));
+    });
+
+    await store.setPrivilegedMode(true);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'cursor-after');
+    expect(store.navigation.rooms.map((entry) => entry.id).sort()).toEqual(['R1', 'R2']);
+
+    await store.setPrivilegedMode(false);
+    expect(store.navigation.rooms.map((entry) => entry.id)).toEqual(['R1']);
   });
 
   it('clears expired activation and refreshes effective permissions', async () => {

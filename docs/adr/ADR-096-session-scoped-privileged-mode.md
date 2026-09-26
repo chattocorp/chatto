@@ -4,6 +4,11 @@
 
 **Status:** Accepted
 
+> **Amended 2026-09-25:** [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)
+> also gates the effective-owner override with privileged mode. Realtime
+> fan-out and notification decisions use the privileged-mode state of the
+> receiving session instead of entitlement semantics.
+
 ## Context
 
 A user can have ordinary permissions and administrative permissions at the
@@ -84,10 +89,11 @@ new client feature because its viewer response cannot report availability. An
 older client on a newer server cannot activate elevated permissions. This is
 an intentional Chatto 0.5 authorization behavior change.
 
-The authorization-refresh subscription field is additive. An older client
-does not request the replacement operations. An older server ignores the field
-from a new client. No released client and server pair depends on the temporary
-cursor-reset behavior that existed during development.
+The realtime subscription message has no privileged-mode field. The client
+tracks the pending authorization refresh itself. It reads current resources
+through ConnectRPC before it completes catch-up. No released client and server
+pair depends on the temporary cursor-reset behavior that existed during
+development.
 
 A deployment must update all replicas before it relies on this boundary. An
 old replica does not apply the new request-time gate.

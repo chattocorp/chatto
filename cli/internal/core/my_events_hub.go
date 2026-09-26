@@ -32,13 +32,33 @@ type myEventsDelivery struct {
 	bytes int64
 }
 
+// myEventsPrincipal identifies the sessions that share one room-visibility
+// state. Privileged mode changes an owner's effective room access, so sessions
+// of one user with different privileged-mode states never share state.
+type myEventsPrincipal struct {
+	userID     string
+	privileged bool
+}
+
+// myEventsPrincipalForContext derives the principal from the subscribing
+// request. Contexts without a human credential keep entitlement semantics.
+func myEventsPrincipalForContext(ctx context.Context, userID string) myEventsPrincipal {
+	return myEventsPrincipal{userID: userID, privileged: privilegedModeAllows(ctx, userID, time.Now())}
+}
+
+// authorizationContext evaluates decisions for the principal's sessions with
+// their privileged-mode state instead of the caller's credential.
+func (p myEventsPrincipal) authorizationContext(ctx context.Context) context.Context {
+	return withPrivilegedModeEvaluation(ctx, p.userID, p.privileged)
+}
+
 type myEventsSubscription struct {
-	C      <-chan myEventsDelivery
-	ch     chan myEventsDelivery
-	Done   <-chan struct{}
-	done   chan struct{}
-	id     uint64
-	userID string
+	C         <-chan myEventsDelivery
+	ch        chan myEventsDelivery
+	Done      <-chan struct{}
+	done      chan struct{}
+	id        uint64
+	principal myEventsPrincipal
 
 	queuedBytes atomic.Int64
 }
@@ -56,7 +76,7 @@ type myEventsRegistration struct {
 	generation        uint64
 	visibilityVersion uint64
 	roomSnapshotSeq   uint64
-	userID            string
+	principal         myEventsPrincipal
 	memberRooms       map[string]struct{}
 	visibleRooms      map[string]struct{}
 	sub               *myEventsSubscription
@@ -67,12 +87,13 @@ type myEventsRegistration struct {
 // MyEventsHub owns the process-wide NATS ingress for realtime events. It
 // classifies and decodes each message once, waits for local projections once,
 // and then fans immutable event envelopes out through per-session queues.
-// Room visibility is shared by all sessions belonging to the same user.
+// Room visibility is shared by all sessions of one principal: the same user
+// with the same privileged-mode state.
 type MyEventsHub struct {
 	model *MyEventsModel
 
 	mu          sync.Mutex
-	users       map[string]*myEventsUserState
+	users       map[myEventsPrincipal]*myEventsUserState
 	subscribers map[uint64]*myEventsSubscription
 	nextID      uint64
 	ready       chan struct{}
@@ -90,7 +111,7 @@ type MyEventsHub struct {
 func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 	return &MyEventsHub{
 		model:         model,
-		users:         make(map[string]*myEventsUserState),
+		users:         make(map[myEventsPrincipal]*myEventsUserState),
 		subscribers:   make(map[uint64]*myEventsSubscription),
 		ready:         make(chan struct{}),
 		stateChanged:  make(chan struct{}),
@@ -198,22 +219,24 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 		return nil, ctx.Err()
 	}
 
+	principal := myEventsPrincipalForContext(ctx, userID)
+	authCtx := principal.authorizationContext(ctx)
 	for {
 		h.mu.Lock()
 		visibilityVersion := h.visibilityVersion
-		state, existingUser := h.users[userID]
+		state, existingUser := h.users[principal]
 		needsVisibleRooms := state == nil || state.visibleRooms == nil
 		h.mu.Unlock()
 		if existingUser {
 			var visibleRooms map[string]struct{}
 			if needsVisibleRooms {
 				var err error
-				visibleRooms, err = h.captureVisibleRooms(ctx, userID)
+				visibleRooms, err = h.captureVisibleRooms(authCtx, userID)
 				if err != nil {
 					return nil, err
 				}
 			}
-			sub := newMyEventsSubscription(userID)
+			sub := newMyEventsSubscription(principal)
 			if err := h.registerAtIngressBoundary(ctx, sub, nil, visibleRooms, 0, visibilityVersion); err != nil {
 				if errors.Is(err, errMyEventsIngressChanged) {
 					continue
@@ -222,15 +245,15 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 			}
 			return sub, nil
 		}
-		memberRooms, roomSnapshotSeq, err := h.captureVisibilitySnapshot(ctx, userID)
+		memberRooms, roomSnapshotSeq, err := h.captureVisibilitySnapshot(authCtx, userID)
 		if err != nil {
 			return nil, err
 		}
-		visibleRooms, err := h.captureVisibleRooms(ctx, userID)
+		visibleRooms, err := h.captureVisibleRooms(authCtx, userID)
 		if err != nil {
 			return nil, err
 		}
-		sub := newMyEventsSubscription(userID)
+		sub := newMyEventsSubscription(principal)
 		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms, visibleRooms, roomSnapshotSeq, visibilityVersion); err != nil {
 			if errors.Is(err, errMyEventsIngressChanged) {
 				continue
@@ -241,10 +264,10 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 	}
 }
 
-func newMyEventsSubscription(userID string) *myEventsSubscription {
+func newMyEventsSubscription(principal myEventsPrincipal) *myEventsSubscription {
 	ch := make(chan myEventsDelivery, myEventsSubscriberBuffer)
 	done := make(chan struct{})
-	return &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID}
+	return &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, principal: principal}
 }
 
 func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms, visibleRooms map[string]struct{}, roomSnapshotSeq, visibilityVersion uint64) error {
@@ -264,7 +287,7 @@ func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEven
 			generation:        h.generation,
 			visibilityVersion: visibilityVersion,
 			roomSnapshotSeq:   roomSnapshotSeq,
-			userID:            sub.userID,
+			principal:         sub.principal,
 			memberRooms:       memberRooms,
 			visibleRooms:      visibleRooms,
 			sub:               sub,
@@ -318,7 +341,7 @@ func (h *MyEventsHub) handleRegistration(request *myEventsRegistration) {
 		request.result <- errMyEventsIngressChanged
 		return
 	}
-	state := h.users[request.userID]
+	state := h.users[request.principal]
 	if state == nil {
 		if request.memberRooms == nil {
 			h.mu.Unlock()
@@ -331,7 +354,7 @@ func (h *MyEventsHub) handleRegistration(request *myEventsRegistration) {
 			roomSnapshotSeq: request.roomSnapshotSeq,
 			subscribers:     make(map[uint64]*myEventsSubscription),
 		}
-		h.users[request.userID] = state
+		h.users[request.principal] = state
 	} else if request.visibleRooms != nil {
 		state.visibleRooms = request.visibleRooms
 	}
@@ -353,7 +376,7 @@ func (h *MyEventsHub) consume(sub *myEventsSubscription, delivery myEventsDelive
 // established and every current subscriber must reconnect and catch up.
 func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
-		return h.handlePubSub(msg)
+		return h.handlePubSub(ctx, msg)
 	}
 	if strings.HasPrefix(msg.Subject, evtstream.LiveSubjectRoot) {
 		return h.handleLiveEVT(ctx, msg)
@@ -362,25 +385,47 @@ func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 	return false
 }
 
-func (h *MyEventsHub) handlePubSub(msg *nats.Msg) bool {
+func (h *MyEventsHub) handlePubSub(ctx context.Context, msg *nats.Msg) bool {
 	h.decoded.Add(1)
 	event := new(pubsubv1.PubSubEvent)
 	if err := proto.Unmarshal(msg.Data, event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
 		return false
 	}
-	if event.Event == nil {
-		h.model.core.logger.Warn("Dropping live sync event without a payload", "subject", msg.Subject)
+	delivery, ok := h.model.preparePubSubEvent(msg, event)
+	if !ok {
 		return false
+	}
+	// The privacy check reads the authoritative NATS record. Run it once per
+	// event, only when a local member other than the sender exists, and
+	// without holding h.mu, so that Unsubscribe and other h.mu callers do not
+	// wait for the read.
+	if delivery.roomID != "" {
+		if !h.hasTypingAudience(delivery.roomID, event.ActorId) || !h.model.typingSenderVisible(ctx, event.ActorId) {
+			return false
+		}
 	}
 
 	bytes := int64(len(msg.Data))
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for userID, state := range h.users {
-		authorized, ok := h.model.filterPubSubEvent(context.Background(), userID, state.memberRooms, msg, event)
+	for principal, state := range h.users {
+		authorized, ok := h.model.filterPreparedPubSubEvent(principal.authorizationContext(ctx), principal.userID, state.memberRooms, delivery)
 		if ok {
 			h.enqueueUserLocked(state, authorized, bytes)
+		}
+	}
+	return false
+}
+
+// hasTypingAudience reports whether a local user other than the sender is a
+// member of roomID. The fan-out checks membership again for each recipient.
+func (h *MyEventsHub) hasTypingAudience(roomID, senderID string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for principal, state := range h.users {
+		if _, ok := state.memberRooms[roomID]; ok && principal.userID != senderID {
+			return true
 		}
 	}
 	return false
@@ -658,7 +703,7 @@ func isKnownNonRealtimeEVTSubject(subject string) bool {
 }
 
 type roomProjectionFanoutCandidate struct {
-	userID     string
+	principal  myEventsPrincipal
 	state      *myEventsUserState
 	envelope   EventEnvelope
 	wasVisible bool
@@ -672,12 +717,12 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 		h.visibilityVersion++
 	}
 	candidates := make([]roomProjectionFanoutCandidate, 0, len(h.users))
-	for userID, state := range h.users {
+	for principal, state := range h.users {
 		if seq <= state.roomSnapshotSeq {
 			continue
 		}
-		envelope, ok := h.model.filterReadyEVTRoomSubjectEvent(userID, state.memberRooms, roomID, event, seq)
-		projectionVisibilityChange := eventChangesUserRoomVisibility(event, userID)
+		envelope, ok := h.model.filterReadyEVTRoomSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq)
+		projectionVisibilityChange := eventChangesUserRoomVisibility(event, principal.userID)
 		if !isRoomDirectoryProjectionEvent(event) && !projectionVisibilityChange {
 			if ok {
 				h.enqueueUserLocked(state, envelope, bytes)
@@ -690,7 +735,7 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 		}
 		_, wasVisible := state.visibleRooms[roomID]
 		candidates = append(candidates, roomProjectionFanoutCandidate{
-			userID: userID, state: state, envelope: envelope, wasVisible: wasVisible,
+			principal: principal, state: state, envelope: envelope, wasVisible: wasVisible,
 		})
 	}
 	h.mu.Unlock()
@@ -702,7 +747,8 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 	for i := range candidates {
 		i := i
 		g.Go(func() error {
-			candidates[i].visible, candidates[i].err = h.canSeeProjectionRoom(visibilityCtx, candidates[i].userID, roomID, event)
+			principal := candidates[i].principal
+			candidates[i].visible, candidates[i].err = h.canSeeProjectionRoom(principal.authorizationContext(visibilityCtx), principal.userID, roomID, event)
 			return nil
 		})
 	}
@@ -711,7 +757,7 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, candidate := range candidates {
-		state := h.users[candidate.userID]
+		state := h.users[candidate.principal]
 		if state == nil || state != candidate.state || state.visibleRooms == nil {
 			continue
 		}
@@ -763,8 +809,8 @@ func (h *MyEventsHub) canSeeProjectionRoom(ctx context.Context, userID, roomID s
 func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *evtv1.Event, seq uint64, bytes int64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for userID, state := range h.users {
-		envelope, ok := h.model.filterReadyEVTAssetSubjectEvent(userID, state.memberRooms, roomID, event, seq)
+	for principal, state := range h.users {
+		envelope, ok := h.model.filterReadyEVTAssetSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq)
 		if ok {
 			h.enqueueUserLocked(state, envelope, bytes)
 		}
@@ -789,7 +835,7 @@ func (h *MyEventsHub) enqueueSubscriberLocked(sub *myEventsSubscription, event E
 	queuedBytes := sub.queuedBytes.Load()
 	if queuedBytes+bytes > myEventsSubscriberByteLimit {
 		h.model.slowDisconnects.Add(1)
-		h.model.core.logger.Warn("Slow myEvents subscriber exceeded byte limit - tearing down", "user_id", sub.userID, "queued_bytes", queuedBytes, "event_bytes", bytes)
+		h.model.core.logger.Warn("Slow myEvents subscriber exceeded byte limit - tearing down", "user_id", sub.principal.userID, "queued_bytes", queuedBytes, "event_bytes", bytes)
 		h.removeSubscriberLocked(sub)
 		return
 	}
@@ -800,27 +846,27 @@ func (h *MyEventsHub) enqueueSubscriberLocked(sub *myEventsSubscription, event E
 	default:
 		sub.queuedBytes.Add(-bytes)
 		h.model.slowDisconnects.Add(1)
-		h.model.core.logger.Warn("Slow myEvents subscriber filled event queue - tearing down", "user_id", sub.userID, "queued_bytes", sub.queuedBytes.Load())
+		h.model.core.logger.Warn("Slow myEvents subscriber filled event queue - tearing down", "user_id", sub.principal.userID, "queued_bytes", sub.queuedBytes.Load())
 		h.removeSubscriberLocked(sub)
 	}
 }
 
 func (h *MyEventsHub) refreshMemberRooms(ctx context.Context) error {
 	h.mu.Lock()
-	userIDs := make([]string, 0, len(h.users))
-	for userID := range h.users {
-		userIDs = append(userIDs, userID)
+	principals := make([]myEventsPrincipal, 0, len(h.users))
+	for principal := range h.users {
+		principals = append(principals, principal)
 	}
 	h.mu.Unlock()
 
-	refreshed := make([]map[string]struct{}, len(userIDs))
+	refreshed := make([]map[string]struct{}, len(principals))
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(myEventsVisibilityWorkers)
-	for i, userID := range userIDs {
-		i, userID := i, userID
+	for i, principal := range principals {
+		i, principal := i, principal
 		g.Go(func() error {
 			rooms := make(map[string]struct{})
-			if err := h.model.populateMemberRoomsCache(gctx, userID, rooms); err != nil {
+			if err := h.model.populateMemberRoomsCache(principal.authorizationContext(gctx), principal.userID, rooms); err != nil {
 				return err
 			}
 			refreshed[i] = rooms
@@ -832,8 +878,8 @@ func (h *MyEventsHub) refreshMemberRooms(ctx context.Context) error {
 	}
 
 	h.mu.Lock()
-	for i, userID := range userIDs {
-		if state := h.users[userID]; state != nil {
+	for i, principal := range principals {
+		if state := h.users[principal]; state != nil {
 			state.memberRooms = refreshed[i]
 		}
 	}
@@ -953,7 +999,7 @@ func (h *MyEventsHub) quarantine(reason string) {
 		close(sub.ch)
 	}
 	h.subscribers = make(map[uint64]*myEventsSubscription)
-	h.users = make(map[string]*myEventsUserState)
+	h.users = make(map[myEventsPrincipal]*myEventsUserState)
 }
 
 func (h *MyEventsHub) signalStateChangedLocked() {
@@ -976,10 +1022,10 @@ func (h *MyEventsHub) removeSubscriberLocked(sub *myEventsSubscription) {
 		return
 	}
 	delete(h.subscribers, sub.id)
-	if state := h.users[sub.userID]; state != nil {
+	if state := h.users[sub.principal]; state != nil {
 		delete(state.subscribers, sub.id)
 		if len(state.subscribers) == 0 {
-			delete(h.users, sub.userID)
+			delete(h.users, sub.principal)
 		}
 	}
 	close(sub.done)

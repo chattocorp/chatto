@@ -24,8 +24,10 @@ setting is **Allow**, **Deny**, or **Inherit**.
 - **`everyone` is the baseline.** An allow on a user or a named role overrides
   an `everyone` deny only at the same scope or a more specific scope.
 - **No setting means no access.**
-- **Owners have every permission.** You cannot restrict an owner. A user is an
-  owner when they have the `owner` role or a verified email address in
+- **Owners have every permission in privileged mode.** Without the mode, an
+  owner has only the permissions of their roles and grants. You cannot lock
+  out an owner, because an owner can always enable privileged mode. A user is
+  an owner when they have the `owner` role or a verified email address in
   `owners.emails` in `chatto.toml`. Use `owners.emails` to recover access if
   you lock yourself out.
 - **Message access also needs membership.** An account must be a member of the
@@ -52,11 +54,12 @@ roles does not change which setting wins.
 | `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `bot.create`, `user.delete-self` |
 | `moderator` | `message.manage`, `room.remove-member` |
 | `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.manage` |
-| `owner` | Every permission. You cannot edit these settings. |
+| `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
 Moderators and admins get their member permissions from `everyone`. A new
 server also makes the `announcements` room read-only: in that room, it denies
-`message.post` for `everyone` and allows it for `admin`.
+`message.post` for `everyone` and allows it for `admin`. Owners can post there
+only in privileged mode.
 
 ## Privileged mode
 
@@ -77,8 +80,15 @@ deactivation.
 
 Privileged mode turns on permissions, not roles. It applies to each permission
 marked **Yes** in the [permission reference](#permission-reference), from any
-role or user setting. It also applies to owners. It does not give you
-permissions that you do not have.
+role or user setting. It does not give you permissions that you do not have.
+
+For owners, privileged mode also turns on the owner permissions. Without the
+mode, an owner cannot see, join, or read a room that denies this to
+`everyone`, unless one of their roles or a direct grant allows it. If an owner
+joins such a room in privileged mode, they stay a member, but they can read the
+room only while the mode is active. Chatto removes them from a call in such a
+room shortly after the mode ends. Notifications use the permissions without the
+mode. MCP clients cannot enable privileged mode.
 
 Without privileged mode, Server Administration stays visible, but its
 protected actions are not available. The Moderation page needs server-wide
@@ -176,7 +186,8 @@ defaults.
 </Steps>
 
 Other roles need their own allow in the room. A server or room-group allow does
-not override the room-level `everyone` deny. If **Universal** added a user,
+not override the room-level `everyone` deny. Owners can access the room only in
+privileged mode, unless they have the role or their own allow. If **Universal** added a user,
 removing the role also removes the user from the room.
 
 ### Suspend a user
@@ -230,7 +241,7 @@ not set it before.
 Make these changes on an upgraded server:
 
 - **Allow `message.read`** for `everyone` at Server scope. Without it, only
-  owners can read messages.
+  owners in privileged mode can read messages.
 - **Allow `room.remove-member`** for `moderator` and `admin`. `room.ban-member`
   has no effect in 0.5.
 - **Allow `user.invite` and `bot.manage`** for `admin`.
@@ -247,7 +258,10 @@ Make these changes on an upgraded server:
 <Aside type="caution">
   Administrators, moderators, and owners must now enable
   [privileged mode](#privileged-mode) to use their administrative permissions.
-  This also applies to custom `room.create` grants.
+  This also applies to custom `room.create` grants. Owners also need privileged
+  mode to see, join, or read rooms that deny this to `everyone`, and to post in
+  the `announcements` room. Give an owner the `admin` role or a room-level allow
+  if they need this access during normal use.
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.

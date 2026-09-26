@@ -43,7 +43,8 @@ type ComposerSubmissionDependencies = {
   getMentionRoleNames: () => string[];
   onPostSuccess: (post: PreparedPost, event: TimelineEventView | null) => void;
   onPostError?: (error: unknown) => boolean;
-  onEditSuccess: () => void;
+  /** Receives the saved edit so the composer can ignore a superseded edit. */
+  onEditSuccess: (input: UpdateMessageInput) => void;
 };
 
 /**
@@ -124,7 +125,7 @@ export class ComposerSubmissionState {
     this.loading = true;
     try {
       await this.#dependencies.getAPI().updateMessage(input);
-      this.#dependencies.onEditSuccess();
+      this.#dependencies.onEditSuccess(input);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : m('composer.edit_failed'));
     } finally {

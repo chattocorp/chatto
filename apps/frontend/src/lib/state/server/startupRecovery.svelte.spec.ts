@@ -280,5 +280,22 @@ describe('origin startup recovery', () => {
     expect(store.projection.rooms.has('R1')).toBe(false);
     expect(store.startupPresentationOnly).toBe(false);
     expect(store.isAuthenticated).toBe(false);
+    expect(serverRegistry.originSignInRequired).toBe(true);
+  });
+
+  it('keeps the reauthentication notice while loaded data remains readable', () => {
+    const store = retainedStore();
+    store.realtimeSync.markCaughtUp('live');
+    store.verifyStartupViewer('U1');
+
+    serverRegistry.handleAuthenticationRequired('origin');
+
+    expect(serverRegistry.getServer('origin')?.reauthRequiredAt).not.toBeNull();
+    expect(serverRegistry.originSignInRequired).toBe(false);
+  });
+
+  it('does not require sign-in while the origin session is valid', () => {
+    retainedStore();
+    expect(serverRegistry.originSignInRequired).toBe(false);
   });
 });

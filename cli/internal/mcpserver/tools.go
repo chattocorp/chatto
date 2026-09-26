@@ -10,6 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -30,7 +31,7 @@ type getCurrentUserOutput struct {
 
 func getCurrentUserHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[getCurrentUserInput, getCurrentUserOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, _ getCurrentUserInput) (*mcp.CallToolResult, getCurrentUserOutput, error) {
-		userID, err := authenticatedUserID(ctx)
+		ctx, userID, err := authenticatedRequest(ctx)
 		if err != nil {
 			return nil, getCurrentUserOutput{}, err
 		}
@@ -74,7 +75,7 @@ type listRoomMessagesOutput struct {
 
 func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[listRoomMessagesInput, listRoomMessagesOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, input listRoomMessagesInput) (*mcp.CallToolResult, listRoomMessagesOutput, error) {
-		userID, err := authenticatedUserID(ctx)
+		ctx, userID, err := authenticatedRequest(ctx)
 		if err != nil {
 			return nil, listRoomMessagesOutput{}, err
 		}
@@ -157,7 +158,7 @@ type postMessageOutput struct {
 
 func postMessageHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[postMessageInput, postMessageOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, input postMessageInput) (*mcp.CallToolResult, postMessageOutput, error) {
-		userID, err := authenticatedUserID(ctx)
+		ctx, userID, err := authenticatedRequest(ctx)
 		if err != nil {
 			return nil, postMessageOutput{}, err
 		}
@@ -193,7 +194,7 @@ type joinRoomOutput struct {
 
 func joinRoomHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[roomMembershipInput, joinRoomOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, input roomMembershipInput) (*mcp.CallToolResult, joinRoomOutput, error) {
-		userID, err := authenticatedUserID(ctx)
+		ctx, userID, err := authenticatedRequest(ctx)
 		if err != nil {
 			return nil, joinRoomOutput{}, err
 		}
@@ -219,7 +220,7 @@ type leaveRoomOutput struct {
 
 func leaveRoomHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[roomMembershipInput, leaveRoomOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, input roomMembershipInput) (*mcp.CallToolResult, leaveRoomOutput, error) {
-		userID, err := authenticatedUserID(ctx)
+		ctx, userID, err := authenticatedRequest(ctx)
 		if err != nil {
 			return nil, leaveRoomOutput{}, err
 		}
@@ -233,12 +234,20 @@ func leaveRoomHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[roomMember
 	}
 }
 
-func authenticatedUserID(ctx context.Context) (string, error) {
+// authenticatedRequest returns the authenticated account ID and a context
+// that carries its verified Chatto credential. Without the credential, core
+// authorization would treat the call as internal work with entitlement
+// semantics, including the effective-owner override.
+func authenticatedRequest(ctx context.Context) (context.Context, string, error) {
 	token := auth.TokenInfoFromContext(ctx)
 	if token == nil || token.UserID == "" {
-		return "", auth.ErrInvalidToken
+		return ctx, "", auth.ErrInvalidToken
 	}
-	return token.UserID, nil
+	credential, ok := token.Extra[runtimeCredentialExtraKey].(authctx.RuntimeCredential)
+	if !ok || credential.UserID != token.UserID {
+		return ctx, "", auth.ErrInvalidToken
+	}
+	return authctx.WithCredential(ctx, credential), token.UserID, nil
 }
 
 func validateResourceID(name, value string, required bool) error {

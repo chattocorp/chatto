@@ -462,6 +462,60 @@ describe('EventList unread entry landing', () => {
     }
   });
 
+  it('skips the landing when the entry targets a specific message', async () => {
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds,
+        scrollToEventId: null,
+        scrollToUnreadOnEntry: true,
+        unreadAfterEventId: 'msg-2',
+        pendingHighlightId: 'msg-3'
+      }
+    });
+    await nextFrames();
+
+    // The highlight can clear without a jump, for example when the target
+    // is missing. The entry still does not move to the separator.
+    await rendered.rerender({
+      eventIds,
+      scrollToEventId: null,
+      scrollToUnreadOnEntry: true,
+      unreadAfterEventId: 'msg-2',
+      pendingHighlightId: null,
+      updateCounter: 1
+    });
+    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+    await nextFrames();
+
+    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+  });
+
+  it('lands again when a thread timeline switches to another thread', async () => {
+    const threadProps = (threadId: string, marker: string | null) => ({
+      eventIds,
+      permalinkThreadRootEventId: threadId,
+      scrollToEventId: null,
+      scrollToUnreadOnEntry: true,
+      unreadAfterEventId: marker
+    });
+    const rendered = render(EventListTestHarness, { props: threadProps('thread-1', 'msg-2') });
+    await expect
+      .element(page.getByTestId('virtualizer-rendered-key'))
+      .toHaveAttribute('data-rendered-key', 'unread-separator-msg-2');
+
+    await rendered.rerender(threadProps('thread-2', null));
+    await rendered.rerender({ ...threadProps('thread-2', null), updateCounter: 1 });
+    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+
+    await rendered.rerender({ ...threadProps('thread-2', 'msg-3'), updateCounter: 1 });
+    await expect
+      .element(page.getByTestId('virtualizer-scroll-alignment'))
+      .toHaveTextContent('start');
+    await expect
+      .element(page.getByTestId('virtualizer-rendered-key'))
+      .toHaveAttribute('data-rendered-key', 'unread-separator-msg-3');
+  });
+
   it('keeps the viewport when the user scrolls before the marker resolves', async () => {
     const rendered = render(EventListTestHarness, {
       props: { eventIds, scrollToEventId: null, scrollToUnreadOnEntry: true }

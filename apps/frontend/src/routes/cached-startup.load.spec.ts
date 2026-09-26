@@ -33,7 +33,12 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     startServerNetwork: mocks.startServerNetwork,
     servers: [{ id: 'origin' }],
     getServer: () => ({ userId: mocks.userId }),
-    getStore: () => ({ restoreSavedView: mocks.restoreSavedView }),
+    getStore: () => ({
+      restoreSavedView: mocks.restoreSavedView,
+      get startupPresentationOnly() {
+        return mocks.startupPresentationOnly;
+      }
+    }),
     tryGetStore: () => ({ startupPresentationOnly: mocks.startupPresentationOnly }),
     originServer: { id: 'origin' },
     probeOrigin: mocks.probeOrigin,
@@ -172,6 +177,18 @@ describe('saved startup route load', () => {
     expect(mocks.restoreSavedView).toHaveBeenCalledOnce();
     expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
     expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
+  });
+
+  it('uses live startup when the store refuses the saved view', async () => {
+    mocks.startupPresentationOnly = false;
+    const { load } = await import('./+layout');
+    const result = await load(route());
+
+    expect(mocks.restoreSavedView).toHaveBeenCalledOnce();
+    expect(result).not.toHaveProperty('startupPending');
+    expect(result).toMatchObject({ user: { id: 'U1' } });
+    expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
+    expect(mocks.loadCurrentUser).toHaveBeenCalledOnce();
   });
 
   it('does not restore a view after its local account changes during the disk read', async () => {

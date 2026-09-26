@@ -21,6 +21,7 @@
   import { queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
+    nextUnreadFollowedThreadOffset,
     threadQueryKeys,
     updateFollowedThreadSummary,
     type FollowedThreadsData
@@ -63,6 +64,9 @@
   const rawQuery = $derived(searchInput.scope === inputScope ? searchInput.raw : '');
   const searchStatus = $derived(serverStore.messageSearch);
   const supportsSearch = $derived(serverStore.serverInfo.supportsFeature('followedThreadSearch'));
+  const supportsUnreadFilter = $derived(
+    serverStore.serverInfo.supportsFeature('followedThreadUnreadFilter')
+  );
   const searchEnabled = $derived(
     supportsSearch && (searchStatus.statusError ||
       (searchStatus.statusLoaded && searchStatus.status.state !== MessageSearchState.DISABLED))
@@ -96,13 +100,25 @@
     if (unchanged && searchStatus.available) void threadsQuery.refetch();
   }
 
+  const filter = $derived(page.state.threadFilter ?? 'all');
+  const filterOptions = $derived([
+    { value: 'all' as const, label: m('chat.threads.filter_all') },
+    { value: 'unread' as const, label: m('chat.threads.filter_unread') }
+  ]);
+
+  function setFilter(value: 'all' | 'unread') {
+    replaceState('', { ...page.state, threadFilter: value });
+  }
+
   const threadsQuery = createInfiniteQuery(
     () => {
       const serverId = serverScope.serverId;
       const connection = serverScope.connection;
       const query = searchQuery;
+      // Search results and servers without the filter are filtered locally below.
+      const unreadOnly = !query && filter === 'unread' && supportsUnreadFilter;
       return {
-        queryKey: threadQueryKeys.followed(serverId, connection, query),
+        queryKey: threadQueryKeys.followed(serverId, connection, { query, unreadOnly }),
         enabled: !query || searchStatus.available,
         queryFn: async ({ pageParam, signal }) => {
           const result = await connection
@@ -111,7 +127,8 @@
               limit: PAGE_SIZE,
               offset: typeof pageParam === 'number' ? pageParam : 0,
               cursor: typeof pageParam === 'string' ? pageParam : undefined,
-              query
+              query,
+              unreadOnly
             }, { signal });
           const pageData = {
             ...result,
@@ -121,11 +138,14 @@
           return pageData;
         },
         initialPageParam: query ? '' : 0,
-        getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          query
-            ? lastPage.nextCursor || undefined
-            : lastPage.hasMore && typeof lastPageParam === 'number' && lastPage.nextOffset > lastPageParam
-              ? lastPage.nextOffset : undefined
+        getNextPageParam: (lastPage, pages, lastPageParam) => {
+          if (query) return lastPage.nextCursor || undefined;
+          if (!lastPage.hasMore || typeof lastPageParam !== 'number') return undefined;
+          if (unreadOnly) {
+            return lastPage.threads.length > 0 ? nextUnreadFollowedThreadOffset(pages) : undefined;
+          }
+          return lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined;
+        }
       };
     },
     () => queryClient
@@ -142,18 +162,9 @@
       : null
   );
   const hasMore = $derived(threadsQuery.hasNextPage);
-  const totalCount = $derived(threadsQuery.data?.pages[0]?.totalCount ?? 0);
 
-  const filter = $derived(page.state.threadFilter ?? 'all');
-  const filterOptions = $derived([
-    { value: 'all' as const, label: m('chat.threads.filter_all') },
-    { value: 'unread' as const, label: m('chat.threads.filter_unread') }
-  ]);
-
-  function setFilter(value: 'all' | 'unread') {
-    replaceState('', { ...page.state, threadFilter: value });
-  }
-
+  // Also filter server-filtered pages so that a thread marked as read leaves the
+  // unread view at once, before the next refetch.
   const filteredThreads = $derived(
     filter === 'unread' ? threads.filter((t) => t.hasUnreadReplies) : threads
   );
@@ -166,6 +177,20 @@
       activeLocale
     )
   );
+
+  // Locally filtered pages without a match leave no scroll edge to observe, so
+  // load the next page directly until a match appears or the feed ends.
+  // An imperative fetch ignores `enabled`, so check search availability here too.
+  const needsNextFilteredPage = $derived(
+    filteredThreads.length === 0 &&
+      hasMore &&
+      !threadsQuery.isFetching &&
+      error === null &&
+      (!searchQuery || searchStatus.available)
+  );
+  $effect(() => {
+    if (needsNextFilteredPage) void threadsQuery.fetchNextPage();
+  });
 
   async function loadMore() {
     if (loading || loadingMore || !hasMore) return;
@@ -359,27 +384,15 @@
       <EmptyState icon="icon-[uil--search]" title={m('search.no_threads')}>
         {m('search.no_results.description')}
       </EmptyState>
-    {:else if threads.length === 0}
+    {:else if threads.length === 0 && filter === 'all'}
       <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
         {m('chat.threads.empty_body')}
       </EmptyState>
+    {:else if filteredThreads.length === 0 && hasMore}
+      <LoadingFog class="m-6 h-48" />
     {:else if filteredThreads.length === 0}
-      <EmptyState
-        icon="icon-[uil--comment-check]"
-        title={hasMore ? m('chat.threads.no_unread_loaded') : m('chat.threads.all_caught_up')}
-      >
-        {#if hasMore}
-          <div class="flex flex-col items-center gap-3">
-            <span>
-              {m('chat.threads.loaded_summary', { loaded: threads.length, total: totalCount })}
-            </span>
-            <div class="min-h-8 text-muted" {@attach loadMoreWhenVisible}>
-              {#if loadingMore}{m('common.loading')}{/if}
-            </div>
-          </div>
-        {:else}
-          {m('chat.threads.no_unread')}
-        {/if}
+      <EmptyState icon="icon-[uil--comment-check]" title={m('chat.threads.all_caught_up')}>
+        {m('chat.threads.no_unread')}
       </EmptyState>
     {:else}
       <div class="selectable-list pb-3" aria-busy={loadingMore}>

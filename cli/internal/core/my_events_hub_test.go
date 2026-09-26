@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/evtstream"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -210,7 +212,7 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	}
 
 	core.myEventsModel.hub.mu.Lock()
-	state := core.myEventsModel.hub.users[viewer.Id]
+	state := core.myEventsModel.hub.users[entitledMyEventsPrincipal(viewer.Id)]
 	if state == nil || len(state.subscribers) != 2 {
 		core.myEventsModel.hub.mu.Unlock()
 		t.Fatalf("shared user state = %#v, want two subscribers", state)
@@ -356,7 +358,7 @@ func TestMyEventsHubRegistersAfterMembershipBacklog(t *testing.T) {
 	defer hub.Unsubscribe(sub)
 
 	hub.mu.Lock()
-	_, staleMember := hub.users[viewer.Id].memberRooms[room.Id]
+	_, staleMember := hub.users[entitledMyEventsPrincipal(viewer.Id)].memberRooms[room.Id]
 	hub.mu.Unlock()
 	if staleMember {
 		t.Fatal("pre-registration join backlog re-granted room visibility")
@@ -408,16 +410,16 @@ func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
 	hub := NewMyEventsModel(core).hub
 	ch := make(chan myEventsDelivery, 1)
 	done := make(chan struct{})
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, userID: viewer.Id}
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, principal: entitledMyEventsPrincipal(viewer.Id)}
 	state := &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
 		visibleRooms:    map[string]struct{}{room.Id: {}},
 		roomSnapshotSeq: 42,
 		subscribers:     map[uint64]*myEventsSubscription{1: sub},
 	}
-	hub.users[sub.userID] = state
+	hub.users[sub.principal] = state
 	hub.subscribers[sub.id] = sub
-	join := newEvent(sub.userID, &evtv1.Event{
+	join := newEvent(sub.principal.userID, &evtv1.Event{
 		Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: room.Id}},
 	})
 
@@ -450,11 +452,11 @@ func TestMyEventsHubRejectsSnapshotAcrossProcessedVisibilityChange(t *testing.T)
 	hub.visibilityVersion = 2
 	ch := make(chan myEventsDelivery, 1)
 	done := make(chan struct{})
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "viewer"}
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, principal: entitledMyEventsPrincipal("viewer")}
 	request := &myEventsRegistration{
 		generation:        1,
 		visibilityVersion: 1,
-		userID:            sub.userID,
+		principal:         sub.principal,
 		memberRooms:       map[string]struct{}{},
 		sub:               sub,
 		ctx:               context.Background(),
@@ -478,7 +480,7 @@ func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
 
 	ch := make(chan myEventsDelivery, 1)
 	done := make(chan struct{})
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "user-1"}
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, principal: entitledMyEventsPrincipal("user-1")}
 	registered := make(chan error, 1)
 	go func() {
 		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, nil, 0, hub.visibilityVersion)
@@ -508,7 +510,7 @@ func TestMyEventsHubQuarantineInterruptsPendingRegistration(t *testing.T) {
 	ctx := testContext(t)
 	ch := make(chan myEventsDelivery, 1)
 	done := make(chan struct{})
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "user-1"}
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, principal: entitledMyEventsPrincipal("user-1")}
 	registered := make(chan error, 1)
 	go func() {
 		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, nil, 0, hub.visibilityVersion)
@@ -546,7 +548,7 @@ func TestMyEventsHubTerminationInterruptsBlockedForwarding(t *testing.T) {
 
 	hub := core.myEventsModel.hub
 	hub.mu.Lock()
-	state := hub.users[user.Id]
+	state := hub.users[entitledMyEventsPrincipal(user.Id)]
 	var sub *myEventsSubscription
 	for _, candidate := range state.subscribers {
 		sub = candidate
@@ -578,12 +580,12 @@ func TestMyEventsHubDisconnectsOnlySubscriberOverByteLimit(t *testing.T) {
 	hub := model.hub
 	ch := make(chan myEventsDelivery, 1)
 	done := make(chan struct{})
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, userID: "user-1"}
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, principal: entitledMyEventsPrincipal("user-1")}
 	state := &myEventsUserState{
 		memberRooms: map[string]struct{}{},
 		subscribers: map[uint64]*myEventsSubscription{1: sub},
 	}
-	hub.users[sub.userID] = state
+	hub.users[sub.principal] = state
 	hub.subscribers[sub.id] = sub
 
 	hub.mu.Lock()
@@ -627,9 +629,9 @@ func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testin
 	setRoomUniversalForTest(t, ctx, core, actor.Id, room.Id, true)
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	projection := newMyEventsSubscription(viewer.Id)
+	projection := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	projection.id = 1
-	hub.users[viewer.Id] = &myEventsUserState{
+	hub.users[entitledMyEventsPrincipal(viewer.Id)] = &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
 		visibleRooms:    map[string]struct{}{room.Id: {}},
 		subscribers:     map[uint64]*myEventsSubscription{projection.id: projection},
@@ -673,9 +675,9 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	projection := newMyEventsSubscription(viewer.Id)
+	projection := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	projection.id = 1
-	hub.users[viewer.Id] = &myEventsUserState{
+	hub.users[entitledMyEventsPrincipal(viewer.Id)] = &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
 		visibleRooms:    map[string]struct{}{},
 		subscribers:     map[uint64]*myEventsSubscription{projection.id: projection},
@@ -721,9 +723,9 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	first := newMyEventsSubscription(viewer.Id)
+	first := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	first.id = 1
-	second := newMyEventsSubscription(viewer.Id)
+	second := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	second.id = 2
 	state := &myEventsUserState{
 		memberRooms:     map[string]struct{}{room.Id: {}},
@@ -731,7 +733,7 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
 		roomSnapshotSeq: 1,
 	}
-	hub.users[viewer.Id] = state
+	hub.users[entitledMyEventsPrincipal(viewer.Id)] = state
 	hub.subscribers[first.id] = first
 	hub.subscribers[second.id] = second
 	event := &evtv1.Event{Id: "universal-disabled", ActorId: actor.Id, Event: &evtv1.Event_RoomUniversalChanged{
@@ -785,9 +787,9 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	first := newMyEventsSubscription(viewer.Id)
+	first := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	first.id = 1
-	second := newMyEventsSubscription(viewer.Id)
+	second := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	second.id = 2
 	state := &myEventsUserState{
 		memberRooms:     map[string]struct{}{room.Id: {}},
@@ -795,7 +797,7 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
 		roomSnapshotSeq: 1,
 	}
-	hub.users[viewer.Id] = state
+	hub.users[entitledMyEventsPrincipal(viewer.Id)] = state
 	hub.subscribers[first.id] = first
 	hub.subscribers[second.id] = second
 	leave := &evtv1.Event{Id: "viewer-left", ActorId: viewer.Id, Event: &evtv1.Event_UserLeftRoom{
@@ -850,6 +852,131 @@ func TestPresenceHubOverflowMarksSubscriptionLagged(t *testing.T) {
 	}
 }
 
+// An owner's sessions with and without privileged mode must not share room
+// visibility, because only the privileged session has the owner override.
+func TestMyEventsHubSeparatesOwnerSessionsByPrivilegedMode(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, err := core.CreateUser(ctx, SystemActorID, "hub-owner", "Hub Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if err := core.AssignOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	author, err := core.CreateUser(ctx, SystemActorID, "hub-restricted-author", "Hub Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	restrict := func(roomID string) {
+		t.Helper()
+		for _, perm := range []Permission{PermRoomList, PermRoomJoin, PermMessageRead} {
+			if err := core.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm); err != nil {
+				t.Fatalf("DenyRoomPermission %s: %v", perm, err)
+			}
+			if err := core.GrantUserRoomPermission(ctx, SystemActorID, roomID, author.Id, perm); err != nil {
+				t.Fatalf("GrantUserRoomPermission %s: %v", perm, err)
+			}
+		}
+	}
+	joined, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "hub-joined-restricted", "")
+	if err != nil {
+		t.Fatalf("CreateRoom joined: %v", err)
+	}
+	restrict(joined.Id)
+	universal, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "hub-universal-restricted", "", WithUniversalRoom(true))
+	if err != nil {
+		t.Fatalf("CreateRoom universal: %v", err)
+	}
+	restrict(universal.Id)
+	open, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "hub-open", "")
+	if err != nil {
+		t.Fatalf("CreateRoom open: %v", err)
+	}
+	for _, roomID := range []string{joined.Id, open.Id} {
+		for _, userID := range []string{owner.Id, author.Id} {
+			if _, err := core.AddMember(ctx, SystemActorID, KindChannel, roomID, userID); err != nil {
+				t.Fatalf("AddMember: %v", err)
+			}
+		}
+	}
+
+	session := func(deadline time.Time) context.Context {
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Kind:                    authctx.RuntimeCredentialKindCookieSession,
+			UserID:                  owner.Id,
+			Handle:                  "hub-owner-session",
+			PrivilegedModeExpiresAt: deadline,
+		})
+	}
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	privileged, err := core.StreamMyEventsWithOptions(session(time.Now().Add(time.Minute)), owner.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents privileged: %v", err)
+	}
+	unprivileged, err := core.StreamMyEventsWithOptions(authctx.WithCredential(streamCtx, authctx.RuntimeCredential{
+		Kind:   authctx.RuntimeCredentialKindCookieSession,
+		UserID: owner.Id,
+		Handle: "hub-owner-session",
+	}), owner.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents unprivileged: %v", err)
+	}
+
+	hub := core.myEventsModel.hub
+	hub.mu.Lock()
+	privilegedState := hub.users[myEventsPrincipal{userID: owner.Id, privileged: true}]
+	unprivilegedState := hub.users[myEventsPrincipal{userID: owner.Id, privileged: false}]
+	if privilegedState == nil || unprivilegedState == nil || privilegedState == unprivilegedState {
+		hub.mu.Unlock()
+		t.Fatalf("owner states = %p, %p; want two separate states", privilegedState, unprivilegedState)
+	}
+	_, privilegedUniversal := privilegedState.memberRooms[universal.Id]
+	_, unprivilegedUniversal := unprivilegedState.memberRooms[universal.Id]
+	_, unprivilegedVisible := unprivilegedState.visibleRooms[universal.Id]
+	hub.mu.Unlock()
+	if !privilegedUniversal || unprivilegedUniversal || unprivilegedVisible {
+		t.Fatalf("universal membership privileged=%v unprivileged=%v unprivileged visible=%v; want true, false, false", privilegedUniversal, unprivilegedUniversal, unprivilegedVisible)
+	}
+
+	var restrictedIDs []string
+	for _, roomID := range []string{joined.Id, universal.Id} {
+		posted, err := core.PostMessage(ctx, KindChannel, roomID, author.Id, "restricted", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage restricted: %v", err)
+		}
+		restrictedIDs = append(restrictedIDs, posted.Id)
+	}
+	sentinel, err := core.PostMessage(ctx, KindChannel, open.Id, author.Id, "sentinel", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage sentinel: %v", err)
+	}
+
+	for _, id := range restrictedIDs {
+		receiveEVTEventByID(t, privileged, id)
+	}
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case envelope, ok := <-unprivileged:
+			if !ok {
+				t.Fatal("unprivileged stream closed")
+			}
+			if slices.Contains(restrictedIDs, envelope.ID()) {
+				t.Fatalf("unprivileged owner session received restricted event %s", envelope.ID())
+			}
+			if envelope.ID() == sentinel.Id {
+				return
+			}
+		case <-timer.C:
+			t.Fatal("unprivileged owner session did not receive the sentinel")
+		}
+	}
+}
+
 func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID string) *evtv1.Event {
 	t.Helper()
 	timer := time.NewTimer(2 * time.Second)
@@ -867,4 +994,10 @@ func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID stri
 			t.Fatalf("event %q was not delivered", eventID)
 		}
 	}
+}
+
+// entitledMyEventsPrincipal is the principal of a stream opened without a
+// human credential, which keeps entitlement semantics.
+func entitledMyEventsPrincipal(userID string) myEventsPrincipal {
+	return myEventsPrincipal{userID: userID, privileged: true}
 }

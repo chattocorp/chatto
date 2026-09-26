@@ -9,6 +9,7 @@ import MessageComposer, { type MessageComposerApi } from './MessageComposer.svel
 import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
+import { EditState } from '$lib/state/room/composerContext.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 import { TimelineEventKind } from '$lib/render/timelineEvents';
@@ -78,6 +79,8 @@ const roomStateMock = vi.hoisted(() => ({
     startEdit: vi.fn(),
     cancelEdit: vi.fn()
   },
+  /** Reactive edit state for tests that depend on edit transitions re-running effects. */
+  reactiveEditState: null as EditState | null,
   quoteInsertionState: {
     request: null as { id: number; text: QuoteInsertionContent } | null
   },
@@ -172,7 +175,7 @@ vi.mock('$lib/state/room', () => ({
     searchMembers: mentionSearchMock
   }),
   getComposerContext: () => ({
-    editState: roomStateMock.editState,
+    editState: roomStateMock.reactiveEditState ?? roomStateMock.editState,
     quoteInsertionState: roomStateMock.quoteInsertionState,
     lastEditableMessage: roomStateMock.lastEditableMessage,
     scrollState: roomStateMock.scrollState
@@ -405,6 +408,7 @@ describe('MessageComposer', () => {
     roomStateMock.editState.canAddChannelEcho = false;
     roomStateMock.editState.startEdit.mockClear();
     roomStateMock.editState.cancelEdit.mockClear();
+    roomStateMock.reactiveEditState = null;
     roomStateMock.quoteInsertionState.request = null;
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReset();
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
@@ -2200,6 +2204,69 @@ describe('MessageComposer', () => {
       expect(roomStateMock.editState.cancelEdit).toHaveBeenCalledOnce();
       expect(mutationMock).not.toHaveBeenCalled();
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
+    });
+
+    it('cancels an edit and restores the next room draft when the room changes', async () => {
+      const editState = new EditState();
+      roomStateMock.reactiveEditState = editState;
+      editState.startEdit('evt_edit', 'original body');
+      const rendered = renderMessageComposer({ roomId: 'edit-scope-a' }, { exactRoomId: true });
+      const editor = await findEditor(rendered.container);
+      await expect.element(editor).toHaveTextContent('original body');
+
+      sessionStorage.setItem('chatto:draft:edit-scope-b', 'room B draft');
+      await rendered.rerender({ roomId: 'edit-scope-b' });
+
+      await expect.element(editor).toHaveTextContent('room B draft');
+      expect(editState.eventId).toBeNull();
+      expect(sessionStorage.getItem('chatto:draft:edit-scope-b')).toBe('room B draft');
+      expect(sessionStorage.getItem('chatto:draft:edit-scope-a')).toBeNull();
+    });
+
+    it('cancels a thread edit and restores the next thread draft when the thread changes', async () => {
+      const editState = new EditState();
+      roomStateMock.reactiveEditState = editState;
+      editState.startEdit('evt_thread_edit', 'thread reply', { threadRootEventId: 'root-a' });
+      const rendered = renderMessageComposer(
+        { roomId: 'edit-scope-thread', inThread: 'root-a' },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container, 'thread-reply-input');
+      await expect.element(editor).toHaveTextContent('thread reply');
+
+      sessionStorage.setItem('chatto:draft:edit-scope-thread:thread:root-b', 'thread B draft');
+      await rendered.rerender({ inThread: 'root-b' });
+
+      await expect.element(editor).toHaveTextContent('thread B draft');
+      expect(editState.eventId).toBeNull();
+      expect(sessionStorage.getItem('chatto:draft:edit-scope-thread:thread:root-b')).toBe(
+        'thread B draft'
+      );
+    });
+
+    it('keeps the next room draft when a cancelled edit finishes saving', async () => {
+      const pendingEdit = deferred<boolean>();
+      updateMessageConnectMock.mockReturnValueOnce(pendingEdit.promise);
+      const editState = new EditState();
+      roomStateMock.reactiveEditState = editState;
+      editState.startEdit('evt_slow_edit', 'original body');
+      const rendered = renderMessageComposer(
+        { roomId: 'edit-scope-slow-a' },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container);
+      await expect.element(editor).toHaveTextContent('original body');
+      await userEvent.click(q(rendered.container, 'button[aria-label="Send message"]')!);
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+
+      sessionStorage.setItem('chatto:draft:edit-scope-slow-b', 'room B draft');
+      await rendered.rerender({ roomId: 'edit-scope-slow-b' });
+      await expect.element(editor).toHaveTextContent('room B draft');
+      pendingEdit.resolve(true);
+
+      await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+      await expect.element(editor).toHaveTextContent('room B draft');
+      expect(sessionStorage.getItem('chatto:draft:edit-scope-slow-b')).toBe('room B draft');
     });
 
     it('closes mention autocomplete when cancelling an edit', async () => {

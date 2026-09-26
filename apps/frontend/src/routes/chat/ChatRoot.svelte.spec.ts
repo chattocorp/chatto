@@ -53,6 +53,8 @@ const mocks = vi.hoisted(() => {
     firstAuthenticatedServerId: vi.fn(() => 'remote'),
     clearServerAuthentication: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
+    originSignInRequired: false,
+    beginOriginReauthentication: vi.fn(),
     presenceCacheUpdate: vi.fn(),
     deviceTimezone: vi.fn<() => string | null>(() => null),
     updateSettings: vi.fn(async () => ({
@@ -76,8 +78,15 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       return undefined;
     },
     firstAuthenticatedServerId: mocks.firstAuthenticatedServerId,
-    clearServerAuthentication: mocks.clearServerAuthentication
+    clearServerAuthentication: mocks.clearServerAuthentication,
+    get originSignInRequired() {
+      return mocks.originSignInRequired;
+    }
   }
+}));
+
+vi.mock('$lib/auth/reauth', () => ({
+  beginOriginReauthentication: mocks.beginOriginReauthentication
 }));
 
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
@@ -237,7 +246,33 @@ describe('ChatRoot', () => {
       shareTimezone: false
     });
     mocks.lifecycle.length = 0;
+    mocks.originSignInRequired = false;
     vi.clearAllMocks();
+  });
+
+  it('opens sign-in when the origin rejected its viewer and nothing remains to read', () => {
+    mocks.originSignInRequired = true;
+    const { unmount } = render(ChatRoot, {
+      props: {
+        presenceCache: { update: mocks.presenceCacheUpdate } as unknown as PresenceCache,
+        children
+      }
+    });
+
+    expect(mocks.beginOriginReauthentication).toHaveBeenCalledOnce();
+    unmount();
+  });
+
+  it('keeps the current page while the origin session is usable or still readable', () => {
+    const { unmount } = render(ChatRoot, {
+      props: {
+        presenceCache: { update: mocks.presenceCacheUpdate } as unknown as PresenceCache,
+        children
+      }
+    });
+
+    expect(mocks.beginOriginReauthentication).not.toHaveBeenCalled();
+    unmount();
   });
 
   it('uses the origin viewer and bus installed by the application-root coordinator', () => {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
@@ -32,9 +33,11 @@ const { mocks } = vi.hoisted(() => {
       sendTypingIndicator: vi.fn(),
       resetTypingDebounce: vi.fn(),
       jumpToMessage: vi.fn(),
+      resetJumpState: vi.fn(),
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
       unreadMarkerEventId: null as string | null,
+      canMarkThreadAsRead: null as (() => boolean) | null,
       appState: {
         isPresent: true
       },
@@ -45,6 +48,7 @@ const { mocks } = vi.hoisted(() => {
 });
 
 const scopeState = new SvelteMap([['serverId', 'server-1']]);
+const authState = new SvelteMap([['authenticated', true]]);
 
 vi.mock('$lib/api-client/readState', () => ({
   createReadStateAPI: () => ({
@@ -69,8 +73,10 @@ vi.mock('$lib/hooks', () => ({
         upToEventId: string | undefined,
         signal: AbortSignal
       ) => unknown;
+      canMarkAsRead?: () => boolean;
     }
   ) => {
+    mocks.canMarkThreadAsRead = options.canMarkAsRead ?? null;
     void options.markAsRead(getTargetId(), undefined, new AbortController().signal);
     return {
       unreadMarkerEventId: mocks.unreadMarkerEventId,
@@ -110,6 +116,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: (serverId: string) => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+      get isAuthenticated() {
+        return authState.get('authenticated')!;
+      },
       readViews: { register: mocks.registerReadView },
       reconcileThreadRead: mocks.reconcileThreadRead,
       retainMessagesForThread:
@@ -161,7 +170,8 @@ vi.mock('$lib/state/room', () => ({
     jumpState: {
       scrollToEventId: null,
       setJumpHandler: vi.fn(),
-      jumpToMessage: mocks.jumpToMessage
+      jumpToMessage: mocks.jumpToMessage,
+      reset: mocks.resetJumpState
     }
   }),
   MessagesStore: class {
@@ -285,6 +295,29 @@ describe('ThreadPane', () => {
     expect(container.querySelector('[role="slider"]')).toBeNull();
   });
 
+  it('waits for the saved viewer to be verified before marking the thread as read', async () => {
+    // A cold load shows the saved view before the server accepts commands.
+    authState.set('authenticated', false);
+    try {
+      render(ThreadPane, {
+        props: {
+          roomId: 'room-1',
+          roomName: 'General',
+          threadRootEventId: 'thread-root',
+          onClose: mocks.onClose
+        }
+      });
+      await tick();
+      expect(mocks.canMarkThreadAsRead?.()).toBe(false);
+
+      authState.set('authenticated', true);
+
+      expect(mocks.canMarkThreadAsRead?.()).toBe(true);
+    } finally {
+      authState.set('authenticated', true);
+    }
+  });
+
   it.each([null, '2026-07-04T13:00:00Z'])('reconciles a read with previous position %s', async (previousLastReadAt) => {
     mocks.markThreadAsRead.mockResolvedValue({ previousLastReadAt, lastReadAt: '2026-07-04T13:00:00Z' });
     render(ThreadPane, {
@@ -309,6 +342,22 @@ describe('ThreadPane', () => {
 
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.reconcileThreadRead).toHaveBeenCalledWith('room-1', 'thread-root');
+  });
+
+  it('resets jump state when the pane switches to another thread', async () => {
+    const props = {
+      roomId: 'room-1',
+      roomName: 'General',
+      threadRootEventId: 'thread-root',
+      onClose: mocks.onClose
+    };
+    const rendered = render(ThreadPane, { props });
+    await tick();
+    mocks.resetJumpState.mockClear();
+
+    await rendered.rerender({ ...props, threadRootEventId: 'thread-2' });
+
+    expect(mocks.resetJumpState).toHaveBeenCalledOnce();
   });
 
   it('registers only visible panes and releases the registration on unmount', () => {
