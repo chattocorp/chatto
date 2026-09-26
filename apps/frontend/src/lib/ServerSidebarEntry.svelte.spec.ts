@@ -48,7 +48,7 @@ const { mocks } = vi.hoisted(() => {
       store: {
         savedView: null,
         networkStartupDeferred: false,
-        restoreSavedViewFromDisk: vi.fn().mockResolvedValue(undefined),
+        retainSavedViewFromDisk: vi.fn().mockResolvedValue(undefined),
         isAuthenticated: true,
         projection: { viewer: {} as object | null },
         notifications: {

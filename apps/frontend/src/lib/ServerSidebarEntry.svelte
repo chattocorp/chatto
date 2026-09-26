@@ -34,7 +34,7 @@
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const stores = serverRegistry.getStore(serverId);
-  onMount(() => void stores.restoreSavedViewFromDisk());
+  onMount(() => void stores.retainSavedViewFromDisk());
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const appUi = getAppUiState();

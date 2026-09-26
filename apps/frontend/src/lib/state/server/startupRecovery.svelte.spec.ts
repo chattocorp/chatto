@@ -65,6 +65,7 @@ describe('origin startup recovery', () => {
       { ...emptyServerSession(), userId: 'U1' }
     );
     const store = serverRegistry.getStore('origin');
+    store.currentUser.loading = false;
     store.restoreSavedView(
       savedViewFixture({
         serverId: 'origin',
@@ -72,8 +73,7 @@ describe('origin startup recovery', () => {
         serverName: 'Chatto',
         savedAt: Date.now(),
         rooms: [{ id: 'R1', name: 'general', messages: [] }]
-      }),
-      true
+      })
     );
     return store;
   }

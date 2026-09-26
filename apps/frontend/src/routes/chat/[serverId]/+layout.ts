@@ -21,7 +21,7 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     redirect(302, resolve('/setup'));
   }
 
-  await serverStore.restoreSavedViewFromDisk(serverStore.networkStartupDeferred);
+  await serverStore.restoreSavedViewFromDisk();
   // Only a view the store accepted counts; it refuses rejected or corrupt views.
   const savedView = serverStore.savedView;
   // A dormant server starts its network work after its saved view is ready.
