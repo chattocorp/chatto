@@ -47,6 +47,10 @@ const (
 	// neighborhoodCheckInterval is the time between checks. A check reads one
 	// MEMORY_CACHE value and hashes the local Neighbor projection.
 	neighborhoodCheckInterval = 5 * time.Second
+	// neighborhoodFailureBackoff is the wait after a failed check. A check
+	// can fail after a complete remote crawl, so a short retry would repeat
+	// that crawl.
+	neighborhoodFailureBackoff = time.Minute
 	// neighborhoodPassTimeout bounds one pass, including image downloads.
 	neighborhoodPassTimeout = 20 * time.Minute
 	// neighborhoodImageTTL is the object store TTL. Discovery rewrites an
@@ -86,8 +90,10 @@ type neighborhoodDiscovery struct {
 	limits      neighborhood.Limits
 	logger      *log.Logger
 	now         func() time.Time
-	// checkInterval overrides neighborhoodCheckInterval in tests.
-	checkInterval time.Duration
+	// checkInterval and failureBackoff override the production timings in
+	// tests.
+	checkInterval  time.Duration
+	failureBackoff time.Duration
 }
 
 // Run checks the directory every few seconds after boot. It refreshes the
@@ -100,19 +106,21 @@ func (d *neighborhoodDiscovery) Run(ctx context.Context, bootDone <-chan struct{
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	ticker := time.NewTicker(cmp.Or(d.checkInterval, neighborhoodCheckInterval))
-	defer ticker.Stop()
+	checkInterval := cmp.Or(d.checkInterval, neighborhoodCheckInterval)
+	failureBackoff := cmp.Or(d.failureBackoff, neighborhoodFailureBackoff)
 	for {
+		wait := checkInterval
 		if err := d.refreshIfDue(ctx); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			d.logger.Warn("Neighborhood discovery failed", "stage", "refresh", "error", err)
+			wait = failureBackoff
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-time.After(wait):
 		}
 	}
 }

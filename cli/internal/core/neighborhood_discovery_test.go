@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -206,6 +207,44 @@ func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {
 			return server.GetOrigin() == "https://c.example"
 		})
 	}, 5*time.Second, 10*time.Millisecond)
+}
+
+// failingPutKV rejects every write so that a discovery pass fails after its
+// remote crawl.
+type failingPutKV struct {
+	jetstream.KeyValue
+}
+
+func (failingPutKV) Put(context.Context, string, []byte) (uint64, error) {
+	return 0, errors.New("write rejected")
+}
+
+func TestNeighborhoodDiscoveryWaitsAfterAFailedPass(t *testing.T) {
+	_, discovery, fetcher, _ := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	discovery.kv = failingPutKV{KeyValue: discovery.kv}
+	discovery.checkInterval = 5 * time.Millisecond
+	discovery.failureBackoff = time.Hour
+	bootDone := make(chan struct{})
+	close(bootDone)
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- discovery.Run(runCtx, bootDone) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	require.Eventually(t, func() bool {
+		lists, _ := fetcher.counts()
+		return lists > 0
+	}, 5*time.Second, 5*time.Millisecond)
+	lists, _ := fetcher.counts()
+
+	// Many check intervals pass, but the failed pass does not run again.
+	time.Sleep(100 * time.Millisecond)
+	listsLater, _ := fetcher.counts()
+	require.Equal(t, lists, listsLater)
 }
 
 func TestNeighborhoodDiscoveryDue(t *testing.T) {
