@@ -14,7 +14,6 @@ import {
 } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 
-
 export type AttachmentRefreshOptions = {
   width: number;
   height: number;

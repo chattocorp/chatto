@@ -14,7 +14,6 @@ const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
 import { mapUserSummary, type UserSummary } from './userSummary.js';
 
-
 export function createUserAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(UserService, config);
   const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;

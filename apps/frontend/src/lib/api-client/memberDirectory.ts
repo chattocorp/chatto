@@ -14,7 +14,6 @@ import { getUserStore } from '$lib/state/server/users.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
 
-
 export type MemberDirectoryPage = {
   members: DirectoryMember[];
   /** Authorized membership IDs in page order, including profiles not yet available. */

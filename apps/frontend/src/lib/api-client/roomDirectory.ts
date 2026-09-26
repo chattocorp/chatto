@@ -12,7 +12,6 @@ import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
-
 export type DirectoryRoomSummary = {
   id: string;
   name: string;

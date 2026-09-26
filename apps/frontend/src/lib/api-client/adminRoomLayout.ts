@@ -9,7 +9,6 @@ import type { DirectorySidebarLink } from './roomDirectory.js';
 import { RoomKind, type Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
-
 export type AdminRoomInfo = {
   id: string;
   name: string;

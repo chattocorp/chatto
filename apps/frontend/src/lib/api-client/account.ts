@@ -8,7 +8,6 @@ import {
 } from '@chatto/api-types/api/v1/viewer_pb';
 import { timeFormatOrAuto } from './timeFormat.js';
 
-
 export type AccountUser = {
   id: string;
   login: string;

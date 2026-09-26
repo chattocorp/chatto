@@ -25,7 +25,6 @@ import type { User } from '@chatto/api-types/api/v1/users_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { getUserStore } from '$lib/state/server/users.svelte';
 
-
 export type EventConnectionPage = {
   events: readonly TimelineEventView[];
   startCursor?: string | null;
