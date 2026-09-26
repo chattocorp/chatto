@@ -1,0 +1,138 @@
+---
+title: Architecture
+description: How Chatto stores data, serves clients, runs background work, and scales across processes.
+---
+
+import ArchitectureDiagram from "../../../components/diagrams/ArchitectureDiagram.astro";
+
+Chatto is one binary. It serves the web client, the APIs, and the realtime
+connection, and it stores all of its data in [NATS](https://nats.io). Chatto
+does not use a relational database.
+
+<ArchitectureDiagram />
+
+## Components
+
+| Component | Role | Required |
+| --------- | ---- | -------- |
+| Chatto server (`chatto run`) | Serves the web client, the ConnectRPC API, the realtime WebSocket, OAuth, webhooks, and asset downloads. Runs the durable workers. | Yes |
+| NATS with JetStream | Stores all data. Chatto can embed it, or connect to an external NATS server or cluster. | Yes |
+| LiveKit | Carries voice and video calls. Chatto issues call tokens and receives LiveKit webhooks. | For calls |
+| S3-compatible storage | Stores uploaded files instead of NATS. | No |
+| Asset processing worker | Converts videos and GIFs with ffmpeg. Runs inside `chatto run` or as `chatto asset-processing`. | For video |
+| Search provider | Keeps the full-text search index. Runs inside `chatto run` or as `chatto search-provider`. | For search |
+| Exporter | Publishes Prometheus metrics for the deployment. | No |
+
+The web client is a single-page application that Chatto serves itself. It
+uses the same public API as bots and other integrations. It can also connect to
+other Chatto servers.
+
+## NATS is the database
+
+Chatto keeps different kinds of data in different NATS resources:
+
+| Resource | Type | Contents | In backups |
+| -------- | ---- | -------- | ---------- |
+| `EVT` | Stream | Every change to domain data, as events. The source of truth. | Yes |
+| `NOTIFICATIONS` | Stream | Notifications and their delivery state, kept for 90 days. | Yes |
+| `LOG` | Stream | Operational records, such as webhook delivery failures, kept for 7 days. | No |
+| `RUNTIME_STATE` | KV bucket | Current values that are not domain history: sessions, credentials, presence choices, wrapped data keys. | Yes |
+| `MEMORY_CACHE` | KV bucket | Volatile shared state, such as leases and counters. Kept in memory. | No |
+| `ENCRYPTION_KEYS` | KV bucket | Key-encryption keys. See [Encryption](/how-chatto-works/encryption/). | No |
+| `SERVER_ASSETS` | Object store | Uploaded files, when you do not use S3. | Yes |
+| `PROJECTION_SNAPSHOTS` | Object store | Optional encrypted snapshots that speed up startup. | Yes |
+| `ASSET_CACHE` | Object store | Optional cache of transformed images. | No |
+
+Because everything is in NATS, one `chatto backup` command backs up the
+complete server, except S3 files. See
+[Backup & Restore](/guides/operations/backup-restore/).
+
+## Event sourcing
+
+Chatto does not update records in place. Every change, such as a new message,
+an edit, a new room, or a permission change, is an event that Chatto appends to
+the `EVT` stream. Chatto keeps these events permanently. The current state of
+the server is the result of all events.
+
+**Writes use optimistic concurrency.** Each event belongs to a subject for one
+aggregate, such as a room or a user. An append states the last sequence number
+that the writer saw for that subject. If another write came first, NATS rejects
+the append, and Chatto retries with fresh state. Chatto needs no locks, so the
+same rule works across many server processes.
+
+**Reads come from projections.** Each Chatto process builds in-memory read
+models, called projections, from the event stream. At startup, a process reads
+all events. After that, it follows new events as they arrive. Optional
+projection snapshots let a process start from a recent state and read only the
+newer events.
+
+**You see your own changes at once.** After a write, the process waits until its
+own projections contain the new event, and then it responds. Other processes
+receive the event within milliseconds.
+
+This design has consequences for operators:
+
+- Startup time and memory use grow with the history of the server.
+  Snapshots reduce the startup time.
+- Chatto needs no database migrations. When a read model changes, Chatto builds
+  it again from the events.
+- The event stream is a complete history of the server. Chatto encrypts the
+  sensitive parts of it.
+
+## Life of a message
+
+1. A client calls `MessageService.CreateMessage` through ConnectRPC.
+2. Chatto authenticates the caller and checks their permissions against the
+   current projections.
+3. Chatto encrypts the text with the author's key and appends the events to
+   `EVT`.
+4. Chatto waits for its projections to contain the message, and responds.
+5. NATS republishes the new event to every Chatto process. Each process checks
+   which of its realtime connections may see the event, and sends it to them.
+6. Durable workers act on the same event. They create notifications and send
+   push notifications, call outbound webhooks, and update the search index.
+
+## Background work
+
+Work outside a request, such as push notifications, webhooks, video processing,
+file cleanup, and key destruction after an account deletion, runs in durable
+workers. Each worker reads events through a durable NATS consumer:
+
+- A worker confirms an event only after the work is complete. If a process
+  stops during the work, NATS delivers the event again.
+- Workers are idempotent. Doing the same work twice has the same result as
+  doing it once.
+- All Chatto processes share each consumer. Each event goes to one process.
+
+## Interfaces
+
+| Interface | Path | Used by |
+| --------- | ---- | ------- |
+| ConnectRPC API | `/api/connect/` | Web client, bots, integrations |
+| Realtime WebSocket | `/api/realtime` | Web client, bots, integrations |
+| OAuth | `/oauth/` | Clients on other origins, desktop and native apps |
+| Incoming webhooks | `/webhooks/incoming/` | External services such as Grafana |
+| MCP | `/mcp` | AI assistants (experimental, off by default) |
+| Protected files | `/assets/` | Attachments and video playback |
+| Operator API | Unix socket | `chatto operator` commands |
+| NATS services | `svc.chatto_ext.>` | Search providers |
+
+See [Chatto API](/guides/integrations/chatto-api/) and
+[Realtime](/guides/integrations/realtime-protocol/) for the public interfaces.
+
+## Scaling
+
+Every Chatto process is equal. There is no leader process. Processes connect to
+the same NATS account, and JetStream keeps them consistent. Each process keeps
+its own complete projections, so each process needs about the same memory.
+
+To add capacity, run more Chatto processes behind a load balancer. To survive
+the loss of a server, run a NATS cluster with replicated streams. See
+[Scaling & High Availability](/guides/infrastructure/horizontal-scaling/).
+
+## Further reading
+
+The Chatto repository records the design decisions behind this architecture:
+
+- [Architecture decision records](https://github.com/chattocorp/chatto/tree/main/docs/adr)
+- [Architecture inventory](https://github.com/chattocorp/chatto/tree/main/docs/architecture)

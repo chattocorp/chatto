@@ -1,0 +1,34 @@
+---
+import { baseStyles } from './styles';
+import Box from './Box.astro';
+import Region from './Region.astro';
+---
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" fill="none" role="img" aria-label="Web clients, bots, and the operator CLI connect to the Chatto server. The server's API appends events to NATS. In-memory projections replay and follow those events. Durable workers consume events for notifications, webhooks, and cleanup. LiveKit handles calls and S3 stores files, both optional.">
+  <style set:html={baseStyles} />
+
+  <Box type="browser" x={16} y={50} w={150} label="Web client" sublabel="browser or desktop" />
+  <Box type="browser" x={16} y={125} w={150} label="Bots and apps" sublabel="API keys · OAuth" />
+  <Box type="browser" x={16} y={200} w={150} label="Operator CLI" sublabel="local Unix socket" />
+
+  <Region x={196} y={20} w={248} h={262} label="CHATTO SERVER" />
+  <Box type="chatto" x={218} y={50} w={204} label="API and realtime" sublabel="ConnectRPC · WebSocket" />
+  <Box type="chatto" x={218} y={125} w={204} label="Projections" sublabel="in-memory read models" />
+  <Box type="chatto" x={218} y={200} w={204} label="Durable workers" sublabel="notifications · webhooks · cleanup" />
+
+  <Box type="livekit" x={478} y={30} w={148} label="LiveKit" sublabel="calls (optional)" />
+  <Box type="nats" x={478} y={115} w={148} h={70} label="NATS" sublabel="events · KV · objects" />
+  <Box type="browser" x={478} y={215} w={148} label="S3 storage" sublabel="files (optional)" />
+
+  <path class="conn" d="M166,77 L216,77" />
+  <path class="conn" d="M166,152 C191,152 191,87 216,87" />
+  <path class="conn-dash" d="M166,227 C194,227 194,97 216,97" />
+
+  <path class="conn" d="M422,62 C450,62 450,57 476,57" />
+  <path class="conn" d="M422,82 C452,82 452,132 476,132" />
+  <text class="proto" x="452" y="102" text-anchor="middle">append</text>
+  <path class="conn" d="M476,152 L422,152" />
+  <text class="proto" x="449" y="146" text-anchor="middle">replay</text>
+  <path class="conn" d="M422,222 C452,222 452,170 476,170" />
+  <path class="conn" d="M422,240 L476,240" />
+</svg>
