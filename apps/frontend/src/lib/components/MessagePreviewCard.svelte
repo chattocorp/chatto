@@ -124,6 +124,9 @@ unknown instance) the component renders nothing.
   $effect(() => {
     // Capture the target before the async read and track all target fields.
     const target = { serverId, roomId, threadRootEventId, messageId };
+    // Also reload when the server's store is replaced or removed. That marks a
+    // private-data boundary: sign-out, an account change, or server removal.
+    if (serverId) serverRegistry.tryGetStore(serverId);
     // Track nothing else. The load reads server session state before its first
     // await, and a reconnect updates that state. A tracked read would clear the
     // rendered card and reload it each time the app resumes.
