@@ -2,17 +2,13 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { queryClient, removeServerQueries } from '$lib/query/client';
 import { q } from '$lib/test-utils';
 import { getUserStore, resetUserStoresForTests } from '$lib/state/server/users.svelte';
 import { userProfileFixture } from '$lib/test-utils/userProfile';
 import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
 const mocks = vi.hoisted(() => ({
-  queryState: {
-    data: undefined as Record<string, unknown> | null | undefined,
-    isPending: false
-  },
-  queryOptions: null as null | { queryFn: () => Promise<unknown> },
   batchGetUsers: vi.fn(),
   viewerSettings: {
     timezone: 'Europe/Berlin',
@@ -20,21 +16,6 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('@tanstack/svelte-query', () => ({
-  createQuery: (options: () => { queryFn: () => Promise<unknown> }) => {
-    mocks.queryOptions = options();
-    return {
-      get data() {
-        return mocks.queryState.data;
-      },
-      get isPending() {
-        return mocks.queryState.isPending;
-      }
-    };
-  }
-}));
-
-vi.mock('$lib/query/client', () => ({ queryClient: {} }));
 vi.mock('$lib/api-client/users', () => ({ createUserAPI: vi.fn() }));
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
@@ -45,7 +26,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     store: {
       currentUser: { user: { settings: mocks.viewerSettings } },
-      get projection() { return { users: getUserStore('origin', 'session-1') }; }
+      get projection() {
+        return { users: getUserStore('origin', 'session-1') };
+      }
     },
     isCurrent: () => true
   })
@@ -88,8 +71,6 @@ describe('RoomSidebarProfile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetUserStoresForTests();
-    mocks.queryState = { data: undefined, isPending: false };
-    mocks.queryOptions = null;
     mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_24_HOUR;
     mocks.batchGetUsers.mockResolvedValue([user]);
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2025-04-27T14:30:00Z'));
@@ -103,7 +84,7 @@ describe('RoomSidebarProfile', () => {
 
   it('renders a cached profile while the fresh query is pending', () => {
     getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
-    mocks.queryState.isPending = true;
+    mocks.batchGetUsers.mockReturnValue(new Promise(() => {}));
 
     const { container } = renderProfile();
 
@@ -138,7 +119,7 @@ describe('RoomSidebarProfile', () => {
   });
 
   it('shows loading while an uncached profile is loading', () => {
-    mocks.queryState.isPending = true;
+    mocks.batchGetUsers.mockReturnValue(new Promise(() => {}));
 
     const { container } = renderProfile();
 
@@ -148,7 +129,6 @@ describe('RoomSidebarProfile', () => {
 
   it('uses the viewer preferred 12-hour time format', () => {
     getUserStore('origin', 'session-1').set(user.id, userProfileFixture(user));
-    mocks.queryState.isPending = true;
     mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_12_HOUR;
 
     const { container } = renderProfile();
@@ -156,8 +136,21 @@ describe('RoomSidebarProfile', () => {
     expect(container.textContent).toMatch(/04:30\s*pm/i);
   });
 
+  it('purges the profile read with the server session cache', async () => {
+    renderProfile();
+    const profileReads = () =>
+      queryClient
+        .getQueryCache()
+        .findAll()
+        .filter((query) => query.queryKey.includes(user.id));
+    await vi.waitFor(() => expect(profileReads()[0]?.state.status).toBe('success'));
+
+    removeServerQueries('origin');
+
+    expect(profileReads()).toHaveLength(0);
+  });
+
   it('shows the not-found state when the query returns no user', async () => {
-    mocks.queryState = { data: null, isPending: false };
     mocks.batchGetUsers.mockResolvedValue([]);
 
     const { container } = renderProfile();
@@ -170,7 +163,6 @@ describe('RoomSidebarProfile', () => {
   it('uses shared profile updates and deletion instead of retained query data', async () => {
     const profiles = getUserStore('origin', 'session-1');
     profiles.set(user.id, userProfileFixture(user));
-    mocks.queryState.data = user;
     const { container } = renderProfile();
     profiles.set(user.id, userProfileFixture({ ...user, displayName: 'Updated profile' }));
     await expect.element(container).toHaveTextContent('Updated profile');

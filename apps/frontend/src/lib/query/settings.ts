@@ -1,9 +1,10 @@
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { serverSessionQueryRoot } from './keys';
 
 type SettingsQueryConnection = Pick<ServerConnection, 'queryScope'>;
 
 function settingsRoot(serverId: string, connection: SettingsQueryConnection) {
-  return ['server', serverId, 'session', connection.queryScope, 'settings'] as const;
+  return [...serverSessionQueryRoot(serverId, connection), 'settings'] as const;
 }
 
 function accountSettingsRoot(

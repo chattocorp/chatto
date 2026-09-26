@@ -7,6 +7,7 @@ URL refresh results cannot start a preview or download after this opening ends.
   import { page } from '$app/state';
   import { createQuery } from '@tanstack/svelte-query';
   import { queryClient } from '$lib/query/client';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { HtmlViewerModalState } from '$lib/modal';
   import { createAttachmentAPI } from '$lib/api-client/attachments';
   import {
@@ -29,10 +30,7 @@ URL refresh results cannot start a preview or download after this opening ends.
       const { serverId, roomId, attachmentId } = modal;
       return {
         queryKey: [
-          'server',
-          serverId,
-          'session',
-          connection.queryScope,
+          ...serverSessionQueryRoot(serverId, connection),
           'attachment-metadata',
           roomId,
           attachmentId

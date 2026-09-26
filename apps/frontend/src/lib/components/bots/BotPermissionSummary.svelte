@@ -6,6 +6,7 @@ while mounted and discards cached data when the profile closes. -->
   import { createEffectivePermissionAPI } from '$lib/api-client/effectivePermissions';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
@@ -32,10 +33,7 @@ while mounted and discards cached data when the profile closes. -->
   const query = createQuery(
     () => ({
       queryKey: [
-        'server',
-        scope.serverId,
-        'session',
-        scope.connection.queryScope,
+        ...serverSessionQueryRoot(scope.serverId, scope.connection),
         'bot-permissions',
         botId
       ],
@@ -60,10 +58,7 @@ while mounted and discards cached data when the profile closes. -->
   const configuration = createQuery(
     () => ({
       queryKey: [
-        'server',
-        scope.serverId,
-        'session',
-        scope.connection.queryScope,
+        ...serverSessionQueryRoot(scope.serverId, scope.connection),
         'bot-permission-configuration',
         botId
       ],

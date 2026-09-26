@@ -2,6 +2,7 @@ import type { InfiniteData } from '@tanstack/svelte-query';
 import type { QueryKey } from '@tanstack/svelte-query';
 import type { FollowedThread, FollowedThreadsPage } from '$lib/api-client/threads';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { serverSessionQueryRoot } from './keys';
 import { queryClient } from './client';
 import { registerFollowedThreadQueryCache } from './cacheRegistry';
 
@@ -24,7 +25,7 @@ export type ThreadSummaryUpdate = {
 };
 
 function threadRoot(serverId: string, connection: ThreadQueryConnection) {
-  return ['server', serverId, 'session', connection.queryScope, 'threads'] as const;
+  return [...serverSessionQueryRoot(serverId, connection), 'threads'] as const;
 }
 
 export const threadQueryKeys = {
@@ -155,7 +156,9 @@ export function reconcileFollowedThreadViewerStates(
   });
   const hasMissingProjectionThreads = [...states.keys()].some((key) => !knownKeys.has(key));
   const hasUnknownThreads =
-    !filtered && hasMissingProjectionThreads && (snapshotComplete || states.size !== cachedTotalCount);
+    !filtered &&
+    hasMissingProjectionThreads &&
+    (snapshotComplete || states.size !== cachedTotalCount);
   pages = pages.map((page, index) => {
     // Search totals describe matching threads, not the full follow projection.
     if (filtered) return page;
