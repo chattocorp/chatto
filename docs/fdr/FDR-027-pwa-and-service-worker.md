@@ -37,7 +37,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 ### 2. No chat data on the device
 
 **Decision:** The app does not store rooms, messages, member lists, profiles, or notification state on the device. It keeps them in memory for the page session only. See ADR-107.
-**Why:** A device copy needed purges at each privacy boundary, protection against stale tabs, and capture work during normal use. Its benefit was offline reading and a faster first paint on reload.
+**Why:** A device copy needed purges at each privacy boundary, protection against stale tabs, and capture work during normal use. Its benefits were offline reading and a faster first paint on reload.
 **Tradeoff:** An offline launch shows no chat content. A reload shows loading states until the server responds.
 
 ### 3. Foreground app owns the root registration

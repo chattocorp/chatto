@@ -40,8 +40,8 @@ preferences such as the last room and pane widths. It keeps no messages,
 member lists, profiles, or notification content.
 
 Route loads wait for discovery and viewer checks. Registry start begins
-discovery and viewer checks for each registered server. Remote servers are
-not held dormant until the user opens them.
+discovery and viewer checks for each registered server. The client does not
+keep remote servers dormant until the user opens them.
 
 A reconnect without a page load resumes from the in-memory cursor and keeps
 the mounted view. [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md)
@@ -56,7 +56,7 @@ They clear in-memory private data in other tabs.
 On each page load, the client deletes the `chatto-saved-views` IndexedDB
 database that 0.5 beta clients created. A tab that runs an older client can
 create the database again, so the deletion runs on every load. Remove this
-cleanup after a later release.
+cleanup when no supported client version can create the database.
 
 This decision supersedes ADR-104. It supersedes ADR-103, except for the
 service worker shell.

@@ -11,7 +11,6 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
     invalidateAll: vi.fn(),
-    recoverServer: vi.fn(),
     afterNavigate: vi.fn(),
     beforeNavigate: vi.fn(),
     onNavigate: vi.fn(),
@@ -125,7 +124,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: vi.fn(),
     getServer: vi.fn(() => ({ userId: 'U1' })),
     tryGetStore: vi.fn(() => null),
-    recoverServer: mocks.recoverServer,
     isAuthenticated: vi.fn(() => false),
     firstAuthenticatedServerId: vi.fn(() => undefined)
   }

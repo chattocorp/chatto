@@ -805,7 +805,7 @@ export class ServerStateStore {
     this.#threadMessageRefCounts[key] = (this.#threadMessageRefCounts[key] ?? 0) + 1;
   }
 
-  /** Release the UI consumer; retain the canonical window for replay and persistence. */
+  /** Release the UI consumer; retain the canonical window for replay. */
   releaseMessagesForThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
     const key = `${roomId}\u0000${threadRootEventId}`;
     if (this.#threadMessages[key] !== store) return;
