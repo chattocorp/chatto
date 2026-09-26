@@ -474,17 +474,17 @@ beforeEach(() => {
   mocks.projectionEventHandler = null;
   mocks.roomFilesRetain.mockReset();
   mocks.roomFilesRetain.mockReturnValue(vi.fn());
-  // Like the server store, create one timeline per room and activate it once.
+  // Like the server store, create one timeline per room.
   const messagesByRoom: Record<string, MessagesStore> = Object.create(null);
-  mocks.messagesForRoom.mockImplementation((roomId: string) => {
-    let store = messagesByRoom[roomId];
-    if (!store) {
-      store = new MessagesStore({} as never, () => 'test-user', mocks.timeline);
-      store.setRoom(roomId);
-      messagesByRoom[roomId] = store;
-    }
-    return store;
-  });
+  mocks.messagesForRoom.mockImplementation(
+    (roomId: string) =>
+      (messagesByRoom[roomId] ??= new MessagesStore(
+        {} as never,
+        () => 'test-user',
+        { roomId },
+        mocks.timeline
+      ))
+  );
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
