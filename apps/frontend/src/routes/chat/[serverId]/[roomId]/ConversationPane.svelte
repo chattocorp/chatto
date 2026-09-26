@@ -160,36 +160,27 @@ thread IDs can change while the pane stays mounted.
       })
     : useRoomUnread(() => ({ roomId, events, canReadMessages }));
 
-  // A reply or a jump belongs to the conversation that started it.
-  let replyTargetKey = untrack(() => targetKey);
+  // A reply or a jump belongs to the conversation that started it. The server
+  // store loads each timeline when it creates it, so a target change needs no
+  // explicit load here.
+  let previousTargetKey = untrack(() => targetKey);
   $effect(() => {
     const key = targetKey;
-    if (key === replyTargetKey) return;
-    replyTargetKey = key;
+    if (key === previousTargetKey) return;
+    previousTargetKey = key;
     replyState.cancelReply();
-  });
-
-  // Load the timeline only when the viewer can read it; the server rejects
-  // other reads. Reconnect convergence belongs to the resumable server
-  // projection and does not trigger a parallel read here.
-  $effect(() => {
-    if (!canReadMessages) return;
-    const store = messageStore;
-    const targetRoomId = roomId;
-    const targetThreadRootEventId = threadRootEventId;
-    untrack(() => {
-      if (targetThreadRootEventId) store.setThread(targetRoomId, targetThreadRootEventId);
-      else store.setRoom(targetRoomId);
-      jumpState.reset();
-    });
+    jumpState.reset();
   });
 
   // Register before any child can request a jump. The room store loads a
   // window around the target. The store cannot do that for a thread, so a
-  // thread only scrolls; the highlight flow below loads a missing target first.
+  // thread refreshes its window through the target and then scrolls to it.
   jumpState.setJumpHandler(async (eventId: string) => {
     if (!canReadMessages) return false;
     if (!isThread) return messageStore.jumpToMessage(eventId, jumpState);
+    const isLoaded = () => events.some((event) => event.id === eventId);
+    if (!isLoaded()) await messageStore.refreshCurrentWindow(eventId);
+    if (!isLoaded()) return false;
     jumpState.scrollToEventId = eventId;
     return true;
   });
@@ -203,8 +194,7 @@ thread IDs can change while the pane stays mounted.
     if (payload && 'deletedAt' in payload && payload.deletedAt) editState.cancelEdit();
   });
 
-  // Jump to each highlight request once. A thread first loads a target outside
-  // its latest page, because its jump handler only scrolls.
+  // Jump to each highlight request once. A thread waits for its first page.
   let handledHighlight: PendingHighlight | null = null;
   let highlightRequest = 0;
   $effect(() => {
@@ -221,14 +211,10 @@ thread IDs can change while the pane stays mounted.
     const current = () =>
       request === highlightRequest && highlight === target && serverScope.isCurrent();
 
-    const isLoaded = () => events.some((event) => event.id === target.eventId);
     void (async () => {
       await tick();
-      if (isThread && !isLoaded()) await messageStore.refreshCurrentWindow(target.eventId);
       if (!current()) return;
-      // A thread can only scroll to a message that its window contains.
-      const jumped =
-        isThread && !isLoaded() ? false : await jumpState.jumpToMessage(target.eventId);
+      const jumped = await jumpState.jumpToMessage(target.eventId);
       if (!current()) return;
       if (!jumped) {
         toast.error(m('room.jump_failed'));

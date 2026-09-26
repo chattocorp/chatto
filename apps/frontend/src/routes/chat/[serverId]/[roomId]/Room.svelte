@@ -260,11 +260,13 @@
   });
 
   // Resolve the pending highlight once room data has loaded for the
-  // current roomId. Two sources, in priority order:
-  //   1. PendingHighlightStore — set by in-app navigations (notification
+  // current roomId. Three sources, in priority order:
+  //   1. A nested thread message route (/room/thread/m/message).
+  //   2. PendingHighlightStore — set by in-app navigations (notification
   //      clicks, message-link redirects). One-shot, consumed-on-success.
-  //   2. ?highlight= URL param — for shareable permalinks. Stripped after
+  //   3. ?highlight= URL param — for shareable permalinks. Stripped after
   //      consumption so a refresh doesn't re-fire it.
+  // The ConversationPane that shows the target timeline performs the jump.
   $effect(() => {
     if (!room.roomData) return;
     // Room.svelte lives in +layout and is reused across roomId changes; bail

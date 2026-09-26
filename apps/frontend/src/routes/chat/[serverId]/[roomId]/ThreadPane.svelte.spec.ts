@@ -6,7 +6,7 @@ import { q } from '$lib/test-utils';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
 import { THREAD_PANE_MAX_WIDTH } from '$lib/storage/threadPaneWidth';
-import { getToasts } from '$lib/ui/toast';
+import { getToasts, toast } from '$lib/ui/toast';
 import ThreadPane from './ThreadPane.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
 
@@ -41,6 +41,7 @@ const { mocks } = vi.hoisted(() => {
       cancelEdit: vi.fn(),
       editingEventId: null as string | null,
       markOccurrenceRead: vi.fn(),
+      jumpState: null as { scrollToEventId: string | null } | null,
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
       unreadMarkerEventId: null as string | null,
@@ -185,12 +186,23 @@ vi.mock('$lib/state/room', () => ({
     quoteInsertionState: {
       requestInsertQuote: mocks.requestInsertQuote
     },
-    jumpState: {
-      scrollToEventId: null,
-      setJumpHandler: vi.fn(),
-      jumpToMessage: mocks.jumpToMessage,
-      reset: mocks.resetJumpState
-    }
+    jumpState: (() => {
+      // Route jumps through the pane's registered handler, as the real state does.
+      let handler: ((eventId: string) => Promise<boolean>) | null = null;
+      const jumpState = {
+        scrollToEventId: null as string | null,
+        setJumpHandler: (fn: (eventId: string) => Promise<boolean>) => {
+          handler = fn;
+        },
+        jumpToMessage: (eventId: string) => {
+          mocks.jumpToMessage(eventId);
+          return handler ? handler(eventId) : Promise.resolve(false);
+        },
+        reset: mocks.resetJumpState
+      };
+      mocks.jumpState = jumpState;
+      return jumpState;
+    })()
   }),
   MessagesStore: class {
     threadEvents = [];
@@ -254,7 +266,7 @@ describe('ThreadPane', () => {
     mocks.appState.isPresent = true;
     mocks.unreadMarkerEventId = null;
     mocks.editingEventId = null;
-    mocks.jumpToMessage.mockResolvedValue(true);
+    toast.clear();
     mocks.markOccurrenceRead.mockResolvedValue(undefined);
     mocks.markThreadAsRead.mockResolvedValue({
       previousLastReadAt: null,
@@ -399,7 +411,6 @@ describe('ThreadPane', () => {
         )
       );
 
-      expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
       expect(mocks.reconcileThreadRead).toHaveBeenCalledWith('room-1', 'thread-root');
     }
   );
@@ -539,7 +550,7 @@ describe('ThreadPane', () => {
     });
 
     await vi.waitFor(() => expect(mocks.refreshCurrentWindow).toHaveBeenCalledWith('older-reply'));
-    expect(mocks.jumpToMessage).not.toHaveBeenCalled();
+    expect(mocks.jumpState?.scrollToEventId).toBeNull();
 
     mocks.threadStore!.threadEvents = [threadMessage('older-reply')];
     resolveRefresh({
@@ -549,9 +560,7 @@ describe('ThreadPane', () => {
       changed: true
     });
 
-    await vi.waitFor(() => {
-      expect(mocks.jumpToMessage).toHaveBeenCalledWith('older-reply');
-    });
+    await vi.waitFor(() => expect(mocks.jumpState?.scrollToEventId).toBe('older-reply'));
   });
 
   it('updates the thread follow button optimistically while the RPC is pending', async () => {
@@ -706,16 +715,19 @@ describe('ThreadPane', () => {
 
     await vi.waitFor(() => expect(onHighlightComplete).toHaveBeenCalledWith(target));
     expect(getToasts().some((toast) => toast.tone === 'error')).toBe(true);
-    expect(mocks.jumpToMessage).not.toHaveBeenCalled();
+    expect(mocks.jumpState?.scrollToEventId).toBeNull();
     expect(mocks.markOccurrenceRead).not.toHaveBeenCalled();
   });
 
   it('reports a thread jump that cannot land on its target', async () => {
     const onHighlightComplete = vi.fn();
-    const target = highlight('missing-reply');
+    const target = highlight('reply-1');
+    mocks.threadStore!.threadEvents = [threadMessage('reply-1')];
     const { container } = render(ThreadPane, {
       props: { ...threadProps, highlight: target, onHighlightComplete }
     });
+    await vi.waitFor(() => expect(mocks.jumpState?.scrollToEventId).toBe('reply-1'));
+    expect(getToasts()).toHaveLength(0);
 
     (q(container, '[data-testid="fail-highlight"]') as HTMLButtonElement).click();
 

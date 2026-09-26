@@ -13,7 +13,7 @@ import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore, RoomMembersStore } from '$lib/state/room';
 import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
-import { getToasts } from '$lib/ui/toast';
+import { getToasts, toast } from '$lib/ui/toast';
 
 const { mocks } = vi.hoisted(() => {
   const queryData = {
@@ -474,9 +474,17 @@ beforeEach(() => {
   mocks.projectionEventHandler = null;
   mocks.roomFilesRetain.mockReset();
   mocks.roomFilesRetain.mockReturnValue(vi.fn());
-  mocks.messagesForRoom.mockReturnValue(
-    new MessagesStore({} as never, () => 'test-user', mocks.timeline)
-  );
+  // Like the server store, create one timeline per room and activate it once.
+  const messagesByRoom: Record<string, MessagesStore> = Object.create(null);
+  mocks.messagesForRoom.mockImplementation((roomId: string) => {
+    let store = messagesByRoom[roomId];
+    if (!store) {
+      store = new MessagesStore({} as never, () => 'test-user', mocks.timeline);
+      store.setRoom(roomId);
+      messagesByRoom[roomId] = store;
+    }
+    return store;
+  });
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
@@ -500,6 +508,7 @@ beforeEach(() => {
   mocks.canPostInteractions = false;
   mocks.unreadMarkerEventId = null;
   mocks.clearUnreadMarker.mockClear();
+  toast.clear();
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
   mocks.markOccurrenceRead.mockReset();
@@ -667,9 +676,6 @@ describe('Room interaction bundles', () => {
     await expect.element(q(container, '[data-testid="room-event-ids"]')).not.toBeInTheDocument();
     await expect.element(q(container, '[data-testid="emit-returned-post"]')).toBeInTheDocument();
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
-    await tick();
-    // The server would reject a timeline read for this room.
-    expect(mocks.timeline.getRoomEvents).not.toHaveBeenCalled();
   });
 
   it('shows the limited-access timeline without a conversation start marker', async () => {
@@ -1278,6 +1284,7 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="pending-highlight-id"]'))
       .toHaveTextContent('msg-linked');
+    expect(getToasts()).toHaveLength(0);
 
     (q(container, '[data-testid="fail-highlight"]') as HTMLButtonElement).click();
 
