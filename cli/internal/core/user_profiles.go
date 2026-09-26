@@ -313,8 +313,10 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 // A self-update delegates to UpdateOwnUserProfile and keeps its login
 // cooldown rules. Updating another account uses the same target-aware policy
 // as avatars: user.manage-accounts for humans; ownership, bot.manage, or
-// user.manage-accounts for bots. Such updates record actorID on the facts and
-// neither apply nor start the target's login cooldown. Conflicts are returned
+// user.manage-accounts for bots. Such updates record actorID on the facts. A
+// login change by a bot owner or bot manager checks and starts the target's
+// login cooldown, as a self-service change would. An actor with
+// user.manage-accounts neither checks nor advances it. Conflicts are returned
 // to the caller; replacement values are never replayed after a concurrent
 // profile edit.
 func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targetUserID string, login, displayName, bio *string) (*evtv1.User, error) {
@@ -327,13 +329,24 @@ func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targ
 	if actorID == targetUserID {
 		return c.UpdateOwnUserProfile(ctx, actorID, login, displayName, bio)
 	}
+	enforceCooldown := false
 	if err := c.authorizeAtStableInputs(ctx, func() error {
-		_, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID)
-		return err
+		if _, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID); err != nil {
+			return err
+		}
+		if login == nil {
+			return nil
+		}
+		canManageAccounts, err := c.CanManageUserAccounts(ctx, actorID)
+		if err != nil {
+			return fmt.Errorf("check user.manage-accounts: %w", err)
+		}
+		enforceCooldown = !canManageAccounts
+		return nil
 	}); err != nil {
 		return nil, err
 	}
-	return c.updateUserProfileAs(ctx, actorID, targetUserID, login, displayName, bio, false)
+	return c.updateUserProfileWithCooldown(ctx, actorID, targetUserID, login, displayName, bio, false, enforceCooldown)
 }
 
 // AdminClearLoginChangeCooldown clears a human account's login cooldown.

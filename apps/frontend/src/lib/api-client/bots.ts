@@ -13,6 +13,8 @@ export type Bot = {
   ownerUserId: string;
   createdAt: Date | null;
   apiKeyCreatedAt: Date | null;
+  /** Start of the bot's current 30-day username cooldown; `null` when none was started. */
+  lastLoginChange: Date | null;
   apiKeys: {
     id: string;
     name: string;
@@ -154,6 +156,7 @@ function botFromAPI(bot: APIBot): Bot {
     ownerUserId: bot.ownerUserId,
     createdAt: bot.createdAt?.toDate() ?? null,
     apiKeyCreatedAt: bot.apiKeyCreatedAt?.toDate() ?? null,
+    lastLoginChange: bot.lastLoginChange?.toDate() ?? null,
     apiKeys: (bot.apiKeys ?? []).map((key) => ({
       id: key.id,
       name: key.name,

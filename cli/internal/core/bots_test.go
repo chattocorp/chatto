@@ -1484,14 +1484,48 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetLastLoginChange: %v", err)
 	}
-	if !lastChange.IsZero() {
-		t.Fatalf("owner login change started the bot cooldown at %v", lastChange)
+	if lastChange.IsZero() {
+		t.Fatal("owner login change did not start the bot cooldown")
 	}
 
-	// A second owner rename is not blocked by a cooldown.
+	// The bot's cooldown applies to its owner and to bot managers.
 	secondLogin := "profile_bot_again"
-	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &secondLogin, nil, nil); err != nil {
-		t.Fatalf("second owner rename: %v", err)
+	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
+		t.Fatalf("second owner rename err = %v, want ErrLoginChangeCooldown", err)
+	}
+	botManager, err := c.CreateUser(ctx, SystemActorID, "profile-bot-manager", "Profile Bot Manager", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser bot manager: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, botManager.GetId(), PermBotManage); err != nil {
+		t.Fatalf("grant bot.manage: %v", err)
+	}
+	if _, err := c.UpdateManagedUserProfile(ctx, botManager.GetId(), botID, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
+		t.Fatalf("bot manager rename err = %v, want ErrLoginChangeCooldown", err)
+	}
+	// Other profile fields have no cooldown.
+	laterBio := "Still editable during the cooldown."
+	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, &laterBio); err != nil {
+		t.Fatalf("owner bio edit during cooldown: %v", err)
+	}
+
+	// An account manager bypasses the cooldown without advancing it.
+	accountManager, err := c.CreateUser(ctx, SystemActorID, "profile-account-manager", "Profile Account Manager", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser account manager: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.GetId(), PermUserManageAccounts); err != nil {
+		t.Fatalf("grant user.manage-accounts: %v", err)
+	}
+	if _, err := c.UpdateManagedUserProfile(ctx, accountManager.GetId(), botID, &secondLogin, nil, nil); err != nil {
+		t.Fatalf("account manager rename during cooldown: %v", err)
+	}
+	afterBypass, err := c.GetLastLoginChange(ctx, botID)
+	if err != nil {
+		t.Fatalf("GetLastLoginChange after bypass: %v", err)
+	}
+	if !afterBypass.Equal(lastChange) {
+		t.Fatalf("account manager rename moved the cooldown from %v to %v", lastChange, afterBypass)
 	}
 
 	strangerBio := "Hijacked."

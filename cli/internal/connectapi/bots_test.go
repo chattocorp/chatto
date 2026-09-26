@@ -126,6 +126,18 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if user := ownerUpdated.Msg.GetUser(); user.GetBio() != "Maintained by its owner." || user.GetLogin() != "updated-connect-helper" {
 		t.Fatalf("owner-updated bot user = %+v", user)
 	}
+	// The bot's own rename above started its username cooldown. It also
+	// applies to the owner, and bot reads expose it.
+	if _, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: bot.GetUser().GetId(),
+		Login:  stringPtr("owner-renamed-helper"),
+	})); errorCode(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("owner rename during bot cooldown code = %v, want failed precondition", errorCode(err))
+	}
+	cooldownBot, err := service.GetBot(ctx, connect.NewRequest(&apiv1.GetBotRequest{BotUserId: bot.GetUser().GetId()}))
+	if err != nil || cooldownBot.Msg.GetBot().GetLastLoginChange() == nil {
+		t.Fatalf("GetBot during cooldown = %+v, %v; want last_login_change", cooldownBot, err)
+	}
 	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser recipient: %v", err)

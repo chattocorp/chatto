@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => ({
     ownerUserId: 'owner-user-id',
     createdAt: null,
     apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
+    lastLoginChange: null as Date | null,
     apiKeys: [
       {
         id: 'legacy',
@@ -148,6 +149,7 @@ describe('Bot detail page', () => {
     mocks.supportsMultipleAPIKeys = true;
     mocks.supportsOutboundWebhooks = true;
     mocks.supportsManagedProfiles = true;
+    mocks.bot.lastLoginChange = null;
     mocks.updateUserProfile.mockImplementation(
       (userId: string, input: { login?: string; displayName?: string; bio?: string }) =>
         Promise.resolve({
@@ -308,6 +310,7 @@ describe('Bot detail page', () => {
     const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
     setInput(login, 'taken_login');
     buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() => buttonByText(document, 'Change username').click());
 
     await vi.waitFor(() => expect(container.textContent).toContain('Username is already taken'));
     expect(login.value).toBe('taken_login');
@@ -328,6 +331,7 @@ describe('Bot detail page', () => {
     );
     flushSync();
     buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() => buttonByText(document, 'Change username').click());
 
     await vi.waitFor(() =>
       expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
@@ -353,6 +357,60 @@ describe('Bot detail page', () => {
       expect(container.textContent).toContain('This profile changed while you were editing it.')
     );
     expect(container.textContent).not.toContain('optimistic concurrency');
+  });
+
+  it('confirms a username change and then locks the username during the cooldown', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    setInput(login, 'fresh_name');
+    buttonByText(container, 'Save changes').click();
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Change the username of this bot to @fresh_name?')
+    );
+    expect(mocks.updateUserProfile).not.toHaveBeenCalled();
+
+    buttonByText(document, 'Change username').click();
+    await vi.waitFor(() =>
+      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', { login: 'fresh_name' })
+    );
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="bot-profile-login-cooldown"]')).not.toBeNull()
+    );
+    expect(login.disabled).toBe(true);
+  });
+
+  it('locks the username while the bot cooldown is active', async () => {
+    mocks.bot.lastLoginChange = new Date();
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    expect(login.disabled).toBe(true);
+    expect(
+      container.querySelector('[data-testid="bot-profile-login-cooldown"]')?.textContent
+    ).toContain('The username of this bot can change again in');
+  });
+
+  it('lets an account manager rename a bot during its cooldown without confirmation', async () => {
+    mocks.canManageBots = false;
+    mocks.canManageAccounts = true;
+    mocks.bot.lastLoginChange = new Date();
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    const login = container.querySelector('[data-testid="bot-profile-login"]') as HTMLInputElement;
+    expect(login.disabled).toBe(false);
+    setInput(login, 'admin_renamed');
+    buttonByText(container, 'Save changes').click();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateUserProfile).toHaveBeenCalledWith('bot-user-id', {
+        login: 'admin_renamed'
+      })
+    );
+    expect(document.body.textContent).not.toContain('Change the username of this bot');
   });
 
   it('hides bot profile editing on servers without managed profile updates', async () => {

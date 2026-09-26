@@ -223,8 +223,12 @@ exercise more authority than its human owner currently possesses.
   `UserService`. It cannot change ownership, permissions, or API keys.
 - A bot owner, a human with `bot.manage`, or a human with
   `user.manage-accounts` can change a bot's login, display name, and bio, and
-  can upload or delete its avatar. A login change by one of these humans does
-  not start or check the cooldown of the bot. A bot cannot target another account.
+  can upload or delete its avatar. A login change by the owner or a human with
+  `bot.manage` checks and starts the 30-day username cooldown of the bot. A
+  human with `user.manage-accounts` bypasses the cooldown. The bot detail page
+  asks for confirmation before a login change that starts the cooldown, and it
+  locks the username field while the cooldown runs. `Bot.last_login_change`
+  reports the start of the cooldown. A bot cannot target another account.
 - Bots cannot request their own deletion. Only their owner or a human user with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding

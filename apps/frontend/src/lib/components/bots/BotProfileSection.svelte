@@ -4,7 +4,9 @@
 Edits a bot's public profile: display name, username, and bio. The parent owns
 the save operation and must key this component by bot so the edit buffers are
 seeded once per bot. Only changed fields are sent. A failed save keeps the
-draft.
+draft. A username change starts the bot's 30-day username cooldown unless the
+viewer can bypass it, so the form asks for confirmation first and locks the
+username field while the cooldown runs.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -15,8 +17,11 @@ draft.
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { Button, Form, TextInput } from '$lib/ui/form';
+  import { ConfirmDialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
+    formatCooldownRemaining,
+    getLoginChangeCooldownRemaining,
     MAX_BIO_LENGTH,
     validateAndNormalizeBio,
     validateAndNormalizeDisplayName,
@@ -25,9 +30,12 @@ draft.
 
   let {
     bot,
+    canBypassLoginCooldown,
     onsave
   }: {
-    bot: { login: string; displayName: string; bio: string | null };
+    bot: { login: string; displayName: string; bio: string | null; lastLoginChange: Date | null };
+    /** True when the viewer has user.manage-accounts and ignores the cooldown. */
+    canBypassLoginCooldown: boolean;
     /** Saves the changed fields. Resolves to null when the result is stale. */
     onsave: (input: UpdateUserProfileInput) => Promise<UserSummary | null>;
   } = $props();
@@ -47,11 +55,17 @@ draft.
   let bio = $state(seed.bio);
   let saving = $state(false);
   let error = $state<string | null>(null);
+  let localLastLoginChange = $state<Date | null>(null);
+  let pendingInput = $state<UpdateUserProfileInput | null>(null);
 
   const displayNameModified = $derived(displayName !== baseline.displayName);
   const loginModified = $derived(login !== baseline.login);
   const bioModified = $derived(bio !== baseline.bio);
   const modified = $derived(displayNameModified || loginModified || bioModified);
+  const cooldownRemaining = $derived(
+    getLoginChangeCooldownRemaining(localLastLoginChange ?? bot.lastLoginChange)
+  );
+  const canChangeLogin = $derived(canBypassLoginCooldown || cooldownRemaining === 0);
 
   async function save(event: SubmitEvent) {
     event.preventDefault();
@@ -68,6 +82,7 @@ draft.
       input.displayName = result.normalized;
     }
     if (loginModified) {
+      if (!canChangeLogin) return;
       const result = validateAndNormalizeLogin(login);
       if (!result.valid || result.normalized === undefined) {
         error = result.error ?? m('settings.profile.username.invalid');
@@ -84,10 +99,27 @@ draft.
       input.bio = result.normalized;
     }
 
+    if (input.login !== undefined && !canBypassLoginCooldown) {
+      pendingInput = input;
+      return;
+    }
+    await submit(input);
+  }
+
+  async function confirmLoginChange() {
+    const input = pendingInput;
+    pendingInput = null;
+    if (input) await submit(input);
+  }
+
+  async function submit(input: UpdateUserProfileInput) {
     saving = true;
     try {
       const updated = await onsave(input);
       if (!updated) return;
+      if (input.login !== undefined && !canBypassLoginCooldown) {
+        localLastLoginChange = new Date();
+      }
       baseline = { displayName: updated.displayName, login: updated.login, bio: updated.bio ?? '' };
       displayName = baseline.displayName;
       login = baseline.login;
@@ -119,10 +151,17 @@ draft.
       id="bot-profile-login"
       label={m('settings.bots.username')}
       bind:value={login}
-      disabled={saving}
+      disabled={saving || !canChangeLogin}
       testid="bot-profile-login"
       oninput={() => (error = null)}
     />
+    {#if !canChangeLogin}
+      <p class="text-sm text-muted" data-testid="bot-profile-login-cooldown">
+        {m('settings.bots.username_cooldown_notice', {
+          remaining: formatCooldownRemaining(cooldownRemaining)
+        })}
+      </p>
+    {/if}
     <UserBioEditor
       bind:value={bio}
       editorKind={userPreferences.composerEditor}
@@ -138,3 +177,16 @@ draft.
     {/snippet}
   </Form>
 </Panel>
+
+<ConfirmDialog
+  visible={pendingInput !== null}
+  title={m('settings.bots.username_confirm_title')}
+  tone="info"
+  actionLabel={m('settings.profile.username.confirm_button')}
+  actionIcon="iconify icon-[uil--check]"
+  onconfirm={confirmLoginChange}
+  onclose={() => (pendingInput = null)}
+>
+  <p>{m('settings.bots.username_confirm_prompt', { login: pendingInput?.login ?? '' })}</p>
+  <p class="mt-3">{m('settings.bots.username_confirm_cooldown')}</p>
+</ConfirmDialog>

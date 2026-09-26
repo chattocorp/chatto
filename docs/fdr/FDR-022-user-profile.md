@@ -40,7 +40,7 @@ at append returns to the caller instead of replaying the batch.
 omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 - **Display name** — freely editable by a human or bot account. Shown in messages, member lists, mention autocomplete, etc.
-- **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Human and bot logins use the same rules: they start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful self-service change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message. A change by another user does not check or start the cooldown.
+- **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Human and bot logins use the same rules: they start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message. A change by a bot owner or bot manager follows the same rule as a change by the bot. A change by an account manager does not check or start the cooldown.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — human and bot users can upload an image. The server resizes it to 256×256 maximum and stores it as lossless WebP. The old avatar is deleted after the new avatar is committed. Users can also delete their avatar and use the initial-letter placeholder. A human with `user.manage-accounts` can manage another human's avatar. A bot owner, a human with `bot.manage`, or a human with `user.manage-accounts` can manage a bot's avatar.
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
@@ -56,7 +56,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **App Preferences** — users can select System, Light, or Dark appearance, overlay or side-by-side thread presentation, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. Overlay thread presentation is the default. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile Card** — opening a user's Profile Card as a popover or bottom sheet shows their public identity, bio snippet, live local time in their shared zone, and available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — users with `user.manage-accounts` can update the login, display name, and bio of human profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar. Profile edits and cooldown resets in member management also accept the caller's own account.
-- **Bot identity management** — an API-key-authenticated bot updates its own login, display name, bio, and avatar through `UserService`. Human owners manage the lifecycle, permissions, API keys, profile, and avatar of their bots. Only `bot.manage` allows reassignment. A human with `bot.manage` or `user.manage-accounts` can also change the login, display name, bio, and avatar of a bot. The bot detail page in Server Admin shows a profile editor to the owner and to these managers. A login change by a human does not start or check the cooldown of the bot. Bot custom-status and personal-settings management are not supported.
+- **Bot identity management** — an API-key-authenticated bot updates its own login, display name, bio, and avatar through `UserService`. Human owners manage the lifecycle, permissions, API keys, profile, and avatar of their bots. Only `bot.manage` allows reassignment. A human with `bot.manage` or `user.manage-accounts` can also change the login, display name, bio, and avatar of a bot. The bot detail page in Server Admin shows a profile editor to the owner and to these managers. A login change by the owner or a bot manager checks and starts the cooldown of the bot. The profile editor asks for confirmation before such a change and locks the username field while the cooldown runs. A login change by an account manager does not check or start the cooldown. Bot custom-status and personal-settings management are not supported.
 
 - **UI Style** — Appearance offers a **Depth** slider for bevel strength from
   0% to 100% in 10% steps. 50% is the default (0% in the iOS app). 0%, 50%,
@@ -112,9 +112,9 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 ### 3. Privileged changes do not advance the cooldown timestamp
 
-**Decision:** A login change does not reset the cooldown clock when another user changes the login, or when an account manager bypasses their own cooldown. The other user can be an account manager, a bot owner, or a bot manager. The previous self-service cooldown timestamp stays in effect.
-**Why:** A privileged correction does not use the user's normal login-change allowance.
-**Tradeoff:** A user can see a cooldown that started before a privileged login change. This case is uncommon.
+**Decision:** A login change by an account manager does not check or reset the cooldown clock, for another user or for their own login. The previous cooldown timestamp stays in effect. A bot owner or bot manager does not have this privilege: their login change for a bot checks and starts the cooldown of the bot.
+**Why:** A privileged correction does not use the user's normal login-change allowance. Bot owners and bot managers are not account managers. A bot's login is a mention target like a person's login, so frequent renames of a bot cause the same confusion.
+**Tradeoff:** A user can see a cooldown that started before a privileged login change. This case is uncommon. An owner who makes a mistake in a bot's login must wait 30 days or ask an account manager to correct it.
 
 ### 4. Avatars are WebP-only, capped at 256×256
 
@@ -200,7 +200,7 @@ The startup screen in `app.html` paints before the stylesheet loads, so it canno
 
 ### 17. Profile edits use one target-aware user API
 
-**Decision:** `UserService.UpdateUserProfile` changes the login, display name, and bio of a target user. It replaces `MyAccountService.UpdateProfile` and `AdminUserService.UpdateUser`. It uses the authorization in decision 7, which the avatar methods also use. A self-edit keeps the self-service login cooldown. An edit of another account records the caller as the actor of the facts. It does not check, start, or advance the target's cooldown. Custom status, presence, and personal settings stay self-only in `MyAccountService`.
+**Decision:** `UserService.UpdateUserProfile` changes the login, display name, and bio of a target user. It replaces `MyAccountService.UpdateProfile` and `AdminUserService.UpdateUser`. It uses the authorization in decision 7, which the avatar methods also use. A self-edit keeps the self-service login cooldown. An edit of another account records the caller as the actor of the facts. The login cooldown follows decision 3. Custom status, presence, and personal settings stay self-only in `MyAccountService`.
 **Why:** Bot owners must be able to maintain the public identity of their bots without the API key of the bot. One command path gives humans, bots, owners, and account managers the same validation, events, and realtime updates. Custom status and presence describe the current activity of a person, so only that person sets them.
 **Tradeoff:** This is an intentional pre-1.0 API break. Clients must move to `UserService` and send the target user ID, also for their own profile. An older bundled client cannot edit profiles on a newer server, and a newer bundled client cannot edit profiles on an older server. The bot profile editor appears only when the server supports this method.
 
@@ -210,7 +210,7 @@ The startup screen in `app.html` paints before the stylesheet loads, so it canno
 - Human self-edit of display name, bio, custom status, settings, and own login (subject to cooldown) — no explicit permission; only authentication. `user.manage-accounts` bypasses the holder's own login cooldown.
 - Profile or avatar edit of another human — `user.manage-accounts`.
 - Clear a human user's login cooldown, including the caller's own cooldown — same gate.
-- Bot profile or avatar edit — the authenticated bot, bot ownership, `user.manage-accounts`, or `bot.manage`. A login change by a human does not start or check the cooldown of the bot. Bot custom-status and personal-settings edits are not supported.
+- Bot profile or avatar edit — the authenticated bot, bot ownership, `user.manage-accounts`, or `bot.manage`. A login change by the owner or a bot manager checks and starts the cooldown of the bot; `user.manage-accounts` bypasses it. Bot custom-status and personal-settings edits are not supported.
 
 ## Related
 

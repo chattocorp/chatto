@@ -4408,10 +4408,11 @@ Updates the target user's login, display name, and/or bio. Users can
 update themselves. Updating another human requires user.manage-accounts.
 A human who updates a bot needs ownership of the bot,
 user.manage-accounts, or bot.manage. A bot cannot target another account.
-A self login change starts the username-change cooldown and returns
-FAILED_PRECONDITION while the cooldown is active, unless the caller has
-user.manage-accounts. A case-only change and a change to another account
-do not check or start the cooldown. Unknown or deleted targets return
+A login change starts the target's username-change cooldown and returns
+FAILED_PRECONDITION while the cooldown is active. This also applies when
+a bot owner or bot manager changes a bot's login. A caller with
+user.manage-accounts bypasses the cooldown and does not start it. A
+case-only change does not check or start the cooldown. Unknown or deleted targets return
 NOT_FOUND. An invalid ID or a request without a selected field returns
 INVALID_ARGUMENT.
 
@@ -5901,6 +5902,7 @@ them.
 | `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
 | `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
+| `last_login_change` | `google.protobuf.Timestamp` | Time of the last username change that started the 30-day username cooldown. Absent when no cooldown was started. The bot, its owner, and bot managers cannot change the username again until the cooldown ends. |
 
 
 

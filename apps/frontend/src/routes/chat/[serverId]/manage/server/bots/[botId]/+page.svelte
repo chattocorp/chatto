@@ -454,7 +454,11 @@
 
       {#if supportsManagedProfiles && canEditIdentity}
         {#key targetKey}
-          <BotProfileSection {bot} onsave={updateProfile} />
+          <BotProfileSection
+            {bot}
+            canBypassLoginCooldown={canManageAccounts}
+            onsave={updateProfile}
+          />
         {/key}
       {/if}
 
