@@ -120,12 +120,11 @@ describe('EventList jump completion', () => {
     const rendered = render(EventListTestHarness, {
       props: { eventIds: [], scrollToEventId: null, isLoading: true }
     });
-    await expect
-      .element(page.getByTestId('timeline-loading'))
-      .toHaveTextContent('Loading messages...');
+    const indicator = page.getByRole('status', { name: 'Loading messages...' });
+    await expect.element(indicator).toBeInTheDocument();
 
     await rendered.rerender({ eventIds: [], scrollToEventId: null, isLoading: false });
-    await expect.element(page.getByTestId('timeline-loading')).not.toBeInTheDocument();
+    await expect.element(indicator).not.toBeInTheDocument();
     await expect.element(page.getByText('No messages yet')).toBeVisible();
   });
   it('releases the saved position when recovery produces an empty timeline', async () => {

@@ -19,7 +19,7 @@
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import { findLastEditableMessage } from './lastEditableMessage';
-  import { ScrollFader } from '$lib/ui';
+  import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
   import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -762,16 +762,7 @@
     >
       {#if isLoading}
         <!-- Sits at the bottom, where the newest messages will appear. -->
-        <div
-          role="status"
-          data-testid="timeline-loading"
-          class="flex loading-dots justify-center gap-1.5 py-4 text-muted"
-        >
-          <span class="sr-only">{m('room.timeline.loading')}</span>
-          <span class="loading-dot" aria-hidden="true"></span>
-          <span class="loading-dot [animation-delay:150ms]" aria-hidden="true"></span>
-          <span class="loading-dot [animation-delay:300ms]" aria-hidden="true"></span>
-        </div>
+        <LoadingDots class="py-4" label={m('room.timeline.loading')} />
       {:else if virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>
