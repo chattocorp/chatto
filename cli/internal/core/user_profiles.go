@@ -18,8 +18,7 @@ import (
 const (
 	MaxCustomStatusEmojiLength = 16
 	MaxCustomStatusTextLength  = 100
-	// MaxBioLength bounds a user's self-authored public bio in Unicode
-	// characters.
+	// MaxBioLength bounds a user's public bio in Unicode characters.
 	MaxBioLength = 1000
 )
 

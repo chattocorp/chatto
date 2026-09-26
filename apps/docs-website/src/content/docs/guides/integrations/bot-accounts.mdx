@@ -102,8 +102,9 @@ external login.
 
 The owner of the bot can also change its display name, username, bio, and
 avatar. Open the bot in **Server Admin → Bots**, or call the same `UserService`
-methods with the user ID of the bot. Members with `bot.manage` or
-`user.manage-accounts` can do this for all bots.
+methods with the user ID of the bot. Accounts with `bot.manage` or
+`user.manage-accounts` can do this for all bots. A change by a person does not
+start the 30-day username cooldown of the bot.
 
 `BotService` manages bots, owners, API keys, and incoming webhooks. To read
 the effective permissions of a bot, use

@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-26
 
 ## Overview
 
@@ -70,9 +70,9 @@ exercise more authority than its human owner currently possesses.
 - A human user with `bot.create` can create a bot account and becomes its
   owner.
 - Server Admin's Bots page lists the bots visible to the caller and creates new
-  bots. Selecting a bot opens its own detail page for profile editing (login,
-  display name, and bio), avatar management, API-key management, deletion,
-  metadata, and permissions. An account manager who does not manage bots can
+  bots. Selecting a bot opens its detail page. The page edits the login,
+  display name, and bio, and manages the avatar, API keys, deletion, metadata,
+  and permissions. An account manager who does not manage bots can
   see all bots and can manage their profiles and avatars, but cannot manage
   their credentials or lifecycle.
   Bot custom-status and personal-settings management are not supported.
@@ -223,8 +223,8 @@ exercise more authority than its human owner currently possesses.
   `UserService`. It cannot change ownership, permissions, or API keys.
 - A bot owner, a human with `bot.manage`, or a human with
   `user.manage-accounts` can change a bot's login, display name, and bio, and
-  can upload or delete its avatar. These changes do not start or check the
-  bot's login cooldown. A bot cannot target another account.
+  can upload or delete its avatar. A login change by one of these humans does
+  not start or check the cooldown of the bot. A bot cannot target another account.
 - Bots cannot request their own deletion. Only their owner or a human user with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding

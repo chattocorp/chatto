@@ -47,7 +47,7 @@ field masks under [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md).
 The Connect interceptor removes unselected values before protobuf validation;
 direct handlers use the same normalization and validation. Selected absent
 values reset, subject to domain rules. The core receives sparse selected inputs
-and owns authorization and concurrency. Self-service profile fields and their
+and owns authorization and concurrency. Profile fields and any self-service
 login cooldown fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries

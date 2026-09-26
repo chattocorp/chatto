@@ -64,16 +64,19 @@ type UserServiceClient interface {
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
 	// Updates the target user's login, display name, and/or bio. Users can
 	// update themselves. Updating another human requires user.manage-accounts.
-	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
-	// A bot cannot target another account. A self login change starts the
-	// username-change cooldown and fails while the cooldown is active, unless
-	// the caller has user.manage-accounts. Changes to another account do not
-	// apply or reset the target's cooldown. Unknown or deleted targets return
-	// NOT_FOUND.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage. A bot cannot target another account.
+	// A self login change starts the username-change cooldown and returns
+	// FAILED_PRECONDITION while the cooldown is active, unless the caller has
+	// user.manage-accounts. A case-only change and a change to another account
+	// do not check or start the cooldown. Unknown or deleted targets return
+	// NOT_FOUND. An invalid ID or a request without a selected field returns
+	// INVALID_ARGUMENT.
 	UpdateUserProfile(context.Context, *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error)
 	// Uploads and sets an avatar for the target user. Users can update
 	// themselves. Updating another human requires user.manage-accounts.
-	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage.
 	// A bot cannot target another account. Unknown or deleted targets return
 	// NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
@@ -187,16 +190,19 @@ type UserServiceHandler interface {
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
 	// Updates the target user's login, display name, and/or bio. Users can
 	// update themselves. Updating another human requires user.manage-accounts.
-	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
-	// A bot cannot target another account. A self login change starts the
-	// username-change cooldown and fails while the cooldown is active, unless
-	// the caller has user.manage-accounts. Changes to another account do not
-	// apply or reset the target's cooldown. Unknown or deleted targets return
-	// NOT_FOUND.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage. A bot cannot target another account.
+	// A self login change starts the username-change cooldown and returns
+	// FAILED_PRECONDITION while the cooldown is active, unless the caller has
+	// user.manage-accounts. A case-only change and a change to another account
+	// do not check or start the cooldown. Unknown or deleted targets return
+	// NOT_FOUND. An invalid ID or a request without a selected field returns
+	// INVALID_ARGUMENT.
 	UpdateUserProfile(context.Context, *connect.Request[v1.UpdateUserProfileRequest]) (*connect.Response[v1.UpdateUserProfileResponse], error)
 	// Uploads and sets an avatar for the target user. Users can update
 	// themselves. Updating another human requires user.manage-accounts.
-	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+	// A human who updates a bot needs ownership of the bot,
+	// user.manage-accounts, or bot.manage.
 	// A bot cannot target another account. Unknown or deleted targets return
 	// NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
