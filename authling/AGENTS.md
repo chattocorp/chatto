@@ -210,9 +210,10 @@ mise build
 mise authling run
 ```
 
-These tasks run with `GOWORK=off` as well as in the repository workspace so
-undeclared or unreleased cross-module dependencies cannot be hidden by
-`go.work`. Do not add Authling tasks to the repository-root `mise.toml`;
+`mise test` and `mise lint` check Authling with `GOWORK=off` and in the
+repository workspace, so `go.work` cannot hide undeclared or unreleased
+cross-module dependencies. `mise build` builds only in the repository
+workspace. Do not add Authling tasks to the repository-root `mise.toml`;
 Authling's task catalog must remain movable with the product.
 
 Run the lowest test layer that can find the failure. Add integration and
