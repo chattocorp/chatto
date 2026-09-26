@@ -662,6 +662,9 @@ describe('Room interaction bundles', () => {
     await expect.element(q(container, '[data-testid="room-event-ids"]')).not.toBeInTheDocument();
     await expect.element(q(container, '[data-testid="emit-returned-post"]')).toBeInTheDocument();
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+    await tick();
+    // The server would reject a timeline read for this room.
+    expect(mocks.timeline.getRoomEvents).not.toHaveBeenCalled();
   });
 
   it('renders messages when an older server does not report the read permission', async () => {

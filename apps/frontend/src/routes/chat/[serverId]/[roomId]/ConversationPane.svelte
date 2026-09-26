@@ -172,18 +172,26 @@ thread IDs can change while the pane stays mounted.
     replyState.cancelReply();
   });
 
-  // Reconnect convergence belongs to the resumable server projection and does
-  // not trigger a parallel read here.
+  // Load the timeline only when the viewer can read it; the server rejects
+  // other reads. Reconnect convergence belongs to the resumable server
+  // projection and does not trigger a parallel read here.
   $effect(() => {
-    if (threadRootEventId) messageStore.setThread(roomId, threadRootEventId);
-    else messageStore.setRoom(roomId);
-    jumpState.reset();
+    if (!canReadMessages) return;
+    const store = messageStore;
+    const targetRoomId = roomId;
+    const targetThreadRootEventId = threadRootEventId;
+    untrack(() => {
+      if (targetThreadRootEventId) store.setThread(targetRoomId, targetThreadRootEventId);
+      else store.setRoom(targetRoomId);
+      jumpState.reset();
+    });
   });
 
   // Register before any child can request a jump. The room store loads a
   // window around the target. The store cannot do that for a thread, so a
   // thread only scrolls; the highlight flow below loads a missing target first.
   jumpState.setJumpHandler(async (eventId: string) => {
+    if (!canReadMessages) return false;
     if (!isThread) return messageStore.jumpToMessage(eventId, jumpState);
     jumpState.scrollToEventId = eventId;
     return true;
