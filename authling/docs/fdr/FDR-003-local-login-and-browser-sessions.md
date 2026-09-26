@@ -136,6 +136,8 @@ expiry and restart behavior.
 - Authling's listener does not terminate TLS. Production operators must expose
   login only through an HTTPS reverse proxy and configure its canonical
   `https://` public URL. Plain HTTP is a loopback development mode only.
+  Loopback hosts include names beneath `.localhost`. Concurrent development
+  stacks can use such names to get separate browser cookie scopes.
 
 ## Related
 

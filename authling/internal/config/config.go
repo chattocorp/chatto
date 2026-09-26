@@ -430,12 +430,34 @@ func validConventionalClientID(value string) bool {
 	return true
 }
 
+// isLoopbackHost reports whether host is a loopback IP address, localhost, or
+// a well-formed name beneath the special-use .localhost domain. RFC 6761
+// reserves .localhost names for loopback, and browsers resolve them without
+// DNS. Named loopback hosts give concurrent local development stacks separate
+// cookie scopes while keeping plain HTTP restricted to the local machine.
 func isLoopbackHost(host string) bool {
-	if strings.EqualFold(host, "localhost") {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if host == "localhost" {
 		return true
 	}
-	address := net.ParseIP(host)
-	return address != nil && address.IsLoopback()
+	if address := net.ParseIP(host); address != nil {
+		return address.IsLoopback()
+	}
+	labels, ok := strings.CutSuffix(host, ".localhost")
+	if !ok {
+		return false
+	}
+	for _, label := range strings.Split(labels, ".") {
+		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, character := range label {
+			if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '-' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func validNATSScheme(scheme string) bool {
