@@ -573,9 +573,10 @@ and member-list records. A manifest and all records commit atomically with one
 server/viewer replay checkpoint. Timeline records include pagination boundaries;
 membership records include completeness. Missing or invalid records use live
 startup. The server store reads its saved view only while its projection is
-empty. After a restore or a live catch-up, route loads and the server sidebar
-do not read it again. Every loaded owner can be saved without a room-count or dwell-time
-rule. Lightweight loaded-window changes and completed reconciliation barriers
+empty. After a restore, or after realtime catch-up starts, route loads and the
+server sidebar do not read it again. Every loaded owner can be saved without a
+room-count or dwell-time rule. Lightweight loaded-window changes and completed
+reconciliation barriers
 schedule capture through a server-owned 100 ms timer; capture runs outside
 reactive dependency tracking. Pending writes coalesce without being cancelled by navigation. Optimistic
 patches block persistence. Local write generations and persistent privacy

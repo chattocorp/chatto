@@ -10,6 +10,7 @@ const { mocks } = vi.hoisted(() => ({
     reauthRequiredAt: null as number | null,
     store: {
       restoreSavedViewFromDisk: vi.fn(),
+      networkStartupDeferred: false,
       savedView: null as { serverId: string; userId: string; rooms: unknown[] } | null,
       currentUser: {
         loading: false,
@@ -69,6 +70,7 @@ describe('server route layout load', () => {
     mocks.store.currentUser.load.mockResolvedValue(undefined);
     mocks.store.savedView = null;
     mocks.diskView = null;
+    mocks.store.networkStartupDeferred = false;
     // The store accepts a matching disk view; tests override this to model refusal.
     mocks.store.restoreSavedViewFromDisk.mockImplementation(async () => {
       if (mocks.diskView) mocks.store.savedView = mocks.diskView;
@@ -178,8 +180,10 @@ describe('server route layout load', () => {
         })
     );
 
+    mocks.store.networkStartupDeferred = true;
+
     const loading = routeLoad(null);
-    await vi.waitFor(() => expect(mocks.store.restoreSavedViewFromDisk).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.store.restoreSavedViewFromDisk).toHaveBeenCalledWith(true));
     expect(mocks.startServerNetwork).not.toHaveBeenCalled();
     finishRestore();
 

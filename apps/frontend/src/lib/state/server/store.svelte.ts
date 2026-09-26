@@ -793,16 +793,16 @@ export class ServerStateStore {
   }
 
   /**
-   * Read this viewer's saved view from device storage and restore it. Only an
-   * empty projection can show a saved view, so a store that restored one or
-   * synced live data returns before it reads storage. While network startup is
-   * deferred, the view is restored as a pre-connection view.
+   * Read this viewer's saved view from device storage and pass it to
+   * `restoreSavedView`. Only an empty projection can show a saved view. After a
+   * restore, or after realtime catch-up starts, this returns before it reads
+   * storage.
    */
-  async restoreSavedViewFromDisk(): Promise<void> {
+  async restoreSavedViewFromDisk(beforeConnection = false): Promise<void> {
     if (this.realtimeSync.phase !== 'empty') return;
     const view = await loadSavedView(this.serverId, this.#getSession().userId);
     // restoreSavedView checks the view against the viewer after the read.
-    this.restoreSavedView(view, this.networkStartupDeferred);
+    this.restoreSavedView(view, beforeConnection);
   }
 
   /**

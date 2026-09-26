@@ -782,7 +782,6 @@ describe('ServerStateStore viewer restoration', () => {
   });
   it('restores the saved view from disk while the projection is empty', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    store.networkStartupDeferred = true;
     vi.mocked(loadSavedView).mockResolvedValueOnce(
       savedViewFixture({
         serverId: store.serverId,
@@ -793,11 +792,32 @@ describe('ServerStateStore viewer restoration', () => {
       })
     );
 
-    await store.restoreSavedViewFromDisk();
+    await store.restoreSavedViewFromDisk(true);
 
     expect(loadSavedView).toHaveBeenCalledWith(store.serverId, 'U1');
     expect(store.projection.rooms.has('R1')).toBe(true);
     expect(store.realtimeSync.restoredFromDisk).toBe(true);
+  });
+  it('only retains a disk view for a dormant store that is not before connection', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    // A dormant remote store is deferred and has not loaded its viewer yet.
+    store.networkStartupDeferred = true;
+    expect(store.currentUser.loading).toBe(true);
+    const view = savedViewFixture({
+      serverId: store.serverId,
+      userId: 'U1',
+      serverName: 'Saved server',
+      savedAt: Date.now(),
+      rooms: [{ id: 'R1', name: 'general', messages: [] }]
+    });
+    vi.mocked(loadSavedView).mockResolvedValueOnce(view);
+
+    await store.restoreSavedViewFromDisk();
+
+    expect(store.savedView).toBe(view);
+    expect(store.projection.rooms.has('R1')).toBe(false);
+    expect(store.startupPresentationOnly).toBe(false);
+    expect(store.realtimeSync.phase).toBe('empty');
   });
   it('does not read the saved view for a store that has a projection', async () => {
     const store = makeStore(new FakeServerConnection([]));
