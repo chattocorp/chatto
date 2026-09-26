@@ -5,6 +5,7 @@ import {
   createContextKey,
   createContextValues,
   type Client,
+  type ContextValues,
   type Interceptor,
   type Transport
 } from '@connectrpc/connect';
@@ -81,9 +82,7 @@ const skipAuthenticationRequiredKey = createContextKey(false, {
  * Call options for a request whose `Unauthenticated` result must not request a
  * new sign-in. Use it only when the caller makes that decision itself.
  */
-export function skipAuthenticationRequired(): {
-  contextValues: ReturnType<typeof createContextValues>;
-} {
+export function skipAuthenticationRequired(): { contextValues: ContextValues } {
   return { contextValues: createContextValues().set(skipAuthenticationRequiredKey, true) };
 }
 
@@ -132,14 +131,14 @@ export function createChattoTransport(
     baseUrl: config.baseUrl,
     useBinaryFormat: options.useBinaryFormat ?? true,
     interceptors: [
-      // Outermost, so it sees the final error after any bearer renewal.
+      // Outermost, so it sees errors from every inner interceptor.
       authenticationRequiredInterceptor(config),
       // The verification gate must run before the response guard captures its generation.
       ...(config.beforePrivateRequest
         ? [privateRequestInterceptor(config.beforePrivateRequest)]
         : []),
       ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
-      ...(config.renewBearerToken || config.bearerToken ? [bearerRenewalInterceptor(config)] : [])
+      bearerRenewalInterceptor(config)
     ]
   });
 }
@@ -151,7 +150,11 @@ export function createChattoClient<T extends ServiceType>(
   return createClient(service, createChattoTransport(config));
 }
 
-/** Refresh a bearer credential for unary requests without treating a later API 401 as revocation. */
+/**
+ * Set the request's bearer credential. A cookie session sends none. A renewable
+ * session is refreshed for unary requests; a later API 401 is not treated as
+ * revocation.
+ */
 export function bearerRenewalInterceptor(config: {
   serverId?: string;
   bearerToken?: string | null;
