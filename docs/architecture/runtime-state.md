@@ -28,7 +28,7 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including notification visibility boundaries, credential-usage telemetry, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
-| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, the cached Neighborhood directory, worker leases and cooldowns, reconciliation counters, and worker health heartbeats |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
 **ENCRYPTION_KEYS keys:**
@@ -145,8 +145,9 @@ Token HMAC keys are derived with `[core].secret_key` and the credential purpose 
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
-| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `projection-snapshot-threads`, `projection-snapshot-expiry`, and `push-subscription-deletion-reconcile`. Snapshot expiry retains a 24-hour cooldown after successful S3 cleanup; push cleanup uses a one-minute cooldown for its bounded late-write pass; the others identify active worker ownership. |
+| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `neighborhood-discovery`, `projection-snapshot-threads`, `projection-snapshot-expiry`, and `push-subscription-deletion-reconcile`. Snapshot expiry retains a 24-hour cooldown after successful S3 cleanup; push cleanup uses a one-minute cooldown for its bounded late-write pass; the others identify active worker ownership. |
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
+| `neighborhood.directory`                   | Serialized `NeighborhoodDirectory` proto with the latest Neighborhood discovery result, its completion time, whether a remote request failed, and a hash of the Neighbor origins that started it. Each pass replaces the value. It has no TTL; its age controls the next pass |
 
 `MEMORY_CACHE` uses memory storage and is neither persisted nor backed up. The
 NATS recovery gate recreates the bucket after a full server restart before the
@@ -181,6 +182,7 @@ no longer imported.
 | Bucket                      | Description                                       |
 | --------------------------- | ------------------------------------------------- |
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
+| `NEIGHBORHOOD_IMAGES`       | Re-encoded Neighborhood logos and banners with a seven-day TTL |
 | `PROJECTION_SNAPSHOTS`      | Encrypted projection snapshots with configurable TTL (optional) |
 | `SERVER_ASSETS`             | NATS-backed persisted asset binaries              |
 
@@ -192,6 +194,14 @@ no longer imported.
 | `server.{assetId}.{paramsHash}`                      | Cached transform of a server asset               |
 
 Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active attachment or server prefix during binary cleanup. Attachment cache namespaces are versioned when encoding changes so older bytes are not reused. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). S2 compression enabled.
+
+**NEIGHBORHOOD_IMAGES keys:**
+
+| Key | Description |
+| --- | --- |
+| `{sha256}` | Lowercase hexadecimal SHA-256 of a WebP image that Neighborhood discovery re-encoded from a remote logo or banner. `GET /assets/neighborhood/{sha256}` serves it publicly. |
+
+Notes: Backups skip this bucket. Discovery rewrites an image that the current directory still uses after three days, so only unused images reach the seven-day TTL. See [ADR-106](../adr/ADR-106-server-side-neighborhood-discovery.md).
 
 **PROJECTION_SNAPSHOTS keys:**
 

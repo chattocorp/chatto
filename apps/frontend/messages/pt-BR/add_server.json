@@ -17,9 +17,6 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
-      "consent_title": "Descobrir servidores recomendados?",
-      "consent_body": "O Chatto entra em contato com servidores recomendados pelos servidores dos quais você participa. Esses servidores podem ver seu endereço IP e detalhes técnicos sobre a conexão. O Chatto salva sua escolha neste dispositivo.",
-      "consent_action": "Descobrir servidores",
       "recommended_by": "Recomendado por {servers}",
       "more_recommenders_count": {
         "other": "mais {count}"
@@ -34,10 +31,7 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address.",
-      "discovering": "Descobrindo mais servidores…",
-      "load_more": "Carregar mais",
-      "session_limit_reached": "O limite de descoberta desta sessão foi atingido."
+      "empty_body": "You can still connect directly with a server address."
     }
   }
 }

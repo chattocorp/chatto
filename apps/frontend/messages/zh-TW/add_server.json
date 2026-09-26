@@ -17,9 +17,6 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
-      "consent_title": "探索推薦的伺服器？",
-      "consent_body": "Chatto 會連線到你已加入的伺服器所推薦的伺服器。這些伺服器可以看到你的 IP 位址和連線的技術資訊。Chatto 會將你的選擇儲存在此裝置上。",
-      "consent_action": "探索伺服器",
       "recommended_by": "由{servers}推薦",
       "more_recommenders_count": {
         "other": "另有{count}個"
@@ -34,10 +31,7 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address.",
-      "discovering": "正在探索更多伺服器…",
-      "load_more": "載入更多",
-      "session_limit_reached": "已達到本次工作階段的探索上限。"
+      "empty_body": "You can still connect directly with a server address."
     }
   }
 }

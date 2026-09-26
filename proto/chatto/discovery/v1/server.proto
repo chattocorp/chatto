@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.discovery.v1;
 
 import "chatto/api/v1/server.proto";
+import "google/protobuf/timestamp.proto";
 
 // Request for public server metadata.
 message GetServerRequest {}
@@ -30,6 +31,35 @@ message ListNeighborsResponse {
   repeated string origins = 1;
 }
 
+// Request for the Neighborhood that this server has discovered.
+message ListNeighborhoodServersRequest {}
+
+// One server in the Neighborhood of the called server.
+message NeighborhoodServer {
+  // Canonical origin of the server.
+  string origin = 1;
+  // Public profile that the called server loaded. The welcome message is
+  // absent. The logo and banner URLs identify copies on the called server.
+  chatto.api.v1.ServerPublicProfile profile = 2;
+  // Whether the called server advertises this server as a Neighbor.
+  bool direct_neighbor = 3;
+  // Canonical origins of other servers in the same response that mutually
+  // recommend this server. The list does not include the called server.
+  repeated string recommended_by_origins = 4;
+}
+
+// Servers that the called server discovered through its Neighbors. The
+// called server lists each of its Neighbors whose public profile loaded. It
+// also lists servers that a mutually advertising Neighbor recommends when the
+// recommendation is also mutual. The response has no ordering contract.
+message ListNeighborhoodServersResponse {
+  // Servers in the Neighborhood.
+  repeated NeighborhoodServer servers = 1;
+  // Time when the called server last completed Neighborhood discovery.
+  // Absent before the first completed discovery.
+  google.protobuf.Timestamp refreshed_at = 2;
+}
+
 // Provides unauthenticated server discovery metadata.
 service ServerDiscoveryService {
   // Returns public server metadata, branding, registration status, and login
@@ -40,6 +70,15 @@ service ServerDiscoveryService {
   }
   // Returns the public Neighbor directory without requiring a session.
   rpc ListNeighbors(ListNeighborsRequest) returns (ListNeighborsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Returns the Neighborhood without requiring a session. The server
+  // contacts other servers in the background and caches the result. A call
+  // does not contact other servers, so a client can show the Neighborhood
+  // without revealing the user's network address to those servers. The
+  // server refreshes the Neighborhood at least once per hour and soon after
+  // its Neighbors change.
+  rpc ListNeighborhoodServers(ListNeighborhoodServersRequest) returns (ListNeighborhoodServersResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }

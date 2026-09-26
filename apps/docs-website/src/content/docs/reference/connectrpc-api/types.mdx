@@ -33,6 +33,19 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
+<a id="chatto-discovery-v1-NeighborhoodServer"></a>
+
+### NeighborhoodServer
+
+One server in the Neighborhood of the called server.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `origin` | `string` | Canonical origin of the server. |
+| `profile` | `chatto.api.v1.ServerPublicProfile` | Public profile that the called server loaded. The welcome message is absent. The logo and banner URLs identify copies on the called server. |
+| `direct_neighbor` | `bool` | Whether the called server advertises this server as a Neighbor. |
+| `recommended_by_origins` | `repeated string` | Canonical origins of other servers in the same response that mutually recommend this server. The list does not include the called server. |
+
 <a id="chatto-api-v1-PageInfo"></a>
 
 ### PageInfo

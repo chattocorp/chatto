@@ -51,7 +51,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-09-20 |
 | [FDR-040](FDR-040-backup-and-restore.md) | Backup and Restore | Active | 2026-08-27 |
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |
-| [FDR-042](FDR-042-chatto-neighbors.md) | Chatto Neighbors | Experimental | 2026-09-14 |
+| [FDR-042](FDR-042-chatto-neighbors.md) | Chatto Neighbors | Experimental | 2026-09-25 |
 | [FDR-043](FDR-043-model-context-protocol-integration.md) | Model Context Protocol Integration | Experimental | 2026-08-30 |
 | [FDR-044](FDR-044-my-threads.md) | My Threads | Active | 2026-09-21 |
 | [FDR-045](FDR-045-realtime-event-stream.md) | Realtime Event Stream | Experimental | 2026-09-25 |

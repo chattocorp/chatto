@@ -238,6 +238,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_LINK_PREVIEW_CACHE", false, true, "cache (regeneratable)"},
 		{"KV_AUTH_TOKENS", false, true, "security (prevents token leakage)"},
 		{"OBJ_ASSET_CACHE", false, true, "cache (regeneratable)"},
+		{"OBJ_NEIGHBORHOOD_IMAGES", false, true, "cache (regeneratable)"},
 
 		// With --include-keys, KV_ENCRYPTION_KEYS is backed up; others stay skipped.
 		{"KV_ENCRYPTION_KEYS", true, false, ""},

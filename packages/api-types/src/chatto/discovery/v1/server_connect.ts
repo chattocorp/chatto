@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetServerRequest, GetServerResponse, ListNeighborsRequest, ListNeighborsResponse } from "./server_pb.js";
+import { GetServerRequest, GetServerResponse, ListNeighborhoodServersRequest, ListNeighborhoodServersResponse, ListNeighborsRequest, ListNeighborsResponse } from "./server_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,23 @@ export const ServerDiscoveryService = {
       name: "ListNeighbors",
       I: ListNeighborsRequest,
       O: ListNeighborsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Returns the Neighborhood without requiring a session. The server
+     * contacts other servers in the background and caches the result. A call
+     * does not contact other servers, so a client can show the Neighborhood
+     * without revealing the user's network address to those servers. The
+     * server refreshes the Neighborhood at least once per hour and soon after
+     * its Neighbors change.
+     *
+     * @generated from rpc chatto.discovery.v1.ServerDiscoveryService.ListNeighborhoodServers
+     */
+    listNeighborhoodServers: {
+      name: "ListNeighborhoodServers",
+      I: ListNeighborhoodServersRequest,
+      O: ListNeighborhoodServersResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

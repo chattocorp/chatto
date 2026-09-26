@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { ServerLogin, ServerPublicProfile } from "../../api/v1/server_pb.js";
 
 /**
@@ -169,5 +169,158 @@ export class ListNeighborsResponse extends Message<ListNeighborsResponse> {
 
   static equals(a: ListNeighborsResponse | PlainMessage<ListNeighborsResponse> | undefined, b: ListNeighborsResponse | PlainMessage<ListNeighborsResponse> | undefined): boolean {
     return proto3.util.equals(ListNeighborsResponse, a, b);
+  }
+}
+
+/**
+ * Request for the Neighborhood that this server has discovered.
+ *
+ * @generated from message chatto.discovery.v1.ListNeighborhoodServersRequest
+ */
+export class ListNeighborhoodServersRequest extends Message<ListNeighborhoodServersRequest> {
+  constructor(data?: PartialMessage<ListNeighborhoodServersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ListNeighborhoodServersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNeighborhoodServersRequest {
+    return new ListNeighborhoodServersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNeighborhoodServersRequest {
+    return new ListNeighborhoodServersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNeighborhoodServersRequest {
+    return new ListNeighborhoodServersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNeighborhoodServersRequest | PlainMessage<ListNeighborhoodServersRequest> | undefined, b: ListNeighborhoodServersRequest | PlainMessage<ListNeighborhoodServersRequest> | undefined): boolean {
+    return proto3.util.equals(ListNeighborhoodServersRequest, a, b);
+  }
+}
+
+/**
+ * One server in the Neighborhood of the called server.
+ *
+ * @generated from message chatto.discovery.v1.NeighborhoodServer
+ */
+export class NeighborhoodServer extends Message<NeighborhoodServer> {
+  /**
+   * Canonical origin of the server.
+   *
+   * @generated from field: string origin = 1;
+   */
+  origin = "";
+
+  /**
+   * Public profile that the called server loaded. The welcome message is
+   * absent. The logo and banner URLs identify copies on the called server.
+   *
+   * @generated from field: chatto.api.v1.ServerPublicProfile profile = 2;
+   */
+  profile?: ServerPublicProfile;
+
+  /**
+   * Whether the called server advertises this server as a Neighbor.
+   *
+   * @generated from field: bool direct_neighbor = 3;
+   */
+  directNeighbor = false;
+
+  /**
+   * Canonical origins of other servers in the same response that mutually
+   * recommend this server. The list does not include the called server.
+   *
+   * @generated from field: repeated string recommended_by_origins = 4;
+   */
+  recommendedByOrigins: string[] = [];
+
+  constructor(data?: PartialMessage<NeighborhoodServer>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.NeighborhoodServer";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "profile", kind: "message", T: ServerPublicProfile },
+    { no: 3, name: "direct_neighbor", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "recommended_by_origins", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NeighborhoodServer {
+    return new NeighborhoodServer().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NeighborhoodServer {
+    return new NeighborhoodServer().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NeighborhoodServer {
+    return new NeighborhoodServer().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NeighborhoodServer | PlainMessage<NeighborhoodServer> | undefined, b: NeighborhoodServer | PlainMessage<NeighborhoodServer> | undefined): boolean {
+    return proto3.util.equals(NeighborhoodServer, a, b);
+  }
+}
+
+/**
+ * Servers that the called server discovered through its Neighbors. The
+ * called server lists each of its Neighbors whose public profile loaded. It
+ * also lists servers that a mutually advertising Neighbor recommends when the
+ * recommendation is also mutual. The response has no ordering contract.
+ *
+ * @generated from message chatto.discovery.v1.ListNeighborhoodServersResponse
+ */
+export class ListNeighborhoodServersResponse extends Message<ListNeighborhoodServersResponse> {
+  /**
+   * Servers in the Neighborhood.
+   *
+   * @generated from field: repeated chatto.discovery.v1.NeighborhoodServer servers = 1;
+   */
+  servers: NeighborhoodServer[] = [];
+
+  /**
+   * Time when the called server last completed Neighborhood discovery.
+   * Absent before the first completed discovery.
+   *
+   * @generated from field: google.protobuf.Timestamp refreshed_at = 2;
+   */
+  refreshedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ListNeighborhoodServersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ListNeighborhoodServersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "servers", kind: "message", T: NeighborhoodServer, repeated: true },
+    { no: 2, name: "refreshed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNeighborhoodServersResponse {
+    return new ListNeighborhoodServersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNeighborhoodServersResponse {
+    return new ListNeighborhoodServersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNeighborhoodServersResponse {
+    return new ListNeighborhoodServersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNeighborhoodServersResponse | PlainMessage<ListNeighborhoodServersResponse> | undefined, b: ListNeighborhoodServersResponse | PlainMessage<ListNeighborhoodServersResponse> | undefined): boolean {
+    return proto3.util.equals(ListNeighborhoodServersResponse, a, b);
   }
 }

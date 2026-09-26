@@ -51,6 +51,7 @@ type assetTestEnv struct {
 	client   *http.Client
 	core     *core.ChattoCore
 	ctx      context.Context
+	js       jetstream.JetStream
 	previews *linkpreview.Cache
 }
 
@@ -177,6 +178,7 @@ func setupAssetTestServerWithOptions(t *testing.T, useS3 bool, videoEnabled bool
 		client:   client,
 		core:     chattoCore,
 		ctx:      ctx,
+		js:       js,
 		previews: linkpreview.NewCache(runtimeState),
 	}
 }
@@ -2238,5 +2240,58 @@ func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
 	response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("interaction-scoped attachment status = %d, want 200", response.StatusCode)
+	}
+}
+
+func TestAsset_NeighborhoodImage(t *testing.T) {
+	env := setupAssetTestServer(t)
+	store, err := env.js.ObjectStore(env.ctx, "NEIGHBORHOOD_IMAGES")
+	if err != nil {
+		t.Fatalf("open Neighborhood image store: %v", err)
+	}
+	name := strings.Repeat("b", 64)
+	imageData := []byte("RIFF\x00\x00\x00\x00WEBP")
+	if _, err := store.Put(env.ctx, jetstream.ObjectMeta{Name: name}, bytes.NewReader(imageData)); err != nil {
+		t.Fatalf("store Neighborhood image: %v", err)
+	}
+
+	resp, err := http.Get(env.server.URL + core.NeighborhoodImagePath(name))
+	if err != nil {
+		t.Fatalf("GET Neighborhood image: %v", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatalf("read Neighborhood image: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if !bytes.Equal(body, imageData) {
+		t.Fatalf("body = %q, want %q", body, imageData)
+	}
+	if got := resp.Header.Get("Content-Type"); got != "image/webp" {
+		t.Fatalf("Content-Type = %q, want image/webp", got)
+	}
+	if got := resp.Header.Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
+	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+
+	for _, path := range []string{
+		core.NeighborhoodImagePath(strings.Repeat("c", 64)),
+		core.NeighborhoodImagePath(strings.ToUpper(name)),
+		core.NeighborhoodImagePath("not-a-hash"),
+	} {
+		resp, err := http.Get(env.server.URL + path)
+		if err != nil {
+			t.Fatalf("GET %q: %v", path, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("GET %q status = %d, want 404", path, resp.StatusCode)
+		}
 	}
 }

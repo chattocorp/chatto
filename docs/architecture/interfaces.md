@@ -73,6 +73,7 @@ protobuf schema changes are required. See
 | Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE plus rotating refresh grant for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, native clients can use registered local callbacks, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token/refresh exchange; the validated client identity and callback are bound through code exchange, local callbacks require consent for each authorization, refresh remains client-bound, and provider hints cannot supply an issuer or endpoint |
 | OAuth authorization-server metadata | `GET /.well-known/oauth-authorization-server` on the public listener | RFC 8414 discovery for Chatto OAuth, including PKCE, CIMD, the authorization-response issuer, refresh, and enabled MCP scopes | Public metadata with wildcard read-only CORS |
 | Network MCP | `/mcp` on the public HTTP listener; `GET /.well-known/oauth-protected-resource/mcp` publishes RFC 9728 metadata when `[mcp].enabled = true` | MCP `2026-07-28` stateless Streamable HTTP with `get_server_info`, `get_current_user`, `list_rooms`, `list_room_messages`, `post_message`, `join_room`, and `leave_room`; the canonical origin and exact non-wildcard server aliases each publish a separate MCP resource, while `webserver.url` remains the OAuth issuer | Resource-bound OAuth bearer for the exact requested origin with the current room and message read/write MCP scopes, or a current bot API key; every tool call also uses the normal operation authorization model and confirmed missing RBAC permissions are returned as tool errors |
+| Neighborhood images | `GET /assets/neighborhood/{sha256}` | Immutable WebP copy of a Neighborhood logo or banner from `NEIGHBORHOOD_IMAGES` | Public; the handler accepts only a lowercase 64-character hexadecimal name and reads only the dedicated bucket |
 | Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Per-user URLs use hourly issuance buckets with 23–24 hours of remaining validity; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
 | Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
@@ -135,8 +136,13 @@ ID in the signed browser session, and immediately redirects to registration.
 
 `AdminServerService` provides CRUD operations for Neighbor resources. These
 methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors`
-returns canonical origins without a session or an ordering contract. The
-server does not contact the advertised origins.
+returns canonical origins without a session or an ordering contract. Neighbor
+writes do not contact the advertised origins.
+`ServerDiscoveryService.ListNeighborhoodServers` returns the cached result of
+background Neighborhood discovery without a session. The call reads
+`neighborhood.directory` from `MEMORY_CACHE` and never contacts another server.
+Its logo and banner URLs use the public `/assets/neighborhood/{sha256}` route.
+See [ADR-106](../adr/ADR-106-server-side-neighborhood-discovery.md).
 
 Public `User` resources expose `bot: BotInfo` for active bots in ordinary
 reads, administrator lists, and realtime snapshot hydration. The bot profile
@@ -340,8 +346,8 @@ ready, degraded, and unavailable states without affecting other APIs. Exact
 provider replay counts stay on the trusted NATS contract and in operator logs;
 the authenticated public status does not expose server-wide event-log scale.
 
-`ServerDiscoveryService.GetServer` and `ListNeighbors` support side-effect-free
-GET. They also receive wildcard public CORS and conditional-response caching.
+`ServerDiscoveryService.GetServer`, `ListNeighbors`, and
+`ListNeighborhoodServers` support side-effect-free GET. They also receive wildcard public CORS and conditional-response caching.
 Other bundled-client Connect traffic uses POST.
 
 The discovery response includes the server software version as public

@@ -54,6 +54,23 @@ export function startServerOAuthFlow(
   );
 }
 
+/**
+ * Start sign-in while the server's current public data still loads. Call this
+ * synchronously from the user's action: the browser opens the sign-in window
+ * before `serverInfo` settles. A rejected `serverInfo` closes the window and
+ * rejects the returned promise with the same error. If the browser blocks the
+ * window, the returned promise rejects with that error instead.
+ */
+export function startServerOAuthFlowWhenReady(
+  serverUrl: string,
+  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>
+): Promise<void> {
+  return runServerOAuthFlow(
+    serverUrl,
+    serverInfo.then((info) => ({ serverInfo: info, providerId: null }))
+  );
+}
+
 async function runServerOAuthFlow(
   serverUrl: string,
   details: Promise<{
@@ -115,6 +132,8 @@ async function runServerOAuthFlow(
   );
   if (!popup) {
     loadAndClearFlowState();
+    // The blocked window replaces any later server-data error.
+    details.catch(() => {});
     throw new OAuthPopupError('The sign-in window could not be opened.');
   }
   const authorizationWindow: AuthorizationWindow = browserAuthorizationWindow(popup);
@@ -127,6 +146,9 @@ async function runServerOAuthFlow(
   }
 
   const responseWait = waitForPopupResponse(authorizationWindow, state, responseChannel);
+  // The window can close while server data still loads. Observe that early
+  // rejection here; the later await still receives it.
+  responseWait.promise.catch(() => {});
 
   try {
     const { serverInfo, providerId } = await details;

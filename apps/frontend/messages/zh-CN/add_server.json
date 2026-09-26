@@ -17,9 +17,6 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
-      "consent_title": "发现推荐的服务器？",
-      "consent_body": "Chatto 会连接到你已加入的服务器所推荐的服务器。这些服务器可以看到你的 IP 地址和连接的技术信息。Chatto 会将你的选择保存在此设备上。",
-      "consent_action": "发现服务器",
       "recommended_by": "由{servers}推荐",
       "more_recommenders_count": {
         "other": "另有{count}个"
@@ -34,10 +31,7 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address.",
-      "discovering": "正在发现更多服务器…",
-      "load_more": "加载更多",
-      "session_limit_reached": "已达到本次会话的发现上限。"
+      "empty_body": "You can still connect directly with a server address."
     }
   }
 }

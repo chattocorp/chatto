@@ -30,8 +30,9 @@ type storage struct {
 	logStream          jetstream.Stream      // LOG - retained operational diagnostics; excluded from backups.
 	notificationStream jetstream.Stream      // NOTIFICATIONS - bounded notification lifecycle event log.
 
-	memoryCacheKV   jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
-	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
+	memoryCacheKV      jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
+	imageCacheStore    jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
+	neighborhoodImages jetstream.ObjectStore // NEIGHBORHOOD_IMAGES - expiring copies of discovered server images
 }
 
 // newStorage initializes current JetStream resources.
@@ -91,6 +92,13 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ASSET_CACHE object store: %w", err)
 		}
+	}
+
+	neighborhoodImages, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
+		return js.CreateOrUpdateObjectStore(ctx, neighborhoodImagesConfig(cfg))
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s object store: %w", neighborhoodImagesBucket, err)
 	}
 
 	serverAssets, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
@@ -219,6 +227,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		notificationStream: notificationStream,
 		memoryCacheKV:      memoryCacheKV,
 		imageCacheStore:    imageCacheStore,
+		neighborhoodImages: neighborhoodImages,
 	}, nil
 }
 
@@ -250,6 +259,19 @@ func prepareNotificationStreamMetadata(ctx context.Context, js jetstream.JetStre
 	}
 	metadata[notificationstream.IdentityMetadataKey] = identity
 	return metadata, nil
+}
+
+// neighborhoodImagesConfig keeps each image for a fixed period after its
+// latest write. Neighborhood discovery rewrites the images that it still
+// uses, so unused images expire without a cleanup pass.
+func neighborhoodImagesConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
+	return jetstream.ObjectStoreConfig{
+		Bucket:      neighborhoodImagesBucket,
+		Description: "Expiring copies of Neighborhood server images",
+		Storage:     jetstream.FileStorage,
+		TTL:         neighborhoodImageTTL,
+		Replicas:    cfg.Replicas,
+	}
 }
 
 func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {

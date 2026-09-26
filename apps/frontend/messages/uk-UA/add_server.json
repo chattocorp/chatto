@@ -17,9 +17,6 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
-      "consent_title": "Знайти рекомендовані сервери?",
-      "consent_body": "Chatto підключається до серверів, які рекомендують сервери, до яких ви приєдналися. Ці сервери можуть бачити вашу IP-адресу й технічні відомості про підключення. Chatto зберігає ваш вибір на цьому пристрої.",
-      "consent_action": "Знайти сервери",
       "recommended_by": "Рекомендують {servers}",
       "more_recommenders_count": {
         "other": "ще {count}"
@@ -34,10 +31,7 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address.",
-      "discovering": "Пошук інших серверів…",
-      "load_more": "Завантажити ще",
-      "session_limit_reached": "Досягнуто ліміту пошуку для цього сеансу."
+      "empty_body": "You can still connect directly with a server address."
     }
   }
 }

@@ -2,31 +2,40 @@
   import { toast } from '$lib/ui/toast';
   import { ConnectError } from '@connectrpc/connect';
   import { onMount } from 'svelte';
-  import type { Attachment } from 'svelte/attachments';
+  import { SvelteMap } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import {
     getPublicServerInfo,
     InvalidPublicServerError,
+    type NeighborhoodServerProfile,
     type PublicServerInfo
   } from '$lib/api-client/server';
-  import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
+  import {
+    startRemoteReauthentication,
+    startServerOAuthFlow,
+    startServerOAuthFlowWhenReady
+  } from '$lib/auth/reauth';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import {
     canonicalServerOrigin,
-    createServerDirectoryDiscovery,
-    type ServerDirectoryDiscovery,
-    type ServerDirectoryEntry,
-    type ServerDirectorySnapshot
+    loadServerDirectory,
+    type ServerDirectory,
+    type ServerDirectoryEntry
   } from '$lib/serverDirectory';
-  import { serverDirectoryDiscoveryConsent } from '$lib/serverDirectoryConsent';
   import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
   import { EmptyState, Hint, LoadingFog, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
+
+  /** A live profile from a direct lookup, or a cached Server Directory profile. */
+  type ServerVersionProfile = PublicServerInfo | NeighborhoodServerProfile | null;
+
+  /** The current profile cannot start a sign-in from this client. */
+  class ServerJoinUnavailableError extends Error {}
 
   let customInput = $state('');
   let customOrigin = $state('');
@@ -34,13 +43,10 @@
   let customError = $state('');
   let probing = $state(false);
   let pendingOrigin = $state<string | null>(null);
-  let directoryConsentGranted = $state(serverDirectoryDiscoveryConsent.get());
-  let directoryState = $state<ServerDirectorySnapshot | null>(null);
-  let scrollContainer = $state<HTMLDivElement>();
-  let directorySession: ServerDirectoryDiscovery | null = null;
-  let unsubscribeDirectory: (() => void) | null = null;
-  let automaticLoadApproached = false;
-  let automaticBatchSpent = false;
+  let directory = $state<ServerDirectory | null>(null);
+  let directoryController: AbortController | null = null;
+  /** Current profiles that a join action loaded; they replace cached profiles. */
+  const liveProfiles = new SvelteMap<string, PublicServerInfo>();
 
   const registeredOrigins = $derived.by(() => [
     ...new Set(
@@ -50,102 +56,34 @@
       })
     )
   ]);
-  const entries = $derived(directoryState?.entries.filter((entry) => entry.profile !== null) ?? []);
+  const entries = $derived(directory?.entries ?? []);
   const allSourcesFailed = $derived(
-    !!directoryState &&
-      !directoryState.isLoading &&
-      directoryState.sourceCount > 0 &&
-      directoryState.failedSourceCount === directoryState.sourceCount
+    !!directory &&
+      directory.sourceCount > 0 &&
+      directory.failedSourceCount === directory.sourceCount
   );
   const someSourcesFailed = $derived(
-    !!directoryState && directoryState.failedSourceCount > 0 && !allSourcesFailed
+    !!directory && directory.failedSourceCount > 0 && !allSourcesFailed
   );
 
   onMount(() => {
-    if (directoryConsentGranted) startDirectoryDiscovery();
-    return stopDirectoryDiscovery;
+    void refreshDirectory();
+    return () => directoryController?.abort();
   });
 
-  function grantDirectoryConsent() {
-    serverDirectoryDiscoveryConsent.set(true);
-    directoryConsentGranted = true;
-    startDirectoryDiscovery();
-  }
-
-  function startDirectoryDiscovery() {
-    stopDirectoryDiscovery();
-    directoryState = null;
-    automaticLoadApproached = false;
-    automaticBatchSpent = false;
-    const session = createServerDirectoryDiscovery(registeredOrigins, {
-      initiallyVisible: document.visibilityState === 'visible'
-    });
-    directorySession = session;
-    unsubscribeDirectory = session.subscribe((snapshot) => {
-      if (directorySession !== session) return;
-      directoryState = snapshot;
-      tryAutomaticLoad();
-    });
-    session.start();
-  }
-
-  function stopDirectoryDiscovery() {
-    unsubscribeDirectory?.();
-    unsubscribeDirectory = null;
-    directorySession?.cancel();
-    directorySession = null;
-  }
-
-  function handleVisibilityChange() {
-    directorySession?.setVisible(document.visibilityState === 'visible');
-    tryAutomaticLoad();
-  }
-
-  function tryAutomaticLoad() {
-    const session = directorySession;
-    if (
-      !session ||
-      automaticBatchSpent ||
-      !automaticLoadApproached ||
-      document.visibilityState !== 'visible' ||
-      !directoryState?.canLoadMore
-    ) {
-      return;
+  /** Load the cached Neighborhood of each registered server. */
+  async function refreshDirectory() {
+    directoryController?.abort();
+    const controller = new AbortController();
+    directoryController = controller;
+    directory = null;
+    try {
+      const loaded = await loadServerDirectory(registeredOrigins, { signal: controller.signal });
+      if (!controller.signal.aborted) directory = loaded;
+    } catch {
+      // Leaving the page aborts the request; no state remains to update.
     }
-    automaticBatchSpent = true;
-    session.loadMore();
   }
-
-  function loadMoreManually() {
-    automaticBatchSpent = true;
-    directorySession?.loadMore();
-  }
-
-  const observeAutomaticLoadSentinel: Attachment<HTMLElement> = (sentinel) => {
-    const root = scrollContainer;
-    if (!root || typeof IntersectionObserver === 'undefined') return;
-    let isNearEnd = false;
-
-    const recordApproach = () => {
-      if (!isNearEnd || root.scrollTop <= 0) return;
-      automaticLoadApproached = true;
-      tryAutomaticLoad();
-    };
-    const observer = new IntersectionObserver(
-      (observations) => {
-        isNearEnd = observations.some((observation) => observation.isIntersecting);
-        recordApproach();
-      },
-      { root, rootMargin: '0px 0px 160px 0px' }
-    );
-    root.addEventListener('scroll', recordApproach, { passive: true });
-    observer.observe(sentinel);
-
-    return () => {
-      root.removeEventListener('scroll', recordApproach);
-      observer.disconnect();
-    };
-  };
 
   function normalizeCustomInput(value: string): string {
     const trimmed = value.trim();
@@ -192,7 +130,7 @@
     );
   }
 
-  function actionLabel(origin: string, profile: PublicServerInfo | null): string {
+  function actionLabel(origin: string, profile: ServerVersionProfile): string {
     const joined = registeredServer(origin);
     if (joined) {
       return serverRegistry.isAuthenticated(joined.id)
@@ -200,11 +138,31 @@
         : m('add_server.sign_in');
     }
     if (opensInServerClient(origin, profile)) return m('add_server.directory.open_in_new_tab');
-    if (!profile?.authorizeUrl) return m('add_server.directory.sign_in_unavailable');
+    if (isPublicServerInfo(profile) && !profile.authorizeUrl) {
+      return m('add_server.directory.sign_in_unavailable');
+    }
     return m('add_server.directory.join');
   }
 
-  function opensInServerClient(origin: string, profile: PublicServerInfo | null): boolean {
+  /** Load the current profile for a join and keep it for the card. */
+  async function loadJoinableProfile(origin: string): Promise<PublicServerInfo> {
+    const profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+    liveProfiles.set(origin, profile);
+    if (!canJoin(profile) || opensInServerClient(origin, profile)) {
+      throw new ServerJoinUnavailableError();
+    }
+    return profile;
+  }
+
+  function canJoin(profile: ServerVersionProfile): boolean {
+    return profile !== null && (!isPublicServerInfo(profile) || !!profile.authorizeUrl);
+  }
+
+  function isPublicServerInfo(profile: ServerVersionProfile): profile is PublicServerInfo {
+    return profile !== null && 'authorizeUrl' in profile;
+  }
+
+  function opensInServerClient(origin: string, profile: ServerVersionProfile): boolean {
     return (
       !registeredServer(origin) &&
       profile !== null &&
@@ -212,20 +170,34 @@
     );
   }
 
-  async function openOrJoin(origin: string, profile: PublicServerInfo | null) {
+  /**
+   * Open a registered server or start joining a new one. A Server Directory
+   * result has only the cached profile, so joining first loads the server's
+   * current sign-in data. The user starts this request explicitly.
+   */
+  async function openOrJoin(origin: string, profile: ServerVersionProfile) {
     const joined = registeredServer(origin);
-    if (!joined && (!profile || !profile.authorizeUrl)) return;
+    if (!joined && !canJoin(profile)) return;
     pendingOrigin = origin;
     try {
       if (joined && serverRegistry.isAuthenticated(joined.id)) {
         await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(joined.id) }));
       } else if (joined) {
         await startRemoteReauthentication(joined);
-      } else if (profile) {
+      } else if (isPublicServerInfo(profile)) {
         await startServerOAuthFlow(origin, profile);
+      } else if (profile) {
+        // The sign-in window must open from this click, before the current
+        // profile loads. A stale cached profile can hide an incompatible
+        // version or missing sign-in support.
+        await startServerOAuthFlowWhenReady(origin, loadJoinableProfile(origin));
       }
-    } catch {
-      toast.error(m('add_server.start_failed'));
+    } catch (error) {
+      toast.error(
+        error instanceof ServerJoinUnavailableError
+          ? m('add_server.directory.sign_in_unavailable')
+          : m('add_server.start_failed')
+      );
     } finally {
       pendingOrigin = null;
     }
@@ -243,14 +215,6 @@
       return m('add_server.connection_failed');
     }
     return error instanceof Error ? error.message : m('add_server.connect_failed');
-  }
-
-  function cardDisabled(entry: ServerDirectoryEntry): boolean {
-    return (
-      !registeredServer(entry.origin) &&
-      !opensInServerClient(entry.origin, entry.profile) &&
-      !entry.profile?.authorizeUrl
-    );
   }
 
   function sourceName(origin: string): string {
@@ -288,8 +252,6 @@
   }
 </script>
 
-<svelte:document onvisibilitychange={handleVisibilityChange} />
-
 <PageTitle title={m('add_server.directory.title')} />
 
 <div class="pane-page">
@@ -299,7 +261,7 @@
     showMobileNav
   />
 
-  <PaneContent bind:scrollContainer>
+  <PaneContent>
     <div class="flex flex-col gap-6">
       <Panel title={m('add_server.directory.custom_title')}>
         <Form onsubmit={probeCustomServer} error={customError} maxWidth="max-w-2xl">
@@ -342,7 +304,7 @@
                   variant={joined ? 'secondary' : 'action'}
                   fullWidth
                   loading={pendingOrigin === customOrigin}
-                  disabled={!joined && !profile.authorizeUrl}
+                  disabled={!joined && !canJoin(profile)}
                   onclick={() => openOrJoin(customOrigin, profile)}
                 >
                   {actionLabel(customOrigin, customProfile)}
@@ -355,7 +317,7 @@
               badge={joined ? m('add_server.directory.joined') : undefined}
               iconHref={external ? customOrigin : undefined}
               iconOpensInNewTab={external}
-              onIconClick={external || (!joined && !profile.authorizeUrl)
+              onIconClick={external || (!joined && !canJoin(profile))
                 ? undefined
                 : () => openOrJoin(customOrigin, profile)}
               iconActionLabel={actionLabel(customOrigin, profile)}
@@ -376,16 +338,7 @@
           <div class="mb-4"><Hint tone="warning">{m('add_server.directory.partial')}</Hint></div>
         {/if}
 
-        {#if !directoryConsentGranted}
-          <EmptyState icon="icon-[uil--compass]" title={m('add_server.directory.consent_title')}>
-            <div class="flex max-w-xl flex-col items-center gap-4">
-              <span>{m('add_server.directory.consent_body')}</span>
-              <Button onclick={grantDirectoryConsent}>
-                {m('add_server.directory.consent_action')}
-              </Button>
-            </div>
-          </EmptyState>
-        {:else if !directoryState || directoryState.isInitialLoading}
+        {#if !directory}
           <LoadingFog class="h-56 w-full" />
         {:else if allSourcesFailed}
           <EmptyState
@@ -394,7 +347,7 @@
           >
             <div class="flex flex-col items-center gap-3">
               <span>{m('add_server.directory.unavailable_body')}</span>
-              <Button variant="secondary" onclick={startDirectoryDiscovery}>
+              <Button variant="secondary" onclick={refreshDirectory}>
                 {m('common.retry')}
               </Button>
             </div>
@@ -406,8 +359,9 @@
         {:else}
           <div class="columns-1 gap-4 sm:columns-2 lg:columns-3">
             {#each entries as entry (entry.origin)}
+              {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
               {@const joined = registeredServer(entry.origin)}
-              {@const external = opensInServerClient(entry.origin, entry.profile)}
+              {@const external = opensInServerClient(entry.origin, profile)}
               {@const attribution = sourceAttribution(entry)}
               {#snippet cardActions()}
                 <div class="flex flex-col gap-3">
@@ -421,7 +375,7 @@
                   </p>
                   {#if external}
                     <Button href={entry.origin} opensInNewTab variant="secondary" fullWidth>
-                      <span>{actionLabel(entry.origin, entry.profile)}</span>
+                      <span>{actionLabel(entry.origin, profile)}</span>
                       <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
                     </Button>
                   {:else}
@@ -429,10 +383,10 @@
                       variant={joined ? 'secondary' : 'action'}
                       fullWidth
                       loading={pendingOrigin === entry.origin}
-                      disabled={cardDisabled(entry)}
-                      onclick={() => openOrJoin(entry.origin, entry.profile)}
+                      disabled={!joined && !canJoin(profile)}
+                      onclick={() => openOrJoin(entry.origin, profile)}
                     >
-                      {actionLabel(entry.origin, entry.profile)}
+                      {actionLabel(entry.origin, profile)}
                     </Button>
                   {/if}
                 </div>
@@ -440,14 +394,15 @@
               <div class="mb-4 break-inside-avoid">
                 <ServerProfileCard
                   origin={entry.origin}
+                  imageOrigin={entry.imageOrigin}
                   profile={entry.profile}
                   badge={joined ? m('add_server.directory.joined') : undefined}
                   iconHref={external ? entry.origin : undefined}
                   iconOpensInNewTab={external}
-                  onIconClick={external || cardDisabled(entry)
+                  onIconClick={external || (!joined && !canJoin(profile))
                     ? undefined
-                    : () => openOrJoin(entry.origin, entry.profile)}
-                  iconActionLabel={actionLabel(entry.origin, entry.profile)}
+                    : () => openOrJoin(entry.origin, profile)}
+                  iconActionLabel={actionLabel(entry.origin, profile)}
                   iconActionDisabled={pendingOrigin === entry.origin}
                   actions={cardActions}
                   testId="server-directory-entry"
@@ -455,32 +410,6 @@
               </div>
             {/each}
           </div>
-        {/if}
-        {#if directoryState && !allSourcesFailed}
-          {#if entries.length > 0 && !directoryState.sessionLimitReached}
-            <div
-              class="h-px"
-              aria-hidden="true"
-              data-testid="server-directory-auto-load-sentinel"
-              {@attach observeAutomaticLoadSentinel}
-            ></div>
-          {/if}
-          {#if directoryState.isLoading && !directoryState.isInitialLoading}
-            <p class="mt-4 text-center text-muted" aria-live="polite">
-              {m('add_server.directory.discovering')}
-            </p>
-          {/if}
-          {#if directoryState.sessionLimitReached}
-            <div class="mt-4">
-              <Hint tone="warning">{m('add_server.directory.session_limit_reached')}</Hint>
-            </div>
-          {:else if directoryState.canLoadMore}
-            <div class="mt-4 flex justify-center">
-              <Button variant="secondary" onclick={loadMoreManually}>
-                {m('add_server.directory.load_more')}
-              </Button>
-            </div>
-          {/if}
         {/if}
       </Panel>
     </div>

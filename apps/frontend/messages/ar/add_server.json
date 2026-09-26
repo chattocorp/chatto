@@ -17,9 +17,6 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
-      "consent_title": "هل تريد اكتشاف الخوادم الموصى بها؟",
-      "consent_body": "يتصل Chatto بالخوادم التي توصي بها الخوادم التي انضممت إليها. يمكن لهذه الخوادم رؤية عنوان IP الخاص بك والتفاصيل التقنية للاتصال. يحفظ Chatto اختيارك على هذا الجهاز.",
-      "consent_action": "اكتشاف الخوادم",
       "recommended_by": "موصى به من {servers}",
       "more_recommenders_count": {
         "other": "{count} آخرين"
@@ -34,10 +31,7 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address.",
-      "discovering": "جارٍ اكتشاف المزيد من الخوادم…",
-      "load_more": "تحميل المزيد",
-      "session_limit_reached": "تم بلوغ حد الاكتشاف لهذه الجلسة."
+      "empty_body": "You can still connect directly with a server address."
     }
   }
 }
