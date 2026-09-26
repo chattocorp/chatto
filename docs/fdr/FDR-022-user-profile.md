@@ -64,7 +64,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
   them. Changes apply immediately across registered servers and remain in
   this browser. Changes animate unless reduced motion is enabled. The accent choice, focus indicators, and layout do not change.
 - **Contrast** — Appearance offers a **Contrast** slider from 0% to 100% in
-  10% steps; half steps saved by earlier versions stay valid.
+  10% steps; half steps saved by earlier versions snap to the nearest 10% step.
   It changes text, surface, and background contrast in both light and dark
   themes. The middle keeps the original appearance. At 100%, the app uses
   black text on a white background in light mode and white text on a black
@@ -190,7 +190,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 **Decision:** A surface tone supplies only hue and chroma. Every tone uses the same reviewed lightness steps for each theme, and the Contrast slider mixes those steps as before. Eight tones take hue and chroma from Tailwind's neutral palettes. Four tones calculate chroma from one hue; chroma is highest at the middle steps and lower at the lightest and darkest surfaces. The user selects separate tones for light and dark mode, and CSS selects the tone for the active theme.
 **Why:** Fixed lightness keeps text, muted text, and every accent readable on each tone at every Contrast setting. Users can then add colour without a separate contrast review for each combination. Separate choices let a user pair, for example, a warm light theme with a blue-black dark theme.
-**Tradeoff:** Tones cannot make surfaces lighter or darker than the original palette. Automated contrast tests cover each tone, theme, accent, and the Contrast extremes.
+**Tradeoff:** Tones cannot make surfaces lighter or darker than the original palette. Browsers without relative colour syntax keep the original palette; there, tone choices are saved but have no visible effect. Automated contrast tests cover each tone, theme, accent, and the Contrast extremes.
 
 The fade uses CSS only. The semantic colour tokens are registered as `<color>` custom properties, so `:root` can transition them; derived tokens follow through `var()`.
 
