@@ -53,8 +53,8 @@ recommendation, not a trust or reciprocal relationship.
   results. Each result identifies all sources whose recommendations are shown.
   A direct Neighbor of a registered server names that registered server as a
   source.
-- The Server Directory shows its results as server profile cards in a grid. A card without a banner shows a gradient that the server
-  name selects.
+- The Server Directory shows its results as server profile cards in a grid. A
+  card without a banner shows a gradient that the server name selects.
 - The Neighbor administration page loads each advertised server's public name,
   description, logo, and banner directly. It keeps an advertised server visible
   so that an administrator can review or remove it. A failed request does not
