@@ -431,9 +431,8 @@
     });
   }
 
-  // Register the scroll container with ScrollState so sibling components
-  // (MessageComposer, TypingIndicator) can synchronously scroll without waiting
-  // for ResizeObserver callbacks.
+  // Register the scroll container with ScrollState so the sibling MessageComposer
+  // can synchronously scroll without waiting for ResizeObserver callbacks.
   $effect(() => {
     if (scrollContainer) {
       scrollState.setContainer(scrollContainer);
