@@ -26,6 +26,7 @@ const { mocks } = vi.hoisted(() => {
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
+      restoreLatestWindow: vi.fn(),
       setThreadRootFollowState: vi.fn(),
       loadMore: vi.fn(),
       applyLocalMessageDeletion: vi.fn(),
@@ -155,6 +156,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
           ingestEvent: mocks.ingestEvent,
           refreshCurrentWindow: mocks.refreshCurrentWindow,
           jumpToMessage: mocks.storeJumpToMessage,
+          restoreLatestWindow: mocks.restoreLatestWindow,
           setThreadRootFollowState: mocks.setThreadRootFollowState,
           loadMore: mocks.loadMore,
           applyLocalMessageDeletion: mocks.applyLocalMessageDeletion,
@@ -479,6 +481,18 @@ describe('ThreadPane', () => {
 
     (q(container, '[data-testid="event-list-reached-bottom"]') as HTMLButtonElement).click();
     expect(mocks.clearUnreadMarker).toHaveBeenCalledOnce();
+  });
+
+  it('returns each thread to its latest replies when the pane opens, switches, or closes', async () => {
+    const rendered = render(ThreadPane, { props: threadProps });
+    await vi.waitFor(() => expect(mocks.restoreLatestWindow).toHaveBeenCalledOnce());
+
+    // Leaving the first thread and opening the second each restore a window.
+    await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(3);
+
+    rendered.unmount();
+    expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(4);
   });
 
   it('retains decrypted thread history only for the mounted pane lifetime', async () => {

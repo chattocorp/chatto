@@ -474,9 +474,11 @@ export class MessagesStore {
     if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
   }
 
-  /** Load the latest room window at a route boundary when retained data needs it. */
+  /**
+   * Cancel a pending jump and load the latest window at a route boundary, when
+   * a jump left the retained window on older events.
+   */
   restoreLatestWindow(): Promise<boolean> {
-    if (this.scope !== 'room') return Promise.resolve(false);
     if (this.recoveryViewport) return Promise.resolve(false);
     this.cancelPendingHistoricalJump();
     if (this.#pendingAuthoritativeLoadId !== null || !this.#needsLatestWindow) {

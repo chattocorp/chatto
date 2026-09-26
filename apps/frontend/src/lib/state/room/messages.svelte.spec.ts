@@ -3760,6 +3760,78 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('returns a thread to its latest replies at a route boundary after a jump', async () => {
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi.fn(async () => ({
+        events: [threadMessageEvent('t1') as never, threadMessageEvent('r80', 't1') as never],
+        startCursor: 'tl:cursor-80',
+        endCursor: 'tl:cursor-80',
+        hasOlder: true,
+        hasNewer: false
+      })),
+      getThreadEventsAround: vi.fn(async () => ({
+        events: [threadMessageEvent('t1') as never, threadMessageEvent('r10', 't1') as never],
+        startCursor: 'tl:cursor-10',
+        endCursor: 'tl:cursor-10',
+        hasOlder: true,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
+    await settle();
+    await store.jumpToMessage('r10', new JumpToMessageState());
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r10']);
+
+    await expect(store.restoreLatestWindow()).resolves.toBe(true);
+
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r80']);
+    store.dispose();
+  });
+
+  it('cancels a pending thread jump at a route boundary', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEventsAround']>>;
+    const around = deferred<AroundPage>();
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi.fn(async () => ({
+        events: [threadMessageEvent('t1') as never, threadMessageEvent('r80', 't1') as never],
+        startCursor: 'tl:cursor-80',
+        endCursor: 'tl:cursor-80',
+        hasOlder: true,
+        hasNewer: false
+      })),
+      getThreadEventsAround: vi.fn(() => around.promise)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
+    await settle();
+    const jumpState = new JumpToMessageState();
+
+    const jumping = store.jumpToMessage('r10', jumpState);
+    await store.restoreLatestWindow();
+    around.resolve({
+      events: [threadMessageEvent('t1') as never, threadMessageEvent('r10', 't1') as never],
+      startCursor: 'tl:cursor-10',
+      endCursor: 'tl:cursor-10',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    await expect(jumping).resolves.toBe(false);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r80']);
+    expect(jumpState.isJumpedMode).toBe(false);
+    expect(jumpState.scrollToEventId).toBeNull();
+    store.dispose();
+  });
+
   it('lets a thread page older again after a refresh supersedes its page load', async () => {
     type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEvents']>>;
     const older = deferred<ThreadPage>();
