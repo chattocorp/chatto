@@ -92,7 +92,10 @@ describe('RangeField', () => {
     expect(halo()).toBe('');
     await userEvent.hover(track);
     expect(halo()).toBe('1');
-    expect(getComputedStyle(grip).boxShadow).toMatch(/0px 0px 0px 3px/);
+    const shadow = getComputedStyle(grip).boxShadow;
+    expect(shadow).toMatch(/0px 0px 0px 3px/);
+    // The halo must not replace the bevel's inset lighting.
+    expect(shadow).toMatch(/inset/);
     await userEvent.unhover(track);
     expect(halo()).toBe('');
   });

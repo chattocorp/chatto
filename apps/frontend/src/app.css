@@ -210,7 +210,7 @@
  * `data-theme="dark"`.
  */
 :root {
-  /* Kinda 3D softens decorative depth. Modes never scale focus or boundaries.
+  /* Depth never scales focus or boundaries.
      Palette colours fade between themes, tones, accents, and contrast steps. */
   --palette-transition: 240ms ease-out;
   transition:
@@ -556,6 +556,37 @@
   --tone-800: oklch(from var(--tone-source-800) var(--tone-lightness-800) c h);
   --tone-900: oklch(from var(--tone-source-900) var(--tone-lightness-900) c h);
   --tone-950: oklch(from var(--tone-source-950) var(--tone-lightness-950) c h);
+}
+/* Browsers without relative colour syntax keep the original palette and ignore
+   tones; otherwise every tone step, and the registered tokens that use it, would
+   be invalid. */
+@supports not (color: oklch(from red l c h)) {
+  :root,
+  [data-tone-theme='light'] [data-tone] {
+    --tone-100: var(--color-gray-100);
+    --tone-200: var(--color-gray-200);
+    --tone-300: var(--color-gray-300);
+    --tone-400: var(--color-gray-400);
+    --tone-500: var(--color-gray-500);
+    --tone-600: var(--color-gray-600);
+    --tone-700: var(--color-gray-700);
+    --tone-800: var(--color-gray-800);
+    --tone-900: var(--color-gray-900);
+    --tone-950: var(--color-gray-950);
+  }
+  :root[data-theme='dark'],
+  [data-tone-theme='dark'] [data-tone] {
+    --tone-100: var(--color-neutral-100);
+    --tone-200: var(--color-neutral-200);
+    --tone-300: var(--color-neutral-300);
+    --tone-400: var(--color-neutral-400);
+    --tone-500: var(--color-neutral-500);
+    --tone-600: var(--color-neutral-600);
+    --tone-700: var(--color-neutral-700);
+    --tone-800: var(--color-neutral-800);
+    --tone-900: var(--color-neutral-900);
+    --tone-950: var(--color-neutral-950);
+  }
 }
 :where(:root) {
   --tone-source-100: var(--color-gray-100);
@@ -1308,9 +1339,10 @@
 }
 
 @utility range-grip {
-  @apply shell-lighting rounded-lg border border-input-border;
-  /* The halo appears while the pointer is over the track or dragging. */
-  box-shadow:
+  @apply shell-lighting rounded-lg border border-input-border shadow-[var(--depth-shadow-sm)];
+  /* Compose with the bevel's inset shadows; the halo appears while the pointer
+     is over the track or dragging. */
+  --tw-shadow:
     var(--depth-shadow-sm),
     0 0 0 calc(var(--range-active, 0) * 3px) color-mix(in srgb, var(--color-action) 35%, transparent);
   position: absolute;
@@ -1333,6 +1365,20 @@
     width: 6px;
     translate: calc(-50% * var(--inline-direction)) 0;
     border-inline: 1px solid var(--tone-400);
+  }
+}
+
+/* Forced colours replace the drawn fill and grip; keep them visible. */
+@media (forced-colors: active) {
+  .range-fill {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  .range-grip {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    border-color: ButtonText;
   }
 }
 

@@ -85,8 +85,8 @@ export function applySurfaceTones(tones: Record<EffectiveTheme, SurfaceTone>): v
   const root = document.documentElement;
   root.dataset.lightTone = isSurfaceTone(tones.light) ? tones.light : defaultSurfaceTones.light;
   root.dataset.darkTone = isSurfaceTone(tones.dark) ? tones.dark : defaultSurfaceTones.dark;
-  syncShellColor();
   syncLoadingPalettes();
+  syncShellColor();
 }
 
 /** Resolved tone colours that app.html paints before the stylesheet loads. */
@@ -98,7 +98,14 @@ export interface LoadingPalette {
   surface: string;
 }
 
-type LoadingPalettes = Record<EffectiveTheme, LoadingPalette>;
+type LoadingPalettes = Record<EffectiveTheme, LoadingPalette> & {
+  /**
+   * Tones that produced the colours. app.html ignores a palette whose tones no
+   * longer match the saved preferences, for example after another app version
+   * changed the tones without updating this record.
+   */
+  tones: Record<EffectiveTheme, string>;
+};
 
 /** Tone steps behind each startup colour. Keep them aligned with app.html. */
 const loadingPaletteSteps: Readonly<Record<EffectiveTheme, Record<keyof LoadingPalette, number>>> =
@@ -110,9 +117,12 @@ const loadingPaletteSteps: Readonly<Record<EffectiveTheme, Record<keyof LoadingP
 const hexColorPattern = /^#[0-9a-f]{6}$/;
 
 function isLoadingPalettes(value: unknown): value is LoadingPalettes {
+  const tones = isRecord(value) ? value.tones : undefined;
   return (['light', 'dark'] as const).every((theme) => {
     const palette = isRecord(value) ? value[theme] : undefined;
     return (
+      isRecord(tones) &&
+      isSurfaceTone(tones[theme]) &&
       isRecord(palette) &&
       Object.keys(loadingPaletteSteps[theme]).every((name) => {
         const color = palette[name];
@@ -138,12 +148,13 @@ export function getLoadingPalettes(): LoadingPalettes | null {
 }
 
 /**
- * Resolve the startup colours of both chosen tones through a hidden sample,
- * the same scope that the tone picker uses. Does nothing before the stylesheet
- * defines the tone ramp.
+ * Save the startup colours of both chosen tones, resolved through a hidden
+ * sample with the same scope that the tone picker uses. Does nothing before
+ * the stylesheet defines the tone ramp.
  */
 function syncLoadingPalettes(): void {
   const root = document.documentElement;
+  if (!getComputedStyle(root).getPropertyValue('--tone-100').trim()) return;
   const probe = document.createElement('span');
   probe.hidden = true;
   (document.body ?? root).append(probe);
@@ -154,18 +165,42 @@ function syncLoadingPalettes(): void {
       probe.dataset.tone = theme === 'dark' ? root.dataset.darkTone : root.dataset.lightTone;
       const palette = {} as LoadingPalette;
       for (const [name, step] of Object.entries(loadingPaletteSteps[theme])) {
-        if (!getComputedStyle(probe).getPropertyValue(`--tone-${step}`).trim()) return;
-        probe.style.color = `var(--tone-${step})`;
-        const color = resolvedHexColor(getComputedStyle(probe).color);
+        // Mixing a colour with itself in sRGB serialises it as `color(srgb r g b)`.
+        // Unlike canvas readback, fingerprinting protection does not alter it.
+        probe.style.color = `color-mix(in srgb, var(--tone-${step}), var(--tone-${step}))`;
+        const color = hexFromComputedColor(getComputedStyle(probe).color);
         if (!color) return;
         palette[name as keyof LoadingPalette] = color;
       }
       palettes[theme] = palette;
     }
+    palettes.tones = {
+      light: root.dataset.lightTone ?? defaultSurfaceTones.light,
+      dark: root.dataset.darkTone ?? defaultSurfaceTones.dark
+    };
     loadingPaletteSlot.set(palettes);
   } finally {
     probe.remove();
   }
+}
+
+/** Convert a computed `color(srgb …)` or `rgb()` value to `#rrggbb`. */
+export function hexFromComputedColor(value: string): string | null {
+  const number = String.raw`(-?[\d.]+(?:e-?\d+)?)`;
+  const srgb = new RegExp(`^color\\(srgb ${number} ${number} ${number}(?: / ${number})?\\)$`).exec(
+    value
+  );
+  const legacy = new RegExp(`^rgba?\\(${number}, ${number}, ${number}(?:, ${number})?\\)$`).exec(
+    value
+  );
+  const match = srgb ?? legacy;
+  if (!match) return null;
+  if (match[4] !== undefined && Number(match[4]) < 1) return null;
+  const scale = srgb ? 255 : 1;
+  const channels = match
+    .slice(1, 4)
+    .map((channel) => Math.round(Math.max(0, Math.min(255, Number(channel) * scale))));
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 /**
@@ -212,7 +247,7 @@ export function applySurfaceDepth(value: number): void {
 
 /** Keep the saved 20–40 scale so existing browser choices survive the UI label change. */
 export const defaultContrastAge = 30;
-/** The slider moves in 10% steps; saved half steps from earlier versions stay valid. */
+/** The slider moves in 10% steps. Keep app.html in sync. */
 export const contrastAgeStep = 2;
 
 /** Reject invalid values from storage and callers before applying CSS percentages. */
@@ -226,45 +261,46 @@ export function isContrastAge(value: unknown): value is number {
   );
 }
 
+/**
+ * Snap a valid value to the slider's 10% steps. Earlier versions saved half
+ * steps; without snapping, the drawn grip and the native thumb would disagree.
+ */
+function snapContrastAge(value: number): number {
+  return Math.round(value / contrastAgeStep) * contrastAgeStep;
+}
+
 /** Apply the two palette mixes without changing theme, accent, or depth. */
 export function applyContrastAge(value: number): void {
   if (typeof document === 'undefined') return;
-  const age = isContrastAge(value) ? value : defaultContrastAge;
+  const age = snapContrastAge(isContrastAge(value) ? value : defaultContrastAge);
   const root = document.documentElement;
   root.style.setProperty('--contrast-soft-mix', `${Math.max(0, 30 - age) * 10}%`);
   root.style.setProperty('--contrast-strong-mix', `${Math.max(0, age - 30) * 10}%`);
   syncShellColor();
 }
 
-/** Keep the browser frame and system theme colour aligned with the active palette. */
+/**
+ * Keep the browser frame and system theme colour aligned with the active
+ * palette. Uses the same rule as app.html: the saved surface of the active
+ * tone, or black or white at maximum contrast.
+ */
 function syncShellColor(): void {
   const root = document.documentElement;
   root.style.backgroundColor = 'var(--color-surface)';
-  const dark = root.dataset.theme === 'dark';
+  const theme: EffectiveTheme = root.dataset.theme === 'dark' ? 'dark' : 'light';
   const veryHigh = root.style.getPropertyValue('--contrast-strong-mix') === '100%';
-  // The fallback matches the default tones before the stylesheet is available.
-  const shellColor =
-    resolvedHexColor(getComputedStyle(root).backgroundColor) ??
-    (dark ? (veryHigh ? '#000000' : '#262626') : veryHigh ? '#ffffff' : '#e5e7eb');
+  const palettes = loadingPaletteSlot.get();
+  const tone = theme === 'dark' ? root.dataset.darkTone : root.dataset.lightTone;
+  const surface =
+    palettes && palettes.tones[theme] === tone
+      ? palettes[theme].surface
+      : theme === 'dark'
+        ? '#262626'
+        : '#e5e7eb';
+  const shellColor = veryHigh ? (theme === 'dark' ? '#000000' : '#ffffff') : surface;
   document
     .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
     ?.setAttribute('content', shellColor);
-}
-
-/**
- * Convert a computed CSS colour to `#rrggbb` for `theme-color`, which some
- * browsers only accept in legacy sRGB syntax. Returns null for transparent or
- * unresolvable colours, such as before the stylesheet loads.
- */
-function resolvedHexColor(color: string): string | null {
-  if (!color || color === 'transparent' || color.includes('var(')) return null;
-  const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
-  if (!context) return null;
-  context.fillStyle = color;
-  context.fillRect(0, 0, 1, 1);
-  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
-  if (alpha < 255) return null;
-  return `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 export type DisplayTheme = 'system' | 'light' | 'dark';
@@ -417,7 +453,9 @@ function loadAppPreferences(): AppPreferences {
       ? stored.darkSurfaceTone
       : defaultSurfaceTones.dark,
     surfaceDepth: storedSurfaceDepth(stored.surfaceDepth),
-    contrastAge: isContrastAge(stored.contrastAge) ? stored.contrastAge : defaultContrastAge,
+    contrastAge: isContrastAge(stored.contrastAge)
+      ? snapContrastAge(stored.contrastAge)
+      : defaultContrastAge,
     composerEditor: isComposerEditorKind(stored.composerEditor)
       ? stored.composerEditor
       : defaultAppPreferences.composerEditor,
@@ -460,18 +498,6 @@ export class UserPreferencesState {
     applyContrastAge(this.#preferences.contrastAge);
     applySurfaceDepth(this.#preferences.surfaceDepth);
     this.#applySurfaceTones();
-    // app.html swaps the theme on system changes; resolve the shell colour
-    // afterwards because only the loaded stylesheet knows the tone's surface.
-    // Palette changes fade, so resolve it again once the surface settles.
-    if (typeof window !== 'undefined') {
-      window
-        .matchMedia('(prefers-color-scheme: dark)')
-        .addEventListener('change', () => syncShellColor());
-      const root = document.documentElement;
-      root.addEventListener('transitionend', (event) => {
-        if (event.target === root && event.propertyName === '--color-surface') syncShellColor();
-      });
-    }
   }
 
   get displayTheme(): DisplayTheme {
@@ -544,7 +570,7 @@ export class UserPreferencesState {
   }
 
   set contrastAge(value: number) {
-    const age = isContrastAge(value) ? value : defaultContrastAge;
+    const age = snapContrastAge(isContrastAge(value) ? value : defaultContrastAge);
     this.#preferences.contrastAge = age;
     this.#persist();
     applyContrastAge(age);
@@ -604,6 +630,8 @@ export class UserPreferencesState {
 
   #persist() {
     slot.set({
+      // Keep fields that another app version saved, such as a newer preference.
+      ...slot.get(),
       ...this.#preferences,
       ...this.#legacyNotificationSoundPreferences
     });

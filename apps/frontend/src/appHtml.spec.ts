@@ -260,10 +260,17 @@ describe('app.html metadata', () => {
 });
 
 describe('app.html theme bootstrap', () => {
-  it.each([20, 25.5, 30, 34.5, 40])('restores saved contrast value %s before the app starts', (contrastAge) => {
+  it.each([
+    [20, 20],
+    [25, 26],
+    [25.5, 26],
+    [30, 30],
+    [34.5, 34],
+    [40, 40]
+  ])('restores saved contrast value %s as the 10%% step %s before the app starts', (contrastAge, step) => {
     const { root } = runThemeScript({ preferences: { contrastAge }, systemDark: false });
-    expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe(`${Math.max(0, 30 - contrastAge) * 10}%`);
-    expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe(`${Math.max(0, contrastAge - 30) * 10}%`);
+    expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe(`${Math.max(0, 30 - step) * 10}%`);
+    expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe(`${Math.max(0, step - 30) * 10}%`);
   });
 
   it.each([
@@ -345,9 +352,11 @@ describe('app.html theme bootstrap', () => {
   it('paints the saved tone colours before the stylesheet loads', () => {
     const palette = {
       light: { background: '#eef6f1', highlight: '#8fa99a', text: '#3f5a4b', surface: '#dfece4' },
-      dark: { background: '#1d1022', highlight: '#4a3150', text: '#dcc9e0', surface: '#331b3a' }
+      dark: { background: '#1d1022', highlight: '#4a3150', text: '#dcc9e0', surface: '#331b3a' },
+      tones: { light: 'forest', dark: 'plum' }
     };
     const { root, themeColor, changeSystemTheme } = runThemeScript({
+      preferences: { lightSurfaceTone: 'forest', darkSurfaceTone: 'plum' },
       systemDark: false,
       storage: { 'chatto:loading-palette': JSON.stringify(palette) }
     });
@@ -361,6 +370,23 @@ describe('app.html theme bootstrap', () => {
     expect(themeColor.content).toBe('#dfece4');
     changeSystemTheme('dark');
     expect(themeColor.content).toBe('#331b3a');
+  });
+
+  it('ignores saved colours from tones that no longer match the preferences', () => {
+    // Another app version may change the tones without refreshing the palette.
+    const palette = {
+      light: { background: '#eef6f1', highlight: '#8fa99a', text: '#3f5a4b', surface: '#dfece4' },
+      dark: { background: '#1d1022', highlight: '#4a3150', text: '#dcc9e0', surface: '#331b3a' },
+      tones: { light: 'forest', dark: 'plum' }
+    };
+    const { root, themeColor } = runThemeScript({
+      preferences: { lightSurfaceTone: 'clay', darkSurfaceTone: 'plum' },
+      systemDark: false,
+      storage: { 'chatto:loading-palette': JSON.stringify(palette) }
+    });
+    expect(root.style.getPropertyValue('--loading-light-background')).toBe('');
+    expect(root.style.getPropertyValue('--loading-dark-background')).toBe('#1d1022');
+    expect(themeColor.content).toBe('#e5e7eb');
   });
 
   it.each([

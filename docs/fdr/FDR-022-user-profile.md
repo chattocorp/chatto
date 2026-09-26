@@ -192,9 +192,9 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 **Why:** Fixed lightness keeps text, muted text, and every accent readable on each tone at every Contrast setting. Users can then add colour without a separate contrast review for each combination. Separate choices let a user pair, for example, a warm light theme with a blue-black dark theme.
 **Tradeoff:** Tones cannot make surfaces lighter or darker than the original palette. Automated contrast tests cover each tone, theme, accent, and the Contrast extremes.
 
-The fade uses CSS only. The semantic colour tokens are registered as `<color>` custom properties, so `:root` can transition them; derived tokens follow through `var()`. The browser theme colour is resolved again when the surface fade ends.
+The fade uses CSS only. The semantic colour tokens are registered as `<color>` custom properties, so `:root` can transition them; derived tokens follow through `var()`.
 
-The startup screen in `app.html` paints before the stylesheet loads, so it cannot resolve tones itself. The app saves the resolved startup colours of both chosen tones in `chatto:loading-palette` whenever the tones apply. `app.html` validates the saved hex colours and uses them for the loading background, gradient, text, and first browser theme colour. Without saved colours, it uses literals that match the default tones.
+The startup screen in `app.html` paints before the stylesheet loads, so it cannot resolve tones itself. The app saves the resolved startup colours of both chosen tones in `chatto:loading-palette` whenever the tones apply. `app.html` validates the saved hex colours and uses them for the loading background, gradient, text, and first browser theme colour when the saved tones still match the preferences. The app uses the same saved surface for the browser theme colour after startup. Without saved colours, it uses literals that match the default tones.
 
 ## Permissions
 

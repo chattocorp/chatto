@@ -102,22 +102,41 @@ describe('UserPreferencesState', () => {
     expect(document.documentElement.style.getPropertyValue('--depth-level')).toBe('50');
   });
 
+  it.each([
+    [25, 26],
+    [26.5, 26],
+    [33.5, 34]
+  ])('snaps saved contrast %s from earlier versions to the 10%% step %s', (saved, step) => {
+    // A half step would put the drawn grip and the native thumb in different places.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ contrastAge: saved }));
+    expect(new UserPreferencesState().contrastAge).toBe(step);
+  });
+
+  it('keeps preference fields saved by another app version', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ futurePreference: 'kept' }));
+    new UserPreferencesState().accentColor = 'violet';
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      futurePreference: 'kept',
+      accentColor: 'violet'
+    });
+  });
+
   it('persists and applies contrast without changing the other appearance choices', () => {
     const state = new UserPreferencesState();
     state.displayTheme = 'dark';
     state.accentColor = 'violet';
     state.surfaceDepth = 0;
-    state.contrastAge = 26.5;
+    state.contrastAge = 26;
 
-    expect(state.contrastAge).toBe(26.5);
-    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('35%');
+    expect(state.contrastAge).toBe(26);
+    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('40%');
     expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('0%');
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement.dataset.accent).toBe('violet');
     expect(document.documentElement.style.getPropertyValue('--depth-level')).toBe('0');
-    expect(new UserPreferencesState().contrastAge).toBe(26.5);
+    expect(new UserPreferencesState().contrastAge).toBe(26);
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-      contrastAge: 26.5
+      contrastAge: 26
     });
 
     state.contrastAge = 40;

@@ -77,7 +77,9 @@
         function storedLoadingPalette(theme) {
           try {
             const parsed = JSON.parse(localStorage.getItem('chatto:loading-palette') ?? 'null');
-            const palette = parsed && typeof parsed === 'object' ? parsed[theme] : null;
+            // Colours from other tones would flash the wrong palette until the app starts.
+            if (!parsed || parsed.tones?.[theme] !== storedSurfaceTone(theme)) return null;
+            const palette = typeof parsed === 'object' ? parsed[theme] : null;
             const valid = (color) => typeof color === 'string' && /^#[0-9a-f]{6}$/.test(color);
             return palette &&
               typeof palette === 'object' &&
@@ -242,7 +244,8 @@
             age >= 20 &&
             age <= 40 &&
             Number.isInteger(age * 2)
-              ? age
+              ? // Snap half steps from earlier versions to the slider's 10% steps.
+                Math.round(age / 2) * 2
               : 30;
           root.style.setProperty('--contrast-soft-mix', `${Math.max(0, 30 - contrastAge) * 10}%`);
           root.style.setProperty('--contrast-strong-mix', `${Math.max(0, contrastAge - 30) * 10}%`);
