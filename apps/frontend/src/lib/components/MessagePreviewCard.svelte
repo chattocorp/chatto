@@ -4,8 +4,8 @@
 Displays a preview card for a Chatto message link (e.g. pasted in the composer
 or embedded in a posted message). The message is fetched through the appropriate
 instance's Connect timeline API; if it can't be loaded (not found, no permission,
-unknown instance) the component renders nothing. The shared query cache keeps
-the loaded preview, so a remounted card or a reconnect renders it at once.
+unknown instance) the component renders nothing. A reconnect keeps the loaded
+preview on screen; a snapshot after a long disconnect reloads it in place.
 
 **Props:**
 - `link` — Parsed MessageLink from `$lib/messageLinks`.
@@ -82,21 +82,37 @@ the loaded preview, so a remounted card or a reconnect renders it at once.
   const previewQuery = createQuery(
     () => {
       const { serverId, roomId, messageId } = link;
+      const currentStore = store;
       const currentConnection = connection;
       return {
         queryKey,
         queryFn:
-          serverId && currentConnection
-            ? () => fetchMessagePreview(serverId, currentConnection, roomId, messageId)
-            : skipToken
+          serverId && currentStore && currentConnection
+            ? ({ signal }: { signal: AbortSignal }) =>
+                fetchMessagePreview(serverId, currentConnection, {
+                  roomId,
+                  messageId,
+                  minimumCursor: currentStore.realtimeSync.resumeCursor ?? undefined,
+                  signal
+                })
+            : skipToken,
+        // The card owns the preview: do not keep it after the card unmounts.
+        gcTime: 0
       };
     },
     () => queryClient
   );
 
+  // Thumbnail URLs refreshed for the loaded preview. A reload of the preview
+  // brings its own URLs and replaces these.
+  let refreshed = $state.raw<{ source: MessagePreview; preview: MessagePreview } | null>(null);
+
   // Show nothing while loading and when the message can't be loaded (not
   // found, no permission, unknown server).
-  const preview = $derived<MessagePreview | null>(previewQuery.data ?? null);
+  const preview = $derived.by((): MessagePreview | null => {
+    const loaded = previewQuery.data ?? null;
+    return refreshed && refreshed.source === loaded ? refreshed.preview : loaded;
+  });
 
   const spaceName = $derived(
     link.serverId ? (serverRegistry.getServer(link.serverId)?.name ?? null) : null
@@ -148,24 +164,22 @@ the loaded preview, so a remounted card or a reconnect renders it at once.
   }
 
   async function refreshPreviewAttachmentUrls(): Promise<void> {
-    if (!preview || refreshPromise) return refreshPromise ?? undefined;
+    const source = previewQuery.data;
+    if (!preview || !source || refreshPromise) return refreshPromise ?? undefined;
     if (!connection || !link.serverId) return undefined;
 
-    // Write fresh URLs to the preview that requested them, even if the link
-    // target changed while the request was in flight.
-    const key = queryKey;
+    const current = preview;
     const serverId = link.serverId;
     refreshPromise = refreshAttachmentUrlsForAssets(
       connection.getAPI(createAttachmentAPI),
       link.roomId,
-      preview.attachments.map((attachment) => attachment.id),
+      current.attachments.map((attachment) => attachment.id),
       PREVIEW_THUMBNAIL_REFRESH
     )
       .then((freshUrls) => {
-        if (freshUrls.size === 0) return;
-        queryClient.setQueryData<MessagePreview | null>(key, (current) =>
-          current ? withRefreshedPreviewUrls(serverId, current, freshUrls) : current
-        );
+        // Ignore URLs for a preview that was reloaded or replaced meanwhile.
+        if (freshUrls.size === 0 || previewQuery.data !== source) return;
+        refreshed = { source, preview: withRefreshedPreviewUrls(serverId, current, freshUrls) };
       })
       .catch(() => {
         // Fail silently — the preview can still render text and file labels.
