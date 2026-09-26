@@ -116,6 +116,17 @@ describe('EventList jump completion', () => {
     expect(jumpState.isJumpedMode).toBe(true);
     expect(jumpState.hasReachedEnd).toBe(false);
   });
+  it('shows the loading indicator until the first page arrives', async () => {
+    const rendered = render(EventListTestHarness, {
+      props: { eventIds: [], scrollToEventId: null, isLoading: true }
+    });
+    const indicator = page.getByRole('status', { name: 'Loading messages...' });
+    await expect.element(indicator).toBeInTheDocument();
+
+    await rendered.rerender({ eventIds: [], scrollToEventId: null, isLoading: false });
+    await expect.element(indicator).not.toBeInTheDocument();
+    await expect.element(page.getByText('No messages yet')).toBeVisible();
+  });
   it('releases the saved position when recovery produces an empty timeline', async () => {
     render(EventListTestHarness, {
       props: {

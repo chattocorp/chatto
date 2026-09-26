@@ -78,7 +78,8 @@
       "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā.",
       "limited_access": "Vari redzēt tikai sarunas, kuras sāki vai kurās kāds tevi pieminēja.",
       "limited_access_dm": "Vari redzēt tikai sarunas, kuras sāki, saņēmi vai kurās kāds tevi pieminēja.",
-      "limited_empty": "Vēl nav sarunu, kuras vari lasīt."
+      "limited_empty": "Vēl nav sarunu, kuras vari lasīt.",
+      "loading": "Ielādē ziņas..."
     },
     "message": {
       "empty": "Vēl nav ziņojumu",

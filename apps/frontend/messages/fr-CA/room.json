@@ -78,7 +78,8 @@
       "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon.",
       "limited_access": "Tu ne peux voir que les conversations que tu as commencées ou dans lesquelles quelqu’un t’a mentionné.",
       "limited_access_dm": "Tu ne peux voir que les conversations que tu as commencées, reçues ou dans lesquelles quelqu’un t’a mentionné.",
-      "limited_empty": "Aucune conversation que tu peux lire pour le moment."
+      "limited_empty": "Aucune conversation que tu peux lire pour le moment.",
+      "loading": "Chargement des messages..."
     },
     "message": {
       "empty": "Aucun message pour l'instant",

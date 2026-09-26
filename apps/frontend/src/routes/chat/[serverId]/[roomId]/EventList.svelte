@@ -19,7 +19,7 @@
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import { findLastEditableMessage } from './lastEditableMessage';
-  import { ScrollFader } from '$lib/ui';
+  import { LoadingDots, ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
   import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -760,11 +760,14 @@
       {@attach restoreViewport(recoveryTarget)}
       {@attach landOnUnreadEntry(unreadEntryLanding)}
     >
-      {#if !isLoading && virtualItems.length === 0}
+      {#if isLoading}
+        <!-- Sits at the bottom, where the newest messages will appear. -->
+        <LoadingDots class="py-4" label={m('room.timeline.loading')} />
+      {:else if virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>
         </div>
-      {:else if !isLoading}
+      {:else}
         <Virtualizer
           bind:this={virtualizerHandle}
           data={virtualItems}

@@ -78,7 +78,8 @@
       "read_denied": "你没有权限阅读此房间中的消息。",
       "limited_access": "你只能看到自己发起或有人提及你的对话。",
       "limited_access_dm": "你只能看到自己发起、收到或有人提及你的对话。",
-      "limited_empty": "还没有你可以阅读的对话。"
+      "limited_empty": "还没有你可以阅读的对话。",
+      "loading": "正在加载消息..."
     },
     "message": {
       "empty": "暂无消息",

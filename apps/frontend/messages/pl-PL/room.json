@@ -78,7 +78,8 @@
       "read_denied": "Nie masz uprawnień do odczytywania wiadomości w tym pokoju.",
       "limited_access": "Widzisz tylko rozmowy rozpoczęte przez Ciebie lub takie, w których ktoś o Tobie wspomniał.",
       "limited_access_dm": "Widzisz tylko rozmowy rozpoczęte lub otrzymane przez Ciebie albo takie, w których ktoś o Tobie wspomniał.",
-      "limited_empty": "Nie ma jeszcze rozmów, które możesz przeczytać."
+      "limited_empty": "Nie ma jeszcze rozmów, które możesz przeczytać.",
+      "loading": "Wczytywanie wiadomości..."
     },
     "message": {
       "empty": "Nie ma jeszcze żadnych wiadomości",
