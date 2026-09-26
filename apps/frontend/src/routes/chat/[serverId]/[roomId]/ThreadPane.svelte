@@ -112,7 +112,6 @@
   }));
 
   let threadEvents = $derived(store.threadEvents);
-  let updateCounter = $derived(threadEvents.length);
 
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
@@ -345,30 +344,13 @@
     permalinkThreadRootEventId={threadRootEventId}
     messageStore={store}
     events={threadEvents}
-    alwaysScrollToBottom={false}
-    showNewMessagesIndicator={true}
-    enablePagination={true}
-    isLoadingMore={store.isLoadingMore}
-    hasReachedStart={store.hasReachedStart}
     showStartMarker={false}
-    onLoadMore={() => store.loadMore()}
-    isJumpedMode={jumpState.isJumpedMode}
-    isLoadingNewer={jumpState.isLoadingNewer}
-    hasReachedEnd={jumpState.hasReachedEnd}
-    onLoadNewer={() => store.loadNewer(jumpState)}
-    onJumpToPresent={() => store.jumpToPresent(jumpState)}
-    onReachedPresent={() => jumpState.reset()}
     filterThreadReplies={false}
-    {updateCounter}
-    enableLastEditableFinder={true}
-    isLoading={store.isInitialLoading}
     emptyMessage={m('room.thread.not_found')}
     unreadAfterEventId={unread.unreadMarkerEventId}
-    scrollToUnreadOnEntry={true}
     onReachedBottom={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}
-    scrollToEventId={jumpState.scrollToEventId}
     onScrollToEventComplete={() => {
       jumpState.scrollToEventId = null;
       onHighlightComplete?.();
@@ -381,11 +363,6 @@
     {roomId}
     echoToConversation={isDirectMessage}
     inThread={threadRootEventId}
-    inReplyTo={replyState.messageEventId ?? undefined}
-    replyDisplayName={replyState.actorDisplayName || undefined}
-    replyIdentity={replyState.actorIdentity}
-    replyExcerpt={replyState.excerpt || undefined}
-    onCancelReply={() => replyState.cancelReply()}
     placeholder={m('room.thread.reply_placeholder')}
     {canPost}
     {canAttach}

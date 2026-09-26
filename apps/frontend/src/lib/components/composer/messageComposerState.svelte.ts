@@ -1,6 +1,5 @@
 import { tick, untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import type { AccountNameIdentity } from '$lib/render/accountName';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import type {
   ComposerContext,
@@ -56,10 +55,6 @@ export type RecentThreadRootCandidate = {
 export type MessageComposerProps = {
   roomId: string;
   inThread?: string;
-  inReplyTo?: string;
-  replyDisplayName?: string;
-  replyIdentity?: AccountNameIdentity;
-  replyExcerpt?: string;
   placeholder?: string;
   canPost?: boolean;
   canAttach?: boolean;
@@ -70,7 +65,6 @@ export type MessageComposerProps = {
   onReady?: (api: MessageComposerApi) => void;
   onTyping?: () => void;
   onMessageSent?: (event: TimelineEventView | null) => void;
-  onCancelReply?: () => void;
   onEscape?: () => void;
   showAlsoSendToChannel?: boolean;
   /** Use direct-message copy for the room-timeline echo control. */
@@ -86,7 +80,6 @@ export type MessageComposerProps = {
 type MessageComposerDependencies = {
   getRoomId: () => string;
   getThreadRootEventId: () => string | undefined;
-  getReplyEventId: () => string | undefined;
   getCanPost: () => boolean;
   getCanAttach: () => boolean;
   getSlowModeBlocked: () => boolean;
@@ -100,7 +93,7 @@ type MessageComposerDependencies = {
   getOnReady: () => MessageComposerProps['onReady'];
   getCallbacks: () => Pick<
     MessageComposerProps,
-    'onTyping' | 'onMessageSent' | 'onThreadMessageSent' | 'onCancelReply' | 'onEscape'
+    'onTyping' | 'onMessageSent' | 'onThreadMessageSent' | 'onEscape'
   >;
   onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
@@ -491,7 +484,7 @@ export class MessageComposerState {
   #synchronizeAutoFocus(): void {
     // Scalar derived values filter parent updates that do not change the target.
     const destination = $derived(this.draftKey);
-    const reply = $derived(this.#dependencies.getReplyEventId());
+    const reply = $derived(this.#dependencies.context.replyState.messageEventId);
     const autoFocus = $derived(this.#dependencies.getAutoFocus());
     const target = $derived({ destination, reply, autoFocus, api: this.editorApi });
     let focusedTarget: typeof target | null = null;
@@ -565,7 +558,7 @@ export class MessageComposerState {
         callbacks.onMessageSent?.(event);
       }
       this.#dependencies.context.scrollState?.requestScrollToBottom();
-      callbacks.onCancelReply?.();
+      this.#dependencies.context.replyState.cancelReply();
       // Submission clears loading after this callback. Wait for the editor to
       // become editable again before restoring the caret for the next message.
       void tick().then(() => {
@@ -615,7 +608,7 @@ export class MessageComposerState {
         ? this.attachments.descriptions
         : undefined,
       threadRootEventId: this.#dependencies.getThreadRootEventId() ?? null,
-      inReplyTo: this.#dependencies.getReplyEventId() ?? null,
+      inReplyTo: this.#dependencies.context.replyState.messageEventId,
       linkPreviewToken: this.linkPreviews.buildToken(),
       alsoSendToChannel: this.alsoSendToChannel,
       createThread:
@@ -681,8 +674,9 @@ export class MessageComposerState {
       return true;
     }
     const callbacks = this.#dependencies.getCallbacks();
-    if (this.#dependencies.getReplyEventId() && callbacks.onCancelReply) {
-      callbacks.onCancelReply();
+    const replyState = this.#dependencies.context.replyState;
+    if (replyState.messageEventId) {
+      replyState.cancelReply();
       return true;
     }
     if (callbacks.onEscape) {

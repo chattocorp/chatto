@@ -66,8 +66,7 @@ describe('TimelineViewportController', () => {
       offset: 700,
       scrollSize: 1_000,
       viewportSize: 300,
-      firstVisibleAt: null,
-      alwaysScrollToBottom: false
+      firstVisibleAt: null
     };
 
     controller.observeScroll({ ...atBottom, now: 1_000 });
@@ -112,16 +111,10 @@ describe('TimelineViewportController', () => {
   it('shows new-message state only when a newer tail arrives while scrolled up', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');
-    controller.observeNewestEvent('M1', {
-      showNewMessagesIndicator: true,
-      alwaysScrollToBottom: false
-    });
+    controller.observeNewestEvent('M1');
     controller.stopFollowingBottom();
 
-    controller.observeNewestEvent('M2', {
-      showNewMessagesIndicator: true,
-      alwaysScrollToBottom: false
-    });
+    controller.observeNewestEvent('M2');
 
     expect(controller.hasNewMessages).toBe(true);
     controller.followBottom();
@@ -137,7 +130,6 @@ describe('TimelineViewportController', () => {
       scrollSize: 1_000,
       viewportSize: 300,
       firstVisibleAt: null,
-      alwaysScrollToBottom: false,
       now: 1_000
     });
     controller.observeScroll({
@@ -145,7 +137,6 @@ describe('TimelineViewportController', () => {
       scrollSize: 1_000,
       viewportSize: 300,
       firstVisibleAt: '2026-01-01T00:00:00Z',
-      alwaysScrollToBottom: false,
       now: 1_100
     });
     expect(controller.shouldScrollToBottom).toBe(true);
@@ -156,7 +147,6 @@ describe('TimelineViewportController', () => {
       scrollSize: 1_000,
       viewportSize: 300,
       firstVisibleAt: '2026-01-02T00:00:00Z',
-      alwaysScrollToBottom: false,
       now: 2_010
     });
 
@@ -172,7 +162,6 @@ describe('TimelineViewportController', () => {
       scrollSize: 1_000,
       viewportSize: 300,
       firstVisibleAt: null,
-      alwaysScrollToBottom: false,
       now: 1_000
     });
     controller.markUserScrollIntent(2_000);
@@ -181,7 +170,6 @@ describe('TimelineViewportController', () => {
       scrollSize: 1_000,
       viewportSize: 300,
       firstVisibleAt: null,
-      alwaysScrollToBottom: false,
       now: 2_010
     });
 
@@ -190,7 +178,6 @@ describe('TimelineViewportController', () => {
       scrollSize: 1_000,
       viewportSize: 300,
       firstVisibleAt: null,
-      alwaysScrollToBottom: false,
       now: 2_100
     });
     expect(locked.reachedBottom).toBe(false);
@@ -202,7 +189,6 @@ describe('TimelineViewportController', () => {
       scrollSize: 1_000,
       viewportSize: 300,
       firstVisibleAt: null,
-      alwaysScrollToBottom: false,
       now: 2_210
     });
     expect(settled.reachedBottom).toBe(true);
@@ -215,12 +201,12 @@ describe('TimelineViewportController', () => {
     const first = controller.beginBottomScroll('R1');
     const second = controller.beginBottomScroll('R1');
 
-    expect(controller.canContinueBottomScroll(first, 'R1', false, false)).toBe(false);
-    expect(controller.canContinueBottomScroll(second, 'R1', false, false)).toBe(true);
-    expect(controller.canContinueBottomScroll(second, 'R2', false, false)).toBe(false);
+    expect(controller.canContinueBottomScroll(first, 'R1', false)).toBe(false);
+    expect(controller.canContinueBottomScroll(second, 'R1', false)).toBe(true);
+    expect(controller.canContinueBottomScroll(second, 'R2', false)).toBe(false);
 
     controller.markUserScrollIntent(1_000);
-    expect(controller.canContinueBottomScroll(second, 'R1', false, false)).toBe(false);
+    expect(controller.canContinueBottomScroll(second, 'R1', false)).toBe(false);
     controller.completeBottomScroll(second);
     expect(controller.initialScrollDone).toBe(false);
   });
@@ -261,7 +247,7 @@ describe('TimelineViewportController', () => {
     const token = controller.beginBottomScroll('R1');
     controller.completeBottomScroll(token);
 
-    controller.reconcileAfterTabResume(100, false);
+    controller.reconcileAfterTabResume(100);
 
     expect(controller.shouldScrollToBottom).toBe(false);
   });

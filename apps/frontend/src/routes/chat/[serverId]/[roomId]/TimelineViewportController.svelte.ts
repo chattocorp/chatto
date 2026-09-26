@@ -9,7 +9,6 @@ export type TimelineScrollObservation = {
   scrollSize: number;
   viewportSize: number;
   firstVisibleAt: string | null;
-  alwaysScrollToBottom: boolean;
   now: number;
 };
 
@@ -95,13 +94,8 @@ export class TimelineViewportController {
     this.#wasJumpedMode = isJumpedMode;
   }
 
-  observeNewestEvent(
-    newestId: string | null,
-    options: { showNewMessagesIndicator: boolean; alwaysScrollToBottom: boolean }
-  ): void {
-    if (!options.showNewMessagesIndicator || options.alwaysScrollToBottom || newestId === null) {
-      return;
-    }
+  observeNewestEvent(newestId: string | null): void {
+    if (newestId === null) return;
     if (
       this.#lastSeenNewestId !== null &&
       newestId !== this.#lastSeenNewestId &&
@@ -211,24 +205,22 @@ export class TimelineViewportController {
       observation.scrollSize - observation.offset - observation.viewportSize;
     let reachedBottom = false;
 
-    if (!observation.alwaysScrollToBottom) {
-      const scrollUpLocked =
-        this.#unreadLanding === 'running' || observation.now < this.#scrollUpLockedUntil;
-      if (distanceFromBottom < 10 && !scrollUpLocked) {
-        const wasScrolledUp = !this.shouldScrollToBottom;
-        this.followBottom();
-        reachedBottom =
-          wasScrolledUp && observation.now - this.#userScrollIntentAt < USER_SCROLL_INTENT_MS;
-      } else if (
-        observation.now - this.#userScrollIntentAt < USER_SCROLL_INTENT_MS &&
-        this.#previousOffset !== null &&
-        observation.offset < this.#previousOffset - 10 &&
-        distanceFromBottom > 20
-      ) {
-        this.stopFollowingBottom();
-        this.cancelBottomScroll();
-        this.#scrollUpLockedUntil = observation.now + SCROLL_UP_LOCK_MS;
-      }
+    const scrollUpLocked =
+      this.#unreadLanding === 'running' || observation.now < this.#scrollUpLockedUntil;
+    if (distanceFromBottom < 10 && !scrollUpLocked) {
+      const wasScrolledUp = !this.shouldScrollToBottom;
+      this.followBottom();
+      reachedBottom =
+        wasScrolledUp && observation.now - this.#userScrollIntentAt < USER_SCROLL_INTENT_MS;
+    } else if (
+      observation.now - this.#userScrollIntentAt < USER_SCROLL_INTENT_MS &&
+      this.#previousOffset !== null &&
+      observation.offset < this.#previousOffset - 10 &&
+      distanceFromBottom > 20
+    ) {
+      this.stopFollowingBottom();
+      this.cancelBottomScroll();
+      this.#scrollUpLockedUntil = observation.now + SCROLL_UP_LOCK_MS;
     }
 
     this.#previousOffset = observation.offset;
@@ -239,8 +231,8 @@ export class TimelineViewportController {
     return { distanceFromBottom, reachedBottom };
   }
 
-  reconcileAfterTabResume(distanceFromBottom: number, alwaysScrollToBottom: boolean): void {
-    if (alwaysScrollToBottom || !this.shouldScrollToBottom || !this.initialScrollDone) return;
+  reconcileAfterTabResume(distanceFromBottom: number): void {
+    if (!this.shouldScrollToBottom || !this.initialScrollDone) return;
     if (distanceFromBottom > 50) this.stopFollowingBottom();
   }
 
@@ -255,15 +247,14 @@ export class TimelineViewportController {
   canContinueBottomScroll(
     token: BottomScrollToken,
     currentRoomId: string,
-    isJumpedMode: boolean,
-    alwaysScrollToBottom: boolean
+    isJumpedMode: boolean
   ): boolean {
     return (
       token.operationId === this.#bottomScrollOperation &&
       token.roomId === currentRoomId &&
       token.intentRevision === this.#intentRevision &&
       !isJumpedMode &&
-      (alwaysScrollToBottom || this.shouldScrollToBottom)
+      this.shouldScrollToBottom
     );
   }
 
