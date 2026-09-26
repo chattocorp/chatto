@@ -22,6 +22,116 @@ machine-specific settings, and private prompts out of tracked files; use local
 settings such as `.conductor/settings.local.toml` or your tool's user-level
 configuration for those.
 
+## Local Development Stack
+
+The root pnpm workspace contains the JavaScript apps, examples, and libraries.
+[`@chatto/client`](packages/chatto-client/README.md) provides shared request,
+message, thread, reaction, and typing helpers for bot integrations.
+The independent [Runling](packages/runling/README.md) workflow and agent
+orchestrator lives in `packages/runling/` and is published to npm as `runling`.
+It keeps its own version and MIT license. The Chatto bot uses this local package.
+Use `mise check-runling`, `mise test-runling`, and `mise test-runling-package`
+to verify it without running the complete Chatto test suite.
+
+[ChattoBot](packages/chattobot/README.md) is a separate private workspace
+package. Run `mise dev-chattobot` to start its realtime bot and Runling console.
+Use `mise check-chattobot` and `mise test-chattobot` to verify it.
+
+Root pnpm scripts use Turborepo to build workspace dependencies before their
+consumers. Prefer `mise` tasks or root scripts such as `mise x -- pnpm run
+check:frontend`; a command inside a package only runs that package's script.
+Turbo caches library, frontend, and Runling builds. All Git worktrees share
+the cache in the main checkout's `.turbo/cache`, so a new worktree restores
+unchanged builds. Verification tasks run without Turbo caching. Remote caching
+and telemetry are disabled by the repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
+for the task and cache boundaries.
+
+Run Chatto, Authling, Mailpit, LiveKit, and the Runling bot:
+
+```sh
+mise trust
+mise install
+mise setup
+(cd authling && mise trust && mise install && mise deps)
+mise dev
+```
+
+`mise dev` builds the frontend and a Chatto binary that includes it. Then it
+runs the services in one supervised process group. Turbo restores unchanged
+frontend builds from a cache that all worktrees share. Restart `mise dev` to
+see a change in Chatto, its frontend, or Authling. `mise setup` installs
+dependencies and the LiveKit server. It does not build anything.
+
+All services use plain HTTP. In Conductor, `<workspace>` is the workspace name
+and the base port is `$CONDUCTOR_PORT`. Outside Conductor, `<workspace>` is
+`local` and the base port is `4000`:
+
+| Service  | URL                                                |
+| -------- | -------------------------------------------------- |
+| Chatto   | `http://chatto.<workspace>.localhost:<base>`       |
+| Authling | `http://authling.<workspace>.localhost:<base + 2>` |
+| Runling  | `http://localhost:<base + 3>`                      |
+| Mailpit  | `http://localhost:<base + 9>`                      |
+
+Browsers resolve names beneath `.localhost` to your computer. You do not need
+to change DNS or `/etc/hosts`. Each workspace has its own hostnames, so the
+workspaces do not share browser cookies. The comment above the `dev` task in
+`mise.toml` lists all ports.
+
+For hot module replacement during frontend work, run this command in another
+terminal:
+
+```sh
+mise dev-frontend
+```
+
+Vite then serves the frontend at `http://chatto.<workspace>.localhost:<base + 1>`
+and sends API requests to the Chatto server of `mise dev`. To use a different
+Chatto server, set `CHATTO_BACKEND_URL`, for example
+`CHATTO_BACKEND_URL=https://dev.chatto.run mise dev-frontend`.
+
+Create an Authling account, read its verification code in Mailpit, then choose
+**Authling** on the Chatto login screen. Chatto asks for a username at first
+login. The stack also creates Chatto owner `alice` and member `bob`; both use
+the development-only password `foobar123`.
+
+The stack starts the [Runling bot example](examples/runling-bot/README.md)
+on loopback at the base port plus three (`http://localhost:4003` outside
+Conductor). It uses the bootstrap TestBot account and receives the backend URL
+and API key path automatically. On an empty server, bootstrap also creates
+TestBot’s outbound webhook. Existing servers keep their saved configuration.
+
+Chatto uses Authling as its development OIDC provider. Chatto stores embedded
+NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
+identity data is in `.context/dev/<workspace>/authling/`.
+
+These credentials and accounts are for local development only. Stop `mise dev`
+to stop the services. With the stack stopped, remove `cli/data/` to reset
+Chatto, or remove the Authling identity directory to reset Authling. A new
+Conductor workspace name also creates a new Authling issuer and state
+directory.
+
+If a worktree has NATS data in the former `cli/data/jetstream/` location, use
+the migration steps in [Local Chatto Data](#local-chatto-data).
+
+### Generate Test Data
+
+With `mise dev` running, run this command in another terminal:
+
+```sh
+mise seed -- --seed 42 --users 20 --rooms 5 --messages 200 --thread-replies 40
+```
+
+This adds 20 users with generated names and 200 messages across five rooms.
+The message total includes 40 thread replies. Users join different rooms, with
+joins and some leaves interleaved with messages. Sign in as `alice` to browse
+them; generated users have no password.
+
+The same seed and counts reproduce content with the same generator version;
+IDs and timestamps change. Each run adds data. A failed run can leave partial
+data. Add `--json` to get the generated IDs and text, or `--help` for options.
+Seeding is available only in development and test builds.
+
 ## Local Development with Conductor
 
 [Conductor](https://conductor.build) runs the regular root `mise dev` stack as
@@ -29,7 +139,7 @@ native processes. Start the default **Dev stack** run mode to build and launch
 Chatto, Authling, the Runling bot, Mailpit, and LiveKit on the workspace's ten
 allocated ports. Chatto is at `http://chatto.<workspace>.localhost:<port>`.
 The Open button lists this URL and the other service URLs. The
-[Local Development Stack](README.md#local-development-stack) section describes
+[Local Development Stack](#local-development-stack) section describes
 the complete layout. Restart the stack after you change Chatto, its frontend,
 or Authling. For hot module replacement, also start the **Vite frontend** run
 mode.
@@ -76,7 +186,7 @@ mise run setup
 ```
 
 To run the regular development stack outside Conductor after the setup
-described in the README:
+described in [Local Development Stack](#local-development-stack):
 
 ```sh
 mise dev
@@ -161,7 +271,7 @@ Use `alice` when you need server administration access.
 
 ## Synthetic Test Data
 
-See [Generate Test Data](README.md#generate-test-data) to populate a running
+See [Generate Test Data](#generate-test-data) to populate a running
 development server. For e2e setup, use the shared helpers:
 
 ```ts
