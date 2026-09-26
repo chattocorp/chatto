@@ -23,7 +23,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Search across your server" size="large">
-    [Find messages](/guides/operations/search/#search-messages) in every room you can read, including threads and direct
+    [Find messages](/guides/operations/search/) in every room you can read, including threads and direct
     messages. Filter by room, author, date, or attachments. Type `?` in the
     Cmd-K finder to search all your servers at once.
   </ReleaseFeatureCard>
@@ -79,7 +79,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Pinned messages" size="small">
-    Room managers can [pin important messages](/guides/operations/pinned-messages/). Pins appear in the room sidebar.
+    Room managers can [pin important messages](/guides/operations/community-structure/#pinned-messages). Pins appear in the room sidebar.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Bluesky and Mastodon previews" size="small">
@@ -184,12 +184,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Connect from any Chatto client">
-    [Clients on other origins](/guides/operations/cross-server-connections/) connect without allowlists. Members approve each
+    [Clients on other origins](/guides/operations/identity-login/#clients-from-other-origins) connect without allowlists. Members approve each
     client, and administrators can trust or block it.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Neighbors">
-    [Recommend other Chatto servers](/guides/operations/neighbors/) in a public directory. Members find them in
+    [Recommend other Chatto servers](/guides/operations/community-structure/#neighbors) in a public directory. Members find them in
     the Server Directory. This feature is experimental.
   </ReleaseFeatureCard>
 
@@ -210,7 +210,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
   <ReleaseFeatureCard title="Community badges" size="small">
     Show online and registered member counts on your website with
-    [Shields.io badges](/guides/integrations/community-shields/).
+    [Shields.io badges](/guides/operations/server-operations/#community-badges).
   </ReleaseFeatureCard>
 </ReleaseFeatureGrid>
 
@@ -253,7 +253,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
   <ReleaseFeatureCard title="Webhooks in and out" size="large">
     Post into rooms with [incoming webhooks](/guides/integrations/bot-accounts/#post-from-an-external-webhook),
-    including [Grafana alerts](/guides/integrations/grafana/) without a custom
+    including [Grafana alerts](/guides/integrations/bot-accounts/#send-grafana-alerts) without a custom
     template. [Outbound webhooks](/guides/integrations/bot-accounts/#outbound-webhooks) send signed requests when someone
     mentions a bot or sends it a direct message.
   </ReleaseFeatureCard>
@@ -304,6 +304,9 @@ Do these steps on every upgraded server:
   `bot.create` to `everyone` if members can create bots.
 - **Grant `room.manage`** to delegated room managers. Room group management
   used `role.manage` in 0.4.
+- **Allow `message.post` for `admin` in the `announcements` room** if
+  administrators must post there. A new server has this grant, but an upgraded
+  server does not.
 - **Check thread posting.** `message.post` now also allows thread replies. A
   0.4 setup that allowed `message.post` and denied `message.post-in-thread` now
   allows replies.
@@ -339,7 +342,7 @@ See [Permissions](/guides/operations/permissions/) for the complete list.
   `asset_processing.max_concurrent_jobs`, and `asset_processing.temp_dir`. Set
   `asset_processing.enabled = true`, or new videos stay in processing. Chatto
   ignores the old keys without an error. New videos use HLS; existing MP4 videos
-  continue to play. See [Video processing](/guides/infrastructure/video-processing/).
+  continue to play. See [Video processing](/guides/infrastructure/media-attachments/#video-processing).
 - Remove `webserver.oauth_redirect_origins`. Clients on other origins no longer
   need configuration. Use `webserver.allowed_origins` only for additional
   origins of the bundled client behind your reverse proxy. Chatto does not

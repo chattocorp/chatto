@@ -1,88 +1,54 @@
 ---
-title: External Login Providers
-description: Configure OIDC, GitHub, GitLab, Google, or Discord sign-in for a Chatto server.
+title: Login Providers
+description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, or Discord, with a Pocket ID example.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Chatto can consume external OAuth and OIDC providers for sign-in. Providers are configured in `chatto.toml` as repeated `[[auth.providers]]` tables, and the login page renders one button per configured provider.
-
-Provider sign-in and account linking open in a popup, including on the server's own frontend. Allow popups for the frontend in your browser. After successful sign-in or linking, the popup closes and the original page updates. If authorization is already in a popup, the provider flow continues in that window.
-
-<Aside type="note">
-  Chatto acts as an OAuth/OIDC client here. This does not change Chatto's own OAuth authorization endpoint used by Chatto frontends when they connect to a server.
-</Aside>
+Add a login provider as a `[[auth.providers]]` entry in `chatto.toml`. The
+login page shows one button for each provider. Sign-in and account linking open
+in a popup, so users must allow popups for Chatto.
 
 ## Supported providers
 
-| Type             | Use for                                      |
-| ---------------- | -------------------------------------------- |
-| `oidc` | Any standards-compatible OIDC provider, including [Pocket ID](/guides/integrations/pocket-id/) |
-| `github`         | GitHub OAuth apps                            |
-| `gitlab`         | GitLab OAuth applications                    |
-| `google`         | Google OAuth clients                         |
-| `discord`        | Discord OAuth2 applications                  |
+| Type | Use for |
+| ---- | ------- |
+| `oidc` | Any standard OIDC provider, for example [Pocket ID](#example-pocket-id) |
+| `github` | GitHub OAuth apps |
+| `gitlab` | GitLab OAuth applications |
+| `google` | Google OAuth clients |
+| `discord` | Discord OAuth2 applications |
 
-Other provider types are not exposed as curated providers yet. Use `oidc` for standards-compatible OIDC providers.
-
-<Aside type="tip" title="Self-hosted OIDC providers">
-  Options you may want to explore include [Pocket ID](https://pocket-id.org/), [Kanidm](https://kanidm.com/), [VoidAuth](https://github.com/voidauth/voidauth), [Portier](https://portier.github.io/), [Authelia](https://www.authelia.com/), [Dex](https://dexidp.io/), [Authentik](https://goauthentik.io/), and [Keycloak](https://www.keycloak.org/). Their account models and OIDC capabilities differ, so confirm that your chosen provider supports Chatto's generic OIDC configuration.
-</Aside>
+Self-hosted OIDC providers include [Pocket ID](https://pocket-id.org/),
+[Kanidm](https://kanidm.com/), [VoidAuth](https://github.com/voidauth/voidauth),
+[Portier](https://portier.github.io/), [Authelia](https://www.authelia.com/),
+[Dex](https://dexidp.io/), [Authentik](https://goauthentik.io/), and
+[Keycloak](https://www.keycloak.org/). Make sure that your provider supports
+standard OIDC discovery.
 
 ## Provider IDs
 
-Every provider needs a stable `id`. The ID appears in login URLs and is stored in external identity links, so changing it after users link accounts will strand those links.
+Each provider needs a stable `id`, for example `github-main` or
+`staff-google`. The ID is part of the callback URL, and Chatto stores it in
+each account link.
 
-Use short, URL-safe IDs that describe the local provider slot:
-
-```toml
-id = "chatto-hub"
-id = "github-main"
-id = "staff-google"
-```
-
-Provider IDs must not contain spaces, `/`, `?`, or `#`.
+- Use short, URL-safe IDs. Do not use spaces, `/`, `?`, or `#`.
+- Do not change an ID after users link accounts. A change disconnects those
+  links.
 
 ## Callback URLs
 
-Register this callback URL with each external provider:
+Register this callback URL with each provider:
 
 ```txt
 https://chat.example.com/auth/providers/{providerID}/callback
 ```
 
-For example, a provider with `id = "github-main"` on `https://chat.example.com` uses:
+Chatto makes the URL from `webserver.url`. Set `webserver.url` to the public
+HTTPS address of your server.
 
-```txt
-https://chat.example.com/auth/providers/github-main/callback
-```
-
-Chatto derives the callback from `webserver.url`, so set that value to the public HTTPS origin of your server.
-
-For older OIDC client registrations, Chatto also serves `/auth/oidc` and `/auth/oidc/callback` as compatibility aliases for the configured OIDC provider. New registrations should use the provider-specific callback URL.
-
-## CIMD public clients
-
-If your OIDC provider supports [Client ID Metadata Documents (CIMD)](https://client.dev/), Chatto can identify itself with a public metadata URL instead of a preregistered client ID and secret:
-
-```toml
-[webserver]
-url = "https://chat.example.com"
-
-[[auth.providers]]
-id = "authling"
-type = "oidc"
-label = "Authling"
-issuer_url = "https://id.example.com"
-client_id = "https://chat.example.com/oauth/client-metadata.json"
-auto_provision = true
-```
-
-The client ID must be exactly `{webserver.url}/oauth/client-metadata.json`, and `client_secret` must be omitted. Chatto publishes its provider-specific callback URL, Authorization Code grant, and public-client token authentication method in that document. Conventional preregistered OIDC clients remain supported.
-
-Authling is used through this same server-configured OIDC provider boundary.
-It stores identity-provider state only; the Chatto frontend keeps its known
-servers and their sessions on the current device.
+Older OIDC registrations can also use `/auth/oidc/callback`. Use the
+provider-specific URL for new registrations.
 
 ## Configuration
 
@@ -94,88 +60,22 @@ servers and their sessions on the current device.
 url = "https://chat.example.com"
 
 [[auth.providers]]
-id = "chatto-hub"
-type = "oidc"
-label = "Chatto Hub"
-issuer_url = "https://hub.chatto.dev"
-client_id = "..."
-client_secret = "..."
-# Optional: override the method selected from OIDC discovery.
-# token_endpoint_auth_method = "client_secret_basic"
-# Keep false for invite-only/account-linking deployments.
-auto_provision = false
-```
-
-`issuer_url` must be an absolute `http` or `https` URL. Chatto uses OIDC discovery from that issuer and verifies the ID token before matching the external identity.
-
-Set `token_endpoint_auth_method` to `client_secret_basic`, `client_secret_post`,
-or `none` when your client registration requires a specific method. The
-environment equivalent is `CHATTO_AUTH_PROVIDERS_0_TOKEN_ENDPOINT_AUTH_METHOD`.
-Basic and POST require `client_secret`; `none` requires that you omit it.
-This option applies only to `type = "oidc"`.
-
-Without an override, public clients use `none`. Confidential clients prefer
-Basic when discovery advertises it, then POST. If discovery omits the methods
-field, Chatto uses Basic. An empty or unsupported list fails before exchange.
-Chatto sends each authorization code once and does not retry with another
-authentication method.
-
-By default, Chatto does not request email claims from OIDC providers:
-
-```toml
-[[auth.providers]]
-id = "idp-main"
+id = "company-sso"
 type = "oidc"
 label = "Company SSO"
 issuer_url = "https://idp.example.com"
 client_id = "..."
-client_secret = "..."
-auto_provision = true
+client_secret = "<generate-me>"
+auto_provision = false
+# Optional: override the method from OIDC discovery.
+# token_endpoint_auth_method = "client_secret_basic"
 ```
 
-Email-less accounts can sign in, link identities, and count toward `limits.max_users` through the linked OIDC subject. They do not receive a Chatto verified email unless the provider later returns an explicitly verified email claim.
+`issuer_url` is an absolute `http` or `https` URL. Chatto uses OIDC discovery
+from this issuer and verifies the ID token.
 
 </TabItem>
-<TabItem label="Environment">
-
-For container platforms, configure providers with counted environment variables. Each provider uses `CHATTO_AUTH_PROVIDERS_<index>_<field>`, with indexes starting at `0` and no gaps:
-
-```bash
-CHATTO_AUTH_PROVIDERS_0_ID=chatto-hub
-CHATTO_AUTH_PROVIDERS_0_TYPE=oidc
-CHATTO_AUTH_PROVIDERS_0_LABEL="Chatto Hub"
-CHATTO_AUTH_PROVIDERS_0_ISSUER_URL=https://hub.chatto.dev
-CHATTO_AUTH_PROVIDERS_0_CLIENT_ID=...
-CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET=...
-CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL=false
-CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION=true
-
-CHATTO_AUTH_PROVIDERS_1_ID=github-main
-CHATTO_AUTH_PROVIDERS_1_TYPE=github
-CHATTO_AUTH_PROVIDERS_1_LABEL=GitHub
-CHATTO_AUTH_PROVIDERS_1_CLIENT_ID=...
-CHATTO_AUTH_PROVIDERS_1_CLIENT_SECRET=...
-CHATTO_AUTH_PROVIDERS_1_AUTO_PROVISION=false
-```
-
-Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`. `SCOPES` is comma-separated, for example `CHATTO_AUTH_PROVIDERS_0_SCOPES=openid,profile,groups`.
-
-Any `CHATTO_AUTH_PROVIDERS_<index>_*` variables replace providers from `chatto.toml`.
-
-Chatto also accepts the older single-provider OIDC variables for compatibility:
-
-```bash
-CHATTO_AUTH_OIDC_ENABLED=true
-CHATTO_AUTH_OIDC_ISSUER_URL=https://hub.chatto.dev
-CHATTO_AUTH_OIDC_CLIENT_ID=...
-CHATTO_AUTH_OIDC_CLIENT_SECRET=...
-# CHATTO_AUTH_OIDC_LABEL="Chatto Hub"
-```
-
-Those legacy variables create one `oidc` provider with `id = "oidc"`. Do not combine counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables with `CHATTO_AUTH_OIDC_ENABLED`.
-
-</TabItem>
-<TabItem label="GitHub">
+<TabItem label="GitHub, GitLab, Google, Discord">
 
 ```toml
 [webserver]
@@ -183,141 +83,149 @@ url = "https://chat.example.com"
 
 [[auth.providers]]
 id = "github-main"
-type = "github"
+type = "github"   # or "gitlab", "google", "discord"
 label = "GitHub"
 client_id = "..."
-client_secret = "..."
+client_secret = "<generate-me>"
 auto_provision = false
 ```
 
 </TabItem>
-<TabItem label="GitLab">
+<TabItem label="Environment">
 
-```toml
-[webserver]
-url = "https://chat.example.com"
+```bash
+CHATTO_AUTH_PROVIDERS_0_ID=company-sso
+CHATTO_AUTH_PROVIDERS_0_TYPE=oidc
+CHATTO_AUTH_PROVIDERS_0_LABEL="Company SSO"
+CHATTO_AUTH_PROVIDERS_0_ISSUER_URL=https://idp.example.com
+CHATTO_AUTH_PROVIDERS_0_CLIENT_ID=...
+CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET=<generate-me>
+CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION=false
 
-[[auth.providers]]
-id = "gitlab-main"
-type = "gitlab"
-label = "GitLab"
-client_id = "..."
-client_secret = "..."
-auto_provision = false
+CHATTO_AUTH_PROVIDERS_1_ID=github-main
+CHATTO_AUTH_PROVIDERS_1_TYPE=github
+CHATTO_AUTH_PROVIDERS_1_LABEL=GitHub
+CHATTO_AUTH_PROVIDERS_1_CLIENT_ID=...
+CHATTO_AUTH_PROVIDERS_1_CLIENT_SECRET=<generate-me>
 ```
 
-</TabItem>
-<TabItem label="Google">
+Indexes start at `0` and must not have gaps. Fields are `ID`, `TYPE`, `LABEL`,
+`CLIENT_ID`, `CLIENT_SECRET`, `TOKEN_ENDPOINT_AUTH_METHOD`, `ISSUER_URL`,
+`SCOPES` (comma-separated), `REQUEST_EMAIL`, `AUTO_PROVISION`, and
+`PROVIDER_OPTIONS_<KEY>`.
 
-```toml
-[webserver]
-url = "https://chat.example.com"
-
-[[auth.providers]]
-id = "staff-google"
-type = "google"
-label = "Google"
-client_id = "..."
-client_secret = "..."
-auto_provision = false
-```
-
-</TabItem>
-<TabItem label="Discord">
-
-```toml
-[webserver]
-url = "https://chat.example.com"
-
-[[auth.providers]]
-id = "discord-main"
-type = "discord"
-label = "Discord"
-client_id = "..."
-client_secret = "..."
-auto_provision = false
-```
+If you set any `CHATTO_AUTH_PROVIDERS_<index>_*` variable, Chatto ignores the
+providers in `chatto.toml`. Chatto also accepts the older
+`CHATTO_AUTH_OIDC_ENABLED`, `_ISSUER_URL`, `_CLIENT_ID`, `_CLIENT_SECRET`, and
+`_LABEL` variables. They create one `oidc` provider with `id = "oidc"`. Do not
+use them together with counted variables.
 
 </TabItem>
 </Tabs>
 
-## Scopes
+### Token endpoint authentication
 
-By default, Chatto requests the minimum provider scopes needed to identify the
-provider account. Email scopes are only requested when `request_email = true`.
+For `oidc` providers only, `token_endpoint_auth_method` can be
+`client_secret_basic`, `client_secret_post`, or `none`. Basic and POST need a
+`client_secret`. `none` needs no secret.
 
-| Type             | Scopes when `request_email = false` | Scopes when `request_email = true` |
-| ---------------- | ----------------------------------- | ---------------------------------- |
-| `oidc`           | `openid`, `profile`                 | `openid`, `profile`, `email`       |
-| `github`         | none                                | `read:user`, `user:email`          |
-| `gitlab`         | none                                | `read_user`                        |
-| `google`         | `openid`, `profile`                 | `openid`, `profile`, `email`       |
-| `discord`        | `identify`                          | `identify`, `email`                |
+When you do not set it, public clients use `none`. Other clients use Basic if
+discovery lists it, and POST if not. If discovery does not list methods, Chatto
+uses Basic. Chatto does not try a second method after a failed exchange.
 
-You can override scopes per provider:
+## CIMD public clients
+
+If your OIDC provider supports
+[Client ID Metadata Documents (CIMD)](https://client.dev/), you do not need to
+register a client ID and secret:
 
 ```toml
 [[auth.providers]]
-id = "chatto-hub"
+id = "company-sso"
 type = "oidc"
-issuer_url = "https://id.example.com"
-client_id = "..."
-client_secret = "..."
+label = "Company SSO"
+issuer_url = "https://idp.example.com"
+client_id = "https://chat.example.com/oauth/client-metadata.json"
+auto_provision = true
+```
+
+Set `client_id` to exactly `{webserver.url}/oauth/client-metadata.json` and do
+not set `client_secret`. Chatto publishes its callback URL and client metadata
+at that URL.
+
+## Scopes
+
+Chatto requests only the scopes that identify the account. It requests email
+scopes only when `request_email = true`. The default is `false`.
+
+| Type | Default scopes | With `request_email = true` |
+| ---- | -------------- | --------------------------- |
+| `oidc` | `openid`, `profile` | `openid`, `profile`, `email` |
+| `github` | none | `read:user`, `user:email` |
+| `gitlab` | none | `read_user` |
+| `google` | `openid`, `profile` | `openid`, `profile`, `email` |
+| `discord` | `identify` | `identify`, `email` |
+
+To set different scopes:
+
+```toml
+[[auth.providers]]
+# ...
 scopes = ["openid", "profile", "groups"]
 ```
 
-For OIDC providers, Chatto always includes `openid` even if you omit it from a custom scope list.
-
-`request_email` defaults to `false`. Set `request_email = true` to request provider email scopes. For OIDC, the default request is `openid profile`; Chatto can create, link, and sign in accounts from the provider `sub` without receiving an email claim.
+Chatto always adds `openid` for OIDC providers.
 
 ## Auto-provisioning
 
-`auto_provision` controls whether an unlinked provider identity may create a new account.
+`auto_provision` controls whether a new provider identity can create an
+account.
 
-- `auto_provision = false` is the safe default. Unlinked users are returned to the login screen with an explanation, and existing users can still link the provider from account settings.
-- `auto_provision = true` creates a short-lived pending account-creation flow after the provider callback. The user must explicitly confirm the username before the account is created.
+- `false` (default): Chatto returns the user to the login page with an
+  explanation. Existing users can link the provider from account settings.
+- `true`: the user confirms a username, and then Chatto creates the account.
 
-Auto-provisioning never silently merges by email. If a person already has a local account, they should sign in with that account and link the provider from account settings.
+With [invite-only account creation](/guides/operations/identity-login/#invite-only-account-creation),
+new accounts also need an invite link.
 
 ## Account matching
 
-Chatto matches external logins by provider identity, not by email address.
+Chatto matches a login by provider identity, never by email address:
 
-- OIDC providers are matched by verified issuer URL plus subject.
-- OAuth-only providers are matched by the configured provider ID plus provider user ID.
-- Email claims are optional profile data and are not used to pick an account.
+- OIDC: the verified issuer and the subject.
+- OAuth providers: the provider `id` and the provider user ID.
 
-If a provider callback returns an identity that is not linked to an account, Chatto does not silently pick an account by email.
+To link a provider, a user signs in, opens account settings, and confirms their
+password or signs in again. An identity that is linked to a different account
+cannot be linked. Removing a provider needs confirmation and keeps existing
+sessions.
 
-Set `auto_provision = true` on a provider to allow new users from that provider to create accounts. If `auto_provision` is omitted or `false`, an unlinked provider identity cannot create an account.
-
-Existing users can link providers from their account settings. Linking requires a recent sign-in or current-password check. After the user authorizes the provider, Chatto completes the link without another confirmation, closes the popup, and updates the account page. An identity already linked to another account cannot be linked. New account creation still requires confirmation. Disconnecting a provider requires confirmation and, when needed, your current password. It removes that sign-in method and keeps existing sessions active.
-
-Accounts created through an email-less provider are passwordless until the user adds a password in account settings. Password reset by email requires a verified email address, so operators running SSO without email should keep at least one trusted provider link available for affected users.
+An account without an email address has no password until the user sets one.
+Email password reset needs a verified email address. On SSO servers without
+email, make sure that each user keeps at least one working provider link.
 
 ## Verified email and verified factors
 
-A linked external identity is a verified sign-in factor. It is enough for login and for `limits.max_users`, even when the provider did not return an email address.
+A linked identity is enough to sign in and counts toward `limits.max_users`,
+even without an email address. Chatto stores a provider email as a verified
+email only when the provider confirms it:
 
-A Chatto verified email is stricter. Chatto creates one from a provider email only when the provider adapter has an explicit verification signal:
-
-| Provider | When Chatto stores a verified email |
+| Provider | Chatto stores a verified email when |
 | -------- | ----------------------------------- |
 | `oidc` | `email` is present and `email_verified = true` |
-| `github` | The GitHub emails API returns a verified primary email |
-| `google` | Goth profile data includes `verified_email` or `email_verified` |
-| `discord` | Goth profile data includes `verified = true` |
-| `gitlab` | Not currently promoted to a Chatto verified email |
+| `github` | GitHub returns a verified primary email |
+| `google` | The profile marks the email as verified |
+| `discord` | The profile has `verified = true` |
+| `gitlab` | Never |
 
-Verified email matters for email password reset and for `owners.emails` owner promotion. A linked SSO identity alone does not match `owners.emails`.
+Password reset and `owners.emails` need a verified email. A linked identity
+alone does not make a user an owner.
 
 ## Discovery fields
 
-Public clients can discover configured providers through server discovery:
-
-- `chatto.discovery.v1.ServerDiscoveryService.GetServer` returns provider IDs, types, labels, and login URLs in `login.providers`.
-
-You can call the discovery RPC with Connect JSON:
+Clients find the configured providers through
+`chatto.discovery.v1.ServerDiscoveryService.GetServer`. The `login.providers`
+field lists each provider ID, type, label, and login URL:
 
 ```sh
 curl -X POST https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer \
@@ -326,4 +234,89 @@ curl -X POST https://chat.example.com/api/connect/chatto.discovery.v1.ServerDisc
   --data '{}'
 ```
 
-Provider IDs stay provider-specific, so an OIDC provider can use an ID such as `chatto-hub` while reporting its provider `type` as `oidc`.
+## Example: Pocket ID
+
+[Pocket ID](https://pocket-id.org/) lets people sign in with passkeys. This
+example uses `https://chat.example.com` for Chatto and `https://id.example.com`
+for Pocket ID. Both must use HTTPS and must reach each other at these URLs.
+
+<Steps>
+
+1. **Create the client.** In Pocket ID, open **OIDC Clients** and select
+   **Add OIDC Client**:
+
+   | Field | Value |
+   | --- | --- |
+   | Name | `Chatto` |
+   | Callback URL | `https://chat.example.com/auth/providers/pocket-id/callback` |
+   | Client Launch URL | `https://chat.example.com` (optional) |
+
+   Save the client. Copy the **Client ID** and **Client Secret**.
+
+2. **Give users access.** In **Allowed User Groups**, select the groups that
+   can use Chatto, or select **Unrestrict** for all users. Until you do this,
+   Pocket ID denies access to everyone. Pocket ID groups do not give Chatto
+   roles or permissions.
+
+3. **Configure Chatto.** Set `issuer_url` to the Pocket ID base URL, without
+   `/.well-known/openid-configuration`:
+
+   <Tabs>
+   <TabItem label="TOML">
+
+   ```toml
+   [webserver]
+   url = "https://chat.example.com"
+
+   [[auth.providers]]
+   id = "pocket-id"
+   type = "oidc"
+   label = "Pocket ID"
+   issuer_url = "https://id.example.com"
+   client_id = "<pocket-id-client-id>"
+   client_secret = "<generate-me>"
+   auto_provision = false
+   ```
+
+   </TabItem>
+   <TabItem label="Environment">
+
+   ```bash
+   CHATTO_WEBSERVER_URL=https://chat.example.com
+   CHATTO_AUTH_PROVIDERS_0_ID=pocket-id
+   CHATTO_AUTH_PROVIDERS_0_TYPE=oidc
+   CHATTO_AUTH_PROVIDERS_0_LABEL="Pocket ID"
+   CHATTO_AUTH_PROVIDERS_0_ISSUER_URL=https://id.example.com
+   CHATTO_AUTH_PROVIDERS_0_CLIENT_ID=<pocket-id-client-id>
+   CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET=<generate-me>
+   CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION=false
+   ```
+
+   </TabItem>
+   </Tabs>
+
+   Replace `<generate-me>` with the Pocket ID client secret.
+
+4. **Choose how accounts are created.** Keep `auto_provision = false` on an
+   existing or invite-only server. Users then link Pocket ID from account
+   settings. Set it to `true` to let all allowed Pocket ID users create
+   accounts.
+
+5. **Restart and test.** Restart Chatto, open the login page, and select
+   **Pocket ID**. With `auto_provision = false`, first sign in to an existing
+   account, link Pocket ID, sign out, and then sign in with Pocket ID.
+
+</Steps>
+
+To get a verified email from Pocket ID, add `request_email = true`. Chatto
+stores the address only when Pocket ID also returns `email_verified = true`.
+
+## Troubleshooting
+
+| Symptom | Solution |
+| ------- | -------- |
+| The provider rejects the callback | Make the registered callback URL match `https://chat.example.com/auth/providers/{providerID}/callback` exactly, including `https`. Set `webserver.url` to the public HTTPS URL. |
+| Chatto cannot discover the provider | Set `issuer_url` to the public base URL of the provider, without a discovery path. For Pocket ID, `APP_URL` must also be that URL. |
+| Pocket ID says that the user is not allowed | Select **Allowed User Groups**, or select **Unrestrict**. |
+| Chatto does not create an account | Set `auto_provision = true`, or sign in to an existing account and link the provider first. |
+| Links stopped working after a change | Restore the original provider `id` and its callback URL. |
