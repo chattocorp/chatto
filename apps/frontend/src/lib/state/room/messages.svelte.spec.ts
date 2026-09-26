@@ -3705,6 +3705,41 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('lets a thread page older again after a refresh supersedes its page load', async () => {
+    type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEvents']>>;
+    const older = deferred<ThreadPage>();
+    const latest = {
+      events: [threadMessageEvent('t1') as never, threadMessageEvent('r80', 't1') as never],
+      startCursor: 'tl:cursor-80',
+      endCursor: 'tl:cursor-80',
+      hasOlder: true,
+      hasNewer: false
+    };
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi
+        .fn<RoomTimelineAPI['getThreadEvents']>()
+        .mockResolvedValueOnce(latest)
+        .mockImplementationOnce(() => older.promise)
+        .mockResolvedValue(latest)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
+    await settle();
+
+    const loading = store.loadMore();
+    expect(store.isLoadingMore).toBe(true);
+    await store.refreshCurrentWindow(null);
+    older.resolve(latest);
+    await loading;
+
+    expect(store.isLoadingMore).toBe(false);
+    store.dispose();
+  });
+
   it('fails a thread jump whose target does not load', async () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,

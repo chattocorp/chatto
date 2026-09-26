@@ -448,6 +448,8 @@ export class MessagesStore {
 
   /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
   private startLoad(): number {
+    // A superseded loadMore cannot clear its own flag, so clear it here.
+    this.isLoadingMore = false;
     if (this.#pendingAuthoritativeLoadId !== null) {
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
