@@ -1,341 +1,267 @@
 ---
 title: Permissions & Roles
-description: Control what people can do on your server and in individual rooms.
+description: Control what people and bots can do on your server, in rooms, and in direct messages.
 ---
 
-import { Aside, LinkCard } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-Use **roles** to give the same permissions to several people. A **permission** controls one action, such as posting messages or managing rooms.
+A **permission** controls one action, such as posting messages or managing
+rooms. A **role** gives a set of permissions to many people. Each permission
+setting is **Allow**, **Deny**, or **Inherit**.
 
-Every signed-in user belongs to the `everyone` role. You can also give them built-in roles such as `moderator` or `admin`, or create your own roles.
+## How permissions work
 
-The main rules are:
+- **Every signed-in person has the `everyone` role.** You can also assign the
+  built-in `moderator` and `admin` roles, and your own roles.
+- **You set a permission at a scope.** A channel room checks Room, then Room
+  group, then Server. A direct message (DM) checks Direct messages, then
+  Server. **Inherit** uses the next broader setting of the same user or role.
+- **The most specific setting wins for one user or role.** A room setting
+  replaces the room-group and server settings of that user or role. It does not
+  replace the settings of a different role.
+- **A deny wins.** If the user or one of their roles denies an action, Chatto
+  denies it, even when a different role allows it.
+- **`everyone` is the baseline.** An allow on a user or a named role overrides
+  an `everyone` deny only at the same scope or a more specific scope.
+- **No setting means no access.**
+- **Owners have every permission in privileged mode.** Without the mode, an
+  owner has only the permissions of their roles and grants. You cannot lock
+  out an owner, because an owner can always enable privileged mode. A user is
+  an owner when they have the `owner` role or a verified email address in
+  `owners.emails` in `chatto.toml`. Use `owners.emails` to recover access if
+  you lock yourself out.
+- **Message access also needs membership.** An account must be a member of the
+  room or the DM to read it. Owners and administrators cannot read DMs that
+  they are not part of.
 
-- **Owners are entitled to every permission.** A user is an owner when they have the `owner` role or a verified email listed in `owners.emails`. The owner permissions become effective only while privileged mode is active. At other times, owners have the same permissions as other users with their roles and grants.
-- **A deny on a user or one of their assigned roles wins.** For example, a deny from a `suspended` role overrides an allow from `admin`.
-- **More specific settings replace broader ones for the same user or role.** A channel uses Room, Room group, then Server. A DM uses Direct messages, then Server.
-- **`everyone` provides the default.** A user or role can override an `everyone` deny, but its allow must be at least as specific as the deny.
+| Settings | Result |
+| -------- | ------ |
+| Server: `everyone` Deny, `admin` Allow | **Allowed** for admins. Both settings are at the same scope. |
+| Room: `everyone` Deny. Server: `admin` Allow | **Denied**. The room setting is more specific. Add a room-level allow for `admin`. |
+| Server: `admin` Allow, `suspended` Deny | **Denied** for a user with both roles. The deny wins. |
 
-## Manage account room membership
-
-Open a human or bot account's permission matrix. Use the **Joined** row at the
-top to add or remove that account from a channel room. Confirm the action in
-the dialog to apply it immediately. Cancel leaves membership unchanged.
-Configured permission grants stay unchanged.
-
-You need `user.manage-accounts` or `room.manage` for the room to manage human
-membership. Either permission lets you add an account even when that account
-has no `room.join` permission for the room. For example, a manager of room R
-can add user U to R while U cannot join R without help.
-
-Bot owners and users with `bot.manage` can also manage their bots. Without an
-account or room management override, the bot needs effective `room.join`,
-including its owner's permission ceiling. See [Bot accounts](/guides/integrations/bot-accounts/).
-
-Bans and archived rooms prevent adding accounts. You can remove an account
-after it loses `room.join`, including from archived rooms. Universal membership
-is automatic. The row does not manage DMs or grant message permissions.
+Bots do not get permissions from `everyone` or from other roles. A bot has only
+the permissions that you allow directly on the bot, and never more than its
+owner has. See [Bot accounts](/guides/integrations/bot-accounts/).
 
 ## Built-in roles
 
-Every Chatto server starts with four system roles. You cannot delete them.
+Every server has four system roles. You cannot delete them. The order of the
+roles does not change which setting wins.
 
-| Role          | Default behavior                                                                                                                                                                                                                                                                         |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, message reading, posting, thread posting, attaching files, reactions, echoing thread replies, calls, and deleting your own account.                                            |
-| **moderator** | Adds server-wide moderation defaults for managing messages and banning room members.                                                                                                                                                                                                     |
-| **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. Ordinary posting, attachments, threads, reactions, and echoing otherwise come from `everyone`. System diagnostics remain owner-only. |
-| **owner**     | Is entitled to every permission virtually. These permissions become effective only in privileged mode. Owner permissions are not stored as editable grants.                                                                                                                              |
+| Role | Defaults on a new server (Server scope) |
+| ---- | --------------------------------------- |
+| `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `bot.create`, `user.delete-self` |
+| `moderator` | `message.manage`, `room.remove-member` |
+| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.manage` |
+| `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
-The order of roles in the admin UI does not affect which permissions win.
+Moderators and admins get their member permissions from `everyone`. A new
+server also makes the `announcements` room read-only: in that room, it denies
+`message.post` for `everyone` and allows it for `admin`. Owners can post there
+only in privileged mode.
 
 ## Privileged mode
 
-Chatto keeps administrative and moderation permissions inactive during normal
-chat use. When you need these permissions, select the shield in your current-
-user area and confirm **Enable privileged mode**. The activation applies only
-to the selected server session. It lasts for 15 minutes and does not extend
-when you use a permission. Select the active shield to disable it sooner.
-The interface updates effective permissions immediately. At expiry, the server
-reconnects the live projection so elevated controls turn off without a page
-reload.
+Administrative and moderation permissions stay off during normal chat use. To
+use them:
 
-The Moderation link and page are available only when you have active
-server-wide `room.remove-member` permission. If you disable privileged mode while
-the page is open, the page shows an access-denied screen.
+<Steps>
 
-For Chatto 0.5, review role and user grants that used `room.ban-member`.
-That old permission does not grant `room.remove-member`. Grant the new
-permission at the scopes where moderators must remove members or lift
-suspensions. Chatto does not copy old grants during upgrade.
+1. Select the shield in your user area.
+2. Confirm **Enable privileged mode**.
 
-The mode activates permissions, not role names. It therefore also covers
-custom roles and direct user grants. It does not add authority: a role removal
-or deny still takes effect while the mode is active.
+</Steps>
 
-For owners, the mode also activates the owner permissions. Without the mode,
-an owner cannot see, join, or read a room that denies these actions to
-`everyone`, unless another role or a direct grant allows them. Restricted rooms
-appear in the room directory when you enable the mode and disappear when it
-ends. If you joined such a room while the mode was active, you stay a member,
-but you cannot read the room until you enable the mode again. If you join a
-call in such a room, Chatto removes you from the call shortly after the mode
-ends. Notifications use your permissions without the mode. MCP clients cannot
-enable the mode.
+Privileged mode lasts 15 minutes and does not extend. Select the shield again
+to stop it sooner. It applies only to the server
+session where you enabled it. The event log records each activation and
+deactivation.
 
-The initial elevation-required set includes message moderation, room creation
-and management, role and user administration, server management, invite and
-bot administration, audit access, and owner-only system diagnostics. Normal
-message use and editing or deleting your own messages do not require the mode.
-Bot API keys do not use privileged mode. Bot permissions are limited by their
-explicit grants and their owner's current RBAC entitlement. Human session
-activation does not change this ceiling or the bot's displayed permissions.
-Granting an elevation-required permission to a bot requires you to have that
-permission active at the target scope. Removing a grant does not require
-activation of that permission.
+Privileged mode turns on permissions, not roles. It applies to each permission
+marked **Yes** in the [permission reference](#permission-reference), from any
+role or user setting. It does not give you permissions that you do not have.
 
-The event log records each successful activation and explicit deactivation.
-An activation entry includes its deadline, which also records when automatic
-expiry will occur.
+For owners, privileged mode also turns on the owner permissions. Without the
+mode, an owner cannot see, join, or read a room that denies this to
+`everyone`, unless one of their roles or a direct grant allows it. If an owner
+joins such a room in privileged mode, they stay a member, but they can read the
+room only while the mode is active. Chatto removes them from a call in such a
+room shortly after the mode ends. Notifications use the permissions without the
+mode. MCP clients cannot enable privileged mode.
 
-## How a permission check works
+Without privileged mode, Server Administration stays visible, but its
+protected actions are not available. The Moderation page needs server-wide
+`room.remove-member`, so it is available only in privileged mode.
 
-When a user tries to do something, Chatto checks permissions in this order:
+Bots do not use privileged mode. To allow a privileged permission for a bot,
+you must have that permission active at the same scope. You can remove a bot's
+permission without privileged mode.
 
-1. Owners with active privileged mode have every permission. Without the mode, owners continue with the steps below like other users. DM membership rules still apply, so owners cannot read DMs they are not part of.
-2. For the user and each assigned role, Chatto selects the nearest setting in the channel or DM scope chain.
-3. If any of those settings is **Deny**, the action is denied. Otherwise, Chatto keeps any **Allow** it found.
-4. Chatto compares that result with the most specific setting for `everyone`. An allow for the user or an assigned role can override an `everyone` deny only if it is at the same or a more specific scope.
-5. If no setting applies, the action is denied.
+## Permission reference
 
-Here are three common examples:
+Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
+**All** means all four scopes.
 
-| Settings                                        | Result                                                                                                   |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Server `everyone`: Deny; server `admin`: Allow  | **Allowed** for admins because both settings are at the same scope.                                      |
-| Room `everyone`: Deny; server `admin`: Allow    | **Denied** because the room setting is more specific. Add a room-level admin allow to make an exception. |
-| Server `admin`: Allow; server `suspended`: Deny | **Denied** because a deny on an assigned role wins.                                                      |
+| Permission | Scopes | Privileged | Allows |
+| ---------- | ------ | ---------- | ------ |
+| `server.manage` | S | Yes | Change server settings, such as the name, description, and logo. Includes `server.manage-neighbors`. |
+| `server.manage-neighbors` | S | Yes | Manage the public Neighbor directory. |
+| `room.list` | S, G, R | | See rooms in the room directory and room lists. |
+| `room.join` | S, G, R | | Join channel rooms. |
+| `room.create` | S, G | Yes | Create channel rooms. |
+| `room.manage` | S, G, R | Yes | Configure, rename, archive, and delete rooms and room groups at that scope, and add or remove room members. At Server scope, also create and order room groups. |
+| `room.remove-member` | S, G, R | Yes | Remove a member from a channel room, with a reason and an optional suspension. Replaces `room.ban-member`. |
+| `message.read` | All | | Read messages, threads, attachments, search results, and typing indicators. Includes `message.read-interactions`. |
+| `message.read-interactions` | All | | Read only threads that the account started, where another account mentioned it directly, or where it received a DM. It can read the full thread. |
+| `message.post` | All | | Post messages and thread replies. At DM scope, a person can also start DMs. Includes `message.post-in-thread` and `message.post-in-interactions`. |
+| `message.post-in-thread` | All | | Reply in each thread that the account can read. |
+| `message.post-in-interactions` | All | | Reply only in the threads that `message.read-interactions` describes. |
+| `message.attach` | All | | Attach files to new messages. |
+| `message.react` | All | | Add and remove reactions. |
+| `message.echo` | All | | Echo a thread reply to the room. |
+| `message.manage` | All | Yes | Edit or delete messages from other accounts. |
+| `call.start` | All | | Start a call. Also needs `call.join`. |
+| `call.join` | All | | Join a call, also as a listener. |
+| `call.voice` | All | | Send microphone audio. |
+| `call.camera` | All | | Send camera video. |
+| `call.screenshare` | All | | Share a screen, window, tab, or application, with its audio. |
+| `role.manage` | S | Yes | Create, change, and delete roles and their permission settings. |
+| `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
+| `admin.view-users` | S | Yes | See the member list in Server Administration. |
+| `admin.view-audit` | S | Yes | See the event log. |
+| `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
+| `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
+| `user.manage-permissions` | S | Yes | Change the permission settings of one user. |
+| `user.delete-any` | S | Yes | Delete any account. |
+| `user.delete-self` | S | | Delete your own account. |
+| `bot.create` | S | | Create bots that you own. |
+| `bot.manage` | S | Yes | Manage all bots on the server. |
 
-<Aside type="tip">
-  Set ordinary member defaults on `everyone`. Use named roles for reusable
-  access, and direct-user settings for one-off exceptions. Put room-specific
-  rules on the room. For restrictions, use a direct-user or restriction-role
-  deny and avoid adding a nearer allow to that same subject.
-</Aside>
+System diagnostics are only for owners. They are not a permission.
 
-## Posting permissions
+An allow for a broad permission also allows the permissions that it includes. A
+deny for an included permission does not restrict that broad allow. For
+example, to stop all posting, deny `message.post`, `message.post-in-thread`,
+and `message.post-in-interactions`.
 
-`message.post` permits roots and thread replies. It includes
-`message.post-in-thread` (reply in any readable thread) and
-`message.post-in-interactions` (reply only in readable threads with an interaction
-relationship). An authored root, a direct mention from another account, or a
-received DM creates that relationship. All three grants remain subject to room
-membership and Threading Mode. Read permission is separate.
+Posting also needs room membership and must agree with the room's Threading
+Mode. A thread reply also needs read access to the thread. `room.manage` and
+`message.manage` bypass Slow Mode. See [Calls](/guides/infrastructure/voice-calls/) for media limits in
+calls.
 
-Existing `message.post` allows now include thread replies. A deny of a narrower
-permission cannot restrict an effective broad allow. Review existing grants:
-remove broad posting before granting reply-only access. Root-only posting is
-no longer a separate permission. To prevent all posting, deny all three posting
-permissions and check for effective allows. Complete the server rollout before
-you rely on interaction posting; older replicas do not support it.
+## Direct messages
 
-## Scopes
+DMs use the `message.*` and `call.*` permissions at the **Direct messages**
+scope. No `room.*` permission applies to DMs. If you do not set a Direct
+messages value, the Server setting applies.
 
-Permissions can be configured at different scopes:
-
-| Scope               | Meaning                                                  |
-| ------------------- | -------------------------------------------------------- |
-| **Server**          | Global defaults or restrictions across the whole server. |
-| **Direct messages** | Global overrides for message and call actions in all DMs.          |
-| **Group**           | Defaults or restrictions for a channel-room group.        |
-| **Room**            | Local exceptions for one channel room.                    |
-
-Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the next broader setting for this same user or role". For example, a room set to Inherit checks the room group, then the server. It never inherits a setting from another role.
-
-All `message.*` and `call.*` permissions can be configured at Direct messages scope. No
-`room.*` permission applies there. Channel-relevant permissions can use Room,
-Group, and Server scope. Server-only permissions use only Server scope.
-
-Permission identifiers are opaque, stable values. Their punctuation does not
-define authority. Chatto defines one explicit inclusion: an effective
-`message.read` allow also allows
-`message.read-interactions`. The reverse is not true. A deny for the narrower
-permission cannot restrict broad read access, and a deny for broad read access
-does not restrict a separate narrow allow. An effective `server.manage` allow
-also includes `server.manage-neighbors` through the same explicit metadata.
-
-## Important permissions
-
-| Permission                | Meaning                                                                                                                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `server.manage-neighbors` | Create, read, update, and delete servers in the public Neighbor directory. `server.manage` includes this permission. |
-| `message.read`            | Read room and thread content, attachments, search results, typing indicators, and message-derived activity. It includes `message.read-interactions`. Room membership is also required. |
-| `message.read-interactions` | Read a complete thread when the account authored its root, another account directly mentioned it there, or it received a DM there. Current room membership is also required. |
-| `message.post`            | Post roots and thread replies. Includes both narrower posting grants. A human with this permission at DM scope can also start DMs. A bot cannot start a DM. |
-| `message.post-in-thread`  | Reply in any readable channel-room or DM thread. |
-| `message.post-in-interactions` | Reply only in readable threads with an interaction relationship. |
-| `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
-| `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
-| `message.react`           | Add or remove reactions.                                                                                                                                                        |
-| `message.echo`            | Echo thread replies to the main channel.                                                                                                                                        |
-| `call.start` | Start a call. Also requires `call.join` and room membership. |
-| `call.join` | Join an ongoing call, including as a listener. Requires room membership. |
-| `call.voice` | Publish microphone audio. |
-| `call.camera` | Publish webcam video. |
-| `call.screenshare` | Share a screen, window, or game, including captured audio. |
-| `room.list`               | See rooms in the directory and room lists.                                                                                                                                      |
-| `room.join`               | Join channel rooms.                                                                                                                                                             |
-| `room.create`             | Create channel rooms.                                                                                                                                                           |
-| `room.manage`             | Configure, rename, archive, or delete rooms and room groups at the effective scope, including explicit channel-room membership. A server-scope grant also permits global room-group creation and ordering. |
-| `room.remove-member`      | Remove a current channel-room member with a reason. You can also suspend rejoining for a set period or indefinitely. |
-| `role.manage`             | Configure role definitions and role permission decisions, including room and room-group overrides.                                                                              |
-| `role.assign`             | Assign or revoke roles for users. Non-owners can only manage roles whose explicit scoped decisions are within their own authority; the `owner` role is owner-only.              |
-| `user.invite`             | List, create, copy, and revoke invite links. This exposes every active invite-link capability to the holder.                                                              |
-| `user.manage-accounts`    | Create users, edit account identity, reset passwords, attach verified emails, clear login cooldowns, and bypass your own login cooldown.                                         |
-| `user.manage-permissions` | Edit direct per-user permission overrides.                                                                                                                                      |
-| `user.delete-any`         | Delete any user's account.                                                                                                                                                      |
-| `user.delete-self`        | Delete your own account.                                                                                                                                                        |
-
-The full list is visible in the admin UI.
-
-Call permissions do not require privileged mode. New and upgraded servers grant
-all five to `everyone`. Upgrade initialization preserves earlier explicit call
-permission decisions, including cleared grants. See [Voice calls](/guides/infrastructure/voice-calls/)
-for media restrictions and active-call revocation.
-
-<Aside type="caution" title="Existing servers need explicit read grants">
-  Chatto applies defaults only when it bootstraps an empty RBAC stream. Before
-  or during an upgrade to 0.5, grant `message.read` to each role or account
-  that must keep message access. Grant it to `everyone` at Server
-  scope to preserve the previous broad membership-based behavior. Grant
-  `message.read-interactions` where accounts or bots must read only related
-  threads. Chatto does not migrate, backfill, or reconcile existing RBAC
-  state. Existing servers inherit Server decisions at Direct messages scope
-  until an operator adds an override.
-</Aside>
-
-Slow Mode is room configuration rather than a permission. It paces new
-messages from ordinary members across the room and its threads. Effective
-`room.manage` or `message.manage` grants bypass its timer; `message.post` and
-`message.post-in-thread` still decide whether the user may post at all. Edits,
-deletions, reactions, and attachment selection are unaffected.
+- Only people can start a DM. They need `message.post`. A bot cannot start a
+  DM, even with `message.post`. After a person starts a DM with a bot, the bot
+  can use the DM permissions that you allow for it.
+- A participant with `message.manage` can edit or delete the messages of other
+  participants. Nobody can moderate a DM that they are not part of.
 
 ## Common patterns
 
-### Read-only announcements for normal members
+### Read-only room
 
-Fresh servers make announcement rooms read-only for normal members. At the room level, they deny `message.post` for `everyone` and allow it for `admin`.
+In the room's permissions, deny `message.post` for `everyone`. Allow it for
+each role that can post, in the same room. To also stop replies, deny
+`message.post-in-thread` and `message.post-in-interactions` for `everyone`. To
+stop uploads, deny `message.attach`. Remove the denies to go back to the server
+defaults.
 
-Normal members, moderators, and roles with only server-level posting access cannot post there. Admins can post. Owners can post while privileged mode is active. To let an owner post without the mode, give them the `admin` role or a room-level `message.post` allow. You can let another role post by giving it a room-level `message.post` allow.
+### Room for one role only
 
-To prevent thread replies in announcements, also deny `message.post-in-thread`
-and `message.post-in-interactions` for `everyone` in that room. An effective broad
-posting allow still permits replies. Deny `message.attach` to prevent file uploads.
+<Steps>
 
-### Only one role can see and join a room
-
-To make a room available only to a role such as `engineering`:
-
-1. Create the `engineering` role and assign it to the intended members.
+1. Create a role, such as `engineering`, and assign it.
 2. In the room's permissions, deny `room.list` and `room.join` for `everyone`.
 3. In the same room, allow `room.list` and `room.join` for `engineering`.
-4. Enable **Universal** if people with the role should automatically join the room. Otherwise, they can see the room and choose to join it.
-5. Remove any explicit room members who should no longer have access. Existing explicit members can still see their joined room even when `room.list` is denied.
+4. Turn on **Universal** to add each member of the role to the room
+   automatically.
+5. Remove the current room members who must not have access.
 
-If **Universal** added someone to the room, removing their role also removes them from the room. If they joined themselves or an admin added them, removing the role does not remove that separate membership.
+</Steps>
 
-Other roles need their own room-level allow. A server or room-group allow cannot override the room-level `everyone` deny. Owners can access the room only while privileged mode is active, unless they have the role or their own allow.
+Other roles need their own allow in the room. A server or room-group allow does
+not override the room-level `everyone` deny. Owners can access the room only in
+privileged mode, unless they have the role or their own allow. If **Universal** added a user,
+removing the role also removes the user from the room.
 
-### Normal-member room lockdown
+### Suspend a user
 
-To temporarily stop normal members from posting in a room:
+Create a `suspended` role. At Server scope, deny `message.post`,
+`message.post-in-thread`, and `message.post-in-interactions`. You can also deny
+`message.attach`, `message.react`, and `message.echo`. Assign the role to the
+user. Do not add room or room-group allows to this role, because they replace
+its server-level denies.
 
-1. Open the room's permissions.
-2. Deny `message.post` for `everyone`.
-3. Deny `message.post-in-thread` and `message.post-in-interactions` to prevent replies. Optionally deny `message.attach` and `message.react` as well.
+For a single case, set the same denies directly on the user. First remove room
+or room-group allows on that user. To remove a user from one room, use
+`room.remove-member` instead.
 
-Remove the room-level denies to restore the server defaults. A room-level allow on a user or role can still permit posting. If you must block those users too, deny the permission directly on the user or on a restriction role such as `suspended`.
+### Delegate one room or room group
 
-### Suspending a non-owner user
+Allow `room.manage` for a user or role at Room or Room group scope. Add
+`message.manage` and `room.remove-member` at the same scope to let them
+moderate. They must enable privileged mode to use these permissions.
 
-To stop one non-owner user from posting without changing their roles:
+### Limit an account to its own conversations
 
-1. Open the user's member details in the admin UI.
-2. Remove any room or room-group allows set directly on the user. A more specific allow would replace the server-level deny you add next.
-3. Under permission overrides, deny `message.post` at server scope.
-4. Deny `message.post-in-thread` and `message.post-in-interactions` to prevent replies. Optionally deny `message.attach`, `message.react`, and `message.echo`.
-
-For non-owners, a deny set directly on the user wins over their role allows. Owner permissions cannot be restricted while privileged mode is active.
-
-If you suspend users regularly, create a `suspended` role with server-level denies. Do not add room or room-group allows to that role, because those more specific settings would replace its server-level denies. The role's denies override allows from the user's other roles.
-
-### Giving one user a room-specific moderation grant
-
-To let one non-owner user moderate one room:
-
-1. Open the user's member details.
-2. Grant `message.manage` scoped to that room.
-
-This works unless the user or one of their roles denies `message.manage`. If `everyone` denies it, the direct user allow must be at the same or a more specific scope.
-
-### Custom roles
-
-Use custom roles for repeated patterns across multiple users:
-
-1. Create a role in the admin UI.
-2. Assign permissions to that role.
-3. Assign the role to users.
-
-Custom roles are reusable sets of permissions. They can override `everyone`, but they do not outrank other roles. If any assigned role denies an action, the deny wins.
-
-## Owner vs admin
-
-Owners and admins are deliberately different:
-
-- **Owners** are always entitled to every permission. You cannot lock them out by changing roles or permission settings, because they can always enable privileged mode. Their permission rows appear as read-only green checks in the UI. Their owner permissions are effective only while privileged mode is active.
-- **Admins** receive broad default permissions, but you can still restrict them. A deny set directly on the admin or on one of their roles wins. An `everyone` deny also applies unless the admin has an allow at the same or a more specific scope.
-
-Use `owners.emails` in `chatto.toml` to recover owner access if needed. The user must verify the listed email before becoming an owner.
-
-## DM permissions and privacy
-
-DMs use all normal `message.*` permission names at the global **Direct
-messages** scope. They do not use `room.*` permissions. Membership is always
-required, so owners and administrators cannot read or moderate a DM that they
-are not part of. A participating user with `message.manage` can manage another
-participant's message.
-
-Only a human can start a DM. A bot cannot use `RoomService.StartDM`, even when
-it has `message.post` or the DM already exists. A human must start the DM. The
-bot can then use explicitly granted DM message permissions, bounded by its
-owner's current authority.
+Allow `message.read-interactions` and `message.post-in-interactions` instead of
+`message.read` and `message.post`. The account can then read and reply only in
+the threads that `message.read-interactions` describes. This is useful for
+bots.
 
 ## Where to configure permissions
 
-| What you want to do              | Where                                |
-| -------------------------------- | ------------------------------------ |
-| Set recovery owners              | `owners.emails` in `chatto.toml`     |
-| Create or edit roles             | Admin UI -> **Roles**                |
-| Assign roles to users            | Admin UI -> **Members**              |
-| Edit role permissions            | Admin UI -> **Roles -> [role name]** |
-| Configure room-specific behavior | Room settings -> **Permissions**     |
-| Set per-user overrides           | Admin UI -> **Members -> [user]**    |
+| Task | Where |
+| ---- | ----- |
+| Create roles and edit their permissions | Server Administration → **Permissions** |
+| Assign roles | Server Administration → **Members** → member |
+| Set permissions for one user or bot | Server Administration → **Members** → member |
+| Set room permissions | The room's settings |
+| Set room-group permissions | The room group's settings |
+| Set recovery owners | `owners.emails` in `chatto.toml` |
+
+To add an account to a room or remove it, use the **Joined** row in the
+account's permissions. You need `user.manage-accounts`, or `room.manage` for
+that room. The account does not need `room.join`. This row does not change
+permissions or DMs.
+
+## Upgrading from 0.4
+
+Chatto applies default permissions only on a new server. An upgraded server
+keeps its permissions and does not get the new defaults, except the call
+permissions. Chatto allows each `call.*` permission for `everyone` if you did
+not set it before.
+
+Make these changes on an upgraded server:
+
+- **Allow `message.read`** for `everyone` at Server scope. Without it, only
+  owners in privileged mode can read messages.
+- **Allow `room.remove-member`** for `moderator` and `admin`. `room.ban-member`
+  has no effect in 0.5.
+- **Allow `user.invite` and `bot.manage`** for `admin`.
+- **Allow `bot.create`** for `everyone` if members can create bots.
+- **Allow `room.manage`** for delegated room managers. In 0.4, room-group
+  management used `role.manage`.
+- **Allow `message.post`** for `admin` in the `announcements` room if admins
+  must post there. Until you do this, admins cannot post there.
+- **Check `message.post`.** It now also allows thread replies, so a deny of
+  `message.post-in-thread` does not stop replies.
+- **Check `everyone` denies.** An allow on a named role or user at the same or
+  a more specific scope now overrides them.
 
 <Aside type="caution">
-  Treat `owners.emails` as the lockout recovery path. Chatto does not expose an
-  operator command to wipe and reseed RBAC state in normal deployments.
+  Administrators, moderators, and owners must now enable
+  [privileged mode](#privileged-mode) to use their administrative permissions.
+  This also applies to custom `room.create` grants. Owners also need privileged
+  mode to see, join, or read rooms that deny this to `everyone`, and to post in
+  the `announcements` room. Give an owner the `admin` role or a room-level allow
+  if they need this access during normal use.
 </Aside>
 
-<Aside type="caution" title="Authorization behavior changed">
-  When upgrading from the older literal deny-wins resolver, review
-  configurations that combine an `everyone` deny with a named-role or
-  direct-user allow. Same-scope or nearer allows can now widen access; the
-  change does not newly narrow access. For suspensions, clear nearer decisions
-  on the same user or restriction role.
-</Aside>
-
-<LinkCard
-  title="Security & Privacy"
-  href="/guides/operations/security/"
-  description="Authentication, encryption, the privacy boundary, and how Chatto handles secrets."
-/>
+See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.

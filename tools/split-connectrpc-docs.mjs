@@ -645,7 +645,7 @@ function renderRealtimePage(typeSections, enumSections, eventTypeNames) {
   const body = [
     'Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.realtime.v1`.',
     '',
-    'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, snapshot processing, event processing, targeted cursor-bounded reads, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.',
+    'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, snapshot processing, event processing, targeted cursor-bounded reads, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-protocol/#use-realtime-from-typescript) for a complete browser example.',
     '',
     'This page separates protocol frames from the public event catalogue. The [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) section lists every public event variant.',
     '',

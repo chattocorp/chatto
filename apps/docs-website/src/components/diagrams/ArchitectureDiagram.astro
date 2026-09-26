@@ -1,0 +1,66 @@
+---
+import { baseStyles } from './styles';
+import Box from './Box.astro';
+import Region from './Region.astro';
+import Dot from './Dot.astro';
+
+const arrowStyles = `
+  .arrow { fill: #555; }
+  @media (prefers-color-scheme: light) { .arrow { fill: #bbb; } }
+`;
+---
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -16 640 316" fill="none" role="img" aria-label="Web clients, bots, and the operator CLI connect to the Chatto server's API. The API appends events to the EVT stream in NATS. In-memory projections replay EVT, and the API serves reads from the projections. Durable workers consume events for notifications, webhooks, and cleanup. LiveKit handles calls: the Chatto server issues call tokens, and web clients send call media directly to LiveKit. S3 stores files. Both are optional.">
+  <style set:html={baseStyles} />
+  <style set:html={arrowStyles} />
+  <defs>
+    <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow" d="M0,1 L9,5 L0,9 z" />
+    </marker>
+  </defs>
+
+  <Box type="browser" x={16} y={50} w={150} label="Web client" sublabel="browser or desktop" />
+  <Box type="browser" x={16} y={125} w={150} label="Bots and apps" sublabel="API keys · OAuth" />
+  <Box type="browser" x={16} y={200} w={150} label="Operator CLI" sublabel="local Unix socket" />
+
+  <Region x={196} y={20} w={248} h={262} label="CHATTO SERVER" />
+  <Box type="chatto" x={218} y={48} w={204} label="API and realtime" sublabel="ConnectRPC · WebSocket" />
+  <Box type="chatto" x={218} y={138} w={204} label="Projections" sublabel="in-memory read models" />
+  <Box type="chatto" x={218} y={214} w={204} label="Durable workers" sublabel="notifications · webhooks · cleanup" />
+
+  <Box type="livekit" x={478} y={30} w={148} label="LiveKit" sublabel="calls (optional)" />
+  <Box type="nats" x={478} y={125} w={148} h={70} label="NATS" sublabel="EVT · KV · objects" />
+  <Box type="browser" x={478} y={220} w={148} label="S3 storage" sublabel="files (optional)" />
+
+  <!-- Clients → API -->
+  <path class="conn" d="M166,77 L216,77" />
+  <path class="conn" d="M166,152 C191,152 191,87 216,87" />
+  <path class="conn-dash" d="M166,227 C194,227 194,97 216,97" />
+
+  <!-- Web client → LiveKit: call media goes directly to LiveKit -->
+  <path class="conn-dash" d="M91,50 L91,16 Q91,4 103,4 L540,4 Q552,4 552,16 L552,28" />
+  <text class="proto" x="320" y="-2" text-anchor="middle">call media</text>
+
+  <!-- API → LiveKit -->
+  <path class="conn" d="M422,62 C450,62 450,57 476,57" />
+
+  <!-- Write path: API appends to EVT -->
+  <path id="p-append" class="conn" d="M422,86 C455,86 455,140 474,140" marker-end="url(#arch-arrow)" />
+  <text class="proto" x="462" y="106" text-anchor="middle">append</text>
+
+  <!-- Projections replay EVT -->
+  <path id="p-replay" class="conn" d="M476,162 L424,162" marker-end="url(#arch-arrow)" />
+  <text class="proto" x="449" y="156" text-anchor="middle">replay</text>
+
+  <!-- Read path: API reads from projections -->
+  <path id="p-read" class="conn" d="M320,136 L320,105" marker-end="url(#arch-arrow)" />
+  <text class="proto" x="328" y="124">reads</text>
+
+  <!-- Workers ↔ NATS, server ↔ S3 -->
+  <path class="conn" d="M422,236 C452,236 452,182 476,182" />
+  <path class="conn" d="M444,247 L476,247" />
+
+  <Dot path="p-append" dur="2.4s" />
+  <Dot path="p-replay" dur="2.4s" begin="0.8s" />
+  <Dot path="p-read" dur="2.4s" begin="1.6s" />
+</svg>

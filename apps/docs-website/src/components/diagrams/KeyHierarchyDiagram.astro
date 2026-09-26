@@ -1,0 +1,34 @@
+---
+import { baseStyles } from './styles';
+import Box from './Box.astro';
+import Region from './Region.astro';
+---
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 270" fill="none" role="img" aria-label="A per-user key-encryption key in ENCRYPTION_KEYS wraps two data-encryption keys in RUNTIME_STATE. The message key encrypts message text and attachment descriptions in EVT. The profile key encrypts login, display name, bio, and email addresses in EVT.">
+  <style set:html={baseStyles} />
+
+  <Region x={10} y={20} w={185} h={230} label="ENCRYPTION_KEYS" />
+  <Region x={228} y={20} w={185} h={230} label="RUNTIME_STATE" />
+  <Region x={446} y={20} w={185} h={230} label="EVT" />
+
+  <Box type="nats" x={28} y={118} w={150} label="User KEK" sublabel="one per user" />
+
+  <Box type="chatto" x={246} y={68} w={150} label="Message DEK" sublabel="wrapped by the KEK" />
+  <Box type="chatto" x={246} y={168} w={150} label="Profile DEK" sublabel="wrapped by the KEK" />
+
+  <Box type="browser" x={456} y={68} w={166} label="Message text" sublabel="+ attachment descriptions" />
+  <Box type="browser" x={456} y={168} w={166} label="Profile fields" sublabel="login · name · bio · email" />
+
+  <path class="conn" d="M178,138 C212,138 212,95 244,95" />
+  <path class="conn" d="M178,152 C212,152 212,195 244,195" />
+  <text class="proto" x="206" y="112" text-anchor="middle">wraps</text>
+
+  <path class="conn" d="M396,95 L454,95" />
+  <path class="conn" d="M396,195 L454,195" />
+  <text class="proto" x="425" y="87" text-anchor="middle">encrypts</text>
+  <text class="proto" x="425" y="187" text-anchor="middle">encrypts</text>
+
+  <text class="sublabel" x="102" y="238" text-anchor="middle">not in normal backups</text>
+  <text class="sublabel" x="320" y="238" text-anchor="middle">in backups</text>
+  <text class="sublabel" x="538" y="238" text-anchor="middle">in backups</text>
+</svg>

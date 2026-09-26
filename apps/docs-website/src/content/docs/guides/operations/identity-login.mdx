@@ -1,25 +1,27 @@
 ---
 title: Identity & Login
-description: Configure local accounts, transactional email flows, external login providers, account linking, and owner recovery.
+description: Configure accounts, email, login providers, invite links, owner recovery, and connections from other Chatto clients.
 ---
 
-import { Aside, CardGrid, LinkCard, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Chatto supports local password accounts, email verification and reset flows, external OAuth/OIDC providers, explicit account linking, and owner recovery through verified email addresses.
+Chatto supports local password accounts, external login providers, email
+verification and password reset, invite links, and owner recovery. This page
+also tells you how other Chatto clients connect to your server.
 
 ## Choose Your Account Model
 
-| Model | Operator setup |
-| ----- | -------------- |
-| Local accounts only | Configure transactional email if you want email verification and password reset. |
-| Invite or admin-managed server | Use local accounts plus operator-created users or restricted signup policy. |
-| Organization SSO | Configure one or more `[[auth.providers]]` entries. |
-| Mixed community | Allow local accounts and selected external providers. |
-| Passwordless external login | Ensure users keep at least one linked provider and understand recovery paths. |
+| Model | Setup |
+| ----- | ----- |
+| Local accounts only | Configure [transactional email](#transactional-email) for verification and password reset. |
+| Invite-only server | Set [invite-only account creation](#invite-only-account-creation). |
+| Organization SSO | Add [login providers](/guides/integrations/external-login-providers/) and turn off [password login](#sso-only-login). |
+| Mixed community | Keep password accounts and add selected login providers. |
 
 ## SSO-Only Login
 
-Configure and test at least one external provider before disabling password login. To make the server SSO-only, disable both password sign-in and direct email/password registration on every serving replica:
+Configure and test at least one login provider first. Then disable password
+sign-in and email/password registration on every replica:
 
 <Tabs>
 <TabItem label="TOML">
@@ -41,18 +43,21 @@ CHATTO_AUTH_DIRECT_REGISTRATION=false
 </TabItem>
 </Tabs>
 
-With `direct_login = false`, Chatto rejects `/auth/login` and advertises the disabled capability through public server discovery. The bundled login page then shows only configured external providers. Existing sessions stay valid, and registration remains independently controlled by `direct_registration`.
+With `direct_login = false`, the login page shows only the configured
+providers, and the password login endpoint returns `403`. Existing sessions
+stay valid. `direct_registration` controls registration separately.
 
 <Aside type="caution">
-  Disabling password login without a working external provider can lock signed-out users out. Keep an operator recovery path and apply the same authentication configuration to every replica.
+  If no provider works, signed-out users cannot sign in. Keep an operator
+  recovery path, such as the [Operator CLI](/guides/operations/operator-cli/).
 </Aside>
 
 ## Transactional Email
 
-Transactional email is needed for verification and password reset flows. SMTP is
-the default transport. Use JMAP only when the mail provider offers JMAP
-submission with bearer-token authentication. Configure a transport before
-inviting members if you expect self-service account recovery.
+Chatto sends email for registration codes, email verification, and password
+reset. Configure a transport before you invite members. SMTP is the default.
+Use JMAP only when your mail provider supports JMAP submission with a bearer
+token.
 
 <Tabs>
 <TabItem label="TOML">
@@ -82,7 +87,6 @@ CHATTO_SMTP_FROM="Chatto <chatto@example.com>"
 ```
 
 </TabItem>
-
 <TabItem label="JMAP (TOML)">
 
 ```toml
@@ -90,18 +94,17 @@ CHATTO_SMTP_FROM="Chatto <chatto@example.com>"
 transport = "jmap"
 
 [email.jmap]
-session_url = "https://mail.example/.well-known/jmap"
+session_url = "https://mail.example.com/.well-known/jmap"
 access_token = "<generate-me>"
 from = "Chatto <chatto@example.com>"
 ```
 
 </TabItem>
-
 <TabItem label="JMAP (Environment)">
 
 ```bash
 CHATTO_EMAIL_TRANSPORT=jmap
-CHATTO_EMAIL_JMAP_SESSION_URL=https://mail.example/.well-known/jmap
+CHATTO_EMAIL_JMAP_SESSION_URL=https://mail.example.com/.well-known/jmap
 CHATTO_EMAIL_JMAP_ACCESS_TOKEN=<generate-me>
 CHATTO_EMAIL_JMAP_FROM="Chatto <chatto@example.com>"
 ```
@@ -109,23 +112,22 @@ CHATTO_EMAIL_JMAP_FROM="Chatto <chatto@example.com>"
 </TabItem>
 </Tabs>
 
-Use `smtp.tls_server_name` only when the SMTP host you connect to differs from the certificate name. Use `smtp.tls_skip_verify` only for a trusted internal mail server where you accept that verification tradeoff.
+Use `smtp.tls_server_name` only when the certificate name is different from
+the SMTP host. Use `smtp.tls_skip_verify` only for a trusted internal mail
+server.
 
-For JMAP, the configured sender must match a sending identity. Chatto discovers
-the submission account, matching identity, and Drafts mailbox automatically;
-`email.jmap.account_id`, `identity_id`, and `draft_mailbox_id` override those
-choices when needed. The JMAP session URL and the provider API URL must use
-HTTPS. A successful submission means the provider accepted the email, not that
-it reached every recipient.
+For JMAP, the `from` address must match a sending identity. Chatto finds the
+account, identity, and Drafts mailbox automatically. To select different ones,
+set `email.jmap.account_id`, `identity_id`, or `draft_mailbox_id`. The session
+URL and the API URL must use HTTPS. A successful submission means that the
+provider accepted the email, not that the email arrived.
 
 ## External Providers
 
-External login providers are configured as repeated `[[auth.providers]]` entries. Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
+Add login providers as repeated `[[auth.providers]]` entries. Chatto supports
+`oidc`, `github`, `gitlab`, `google`, and `discord`:
 
 ```toml
-[webserver]
-url = "https://chat.example.com"
-
 [[auth.providers]]
 id = "company-oidc"
 type = "oidc"
@@ -136,105 +138,192 @@ client_secret = "..."
 auto_provision = false
 ```
 
-Provider IDs are durable local identifiers. Do not change a provider ID after users have linked accounts unless you are intentionally retiring those links.
+Do not change a provider `id` after users link accounts. A change disconnects
+those links.
 
-## Account Creation And Linking
+Chatto never merges accounts by email address. It links an external identity
+by its provider and subject. With `auto_provision = true`, a new user confirms
+a username before Chatto creates the account. A signed-in user can link a
+provider from account settings. Chatto does not let a user remove the last
+sign-in method of an account without a password.
 
-Chatto does not silently merge accounts by email. External identities link by verified issuer or provider namespace plus provider subject.
-
-| Flow | Behavior |
-| ---- | -------- |
-| New external identity with `auto_provision = true` | User confirms account creation before Chatto creates the account. |
-| New external identity with `auto_provision = false` | Login does not create an account automatically. |
-| Existing signed-in user starts linking | User confirms the link through a short-lived capability flow. |
-| Disconnecting a provider | Chatto refuses to remove the last sign-in method from a passwordless account. |
-
-This avoids accidental account takeover through recycled or unverified email addresses.
+See [Login Providers](/guides/integrations/external-login-providers/) for
+callback URLs, scopes, and examples.
 
 ## Verified Email Addresses
 
-A signed-in user can add email addresses under **Settings → Account**. The user
-must enter the new address twice before Chatto sends email. The dialog explains
-that Chatto will send a six-digit verification code. The next page asks the
-user for this code. The address is not added to the account and cannot become
-primary until the user confirms the code. Reloading the confirmation page
-keeps the pending verification in the same browser tab.
+Users add email addresses under **Settings → Account**. The user enters the
+address twice. Chatto then sends a six-digit code. Chatto adds the address only
+after the user enters this code. If the user reloads the page in the same tab,
+the pending verification stays available.
 
-An account can have multiple verified email addresses. The first address is
-primary until the user selects another verified address. Future
-account-directed email uses the primary address. Sign-in, password reset, and
-configured-owner matching continue to accept every verified address.
+An account can have multiple verified addresses. The first address is the
+primary address until the user selects another one. Chatto sends account email
+to the primary address. Sign-in, password reset, and owner matching accept all
+verified addresses.
 
 ## Invite-Only Account Creation
 
-Set `auth.account_creation_policy = "invite_only"` (or
-`CHATTO_AUTH_ACCOUNT_CREATION_POLICY=invite_only`) to require an invite link for
-every new self-service account. This applies to email/password registration and
-external-provider auto-provisioning. Existing users can still sign in and link
-providers, and operator-created accounts are unaffected.
+<Tabs>
+<TabItem label="TOML">
 
-Administrators with `user.invite` create and revoke invite links under
-**Server Admin → Invite links**. New links default to one use and seven days;
-the administrator can choose a different use limit, unlimited uses, another
-expiry, or no expiry. Active links can be copied again later.
+```toml
+[auth]
+account_creation_policy = "invite_only"
+```
 
-Invite links prove admission, not identity. Direct registration still
-verifies the user's email, while an external provider still authenticates its
-own subject. Expired, exhausted, revoked, and malformed invite links all appear
-to the person signing up as unavailable. People join by opening the link's
-compact `/invite/{token}` URL; there is nothing to copy into a form.
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_AUTH_ACCOUNT_CREATION_POLICY=invite_only
+```
+
+</TabItem>
+</Tabs>
+
+Each new self-service account then needs an invite link. This applies to
+email/password registration and to provider auto-provisioning. Existing users
+can still sign in and link providers. Accounts that operators create are not
+affected.
+
+Administrators with the `user.invite` permission create and revoke links under
+**Server Admin → Invite links**. By default, a link has one use and expires
+after seven days. You can set a different use limit, unlimited uses, a
+different expiry, or no expiry. You can copy an active link again later.
+
+People join through the `/invite/{token}` URL of the link. An invite link gives
+admission, not identity: Chatto still verifies the email address, and the
+provider still authenticates the user. An expired, used, revoked, or incorrect
+link shows as unavailable.
 
 <Aside type="caution">
-  Invite links are bearer capabilities. Chatto redacts their tokens from its
-  request logs, but reverse proxies and CDNs must also redact the suffix of
-  `/invite/*` in their access logs.
+  An invite link gives access to anyone who has it. Chatto removes the token
+  from its request logs. Configure your reverse proxy and CDN to remove the part
+  after `/invite/` from their access logs too.
 </Aside>
 
 <Aside type="caution">
-  Keep `core.secret_key` stable across replicas and restores. Rotating it
-  invalidates links already shared, although the durable invite-link records
-  remain and administrators can copy newly derived links.
+  Keep `core.secret_key` the same on all replicas and after a restore. A new
+  key makes all shared invite links invalid. Administrators can then copy new
+  links for the same invites.
 </Aside>
 
 ## Owner Recovery
-
-Set owner recovery emails in `chatto.toml`:
 
 ```toml
 [owners]
 emails = ["admin@example.com"]
 ```
 
-The email must be verified by the user before Chatto treats the user as an effective owner. Owners are recovery-grade: they virtually receive every normal permission and cannot be locked out through ordinary RBAC denies.
+A user becomes an owner only after they verify one of these addresses. Owners
+have every normal permission, and role denies cannot lock them out.
 
 <Aside type="tip">
-  Keep at least one owner recovery email controlled by the server operator, not only by an external identity provider account.
+  Keep at least one owner email that the server operator controls. Do not
+  depend only on an account at an external login provider.
 </Aside>
 
 ## Password Managers
 
 Chatto publishes `/.well-known/change-password` on each server origin. A
-compatible password manager can use this URL to open **Settings → Account** for
-that server. If you are signed out, Chatto returns you to the account settings
-after sign-in.
+password manager uses this URL to open **Settings → Account**. A signed-out
+user goes to account settings after sign-in.
 
-A separately hosted Chatto client does not publish this URL because it does not
-own server passwords. If your reverse proxy handles `/.well-known` paths,
-forward `/.well-known/change-password` to Chatto. Keep unknown well-known paths
-as `404` responses. See the
-[W3C change-password URL specification](https://www.w3.org/TR/change-password-url/).
+If your reverse proxy handles `/.well-known` paths, forward
+`/.well-known/change-password` to Chatto. Keep `404` responses for unknown
+well-known paths. A separately hosted Chatto client does not publish this URL.
+See the [W3C specification](https://www.w3.org/TR/change-password-url/).
 
 ## Sessions And Logout
 
-Chatto uses opaque runtime credentials, not JWTs. Browser authentication uses an HttpOnly cookie for same-origin flows, including direct external-provider login, and provider redirects never contain bearer credentials. In the final quarter, the bundled browser automatically renews the same session handle through a dedicated route; ordinary validation does not write the session or cookie. Registered cross-origin server connections use Chatto's OAuth PKCE flow to obtain a short-lived access token and rotating refresh credential. The client renews the current session window in the background without reopening OAuth or asking the user to extend the session. A client that is inactive for one complete window must sign in again. Password resets, password changes, and account deletion revoke older credentials through the user's auth generation. Disconnecting an external identity keeps existing sessions active.
+The bundled client on your server origin uses an `HttpOnly` session cookie.
+Other clients get a short-lived access token and a refresh credential. They
+renew the session in the background. A session that is not used for one full
+`auth.token_ttl` period expires, and the user must sign in again.
 
-Operators do not normally manage sessions directly. Use password reset, password set, account deletion, or future dedicated revocation tooling when you need to force a credential cutoff.
+A password change, a password reset, or account deletion makes older sessions
+invalid. Removing a login provider from an account keeps its sessions. See
+[Security & Privacy](/guides/operations/security/#accounts-and-sessions) for
+the durations.
 
-## Related Guides
+## Clients From Other Origins
 
-<CardGrid>
-  <LinkCard title="External Login Providers" href="/guides/integrations/external-login-providers/" description="Detailed provider configuration, callback URLs, scopes, and account-linking behavior." />
-  <LinkCard title="Security & Privacy" href="/guides/operations/security/" description="Authentication, sessions, CSRF, OAuth redirects, and runtime credential details." />
-  <LinkCard title="Permissions & Roles" href="/guides/operations/permissions/" description="Owner recovery, built-in roles, and permission resolution." />
-  <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Trusted local account recovery commands." />
-</CardGrid>
+Members can add your server to a Chatto client on a different origin, such as
+the client of another Chatto server or Chatto Desktop. You do not have to
+configure this. There is no allowlist.
+
+Each client identifies itself with a Client ID Metadata Document (CIMD). The
+bundled client publishes its document at `/oauth/frontend-client-metadata.json`
+and uses this HTTPS URL as its OAuth `client_id`. Your server gets and validates
+the document, including the exact callback URL. The member then approves the
+client, and the client gets a short-lived access token and a refresh
+credential.
+
+Requests from other origins cannot use session cookies. They must send the
+bearer token.
+
+Both servers must run Chatto 0.5 or later. Your server gets metadata documents
+only from public HTTPS addresses. It does not follow redirects, and it rejects
+large responses and private network addresses.
+
+<Aside type="caution">
+  A CIMD identity is not an endorsement. Any application can publish a document
+  and ask a member for access. Tell members to approve only clients that they
+  recognize.
+</Aside>
+
+Chatto Desktop uses the built-in `chatto://desktop` identity. Other native
+clients publish HTTPS metadata with `application_type` set to `native`, and a
+custom URL scheme or a local HTTP callback on `127.0.0.1`, `[::1]`,
+`localhost`, or a name below `.localhost`. Only `127.0.0.1` and `[::1]`
+callbacks can use a different port at runtime. Chatto matches the path and
+query exactly and does not accept wildcards. For a local callback, the consent
+page shows a warning, and the member must approve each authorization again.
+
+## Manage OAuth Clients
+
+After a first successful authorization, the client appears under **Server
+settings → Security → OAuth clients**. The list shows the client name and
+identity, callback origins, the number of users, and the latest authorization.
+
+| Policy | Effect |
+| ------ | ------ |
+| Default | Members can approve the client. |
+| Trusted | A label only. Members must still approve the client. |
+| Blocked | Chatto stops new authorizations, makes the client's tokens invalid, and closes its realtime connections on all replicas. |
+
+Blocking a client does not end the same user's sessions in other clients.
+
+## Additional Origins For The Bundled Client
+
+Use `webserver.allowed_origins` only when a reverse proxy serves the bundled
+client of this server on an additional origin:
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[webserver]
+url = "https://chat.example.com"
+allowed_origins = ["https://chat.example.org"]
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_WEBSERVER_URL=https://chat.example.com
+CHATTO_WEBSERVER_ALLOWED_ORIGINS=https://chat.example.org
+```
+
+</TabItem>
+</Tabs>
+
+Each origin can then use session cookies and publishes its own client metadata.
+Other hosts get no metadata document. This setting does not authorize clients
+from other servers. They do not need it.
+
+- Use exact origins. Do not add a path, query, or fragment.
+- Do not configure HTTP and HTTPS origins with the same host.
+- Do not use `*`. It permits none of these behaviors.
