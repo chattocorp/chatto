@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { ReactionSummaryView } from '$lib/render/reactions';
 import { queryClient } from '$lib/query/client';
+import { serverSessionQueryRoot } from '$lib/query/keys';
 import { q } from '$lib/test-utils';
 import MessageReactionDetails from './MessageReactionDetails.svelte';
 
@@ -106,6 +107,17 @@ describe('message reaction details', () => {
       50,
       expect.any(AbortSignal)
     );
+  });
+
+  it('keys the reaction roster under the server session root', async () => {
+    const { container } = renderDetails([reaction('heart', 1)]);
+    await expect.element(q(container, '[role="tabpanel"]')).toHaveTextContent('Alice');
+
+    const rosterRoot = [
+      ...serverSessionQueryRoot('server-1', { queryScope: 'session-1' }),
+      'message-reaction-users'
+    ];
+    expect(queryClient.getQueryCache().findAll({ queryKey: rosterRoot })).toHaveLength(1);
   });
 
   it('shows only the selected emoji when an earlier read finishes late', async () => {

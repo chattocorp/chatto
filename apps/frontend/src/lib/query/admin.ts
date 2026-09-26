@@ -1,9 +1,10 @@
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { serverSessionQueryRoot } from './keys';
 
 type AdminQueryConnection = Pick<ServerConnection, 'queryScope'>;
 
 function adminRoot(serverId: string, connection: AdminQueryConnection) {
-  return ['server', serverId, 'session', connection.queryScope, 'admin'] as const;
+  return [...serverSessionQueryRoot(serverId, connection), 'admin'] as const;
 }
 
 function permissionTiersRoot(serverId: string, connection: AdminQueryConnection) {

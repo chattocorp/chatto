@@ -17,6 +17,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -71,9 +72,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
       const emoji = activeEmoji;
       return {
         queryKey: [
-          'server',
-          serverScope.serverId,
-          connection.queryScope,
+          ...serverSessionQueryRoot(serverScope.serverId, connection),
           'message-reaction-users',
           roomId,
           messageEventId,

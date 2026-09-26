@@ -7,6 +7,7 @@ media. HTML consent is never stored in history or carried to another selection.
   import { page } from '$app/state';
   import { createQuery } from '@tanstack/svelte-query';
   import { queryClient } from '$lib/query/client';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import type { AttachmentViewerModalState } from '$lib/modal';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import { isHtmlAttachment } from '$lib/render/messageAttachments';
@@ -48,10 +49,7 @@ media. HTML consent is never stored in history or carried to another selection.
       const assetId = item.id;
       return {
         queryKey: [
-          'server',
-          serverId,
-          'session',
-          connection.queryScope,
+          ...serverSessionQueryRoot(serverId, connection),
           'attachment-metadata',
           roomId,
           assetId
