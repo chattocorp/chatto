@@ -2,6 +2,14 @@
 
 **Date:** 2026-08-21
 
+## Status
+
+Superseded by [ADR-108](ADR-108-compiled-loopback-development-stack.md)
+
+ADR-108 keeps the native processes, the Conductor port allocation, and the
+archive cleanup. It removes Portless and the Vite process from the default
+stack.
+
 ## Context
 
 ADR-075 replaced the containerized development stack with native processes

@@ -189,8 +189,8 @@ uses a bounded publish attempt; reads use the shared JetStream stream.
 
 [`mise dev`](../../mise.toml) starts the
 [Runling workflow](../../examples/runling-bot/reply.ts) as a supervised Node
-process on loopback at the workspace port plus three. Portless exposes its
-console at `https://runling.<workspace>.localhost:42444`. The task supplies the
+process on loopback at the workspace port plus three. The same port serves its
+console at `http://localhost:<port>`. The task supplies the
 Chatto backend URL and bootstrap TestBot key path, including a custom
 `CHATTO_DEV_DATA_ROOT`. The bot owner configures its webhook destination once.
 Runling receives outbound webhooks, composes answers with
