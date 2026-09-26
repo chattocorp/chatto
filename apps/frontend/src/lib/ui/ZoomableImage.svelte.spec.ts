@@ -13,7 +13,7 @@ async function mount() {
   view.container.style.width = '400px';
   view.container.style.height = '350px';
   expect(view.container.querySelector('img')?.classList.contains('skeleton')).toBe(false);
-  const stage = view.container.querySelector<HTMLDivElement>('.touch-none')!;
+  const stage = view.container.querySelector<HTMLDivElement>('[role="group"]')!;
   await expect.poll(() => stage.clientWidth).toBe(400);
   await expect.poll(() => view.container.querySelector('img')?.naturalWidth).toBe(400);
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -65,13 +65,22 @@ describe('ZoomableImage', () => {
     await expect.element(view.query.getByText('200%')).toBeVisible();
     expect(view.image.style.transform).toMatch(/translate\(-100(?:\.\d+)?px, 0px\) scale\(2/);
 
-    pointer(view.stage, 'pointerdown', 1, rect.left + 200, rect.top + 150);
-    pointer(view.stage, 'pointermove', 1, rect.left + 2000, rect.top + 150);
+    // Events that start on the image bubble to the stage's pan handlers.
+    pointer(view.image, 'pointerdown', 1, rect.left + 200, rect.top + 150);
+    pointer(view.image, 'pointermove', 1, rect.left + 2000, rect.top + 150);
     await tick();
     const fit = Math.min(view.stage.clientWidth / 400, view.stage.clientHeight / 300);
     const maxX = Math.max(0, (400 * fit * 2 - view.stage.clientWidth) / 2);
     expect(view.image.style.transform).toContain(`translate(${maxX}px, 0px)`);
-    pointer(view.stage, 'pointerup', 1, rect.left + 2000, rect.top + 150);
+    pointer(view.image, 'pointerup', 1, rect.left + 2000, rect.top + 150);
+  });
+
+  it('keeps the image as the hit target so the native image context menu works', async () => {
+    const view = await mount();
+    const rect = view.stage.getBoundingClientRect();
+    expect(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)).toBe(
+      view.image
+    );
   });
 
   it('zooms with a two-pointer pinch and toggles with double-click', async () => {
