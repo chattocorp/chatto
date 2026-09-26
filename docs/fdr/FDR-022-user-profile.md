@@ -56,12 +56,15 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Admin overrides** — users with `user.manage-accounts` can update human profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar. Profile edits and cooldown resets in member management also accept the caller's own account.
 - **Bot identity management** — an API-key-authenticated bot updates its own login, display name, and bio through `MyAccountService.UpdateProfile`. It manages its avatar through `UserService`. Human owners manage bot lifecycle, ownership, permissions, API keys, and avatars. A human with `bot.manage` or `user.manage-accounts` can also manage a bot's avatar. Bot custom-status and personal-settings management are not supported.
 
-- **UI Style** — Appearance offers Flat, Kinda 3D, and Very 3D bevel strength.
-  Kinda 3D is the default. Flat removes decorative bevels and inset shading. Very 3D
-  strengthens and widens them. Changes apply immediately across registered
-  servers and remain in this browser. Switching modes animates unless reduced
-  motion is enabled. The accent choice, focus indicators, and layout do not change.
-- **Contrast** — Appearance offers a **Contrast** slider from 0% to 100%.
+- **UI Style** — Appearance offers a **Depth** slider for bevel strength from
+  0% to 100% in 10% steps. 50% is the default (0% in the iOS app). 0%, 50%,
+  and 100% match the former Flat, Kinda 3D, and Very 3D modes, and the slider
+  names them at those steps; saved modes migrate to these levels. 0% removes
+  decorative bevels and inset shading; steps above 50% strengthen and widen
+  them. Changes apply immediately across registered servers and remain in
+  this browser. Changes animate unless reduced motion is enabled. The accent choice, focus indicators, and layout do not change.
+- **Contrast** — Appearance offers a **Contrast** slider from 0% to 100% in
+  10% steps; half steps saved by earlier versions stay valid.
   It changes text, surface, and background contrast in both light and dark
   themes. The middle keeps the original appearance. At 100%, the app uses
   black text on a white background in light mode and white text on a black
@@ -76,6 +79,20 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
   themes; primary buttons use white labels in both. Status and warning colours
   remain independent. The picker names each colour and marks the selection
   with a check; it supports keyboard navigation.
+- **Background colour** — Appearance offers twelve surface tones in hue order: Neutral,
+  Stone, Taupe, Clay, Olive, Forest, Mist, Grey, Slate, Midnight, Mauve, and
+  Plum. The user selects one tone for light mode and one for dark mode. Grey
+  (light) and Neutral (dark) are the defaults and keep the original
+  appearance. A tone tints backgrounds, surfaces, borders, and text. The app
+  uses the tone of the active theme. The tones appear below the accent
+  colours in the **Theme customisation** panel, which also holds the Depth
+  and Contrast sliders. The picker shows only the tones for
+  the active theme, so the user changes the theme to select the other tone.
+  Each sample shows the tone with the selected accent. Choices apply immediately, stay in this
+  browser, and need no server request or external service. Accent, status
+  colours, contrast, and surface depth do not change. Palette changes from
+  theme, tone, accent, or contrast fade briefly unless reduced motion is
+  enabled.
 
 ## Design Decisions
 
@@ -168,6 +185,16 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 **Decision:** One browser-local slider adjusts neutral text, background, and surface contrast in both themes. Its middle position keeps the original appearance. At 0%, headings, body text, and muted text become deliberately soft. At 100%, light mode uses black text on a white background, while dark mode uses white text on a black background. Clear boundaries separate surfaces. Accent and status colours keep their meanings.
 **Why:** Users can tune clarity without changing their chosen theme or accent. The middle value preserves the appearance of existing installations.
 **Tradeoff:** Each end of the range needs visual and contrast checks in both themes. The choice does not follow the user to another browser or device.
+
+### 16. Surface tones change hue, not lightness
+
+**Decision:** A surface tone supplies only hue and chroma. Every tone uses the same reviewed lightness steps for each theme, and the Contrast slider mixes those steps as before. Eight tones take hue and chroma from Tailwind's neutral palettes. Four tones calculate chroma from one hue; chroma is highest at the middle steps and lower at the lightest and darkest surfaces. The user selects separate tones for light and dark mode, and CSS selects the tone for the active theme.
+**Why:** Fixed lightness keeps text, muted text, and every accent readable on each tone at every Contrast setting. Users can then add colour without a separate contrast review for each combination. Separate choices let a user pair, for example, a warm light theme with a blue-black dark theme.
+**Tradeoff:** Tones cannot make surfaces lighter or darker than the original palette. Automated contrast tests cover each tone, theme, accent, and the Contrast extremes.
+
+The fade uses CSS only. The semantic colour tokens are registered as `<color>` custom properties, so `:root` can transition them; derived tokens follow through `var()`. The browser theme colour is resolved again when the surface fade ends.
+
+The startup screen in `app.html` paints before the stylesheet loads, so it cannot resolve tones itself. The app saves the resolved startup colours of both chosen tones in `chatto:loading-palette` whenever the tones apply. `app.html` validates the saved hex colours and uses them for the loading background, gradient, text, and first browser theme colour. Without saved colours, it uses literals that match the default tones.
 
 ## Permissions
 

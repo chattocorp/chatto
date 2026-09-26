@@ -34,6 +34,35 @@
           }
         }
 
+        // Keep this allowlist aligned with lib/state/userPreferences.svelte.ts.
+        const surfaceTones = [
+          'neutral',
+          'stone',
+          'taupe',
+          'clay',
+          'olive',
+          'forest',
+          'mist',
+          'gray',
+          'slate',
+          'midnight',
+          'mauve',
+          'plum'
+        ];
+
+        // CSS selects the tone that matches the active theme.
+        function storedSurfaceTone(theme) {
+          const key = theme === 'dark' ? 'darkSurfaceTone' : 'lightSurfaceTone';
+          try {
+            const parsed = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+            const tone = parsed && typeof parsed === 'object' ? parsed[key] : null;
+            if (surfaceTones.includes(tone)) return tone;
+          } catch {
+            // Fall through to the default tone below.
+          }
+          return theme === 'dark' ? 'neutral' : 'gray';
+        }
+
         function applyTheme() {
           const stored = storedPreferenceTheme() ?? legacyTheme() ?? 'system';
           const effective =
@@ -43,12 +72,34 @@
           syncShellColor();
         }
 
+        // The app saves the resolved colours of the chosen tones under this key;
+        // see LoadingPalette in lib/state/userPreferences.svelte.ts.
+        function storedLoadingPalette(theme) {
+          try {
+            const parsed = JSON.parse(localStorage.getItem('chatto:loading-palette') ?? 'null');
+            const palette = parsed && typeof parsed === 'object' ? parsed[theme] : null;
+            const valid = (color) => typeof color === 'string' && /^#[0-9a-f]{6}$/.test(color);
+            return palette &&
+              typeof palette === 'object' &&
+              ['background', 'highlight', 'text', 'surface'].every((name) => valid(palette[name]))
+              ? palette
+              : null;
+          } catch {
+            return null;
+          }
+        }
+
         function syncShellColor() {
           // Match the app frame where iOS samples the outer page background.
           root.style.backgroundColor = 'var(--color-surface)';
           const dark = root.dataset.theme === 'dark';
           const veryHigh = root.style.getPropertyValue('--contrast-strong-mix') === '100%';
-          const shellColor = dark ? (veryHigh ? '#000000' : '#262626') : veryHigh ? '#ffffff' : '#e5e7eb';
+          const surface = storedLoadingPalette(dark ? 'dark' : 'light')?.surface;
+          const shellColor = veryHigh
+            ? dark
+              ? '#000000'
+              : '#ffffff'
+            : (surface ?? (dark ? '#262626' : '#e5e7eb'));
           document
             .querySelector('meta[name="theme-color"]')
             ?.setAttribute('content', shellColor);
@@ -181,7 +232,7 @@
         // Restore accent, depth, and contrast before CSS loads.
         // Keep this allowlist aligned with lib/state/userPreferences.svelte.ts.
         // The iOS shell serves its bundled page through this native-only scheme.
-        const defaultDepth = location.protocol === 'capacitor:' ? 'flat' : '3d';
+        const defaultDepth = location.protocol === 'capacitor:' ? 0 : 50;
         try {
           const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
           const age = stored?.contrastAge;
@@ -196,8 +247,16 @@
           root.style.setProperty('--contrast-soft-mix', `${Math.max(0, 30 - contrastAge) * 10}%`);
           root.style.setProperty('--contrast-strong-mix', `${Math.max(0, contrastAge - 30) * 10}%`);
           syncShellColor();
+          // Depth is a 0–100 level in 10% steps; earlier versions saved named modes.
           const depth = stored?.surfaceDepth;
-          root.dataset.depth = ['flat', '3d', 'very-3d'].includes(depth) ? depth : defaultDepth;
+          const legacyDepth = { flat: 0, '3d': 50, 'very-3d': 100 };
+          const depthLevel =
+            Number.isInteger(depth) && depth >= 0 && depth <= 100 && depth % 10 === 0
+              ? depth
+              : Object.hasOwn(legacyDepth, depth)
+                ? legacyDepth[depth]
+                : defaultDepth;
+          root.style.setProperty('--depth-level', String(depthLevel));
           const accent = stored?.accentColor;
           root.dataset.accent = [
             'blue',
@@ -214,11 +273,21 @@
             : 'cyan';
         } catch {
           root.dataset.accent = 'cyan';
-          root.dataset.depth = defaultDepth;
+          root.style.setProperty('--depth-level', String(defaultDepth));
           root.style.setProperty('--contrast-soft-mix', '0%');
           root.style.setProperty('--contrast-strong-mix', '0%');
         }
 
+        root.dataset.lightTone = storedSurfaceTone('light');
+        root.dataset.darkTone = storedSurfaceTone('dark');
+        // Paint the startup screen in the chosen tones before the stylesheet loads.
+        for (const theme of ['light', 'dark']) {
+          const palette = storedLoadingPalette(theme);
+          if (!palette) continue;
+          for (const name of ['background', 'highlight', 'text']) {
+            root.style.setProperty(`--loading-${theme}-${name}`, palette[name]);
+          }
+        }
         applyTheme();
         applyLocale();
 
@@ -230,12 +299,13 @@
     <!-- Critical startup styles must work before the application CSS downloads. -->
     <style>
       #app-loading {
-        /* Keep startup colours available before the application stylesheet arrives. */
-        --loading-background: #f3f4f6;
-        --loading-highlight: #9ca3af;
+        /* Keep startup colours available before the application stylesheet arrives.
+           The script supplies the saved tone colours; literals match the default tones. */
+        --loading-background: var(--loading-light-background, #f3f4f6);
+        --loading-highlight: var(--loading-light-highlight, #99a1af);
         --loading-first-strength: 55%;
         --loading-second-strength: 40%;
-        --loading-text: #4b5563;
+        --loading-text: var(--loading-light-text, #4a5565);
         display: grid;
         place-items: center;
         position: fixed;
@@ -246,11 +316,11 @@
         background: var(--color-background, var(--loading-background));
       }
       :root[data-theme='dark'] #app-loading {
-        --loading-background: #171717;
-        --loading-highlight: #404040;
+        --loading-background: var(--loading-dark-background, #171717);
+        --loading-highlight: var(--loading-dark-highlight, #404040);
         --loading-first-strength: 45%;
         --loading-second-strength: 33%;
-        --loading-text: #d4d4d4;
+        --loading-text: var(--loading-dark-text, #d4d4d4);
       }
       #app-loading > span {
         position: relative;

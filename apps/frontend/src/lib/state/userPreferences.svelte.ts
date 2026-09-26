@@ -14,6 +14,7 @@ import {
 } from '$lib/audio/notificationSounds';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { Capacitor } from '@capacitor/core';
+import { MediaQuery } from 'svelte/reactivity';
 /** Curated app-wide accents. Keep the first-paint allowlist in app.html in sync. */
 export const accentColors = [
   'blue',
@@ -43,25 +44,176 @@ export function applyAccentColor(value: AccentColor): void {
   document.documentElement.dataset.accent = isAccentColor(value) ? value : defaultAccentColor;
 }
 
-/** App-wide bevel modes. Keep the first-paint allowlist in app.html in sync. */
-export const surfaceDepths = ['flat', '3d', 'very-3d'] as const;
-export type SurfaceDepth = (typeof surfaceDepths)[number];
-/** Native iOS starts flat; browser/PWA and other hosts retain the 3D default. */
-export const defaultSurfaceDepth: SurfaceDepth = Capacitor.getPlatform() === 'ios' ? 'flat' : '3d';
+/**
+ * Curated neutral ramps for backgrounds, surfaces, borders, and text. Keep the
+ * first-paint allowlist in app.html and the CSS tone blocks in app.css in sync.
+ */
+export const surfaceTones = [
+  'neutral',
+  'stone',
+  'taupe',
+  'clay',
+  'olive',
+  'forest',
+  'mist',
+  'gray',
+  'slate',
+  'midnight',
+  'mauve',
+  'plum'
+] as const;
 
-/** Reject unknown modes from stored preferences or external callers. */
-export function isSurfaceDepth(value: unknown): value is SurfaceDepth {
-  return typeof value === 'string' && surfaceDepths.includes(value as SurfaceDepth);
+export type SurfaceTone = (typeof surfaceTones)[number];
+
+/** Defaults reproduce the original palette: cool gray in light, pure neutral in dark. */
+export const defaultSurfaceTones: Readonly<Record<EffectiveTheme, SurfaceTone>> = {
+  light: 'gray',
+  dark: 'neutral'
+};
+
+/** Only known tone names may select the application surface ramp. */
+export function isSurfaceTone(value: unknown): value is SurfaceTone {
+  return typeof value === 'string' && surfaceTones.includes(value as SurfaceTone);
+}
+
+/**
+ * Apply both tone choices. CSS selects the one that matches the active theme,
+ * so theme changes need no further call.
+ */
+export function applySurfaceTones(tones: Record<EffectiveTheme, SurfaceTone>): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.dataset.lightTone = isSurfaceTone(tones.light) ? tones.light : defaultSurfaceTones.light;
+  root.dataset.darkTone = isSurfaceTone(tones.dark) ? tones.dark : defaultSurfaceTones.dark;
+  syncShellColor();
+  syncLoadingPalettes();
+}
+
+/** Resolved tone colours that app.html paints before the stylesheet loads. */
+export interface LoadingPalette {
+  background: string;
+  highlight: string;
+  text: string;
+  /** Base surface, used as the first-paint browser theme colour. */
+  surface: string;
+}
+
+type LoadingPalettes = Record<EffectiveTheme, LoadingPalette>;
+
+/** Tone steps behind each startup colour. Keep them aligned with app.html. */
+const loadingPaletteSteps: Readonly<Record<EffectiveTheme, Record<keyof LoadingPalette, number>>> =
+  {
+    light: { background: 100, highlight: 400, text: 600, surface: 200 },
+    dark: { background: 900, highlight: 700, text: 300, surface: 800 }
+  };
+
+const hexColorPattern = /^#[0-9a-f]{6}$/;
+
+function isLoadingPalettes(value: unknown): value is LoadingPalettes {
+  return (['light', 'dark'] as const).every((theme) => {
+    const palette = isRecord(value) ? value[theme] : undefined;
+    return (
+      isRecord(palette) &&
+      Object.keys(loadingPaletteSteps[theme]).every((name) => {
+        const color = palette[name];
+        return typeof color === 'string' && hexColorPattern.test(color);
+      })
+    );
+  });
+}
+
+/**
+ * app.html reads this slot directly, so keep its key and shape stable. The
+ * stored colours are derived from the tones and the stylesheet, not user input.
+ */
+const loadingPaletteSlot = globalSlot<LoadingPalettes | null>(
+  'loading-palette',
+  null,
+  Codecs.json<LoadingPalettes | null>(isLoadingPalettes)
+);
+
+/** Read the saved startup colours, for example to check what app.html will paint. */
+export function getLoadingPalettes(): LoadingPalettes | null {
+  return loadingPaletteSlot.get();
+}
+
+/**
+ * Resolve the startup colours of both chosen tones through a hidden sample,
+ * the same scope that the tone picker uses. Does nothing before the stylesheet
+ * defines the tone ramp.
+ */
+function syncLoadingPalettes(): void {
+  const root = document.documentElement;
+  const probe = document.createElement('span');
+  probe.hidden = true;
+  (document.body ?? root).append(probe);
+  try {
+    const palettes = {} as LoadingPalettes;
+    for (const theme of ['light', 'dark'] as const) {
+      probe.dataset.toneTheme = theme;
+      probe.dataset.tone = theme === 'dark' ? root.dataset.darkTone : root.dataset.lightTone;
+      const palette = {} as LoadingPalette;
+      for (const [name, step] of Object.entries(loadingPaletteSteps[theme])) {
+        if (!getComputedStyle(probe).getPropertyValue(`--tone-${step}`).trim()) return;
+        probe.style.color = `var(--tone-${step})`;
+        const color = resolvedHexColor(getComputedStyle(probe).color);
+        if (!color) return;
+        palette[name as keyof LoadingPalette] = color;
+      }
+      palettes[theme] = palette;
+    }
+    loadingPaletteSlot.set(palettes);
+  } finally {
+    probe.remove();
+  }
+}
+
+/**
+ * App-wide bevel strength in percent, in 10% steps. 0, 50, and 100 match the
+ * former Flat, Kinda 3D, and Very 3D modes. Keep app.html in sync.
+ */
+export const surfaceDepthStep = 10;
+/** Native iOS starts flat; browser/PWA and other hosts retain the Kinda 3D default. */
+export const defaultSurfaceDepth = Capacitor.getPlatform() === 'ios' ? 0 : 50;
+
+/** Former named modes, migrated from earlier saved preferences. */
+const legacySurfaceDepths: Readonly<Record<string, number>> = {
+  flat: 0,
+  '3d': 50,
+  'very-3d': 100
+};
+
+/** Reject unknown levels from stored preferences or external callers. */
+export function isSurfaceDepth(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= 100 &&
+    value % surfaceDepthStep === 0
+  );
+}
+
+/** Read a saved depth level, migrating the former named modes. */
+function storedSurfaceDepth(value: unknown): number {
+  if (isSurfaceDepth(value)) return value;
+  if (typeof value === 'string' && Object.hasOwn(legacySurfaceDepths, value)) {
+    return legacySurfaceDepths[value];
+  }
+  return defaultSurfaceDepth;
 }
 
 /** Apply bevel strength without changing the palette or light/dark theme. */
-export function applySurfaceDepth(value: SurfaceDepth): void {
+export function applySurfaceDepth(value: number): void {
   if (typeof document === 'undefined') return;
-  document.documentElement.dataset.depth = isSurfaceDepth(value) ? value : defaultSurfaceDepth;
+  const level = isSurfaceDepth(value) ? value : defaultSurfaceDepth;
+  document.documentElement.style.setProperty('--depth-level', String(level));
 }
 
 /** Keep the saved 20–40 scale so existing browser choices survive the UI label change. */
 export const defaultContrastAge = 30;
+/** The slider moves in 10% steps; saved half steps from earlier versions stay valid. */
+export const contrastAgeStep = 2;
 
 /** Reject invalid values from storage and callers before applying CSS percentages. */
 export function isContrastAge(value: unknown): value is number {
@@ -87,25 +239,49 @@ export function applyContrastAge(value: number): void {
 /** Keep the browser frame and system theme colour aligned with the active palette. */
 function syncShellColor(): void {
   const root = document.documentElement;
+  root.style.backgroundColor = 'var(--color-surface)';
   const dark = root.dataset.theme === 'dark';
   const veryHigh = root.style.getPropertyValue('--contrast-strong-mix') === '100%';
-  const shellColor = dark ? (veryHigh ? '#000000' : '#262626') : veryHigh ? '#ffffff' : '#e5e7eb';
-  root.style.backgroundColor = 'var(--color-surface)';
+  // The fallback matches the default tones before the stylesheet is available.
+  const shellColor =
+    resolvedHexColor(getComputedStyle(root).backgroundColor) ??
+    (dark ? (veryHigh ? '#000000' : '#262626') : veryHigh ? '#ffffff' : '#e5e7eb');
   document
     .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
     ?.setAttribute('content', shellColor);
+}
+
+/**
+ * Convert a computed CSS colour to `#rrggbb` for `theme-color`, which some
+ * browsers only accept in legacy sRGB syntax. Returns null for transparent or
+ * unresolvable colours, such as before the stylesheet loads.
+ */
+function resolvedHexColor(color: string): string | null {
+  if (!color || color === 'transparent' || color.includes('var(')) return null;
+  const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  if (!context) return null;
+  context.fillStyle = color;
+  context.fillRect(0, 0, 1, 1);
+  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+  if (alpha < 255) return null;
+  return `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 export type DisplayTheme = 'system' | 'light' | 'dark';
 export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
 export type ThreadPanePresentation = 'overlay' | 'split';
-type EffectiveTheme = 'light' | 'dark';
+export type EffectiveTheme = 'light' | 'dark';
 
 interface AppPreferences {
   displayTheme: DisplayTheme;
   accentColor: AccentColor;
-  surfaceDepth: SurfaceDepth;
+  /** Surface tone for light appearance. */
+  lightSurfaceTone: SurfaceTone;
+  /** Surface tone for dark appearance. */
+  darkSurfaceTone: SurfaceTone;
+  /** Bevel strength from 0 to 100 percent. */
+  surfaceDepth: number;
   /** Neutral palette contrast; 30 preserves the original light and dark colours. */
   contrastAge: number;
   composerEditor: ComposerEditorKind;
@@ -124,6 +300,8 @@ interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPrefe
 const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
   accentColor: defaultAccentColor,
+  lightSurfaceTone: defaultSurfaceTones.light,
+  darkSurfaceTone: defaultSurfaceTones.dark,
   surfaceDepth: defaultSurfaceDepth,
   contrastAge: defaultContrastAge,
   composerEditor: 'markdown',
@@ -232,7 +410,13 @@ function loadAppPreferences(): AppPreferences {
   return {
     displayTheme,
     accentColor: isAccentColor(stored.accentColor) ? stored.accentColor : defaultAccentColor,
-    surfaceDepth: isSurfaceDepth(stored.surfaceDepth) ? stored.surfaceDepth : defaultSurfaceDepth,
+    lightSurfaceTone: isSurfaceTone(stored.lightSurfaceTone)
+      ? stored.lightSurfaceTone
+      : defaultSurfaceTones.light,
+    darkSurfaceTone: isSurfaceTone(stored.darkSurfaceTone)
+      ? stored.darkSurfaceTone
+      : defaultSurfaceTones.dark,
+    surfaceDepth: storedSurfaceDepth(stored.surfaceDepth),
     contrastAge: isContrastAge(stored.contrastAge) ? stored.contrastAge : defaultContrastAge,
     composerEditor: isComposerEditorKind(stored.composerEditor)
       ? stored.composerEditor
@@ -265,6 +449,7 @@ export function getLegacyNotificationSoundPreferences(): LegacyNotificationSound
 
 export class UserPreferencesState {
   #preferences = $state<AppPreferences>(loadAppPreferences());
+  readonly #prefersDark = new MediaQuery('(prefers-color-scheme: dark)', false);
   // Keep the legacy fields intact whenever App Preferences are saved so a
   // server first opened later can still migrate the user's previous sound.
   readonly #legacyNotificationSoundPreferences = getLegacyNotificationSoundPreferences();
@@ -273,6 +458,20 @@ export class UserPreferencesState {
     // The HTML bootstrap handles first paint. Reapply the saved value when
     // the client store starts so hydration cannot leave the palette at default.
     applyContrastAge(this.#preferences.contrastAge);
+    applySurfaceDepth(this.#preferences.surfaceDepth);
+    this.#applySurfaceTones();
+    // app.html swaps the theme on system changes; resolve the shell colour
+    // afterwards because only the loaded stylesheet knows the tone's surface.
+    // Palette changes fade, so resolve it again once the surface settles.
+    if (typeof window !== 'undefined') {
+      window
+        .matchMedia('(prefers-color-scheme: dark)')
+        .addEventListener('change', () => syncShellColor());
+      const root = document.documentElement;
+      root.addEventListener('transitionend', (event) => {
+        if (event.target === root && event.propertyName === '--color-surface') syncShellColor();
+      });
+    }
   }
 
   get displayTheme(): DisplayTheme {
@@ -286,8 +485,11 @@ export class UserPreferencesState {
     applyDisplayTheme(displayTheme);
   }
 
+  /** The applied theme; follows system changes reactively while set to System. */
   get effectiveDisplayTheme(): EffectiveTheme {
-    return resolveDisplayTheme(this.#preferences.displayTheme);
+    const theme = this.#preferences.displayTheme;
+    if (theme !== 'system') return theme;
+    return this.#prefersDark.current ? 'dark' : 'light';
   }
 
   /** Accent shared by every registered server in this browser. */
@@ -302,12 +504,34 @@ export class UserPreferencesState {
     applyAccentColor(accentColor);
   }
 
+  /** Surface tone used while the light theme is active. */
+  get lightSurfaceTone(): SurfaceTone {
+    return this.#preferences.lightSurfaceTone;
+  }
+
+  set lightSurfaceTone(value: SurfaceTone) {
+    this.#preferences.lightSurfaceTone = isSurfaceTone(value) ? value : defaultSurfaceTones.light;
+    this.#persist();
+    this.#applySurfaceTones();
+  }
+
+  /** Surface tone used while the dark theme is active. */
+  get darkSurfaceTone(): SurfaceTone {
+    return this.#preferences.darkSurfaceTone;
+  }
+
+  set darkSurfaceTone(value: SurfaceTone) {
+    this.#preferences.darkSurfaceTone = isSurfaceTone(value) ? value : defaultSurfaceTones.dark;
+    this.#persist();
+    this.#applySurfaceTones();
+  }
+
   /** Bevel strength shared by all servers in this browser. */
-  get surfaceDepth(): SurfaceDepth {
+  get surfaceDepth(): number {
     return this.#preferences.surfaceDepth;
   }
 
-  set surfaceDepth(value: SurfaceDepth) {
+  set surfaceDepth(value: number) {
     const depth = isSurfaceDepth(value) ? value : defaultSurfaceDepth;
     this.#preferences.surfaceDepth = depth;
     this.#persist();
@@ -369,6 +593,13 @@ export class UserPreferencesState {
       ? value
       : defaultAppPreferences.threadPanePresentation;
     this.#persist();
+  }
+
+  #applySurfaceTones() {
+    applySurfaceTones({
+      light: this.#preferences.lightSurfaceTone,
+      dark: this.#preferences.darkSurfaceTone
+    });
   }
 
   #persist() {

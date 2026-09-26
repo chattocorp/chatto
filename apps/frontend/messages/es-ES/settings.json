@@ -217,6 +217,9 @@
       "save_button": "Guardar ajustes de hora",
       "saved": "Ajustes de hora guardados",
       "save_failed": "No se pudieron guardar los ajustes de hora",
+      "customization": {
+        "title": "Personalización del tema"
+      },
       "accent": {
         "title": "Color de acento",
         "blue": "Azul",
@@ -227,8 +230,22 @@
         "orange": "Naranja",
         "pink": "Rosa",
         "violet": "Violeta",
-        "grey": "Gris",
-        "preview": "Vista previa"
+        "grey": "Gris"
+      },
+      "tone": {
+        "title": "Color de fondo",
+        "neutral": "Neutro",
+        "gray": "Gris",
+        "slate": "Pizarra",
+        "stone": "Piedra",
+        "mauve": "Malva",
+        "olive": "Oliva",
+        "mist": "Bruma",
+        "taupe": "Topo",
+        "midnight": "Medianoche",
+        "forest": "Bosque",
+        "plum": "Ciruela",
+        "clay": "Arcilla"
       },
       "contrast": {
         "label": "Contraste",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "Estilo de la interfaz",
+        "label": "Profundidad",
         "flat": "Plano",
         "three_d": "Un poco 3D",
         "very_3d": "Muy 3D"

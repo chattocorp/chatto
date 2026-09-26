@@ -217,6 +217,9 @@
       "save_button": "Spara tidsinställningar",
       "saved": "Tidsinställningarna har sparats",
       "save_failed": "Det gick inte att spara tidsinställningarna",
+      "customization": {
+        "title": "Anpassa tema"
+      },
       "accent": {
         "title": "Accentfärg",
         "blue": "Blå",
@@ -227,8 +230,22 @@
         "orange": "Orange",
         "pink": "Rosa",
         "violet": "Violett",
-        "grey": "Grå",
-        "preview": "Förhandsvisning"
+        "grey": "Grå"
+      },
+      "tone": {
+        "title": "Bakgrundsfärg",
+        "neutral": "Neutral",
+        "gray": "Grå",
+        "slate": "Skiffer",
+        "stone": "Sten",
+        "mauve": "Malva",
+        "olive": "Oliv",
+        "mist": "Dis",
+        "taupe": "Taupe",
+        "midnight": "Midnatt",
+        "forest": "Skog",
+        "plum": "Plommon",
+        "clay": "Lera"
       },
       "contrast": {
         "label": "Kontrast",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "Gränssnittsstil",
+        "label": "Djup",
         "flat": "Platt",
         "three_d": "Lite 3D",
         "very_3d": "Tydlig 3D"

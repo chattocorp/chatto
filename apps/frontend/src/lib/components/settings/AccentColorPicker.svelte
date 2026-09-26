@@ -58,29 +58,4 @@ The owner applies and saves changes. Samples retain their own palette colours.
       </label>
     {/each}
   </fieldset>
-
-  <div
-    class="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-surface px-4 py-3"
-  >
-    <span class="text-muted">{m('settings.preferences.accent.preview')}</span>
-    <div
-      role="img"
-      aria-label={m('settings.preferences.accent.preview')}
-      class="flex min-w-0 flex-wrap items-center justify-end gap-4"
-    >
-      <span
-        class="flex h-6 w-10 items-center justify-end rounded-full bg-action p-1"
-        aria-hidden="true"
-      >
-        <span class="size-4 rounded-full bg-on-action shadow-sm"></span>
-      </span>
-      <span class="font-medium text-action underline underline-offset-4" aria-hidden="true"
-        >{m(`settings.preferences.accent.${value}`)}</span
-      >
-      <span class="pointer-events-none btn-action" aria-hidden="true">
-        {m('common.continue')}
-        <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
-      </span>
-    </div>
-  </div>
 </div>

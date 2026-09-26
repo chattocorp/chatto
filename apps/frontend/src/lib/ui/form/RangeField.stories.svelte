@@ -38,18 +38,17 @@
   </div>
 </Story>
 
-<Story name="Prominent" asChild>
+<Story name="Stops" asChild>
   <div class="w-full">
     <RangeField
       id="ui-contrast"
       label="Contrast"
       min={20}
       max={40}
-      step={0.5}
-      ticks={[20, 30, 40]}
+      step={2}
+      ticks={[20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40]}
       bind:value={contrastAge}
       displayValue={`${Math.round((contrastAge - 20) * 5)}%`}
-      prominent
     />
   </div>
 </Story>
