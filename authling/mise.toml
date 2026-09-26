@@ -72,10 +72,10 @@ outputs = [
 [tasks.build]
 description = "Build the Authling executable"
 depends = ["deps-go", "codegen-templates", "build-web"]
-run = [
-    "GOWORK=off go build -trimpath -o bin/authling ./cmd/authling",
-    "go build -trimpath -o bin/authling ./cmd/authling",
-]
+# `mise test` and `mise lint` check that Authling also compiles without the
+# repository workspace (`GOWORK=off`). The build uses the workspace only, so it
+# compiles and links once and shares dependency versions with Chatto.
+run = "go build -trimpath -o bin/authling ./cmd/authling"
 sources = [
     "go.mod",
     "**/*.go",

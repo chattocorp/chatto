@@ -35,7 +35,10 @@ override TOML values. Unknown TOML fields fail decoding.
 `http.public_url` declares Authling's externally visible origin and controls
 browser cookie transport policy. An `http://` origin is valid only when both
 the origin and listener are loopback; every other deployment must configure an
-`https://` origin. `AUTHLING_HTTP_PUBLIC_URL` provides the equivalent override.
+`https://` origin. For this rule and for plain-HTTP redirect URIs, a loopback
+host is a loopback IP address, `localhost`, or a name beneath `.localhost`, such
+as `authling.feature.localhost`. RFC 6761 reserves these names for loopback.
+`AUTHLING_HTTP_PUBLIC_URL` provides the equivalent override.
 Requests at another host, port, or scheme receive a temporary redirect (307)
 to the configured public origin, with their path and query preserved. Redirects
 run before application handlers and are not cached. Unsafe browser requests must

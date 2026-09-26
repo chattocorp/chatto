@@ -124,6 +124,18 @@ func TestValidateAllowsPlainHTTPPublicURLOnlyOnLoopback(t *testing.T) {
 			t.Fatalf("Validate(%q): %v", bindAddress, err)
 		}
 	}
+	for _, publicURL := range []string{"http://authling.feature.localhost:8080", "http://Feature-1.LOCALHOST:8080"} {
+		cfg := Config{HTTP: HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: publicURL}, NATS: validNATS}
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("Validate(%q): %v", publicURL, err)
+		}
+	}
+	for _, publicURL := range []string{"http://localhost.example:8080", "http://evil-localhost:8080", "http://-bad.localhost:8080", "http://a..localhost:8080", "http://under_score.localhost:8080"} {
+		cfg := Config{HTTP: HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: publicURL}, NATS: validNATS}
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "plain HTTP") {
+			t.Fatalf("Validate(%q) error = %v, want public-origin error", publicURL, err)
+		}
+	}
 	cfg := Config{HTTP: HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "https://authling.example"}, NATS: validNATS}
 	if err := cfg.Validate(); err != nil || !cfg.HTTP.SecureCookies() {
 		t.Fatalf("HTTPS proxy config validation = %v, SecureCookies = %v", err, cfg.HTTP.SecureCookies())
@@ -212,6 +224,26 @@ func TestValidateOIDCConventionalClients(t *testing.T) {
 				t.Fatal("invalid client was accepted")
 			}
 		})
+	}
+}
+
+func TestValidateOIDCConventionalClientsAllowNamedLoopbackRedirectsInLoopbackDevelopment(t *testing.T) {
+	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
+	client := OIDCClientConfig{ID: "client", Name: "Client", Secret: strings.Repeat("s", 32), RedirectURIs: []string{"http://chatto.feature.localhost:4000/callback"}}
+	cfg := Config{HTTP: HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://authling.feature.localhost:8080"}, NATS: validNATS, OIDC: OIDCConfig{Clients: []OIDCClientConfig{client}}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("named loopback development client: %v", err)
+	}
+
+	cfg.HTTP.PublicURL = "https://auth.example"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "redirect_uris") {
+		t.Fatalf("HTTPS issuer accepted a plain-HTTP named loopback redirect: %v", err)
+	}
+
+	cfg.HTTP.PublicURL = "http://authling.feature.localhost:8080"
+	cfg.OIDC.Clients[0].RedirectURIs = []string{"http://chatto.localhost.example:4000/callback"}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "redirect_uris") {
+		t.Fatalf("loopback issuer accepted a plain-HTTP non-loopback redirect: %v", err)
 	}
 }
 

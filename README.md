@@ -48,7 +48,7 @@ run without Turbo caching. Remote caching and telemetry are disabled by the
 repository configuration and scripts. See [ADR-102](docs/adr/ADR-102-turborepo-workspace-tasks.md)
 for the task and cache boundaries.
 
-Run the local Chatto backend and Vite frontend, Authling, Mailpit, and LiveKit:
+Run Chatto, Authling, Mailpit, LiveKit, and the Runling bot:
 
 ```sh
 mise trust
@@ -58,21 +58,39 @@ mise setup
 mise dev
 ```
 
-`mise dev` runs the services in one supervised process group. Vite reloads
-frontend changes. Restart it after you change Chatto or Authling Go code.
-`mise setup` builds the shared API types, Lingua, and Runling packages.
+`mise dev` builds the frontend and a Chatto binary that includes it. Then it
+runs the services in one supervised process group. The builds run only when
+their sources change. Restart `mise dev` to see a change in Chatto, its
+frontend, or Authling. `mise setup` builds the shared API types, Lingua, and
+Runling packages.
 
-[Portless](https://portless.sh/) provides HTTPS routes for browser-facing
-services. In Conductor, replace `<workspace>` with the workspace name:
+All services use plain HTTP. In Conductor, `<workspace>` is the workspace name
+and the base port is `$CONDUCTOR_PORT`. Outside Conductor, `<workspace>` is
+`local` and the base port is `4000`:
 
-- Chatto: `https://chatto.<workspace>.localhost:42444`
-- Authling: `https://authling.<workspace>.localhost:42444`
-- Mailpit: `https://mailpit.<workspace>.localhost:42444`
-- LiveKit: `https://livekit.<workspace>.localhost:42444`
-- Runling: `https://runling.<workspace>.localhost:42444`
+| Service  | URL                                                |
+| -------- | -------------------------------------------------- |
+| Chatto   | `http://chatto.<workspace>.localhost:<base>`       |
+| Authling | `http://authling.<workspace>.localhost:<base + 2>` |
+| Runling  | `http://localhost:<base + 3>`                      |
+| Mailpit  | `http://localhost:<base + 9>`                      |
 
-Outside Conductor, Portless uses the `local` route suffix. Services listen on
-loopback ports from base port `4000` (or `$CONDUCTOR_PORT` in Conductor).
+Browsers resolve names beneath `.localhost` to your computer. You do not need
+to change DNS or `/etc/hosts`. Each workspace has its own hostnames, so the
+workspaces do not share browser cookies. The comment above the `dev` task in
+`mise.toml` lists all ports.
+
+For hot module replacement during frontend work, run this command in another
+terminal:
+
+```sh
+mise dev-frontend
+```
+
+Vite then serves the frontend at `http://chatto.<workspace>.localhost:<base + 1>`
+and sends API requests to the Chatto server of `mise dev`. To use a different
+Chatto server, set `CHATTO_BACKEND_URL`, for example
+`CHATTO_BACKEND_URL=https://dev.chatto.run mise dev-frontend`.
 
 Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on the Chatto login screen. Chatto asks for a username at first
@@ -87,24 +105,16 @@ TestBot’s outbound webhook. Existing servers keep their saved configuration.
 
 Chatto uses Authling as its development OIDC provider. Chatto stores embedded
 NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
-identity data is in
-`.context/dev-portless/<workspace>/nested/authling/`.
+identity data is in `.context/dev/<workspace>/authling/`.
 
 These credentials and accounts are for local development only. Stop `mise dev`
-to stop the services and unregister the routes. With the stack stopped, remove
-`cli/data/` to reset Chatto, or remove the Authling identity directory to reset
-Authling. A new Conductor workspace name also creates a new Authling issuer and
-state directory.
+to stop the services. With the stack stopped, remove `cli/data/` to reset
+Chatto, or remove the Authling identity directory to reset Authling. A new
+Conductor workspace name also creates a new Authling issuer and state
+directory.
 
 If a worktree has NATS data in the former `cli/data/jetstream/` location, use
 the migration steps in [CONTRIBUTING.md](CONTRIBUTING.md#local-chatto-data).
-
-Portless creates and trusts a development CA on its first run. If macOS cannot
-show its authorization prompt, run this command once in an interactive terminal:
-
-```sh
-mise x node@24 npm:portless@0.15.5 -- portless trust
-```
 
 ### Generate Test Data
 
