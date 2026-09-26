@@ -85,11 +85,9 @@
       "clear": "Fjern"
     },
     "expiry": {
-      "label": "Utløper",
       "24h": "24 timer",
       "7d": "7 dager",
       "30d": "30 dager",
-      "indefinite": "Ingen utløp",
       "custom": "Egendefinert",
       "custom_label": "Egendefinert utløp",
       "error_required": "Velg en utløpsdato.",

@@ -85,11 +85,9 @@
       "clear": "Temizle"
     },
     "expiry": {
-      "label": "Süresi doluyor",
       "24h": "24 saat",
       "7d": "7 gün",
       "30d": "30 gün",
-      "indefinite": "Son kullanma tarihi yok",
       "custom": "Özel",
       "custom_label": "Özel son kullanma tarihi",
       "error_required": "Bir son kullanma tarihi seçin.",

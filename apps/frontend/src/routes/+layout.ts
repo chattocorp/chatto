@@ -58,7 +58,7 @@ export const load: LayoutLoad = async ({ url, params }) => {
     // A rejected or undecodable view is not restored; use live startup then.
     serverRegistry.init(true);
     const store = serverRegistry.getStore(serverId);
-    store.restoreSavedView(startupSavedView, true);
+    store.restoreSavedView(startupSavedView);
     if (store.startupPresentationOnly)
       return {
         serverInfo: null,

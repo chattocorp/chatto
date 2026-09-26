@@ -41,7 +41,6 @@
     "locally_unmute_participant": "ローカルでミュートを解除します",
     "locally_muted": "ローカルでミュートされています",
     "unknown_device": "不明なデバイス",
-    "no_devices": "デバイスが見つかりませんでした",
     "participants": "通話参加者",
     "join_failed": "音声通話に参加できませんでした",
     "encrypted_unsupported": "このブラウザは暗号化された音声通話をまだサポートしていません。最新の Firefox、Chrome、または Edge をお試しください。",
@@ -105,8 +104,7 @@
       "stream": "配信の音量",
       "reset": "音量をリセット",
       "boost_unavailable": "このブラウザーでは音量の増幅を利用できません。",
-      "enable_audio": "通話音声を有効にする",
-      "system_output": "このブラウザーは通話にシステムの音声出力を使用します。"
+      "enable_audio": "通話音声を有効にする"
     }
   }
 }

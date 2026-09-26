@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Lokaal dempen opheffen",
     "locally_muted": "Lokaal gedempt",
     "unknown_device": "Onbekend apparaat",
-    "no_devices": "Geen apparaten gevonden",
     "participants": "Bel deelnemers",
     "join_failed": "Kan niet deelnemen aan het spraakgesprek",
     "encrypted_unsupported": "Deze browser ondersteunt nog geen gecodeerde spraakoproepen. Probeer de nieuwste Firefox, Chrome of Edge.",
@@ -105,8 +104,7 @@
       "stream": "Streamvolume",
       "reset": "Volume herstellen",
       "boost_unavailable": "Volumeversterking is niet beschikbaar in deze browser.",
-      "enable_audio": "Gespreksaudio inschakelen",
-      "system_output": "Deze browser gebruikt de systeemaudio-uitgang voor gesprekken."
+      "enable_audio": "Gespreksaudio inschakelen"
     }
   }
 }

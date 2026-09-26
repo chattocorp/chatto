@@ -85,11 +85,9 @@
       "clear": "Skaidrs"
     },
     "expiry": {
-      "label": "Beidzas",
       "24h": "24 stundas",
       "7d": "7 dienas",
       "30d": "30 dienas",
-      "indefinite": "Nav derīguma termiņa",
       "custom": "Pielāgots",
       "custom_label": "Pielāgots derīguma termiņš",
       "error_required": "Izvēlieties derīguma termiņu.",

@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Zapnout lokálně",
     "locally_muted": "Lokálně ztlumeno",
     "unknown_device": "Neznámé zařízení",
-    "no_devices": "Nebyla nalezena žádná zařízení",
     "participants": "Zavolejte účastníkům",
     "join_failed": "Připojení k hlasovému hovoru se nezdařilo",
     "encrypted_unsupported": "Tento prohlížeč zatím nepodporuje šifrované hlasové hovory. Vyzkoušejte nejnovější Firefox, Chrome nebo Edge.",
@@ -105,8 +104,7 @@
       "stream": "Hlasitost streamu",
       "reset": "Obnovit hlasitost",
       "boost_unavailable": "Zesílení hlasitosti není v tomto prohlížeči dostupné.",
-      "enable_audio": "Zapnout zvuk hovoru",
-      "system_output": "Tento prohlížeč používá pro hovory systémový zvukový výstup."
+      "enable_audio": "Zapnout zvuk hovoru"
     }
   }
 }

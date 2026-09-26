@@ -2,6 +2,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { QueryCache, QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
 import type { RoomSuspensionList } from '$lib/api-client/rooms';
 import { registerServerQueryCache } from './cacheRegistry';
+import { serverQueryRoot } from './keys';
 import { clearUserStores } from '$lib/state/server/users.svelte';
 
 const SERVER_QUERY_STALE_TIME_MS = 30_000;
@@ -31,10 +32,13 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       const [kind, serverId] = query.queryKey;
-      if (kind === 'server' && typeof serverId === 'string' &&
+      if (
+        kind === 'server' &&
+        typeof serverId === 'string' &&
         (permissionRefreshes.has(serverId) ||
           (error instanceof ConnectError &&
-            [Code.PermissionDenied, Code.NotFound, Code.Unauthenticated].includes(error.code)))) {
+            [Code.PermissionDenied, Code.NotFound, Code.Unauthenticated].includes(error.code)))
+      ) {
         // TanStack normally keeps the last successful response on a refetch
         // error. A failed permission recheck or denied read must clear it.
         query.setState({ data: undefined, dataUpdatedAt: 0 });
@@ -53,10 +57,6 @@ export const queryClient = new QueryClient({
     }
   }
 });
-
-export function serverQueryRoot(serverId: string): QueryKey {
-  return ['server', serverId];
-}
 
 /** Remove cached private responses when a server session is disposed. */
 export function removeServerQueries(serverId: string): void {
@@ -172,7 +172,10 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
       predicate: (query) => {
         const key = query.queryKey;
         return (
-          key[0] === 'server' && key[1] === serverId && key[4] === 'admin' && key[5] === 'suspensions'
+          key[0] === 'server' &&
+          key[1] === serverId &&
+          key[4] === 'admin' &&
+          key[5] === 'suspensions'
         );
       }
     },

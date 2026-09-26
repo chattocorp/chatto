@@ -41,7 +41,6 @@
     "locally_unmute_participant": "בטל השתקה מקומית",
     "locally_muted": "מושתק מקומי",
     "unknown_device": "מכשיר לא ידוע",
-    "no_devices": "לא נמצאו מכשירים",
     "participants": "משתתפי שיחה",
     "join_failed": "נכשל ההצטרפות לשיחה הקולית",
     "encrypted_unsupported": "דפדפן זה אינו תומך עדיין בשיחות קוליות מוצפנות. נסה את ה-Firefox, Chrome או Edge העדכניים ביותר.",
@@ -105,8 +104,7 @@
       "stream": "עוצמת השידור",
       "reset": "איפוס עוצמת השמע",
       "boost_unavailable": "הגברת עוצמת השמע אינה זמינה בדפדפן זה.",
-      "enable_audio": "הפעלת שמע השיחה",
-      "system_output": "דפדפן זה משתמש בפלט השמע של המערכת לשיחות."
+      "enable_audio": "הפעלת שמע השיחה"
     }
   }
 }

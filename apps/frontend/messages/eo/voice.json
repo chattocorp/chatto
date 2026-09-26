@@ -41,7 +41,6 @@
     "locally_unmute_participant": "Malŝaltu loke",
     "locally_muted": "Loke silentigita",
     "unknown_device": "Nekonata aparato",
-    "no_devices": "Neniuj aparatoj trovitaj",
     "participants": "Voku partoprenantojn",
     "join_failed": "Malsukcesis aliĝi al voĉvoko",
     "encrypted_unsupported": "Ĉi tiu retumilo ankoraŭ ne subtenas ĉifritajn voĉvokojn. Provu la plej novan Firefox, Chrome aŭ Edge.",
@@ -105,8 +104,7 @@
       "stream": "Elsenda laŭteco",
       "reset": "Restarigi laŭtecon",
       "boost_unavailable": "Laŭteca plifortigo ne disponeblas en ĉi tiu retumilo.",
-      "enable_audio": "Ebligi voksonon",
-      "system_output": "Ĉi tiu retumilo uzas la sisteman soneligon por vokoj."
+      "enable_audio": "Ebligi voksonon"
     }
   }
 }

@@ -85,11 +85,9 @@
       "clear": "Selge"
     },
     "expiry": {
-      "label": "Aegub",
       "24h": "24 tundi",
       "7d": "7 päeva",
       "30d": "30 päeva",
-      "indefinite": "Aegumist pole",
       "custom": "Kohandatud",
       "custom_label": "Kohandatud aegumine",
       "error_required": "Valige aegumiskuupäev.",

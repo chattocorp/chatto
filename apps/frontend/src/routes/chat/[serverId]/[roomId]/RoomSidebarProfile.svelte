@@ -20,6 +20,7 @@ realtime changes arrive.
   import { m } from '$lib/i18n/messages';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { queryClient } from '$lib/query/client';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import {
@@ -52,7 +53,7 @@ realtime changes arrive.
     () => {
       const connection = serverScope.connection;
       return {
-        queryKey: ['user', serverScope.serverId, connection.queryScope, userId],
+        queryKey: [...serverSessionQueryRoot(serverScope.serverId, connection), 'user', userId],
         queryFn: async () => {
           const users = await connection.getAPI(createUserAPI).batchGetUsers([userId]);
           return users[0] ?? null;
@@ -65,7 +66,9 @@ realtime changes arrive.
     () => queryClient
   );
 
-  const baseUser = $derived(mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user));
+  const baseUser = $derived(
+    mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user)
+  );
   const loading = $derived(!baseUser && userQuery.isPending);
   const notFound = $derived(!!userId && !loading && !baseUser);
   const displayName = $derived(

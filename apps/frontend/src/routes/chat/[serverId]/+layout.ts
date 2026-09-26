@@ -3,7 +3,6 @@ import { resolve } from '$app/paths';
 import { saveReturnUrl } from '$lib/auth/returnNavigation';
 import { segmentToServerId } from '$lib/navigation';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { loadSavedView } from '$lib/storage/savedViews';
 import type { LayoutLoad } from './$types';
 
 function redirectToLogin(url: URL): never {
@@ -22,13 +21,9 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     redirect(302, resolve('/setup'));
   }
 
-  serverStore.restoreSavedView(
-    startupServerId === serverId
-      ? serverStore.savedView
-      : await loadSavedView(serverId, serverRegistry.getServer(serverId)?.userId ?? null),
-    serverStore.networkStartupDeferred
-  );
-  // Only a view the store accepted counts; it refuses rejected or corrupt views.
+  await serverStore.restoreSavedViewFromDisk();
+  // Only a view the store accepted counts. Storage rejects corrupt views, and
+  // the store refuses views of another viewer or of a rejected session.
   const savedView = serverStore.savedView;
   // A dormant server starts its network work after its saved view is ready.
   if (startupServerId !== serverId) serverRegistry.startServerNetwork(serverId);

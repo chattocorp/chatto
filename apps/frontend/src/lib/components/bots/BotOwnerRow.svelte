@@ -6,6 +6,7 @@
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
+  import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary } from '$lib/api-client/userSummary';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
@@ -26,14 +27,7 @@
   const users = $derived(scope.store.projection.users);
   const query = createQuery(
     () => ({
-      queryKey: [
-        'server',
-        scope.serverId,
-        'session',
-        scope.connection.queryScope,
-        'bot-owner',
-        ownerId
-      ],
+      queryKey: [...serverSessionQueryRoot(scope.serverId, scope.connection), 'bot-owner', ownerId],
       queryFn: async () => {
         const [owner] = await scope.connection.getAPI(createUserAPI).batchGetUsers([ownerId]);
         return owner ?? null;

@@ -113,10 +113,7 @@ describe('saved startup route load', () => {
     expect(first).toMatchObject({ startupPending: true, startupServerId: 'origin', user: null });
     expect(first).not.toHaveProperty('startupSavedView');
     expect(mocks.init).toHaveBeenCalledWith(true);
-    expect(mocks.restoreSavedView).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'U1' }),
-      true
-    );
+    expect(mocks.restoreSavedView).toHaveBeenCalledWith(expect.objectContaining({ userId: 'U1' }));
     expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
     expect(mocks.loadCurrentUser).not.toHaveBeenCalled();
 

@@ -1,9 +1,5 @@
 // Server events — unified bus from `myEvents` subscription.
-export {
-  useProjectionEvent,
-  usePresenceChange,
-  useSessionTerminated
-} from './useEvent.svelte';
+export { useProjectionEvent, usePresenceChange } from './useEvent.svelte';
 
 // Message actions
 export { useMessageActions, useReactionActions } from './useMessageActions.svelte';
