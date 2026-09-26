@@ -2,14 +2,16 @@
 @component
 
 The Server Directory: a direct server-address lookup and the merged cached
-Neighborhoods of all registered servers. It renders without panel chrome so the
-Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
+Neighborhoods of all registered servers. The `/chat/servers` page shows each
+section in a titled panel; the Add Server dialog shows the sections directly on
+its work plane. See FDR-042.
 -->
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
   import { onMount, type Snippet } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import {
     getPublicServerInfo,
@@ -17,7 +19,12 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
     type NeighborhoodServerProfile,
     type PublicServerInfo
   } from '$lib/api-client/server';
-  import { startRemoteReauthentication, startServerOAuthFlowWhenReady } from '$lib/auth/reauth';
+  import {
+    startRemoteReauthentication,
+    startServerOAuthFlow,
+    startServerOAuthFlowWhenReady,
+    type ServerOAuthFlowOptions
+  } from '$lib/auth/reauth';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
@@ -40,8 +47,9 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
   }: {
     /**
      * The directory is the content of the history-backed Add Server dialog.
-     * Opening a registered server then replaces the dialog's history entry,
-     * so Back does not reopen the dialog.
+     * Sections then sit on the dialog's work plane with one lower heading
+     * level. Opening, joining, or signing in to a server replaces the
+     * dialog's history entry while it is open, so Back does not reopen it.
      */
     inDialog?: boolean;
   } = $props();
@@ -192,6 +200,14 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
    * result has only the cached profile, so joining first loads the server's
    * current sign-in data. The user starts this request explicitly.
    */
+  /**
+   * Sign-in can finish after the dialog closes. Replace history only when the
+   * Add Server dialog is still the current entry at that time.
+   */
+  const signInOptions: ServerOAuthFlowOptions = {
+    replaceHistory: () => inDialog && page.state.modal?.type === 'addServer'
+  };
+
   async function openOrJoin(origin: string, profile: ServerVersionProfile) {
     const joined = registeredServer(origin);
     if (!joined && !canJoin(profile)) return;
@@ -202,16 +218,14 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
           replaceState: inDialog
         });
       } else if (joined) {
-        await startRemoteReauthentication(joined, { replaceHistory: inDialog });
+        await startRemoteReauthentication(joined, signInOptions);
+      } else if (isPublicServerInfo(profile)) {
+        await startServerOAuthFlow(origin, profile, signInOptions);
       } else if (profile) {
-        // The sign-in window must open from this click, before a cached
+        // The sign-in window must open from this click, before the cached
         // profile is refreshed. A stale cached profile can hide an
         // incompatible version or missing sign-in support.
-        await startServerOAuthFlowWhenReady(
-          origin,
-          isPublicServerInfo(profile) ? Promise.resolve(profile) : loadJoinableProfile(origin),
-          { replaceHistory: inDialog }
-        );
+        await startServerOAuthFlowWhenReady(origin, loadJoinableProfile(origin), signInOptions);
       }
     } catch (error) {
       toast.error(

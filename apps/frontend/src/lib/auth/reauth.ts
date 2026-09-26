@@ -44,22 +44,34 @@ class OAuthPopupError extends Error {}
 /** How a completed sign-in navigates to the server. */
 export type ServerOAuthFlowOptions = {
   /**
-   * Replace the current history entry instead of adding one. A history-backed
-   * dialog uses this so that Back does not reopen it.
+   * Called when sign-in completes, just before navigation. Return `true` to
+   * replace the current history entry instead of adding one. A history-backed
+   * dialog uses this so that Back does not reopen it, and checks at that time
+   * that the dialog is still open.
    */
-  replaceHistory?: boolean;
+  replaceHistory?: () => boolean;
 };
 
+/** Start sign-in with public server data that the caller already loaded. */
 export function startServerOAuthFlow(
   serverUrl: string,
   serverInfo: Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>,
-  beforeNavigate?: () => void,
-  providerId?: string | null
+  {
+    beforeNavigate,
+    providerId,
+    ...options
+  }: ServerOAuthFlowOptions & {
+    /** Called after sign-in completes and before navigation. */
+    beforeNavigate?: () => void;
+    /** Server-configured login provider that the authorization page starts. */
+    providerId?: string | null;
+  } = {}
 ): Promise<void> {
   return runServerOAuthFlow(
     serverUrl,
     Promise.resolve({ serverInfo, providerId: providerId ?? null }),
-    beforeNavigate
+    beforeNavigate,
+    options
   );
 }
 
@@ -131,7 +143,7 @@ async function runServerOAuthFlow(
     );
     beforeNavigate?.();
     await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
-      replaceState: options.replaceHistory ?? false
+      replaceState: options.replaceHistory?.() ?? false
     });
     return;
   }
@@ -204,7 +216,7 @@ async function runServerOAuthFlow(
     loadAndClearFlowState();
     beforeNavigate?.();
     await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
-      replaceState: options.replaceHistory ?? false
+      replaceState: options.replaceHistory?.() ?? false
     });
   } catch (err) {
     responseWait.cancel();

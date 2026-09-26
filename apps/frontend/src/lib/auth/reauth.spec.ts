@@ -194,7 +194,7 @@ describe('remote server OAuth popup', () => {
     await startServerOAuthFlowWhenReady(
       'https://remote.example',
       Promise.resolve({ name: 'Remote', authorizeUrl: '/oauth/authorize', iconUrl: null }),
-      { replaceHistory: true }
+      { replaceHistory: () => true }
     );
 
     expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example', { replaceState: true });
@@ -265,8 +265,7 @@ describe('remote server OAuth popup', () => {
         authorizeUrl: '/oauth/authorize',
         iconUrl: null
       },
-      beforeNavigate,
-      'authling'
+      { beforeNavigate, providerId: 'authling' }
     );
 
     // window.open happens before the first asynchronous PKCE operation, so it
