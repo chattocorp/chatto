@@ -22,4 +22,14 @@
   }
 </script>
 
-<button data-testid="create-role" onclick={submit}>Create role</button>
+<!-- The data attributes read the bound values. Without a read, ESLint's
+     no-useless-assignment rule reports the write-only $bindable props
+     (sveltejs/eslint-plugin-svelte#1478). -->
+<button
+  data-testid="create-role"
+  data-name={name}
+  data-display-name={displayName}
+  data-description={description}
+  data-pingable={pingable}
+  onclick={submit}>Create role</button
+>

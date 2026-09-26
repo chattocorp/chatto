@@ -86,7 +86,7 @@ async function captureShowOnceWebhookURL(page: Page): Promise<string> {
   await dialog.getByRole('button', { name: 'Got it', exact: true }).click();
   await expect(dialog).toBeHidden();
 
-  let credential = '';
+  let credential: string;
   try {
     credential = new URL(webhookURL).pathname.split('/').at(-1) ?? '';
   } catch {

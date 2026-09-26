@@ -177,10 +177,8 @@ test.describe('message pagination', () => {
 
     const startMarker = page.getByText('This is the beginning of this conversation.');
 
-    let markerVisible = false;
     for (let i = 0; i < 60; i++) {
-      markerVisible = await startMarker.isVisible().catch(() => false);
-      if (markerVisible) break;
+      if (await startMarker.isVisible().catch(() => false)) break;
 
       await page.mouse.wheel(0, -1000);
       await page.waitForTimeout(TIMEOUTS.SCROLL_SETTLE);

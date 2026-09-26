@@ -791,7 +791,6 @@ export class NotificationStore {
     this.#adjustRoomCounts(roomAdjustments, -1);
 
     let request: Promise<NotificationOccurrenceItem> | undefined;
-    let mutationFailed = false;
     try {
       request = this.#api.markNotificationRead(notificationId);
       this.#pendingReadRequestById.set(notificationId, request);
@@ -800,7 +799,6 @@ export class NotificationStore {
       return true;
     } catch (e) {
       console.error('Failed to mark notification read:', e);
-      mutationFailed = true;
     } finally {
       if (this.#pendingReadById.get(notificationId) === mutation) {
         this.#pendingReadById.delete(notificationId);
@@ -810,11 +808,9 @@ export class NotificationStore {
       }
       this.#endMutation();
     }
-    if (mutationFailed) {
-      await this.#reconcileAfterFailedMutation();
-      return false;
-    }
-    return true;
+    // Only the catch path reaches this point; success returns inside `try`.
+    await this.#reconcileAfterFailedMutation();
+    return false;
   }
 
   #beginMutation(): void {
