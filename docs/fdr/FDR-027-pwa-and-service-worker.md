@@ -17,7 +17,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 - API, authentication, live, webhook, and uploaded-asset requests use the network.
 - The shell cache uses at most 12 MB.
 - On each launch, the app loads chat data from the server after it verifies the session. On each page load, it also deletes the `chatto-saved-views` IndexedDB database that 0.5 beta versions created.
-- On activation, the root worker removes older shell caches after the new shell is installed.
+- Each build installs into its own shell cache, also when local builds repeat the version name. On activation, the root worker removes older shell caches after the new shell is installed.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.

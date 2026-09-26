@@ -1,9 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$service-worker', () => ({
+const serviceWorkerBuild = vi.hoisted(() => ({
   build: ['/_app/immutable/entry.js'],
   version: 'test-version'
 }));
+
+vi.mock('$service-worker', () => ({
+  get build() {
+    return serviceWorkerBuild.build;
+  },
+  get version() {
+    return serviceWorkerBuild.version;
+  }
+}));
+
+/** Returns the only installed shell cache. */
+async function openShellCache(cacheStorage: ReturnType<typeof createMemoryCacheStorage>) {
+  const names = (await cacheStorage.keys()).filter((name) => name.startsWith('chatto-shell-'));
+  expect(names).toHaveLength(1);
+  return cacheStorage.open(names[0]);
+}
 
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
@@ -171,9 +187,7 @@ describe('service worker notifications', () => {
       })
     );
 
-    expect(await navigate(worker)).toBe(
-      await (await cacheStorage.open('chatto-shell-test-version')).match('/login')
-    );
+    expect(await navigate(worker)).toBe(await (await openShellCache(cacheStorage)).match('/login'));
   });
 
   it('serves the cached shell when the server fails', async () => {
@@ -185,9 +199,7 @@ describe('service worker notifications', () => {
       vi.fn(async () => ({ status: 502 }))
     );
 
-    expect(await navigate(worker)).toBe(
-      await (await cacheStorage.open('chatto-shell-test-version')).match('/login')
-    );
+    expect(await navigate(worker)).toBe(await (await openShellCache(cacheStorage)).match('/login'));
   });
 
   it('reports the network result when no shell is cached', async () => {
@@ -220,11 +232,31 @@ describe('service worker notifications', () => {
     await worker.dispatch('install');
     await worker.dispatch('activate');
 
-    await expect(cacheStorage.keys()).resolves.toEqual([
-      'unrelated-cache',
-      'chatto-shell-test-version'
-    ]);
+    const names = await cacheStorage.keys();
+    expect(names).toHaveLength(2);
+    expect(names[0]).toBe('unrelated-cache');
+    expect(names[1]).toMatch(/^chatto-shell-test-version-/);
     expect(worker.clients.claim).toHaveBeenCalledOnce();
+  });
+
+  it('installs each build into its own cache when the version name repeats', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    const previousWorker = await importServiceWorker(cacheStorage);
+    await previousWorker.dispatch('install');
+    await previousWorker.dispatch('activate');
+
+    vi.resetModules();
+    serviceWorkerBuild.build = ['/_app/immutable/entry.next.js'];
+    try {
+      const worker = await importServiceWorker(cacheStorage);
+      await worker.dispatch('install');
+      await worker.dispatch('activate');
+
+      const shell = await openShellCache(cacheStorage);
+      await expect(shell.keys()).resolves.toEqual(['/_app/immutable/entry.next.js', '/login']);
+    } finally {
+      serviceWorkerBuild.build = ['/_app/immutable/entry.js'];
+    }
   });
 
   it.each(['legacy', 'declarative', 'event'])(
