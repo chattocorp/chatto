@@ -217,6 +217,9 @@
       "save_button": "Guardar definições de hora",
       "saved": "Definições de hora guardadas",
       "save_failed": "Não foi possível guardar as definições de hora",
+      "customization": {
+        "title": "Personalização do tema"
+      },
       "accent": {
         "title": "Cor de destaque",
         "blue": "Azul",
@@ -227,8 +230,22 @@
         "orange": "Laranja",
         "pink": "Rosa",
         "violet": "Violeta",
-        "grey": "Cinzento",
-        "preview": "Pré-visualização"
+        "grey": "Cinzento"
+      },
+      "tone": {
+        "title": "Cor de fundo",
+        "neutral": "Neutro",
+        "gray": "Cinzento",
+        "slate": "Ardósia",
+        "stone": "Pedra",
+        "mauve": "Malva",
+        "olive": "Oliva",
+        "mist": "Névoa",
+        "taupe": "Taupe",
+        "midnight": "Meia-noite",
+        "forest": "Floresta",
+        "plum": "Ameixa",
+        "clay": "Argila"
       },
       "contrast": {
         "label": "Contraste",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "Estilo da interface",
+        "label": "Profundidade",
         "flat": "Plano",
         "three_d": "Um pouco 3D",
         "very_3d": "Muito 3D"

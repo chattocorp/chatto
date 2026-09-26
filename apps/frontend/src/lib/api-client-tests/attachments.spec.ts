@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 
@@ -22,7 +21,6 @@ import { createAttachmentAPI } from '$lib/api-client/attachments';
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
   listRoomAttachments: vi.fn(),
   batchGetAssets: vi.fn(),
   getAsset: vi.fn()
@@ -51,9 +49,6 @@ describe('createAttachmentAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listRoomAttachments.mockReset();
     mocks.batchGetAssets.mockReset();
     mocks.getAsset.mockReset();
@@ -71,7 +66,7 @@ describe('createAttachmentAPI', () => {
     });
   });
 
-  it('reads file size as authenticated metadata and forwards cancellation', async () => {
+  it('reads file size metadata and forwards cancellation', async () => {
     mocks.getAsset.mockResolvedValue(
       new GetAssetResponse({ asset: new Asset({ id: 'html', size: 1536n }) })
     );
@@ -85,7 +80,7 @@ describe('createAttachmentAPI', () => {
     });
     expect(mocks.getAsset).toHaveBeenCalledWith(
       { roomId: 'room', assetId: 'html' },
-      { headers: { Authorization: 'Bearer test-token' }, signal: controller.signal }
+      { signal: controller.signal }
     );
   });
 
@@ -95,7 +90,7 @@ describe('createAttachmentAPI', () => {
     await expect(api.getMetadata('room', 'missing')).rejects.toThrow('Asset metadata unavailable');
   });
 
-  it('lists room attachments with bearer auth and maps attachment metadata', async () => {
+  it('lists room attachments and maps attachment metadata', async () => {
     mocks.listRoomAttachments.mockResolvedValue(
       new ListRoomAttachmentsResponse({
         page: { totalCount: 2n, hasMore: true },
@@ -149,19 +144,20 @@ describe('createAttachmentAPI', () => {
       thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://server.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://server.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.listRoomAttachments).toHaveBeenCalledWith(
       {
         roomId: 'room_1',
         page: { limit: 50, offset: 0 },
         thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
       },
-      { headers: expect.any(Headers) }
+      { headers: undefined }
     );
-    expect(mocks.listRoomAttachments.mock.calls[0][1].headers.get('Authorization')).toBe('Bearer token');
     expect(page).toMatchObject({
       totalCount: 2,
       hasMore: true,
@@ -225,14 +221,11 @@ describe('createAttachmentAPI', () => {
       fit: ImageFitMode.CONTAIN
     });
 
-    expect(mocks.batchGetAssets).toHaveBeenCalledWith(
-      {
-        roomId: 'room_1',
-        assetIds: ['att_1'],
-        thumbnail: { width: 960, height: 800, fit: ImageFitMode.CONTAIN }
-      },
-      { headers: undefined }
-    );
+    expect(mocks.batchGetAssets).toHaveBeenCalledWith({
+      roomId: 'room_1',
+      assetIds: ['att_1'],
+      thumbnail: { width: 960, height: 800, fit: ImageFitMode.CONTAIN }
+    });
     expect(urls.get('att_1')?.assetUrl?.url).toBe('/assets/files/att_1?fresh=1');
     expect(urls.get('att_1')?.thumbnailAssetUrl?.url).toContain('960x800');
     expect(urls.get('att_1')?.videoThumbnailAssetUrl?.url).toBe('/assets/files/thumb?fresh=1');
@@ -303,14 +296,11 @@ describe('createAttachmentAPI', () => {
       fit: ImageFitMode.COVER
     });
 
-    expect(mocks.batchGetAssets).toHaveBeenCalledWith(
-      {
-        roomId: 'room_1',
-        assetIds: ['att_1', 'missing'],
-        thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.batchGetAssets).toHaveBeenCalledWith({
+      roomId: 'room_1',
+      assetIds: ['att_1', 'missing'],
+      thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
+    });
     expect(urls.get('att_1')?.assetUrl?.url).toBe('/assets/files/att_1?fresh=1');
     expect(urls.has('missing')).toBe(false);
   });
@@ -358,10 +348,9 @@ describe('createAttachmentAPI', () => {
     expect(page.items[0]?.attachment.videoProcessing?.variants[0]?.assetUrl).toBeNull();
   });
 
-  it('notifies the registry when an authenticated server rejects the request', async () => {
-    mocks.listRoomAttachments.mockRejectedValue(
-      new ConnectError('session expired', Code.Unauthenticated)
-    );
+  it('propagates Connect errors unchanged', async () => {
+    const err = new ConnectError('session expired', Code.Unauthenticated);
+    mocks.listRoomAttachments.mockRejectedValue(err);
 
     const api = createAttachmentAPI({
       serverId: 'server_1',
@@ -376,7 +365,6 @@ describe('createAttachmentAPI', () => {
         offset: 0,
         thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
       })
-    ).rejects.toBeInstanceOf(ConnectError);
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('server_1');
+    ).rejects.toBe(err);
   });
 });

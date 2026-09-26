@@ -1,10 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import {
-  authHeaders,
-  createChattoClient,
-  handleAuthError,
-  REALTIME_MINIMUM_CURSOR_HEADER
-} from './connect.js';
+import { createChattoClient, minimumCursorHeaders, type ConnectAPIConfig } from './connect.js';
 import {
   TimelineEventKind,
   type MessagePostedPayload,
@@ -29,14 +24,6 @@ import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_p
 import type { User } from '@chatto/api-types/api/v1/users_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { getUserStore } from '$lib/state/server/users.svelte';
-
-export type RoomTimelineAPIConfig = {
-  serverId?: string;
-  queryScope?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type EventConnectionPage = {
   events: readonly TimelineEventView[];
@@ -94,7 +81,7 @@ export type RoomTimelineAPI = {
   ): Promise<EventConnectionPage>;
 };
 
-export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimelineAPI {
+export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI {
   const userStore = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
   // Capture the owner and its generation before the request. Late includes must
   // neither recreate a disposed owner nor refill a reset snapshot.
@@ -111,21 +98,14 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
   const messages = createChattoClient(MessageService, config);
   const rooms = createChattoClient(RoomService, config);
   const threads = createChattoClient(ThreadService, config);
-  const headers = (minimumCursor?: string) => {
-    const base = authHeaders(config);
-    if (!minimumCursor) return base;
-    const result = new Headers(base);
-    result.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
-    return result;
-  };
   const options = (minimumCursor?: string) => ({
-    headers: headers(minimumCursor),
+    headers: minimumCursorHeaders(minimumCursor),
     ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
   });
   return {
     async getRoomEvents({ roomId, limit, before, after, minimumCursor }) {
-      try {
-        const response = await readPage(() => rooms.getRoomEvents(
+      const response = await readPage(() =>
+        rooms.getRoomEvents(
           {
             roomId,
             limit,
@@ -136,43 +116,32 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
                 : { case: undefined }
           },
           options(minimumCursor)
-        ));
-        return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+        )
+      );
+      return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
     },
     async getRoomEventsAround({ roomId, eventId, limit, minimumCursor }) {
-      try {
-        const response = await readPage(() => rooms.getRoomEventsAround(
-          { roomId, eventId, limit },
-          options(minimumCursor)
-        ));
-        if (!response.page) return emptyEventConnectionPage();
-        return roomTimelinePageToEventConnectionPage(response.page);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await readPage(() =>
+        rooms.getRoomEventsAround({ roomId, eventId, limit }, options(minimumCursor))
+      );
+      if (!response.page) return emptyEventConnectionPage();
+      return roomTimelinePageToEventConnectionPage(response.page);
     },
     async getMessage({ roomId, eventId, minimumCursor }) {
-      try {
-        const response = await messages.getMessage({ roomId, eventId }, options(minimumCursor));
-        // A failed author lookup must not synthesize a deleted account.
-        // The realtime row keeps its body and reports the unresolved identity.
-        const users = await batchTimelineUsers(
-          config,
-          messageUserIds(response.message ? [response.message] : []),
-          minimumCursor,
-          true
-        );
-        return response.message ? messageToTimelineEvent(response.message, users) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await messages.getMessage({ roomId, eventId }, options(minimumCursor));
+      // A failed author lookup must not synthesize a deleted account.
+      // The realtime row keeps its body and reports the unresolved identity.
+      const users = await batchTimelineUsers(
+        config,
+        messageUserIds(response.message ? [response.message] : []),
+        minimumCursor,
+        true
+      );
+      return response.message ? messageToTimelineEvent(response.message, users) : null;
     },
     async getThreadEvents({ roomId, threadRootEventId, limit, before, after, minimumCursor }) {
-      try {
-        const response = await readPage(() => threads.getThreadEvents(
+      const response = await readPage(() =>
+        threads.getThreadEvents(
           {
             roomId,
             threadRootEventId,
@@ -184,29 +153,25 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
                 : { case: undefined }
           },
           options(minimumCursor)
-        ));
-        return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+        )
+      );
+      return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
     },
     async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit, minimumCursor }) {
-      try {
-        const response = await readPage(() => threads.getThreadEventsAround(
+      const response = await readPage(() =>
+        threads.getThreadEventsAround(
           { roomId, threadRootEventId, eventId, limit },
           options(minimumCursor)
-        ));
-        if (!response.page) return emptyEventConnectionPage();
-        return roomTimelinePageToEventConnectionPage(response.page);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+        )
+      );
+      if (!response.page) return emptyEventConnectionPage();
+      return roomTimelinePageToEventConnectionPage(response.page);
     }
   };
 }
 
 export async function timelineUsersForMessages(
-  config: RoomTimelineAPIConfig,
+  config: ConnectAPIConfig,
   messages: Message[],
   minimumCursor?: string,
   requireSuccess = false
@@ -216,7 +181,7 @@ export async function timelineUsersForMessages(
 }
 
 async function batchTimelineUsers(
-  config: RoomTimelineAPIConfig,
+  config: ConnectAPIConfig,
   userIds: string[],
   minimumCursor?: string,
   requireSuccess = false

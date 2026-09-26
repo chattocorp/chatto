@@ -1,6 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { createThreadAPI } from '$lib/api-client/threads';
 import { Timestamp } from '@bufbuild/protobuf';
 import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_pb';
@@ -12,7 +11,6 @@ import { MessageSearchScope, MessageSearchGroupBy, MessageSearchOrder } from '@c
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
   listFollowedThreads: vi.fn(),
   searchMessages: vi.fn(),
   followThread: vi.fn(),
@@ -35,9 +33,6 @@ describe('createThreadAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listFollowedThreads.mockReset();
     mocks.searchMessages.mockReset();
     mocks.followThread.mockReset();
@@ -61,7 +56,7 @@ describe('createThreadAPI', () => {
       { query: 'from:alice', scope: MessageSearchScope.FOLLOWED_THREADS,
         groupBy: MessageSearchGroupBy.THREAD, order: MessageSearchOrder.THREAD_ACTIVITY,
         pageSize: 20, cursor: 'previous-page' },
-      { headers: undefined, signal }
+      { signal }
     );
     expect(mocks.listFollowedThreads).not.toHaveBeenCalled();
     expect(result).toEqual({ threads: [], totalCount: 25, hasMore: true, nextCursor: 'next-page' });
@@ -70,7 +65,7 @@ describe('createThreadAPI', () => {
     expect(mocks.listFollowedThreads).toHaveBeenCalledOnce();
   });
 
-  it('lists followed threads with bearer auth', async () => {
+  it('lists followed threads', async () => {
     const lastReplyAt = new Date('2025-01-02T03:04:05.000Z');
     mocks.listFollowedThreads.mockResolvedValue({
       threads: [
@@ -98,9 +93,7 @@ describe('createThreadAPI', () => {
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
       { includeDirectMessageThreads: true, unreadOnly: false, page: { limit: 20, offset: 40 } },
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
+      {}
     );
     expect(page).toEqual({
       threads: [
@@ -160,7 +153,7 @@ describe('createThreadAPI', () => {
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
       { includeDirectMessageThreads: true, unreadOnly: true, page: { limit: 20, offset: 0 } },
-      { headers: undefined }
+      {}
     );
   });
 
@@ -176,7 +169,7 @@ describe('createThreadAPI', () => {
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
       { includeDirectMessageThreads: true, unreadOnly: false, page: { limit: 20, offset: 0 } },
-      { headers: undefined, signal }
+      { signal }
     );
   });
 
@@ -268,7 +261,7 @@ describe('createThreadAPI', () => {
     });
   });
 
-  it('follows a thread with bearer auth', async () => {
+  it('follows a thread', async () => {
     mocks.followThread.mockResolvedValue({
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: true }
     });
@@ -283,25 +276,22 @@ describe('createThreadAPI', () => {
       threadRootEventId: 'root-1'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://remote.example.test/api/connect',
-      useBinaryFormat: true
-    });
-    expect(mocks.followThread).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        threadRootEventId: 'root-1'
-      },
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://remote.example.test/api/connect',
+        useBinaryFormat: true
+      })
     );
+    expect(mocks.followThread).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      threadRootEventId: 'root-1'
+    });
     expect(result).toEqual({
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: true }
     });
   });
 
-  it('unfollows a thread without auth headers when no token is available', async () => {
+  it('unfollows a thread', async () => {
     mocks.unfollowThread.mockResolvedValue({
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: false }
     });
@@ -315,21 +305,16 @@ describe('createThreadAPI', () => {
       threadRootEventId: 'root-1'
     });
 
-    expect(mocks.unfollowThread).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        threadRootEventId: 'root-1'
-      },
-      {
-        headers: undefined
-      }
-    );
+    expect(mocks.unfollowThread).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      threadRootEventId: 'root-1'
+    });
     expect(result).toEqual({
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: false }
     });
   });
 
-  it('marks the server authentication stale on unauthenticated Connect errors', async () => {
+  it('propagates Connect errors unchanged', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
     mocks.followThread.mockRejectedValue(err);
 
@@ -342,7 +327,5 @@ describe('createThreadAPI', () => {
     await expect(api.followThread({ roomId: 'room-1', threadRootEventId: 'root-1' })).rejects.toBe(
       err
     );
-
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 });

@@ -217,6 +217,9 @@
       "save_button": "Salvesta ajaseaded",
       "saved": "Ajaseaded salvestatud",
       "save_failed": "Ajaseadete salvestamine ebaõnnestus",
+      "customization": {
+        "title": "Teema kohandamine"
+      },
       "accent": {
         "title": "Rõhuvärv",
         "blue": "Sinine",
@@ -227,8 +230,22 @@
         "orange": "Oranž",
         "pink": "Roosa",
         "violet": "Violetne",
-        "grey": "Hall",
-        "preview": "Eelvaade"
+        "grey": "Hall"
+      },
+      "tone": {
+        "title": "Taustavärv",
+        "neutral": "Neutraalne",
+        "gray": "Hall",
+        "slate": "Kiltkivi",
+        "stone": "Kivi",
+        "mauve": "Malva",
+        "olive": "Oliivi",
+        "mist": "Udu",
+        "taupe": "Hallikaspruun",
+        "midnight": "Kesköö",
+        "forest": "Mets",
+        "plum": "Ploomi",
+        "clay": "Savi"
       },
       "contrast": {
         "label": "Kontrast",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "Kasutajaliidese stiil",
+        "label": "Sügavus",
         "flat": "Lame",
         "three_d": "Veidi 3D",
         "very_3d": "Tugev 3D"

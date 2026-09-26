@@ -90,16 +90,14 @@ describe('createAdminUserManagementAPI', () => {
 
     const result = await api.listMembers({ search: 'alice', limit: 20, offset: 0 });
 
-    expect(mocks.batchGetMembers).toHaveBeenCalledWith(
-      { userIds: ['user-1'] }, { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.batchGetMembers).toHaveBeenCalledWith({ userIds: ['user-1'] }, {});
 
     expect(mocks.listMembers).toHaveBeenCalledWith(
       {
         search: 'alice',
         page: { limit: 20, offset: 0 }
       },
-      { headers: { Authorization: 'Bearer token' } }
+      {}
     );
     expect(result).toEqual({
       consumedCount: 1,
@@ -186,7 +184,7 @@ describe('createAdminUserManagementAPI', () => {
 
     expect(mocks.getMember).toHaveBeenCalledWith(
       { target: { case: 'userId', value: 'user-2' } },
-      { headers: undefined }
+      {}
     );
     expect(result).toEqual({
       member: {
@@ -235,13 +233,10 @@ describe('createAdminUserManagementAPI', () => {
 
     await api.getMember({ login: 'alice' });
 
-    expect(mocks.getMember).toHaveBeenCalledWith(
-      { target: { case: 'login', value: 'alice' } },
-      { headers: undefined }
-    );
+    expect(mocks.getMember).toHaveBeenCalledWith({ target: { case: 'login', value: 'alice' } }, {});
   });
 
-  it('assigns and revokes roles with auth headers', async () => {
+  it('assigns and revokes roles', async () => {
     const member = {
       user: {
         id: 'user-1',
@@ -270,17 +265,11 @@ describe('createAdminUserManagementAPI', () => {
       member: { id: 'user-1', roles: [] }
     });
 
-    expect(mocks.assignRole).toHaveBeenCalledWith(
-      { userId: 'user-1', roleName: 'moderator' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.revokeRole).toHaveBeenCalledWith(
-      { userId: 'user-1', roleName: 'moderator' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.assignRole).toHaveBeenCalledWith({ userId: 'user-1', roleName: 'moderator' });
+    expect(mocks.revokeRole).toHaveBeenCalledWith({ userId: 'user-1', roleName: 'moderator' });
   });
 
-  it('updates a user with auth headers and maps the returned profile', async () => {
+  it('updates a user and maps the returned profile', async () => {
     mocks.updateUser.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -300,19 +289,18 @@ describe('createAdminUserManagementAPI', () => {
       displayName: 'Renamed User'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://chat.example.test/api/connect',
-      useBinaryFormat: true
-    });
-    expect(mocks.updateUser).toHaveBeenCalledWith(
-      {
-        userId: 'user-1',
-        login: 'renamed',
-        displayName: 'Renamed User',
-        updateMask: { paths: ['display_name', 'login'] }
-      },
-      { headers: { Authorization: 'Bearer token' } }
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://chat.example.test/api/connect',
+        useBinaryFormat: true
+      })
     );
+    expect(mocks.updateUser).toHaveBeenCalledWith({
+      userId: 'user-1',
+      login: 'renamed',
+      displayName: 'Renamed User',
+      updateMask: { paths: ['display_name', 'login'] }
+    });
     expect(user).toEqual({
       id: 'user-1',
       login: 'renamed',
@@ -321,19 +309,16 @@ describe('createAdminUserManagementAPI', () => {
     });
   });
 
-  it('clears username cooldown without auth headers when no token is available', async () => {
+  it('clears username cooldown', async () => {
     mocks.clearUsernameCooldown.mockResolvedValue({});
     const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
 
     await expect(api.clearUsernameCooldown('user-1')).resolves.toBe(true);
 
-    expect(mocks.clearUsernameCooldown).toHaveBeenCalledWith(
-      { userId: 'user-1' },
-      { headers: undefined }
-    );
+    expect(mocks.clearUsernameCooldown).toHaveBeenCalledWith({ userId: 'user-1' });
   });
 
-  it('sets a user password with auth headers', async () => {
+  it('sets a user password', async () => {
     mocks.changeUserPassword.mockResolvedValue({
       member: {
         user: {
@@ -363,13 +348,13 @@ describe('createAdminUserManagementAPI', () => {
       roles: ['admin']
     });
 
-    expect(mocks.changeUserPassword).toHaveBeenCalledWith(
-      { userId: 'user-1', password: 'newpassword456' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.changeUserPassword).toHaveBeenCalledWith({
+      userId: 'user-1',
+      password: 'newpassword456'
+    });
   });
 
-  it('deletes a user with auth headers', async () => {
+  it('deletes a user', async () => {
     mocks.deleteUser.mockResolvedValue({});
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
@@ -378,9 +363,6 @@ describe('createAdminUserManagementAPI', () => {
 
     await expect(api.deleteUser({ userId: 'user-1' })).resolves.toBe(true);
 
-    expect(mocks.deleteUser).toHaveBeenCalledWith(
-      { userId: 'user-1' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'user-1' });
   });
 });

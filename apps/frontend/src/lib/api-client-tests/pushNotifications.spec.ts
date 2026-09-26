@@ -36,7 +36,7 @@ describe('createPushNotificationAPI', () => {
     });
   });
 
-  it('subscribes and unsubscribes with bearer auth', async () => {
+  it('subscribes and unsubscribes', async () => {
     mocks.subscribe.mockResolvedValue({});
     mocks.unsubscribe.mockResolvedValue({});
     mocks.deleteSubscription.mockResolvedValue({});
@@ -70,14 +70,20 @@ describe('createPushNotificationAPI', () => {
     ).resolves.toBe(true);
 
     expect(mocks.createConnectTransport).toHaveBeenCalledTimes(2);
-    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(1, {
-      baseUrl: 'https://origin.test/api/connect',
-      useBinaryFormat: true
-    });
-    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(2, {
-      baseUrl: 'https://origin.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        baseUrl: 'https://origin.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
+    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        baseUrl: 'https://origin.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.subscribe).toHaveBeenCalledWith(
       {
         endpoint: 'https://push.example/sub',
@@ -87,12 +93,9 @@ describe('createPushNotificationAPI', () => {
         cleanupToken: '0123456789abcdef0123456789abcdef',
         userAgent: 'browser'
       },
-      { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
+      { signal: controller.signal }
     );
-    expect(mocks.unsubscribe).toHaveBeenCalledWith(
-      { endpoint: 'https://push.example/sub' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.unsubscribe).toHaveBeenCalledWith({ endpoint: 'https://push.example/sub' });
     expect(mocks.deleteSubscription).toHaveBeenCalledWith({
       endpoint: 'https://push.example/stale',
       auth: 'stale-auth-secret',
@@ -100,7 +103,7 @@ describe('createPushNotificationAPI', () => {
     });
   });
 
-  it('omits auth headers when no bearer token exists', async () => {
+  it('subscribes without a cancellation signal', async () => {
     mocks.subscribe.mockResolvedValue({});
 
     const api = createPushNotificationAPI({
@@ -126,7 +129,7 @@ describe('createPushNotificationAPI', () => {
         clientHost: 'app.example',
         cleanupToken: '0123456789abcdef0123456789abcdef'
       },
-      { headers: undefined }
+      {}
     );
   });
 });

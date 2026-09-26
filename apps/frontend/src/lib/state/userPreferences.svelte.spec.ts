@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   accentColors,
-  surfaceDepths,
-  type SurfaceDepth,
+  surfaceTones,
+  type SurfaceTone,
   type AccentColor,
   UserPreferencesState,
   getLegacyNotificationSoundPreferences,
@@ -34,7 +34,9 @@ describe('UserPreferencesState', () => {
     localStorage.clear();
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.accent;
-    delete document.documentElement.dataset.depth;
+    document.documentElement.style.removeProperty('--depth-level');
+    delete document.documentElement.dataset.lightTone;
+    delete document.documentElement.dataset.darkTone;
     document.documentElement.style.removeProperty('--contrast-soft-mix');
     document.documentElement.style.removeProperty('--contrast-strong-mix');
     document.documentElement.style.backgroundColor = '';
@@ -47,8 +49,12 @@ describe('UserPreferencesState', () => {
 
     expect(state.displayTheme).toBe('system');
     expect(state.accentColor).toBe('cyan');
-    expect(state.surfaceDepth).toBe('3d');
+    expect(state.surfaceDepth).toBe(50);
     expect(state.contrastAge).toBe(30);
+    expect(state.lightSurfaceTone).toBe('gray');
+    expect(state.darkSurfaceTone).toBe('neutral');
+    expect(document.documentElement.dataset.lightTone).toBe('gray');
+    expect(document.documentElement.dataset.darkTone).toBe('neutral');
     expect(state.effectiveDisplayTheme).toBe('light');
     expect(state.composerEditor).toBe('markdown');
     expect(state.composerSendMode).toBe('enter');
@@ -56,48 +62,81 @@ describe('UserPreferencesState', () => {
     expect(state.threadPanePresentation).toBe('overlay');
   });
 
-  it.each(surfaceDepths)('persists and restores %s surface depth independently', (depth) => {
+  it.each([0, 10, 50, 70, 100])(
+    'persists and restores %s% surface depth independently',
+    (depth) => {
+      const state = new UserPreferencesState();
+      state.displayTheme = 'dark';
+      state.accentColor = 'violet';
+      state.surfaceDepth = depth;
+      expect(document.documentElement.style.getPropertyValue('--depth-level')).toBe(String(depth));
+      expect(document.documentElement.dataset.theme).toBe('dark');
+      expect(document.documentElement.dataset.accent).toBe('violet');
+      expect(new UserPreferencesState().surfaceDepth).toBe(depth);
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        surfaceDepth: depth,
+        accentColor: 'violet',
+        displayTheme: 'dark'
+      });
+    }
+  );
+
+  it.each([
+    ['flat', 0],
+    ['3d', 50],
+    ['very-3d', 100]
+  ])('migrates the former %s depth mode', (surfaceDepth, level) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ surfaceDepth }));
     const state = new UserPreferencesState();
-    state.displayTheme = 'dark';
-    state.accentColor = 'violet';
-    state.surfaceDepth = depth;
-    expect(document.documentElement.dataset.depth).toBe(depth);
-    expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(document.documentElement.dataset.accent).toBe('violet');
-    expect(new UserPreferencesState().surfaceDepth).toBe(depth);
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-      surfaceDepth: depth,
-      accentColor: 'violet',
-      displayTheme: 'dark'
-    });
+    expect(state.surfaceDepth).toBe(level);
+    expect(document.documentElement.style.getPropertyValue('--depth-level')).toBe(String(level));
   });
 
-  it.each([null, 0, 'unknown', {}, []])('rejects invalid stored depth %j', (depth) => {
+  it.each([null, -10, 55, 110, 'unknown', {}, []])('rejects invalid stored depth %j', (depth) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ surfaceDepth: depth }));
     const state = new UserPreferencesState();
-    expect(state.surfaceDepth).toBe('3d');
-    state.surfaceDepth = 'flat';
-    state.surfaceDepth = depth as SurfaceDepth;
-    expect(state.surfaceDepth).toBe('3d');
-    expect(document.documentElement.dataset.depth).toBe('3d');
+    expect(state.surfaceDepth).toBe(50);
+    state.surfaceDepth = 0;
+    state.surfaceDepth = depth as number;
+    expect(state.surfaceDepth).toBe(50);
+    expect(document.documentElement.style.getPropertyValue('--depth-level')).toBe('50');
+  });
+
+  it.each([
+    [25, 26],
+    [26.5, 26],
+    [33.5, 34]
+  ])('snaps saved contrast %s from earlier versions to the 10%% step %s', (saved, step) => {
+    // A half step would put the drawn grip and the native thumb in different places.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ contrastAge: saved }));
+    expect(new UserPreferencesState().contrastAge).toBe(step);
+  });
+
+  it('keeps preference fields saved by another app version', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ futurePreference: 'kept' }));
+    new UserPreferencesState().accentColor = 'violet';
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      futurePreference: 'kept',
+      accentColor: 'violet'
+    });
   });
 
   it('persists and applies contrast without changing the other appearance choices', () => {
     const state = new UserPreferencesState();
     state.displayTheme = 'dark';
     state.accentColor = 'violet';
-    state.surfaceDepth = 'flat';
-    state.contrastAge = 26.5;
+    state.surfaceDepth = 0;
+    state.contrastAge = 26;
 
-    expect(state.contrastAge).toBe(26.5);
-    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('35%');
+    expect(state.contrastAge).toBe(26);
+    expect(document.documentElement.style.getPropertyValue('--contrast-soft-mix')).toBe('40%');
     expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('0%');
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement.dataset.accent).toBe('violet');
-    expect(document.documentElement.dataset.depth).toBe('flat');
-    expect(new UserPreferencesState().contrastAge).toBe(26.5);
+    expect(document.documentElement.style.getPropertyValue('--depth-level')).toBe('0');
+    expect(new UserPreferencesState().contrastAge).toBe(26);
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-      contrastAge: 26.5
+      contrastAge: 26
     });
 
     state.contrastAge = 40;
@@ -260,6 +299,36 @@ describe('UserPreferencesState', () => {
       });
     }
   );
+
+  it.each(surfaceTones)('persists and restores the %s tone separately per theme', (tone) => {
+    const state = new UserPreferencesState();
+    state.lightSurfaceTone = tone;
+    state.darkSurfaceTone = 'midnight';
+    expect(document.documentElement.dataset.lightTone).toBe(tone);
+    expect(document.documentElement.dataset.darkTone).toBe('midnight');
+
+    const restored = new UserPreferencesState();
+    expect(restored.lightSurfaceTone).toBe(tone);
+    expect(restored.darkSurfaceTone).toBe('midnight');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      lightSurfaceTone: tone,
+      darkSurfaceTone: 'midnight'
+    });
+  });
+
+  it('falls back to the default tones for invalid saved or assigned tones', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ lightSurfaceTone: 'unknown', darkSurfaceTone: 42 })
+    );
+    const state = new UserPreferencesState();
+    expect(state.lightSurfaceTone).toBe('gray');
+    expect(state.darkSurfaceTone).toBe('neutral');
+    state.lightSurfaceTone = 'invalid' as SurfaceTone;
+    expect(state.lightSurfaceTone).toBe('gray');
+    expect(document.documentElement.dataset.lightTone).toBe('gray');
+    expect(document.documentElement.dataset.darkTone).toBe('neutral');
+  });
 
   it('falls back to cyan for invalid saved or assigned accents', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ accentColor: 'unknown' }));

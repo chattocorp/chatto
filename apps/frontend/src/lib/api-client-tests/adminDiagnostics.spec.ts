@@ -182,14 +182,13 @@ describe('getAdminSystemInfo', () => {
       { signal: controller.signal }
     );
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://chat.example.test/api/connect',
-      useBinaryFormat: true
-    });
-    expect(mocks.getSystemInfo).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://chat.example.test/api/connect',
+        useBinaryFormat: true
+      })
     );
+    expect(mocks.getSystemInfo).toHaveBeenCalledWith({}, { signal: controller.signal });
     expect(info.connection.maxPayload).toBe(1048576);
     expect(info.account.storageUsed).toBe(750);
     expect(info.accountAvailable).toBe(true);
@@ -230,7 +229,7 @@ describe('getAdminSystemInfo', () => {
     ]);
   });
 
-  it('maps missing nested sections to empty defaults and omits auth headers without a token', async () => {
+  it('maps missing nested sections to empty defaults', async () => {
     mocks.getSystemInfo.mockResolvedValue({
       projections: []
     });
@@ -240,7 +239,7 @@ describe('getAdminSystemInfo', () => {
       bearerToken: null
     });
 
-    expect(mocks.getSystemInfo).toHaveBeenCalledWith({}, { headers: undefined });
+    expect(mocks.getSystemInfo).toHaveBeenCalledWith({}, { signal: undefined });
     expect(info.connection.connected).toBe(false);
     expect(info.account.storageUsed).toBe(0);
     expect(info.accountAvailable).toBe(false);

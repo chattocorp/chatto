@@ -4,7 +4,7 @@ import {
   OauthClientSource,
   type OAuthClient as APIOAuthClient
 } from '@chatto/api-types/admin/v1/oauth_clients_pb';
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 
 export type EditableOAuthClientPolicyName = 'default' | 'trusted' | 'blocked';
 export type OAuthClientPolicyName = EditableOAuthClientPolicyName | 'unknown';
@@ -24,20 +24,13 @@ export type OAuthClient = {
   authorizedUserCount: number;
 };
 
-export type OAuthClientAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
-
-export function createOAuthClientAPI(config: OAuthClientAPIConfig) {
+export function createOAuthClientAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(AdminOAuthClientService, config);
-  const headers = () => authHeaders(config);
   return {
     async list(offset = 0, limit = 100, options: { signal?: AbortSignal } = {}) {
       const response = await client.listOAuthClients(
         { page: { offset, limit } },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         oauthClients: response.oauthClients.map(mapOAuthClient),
@@ -46,10 +39,11 @@ export function createOAuthClientAPI(config: OAuthClientAPIConfig) {
       };
     },
     async updatePolicy(clientId: string, policy: EditableOAuthClientPolicyName) {
-      const response = await client.updateOAuthClientPolicy(
-        { clientId, policy: apiPolicy(policy), updateMask: { paths: ['policy'] } },
-        { headers: headers() }
-      );
+      const response = await client.updateOAuthClientPolicy({
+        clientId,
+        policy: apiPolicy(policy),
+        updateMask: { paths: ['policy'] }
+      });
       if (!response.oauthClient) throw new Error('OAuth-client response was incomplete.');
       return mapOAuthClient(response.oauthClient);
     }

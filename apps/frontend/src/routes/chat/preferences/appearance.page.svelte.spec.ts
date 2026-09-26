@@ -16,23 +16,35 @@ describe('App Preferences appearance page', () => {
     localStorage.clear();
     userPreferences.displayTheme = 'system';
     userPreferences.accentColor = 'cyan';
-    userPreferences.surfaceDepth = '3d';
+    userPreferences.lightSurfaceTone = 'gray';
+    userPreferences.darkSurfaceTone = 'neutral';
+    userPreferences.surfaceDepth = 50;
     userPreferences.contrastAge = 30;
     userPreferences.threadPanePresentation = 'overlay';
   });
 
-  it('changes depth through the standard radio group and persists the choice', async () => {
+  it('changes depth in 10% steps with the slider and persists the choice', async () => {
     const screen = render(AppearancePage);
     await settle();
     await expect.element(screen.getByText('UI Style', { exact: true })).toBeVisible();
-    await expect.element(screen.getByRole('radio', { name: 'Kinda 3D', exact: true })).toHaveAttribute('aria-checked', 'true');
-    await screen.getByRole('radio', { name: 'Flat', exact: true }).click();
-    expect(userPreferences.surfaceDepth).toBe('flat');
-    expect(document.documentElement.dataset.depth).toBe('flat');
-    await screen.getByRole('radio', { name: 'Very 3D', exact: true }).click();
-    expect(userPreferences.surfaceDepth).toBe('very-3d');
+    const slider = screen.getByRole('slider', { name: /^Depth/ });
+    await expect.element(slider).toHaveValue('50');
+    await expect.element(slider).toHaveAttribute('step', '10');
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '50%, Kinda 3D');
+    await slider.click();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(userPreferences.surfaceDepth).toBe(60);
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '60%');
+    expect(document.documentElement.style.getPropertyValue('--depth-level')).toBe('60');
+
+    const input = slider.element() as HTMLInputElement;
+    input.value = '0';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    expect(userPreferences.surfaceDepth).toBe(0);
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '0%, Flat');
     expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
-      surfaceDepth: 'very-3d'
+      surfaceDepth: 0
     });
   });
 
@@ -40,7 +52,7 @@ describe('App Preferences appearance page', () => {
     const { container } = render(AppearancePage);
     await settle();
 
-    expect(container.querySelectorAll('.panel-shell')).toHaveLength(5);
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(4);
     expect(container.textContent).toContain('Appearance');
     expect(container.textContent).toContain(
       'Choices for this app that apply across all your registered servers'
@@ -52,10 +64,13 @@ describe('App Preferences appearance page', () => {
   it('applies and saves contrast while the slider moves with the keyboard', async () => {
     const screen = render(AppearancePage);
     await settle();
-    const stylePanel = [...screen.container.querySelectorAll('.panel-shell')].find((panel) =>
-      panel.querySelector('h2')?.textContent?.includes('UI Style')
+    // Colours, depth, and contrast share one Theme customisation panel.
+    const customizationPanel = [...screen.container.querySelectorAll('.panel-shell')].find(
+      (panel) => panel.querySelector('h2')?.textContent?.includes('Theme customisation')
     );
-    expect(stylePanel?.querySelector('#ui-contrast')).not.toBeNull();
+    for (const control of ['#ui-depth', '#ui-contrast', '[data-tone-theme]']) {
+      expect(customizationPanel?.querySelector(control), control).not.toBeNull();
+    }
     const slider = screen.getByRole('slider', { name: /^Contrast/ });
     await expect.element(slider).toHaveValue('30');
     await expect.element(slider).toHaveAttribute('aria-valuetext', '50%, current contrast');
@@ -64,11 +79,11 @@ describe('App Preferences appearance page', () => {
     const input = slider.element() as HTMLInputElement;
     await slider.click();
     await userEvent.keyboard('{ArrowRight}');
-    expect(userPreferences.contrastAge).toBe(30.5);
-    await expect.element(slider).toHaveAttribute('aria-valuetext', '53%, stronger contrast');
-    expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('5%');
+    expect(userPreferences.contrastAge).toBe(32);
+    await expect.element(slider).toHaveAttribute('aria-valuetext', '60%, stronger contrast');
+    expect(document.documentElement.style.getPropertyValue('--contrast-strong-mix')).toBe('20%');
     expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
-      contrastAge: 30.5
+      contrastAge: 32
     });
 
     input.value = '40';
@@ -114,8 +129,9 @@ describe('App Preferences appearance page', () => {
   it('selects and saves an accent with native radio keyboard controls', async () => {
     const screen = render(AppearancePage);
     await settle();
-    expect(screen.container.querySelectorAll('input[type="radio"]')).toHaveLength(9);
-    await screen.getByRole('radio', { name: 'Violet', exact: true }).click();
+    const accents = screen.getByRole('group', { name: 'Accent colour' });
+    expect(accents.element().querySelectorAll('input[type="radio"]')).toHaveLength(9);
+    await accents.getByRole('radio', { name: 'Violet', exact: true }).click();
     expect(userPreferences.accentColor).toBe('violet');
     expect(document.documentElement.dataset.accent).toBe('violet');
     await userEvent.keyboard('{ArrowRight}');
@@ -123,6 +139,37 @@ describe('App Preferences appearance page', () => {
     expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
       accentColor: 'grey'
     });
-    await expect.element(screen.getByRole('radio', { name: 'Grey', exact: true })).toBeChecked();
+    await expect.element(accents.getByRole('radio', { name: 'Grey', exact: true })).toBeChecked();
+  });
+
+  it('shows and saves the surface tone of the active theme only', async () => {
+    userPreferences.displayTheme = 'light';
+    const screen = render(AppearancePage);
+    await settle();
+    const tones = screen.getByRole('group', { name: 'Background colour' });
+    expect(screen.container.querySelectorAll('[data-tone-theme]')).toHaveLength(1);
+    expect(tones.element().getAttribute('data-tone-theme')).toBe('light');
+    await expect.element(tones.getByRole('radio', { name: 'Grey', exact: true })).toBeChecked();
+    await tones.getByRole('radio', { name: 'Forest', exact: true }).click();
+    expect(userPreferences.lightSurfaceTone).toBe('forest');
+
+    userPreferences.displayTheme = 'dark';
+    await settle();
+    const darkTones = screen.getByRole('group', { name: 'Background colour' });
+    expect(darkTones.element().getAttribute('data-tone-theme')).toBe('dark');
+    await expect
+      .element(darkTones.getByRole('radio', { name: 'Neutral', exact: true }))
+      .toBeChecked();
+    await darkTones.getByRole('radio', { name: 'Olive', exact: true }).click();
+    await userEvent.keyboard('{ArrowRight}');
+
+    expect(userPreferences.lightSurfaceTone).toBe('forest');
+    expect(userPreferences.darkSurfaceTone).toBe('forest');
+    expect(document.documentElement.dataset.lightTone).toBe('forest');
+    expect(document.documentElement.dataset.darkTone).toBe('forest');
+    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+      lightSurfaceTone: 'forest',
+      darkSurfaceTone: 'forest'
+    });
   });
 });

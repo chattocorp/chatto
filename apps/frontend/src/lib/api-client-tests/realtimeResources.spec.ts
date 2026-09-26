@@ -89,8 +89,9 @@ describe('createRealtimeResourceAPI', () => {
     ]) {
       const options = call.mock.calls[0]?.at(-1) as
         { headers?: Headers; timeoutMs?: number } | undefined;
-      expect(options?.headers?.get('Authorization')).toBe('Bearer access-token');
+      expect(options?.headers).toBeInstanceOf(Headers);
       expect(options?.headers?.get('Chatto-Realtime-Minimum-Cursor')).toBe(cursor);
+      expect(options?.headers?.has('Authorization')).toBe(false);
       expect(options?.timeoutMs).toBe(10_000);
     }
     expect(mocks.listUsers).not.toHaveBeenCalled();

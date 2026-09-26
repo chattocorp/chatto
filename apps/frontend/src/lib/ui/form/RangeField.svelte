@@ -2,7 +2,14 @@
 @component
 
 Standard labeled range control for settings. Owns the value readout, optional
-icon, disabled state, semantic action color, and field spacing.
+icon, disabled state, and field spacing.
+
+The visible control is drawn from design-system primitives: a recessed well
+like text inputs, a lit fill in the primary action colour, and a raised grip
+like a segmented selection. A transparent native range input sits on top of
+the travel area, so keyboard, pointer, and assistive-technology behaviour stay
+native. Its thumb has the grip's width, so pointer positions map exactly onto
+the drawn grip.
 -->
 <script lang="ts">
   let {
@@ -17,7 +24,6 @@ icon, disabled state, semantic action color, and field spacing.
     max,
     step = 1,
     ticks,
-    prominent = false,
     disabled = false,
     testid,
     oninput,
@@ -35,28 +41,27 @@ icon, disabled state, semantic action color, and field spacing.
     min: number;
     max: number;
     step?: number;
-    /** Native reference marks, independent of the keyboard/pointer step size. */
+    /** Visible stops on the track, independent of the keyboard/pointer step size. */
     ticks?: readonly number[];
-    /** Gives a primary setting a larger track, thumb, and pointer target. */
-    prominent?: boolean;
     disabled?: boolean;
     testid?: string;
     oninput?: (event: Event) => void;
     onchange?: (event: Event) => void;
   } = $props();
 
-  const progress = $derived(
-    max > min
-      ? `${Math.max(0, Math.min(100, (((value ?? (min + max) / 2) - min) / (max - min)) * 100))}%`
-      : '0%'
-  );
+  /** Position of a value along the travel, from 0 to 1. */
+  function fraction(position: number): number {
+    return max > min ? Math.max(0, Math.min(1, (position - min) / (max - min))) : 0;
+  }
+
+  const progress = $derived(fraction(value ?? (min + max) / 2));
 </script>
 
 <label
   for={id}
   class={[
-    'flex flex-col gap-2 rounded-md bg-surface px-3 py-2.5',
-    prominent && 'range-prominent-field'
+    'flex flex-col gap-2.5 rounded-md bg-surface px-3 py-2.5 range-field',
+    disabled && 'opacity-60'
   ]}
 >
   <span class="flex items-center justify-between gap-3 text-sm">
@@ -66,11 +71,19 @@ icon, disabled state, semantic action color, and field spacing.
       {/if}
       <span>{label}</span>
     </span>
-    <span class="shrink-0 tabular-nums">
-      <span class="text-muted">{displayValue}</span>
-    </span>
+    <span class="shrink-0 text-muted tabular-nums">{displayValue}</span>
   </span>
-  <span class={['relative block', prominent ? 'h-11' : 'h-5']}>
+  <span class="range-track" style:--range-progress={progress}>
+    <span class="range-travel" aria-hidden="true">
+      <span class="range-fill"></span>
+      {#each ticks ?? [] as tick (tick)}
+        <span
+          class={['range-tick', fraction(tick) <= progress && 'range-tick-filled']}
+          style:--range-tick={fraction(tick)}
+        ></span>
+      {/each}
+      <span class="range-grip"></span>
+    </span>
     <input
       {id}
       data-testid={testid}
@@ -78,25 +91,13 @@ icon, disabled state, semantic action color, and field spacing.
       {min}
       {max}
       {step}
-      list={ticks?.length ? `${id}-ticks` : undefined}
       bind:value
       {disabled}
       aria-valuetext={ariaValueText ?? displayValue}
       aria-describedby={describedBy}
       {oninput}
       {onchange}
-      style:--range-progress={prominent ? progress : undefined}
-      class={[
-        'relative w-full cursor-pointer accent-action disabled:cursor-not-allowed disabled:opacity-60',
-        prominent ? 'range-prominent h-11' : 'h-5'
-      ]}
+      class="range-input"
     />
-    {#if ticks?.length}
-      <datalist id={`${id}-ticks`}>
-        {#each ticks as tick (tick)}
-          <option value={tick}></option>
-        {/each}
-      </datalist>
-    {/if}
   </span>
 </label>

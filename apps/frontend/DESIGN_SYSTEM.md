@@ -515,10 +515,12 @@ surrounding frame's strength. Colour, radius, and outer elevation remain the
 responsibility of the semantic utility. Existing components apply their own
 finish; callers must not stack a second finish on them.
 
-Appearance exposes `data-depth="flat|3d|very-3d"` on the document root. The
-registered `--depth-strength` and `--depth-width` numbers scale decorative
-lighting, inset shadows, and bevel width. Kinda 3D uses 0.75 strength and 1 width. Flat uses
-zero strength; Very 3D uses 1.75 strength and 1.5 width. Changes interpolate over
+Appearance sets `--depth-level` from 0 to 100 on the document root. CSS
+derives the registered `--depth-strength` and `--depth-width` numbers from it;
+they scale decorative lighting, inset shadows, and bevel width. Level 0 (Flat)
+uses zero strength, level 50 (Kinda 3D) uses 0.75 strength and 1 width, and
+level 100 (Very 3D) uses 1.75 strength and 1.5 width. Steps between these
+interpolate. Changes interpolate over
 220 ms, with no transition under reduced motion. The preference is restored
 before the first paint. Keep boundaries, focus rings, status colours, and
 floating-menu elevation independent of this setting. Accent swatches become
@@ -562,7 +564,7 @@ Surfaces form a small semantic ladder:
 - Light and dark mode are intentionally asymmetric. Do not infer elevation by
   mechanically reversing luminance between themes.
 - In light mode, `background` is the pale primary work plane and `surface` is
-  the cool gray used for anchored chrome, composers, user cards, dialogs, and
+  the tinted gray used for anchored chrome, composers, user cards, dialogs, and
   panel frames and headers. These surfaces read as inset and substantial, not
   as white paper floating above the application.
 - In dark mode, progressively lighter surfaces provide separation from the
@@ -621,10 +623,18 @@ Hoverable rows inside panel insets use the quiet `surface/70` treatment and a
 Do not infer a new numeric surface level. Choose the nearest semantic role, or
 adjust the owning component when the hierarchy itself is wrong.
 
+Background, surface, border, and neutral text tokens come from the active
+surface tone. The user selects one tone for light mode and one for dark mode.
+Each tone changes hue and chroma only; lightness stays fixed per theme, so
+contrast does not change. Use the semantic tokens, or `--tone-100` to
+`--tone-950` for a neutral step that has no semantic role. Do not use
+`--color-gray-*` or `--color-neutral-*` for UI neutrals; they ignore the tone.
+
 For text, use `text-text` for normal copy, `text-text-top` for the strongest
 heading contrast, and `text-muted` for metadata. Use `link` for inline links.
 
-The **Contrast** slider in Appearance's UI Style panel runs from 0% to 100%.
+The **Contrast** slider in the UI Style section of Appearance's Theme
+customisation panel runs from 0% to 100%.
 At 50%, the semantic palette keeps its original colours. Lower values soften
 text and surface separation; higher values strengthen them. Keep text,
 backgrounds, surfaces, and borders on semantic tokens so they respond together.
@@ -633,11 +643,18 @@ At 0%, headings, body text, and muted text become deliberately softer in both
 themes. Action colours keep their separate contrast.
 At 100%, light uses black text on a white background with dark boundaries.
 Dark uses white text on a black background with light boundaries. The app frame
-and recessed panel edges use the same clear boundary. The prominent
-range field gains a visible boundary as contrast increases.
-The control fills the UI Style panel width and uses the prominent `RangeField`
-variant, with a larger track, thumb, and pointer target. Other range settings
-keep the standard size.
+and recessed panel edges use the same clear boundary. Range fields gain a
+visible boundary as contrast increases.
+The Depth and Contrast controls sit side by side in the UI Style section when
+it is wide enough and stack when it is narrow.
+
+`RangeField` draws its slider from control primitives instead of native
+browser chrome: a recessed well like text inputs, a lit fill in the primary
+action colour, a pale raised grip, and optional stop marks from `ticks`. Pointer
+hover and dragging darken the fill and give the grip an accent halo. A
+transparent native range input covers the travel, so keyboard, pointer, and
+assistive-technology behaviour stay native. Do not restyle a raw
+`input[type=range]`; use `RangeField`, and extend it when a variant is missing.
 
 ## Components, Utilities, And Tailwind
 

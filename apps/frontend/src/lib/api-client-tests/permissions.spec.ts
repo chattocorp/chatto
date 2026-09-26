@@ -49,7 +49,7 @@ describe('createPermissionAPI', () => {
     });
   });
 
-  it('loads the tier matrix with auth headers', async () => {
+  it('loads the tier matrix', async () => {
     mocks.getRolePermissionTierMatrix.mockResolvedValue({
       matrix: {
         applicablePermissions: ['message.post'],
@@ -76,7 +76,7 @@ describe('createPermissionAPI', () => {
 
     expect(mocks.getRolePermissionTierMatrix).toHaveBeenCalledWith(
       { scope: { kind: PermissionScopeKind.ROOM, id: 'R1' } },
-      { headers: { Authorization: 'Bearer token' } }
+      {}
     );
     expect(result).toEqual({
       applicablePermissions: ['message.post'],
@@ -146,7 +146,7 @@ describe('createPermissionAPI', () => {
 
     expect(mocks.getRolePermissionMatrix).toHaveBeenCalledWith(
       { roleName: 'admin', includeDirectMessageScope: true },
-      { headers: undefined }
+      {}
     );
     expect(result).toEqual({
       page: { totalCount: 2, hasMore: false },
@@ -210,7 +210,7 @@ describe('createPermissionAPI', () => {
 
     expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith(
       { roleName: 'admin', includeDirectMessageScope: true },
-      { headers: { Authorization: 'Bearer token' } }
+      { signal: undefined }
     );
     expect(result).toEqual({
       page: { totalCount: 2, hasMore: false },
@@ -294,7 +294,7 @@ describe('createPermissionAPI', () => {
 
     expect(mocks.listUserPermissionDecisions).toHaveBeenCalledWith(
       { userId: 'U1', includeDirectMessageScope: true },
-      { headers: undefined }
+      { signal: undefined }
     );
     expect(result).toEqual({
       page: { totalCount: 2, hasMore: false },
@@ -353,24 +353,18 @@ describe('createPermissionAPI', () => {
       decision: 'NONE'
     });
 
-    expect(mocks.setRolePermission).toHaveBeenCalledWith(
-      {
-        roleName: 'admin',
-        permission: 'message.post',
-        decision: PermissionDecision.DENY,
-        scope: { kind: PermissionScopeKind.ROOM, id: 'R1' }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.setUserPermission).toHaveBeenCalledWith(
-      {
-        userId: 'U1',
-        permission: 'room.create',
-        decision: PermissionDecision.NONE,
-        scope: { kind: PermissionScopeKind.GROUP, id: 'G1' }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.setRolePermission).toHaveBeenCalledWith({
+      roleName: 'admin',
+      permission: 'message.post',
+      decision: PermissionDecision.DENY,
+      scope: { kind: PermissionScopeKind.ROOM, id: 'R1' }
+    });
+    expect(mocks.setUserPermission).toHaveBeenCalledWith({
+      userId: 'U1',
+      permission: 'room.create',
+      decision: PermissionDecision.NONE,
+      scope: { kind: PermissionScopeKind.GROUP, id: 'G1' }
+    });
   });
 
   it('sends scope pages and cancellation for JSON-compatible decision reads', async () => {
@@ -394,7 +388,7 @@ describe('createPermissionAPI', () => {
         page: { limit: 10, offset: 0 },
         scope: { kind: PermissionScopeKind.ROOM, id: 'room-1' }
       },
-      { headers: { Authorization: 'Bearer token' }, signal }
+      { signal }
     );
     expect(result.scopes).toEqual([{ tier: 'room', roomId: 'room-1' }]);
     expect(result.page).toEqual({ totalCount: 1, hasMore: false });

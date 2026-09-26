@@ -61,7 +61,8 @@ function runThemeScript({
   storedLocale,
   legacyStoredLocale,
   browserLanguages,
-  protocol = 'https:'
+  protocol = 'https:',
+  storage: extraStorage = {}
 }: {
   preferences?: unknown;
   legacyTheme?: string;
@@ -70,10 +71,11 @@ function runThemeScript({
   legacyStoredLocale?: string;
   browserLanguages?: string[];
   protocol?: string;
+  storage?: Record<string, string>;
 }) {
   if (!themeScript) throw new Error('theme script not found');
 
-  const storage = new Map<string, string>();
+  const storage = new Map<string, string>(Object.entries(extraStorage));
   if (preferences !== undefined) {
     storage.set('chatto:preferences', JSON.stringify(preferences));
   }
@@ -170,15 +172,22 @@ describe('app.html native surface depth', () => {
     'defaults to Flat in the iOS shell with preferences %j',
     (preferences) => {
       const { root } = runThemeScript({ preferences, systemDark: false, protocol: 'capacitor:' });
-      expect(root.dataset.depth).toBe('flat');
+      expect(root.style.getPropertyValue('--depth-level')).toBe('0');
     }
   );
 
-  it.each(['flat', '3d', 'very-3d'])('preserves the saved %s depth in the iOS shell', (surfaceDepth) => {
+  it.each([
+    ['flat', '0'],
+    ['3d', '50'],
+    ['very-3d', '100'],
+    [30, '30']
+  ])('preserves the saved %s depth in the iOS shell', (surfaceDepth, level) => {
     const { root } = runThemeScript({
-      preferences: { surfaceDepth }, systemDark: false, protocol: 'capacitor:'
+      preferences: { surfaceDepth },
+      systemDark: false,
+      protocol: 'capacitor:'
     });
-    expect(root.dataset.depth).toBe(surfaceDepth);
+    expect(root.style.getPropertyValue('--depth-level')).toBe(level);
   });
 });
 
@@ -251,10 +260,17 @@ describe('app.html metadata', () => {
 });
 
 describe('app.html theme bootstrap', () => {
-  it.each([20, 25.5, 30, 34.5, 40])('restores saved contrast value %s before the app starts', (contrastAge) => {
+  it.each([
+    [20, 20],
+    [25, 26],
+    [25.5, 26],
+    [30, 30],
+    [34.5, 34],
+    [40, 40]
+  ])('restores saved contrast value %s as the 10%% step %s before the app starts', (contrastAge, step) => {
     const { root } = runThemeScript({ preferences: { contrastAge }, systemDark: false });
-    expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe(`${Math.max(0, 30 - contrastAge) * 10}%`);
-    expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe(`${Math.max(0, contrastAge - 30) * 10}%`);
+    expect(root.style.getPropertyValue('--contrast-soft-mix')).toBe(`${Math.max(0, 30 - step) * 10}%`);
+    expect(root.style.getPropertyValue('--contrast-strong-mix')).toBe(`${Math.max(0, step - 30) * 10}%`);
   });
 
   it.each([
@@ -278,18 +294,29 @@ describe('app.html theme bootstrap', () => {
     }
   );
 
-  it.each(['flat', '3d', 'very-3d'])('restores %s surface depth before the app starts', (surfaceDepth) => {
+  it.each([
+    ['flat', '0'],
+    ['3d', '50'],
+    ['very-3d', '100'],
+    [0, '0'],
+    [80, '80']
+  ])('restores %s surface depth before the app starts', (surfaceDepth, level) => {
     const { root } = runThemeScript({ preferences: { surfaceDepth }, systemDark: false });
-    expect(root.dataset.depth).toBe(surfaceDepth);
+    expect(root.style.getPropertyValue('--depth-level')).toBe(level);
   });
 
-  it.each([undefined, null, {}, { surfaceDepth: 'unknown' }, { surfaceDepth: 123 }])(
-    'uses 3D for an absent or invalid saved depth: %j',
-    (preferences) => {
-      const { root } = runThemeScript({ preferences, systemDark: false });
-      expect(root.dataset.depth).toBe('3d');
-    }
-  );
+  it.each([
+    undefined,
+    null,
+    {},
+    { surfaceDepth: 'unknown' },
+    { surfaceDepth: 123 },
+    { surfaceDepth: 45 },
+    { surfaceDepth: 'toString' }
+  ])('uses Kinda 3D for an absent or invalid saved depth: %j', (preferences) => {
+    const { root } = runThemeScript({ preferences, systemDark: false });
+    expect(root.style.getPropertyValue('--depth-level')).toBe('50');
+  });
 
   it.each(['blue', 'cyan', 'teal', 'green', 'amber', 'orange', 'pink', 'violet', 'grey'])(
     'restores the %s accent before the app starts',
@@ -297,6 +324,90 @@ describe('app.html theme bootstrap', () => {
       const { root } = runThemeScript({ preferences: { accentColor }, systemDark: true });
       expect(root.dataset.accent).toBe(accentColor);
       expect(root.dataset.theme).toBe('dark');
+    }
+  );
+
+  it.each([
+    'neutral',
+    'stone',
+    'taupe',
+    'clay',
+    'olive',
+    'forest',
+    'mist',
+    'gray',
+    'slate',
+    'midnight',
+    'mauve',
+    'plum'
+  ])('restores the %s tone for each theme before the app starts', (tone) => {
+    const { root } = runThemeScript({
+      preferences: { lightSurfaceTone: tone, darkSurfaceTone: 'plum' },
+      systemDark: false
+    });
+    expect(root.dataset.lightTone).toBe(tone);
+    expect(root.dataset.darkTone).toBe('plum');
+  });
+
+  it('paints the saved tone colours before the stylesheet loads', () => {
+    const palette = {
+      light: { background: '#eef6f1', highlight: '#8fa99a', text: '#3f5a4b', surface: '#dfece4' },
+      dark: { background: '#1d1022', highlight: '#4a3150', text: '#dcc9e0', surface: '#331b3a' },
+      tones: { light: 'forest', dark: 'plum' }
+    };
+    const { root, themeColor, changeSystemTheme } = runThemeScript({
+      preferences: { lightSurfaceTone: 'forest', darkSurfaceTone: 'plum' },
+      systemDark: false,
+      storage: { 'chatto:loading-palette': JSON.stringify(palette) }
+    });
+    for (const theme of ['light', 'dark'] as const) {
+      for (const name of ['background', 'highlight', 'text'] as const) {
+        expect(root.style.getPropertyValue(`--loading-${theme}-${name}`)).toBe(
+          palette[theme][name]
+        );
+      }
+    }
+    expect(themeColor.content).toBe('#dfece4');
+    changeSystemTheme('dark');
+    expect(themeColor.content).toBe('#331b3a');
+  });
+
+  it('ignores saved colours from tones that no longer match the preferences', () => {
+    // Another app version may change the tones without refreshing the palette.
+    const palette = {
+      light: { background: '#eef6f1', highlight: '#8fa99a', text: '#3f5a4b', surface: '#dfece4' },
+      dark: { background: '#1d1022', highlight: '#4a3150', text: '#dcc9e0', surface: '#331b3a' },
+      tones: { light: 'forest', dark: 'plum' }
+    };
+    const { root, themeColor } = runThemeScript({
+      preferences: { lightSurfaceTone: 'clay', darkSurfaceTone: 'plum' },
+      systemDark: false,
+      storage: { 'chatto:loading-palette': JSON.stringify(palette) }
+    });
+    expect(root.style.getPropertyValue('--loading-light-background')).toBe('');
+    expect(root.style.getPropertyValue('--loading-dark-background')).toBe('#1d1022');
+    expect(themeColor.content).toBe('#e5e7eb');
+  });
+
+  it.each([
+    'not json',
+    JSON.stringify({ light: { background: 'red' } }),
+    JSON.stringify({ light: { background: '#fff', highlight: '#000', text: '#000', surface: '#000' } })
+  ])('ignores an unusable saved tone palette: %s', (raw) => {
+    const { root, themeColor } = runThemeScript({
+      systemDark: false,
+      storage: { 'chatto:loading-palette': raw }
+    });
+    expect(root.style.getPropertyValue('--loading-light-background')).toBe('');
+    expect(themeColor.content).toBe('#e5e7eb');
+  });
+
+  it.each([undefined, null, {}, { lightSurfaceTone: 'unknown', darkSurfaceTone: 123 }])(
+    'uses the default tones when saved tones are absent or invalid: %j',
+    (preferences) => {
+      const { root } = runThemeScript({ preferences, systemDark: false });
+      expect(root.dataset.lightTone).toBe('gray');
+      expect(root.dataset.darkTone).toBe('neutral');
     }
   );
 

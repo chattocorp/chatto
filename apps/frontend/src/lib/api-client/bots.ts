@@ -1,13 +1,7 @@
 import { updateMask } from './updateMask';
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { CredentialLastUsedState, type Bot as APIBot } from '@chatto/api-types/api/v1/bots_pb';
-
-export type BotAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type Bot = {
   id: string;
@@ -41,9 +35,8 @@ export type BotPage = {
   hasMore: boolean;
 };
 
-export function createBotAPI(config: BotAPIConfig) {
+export function createBotAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(BotService, config);
-  const headers = () => authHeaders(config);
   return {
     async listWebhookFailures(
       botUserId: string,
@@ -53,12 +46,11 @@ export function createBotAPI(config: BotAPIConfig) {
     ) {
       return client.listBotWebhookFailures(
         { botUserId, webhookId, cursor, pageSize: 20 },
-        { headers: headers(), signal }
+        { signal }
       );
     },
     async listOutboundWebhooks(botUserId: string, signal?: AbortSignal) {
-      return (await client.listBotOutboundWebhooks({ botUserId }, { headers: headers(), signal }))
-        .webhooks;
+      return (await client.listBotOutboundWebhooks({ botUserId }, { signal })).webhooks;
     },
     async createOutboundWebhook(input: {
       botUserId: string;
@@ -67,25 +59,22 @@ export function createBotAPI(config: BotAPIConfig) {
       authorization: string;
       enabled: boolean;
     }) {
-      return client.createBotOutboundWebhook(input, { headers: headers() });
+      return client.createBotOutboundWebhook(input);
     },
     async updateOutboundWebhook(
       botUserId: string,
       webhookId: string,
       patch: { enabled?: boolean; url?: string; authorization?: string }
     ) {
-      return client.updateBotOutboundWebhook(
-        {
-          botUserId,
-          webhookId,
-          ...patch,
-          updateMask: updateMask(patch, ['enabled', 'url', 'authorization'])
-        },
-        { headers: headers() }
-      );
+      return client.updateBotOutboundWebhook({
+        botUserId,
+        webhookId,
+        ...patch,
+        updateMask: updateMask(patch, ['enabled', 'url', 'authorization'])
+      });
     },
     async revokeOutboundWebhook(botUserId: string, webhookId: string) {
-      await client.revokeBotOutboundWebhook({ botUserId, webhookId }, { headers: headers() });
+      await client.revokeBotOutboundWebhook({ botUserId, webhookId });
     },
     async listBots(
       input: { search?: string | null; limit: number; offset: number },
@@ -96,7 +85,7 @@ export function createBotAPI(config: BotAPIConfig) {
           search: input.search ?? '',
           page: { limit: input.limit, offset: input.offset }
         },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         bots: response.bots.map(botFromAPI),
@@ -107,7 +96,7 @@ export function createBotAPI(config: BotAPIConfig) {
     async getBot(botUserId: string, options: { signal?: AbortSignal } = {}): Promise<Bot> {
       const response = await client.getBot(
         { botUserId },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return botFromAPI(requiredBot(response.bot));
     },
@@ -116,42 +105,33 @@ export function createBotAPI(config: BotAPIConfig) {
       displayName: string;
       apiKeyName?: string;
     }): Promise<{ bot: Bot; apiKey: string }> {
-      const response = await client.createBot(input, { headers: headers() });
+      const response = await client.createBot(input);
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
     },
     async deleteBot(botUserId: string): Promise<boolean> {
-      return (await client.deleteBot({ botUserId }, { headers: headers() })).deleted;
+      return (await client.deleteBot({ botUserId })).deleted;
     },
     async createBotAPIKey(botUserId: string, name: string): Promise<{ bot: Bot; apiKey: string }> {
-      const response = await client.createBotApiKey({ botUserId, name }, { headers: headers() });
+      const response = await client.createBotApiKey({ botUserId, name });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
     },
     async revokeBotAPIKey(botUserId: string, keyId: string): Promise<Bot> {
-      const response = await client.revokeBotApiKey({ botUserId, keyId }, { headers: headers() });
+      const response = await client.revokeBotApiKey({ botUserId, keyId });
       return botFromAPI(requiredBot(response.bot));
     },
     async createBotIncomingWebhook(
       botUserId: string,
       name: string
     ): Promise<{ bot: Bot; webhookUrl: string }> {
-      const response = await client.createBotIncomingWebhook(
-        { botUserId, name },
-        { headers: headers() }
-      );
+      const response = await client.createBotIncomingWebhook({ botUserId, name });
       return { bot: botFromAPI(requiredBot(response.bot)), webhookUrl: response.webhookUrl };
     },
     async revokeBotIncomingWebhook(botUserId: string, webhookId: string): Promise<Bot> {
-      const response = await client.revokeBotIncomingWebhook(
-        { botUserId, webhookId },
-        { headers: headers() }
-      );
+      const response = await client.revokeBotIncomingWebhook({ botUserId, webhookId });
       return botFromAPI(requiredBot(response.bot));
     },
     async reassignBotOwner(botUserId: string, ownerUserId: string): Promise<Bot> {
-      const response = await client.reassignBotOwner(
-        { botUserId, ownerUserId },
-        { headers: headers() }
-      );
+      const response = await client.reassignBotOwner({ botUserId, ownerUserId });
       return botFromAPI(requiredBot(response.bot));
     }
   };

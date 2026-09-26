@@ -1,4 +1,4 @@
-import { authHeaders, createChattoClient, handleAuthError, REALTIME_MINIMUM_CURSOR_HEADER } from './connect.js';
+import { createChattoClient, minimumCursorHeaders, type ConnectAPIConfig } from './connect.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
 import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
 import { imageFitModeOrCover } from './enumDefaults.js';
@@ -13,13 +13,6 @@ import {
   type MessageVideoProcessing
 } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
-
-export type AttachmentAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type AttachmentRefreshOptions = {
   width: number;
@@ -83,56 +76,41 @@ export type AttachmentAPI = {
   ): Promise<Map<string, RefreshedAttachmentUrls>>;
 };
 
-export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI {
+export function createAttachmentAPI(config: ConnectAPIConfig): AttachmentAPI {
   const assets = createChattoClient(AssetService, config);
   const rooms = createChattoClient(RoomService, config);
-  const headers = () => authHeaders(config);
   return {
     async getMetadata(roomId, assetId, signal) {
-      try {
-        const response = await assets.getAsset({ roomId, assetId }, { headers: headers(), signal });
-        if (!response.asset) throw new Error('Asset metadata unavailable');
-        return { size: Number(response.asset.size) };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await assets.getAsset({ roomId, assetId }, { signal });
+      if (!response.asset) throw new Error('Asset metadata unavailable');
+      return { size: Number(response.asset.size) };
     },
     async listRoomAttachments({ roomId, limit, offset, thumbnail, minimumCursor }) {
-      try {
-        const requestHeaders = new Headers(headers());
-        if (minimumCursor) requestHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
-        const response = await rooms.listRoomAttachments(
-          {
-            roomId,
-            page: { limit, offset },
-            thumbnail: thumbnailOptions(thumbnail)
-          },
-          { headers: requestHeaders, ...(minimumCursor ? { timeoutMs: 10_000 } : {}) }
-        );
-        return {
-          items: response.attachments.map(roomFileItem),
-          totalCount: Number(response.page?.totalCount ?? 0),
-          hasMore: response.page?.hasMore ?? false
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.listRoomAttachments(
+        {
+          roomId,
+          page: { limit, offset },
+          thumbnail: thumbnailOptions(thumbnail)
+        },
+        {
+          headers: minimumCursorHeaders(minimumCursor),
+          ...(minimumCursor ? { timeoutMs: 10_000 } : {})
+        }
+      );
+      return {
+        items: response.attachments.map(roomFileItem),
+        totalCount: Number(response.page?.totalCount ?? 0),
+        hasMore: response.page?.hasMore ?? false
+      };
     },
     async refreshAssetUrls(roomId, assetIds, thumbnail) {
       if (assetIds.length === 0) return new Map();
-      try {
-        const response = await assets.batchGetAssets(
-          {
-            roomId,
-            assetIds,
-            thumbnail: thumbnailOptions(thumbnail)
-          },
-          { headers: headers() }
-        );
-        return refreshedAttachmentUrlMap(response.assets);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await assets.batchGetAssets({
+        roomId,
+        assetIds,
+        thumbnail: thumbnailOptions(thumbnail)
+      });
+      return refreshedAttachmentUrlMap(response.assets);
     }
   };
 }

@@ -1,7 +1,6 @@
 import { PermissionService } from '@chatto/api-types/api/v1/permissions_connect';
 import { EffectivePermissionScopeKind } from '@chatto/api-types/api/v1/permissions_pb';
-import { authHeaders, createChattoClient } from './connect';
-import type { PermissionAPIConfig } from './permissions';
+import { createChattoClient, type ConnectAPIConfig } from './connect';
 
 /** One effective grant. Child coverage includes scopes hidden from the viewer. */
 export type EffectivePermission = {
@@ -14,14 +13,11 @@ export type EffectivePermission = {
 };
 
 /** Read allowed authority through api.v1; configuration remains in the admin API. */
-export function createEffectivePermissionAPI(config: PermissionAPIConfig) {
+export function createEffectivePermissionAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(PermissionService, config);
   return {
     async listEffectivePermissions(userId: string, signal?: AbortSignal) {
-      const response = await client.listEffectivePermissions(
-        { userId },
-        { headers: authHeaders(config), signal }
-      );
+      const response = await client.listEffectivePermissions({ userId }, { signal });
       const permissions: EffectivePermission[] = response.permissions.map((entry) => {
         const scope = entry.scope;
         if (!scope) throw new Error('Missing effective permission scope');

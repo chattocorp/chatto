@@ -1,12 +1,5 @@
 import { updateMask } from './updateMask';
-import {
-  authHeaders,
-  Code,
-  ConnectError,
-  createChattoClient,
-  handleAuthError,
-  type ConnectAPIConfig
-} from './connect.js';
+import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type { Room, RoomSuspension as APIRoomSuspension } from '@chatto/api-types/api/v1/rooms_pb';
@@ -106,7 +99,6 @@ function roomValidationError(err: unknown, input: { name?: string; description?:
 
 export function createRoomCommandAPI(config: ConnectAPIConfig) {
   const rooms = createChattoClient(RoomService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async createRoom(input: {
@@ -117,19 +109,16 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       threadingMode?: RoomThreadingMode;
     }): Promise<PublicRoom | null> {
       try {
-        const response = await rooms.createRoom(
-          {
-            name: input.name,
-            description: input.description ?? '',
-            groupId: input.groupId,
-            universal: input.universal ?? false,
-            threadingMode: input.threadingMode
-          },
-          { headers: headers() }
-        );
+        const response = await rooms.createRoom({
+          name: input.name,
+          description: input.description ?? '',
+          groupId: input.groupId,
+          universal: input.universal ?? false,
+          threadingMode: input.threadingMode
+        });
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(config, roomValidationError(err, input));
+        throw roomValidationError(err, input);
       }
     },
 
@@ -142,144 +131,94 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       threadingMode?: RoomThreadingMode;
     }): Promise<PublicRoom | null> {
       try {
-        const response = await rooms.updateRoom(
-          {
-            roomId: input.roomId,
-            name: input.name,
-            description: input.description === undefined ? undefined : (input.description ?? ''),
-            universal: input.universal,
-            slowModeSeconds: input.slowModeSeconds,
-            threadingMode: input.threadingMode,
-            updateMask: updateMask(input, [
-              'name',
-              'description',
-              'universal',
-              'slowModeSeconds',
-              'threadingMode'
-            ])
-          },
-          { headers: headers() }
-        );
+        const response = await rooms.updateRoom({
+          roomId: input.roomId,
+          name: input.name,
+          description: input.description === undefined ? undefined : (input.description ?? ''),
+          universal: input.universal,
+          slowModeSeconds: input.slowModeSeconds,
+          threadingMode: input.threadingMode,
+          updateMask: updateMask(input, [
+            'name',
+            'description',
+            'universal',
+            'slowModeSeconds',
+            'threadingMode'
+          ])
+        });
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(config, roomValidationError(err, input));
+        throw roomValidationError(err, input);
       }
     },
 
     async archiveRoom(roomId: string): Promise<PublicRoom | null> {
-      try {
-        const response = await rooms.archiveRoom({ roomId }, { headers: headers() });
-        return publicRoom(response.room);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.archiveRoom({ roomId });
+      return publicRoom(response.room);
     },
 
     async unarchiveRoom(roomId: string): Promise<PublicRoom | null> {
-      try {
-        const response = await rooms.unarchiveRoom({ roomId }, { headers: headers() });
-        return publicRoom(response.room);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.unarchiveRoom({ roomId });
+      return publicRoom(response.room);
     },
 
     async joinRoom(roomId: string): Promise<PublicRoom | null> {
-      try {
-        const response = await rooms.joinRoom({ roomId }, { headers: headers() });
-        return publicRoom(response.room);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.joinRoom({ roomId });
+      return publicRoom(response.room);
     },
 
     async startDM(participantIds: string[]): Promise<PublicRoom | null> {
-      try {
-        const response = await rooms.startDM({ participantIds }, { headers: headers() });
-        return publicRoom(response.room);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.startDM({ participantIds });
+      return publicRoom(response.room);
     },
 
     async leaveRoom(roomId: string): Promise<boolean> {
-      try {
-        await rooms.leaveRoom({ roomId }, { headers: headers() });
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await rooms.leaveRoom({ roomId });
+      return true;
     },
 
     async addMember(input: { roomId: string; userId: string }): Promise<DirectoryMember | null> {
-      try {
-        const response = await rooms.addMember(input, {
-          headers: headers()
-        });
-        return response.member ? mapDirectoryMember(response.member) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.addMember(input);
+      return response.member ? mapDirectoryMember(response.member) : null;
     },
 
     async removeMember(input: { roomId: string; userId: string }): Promise<boolean> {
-      try {
-        const response = await rooms.removeMember(input, {
-          headers: headers()
-        });
-        return response.removed;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.removeMember(input);
+      return response.removed;
     },
 
     async listSuspensions(
       input: { roomId?: string; limit?: number; offset?: number } = {},
       options: { signal?: AbortSignal } = {}
     ): Promise<RoomSuspensionList> {
-      try {
-        const response = await rooms.listSuspensions(
-          {
-            roomId: input.roomId ?? '',
-            page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
-          },
-          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
-        );
-        return {
-          suspensions: response.suspensions.map(roomSuspension),
-          totalCount: Number(response.page?.totalCount ?? 0),
-          hasMore: response.page?.hasMore ?? false
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.listSuspensions(
+        {
+          roomId: input.roomId ?? '',
+          page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
+        },
+        { ...(options.signal ? { signal: options.signal } : {}) }
+      );
+      return {
+        suspensions: response.suspensions.map(roomSuspension),
+        totalCount: Number(response.page?.totalCount ?? 0),
+        hasMore: response.page?.hasMore ?? false
+      };
     },
 
     async joinGroup(groupId: string): Promise<string[]> {
-      try {
-        const response = await rooms.joinRoomGroup({ groupId }, { headers: headers() });
-        return response.joinedRoomIds;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await rooms.joinRoomGroup({ groupId });
+      return response.joinedRoomIds;
     },
 
     async refreshTypingIndicator(
       roomId: string,
       threadRootEventId?: string | null
     ): Promise<boolean> {
-      try {
-        await rooms.refreshTypingIndicator(
-          {
-            roomId,
-            threadRootEventId: threadRootEventId ?? ''
-          },
-          { headers: headers() }
-        );
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await rooms.refreshTypingIndicator({
+        roomId,
+        threadRootEventId: threadRootEventId ?? ''
+      });
+      return true;
     },
 
     async removeUser(input: {
@@ -288,35 +227,26 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       reason: string;
       suspension: RoomSuspensionChoice;
     }): Promise<boolean> {
-      try {
-        await rooms.removeUser(
-          {
-            roomId: input.roomId,
-            userId: input.userId,
-            reason: input.reason,
-            suspension: input.suspension.kind === 'none'
-              ? { case: undefined }
-              : input.suspension.kind === 'indefinite'
-                ? { case: 'suspendIndefinitely', value: true }
-                : { case: 'suspensionExpiresAt', value: Timestamp.fromDate(new Date(input.suspension.expiresAt)) }
-          },
-          { headers: headers() }
-        );
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await rooms.removeUser({
+        roomId: input.roomId,
+        userId: input.userId,
+        reason: input.reason,
+        suspension:
+          input.suspension.kind === 'none'
+            ? { case: undefined }
+            : input.suspension.kind === 'indefinite'
+              ? { case: 'suspendIndefinitely', value: true }
+              : {
+                  case: 'suspensionExpiresAt',
+                  value: Timestamp.fromDate(new Date(input.suspension.expiresAt))
+                }
+      });
+      return true;
     },
 
     async liftSuspension(input: { roomId: string; userId: string; reason: string }): Promise<boolean> {
-      try {
-        await rooms.liftSuspension(input, {
-          headers: headers()
-        });
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await rooms.liftSuspension(input);
+      return true;
     }
   };
 }

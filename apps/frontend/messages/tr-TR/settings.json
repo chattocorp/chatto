@@ -217,6 +217,9 @@
       "save_button": "Saat ayarlarını kaydet",
       "saved": "Saat ayarları kaydedildi",
       "save_failed": "Saat ayarları kaydedilemedi",
+      "customization": {
+        "title": "Tema özelleştirme"
+      },
       "accent": {
         "title": "Vurgu rengi",
         "blue": "Mavi",
@@ -227,8 +230,22 @@
         "orange": "Turuncu",
         "pink": "Pembe",
         "violet": "Mor",
-        "grey": "Gri",
-        "preview": "Önizleme"
+        "grey": "Gri"
+      },
+      "tone": {
+        "title": "Arka plan rengi",
+        "neutral": "Nötr",
+        "gray": "Gri",
+        "slate": "Arduvaz",
+        "stone": "Taş",
+        "mauve": "Leylak",
+        "olive": "Zeytin",
+        "mist": "Puslu",
+        "taupe": "Vizon",
+        "midnight": "Gece yarısı",
+        "forest": "Orman",
+        "plum": "Erik",
+        "clay": "Kil"
       },
       "contrast": {
         "label": "Kontrast",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "Arayüz stili",
+        "label": "Derinlik",
         "flat": "Düz",
         "three_d": "Biraz 3D",
         "very_3d": "Belirgin 3D"

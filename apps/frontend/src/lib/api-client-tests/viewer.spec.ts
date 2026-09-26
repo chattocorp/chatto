@@ -1,5 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Timestamp } from '@bufbuild/protobuf';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -9,6 +10,8 @@ import {
   getCurrentUserViaConnect,
   getViewerStateViaConnect
 } from '$lib/api-client/viewer';
+import { authenticationRequiredInterceptor } from '$lib/api-client/connect';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -45,7 +48,7 @@ describe('getCurrentUserViaConnect', () => {
     });
   });
 
-  it('loads current user state with bearer auth and maps protobuf fields', async () => {
+  it('loads current user state and maps protobuf fields', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         profile: {
@@ -78,13 +81,15 @@ describe('getCurrentUserViaConnect', () => {
       bearerToken: 'token'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://chat.example.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://chat.example.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.getViewer).toHaveBeenCalledWith(
       {},
-      { headers: { Authorization: 'Bearer token' }, timeoutMs: 10_000 }
+      { contextValues: expect.anything(), timeoutMs: 10_000 }
     );
     expect(user).toEqual({
       id: 'U1',
@@ -113,7 +118,7 @@ describe('getCurrentUserViaConnect', () => {
     });
   });
 
-  it('omits auth headers and maps unspecified presence as offline', async () => {
+  it('maps unspecified presence as offline', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         profile: {
@@ -132,7 +137,10 @@ describe('getCurrentUserViaConnect', () => {
       bearerToken: null
     });
 
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined, timeoutMs: 10_000 });
+    expect(mocks.getViewer).toHaveBeenCalledWith(
+      {},
+      { contextValues: expect.anything(), timeoutMs: 10_000 }
+    );
     expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
     expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.publicTimezone).toBeNull();
@@ -179,10 +187,7 @@ describe('getCurrentUserViaConnect', () => {
       { signal }
     );
 
-    expect(mocks.getViewer).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
+    expect(mocks.getViewer).toHaveBeenCalledWith({}, { contextValues: expect.anything(), signal });
 
     expect(viewer).toEqual(
       expect.objectContaining({
@@ -199,6 +204,30 @@ describe('getCurrentUserViaConnect', () => {
         canManageInvites: true
       })
     );
+  });
+
+  it('leaves the reaction to a rejected viewer read to the caller', async () => {
+    mocks.getViewer.mockResolvedValue({
+      user: { profile: { id: 'U1', login: 'alice', displayName: 'Alice' } }
+    });
+    await getViewerStateViaConnect({
+      serverId: 'origin',
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+    const { contextValues } = mocks.getViewer.mock.calls[0][1];
+    const onAuthenticationRequired = vi.fn();
+    const err = new ConnectError('session expired', Code.Unauthenticated);
+    configureApiClientHooks({ onAuthenticationRequired });
+    try {
+      const invoke = authenticationRequiredInterceptor({ serverId: 'origin' })(() =>
+        Promise.reject(err)
+      );
+      await expect(invoke({ contextValues } as never)).rejects.toBe(err);
+      expect(onAuthenticationRequired).not.toHaveBeenCalled();
+    } finally {
+      configureApiClientHooks({});
+    }
   });
 
   it('activates and deactivates privileged mode through the viewer service', async () => {
@@ -237,17 +266,8 @@ describe('getCurrentUserViaConnect', () => {
       viewerPermissions
     });
     await expect(api.refresh()).resolves.toBe(refreshedViewer);
-    expect(mocks.activatePrivilegedMode).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.getViewer).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.activatePrivilegedMode).toHaveBeenCalledWith({});
+    expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledWith({});
+    expect(mocks.getViewer).toHaveBeenCalledWith({});
   });
 });

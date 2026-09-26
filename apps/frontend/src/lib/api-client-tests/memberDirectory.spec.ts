@@ -71,7 +71,7 @@ describe('createMemberDirectoryAPI', () => {
       });
   });
 
-  it('maps user pages and sends bearer auth', async () => {
+  it('maps user pages', async () => {
     mocks.listUsers.mockResolvedValue({
       users: [
         {
@@ -128,13 +128,15 @@ describe('createMemberDirectoryAPI', () => {
       hasMore: true
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://remote.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://remote.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.listUsers).toHaveBeenCalledWith(
       { search: 'ali', page: { limit: 10, offset: 20 } },
-      { headers: { Authorization: 'Bearer token' }, signal }
+      { signal }
     );
   });
 
@@ -167,23 +169,15 @@ describe('createMemberDirectoryAPI', () => {
     });
     await expect(api.batchGetUsers(['U1', 'missing'])).resolves.toMatchObject([{ id: 'U1' }]);
 
-    expect(mocks.getUser).toHaveBeenNthCalledWith(
-      1,
-      { target: { case: 'userId', value: 'U1' } },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.getUser).toHaveBeenNthCalledWith(
-      2,
-      { target: { case: 'login', value: 'alice' } },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.getUser).toHaveBeenNthCalledWith(1, { target: { case: 'userId', value: 'U1' } });
+    expect(mocks.getUser).toHaveBeenNthCalledWith(2, { target: { case: 'login', value: 'alice' } });
     expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['U1', 'missing'] },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: undefined }
     );
   });
 
-  it('maps room member pages without auth headers', async () => {
+  it('maps room member pages', async () => {
     mocks.listRoomMembers.mockResolvedValue({
       userIds: ['U2'],
       page: { totalCount: 1n, hasMore: false }
@@ -319,13 +313,10 @@ describe('createMemberDirectoryAPI', () => {
       api.batchGetRoomMembers('room-1', ['U2', 'missing'], { signal })
     ).resolves.toMatchObject([{ id: 'U2' }]);
 
-    expect(mocks.getRoomMember).toHaveBeenCalledWith(
-      { roomId: 'room-1', userId: 'U2' },
-      { headers: undefined }
-    );
+    expect(mocks.getRoomMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'U2' });
     expect(mocks.batchGetRoomMembers).toHaveBeenCalledWith(
       { roomId: 'room-1', userIds: ['U2', 'missing'] },
-      { headers: undefined, signal }
+      { signal }
     );
   });
 

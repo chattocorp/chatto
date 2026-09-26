@@ -6,12 +6,9 @@ import { createPinnedMessagesAPI } from './pinnedMessages';
 const listPinnedMessagesMock = vi.hoisted(() => vi.fn());
 const timelineUsersForMessagesMock = vi.hoisted(() => vi.fn());
 
-vi.mock('./connect.js', () => ({
-  authHeaders: () => new Headers(),
-  createChattoClient: () => ({ listPinnedMessages: listPinnedMessagesMock }),
-  handleAuthError: (_config: unknown, error: unknown) => {
-    throw error;
-  }
+vi.mock('./connect.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./connect.js')>()),
+  createChattoClient: () => ({ listPinnedMessages: listPinnedMessagesMock })
 }));
 
 vi.mock('./roomTimeline.js', () => ({

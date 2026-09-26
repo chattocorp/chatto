@@ -1,7 +1,6 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { createMessageAPI } from '$lib/api-client/messages';
 import { CreateMessageResponse, UpdateMessageResponse } from '@chatto/api-types/api/v1/messages_pb';
 import {
@@ -17,7 +16,6 @@ import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
   createMessage: vi.fn(),
   updateMessage: vi.fn(),
   setAttachmentDescription: vi.fn(),
@@ -47,9 +45,6 @@ describe('createMessageAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createMessage.mockReset();
     mocks.updateMessage.mockReset();
     mocks.setAttachmentDescription.mockReset();
@@ -103,22 +98,19 @@ describe('createMessageAPI', () => {
       attachmentDescriptions: [{ assetId: 'asset-1', description: `  ${description}\n` }]
     });
     expect(mocks.createMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ attachmentDescriptions: [{ assetId: 'asset-1', description }] }),
-      expect.anything()
+      expect.objectContaining({ attachmentDescriptions: [{ assetId: 'asset-1', description }] })
     );
     await api.setAttachmentDescription('room-1', 'event-1', 'asset-1', `  ${description}\n`);
     expect(mocks.setAttachmentDescription).toHaveBeenCalledWith(
-      expect.objectContaining({ description }),
-      expect.anything()
+      expect.objectContaining({ description })
     );
     await api.setAttachmentDescription('room-1', 'event-1', 'asset-1', ' \n ');
     expect(mocks.setAttachmentDescription).toHaveBeenLastCalledWith(
-      expect.objectContaining({ description: '' }),
-      expect.anything()
+      expect.objectContaining({ description: '' })
     );
   });
 
-  it('posts a message with bearer auth and maps the renderable event response', async () => {
+  it('posts a message and maps the renderable event response', async () => {
     mocks.createMessage.mockResolvedValue(
       new CreateMessageResponse({
         message: new Message({
@@ -159,10 +151,12 @@ describe('createMessageAPI', () => {
       linkPreviewToken: 'cht_LPpreviewtoken'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://remote.example.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://remote.example.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.createMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: 'room-1',
@@ -171,16 +165,11 @@ describe('createMessageAPI', () => {
         inReplyTo: 'reply-1',
         alsoSendToChannel: true,
         linkPreviewToken: 'cht_LPpreviewtoken'
-      }),
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
+      })
     );
     expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['user-1'] },
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
+      { headers: undefined }
     );
     expect(result).toMatchObject({
       event: {
@@ -266,8 +255,7 @@ describe('createMessageAPI', () => {
         contentType: 'text/plain',
         size: 5n,
         sha256: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
-      }),
-      { headers: undefined }
+      })
     );
     expect(uploadRequest.threadRootEventId).toBeUndefined();
     expect(uploadRequest.alsoSendToChannel).toBeUndefined();
@@ -276,16 +264,12 @@ describe('createMessageAPI', () => {
         uploadId: 'upload-note',
         offset: 0n,
         chunkSha256: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
-      }),
-      { headers: undefined }
+      })
     );
     expect(Array.from(mocks.uploadChunk.mock.calls[0][0].content)).toEqual([
       104, 101, 108, 108, 111
     ]);
-    expect(mocks.completeUpload).toHaveBeenCalledWith(
-      { uploadId: 'upload-note' },
-      { headers: undefined }
-    );
+    expect(mocks.completeUpload).toHaveBeenCalledWith({ uploadId: 'upload-note' });
     const request = mocks.createMessage.mock.calls[0][0];
     expect(request.attachmentAssetIds).toEqual(['asset-note']);
     expect(request.attachments).toBeUndefined();
@@ -293,7 +277,7 @@ describe('createMessageAPI', () => {
     expect(request.alsoSendToChannel).toBe(true);
   });
 
-  it('marks the server authentication stale on unauthenticated Connect errors', async () => {
+  it('propagates Connect errors unchanged', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
     mocks.createMessage.mockRejectedValue(err);
 
@@ -304,7 +288,6 @@ describe('createMessageAPI', () => {
     });
 
     await expect(api.createMessage({ roomId: 'room-1', body: 'hello' })).rejects.toBe(err);
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 
   it('updates a message through MessageService', async () => {
@@ -353,19 +336,16 @@ describe('createMessageAPI', () => {
       }
     });
 
-    expect(mocks.updateMessage).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        eventId: 'event-1',
-        body: 'edited',
-        alsoSendToChannel: false,
-        updateMask: { paths: ['body', 'also_send_to_channel'] }
-      },
-      { headers: { Authorization: 'Bearer remote-token' } }
-    );
+    expect(mocks.updateMessage).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      eventId: 'event-1',
+      body: 'edited',
+      alsoSendToChannel: false,
+      updateMask: { paths: ['body', 'also_send_to_channel'] }
+    });
     expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['user-1'] },
-      { headers: { Authorization: 'Bearer remote-token' } }
+      { headers: undefined }
     );
   });
 
@@ -385,15 +365,12 @@ describe('createMessageAPI', () => {
       })
     ).resolves.toEqual({ updated: true, event: null });
 
-    expect(mocks.updateMessage).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        eventId: 'event-1',
-        alsoSendToChannel: true,
-        updateMask: { paths: ['also_send_to_channel'] }
-      },
-      { headers: undefined }
-    );
+    expect(mocks.updateMessage).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      eventId: 'event-1',
+      alsoSendToChannel: true,
+      updateMask: { paths: ['also_send_to_channel'] }
+    });
   });
 
   it('deletes message content through MessageService', async () => {
@@ -412,17 +389,16 @@ describe('createMessageAPI', () => {
       api.deleteLinkPreview('room-1', 'event-1', 'https://example.test/article')
     ).resolves.toBe(true);
 
-    expect(mocks.deleteMessage).toHaveBeenCalledWith(
-      { roomId: 'room-1', eventId: 'event-1' },
-      { headers: undefined }
-    );
-    expect(mocks.deleteAttachment).toHaveBeenCalledWith(
-      { roomId: 'room-1', eventId: 'event-1', attachmentId: 'attachment-1' },
-      { headers: undefined }
-    );
-    expect(mocks.deleteLinkPreview).toHaveBeenCalledWith(
-      { roomId: 'room-1', eventId: 'event-1', url: 'https://example.test/article' },
-      { headers: undefined }
-    );
+    expect(mocks.deleteMessage).toHaveBeenCalledWith({ roomId: 'room-1', eventId: 'event-1' });
+    expect(mocks.deleteAttachment).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      eventId: 'event-1',
+      attachmentId: 'attachment-1'
+    });
+    expect(mocks.deleteLinkPreview).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      eventId: 'event-1',
+      url: 'https://example.test/article'
+    });
   });
 });

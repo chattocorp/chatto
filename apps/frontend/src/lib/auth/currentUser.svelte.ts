@@ -1,8 +1,5 @@
-import {
-  getCurrentUserViaConnect,
-  type CurrentUser,
-  type ViewerAPIConfig
-} from '$lib/api-client/viewer';
+import type { ConnectAPIConfig } from '$lib/api-client/connect';
+import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
 import { browserCookieAuthenticationHeaders } from './authenticationMode';
 import { csrfFetch } from './csrf';
 import { isAuthenticationRequiredError } from './errors';
@@ -31,8 +28,8 @@ export class CurrentUserState {
   /** Identity confirmed by the latest successful viewer request, excluding a disk view. */
   verifiedUserId = $state<string | null>(null);
   #cookieAuth: boolean;
-  #apiConfig?: ViewerAPIConfig;
-  #loadCurrentUser: (config: ViewerAPIConfig) => Promise<CurrentUser>;
+  #apiConfig?: ConnectAPIConfig;
+  #loadCurrentUser: (config: ConnectAPIConfig) => Promise<CurrentUser>;
   #onAuthenticationRequired?: () => void;
   #loadPromise: Promise<void> | null = null;
   #generation = 0;
@@ -41,7 +38,7 @@ export class CurrentUserState {
 
   constructor(
     cookieAuth: boolean = false,
-    apiConfig?: ViewerAPIConfig,
+    apiConfig?: ConnectAPIConfig,
     loadCurrentUser = cookieAuth ? getOriginViewer : getCurrentUserViaConnect,
     onAuthenticationRequired?: () => void,
     onLoaded?: (user: CurrentUser) => void

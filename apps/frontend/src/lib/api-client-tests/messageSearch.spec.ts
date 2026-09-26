@@ -52,12 +52,7 @@ describe('createMessageSearchAPI', () => {
       state: MessageSearchState.INDEXING,
       retryAfterMs: 2500
     });
-    expect(mocks.getStatus).toHaveBeenCalledWith(
-      {},
-      {
-        headers: { Authorization: 'Bearer secret' }
-      }
-    );
+    expect(mocks.getStatus).toHaveBeenCalledWith({});
   });
 
   it('hydrates result actors and rooms while preserving provider order and cursor', async () => {
@@ -116,20 +111,17 @@ describe('createMessageSearchAPI', () => {
       order: MessageSearchOrder.NEWEST
     });
 
-    expect(mocks.searchMessages).toHaveBeenCalledWith(
-      {
-        query: 'hello',
-        roomId: 'room-2',
-        authorId: 'user-2',
-        order: MessageSearchOrder.NEWEST,
-        pageSize: 50,
-        cursor: ''
-      },
-      { headers: { Authorization: 'Bearer secret' } }
-    );
+    expect(mocks.searchMessages).toHaveBeenCalledWith({
+      query: 'hello',
+      roomId: 'room-2',
+      authorId: 'user-2',
+      order: MessageSearchOrder.NEWEST,
+      pageSize: 50,
+      cursor: ''
+    });
     expect(mocks.batchGetRooms).toHaveBeenCalledWith(
       { roomIds: ['room-2', 'room-1'] },
-      { headers: { Authorization: 'Bearer secret' } }
+      { signal: undefined }
     );
     expect(response.nextCursor).toBe('opaque-next');
     expect(response.results).toMatchObject([

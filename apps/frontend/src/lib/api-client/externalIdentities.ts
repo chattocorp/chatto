@@ -1,9 +1,4 @@
-import {
-  authHeaders,
-  createChattoClient,
-  handleAuthError,
-  type ConnectAPIConfig
-} from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
@@ -19,8 +14,6 @@ import {
 export type ExternalIdentityFlowAPIConfig = {
   baseUrl?: string;
 };
-
-export type ExternalIdentityAPIConfig = ConnectAPIConfig;
 
 export type PendingExternalIdentityInfo = {
   kind: ExternalIdentityFlowKind;
@@ -110,26 +103,21 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
   };
 }
 
-export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
+export function createExternalIdentityAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async list(options: { signal?: AbortSignal } = {}): Promise<ExternalIdentityList> {
-      try {
-        const response = await client.listExternalIdentities(
-          {},
-          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
-        );
-        return {
-          providers: response.providers.map((provider) =>
-            externalIdentityProvider(provider, config.baseUrl)
-          ),
-          linkedIdentities: response.linkedIdentities.map(linkedIdentity).filter(isLinkedIdentity)
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await client.listExternalIdentities(
+        {},
+        { ...(options.signal ? { signal: options.signal } : {}) }
+      );
+      return {
+        providers: response.providers.map((provider) =>
+          externalIdentityProvider(provider, config.baseUrl)
+        ),
+        linkedIdentities: response.linkedIdentities.map(linkedIdentity).filter(isLinkedIdentity)
+      };
     },
 
     async startLink(input: {
@@ -137,25 +125,12 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
       redirectPath: string;
       currentPassword?: string;
     }): Promise<string> {
-      try {
-        const response = await client.startExternalIdentityLink(input, {
-          headers: headers()
-        });
-        return externalIdentityStartURL(response.startUrl);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await client.startExternalIdentityLink(input);
+      return externalIdentityStartURL(response.startUrl);
     },
 
     async disconnect(subjectHash: string, currentPassword?: string): Promise<void> {
-      try {
-        await client.disconnectExternalIdentity(
-          { subjectHash, currentPassword },
-          { headers: headers() }
-        );
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await client.disconnectExternalIdentity({ subjectHash, currentPassword });
     }
   };
 }

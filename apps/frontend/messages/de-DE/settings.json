@@ -217,6 +217,9 @@
       "save_button": "Zeiteinstellungen speichern",
       "saved": "Zeiteinstellungen gespeichert",
       "save_failed": "Zeiteinstellungen konnten nicht gespeichert werden",
+      "customization": {
+        "title": "Design anpassen"
+      },
       "accent": {
         "title": "Akzentfarbe",
         "blue": "Blau",
@@ -227,8 +230,22 @@
         "orange": "Orange",
         "pink": "Rosa",
         "violet": "Violett",
-        "grey": "Grau",
-        "preview": "Vorschau"
+        "grey": "Grau"
+      },
+      "tone": {
+        "title": "Hintergrundfarbe",
+        "neutral": "Neutral",
+        "gray": "Grau",
+        "slate": "Schiefer",
+        "stone": "Stein",
+        "mauve": "Malve",
+        "olive": "Oliv",
+        "mist": "Nebel",
+        "taupe": "Taupe",
+        "midnight": "Mitternacht",
+        "forest": "Wald",
+        "plum": "Pflaume",
+        "clay": "Ton"
       },
       "contrast": {
         "label": "Kontrast",
@@ -238,6 +255,7 @@
       },
       "depth": {
         "title": "UI-Stil",
+        "label": "Tiefe",
         "flat": "Flach",
         "three_d": "Ein bisschen 3D",
         "very_3d": "Sehr 3D"

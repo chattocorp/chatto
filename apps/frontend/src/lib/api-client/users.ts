@@ -1,9 +1,8 @@
 import {
-  authHeaders,
   createChattoClient,
-  REALTIME_MINIMUM_CURSOR_HEADER,
   StaleResponseError,
-  type ConnectAPIConfig
+  type ConnectAPIConfig,
+  minimumCursorHeaders
 } from './connect.js';
 import { getUserStore } from '$lib/state/server/users.svelte';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
@@ -15,11 +14,8 @@ const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
 import { mapUserSummary, type UserSummary } from './userSummary.js';
 
-export type UserAPIConfig = ConnectAPIConfig;
-
-export function createUserAPI(config: UserAPIConfig) {
+export function createUserAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(UserService, config);
-  const headers = () => authHeaders(config);
   const store = config.serverId ? getUserStore(config.serverId, config.queryScope) : undefined;
   const updateProfile = async (read: () => Promise<User>): Promise<UserSummary> => {
     if (!store) return mapUserSummary(await read());
@@ -36,20 +32,19 @@ export function createUserAPI(config: UserAPIConfig) {
 
   return {
     async batchGetUsers(userIds: string[], minimumCursor?: string): Promise<UserSummary[]> {
-      let requestHeaders: HeadersInit | undefined = headers();
-      if (minimumCursor) {
-        const boundedHeaders = new Headers(requestHeaders);
-        boundedHeaders.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
-        requestHeaders = boundedHeaders;
-      }
-      const read = async (ids: string[]) => (await client.batchGetUsers(
-        { userIds: ids },
-        {
-          headers: requestHeaders,
-          ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
-        }
-      )).users;
-      const members = store ? await store.resolve(userIds, read, minimumCursor) : await read(userIds);
+      const read = async (ids: string[]) =>
+        (
+          await client.batchGetUsers(
+            { userIds: ids },
+            {
+              headers: minimumCursorHeaders(minimumCursor),
+              ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
+            }
+          )
+        ).users;
+      const members = store
+        ? await store.resolve(userIds, read, minimumCursor)
+        : await read(userIds);
       return members.flatMap((member) => {
         const summary = member.user;
         return summary ? [mapUserSummary(summary)] : [];
@@ -65,15 +60,13 @@ export function createUserAPI(config: UserAPIConfig) {
             filename: file.name,
             contentType: file.type
           }
-        },
-        { headers: headers() }
-      );
+        });
         return requiredUser(response.user);
       });
     },
     async deleteAvatar(userId: string): Promise<UserSummary> {
       return updateProfile(async () => {
-        const response = await client.deleteAvatar({ userId }, { headers: headers() });
+        const response = await client.deleteAvatar({ userId });
         return requiredUser(response.user);
       });
     }

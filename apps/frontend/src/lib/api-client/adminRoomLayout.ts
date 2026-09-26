@@ -1,5 +1,5 @@
 import { updateMask } from './updateMask';
-import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import {
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
@@ -8,13 +8,6 @@ import {
 import type { DirectorySidebarLink } from './roomDirectory.js';
 import { RoomKind, type Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
-
-export type AdminRoomLayoutAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type AdminRoomInfo = {
   id: string;
@@ -69,74 +62,57 @@ export type AdminRoomLayoutItemMutationInput = {
   id: string;
 };
 
-export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
+export function createAdminRoomLayoutAPI(config: ConnectAPIConfig) {
   const layout = createChattoClient(AdminRoomLayoutService, config);
-  const headers = () => authHeaders(config);
   return {
     async getRoom(
       roomId: string,
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminManagedRoom | null> {
-      try {
-        const response = await layout.getRoom(
-          { roomId },
-          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
-        );
-        return response.room
-          ? {
-              ...mapAdminRoom(response.room),
-              canManageRoom: response.viewerCanManageRoom,
-              canManagePermissions: response.viewerCanManagePermissions
-            }
-          : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.getRoom(
+        { roomId },
+        { ...(options.signal ? { signal: options.signal } : {}) }
+      );
+      return response.room
+        ? {
+            ...mapAdminRoom(response.room),
+            canManageRoom: response.viewerCanManageRoom,
+            canManagePermissions: response.viewerCanManagePermissions
+          }
+        : null;
     },
 
     async getRoomGroup(
       groupId: string,
       options: { signal?: AbortSignal } = {}
     ): Promise<AdminManagedRoomGroup | null> {
-      try {
-        const response = await layout.getRoomGroup(
-          { groupId },
-          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
-        );
-        return response.group
-          ? {
-              group: mapAdminRoomLayoutGroup(response.group),
-              canManageGroup: response.viewerCanManageGroup,
-              canManagePermissions: response.viewerCanManagePermissions
-            }
-          : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.getRoomGroup(
+        { groupId },
+        { ...(options.signal ? { signal: options.signal } : {}) }
+      );
+      return response.group
+        ? {
+            group: mapAdminRoomLayoutGroup(response.group),
+            canManageGroup: response.viewerCanManageGroup,
+            canManagePermissions: response.viewerCanManagePermissions
+          }
+        : null;
     },
 
     async listRoomGroups(): Promise<AdminRoomGroup[]> {
-      try {
-        const response = await layout.listRoomGroups({}, { headers: headers() });
-        return response.groups.map(mapAdminRoomLayoutGroup);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.listRoomGroups({});
+      return response.groups.map(mapAdminRoomLayoutGroup);
     },
 
     async createRoomGroup(input: {
       name: string;
       description?: string | null;
     }): Promise<AdminRoomGroup | null> {
-      try {
-        const response = await layout.createRoomGroup(
-          { name: input.name, description: input.description ?? '' },
-          { headers: headers() }
-        );
-        return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.createRoomGroup({
+        name: input.name,
+        description: input.description ?? ''
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
     },
 
     async updateRoomGroup(input: {
@@ -144,82 +120,49 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       name?: string;
       description?: string | null;
     }): Promise<AdminRoomGroup | null> {
-      try {
-        const response = await layout.updateRoomGroup(
-          {
-            groupId: input.groupId,
-            name: input.name,
-            description: input.description === null ? '' : input.description,
-            updateMask: updateMask(input, ['name', 'description'])
-          },
-          { headers: headers() }
-        );
-        return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.updateRoomGroup({
+        groupId: input.groupId,
+        name: input.name,
+        description: input.description === null ? '' : input.description,
+        updateMask: updateMask(input, ['name', 'description'])
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
     },
 
     async deleteRoomGroup(groupId: string): Promise<boolean> {
-      try {
-        await layout.deleteRoomGroup({ groupId }, { headers: headers() });
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await layout.deleteRoomGroup({ groupId });
+      return true;
     },
 
     async reorderRoomGroups(orderedGroupIds: string[]): Promise<AdminRoomGroup[]> {
-      try {
-        const response = await layout.reorderRoomGroups(
-          { orderedGroupIds },
-          { headers: headers() }
-        );
-        return response.groups.map(mapAdminRoomLayoutGroup);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.reorderRoomGroups({ orderedGroupIds });
+      return response.groups.map(mapAdminRoomLayoutGroup);
     },
 
     async moveRoomGroup(input: {
       groupId: string;
       beforeGroupId?: string;
     }): Promise<AdminRoomGroup[]> {
-      try {
-        const response = await layout.moveRoomGroup(
-          { groupId: input.groupId, beforeGroupId: input.beforeGroupId },
-          { headers: headers() }
-        );
-        return response.groups.map(mapAdminRoomLayoutGroup);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.moveRoomGroup({
+        groupId: input.groupId,
+        beforeGroupId: input.beforeGroupId
+      });
+      return response.groups.map(mapAdminRoomLayoutGroup);
     },
 
     async moveRoomToGroup(input: { roomId: string; groupId: string }): Promise<void> {
-      try {
-        await layout.moveRoomToGroup(input, { headers: headers() });
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await layout.moveRoomToGroup(input);
     },
 
     async reorderSidebarItemsInGroup(input: {
       groupId: string;
       items: AdminRoomLayoutItemMutationInput[];
     }): Promise<AdminRoomGroup | null> {
-      try {
-        const response = await layout.reorderSidebarItemsInGroup(
-          {
-            groupId: input.groupId,
-            items: input.items.map(adminRoomLayoutItemInput)
-          },
-          { headers: headers() }
-        );
-        return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.reorderSidebarItemsInGroup({
+        groupId: input.groupId,
+        items: input.items.map(adminRoomLayoutItemInput)
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
     },
 
     async moveSidebarItem(input: {
@@ -227,19 +170,12 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       groupId: string;
       before?: AdminRoomLayoutItemMutationInput;
     }): Promise<AdminRoomGroup | null> {
-      try {
-        const response = await layout.moveSidebarItem(
-          {
-            item: adminRoomLayoutItemInput(input.item),
-            groupId: input.groupId,
-            before: input.before ? adminRoomLayoutItemInput(input.before) : undefined
-          },
-          { headers: headers() }
-        );
-        return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.moveSidebarItem({
+        item: adminRoomLayoutItemInput(input.item),
+        groupId: input.groupId,
+        before: input.before ? adminRoomLayoutItemInput(input.before) : undefined
+      });
+      return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
     },
 
     async createSidebarLink(input: {
@@ -247,14 +183,8 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       label: string;
       url: string;
     }): Promise<AdminSidebarLinkInfo | null> {
-      try {
-        const response = await layout.createSidebarLink(input, {
-          headers: headers()
-        });
-        return response.sidebarLink ? mapSidebarLink(response.sidebarLink) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.createSidebarLink(input);
+      return response.sidebarLink ? mapSidebarLink(response.sidebarLink) : null;
     },
 
     async updateSidebarLink(input: {
@@ -262,34 +192,20 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       label: string;
       url: string;
     }): Promise<AdminSidebarLinkInfo | null> {
-      try {
-        const response = await layout.updateSidebarLink(
-          { ...input, updateMask: updateMask(input, ['label', 'url']) },
-          {
-            headers: headers()
-          }
-        );
-        return response.sidebarLink ? mapSidebarLink(response.sidebarLink) : null;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await layout.updateSidebarLink({
+        ...input,
+        updateMask: updateMask(input, ['label', 'url'])
+      });
+      return response.sidebarLink ? mapSidebarLink(response.sidebarLink) : null;
     },
 
     async deleteSidebarLink(linkId: string): Promise<boolean> {
-      try {
-        await layout.deleteSidebarLink({ linkId }, { headers: headers() });
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await layout.deleteSidebarLink({ linkId });
+      return true;
     },
 
     async moveSidebarLinkToGroup(input: { linkId: string; groupId: string }): Promise<void> {
-      try {
-        await layout.moveSidebarLinkToGroup(input, { headers: headers() });
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await layout.moveSidebarLinkToGroup(input);
     }
   };
 }
