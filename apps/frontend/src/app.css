@@ -2007,12 +2007,16 @@
 
 @media (prefers-reduced-motion: reduce) {
   .typing-dot,
-  .loading-dots,
   .loading-dot,
   .quick-switcher[open],
   .quick-switcher[open]::backdrop,
   .image-modal[open] {
     animation: none;
+  }
+
+  /* Keep the reveal delay so fast loads still show no dots; drop only the fade. */
+  .loading-dots {
+    animation-duration: 1ms;
   }
 }
 
