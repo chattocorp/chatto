@@ -530,6 +530,39 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.resumeCursor).toBeNull();
   });
 
+  it('rejects snapshot recovery when the projection reducer fails', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    startLiveBus(fake, {
+      sync,
+      reducer: () => {
+        throw new Error('reducer failed');
+      }
+    });
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(snapshotFrame());
+
+    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
+    expect(socket.closeCalls.at(-1)?.reason).toBe('snapshot reducer failed');
+    expect(sync.resumeCursor).toBeNull();
+  });
+
+  it('does not advance the cursor when the projection reducer fails', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe(new FakeServerConnection(), () => {
+      throw new Error('reducer failed');
+    });
+
+    await socket.receive(projectionFrame('cursor-must-not-persist'));
+    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
+    expect(socket.closeCalls.at(-1)?.reason).toBe('projection reducer failed');
+    expect(consoleError).toHaveBeenCalledWith(
+      `[eventBus:${TEST_SERVER}] projection reducer failed`,
+      expect.any(Error)
+    );
+  });
+
   it('retains the last complete cursor when event resource reconciliation fails', async () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('cursor-before-failure');

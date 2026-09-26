@@ -393,7 +393,7 @@ event, such as a typing or presence change, is the update's `event` field.
 Components subscribe through `useProjectionEvent`, `usePresenceChange`, or
 `useTypingEvent`. An error in a listener is logged. It does not stop the other
 listeners or the transport, and the update is not delivered again. A reducer
-error closes the transport, and the client reconnects, because the projection
+error closes the transport, and the client connects again, because the projection
 is then not current. A reset still reaches every listener first.
 
 When this client deletes or changes a message, `ServerStateStore` updates every
