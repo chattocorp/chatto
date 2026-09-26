@@ -398,6 +398,47 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 - Use `go-smtp-mock` with `MultipleMessageReceiving: true` and
   `WaitForMessages` to avoid email-test races.
 
+## Multi-Server Smoke Tests
+
+Unit tests with `httptest` can miss integration faults between real servers,
+such as the ConnectRPC `/api/connect` mount prefix. When a feature makes one
+Chatto server contact another, run a local smoke test with more than one
+server.
+
+- Build a test binary from `cli/`. The `bootstrap` tag seeds accounts. The
+  `test_endpoints` tag lets the SSRF-guarded outbound client connect to
+  loopback addresses:
+
+  ```sh
+  CGO_ENABLED=0 mise x -- go build -tags 'bootstrap nomsgpack test_endpoints' \
+    -o ../.context/e2e/chatto .
+  ```
+
+  To test the bundled client in a browser, run `mise build-frontend` first.
+  The binary embeds the frontend build.
+- Give each server its own directory under `.context/e2e/`. Run
+  `../chatto init -c chatto.toml` there. Then set a unique `webserver.port`,
+  the matching `webserver.url` such as `http://localhost:4510`, and
+  `nats.embedded.http_port = 0` so that the monitoring ports do not collide.
+- Add a `[bootstrap]` section with one human user and one bot. Do not use a
+  reserved login such as `owner`. Give the bot the permissions that the
+  scenario needs and a `credential_file`. The bot's API key authenticates
+  admin RPCs without privileged mode:
+
+  ```sh
+  curl -s -X POST -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $(cat a/bot.key)" \
+    -d '{"origin":"http://localhost:4520"}' \
+    http://localhost:4510/api/connect/chatto.admin.v1.AdminServerService/CreateNeighbor
+  ```
+
+- Start a server only after the servers that it contacts at boot are
+  listening. Otherwise its first background pass can fail.
+- Sign in as the bootstrap user in Chrome DevTools MCP to verify client
+  behavior. Use the network request list to verify which origins the client
+  contacts.
+- Stop every server process before you hand control back to the user.
+
 ## Local Profiling
 
 - Store local benchmark/profiling artifacts under `.context/bench/`.
