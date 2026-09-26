@@ -795,6 +795,38 @@ describe('ServerStateStore privileged mode', () => {
     expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
   });
 
+  it('removes admin queries when deactivation drops only an effective permission', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      viewerPermissions: new ServerViewerPermissions({
+        permissions: [new PermissionGrant({ permission: 'room.manage', granted: true })]
+      }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+    });
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    expect(store.permissions.canManageRooms).toBe(true);
+    apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
+      privilegedMode: new PrivilegedModeState({ available: true, active: false }),
+      capabilities: new ViewerCapabilities(),
+      viewerPermissions: new ServerViewerPermissions()
+    });
+    fake.forceReconnect.mockImplementationOnce(() =>
+      store.realtimeSync.markCaughtUp(
+        'cursor-after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
+
+    await store.setPrivilegedMode(false);
+
+    // Losing a permission fails closed, like losing an admin capability.
+    expect(store.permissions.canManageRooms).toBe(false);
+    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(cacheMocks.refreshRegisteredAdminQueries).not.toHaveBeenCalled();
+  });
+
   it('applies deactivation permissions before completing the projection refresh', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
