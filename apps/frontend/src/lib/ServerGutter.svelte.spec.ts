@@ -110,24 +110,41 @@ describe('ServerGutter', () => {
     expect(link?.className).toContain('server-gutter-item-active');
   });
 
+  /**
+   * Click the add action and report whether the gutter cancelled the default
+   * link navigation. A window listener runs after Svelte's delegated handler,
+   * records its decision, and then stops the test frame from navigating.
+   */
+  function clickAddServer(container: HTMLElement, init: MouseEventInit = {}): boolean {
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
+    let cancelledByGutter = false;
+    const observe = (event: Event) => {
+      cancelledByGutter = event.defaultPrevented;
+      event.preventDefault();
+    };
+    window.addEventListener('click', observe, { once: true });
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }));
+    window.removeEventListener('click', observe);
+    return cancelledByGutter;
+  }
+
   it('opens the Server Directory as a dialog over the current view', () => {
     const { container } = render(ServerGutter);
-    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
 
-    link.click();
-
+    expect(clickAddServer(container)).toBe(true);
     expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'addServer' } });
   });
 
-  it('keeps modified clicks as ordinary links', () => {
+  it.each([
+    ['a Meta click', { metaKey: true }],
+    ['a Control click', { ctrlKey: true }],
+    ['a Shift click', { shiftKey: true }],
+    ['an Alt click', { altKey: true }],
+    ['a middle-button click', { button: 1 }]
+  ])('keeps %s as an ordinary link', (_name, init) => {
     const { container } = render(ServerGutter);
-    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
-    // Keep the browser from following the link during the test.
-    link.addEventListener('click', (clickEvent) => clickEvent.preventDefault(), { once: true });
 
-    link.dispatchEvent(event);
-
+    expect(clickAddServer(container, init)).toBe(false);
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
@@ -138,7 +155,7 @@ describe('ServerGutter', () => {
     const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]')!;
 
     expect(link.getAttribute('aria-current')).toBe('page');
-    link.click();
+    expect(clickAddServer(container)).toBe(false);
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 });

@@ -310,7 +310,8 @@ describe('Server Directory page', () => {
     // The flow starts synchronously, before the current profile loads.
     expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalledWith(
       'https://remote.example',
-      expect.any(Promise)
+      expect.any(Promise),
+      { replaceHistory: false }
     );
     expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
       'https://remote.example',
@@ -470,9 +471,42 @@ describe('Server Directory page', () => {
 
     await vi.waitFor(() => {
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'joined' })
+        expect.objectContaining({ id: 'joined' }),
+        { replaceHistory: false }
       );
     });
+  });
+
+  it('replaces the dialog history entry when it joins or signs in to a server', async () => {
+    mocks.authenticated.clear();
+    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        entry('https://remote.example', cached('Remote')),
+        entry('https://a.example', cached('Alpha'))
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(ServerDirectory, { inDialog: true });
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    button(container, 'Join')?.click();
+    await vi.waitFor(() =>
+      expect(mocks.startServerOAuthFlowWhenReady).toHaveBeenCalledWith(
+        'https://remote.example',
+        expect.any(Promise),
+        { replaceHistory: true }
+      )
+    );
+
+    button(container, 'Sign in')?.click();
+    await vi.waitFor(() =>
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'joined' }),
+        { replaceHistory: true }
+      )
+    );
   });
 
   it('probes a custom address and shows the same profile card', async () => {

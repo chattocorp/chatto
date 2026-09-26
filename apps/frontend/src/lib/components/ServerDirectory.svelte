@@ -7,7 +7,7 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
 -->
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -17,11 +17,7 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
     type NeighborhoodServerProfile,
     type PublicServerInfo
   } from '$lib/api-client/server';
-  import {
-    startRemoteReauthentication,
-    startServerOAuthFlow,
-    startServerOAuthFlowWhenReady
-  } from '$lib/auth/reauth';
+  import { startRemoteReauthentication, startServerOAuthFlowWhenReady } from '$lib/auth/reauth';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
@@ -35,7 +31,7 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
   } from '$lib/serverDirectory';
   import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
-  import { EmptyState, Hint, LoadingFog } from '$lib/ui';
+  import { EmptyState, Hint, LoadingFog, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
@@ -55,8 +51,6 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
 
   /** The current profile cannot start a sign-in from this client. */
   class ServerJoinUnavailableError extends Error {}
-
-  const headingTag = $derived(inDialog ? 'h3' : 'h2');
 
   let customInput = $state('');
   let customOrigin = $state('');
@@ -208,14 +202,16 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
           replaceState: inDialog
         });
       } else if (joined) {
-        await startRemoteReauthentication(joined);
-      } else if (isPublicServerInfo(profile)) {
-        await startServerOAuthFlow(origin, profile);
+        await startRemoteReauthentication(joined, { replaceHistory: inDialog });
       } else if (profile) {
-        // The sign-in window must open from this click, before the current
-        // profile loads. A stale cached profile can hide an incompatible
-        // version or missing sign-in support.
-        await startServerOAuthFlowWhenReady(origin, loadJoinableProfile(origin));
+        // The sign-in window must open from this click, before a cached
+        // profile is refreshed. A stale cached profile can hide an
+        // incompatible version or missing sign-in support.
+        await startServerOAuthFlowWhenReady(
+          origin,
+          isPublicServerInfo(profile) ? Promise.resolve(profile) : loadJoinableProfile(origin),
+          { replaceHistory: inDialog }
+        );
       }
     } catch (error) {
       toast.error(
@@ -301,185 +297,205 @@ Add Server dialog and the `/chat/servers` page can both host it. See FDR-042.
   {/if}
 {/snippet}
 
-<div class="flex flex-col gap-8">
-  <section
-    class="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5"
-    aria-labelledby="server-directory-lookup-title"
+{#snippet recommendationSources(entry: ServerDirectoryEntry, className: string)}
+  {@const attribution = sourceAttribution(entry)}
+  <p
+    class={['min-w-0 text-sm text-muted', className]}
+    aria-label={attribution.full}
+    title={attribution.full}
+    data-testid="server-recommendation-sources"
   >
-    <div class="flex flex-col gap-1">
-      <svelte:element
-        this={headingTag}
-        id="server-directory-lookup-title"
-        class="text-lg font-semibold text-balance text-text-top"
-      >
-        {m('add_server.directory.custom_title')}
-      </svelte:element>
-      <p class="text-sm text-pretty text-muted">
-        {m('add_server.directory.lookup_description')}
-      </p>
-    </div>
+    <bdi>{attribution.visible}</bdi>
+  </p>
+{/snippet}
 
-    <Form onsubmit={probeCustomServer} error={customError}>
-      <div class="flex flex-col items-stretch gap-3 sm:flex-row">
-        <div class="min-w-0 flex-1">
-          <TextInput
-            id="add-server-url"
-            label={m('add_server.url_label')}
-            labelHidden
-            bind:value={customInput}
-            placeholder={m('add_server.url_placeholder')}
-            leadingIcon="icon-[uil--globe]"
-            disabled={probing}
-            required
-          />
-        </div>
-        <Button
-          type="submit"
-          loading={probing}
-          loadingText={m('add_server.connecting')}
-          disabled={!customInput.trim()}
-        >
-          {m('add_server.directory.find')}
+<!-- The page frames each section in a titled Panel. The dialog already owns
+     one work plane, so its sections sit directly on it. -->
+{#snippet directorySection(
+  id: string,
+  title: string,
+  description: string,
+  count: number | undefined,
+  body: Snippet
+)}
+  {#if inDialog}
+    <section class="flex flex-col gap-4" aria-labelledby={id}>
+      <div class="flex flex-col gap-1">
+        <h3 {id} class="text-base font-semibold text-balance text-text-top">
+          {title}
+          {#if count !== undefined}
+            <span class="font-normal text-muted tabular-nums">({count})</span>
+          {/if}
+        </h3>
+        <p class="text-sm text-pretty text-muted">{description}</p>
+      </div>
+      {@render body()}
+    </section>
+  {:else}
+    <Panel {title} subtitle={description} {count}>
+      <div class="flex flex-col gap-4">{@render body()}</div>
+    </Panel>
+  {/if}
+{/snippet}
+
+{#snippet lookupBody()}
+  <Form onsubmit={probeCustomServer} error={customError}>
+    <div class="flex flex-col items-stretch gap-3 sm:flex-row">
+      <div class="min-w-0 flex-1">
+        <TextInput
+          id="add-server-url"
+          label={m('add_server.url_label')}
+          labelHidden
+          bind:value={customInput}
+          placeholder={m('add_server.url_placeholder')}
+          leadingIcon="icon-[uil--globe]"
+          disabled={probing}
+          required
+        />
+      </div>
+      <Button
+        type="submit"
+        loading={probing}
+        loadingText={m('add_server.connecting')}
+        disabled={!customInput.trim()}
+      >
+        {m('add_server.directory.find')}
+      </Button>
+    </div>
+  </Form>
+
+  {#if customProfile && customOrigin}
+    {@const profile = customProfile}
+    {@const joined = registeredServer(customOrigin)}
+    {@const external = opensInServerClient(customOrigin, profile)}
+    <div class="max-w-md">
+      {#snippet customActions()}
+        {@render entryAction(customOrigin, profile, true)}
+      {/snippet}
+      <ServerProfileCard
+        origin={customOrigin}
+        {profile}
+        badge={joined ? m('add_server.directory.joined') : undefined}
+        iconHref={external ? customOrigin : undefined}
+        iconOpensInNewTab={external}
+        onIconClick={external || (!joined && !canJoin(profile))
+          ? undefined
+          : () => openOrJoin(customOrigin, profile)}
+        iconActionLabel={actionLabel(customOrigin, profile)}
+        iconActionDisabled={pendingOrigin === customOrigin}
+        actions={customActions}
+        testId="server-directory-entry"
+        headingTag={inDialog ? 'h4' : 'h3'}
+      />
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet recommendationsBody()}
+  {#if someSourcesFailed}
+    <Hint tone="warning">{m('add_server.directory.partial')}</Hint>
+  {/if}
+
+  {#if !directory}
+    <LoadingFog class="h-64 w-full rounded-lg" />
+  {:else if allSourcesFailed}
+    <EmptyState
+      icon="icon-[uil--exclamation-triangle]"
+      title={m('add_server.directory.unavailable_title')}
+    >
+      <div class="flex flex-col items-center gap-3">
+        <span>{m('add_server.directory.unavailable_body')}</span>
+        <Button variant="secondary" onclick={refreshDirectory}>
+          {m('common.retry')}
         </Button>
       </div>
-    </Form>
-
-    {#if customProfile && customOrigin}
-      {@const profile = customProfile}
-      {@const joined = registeredServer(customOrigin)}
-      {@const external = opensInServerClient(customOrigin, profile)}
-      <div class="max-w-md">
-        {#snippet customActions()}
-          {@render entryAction(customOrigin, profile, true)}
+    </EmptyState>
+  {:else if recommendedEntries.length === 0}
+    <EmptyState icon="icon-[uil--compass]" title={m('add_server.directory.empty_title')}>
+      {m('add_server.directory.empty_body')}
+    </EmptyState>
+  {:else}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {#each recommendedEntries as entry (entry.origin)}
+        {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
+        {@const external = opensInServerClient(entry.origin, profile)}
+        {#snippet cardActions()}
+          <div class="flex items-center gap-3">
+            {@render recommendationSources(entry, 'line-clamp-2 flex-1')}
+            {@render entryAction(entry.origin, profile, false)}
+          </div>
         {/snippet}
         <ServerProfileCard
-          origin={customOrigin}
-          {profile}
-          badge={joined ? m('add_server.directory.joined') : undefined}
-          iconHref={external ? customOrigin : undefined}
+          origin={entry.origin}
+          imageOrigin={entry.imageOrigin}
+          profile={entry.profile}
+          iconHref={external ? entry.origin : undefined}
           iconOpensInNewTab={external}
-          onIconClick={external || (!joined && !canJoin(profile))
+          onIconClick={external || !canJoin(profile)
             ? undefined
-            : () => openOrJoin(customOrigin, profile)}
-          iconActionLabel={actionLabel(customOrigin, profile)}
-          iconActionDisabled={pendingOrigin === customOrigin}
-          actions={customActions}
+            : () => openOrJoin(entry.origin, profile)}
+          iconActionLabel={actionLabel(entry.origin, profile)}
+          iconActionDisabled={pendingOrigin === entry.origin}
+          actions={cardActions}
           testId="server-directory-entry"
           headingTag={inDialog ? 'h4' : 'h3'}
         />
-      </div>
-    {/if}
-  </section>
+      {/each}
+    </div>
+  {/if}
+
+  {#if joinedEntries.length > 0}
+    <div class="flex flex-col gap-2" data-testid="server-directory-joined">
+      <svelte:element this={inDialog ? 'h4' : 'h3'} class="text-sm font-semibold text-muted">
+        {m('add_server.directory.joined_title')}
+      </svelte:element>
+      <ul class="flex flex-col gap-1">
+        {#each joinedEntries as entry (entry.origin)}
+          <li
+            class="flex items-center gap-3 rounded-md px-2 py-1.5"
+            data-testid="server-directory-entry"
+            data-origin={entry.origin}
+          >
+            <div class="h-8 w-8 shrink-0 overflow-hidden rounded-md">
+              <ServerLogo
+                server={{ name: entry.profile.name, logoUrl: entry.profile.iconUrl }}
+                publicImageOrigin={entry.imageOrigin}
+                fill
+              />
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col text-sm">
+              <div class="flex min-w-0 items-baseline gap-2">
+                <span class="truncate font-medium text-text-top">
+                  <bdi dir="auto">{entry.profile.name}</bdi>
+                </span>
+                <span class="truncate text-muted" dir="ltr">{hostOf(entry.origin)}</span>
+              </div>
+              {@render recommendationSources(entry, 'truncate')}
+            </div>
+            {@render entryAction(entry.origin, entry.profile, false)}
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+{/snippet}
+
+<div class={['flex flex-col', inDialog ? 'gap-8' : 'gap-6']}>
+  {@render directorySection(
+    'server-directory-lookup-title',
+    m('add_server.directory.custom_title'),
+    m('add_server.directory.lookup_description'),
+    undefined,
+    lookupBody
+  )}
 
   {#if registeredOrigins.length > 0}
-    <section class="flex flex-col gap-4" aria-labelledby="server-directory-recommended-title">
-      <div class="flex flex-col gap-1">
-        <svelte:element
-          this={headingTag}
-          id="server-directory-recommended-title"
-          class="text-lg font-semibold text-balance text-text-top"
-        >
-          {m('add_server.directory.servers_title')}
-          {#if recommendedEntries.length > 0}
-            <span class="font-normal text-muted tabular-nums">({recommendedEntries.length})</span>
-          {/if}
-        </svelte:element>
-        <p class="text-sm text-pretty text-muted">
-          {m('add_server.directory.servers_description')}
-        </p>
-      </div>
-
-      {#if someSourcesFailed}
-        <Hint tone="warning">{m('add_server.directory.partial')}</Hint>
-      {/if}
-
-      {#if !directory}
-        <LoadingFog class="h-64 w-full rounded-lg" />
-      {:else if allSourcesFailed}
-        <EmptyState
-          icon="icon-[uil--exclamation-triangle]"
-          title={m('add_server.directory.unavailable_title')}
-        >
-          <div class="flex flex-col items-center gap-3">
-            <span>{m('add_server.directory.unavailable_body')}</span>
-            <Button variant="secondary" onclick={refreshDirectory}>
-              {m('common.retry')}
-            </Button>
-          </div>
-        </EmptyState>
-      {:else if recommendedEntries.length === 0}
-        <EmptyState icon="icon-[uil--compass]" title={m('add_server.directory.empty_title')}>
-          {m('add_server.directory.empty_body')}
-        </EmptyState>
-      {:else}
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {#each recommendedEntries as entry (entry.origin)}
-            {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
-            {@const external = opensInServerClient(entry.origin, profile)}
-            {@const attribution = sourceAttribution(entry)}
-            {#snippet cardActions()}
-              <div class="flex items-center gap-3">
-                <p
-                  class="line-clamp-2 min-w-0 flex-1 text-sm text-muted"
-                  aria-label={attribution.full}
-                  title={attribution.full}
-                  data-testid="server-recommendation-sources"
-                >
-                  <bdi>{attribution.visible}</bdi>
-                </p>
-                {@render entryAction(entry.origin, profile, false)}
-              </div>
-            {/snippet}
-            <ServerProfileCard
-              origin={entry.origin}
-              imageOrigin={entry.imageOrigin}
-              profile={entry.profile}
-              iconHref={external ? entry.origin : undefined}
-              iconOpensInNewTab={external}
-              onIconClick={external || !canJoin(profile)
-                ? undefined
-                : () => openOrJoin(entry.origin, profile)}
-              iconActionLabel={actionLabel(entry.origin, profile)}
-              iconActionDisabled={pendingOrigin === entry.origin}
-              actions={cardActions}
-              testId="server-directory-entry"
-              headingTag={inDialog ? 'h4' : 'h3'}
-            />
-          {/each}
-        </div>
-      {/if}
-
-      {#if joinedEntries.length > 0}
-        <div class="flex flex-col gap-2" data-testid="server-directory-joined">
-          <svelte:element this={inDialog ? 'h4' : 'h3'} class="text-sm font-semibold text-muted">
-            {m('add_server.directory.joined_title')}
-          </svelte:element>
-          <ul class="selectable-list">
-            {#each joinedEntries as entry (entry.origin)}
-              <li
-                class="flex items-center gap-3 selectable-list-item px-2 py-1.5"
-                data-testid="server-directory-entry"
-                data-origin={entry.origin}
-              >
-                <div class="h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                  <ServerLogo
-                    server={{ name: entry.profile.name, logoUrl: entry.profile.iconUrl }}
-                    publicImageOrigin={entry.imageOrigin}
-                    fill
-                  />
-                </div>
-                <div class="flex min-w-0 flex-1 items-baseline gap-2 text-sm">
-                  <span class="truncate font-medium text-text-top">
-                    <bdi dir="auto">{entry.profile.name}</bdi>
-                  </span>
-                  <span class="truncate text-muted" dir="ltr">{hostOf(entry.origin)}</span>
-                </div>
-                {@render entryAction(entry.origin, entry.profile, false)}
-              </li>
-            {/each}
-          </ul>
-        </div>
-      {/if}
-    </section>
+    {@render directorySection(
+      'server-directory-recommended-title',
+      m('add_server.directory.servers_title'),
+      m('add_server.directory.servers_description'),
+      recommendedEntries.length || undefined,
+      recommendationsBody
+    )}
   {/if}
 </div>

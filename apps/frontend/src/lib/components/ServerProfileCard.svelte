@@ -96,7 +96,8 @@ card. Callers supply trusted badges and actions through explicit props.
     <!-- The name-seeded gradient matches the server's logo fallback. -->
     <div
       class="h-24 shrink-0 opacity-40"
-      style:background={getGradientForName(logoServer.name)}
+      class:bg-surface-emphasized={profile === undefined}
+      style:background={profile === undefined ? undefined : getGradientForName(logoServer.name)}
       aria-hidden="true"
       data-banner-fallback
     ></div>
