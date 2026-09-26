@@ -18,9 +18,11 @@ describe('ServerBanner', () => {
     await expect.element(image).toHaveAttribute('src', url);
     if (!(image instanceof HTMLImageElement)) throw new Error('Server banner image is missing');
     await expect.poll(() => image.naturalWidth).toBe(600);
-    await expect.poll(() => {
-      const { width, height } = image.getBoundingClientRect();
-      return width / height;
-    }).toBeCloseTo(1.5, 2);
+    await expect
+      .poll(() => {
+        const { width, height } = image.getBoundingClientRect();
+        return width / height;
+      })
+      .toBeCloseTo(1.5, 2);
   });
 });

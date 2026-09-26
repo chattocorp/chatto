@@ -18,11 +18,14 @@ export class MessageReconciler {
 
   constructor(
     private readonly read: (
-      roomId: string, ids: string[], cursor?: string
+      roomId: string,
+      ids: string[],
+      cursor?: string
     ) => Promise<MessageResource[]>,
-    private readonly capture: (roomId: string, cursor?: string) => (
-      id: string, resource: MessageResource | null, insert: boolean
-    ) => void
+    private readonly capture: (
+      roomId: string,
+      cursor?: string
+    ) => (id: string, resource: MessageResource | null, insert: boolean) => void
   ) {}
 
   /** Schedule a change; callers must await completion before saving its cursor. */
@@ -78,7 +81,11 @@ export class MessageReconciler {
           // Closed threads and off-window echoes can reveal related rows only
           // after the first read. Resolve each dependency once per drain.
           const message = resource.message;
-          for (const related of [message.threadRootEventId, message.echoOfEventId, message.channelEchoEventId]) {
+          for (const related of [
+            message.threadRootEventId,
+            message.echoOfEventId,
+            message.channelEchoEventId
+          ]) {
             if (related && !visited.has(related) && !queue.pending.has(related)) {
               queue.pending.set(related, { insert: false });
             }

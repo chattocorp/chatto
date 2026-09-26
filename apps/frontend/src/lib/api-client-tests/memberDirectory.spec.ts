@@ -255,13 +255,13 @@ describe('createMemberDirectoryAPI', () => {
       page: { totalCount: 1n, hasMore: false }
     });
     mocks.batchGetUsers.mockImplementation(async (_request, options) => ({
-      users: options.headers?.get(REALTIME_MINIMUM_CURSOR_HEADER) === 'join-cursor'
-        ? [member]
-        : []
+      users: options.headers?.get(REALTIME_MINIMUM_CURSOR_HEADER) === 'join-cursor' ? [member] : []
     }));
     const api = createMemberDirectoryAPI({
-      baseUrl: '/api/connect', bearerToken: null,
-      serverId: 'cursor-test', queryScope: 'cursor-test'
+      baseUrl: '/api/connect',
+      bearerToken: null,
+      serverId: 'cursor-test',
+      queryScope: 'cursor-test'
     });
 
     const page = await api.listRoomMembers('room-1', '', 250, 0, {
@@ -269,10 +269,12 @@ describe('createMemberDirectoryAPI', () => {
     });
 
     expect(page.members.map((user) => user.id)).toEqual(['U2']);
-    expect(mocks.listRoomMembers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER))
-      .toBe('join-cursor');
-    expect(mocks.batchGetUsers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER))
-      .toBe('join-cursor');
+    expect(mocks.listRoomMembers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER)).toBe(
+      'join-cursor'
+    );
+    expect(mocks.batchGetUsers.mock.calls[0][1].headers.get(REALTIME_MINIMUM_CURSOR_HEADER)).toBe(
+      'join-cursor'
+    );
   });
 
   it('defaults room member pages to 250 members', async () => {

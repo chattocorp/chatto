@@ -56,11 +56,7 @@ a fixture navigation view so component tests do not need a realtime transport.
       return this.rooms.some((room) => room.id === roomId && room.viewerIsMember);
     }
   };
-  const directory = new RoomDirectoryStore(
-    navigation,
-    stubMemberDirectoryAPI,
-    stubRoomAPI
-  );
+  const directory = new RoomDirectoryStore(navigation, stubMemberDirectoryAPI, stubRoomAPI);
 </script>
 
 <RoomDirectory {directory} serverSegment="-" />

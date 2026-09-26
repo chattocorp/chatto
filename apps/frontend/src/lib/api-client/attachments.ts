@@ -163,9 +163,13 @@ function roomFileItem(item: {
 export function roomFileItemsForTimelineEvent(event: RoomTimelineEvent): RoomFileItem[] {
   if (event.event.case !== 'messagePosted') return [];
   const message = event.event.value.message;
-  return message ? roomFileItemsForMessage(message).map((item) => ({
-    ...item, messageEventId: event.id, createdAt: timestampToISO(event.createdAt)
-  })) : [];
+  return message
+    ? roomFileItemsForMessage(message).map((item) => ({
+        ...item,
+        messageEventId: event.id,
+        createdAt: timestampToISO(event.createdAt)
+      }))
+    : [];
 }
 
 /** Convert a shared authoritative message read to file-list rows. */

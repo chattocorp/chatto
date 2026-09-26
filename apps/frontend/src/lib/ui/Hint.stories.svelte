@@ -43,7 +43,9 @@
     <Hint tone="warning" icon="icon-[uil--exclamation-triangle]">
       Changes here apply immediately to all members.
     </Hint>
-    <Hint tone="danger" icon="icon-[uil--exclamation-octagon]">Deleting this space cannot be undone.</Hint>
+    <Hint tone="danger" icon="icon-[uil--exclamation-octagon]"
+      >Deleting this space cannot be undone.</Hint
+    >
   </div>
 </Story>
 

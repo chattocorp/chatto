@@ -21,7 +21,9 @@
   const totalNotificationCount = $derived(
     serverRegistry.servers.reduce(
       (sum, instance) =>
-        sum + (serverRegistry.tryGetStore(instance.id)?.notifications.attention.unreadNotificationCount ?? 0),
+        sum +
+        (serverRegistry.tryGetStore(instance.id)?.notifications.attention.unreadNotificationCount ??
+          0),
       0
     )
   );
@@ -29,7 +31,8 @@
     serverRegistry.servers.reduce(
       (sum, instance) =>
         sum +
-        (serverRegistry.tryGetStore(instance.id)?.notifications.attention.importantUnreadNotificationCount ?? 0),
+        (serverRegistry.tryGetStore(instance.id)?.notifications.attention
+          .importantUnreadNotificationCount ?? 0),
       0
     )
   );
@@ -52,7 +55,7 @@
 
 <!-- WebKit extends the solid background of a sticky header into its top system bar. -->
 <header
-  class="app-header keyboard-hide-mobile sticky top-0 flex h-[var(--app-header-height)] shrink-0 items-center justify-between gap-2 bg-surface p-2 text-muted desktop-presentation:text-sm"
+  class="app-header sticky top-0 flex keyboard-hide-mobile h-[var(--app-header-height)] shrink-0 items-center justify-between gap-2 bg-surface p-2 text-muted desktop-presentation:text-sm"
 >
   <!-- Leading: global navigation, notifications, and client-wide actions -->
   <div class="flex items-center gap-3">
@@ -74,7 +77,7 @@
         href={resolve('/chat/notifications')}
         aria-label={m('ui.notifications')}
         title={m('ui.notifications')}
-        class="relative app-header-icon"
+        class="app-header-icon relative"
       >
         <span class="iconify icon-[uil--bell] text-lg"></span>
         {#if totalNotificationCount > 0}
@@ -139,7 +142,9 @@
   <div class="flex shrink-0 items-center gap-3">
     {#if version}
       <!-- Wide viewports have room to show the client version next to the About action. -->
-      <span class="hidden text-xs tabular-nums md:inline" data-testid="app-header-version">v{version}</span>
+      <span class="hidden text-xs tabular-nums md:inline" data-testid="app-header-version"
+        >v{version}</span
+      >
       <button
         type="button"
         class="app-header-icon"

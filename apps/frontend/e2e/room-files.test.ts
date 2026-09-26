@@ -16,7 +16,9 @@ async function postFillerMessages(page: Page, roomId: string, prefix: string, co
   }
 }
 
-test('room Files sidebar previews files and separately jumps to their messages', async ({ page }) => {
+test('room Files sidebar previews files and separately jumps to their messages', async ({
+  page
+}) => {
   await page.setViewportSize({ width: 1280, height: 820 });
   const { roomPage } = await loginAndEnterRoom(page);
 
@@ -103,7 +105,9 @@ test('mobile Files panel stays open when Escape closes the file viewer', async (
   await page.getByRole('button', { name: 'Actions for #general' }).click();
   await page.getByRole('button', { name: 'Show files', exact: true }).click();
 
-  const filesPanel = page.locator('[data-testid="room-sidebar-mobile-pane"] nav[aria-label="Files"]');
+  const filesPanel = page.locator(
+    '[data-testid="room-sidebar-mobile-pane"] nav[aria-label="Files"]'
+  );
   await filesPanel.getByTestId('room-file-preview').click();
   await expect(page.getByRole('dialog', { name: 'brighton.jpg' })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -112,22 +116,34 @@ test('mobile Files panel stays open when Escape closes the file viewer', async (
   await expect(filesPanel.getByTestId('room-file-preview')).toBeFocused();
 });
 
-test('Files keeps its rows and scroll position during room and closed-thread posts', async ({ page, browser, serverURL }) => {
+test('Files keeps its rows and scroll position during room and closed-thread posts', async ({
+  page,
+  browser,
+  serverURL
+}) => {
   await page.setViewportSize({ width: 1280, height: 600 });
   const { roomPage } = await loginAndEnterRoom(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   const roomId = roomIdFromUrl(page);
-  await page.locator('[data-testid="room-view-region"] input[type="file"]').first().setInputFiles(
-    Array.from({ length: 10 }, (_, index) => ({
-      name: `stable-file-${index}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`File ${index}`)
-    }))
-  );
+  await page
+    .locator('[data-testid="room-view-region"] input[type="file"]')
+    .first()
+    .setInputFiles(
+      Array.from({ length: 10 }, (_, index) => ({
+        name: `stable-file-${index}.txt`,
+        mimeType: 'text/plain',
+        buffer: Buffer.from(`File ${index}`)
+      }))
+    );
   await expect(page.getByTestId('composer-attachment-preview')).toHaveCount(10);
   const root = await roomPage.sendMessage('Files regression root');
   const rootId = await root.getEventId();
   if (!rootId) throw new Error('Missing root message ID');
-  await page.locator('[data-testid="room-sidebar-toggle"]:visible').getByLabel('Show files').click();
+  await page
+    .locator('[data-testid="room-sidebar-toggle"]:visible')
+    .getByLabel('Show files')
+    .click();
   const panel = page.locator('aside[aria-label="Room extras"] nav[aria-label="Files"]');
   await expect(panel.getByTestId('room-file-row')).toHaveCount(10);
   await panel.hover();
@@ -142,11 +158,15 @@ test('Files keeps its rows and scroll position during room and closed-thread pos
 
   await withServerUser(browser, serverURL, async ({ page: sender, chatPage }) => {
     await chatPage.enterRoom('general');
-    const roomUpdate = page.waitForResponse((response) => response.url().endsWith('/BatchGetMessages') && response.ok());
+    const roomUpdate = page.waitForResponse(
+      (response) => response.url().endsWith('/BatchGetMessages') && response.ok()
+    );
     await postMessageViaConnect(sender, roomId, 'Receiver room update');
     await roomUpdate;
     await expect(page.getByText('Receiver room update', { exact: true })).toBeVisible();
-    const threadUpdate = page.waitForResponse((response) => response.url().endsWith('/BatchGetMessages') && response.ok());
+    const threadUpdate = page.waitForResponse(
+      (response) => response.url().endsWith('/BatchGetMessages') && response.ok()
+    );
     await postThreadReplyViaConnect(sender, roomId, 'Receiver closed-thread update', rootId);
     await threadUpdate;
   });

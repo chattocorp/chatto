@@ -18,11 +18,17 @@ export function scheduleCustomStatusExpiry(
     const delay = expiresAtMs - Date.now();
     if (delay <= 0) {
       if (fromTimer) onExpire();
-      else timeout = setTimeout(() => { if (!cancelled) onExpire(); }, 0);
+      else
+        timeout = setTimeout(() => {
+          if (!cancelled) onExpire();
+        }, 0);
       return;
     }
     timeout = setTimeout(() => schedule(true), Math.min(delay, MAX_TIMEOUT_DELAY_MS));
   };
   schedule();
-  return () => { cancelled = true; if (timeout) clearTimeout(timeout); };
+  return () => {
+    cancelled = true;
+    if (timeout) clearTimeout(timeout);
+  };
 }

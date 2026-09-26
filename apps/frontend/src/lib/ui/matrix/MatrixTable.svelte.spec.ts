@@ -6,46 +6,60 @@ import { flushSync } from 'svelte';
 import MatrixTableTestHarness from './MatrixTableTestHarness.svelte';
 
 describe('MatrixTable', () => {
-  beforeEach(async () => { await page.viewport(1280, 900); });
-  it.each(['ltr', 'rtl'])('stacks labels in narrow containers and scrolls aligned cells in %s', async (direction) => {
-    const host = document.createElement('div');
-    host.style.width = '320px';
-    host.dir = direction;
-    document.body.append(host);
-    try {
-      const { container } = render(MatrixTableTestHarness, {
-        target: host,
-        props: {
-          rows: [{ id: 'long', label: 'A long permission label that must wrap in a narrow container' }],
-          columns: Array.from({ length: 16 }, (_, index) => ({
-            id: `column-${index}`, label: `Role ${index}`, kind: 'room' as const
-          }))
-        }
-      });
-      await expect.poll(() => container.querySelectorAll('tbody tr').length).toBe(2);
-      const heading = container.querySelector('[data-test-row-heading="long"]')!;
-      const cell = container.querySelector('td[data-test-cell]')!;
-      const column = container.querySelector('th[data-test-column]')!;
-      const viewport = container.querySelector('.data-table-viewport')!;
-      expect(container.querySelectorAll('.data-table-viewport')).toHaveLength(1);
-      expect(heading.getBoundingClientRect().bottom).toBeLessThanOrEqual(cell.getBoundingClientRect().top);
-      expect(heading.parentElement!.getBoundingClientRect().width).toBe(320);
-      expect(cell.getAttribute('headers')?.split(' ')).toEqual([heading.closest('th')!.id, column.id]);
-      const labelStart = heading.getBoundingClientRect().left;
-      const cellStart = cell.getBoundingClientRect().left;
-      viewport.scrollLeft = direction === 'ltr' ? 120 : -120;
-      await expect.poll(() => Math.abs(viewport.scrollLeft)).toBe(120);
-      expect(heading.getBoundingClientRect().left).toBeCloseTo(labelStart);
-      expect(cell.getBoundingClientRect().left).not.toBe(cellStart);
-      expect(cell.getBoundingClientRect().left).toBeCloseTo(column.getBoundingClientRect().left);
-
-      host.style.width = '800px';
-      await expect.poll(() => container.querySelectorAll('tbody tr').length).toBe(1);
-      expect(container.querySelector('tbody th')?.parentElement).toBe(cell.parentElement);
-    } finally {
-      host.remove();
-    }
+  beforeEach(async () => {
+    await page.viewport(1280, 900);
   });
+  it.each(['ltr', 'rtl'])(
+    'stacks labels in narrow containers and scrolls aligned cells in %s',
+    async (direction) => {
+      const host = document.createElement('div');
+      host.style.width = '320px';
+      host.dir = direction;
+      document.body.append(host);
+      try {
+        const { container } = render(MatrixTableTestHarness, {
+          target: host,
+          props: {
+            rows: [
+              { id: 'long', label: 'A long permission label that must wrap in a narrow container' }
+            ],
+            columns: Array.from({ length: 16 }, (_, index) => ({
+              id: `column-${index}`,
+              label: `Role ${index}`,
+              kind: 'room' as const
+            }))
+          }
+        });
+        await expect.poll(() => container.querySelectorAll('tbody tr').length).toBe(2);
+        const heading = container.querySelector('[data-test-row-heading="long"]')!;
+        const cell = container.querySelector('td[data-test-cell]')!;
+        const column = container.querySelector('th[data-test-column]')!;
+        const viewport = container.querySelector('.data-table-viewport')!;
+        expect(container.querySelectorAll('.data-table-viewport')).toHaveLength(1);
+        expect(heading.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+          cell.getBoundingClientRect().top
+        );
+        expect(heading.parentElement!.getBoundingClientRect().width).toBe(320);
+        expect(cell.getAttribute('headers')?.split(' ')).toEqual([
+          heading.closest('th')!.id,
+          column.id
+        ]);
+        const labelStart = heading.getBoundingClientRect().left;
+        const cellStart = cell.getBoundingClientRect().left;
+        viewport.scrollLeft = direction === 'ltr' ? 120 : -120;
+        await expect.poll(() => Math.abs(viewport.scrollLeft)).toBe(120);
+        expect(heading.getBoundingClientRect().left).toBeCloseTo(labelStart);
+        expect(cell.getBoundingClientRect().left).not.toBe(cellStart);
+        expect(cell.getBoundingClientRect().left).toBeCloseTo(column.getBoundingClientRect().left);
+
+        host.style.width = '800px';
+        await expect.poll(() => container.querySelectorAll('tbody tr').length).toBe(1);
+        expect(container.querySelector('tbody th')?.parentElement).toBe(cell.parentElement);
+      } finally {
+        host.remove();
+      }
+    }
+  );
 
   it('renders domain-neutral rows, columns, attributes, and rotated headings', () => {
     const { container } = render(MatrixTableTestHarness);
@@ -115,12 +129,17 @@ describe('MatrixTable', () => {
     flushSync();
     const bounds = cell.getBoundingClientRect();
     container.inert = true;
-    cell.dispatchEvent(new MouseEvent('mouseleave', {
-      clientX: bounds.left + bounds.width / 2, clientY: bounds.top + bounds.height / 2
-    }));
+    cell.dispatchEvent(
+      new MouseEvent('mouseleave', {
+        clientX: bounds.left + bounds.width / 2,
+        clientY: bounds.top + bounds.height / 2
+      })
+    );
     flushSync();
     expect(cell.className).toContain('bg-action/15');
-    window.dispatchEvent(new PointerEvent('pointermove', { clientX: bounds.right + 10, clientY: bounds.bottom + 10 }));
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: bounds.right + 10, clientY: bounds.bottom + 10 })
+    );
     flushSync();
     expect(cell.className).not.toContain('bg-action/');
     container.inert = false;
@@ -136,7 +155,9 @@ describe('MatrixTable', () => {
     flushSync();
     expect(cell.className).toContain('bg-action/15');
     container.inert = false;
-    container.querySelector<HTMLButtonElement>('[data-test-cell="mentions:general"] button')!.focus();
+    container
+      .querySelector<HTMLButtonElement>('[data-test-cell="mentions:general"] button')!
+      .focus();
     flushSync();
     expect(cell.className).not.toContain('bg-action/15');
   });

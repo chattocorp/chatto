@@ -13,8 +13,7 @@ export function shouldAbortHLSRecovery(error: {
   details?: string;
 }): boolean {
   return (
-    error.fatal === true ||
-    (error.type === 'mediaError' && error.details === 'bufferAppendError')
+    error.fatal === true || (error.type === 'mediaError' && error.details === 'bufferAppendError')
   );
 }
 

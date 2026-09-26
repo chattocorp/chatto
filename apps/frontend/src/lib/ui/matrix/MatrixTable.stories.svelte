@@ -185,7 +185,10 @@
 <Story name="Narrow pane" asChild>
   <div class="w-80 max-w-full bg-background">
     <MatrixTable
-      rows={[...rows, { id: 'long', label: 'A long permission label that wraps onto another line' }]}
+      rows={[
+        ...rows,
+        { id: 'long', label: 'A long permission label that wraps onto another line' }
+      ]}
       columns={[...columns, ...columns.map((column) => ({ ...column, id: `${column.id}-extra` }))]}
       getRowKey={(row) => row.id}
       getColumnKey={(column) => column.id}

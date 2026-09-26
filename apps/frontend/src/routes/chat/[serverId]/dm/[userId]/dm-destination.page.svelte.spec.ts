@@ -12,7 +12,13 @@ const mocks = vi.hoisted(() => ({
   currentUser: { user: { id: 'self' } as { id: string } | undefined }
 }));
 
-vi.mock('$app/state', () => ({ page: { get params() { return mocks.page.params; } } }));
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return mocks.page.params;
+    }
+  }
+}));
 vi.mock('$app/navigation', () => ({ goto: mocks.goto }));
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params: Record<string, string>) =>
@@ -40,7 +46,9 @@ import Destination from './+page.svelte';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => { resolve = done; });
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -55,7 +63,10 @@ beforeEach(() => {
   mocks.startDM.mockResolvedValue({ id: 'dm-room' });
   mocks.ensureRoomAvailable.mockResolvedValue(undefined);
 });
-afterEach(async () => { await mounted?.unmount(); mounted = undefined; });
+afterEach(async () => {
+  await mounted?.unmount();
+  mounted = undefined;
+});
 
 describe('DM destination', () => {
   it('shows loading until both the command and authoritative room refresh finish', async () => {
@@ -71,13 +82,16 @@ describe('DM destination', () => {
     await vi.waitFor(() => expect(mocks.ensureRoomAvailable).toHaveBeenCalledWith('dm-room'));
     expect(mocks.goto).not.toHaveBeenCalled();
     refresh.resolve();
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-room', { replaceState: true }));
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-room', { replaceState: true })
+    );
     expect(mocks.record).toHaveBeenCalledWith('/chat/-/dm-room');
   });
 
   it.each(['command', 'refresh', 'missing'])('offers retry after %s failure', async (failure) => {
     if (failure === 'command') mocks.startDM.mockRejectedValueOnce(new Error('Unavailable'));
-    if (failure === 'refresh') mocks.ensureRoomAvailable.mockRejectedValueOnce(new Error('Unavailable'));
+    if (failure === 'refresh')
+      mocks.ensureRoomAvailable.mockRejectedValueOnce(new Error('Unavailable'));
     if (failure === 'missing') mocks.startDM.mockResolvedValueOnce(null);
     mounted = render(Destination);
     const retry = mounted.getByRole('button', { name: 'Try Again' });
@@ -93,7 +107,9 @@ describe('DM destination', () => {
     if (stage === 'command') mocks.startDM.mockReturnValue(pending.promise);
     else mocks.ensureRoomAvailable.mockReturnValue(pending.promise);
     mounted = render(Destination);
-    await vi.waitFor(() => expect(stage === 'command' ? mocks.startDM : mocks.ensureRoomAvailable).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect(stage === 'command' ? mocks.startDM : mocks.ensureRoomAvailable).toHaveBeenCalled()
+    );
     await mounted.unmount();
     mounted = undefined;
     pending.resolve({ id: 'dm-room' });

@@ -14,7 +14,7 @@ The room-group permission-container decision remains current.
 
 ## Context
 
-The post-#330 RBAC model resolves room-scope permissions through a single hierarchy walker rooted in server-scope grants, with room-scope decisions overlaid on top via room-level allow/deny keys. The walker is uniform and tightened (see ADR-005, and the `hmans/rbac-review` work that closed self-grant escalation and dropped `admin.bypass`), but the underlying *shape* of the model produces several awkward edges:
+The post-#330 RBAC model resolves room-scope permissions through a single hierarchy walker rooted in server-scope grants, with room-scope decisions overlaid on top via room-level allow/deny keys. The walker is uniform and tightened (see ADR-005, and the `hmans/rbac-review` work that closed self-grant escalation and dropped `admin.bypass`), but the underlying _shape_ of the model produces several awkward edges:
 
 - **Server-scope grants on `everyone` are global by default.** Room-scope perms (`message.post`, `room.join`, etc.) live on the `everyone` role at server scope and affect every room. Adjusting them globally is convenient but coarse: there is no granularity between "everyone everywhere" and "per-room override." For a multi-team server, the natural unit ("everyone on the engineering team, in engineering rooms") doesn't exist in the model.
 
@@ -35,11 +35,11 @@ A long design discussion considered alternatives — ReBAC/Zanzibar (overkill fo
 
 Adopt a **channel-centric ACL** model for channel-room permissions with **room groups** as the shared local permission container. Three permission containers participate in nearest-scope inheritance:
 
-| Container | Configures | Examples |
-|---|---|---|
-| **Server** | Server-only capabilities and broad defaults for room-capable permissions | `server.manage`, `role.manage`, `message.post`, `room.join`, `user.manage-accounts` |
-| **Room group** | Room-scope permissions for every channel room in the group | `message.post`, `message.react`, `room.join`, `room.manage`, `message.manage`, `message.echo` |
-| **Room** | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
+| Container      | Configures                                                                              | Examples                                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Server**     | Server-only capabilities and broad defaults for room-capable permissions                | `server.manage`, `role.manage`, `message.post`, `room.join`, `user.manage-accounts`                                    |
+| **Room group** | Room-scope permissions for every channel room in the group                              | `message.post`, `message.react`, `room.join`, `room.manage`, `message.manage`, `message.echo`                          |
+| **Room**       | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 
 Subjects are unchanged: **roles** and **users** (for direct overrides). Role
 position controls display order, not authorization. Every authenticated user
@@ -150,7 +150,7 @@ Temporary user-targeted restrictions ("mute", "timeout", "suspend") build on the
 - **Builds on ADR-044** (shared operation models for public API authorization). Public room/group operations enforce these checks in core operation models so ConnectRPC and future transports cannot drift.
 - **Leaves DM room policy outside room groups.** DMs are not part of any room group; their membership-based read access, message-permission send gate, and hardcoded `dmBoundaryDeniedPermissions` list are covered by ADR-037. Room groups are a channel-rooms-only feature.
 - **Compatible with ADR-037.** Removing the DM read permission does not change the group model because DM rooms never inherit group permissions.
-- **Compatible with ADR-027 and ADR-030.** Server consolidation and the retirement of the space tier are preserved; this ADR introduces a *new* container (room group) below the server, not a return to two tiers.
+- **Compatible with ADR-027 and ADR-030.** Server consolidation and the retirement of the space tier are preserved; this ADR introduces a _new_ container (room group) below the server, not a return to two tiers.
 
 ### Out of scope for this ADR
 

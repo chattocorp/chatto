@@ -5,8 +5,7 @@ import { themes } from 'storybook/theming';
 // preset from the OS preference at load time so the manager UI lines up
 // with the docs chrome (set the same way in preview.ts).
 const prefersDark =
-  typeof window !== 'undefined' &&
-  window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
 addons.setConfig({
   theme: prefersDark ? themes.dark : themes.light
@@ -20,7 +19,13 @@ const THEME_ORDER = ['auto', 'light', 'dark'] as const;
 type Theme = (typeof THEME_ORDER)[number];
 
 addons.register('theme-cycle', (api) => {
-  function isShiftT(e: { key?: string; shiftKey?: boolean; metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean }): boolean {
+  function isShiftT(e: {
+    key?: string;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+  }): boolean {
     if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
     return e.key?.toLowerCase() === 't';
   }

@@ -1,7 +1,6 @@
 <script lang="ts">
-  let { expanded, onclick }: { expanded: boolean; onclick: () => void } =
-    $props();
-  let label = $derived(expanded ? "Hide runs sidebar" : "Show runs sidebar");
+  let { expanded, onclick }: { expanded: boolean; onclick: () => void } = $props();
+  let label = $derived(expanded ? 'Hide runs sidebar' : 'Show runs sidebar');
 </script>
 
 <button
@@ -24,6 +23,6 @@
   >
     <rect x="3" y="4" width="18" height="16" rx="3" />
     <path d="M9 4v16" />
-    <path d={expanded ? "m16 9-3 3 3 3" : "m13 9 3 3-3 3"} />
+    <path d={expanded ? 'm16 9-3 3 3 3' : 'm13 9 3 3-3 3'} />
   </svg>
 </button>

@@ -585,10 +585,12 @@ describe('VoiceCallState', () => {
         await sample();
         expect(sync).toHaveBeenCalledWith(expect.anything(), [['microphone', track]]);
         input = 0.001; // Capture activity remains visible below the configured gate threshold.
-        await expect.poll(() => state.getAudioLevel('local-user')).toEqual({
-          isSpeaking: true,
-          audioLevel: 0.001
-        });
+        await expect
+          .poll(() => state.getAudioLevel('local-user'))
+          .toEqual({
+            isSpeaking: true,
+            audioLevel: 0.001
+          });
         input = 0;
         await sample();
         expect(state.getAudioLevel('local-user')).toEqual({ isSpeaking: false, audioLevel: 0 });

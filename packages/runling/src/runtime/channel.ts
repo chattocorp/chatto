@@ -1,16 +1,16 @@
 export class ChannelClosedError extends Error {
-  override readonly name = "ChannelClosedError";
+  override readonly name = 'ChannelClosedError';
 
   constructor() {
-    super("Channel is closed");
+    super('Channel is closed');
   }
 }
 
 export class ChannelFullError extends Error {
-  override readonly name = "ChannelFullError";
+  override readonly name = 'ChannelFullError';
 
   constructor() {
-    super("Channel buffer is full");
+    super('Channel buffer is full');
   }
 }
 
@@ -28,14 +28,14 @@ export interface Channel<T> extends AsyncIterable<T> {
 /** Bounded FIFO with one iterator and at most one pending read. */
 export function createChannel<T>({
   capacity = 64,
-  signal,
+  signal
 }: { capacity?: number; signal?: AbortSignal } = {}): Channel<T> {
   if (!Number.isSafeInteger(capacity) || capacity < 1) {
-    throw new RangeError("Channel capacity must be a positive safe integer");
+    throw new RangeError('Channel capacity must be a positive safe integer');
   }
 
   // Keep failure separate from state: even undefined can be a rejection reason.
-  let state: "open" | "closed" | "failed" = "open";
+  let state: 'open' | 'closed' | 'failed' = 'open';
   let failure: unknown;
   const queue: T[] = [];
 
@@ -47,14 +47,14 @@ export function createChannel<T>({
     | undefined;
   let claimed = false;
 
-  const detach = () => signal?.removeEventListener("abort", abort);
+  const detach = () => signal?.removeEventListener('abort', abort);
   const done = (): IteratorResult<T> => ({ done: true, value: undefined });
   const abort = () => channel.fail(signal!.reason);
 
   const channel: Channel<T> = {
     async send(value) {
-      if (state === "failed") throw failure;
-      if (state === "closed") throw new ChannelClosedError();
+      if (state === 'failed') throw failure;
+      if (state === 'closed') throw new ChannelClosedError();
 
       if (reader) {
         // A waiting consumer receives the value without using buffer space.
@@ -69,10 +69,10 @@ export function createChannel<T>({
     },
 
     close() {
-      if (state !== "open") return;
+      if (state !== 'open') return;
 
       // Graceful close preserves queued values for the consumer to drain.
-      state = "closed";
+      state = 'closed';
       detach();
 
       reader?.resolve(done());
@@ -80,10 +80,10 @@ export function createChannel<T>({
     },
 
     fail(reason) {
-      if (state !== "open") return;
+      if (state !== 'open') return;
 
       // Failure discards pending data. The first terminal transition wins.
-      state = "failed";
+      state = 'failed';
       failure = reason;
       queue.length = 0;
       detach();
@@ -94,7 +94,7 @@ export function createChannel<T>({
 
     [Symbol.asyncIterator]() {
       // Sharing a channel between readers must not silently split its messages.
-      if (claimed) throw new Error("Channel already has a consumer");
+      if (claimed) throw new Error('Channel already has a consumer');
 
       claimed = true;
       let returned = false;
@@ -102,18 +102,16 @@ export function createChannel<T>({
       return {
         next(): Promise<IteratorResult<T>> {
           if (returned) return Promise.resolve(done());
-          if (state === "failed") return Promise.reject(failure);
+          if (state === 'failed') return Promise.reject(failure);
 
           // Read buffered values before checking for a graceful close.
           if (queue.length) {
             return Promise.resolve({ done: false, value: queue.shift()! });
           }
 
-          if (state === "closed") return Promise.resolve(done());
+          if (state === 'closed') return Promise.resolve(done());
           if (reader) {
-            return Promise.reject(
-              new Error("Channel already has a pending read"),
-            );
+            return Promise.reject(new Error('Channel already has a pending read'));
           }
 
           return new Promise((resolve, reject) => {
@@ -128,15 +126,15 @@ export function createChannel<T>({
           channel.close();
 
           return done();
-        },
+        }
       };
-    },
+    }
   };
 
   if (signal?.aborted) {
     abort();
   } else {
-    signal?.addEventListener("abort", abort, { once: true });
+    signal?.addEventListener('abort', abort, { once: true });
   }
 
   return channel;

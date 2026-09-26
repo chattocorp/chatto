@@ -1,7 +1,4 @@
-import {
-  isMessagePostedEvent,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
 import type { RecentThreadRootCandidate } from '$lib/components/composer/messageComposerState.svelte';
 
 export const RECENT_THREAD_ROOT_WINDOW_MS = 5 * 60 * 1000;

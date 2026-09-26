@@ -234,7 +234,9 @@ test.describe('Room-Level Permission Overrides', () => {
         await memberPage.goto(routes.room(roomId));
         await expect(memberPage.getByText(visibleBody)).toBeVisible();
         const originalComposer = await memberPage.getByTestId('message-input').elementHandle();
-        const originalShell = await memberPage.getByRole('button', { name: 'Toggle sidebar', exact: true }).elementHandle();
+        const originalShell = await memberPage
+          .getByRole('button', { name: 'Toggle sidebar', exact: true })
+          .elementHandle();
         const initialConnections = connections;
 
         await denyRoomPermission(page, roomId, 'everyone', 'message.read');

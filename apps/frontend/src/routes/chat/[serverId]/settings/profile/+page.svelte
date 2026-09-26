@@ -20,8 +20,6 @@
     {#if serverScope.store.serverInfo.supportsFeature('userAvatars')}
       <AvatarSettings />
     {/if}
-    <ProfileDetailsSettings
-      getAccountAPI={() => serverScope.connection.getAPI(createAccountAPI)}
-    />
+    <ProfileDetailsSettings getAccountAPI={() => serverScope.connection.getAPI(createAccountAPI)} />
   </div>
 </PaneContent>

@@ -1,24 +1,26 @@
-import { executionServices } from "./execution.ts";
-import { ansiColor, terminalColors } from "./ansi.ts";
-import { stripVTControlCharacters } from "node:util";
-import { AsyncLocalStorage } from "node:async_hooks";
-import { emitRunlingEvent } from "./events.ts";
+import { executionServices } from './execution.ts';
+import { ansiColor, terminalColors } from './ansi.ts';
+import { stripVTControlCharacters } from 'node:util';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { emitRunlingEvent } from './events.ts';
 
 function paint(color: string, text: string) {
-  if (!terminalColors(destinationStorage.getStore() === "stderr" ? process.stderr : process.stdout)) return text;
+  if (!terminalColors(destinationStorage.getStore() === 'stderr' ? process.stderr : process.stdout))
+    return text;
   const ansi = ansiColor(color);
   return ansi ? `${ansi}${text}\x1b[0m` : text;
 }
 
-function highlight(text: string, color = "white") {
-  if (!terminalColors(destinationStorage.getStore() === "stderr" ? process.stderr : process.stdout)) return text;
-  const ansi = ansiColor(color) ?? "";
+function highlight(text: string, color = 'white') {
+  if (!terminalColors(destinationStorage.getStore() === 'stderr' ? process.stderr : process.stdout))
+    return text;
+  const ansi = ansiColor(color) ?? '';
   return `\x1b[1m${ansi}${text}\x1b[0m`;
 }
 
-export type LogLevel = "info" | "debug";
+export type LogLevel = 'info' | 'debug';
 
-const INDENT_UNIT = "  ";
+const INDENT_UNIT = '  ';
 
 /**
  * Tracks how deeply nested the currently running work is. Using
@@ -27,9 +29,9 @@ const INDENT_UNIT = "  ";
  */
 const depthStorage = new AsyncLocalStorage<number>();
 const colorStorage = new AsyncLocalStorage<string>();
-type LogDestination = "stdout" | "stderr" | "silent";
+type LogDestination = 'stdout' | 'stderr' | 'silent';
 interface LogSource {
-  type: "agent" | "command" | "input";
+  type: 'agent' | 'command' | 'input';
   id: string;
 }
 
@@ -41,35 +43,29 @@ function indent(): string {
 }
 
 function write(
-  level: "debug" | "info" | "success" | "error",
+  level: 'debug' | 'info' | 'success' | 'error',
   message: string,
   defaultColor: string,
-  source?: "step",
+  source?: 'step'
 ): void {
   const color = colorStorage.getStore() ?? defaultColor;
   const contextualSource = sourceStorage.getStore();
   emitRunlingEvent({
-    type: "log",
+    type: 'log',
     level,
     message,
     depth: depthStorage.getStore() ?? 0,
     color,
     source: source ?? contextualSource?.type,
-    sourceId: contextualSource?.id,
+    sourceId: contextualSource?.id
   });
 
   const destination = destinationStorage.getStore();
-  if (destination === "silent") return;
+  if (destination === 'silent') return;
 
   const symbol =
-    level === "success"
-      ? "✓"
-      : level === "error"
-        ? "✗"
-        : level === "debug"
-          ? "·"
-          : "●";
-  const stderr = level === "error" || destination === "stderr";
+    level === 'success' ? '✓' : level === 'error' ? '✗' : level === 'debug' ? '·' : '●';
+  const stderr = level === 'error' || destination === 'stderr';
   const colored = terminalColors(stderr ? process.stderr : process.stdout);
   const ansi = ansiColor(color);
   const marker = colored && ansi ? `${ansi}${symbol}\x1b[0m` : symbol;
@@ -81,17 +77,13 @@ function write(
   }
 }
 
-export const logStep = (message: string): void =>
-  write("info", message, "dodgerblue", "step");
+export const logStep = (message: string): void => write('info', message, 'dodgerblue', 'step');
 
 export const logCommand = (id: string, message: string): void =>
-  withLogSource({ type: "command", id }, () => log.info(message));
+  withLogSource({ type: 'command', id }, () => log.info(message));
 
-export const logInput = (
-  id: string,
-  level: "info" | "success" | "error",
-  message: string,
-): void => withLogSource({ type: "input", id }, () => log[level](message));
+export const logInput = (id: string, level: 'info' | 'success' | 'error', message: string): void =>
+  withLogSource({ type: 'input', id }, () => log[level](message));
 
 export const withLogSource = <T>(source: LogSource, work: LoggedWork<T>): T =>
   sourceStorage.run(source, work);
@@ -99,22 +91,24 @@ export const withLogSource = <T>(source: LogSource, work: LoggedWork<T>): T =>
 /** A chunk of work whose log output is indented one level deeper. */
 export type LoggedWork<T> = () => T;
 
-let defaultLevel: LogLevel = "info";
+let defaultLevel: LogLevel = 'info';
 
 export const log = {
   get level(): LogLevel {
     const services = executionServices();
-    return services ? (services.verbose ? "debug" : "info") : defaultLevel;
+    return services ? (services.verbose ? 'debug' : 'info') : defaultLevel;
   },
-  set level(value: LogLevel) { defaultLevel = value; },
+  set level(value: LogLevel) {
+    defaultLevel = value;
+  },
   debug: (message: string) => {
-    if (log.level === "debug") {
-      write("debug", message, "gray");
+    if (log.level === 'debug') {
+      write('debug', message, 'gray');
     }
   },
-  info: (message: string) => write("info", message, "dodgerblue"),
-  success: (message: string) => write("success", message, "limegreen"),
-  error: (message: string) => write("error", message, "crimson"),
+  info: (message: string) => write('info', message, 'dodgerblue'),
+  success: (message: string) => write('success', message, 'limegreen'),
+  error: (message: string) => write('error', message, 'crimson'),
   /** Renders `text` in the active contextual color, if there is one. */
   colorize(text: string): string {
     const color = colorStorage.getStore();
@@ -127,10 +121,7 @@ export const log = {
     return colorStorage.run(color, work);
   },
   /** Runs `work` with informational output written to `destination`. */
-  withDestination<T>(
-    destination: LogDestination,
-    work: LoggedWork<T>,
-  ): T {
+  withDestination<T>(destination: LogDestination, work: LoggedWork<T>): T {
     return destinationStorage.run(destination, work);
   },
   /**
@@ -140,5 +131,5 @@ export const log = {
    */
   indented<T>(work: LoggedWork<T>): T {
     return depthStorage.run((depthStorage.getStore() ?? 0) + 1, work);
-  },
+  }
 };

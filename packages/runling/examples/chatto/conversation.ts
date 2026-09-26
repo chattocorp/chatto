@@ -1,12 +1,9 @@
-import type { InputHandler, WorkflowContext } from "runling";
-import type { ChattoAgentOptions } from "./agent.ts";
-import { messageSignal, type ChattoPost } from "./webhook.ts";
+import type { InputHandler, WorkflowContext } from 'runling';
+import type { ChattoAgentOptions } from './agent.ts';
+import { messageSignal, type ChattoPost } from './webhook.ts';
 
 /** Per-run presentation: ordered replies and no typing while input is pending. */
-export function createChattoConversation(
-  rootCtx: WorkflowContext,
-  options: ChattoAgentOptions,
-) {
+export function createChattoConversation(rootCtx: WorkflowContext, options: ChattoAgentOptions) {
   let outgoing = Promise.resolve();
   let questions = 0;
 
@@ -23,7 +20,7 @@ export function createChattoConversation(
     questions++;
 
     try {
-      if (!rootCtx.onInput) throw new Error("Chatto conversation requires an input handler");
+      if (!rootCtx.onInput) throw new Error('Chatto conversation requires an input handler');
       return await rootCtx.onInput(request);
     } finally {
       questions--;
@@ -36,8 +33,8 @@ export function createChattoConversation(
     ...options,
     post: (_target, text) => say(text),
     typing: options.typing
-      ? (target, signal) => questions ? Promise.resolve() : options.typing!(target, signal)
-      : undefined,
+      ? (target, signal) => (questions ? Promise.resolve() : options.typing!(target, signal))
+      : undefined
   };
 
   return { ctx, say, agentOptions };

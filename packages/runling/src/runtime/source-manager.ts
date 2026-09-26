@@ -1,6 +1,6 @@
-import { dispatchRoute } from "./routing.ts";
-import { serverLog } from "./server-log.ts";
-import type { EventSource, WebhookContext, WebConfig } from "./web-config.ts";
+import { dispatchRoute } from './routing.ts';
+import { serverLog } from './server-log.ts';
+import type { EventSource, WebhookContext, WebConfig } from './web-config.ts';
 
 interface RunningSource {
   controller: AbortController;
@@ -14,14 +14,15 @@ export class SourceManager {
   private pending = Promise.resolve();
   private closed = false;
 
-  constructor(private start: (name: string) => WebhookContext["start"]) {}
+  constructor(private start: (name: string) => WebhookContext['start']) {}
 
   replace(config: WebConfig): Promise<void> {
     this.pending = this.pending.then(async () => {
       await this.stop();
       if (this.closed) return;
       const sources = config.sources ?? {};
-      for (const name of this.states.keys()) if (!Object.hasOwn(sources, name)) this.states.delete(name);
+      for (const name of this.states.keys())
+        if (!Object.hasOwn(sources, name)) this.states.delete(name);
       for (const [name, source] of Object.entries(sources)) this.launch(name, source);
     });
     return this.pending;
@@ -33,28 +34,38 @@ export class SourceManager {
     this.states.set(name, state);
     const deliveries = new Set<Promise<unknown>>();
     let accepting = true;
-    const completion = Promise.resolve().then(() => source({
-      signal: controller.signal, state,
-      dispatch: (route, input) => {
-        if (!accepting || controller.signal.aborted) return Promise.reject(new Error("Event source has stopped"));
-        const delivery = dispatchRoute(route, input, this.start(name));
-        deliveries.add(delivery);
-        void delivery.then(() => deliveries.delete(delivery), () => deliveries.delete(delivery));
-        return delivery;
-      },
-    })).catch(() => {
-      if (!controller.signal.aborted) serverLog("error", "source.failed", { source: name });
-    }).finally(async () => {
-      accepting = false;
-      controller.abort();
-      await Promise.allSettled(deliveries);
-    });
+    const completion = Promise.resolve()
+      .then(() =>
+        source({
+          signal: controller.signal,
+          state,
+          dispatch: (route, input) => {
+            if (!accepting || controller.signal.aborted)
+              return Promise.reject(new Error('Event source has stopped'));
+            const delivery = dispatchRoute(route, input, this.start(name));
+            deliveries.add(delivery);
+            void delivery.then(
+              () => deliveries.delete(delivery),
+              () => deliveries.delete(delivery)
+            );
+            return delivery;
+          }
+        })
+      )
+      .catch(() => {
+        if (!controller.signal.aborted) serverLog('error', 'source.failed', { source: name });
+      })
+      .finally(async () => {
+        accepting = false;
+        controller.abort();
+        await Promise.allSettled(deliveries);
+      });
     this.running.push({ controller, completion });
   }
 
   private async stop() {
     for (const source of this.running) source.controller.abort();
-    await Promise.all(this.running.map(source => source.completion));
+    await Promise.all(this.running.map((source) => source.completion));
     this.running = [];
   }
 

@@ -76,10 +76,7 @@
   emit returned post
 </button>
 
-<button
-  data-testid="emit-created-thread"
-  onclick={() => onMessageSent?.(returnedThreadPost)}
->
+<button data-testid="emit-created-thread" onclick={() => onMessageSent?.(returnedThreadPost)}>
   emit created thread
 </button>
 

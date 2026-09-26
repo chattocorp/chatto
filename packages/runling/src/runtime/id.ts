@@ -1,5 +1,5 @@
-import { randomInt } from "node:crypto";
-import { adjectives, nouns } from "human-id";
+import { randomInt } from 'node:crypto';
+import { adjectives, nouns } from 'human-id';
 
 export function randomId() {
   const adjective = adjectives[randomInt(adjectives.length)];

@@ -38,13 +38,13 @@ When a user composes a message, others see avatars, names, and animated dots in 
 ### 3. Debounce resets after a message is sent
 
 **Decision:** When the user posts, the next keystroke immediately fires a new typing event without waiting for the debounce window.
-**Why:** Posting is a strong signal that the next typing burst is a *new* message, not a continuation. Making the next typing event instant means the indicator shows up promptly for the next message.
+**Why:** Posting is a strong signal that the next typing burst is a _new_ message, not a continuation. Making the next typing event instant means the indicator shows up promptly for the next message.
 **Tradeoff:** None worth noting.
 
 ### 4. Room and thread typing are independently scoped
 
 **Decision:** A user typing in a thread does not appear as "typing" in the room timeline, and vice versa.
-**Why:** Otherwise the room timeline would show typing indicators for every active thread inside it, which would be noisy. Each location only shows the people typing *there*.
+**Why:** Otherwise the room timeline would show typing indicators for every active thread inside it, which would be noisy. Each location only shows the people typing _there_.
 **Tradeoff:** A user typing in a thread isn't visible to people who haven't opened the thread. Matches expectations.
 
 ## Permissions

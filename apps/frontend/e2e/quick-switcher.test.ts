@@ -88,7 +88,12 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     });
   });
 
-  test('uses a known user until their DM has message history', async ({ page, chatPage, browser, serverURL }) => {
+  test('uses a known user until their DM has message history', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -103,10 +108,13 @@ test.describe('Quick Switcher (Cmd-K)', () => {
 
       const memberSearches: string[] = [];
       page.on('request', (request) => {
-        if (request.url().endsWith('/chatto.api.v1.UserService/ListUsers')) memberSearches.push(request.url());
+        if (request.url().endsWith('/chatto.api.v1.UserService/ListUsers'))
+          memberSearches.push(request.url());
       });
       const dm = await connectPost<{ room?: { id?: string } }>(
-        page, 'chatto.api.v1.RoomService/StartDM', { participantIds: [userB.id] }
+        page,
+        'chatto.api.v1.RoomService/StartDM',
+        { participantIds: [userB.id] }
       );
       const roomId = dm.room?.id;
       if (!roomId) throw new Error('DM fixture did not return a room');
@@ -128,7 +136,8 @@ test.describe('Quick Switcher (Cmd-K)', () => {
 
       const startedDMs: string[] = [];
       page.on('request', (request) => {
-        if (request.url().endsWith('/chatto.api.v1.RoomService/StartDM')) startedDMs.push(request.url());
+        if (request.url().endsWith('/chatto.api.v1.RoomService/StartDM'))
+          startedDMs.push(request.url());
       });
       await result.click();
       await expect(page).toHaveURL(new RegExp(`/chat/-/${roomId}$`));

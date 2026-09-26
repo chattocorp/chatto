@@ -48,9 +48,12 @@ describe('WelcomeBanner', () => {
       await tick();
       await vi.advanceTimersByTimeAsync(0);
       await expect.element(screen.getByText('welcome.verified')).toBeVisible();
-      expect(mocks.replaceState).toHaveBeenCalledExactlyOnceWith('/community/chat?filter=unread#latest', {
-        threadFilter: 'unread'
-      });
+      expect(mocks.replaceState).toHaveBeenCalledExactlyOnceWith(
+        '/community/chat?filter=unread#latest',
+        {
+          threadFilter: 'unread'
+        }
+      );
     }
   );
 

@@ -235,10 +235,7 @@
       select.value = client.policy;
       return;
     }
-    if (
-      policy === client.policy ||
-      !isEditableOAuthClientPolicy(policy)
-    ) {
+    if (policy === client.policy || !isEditableOAuthClientPolicy(policy)) {
       return;
     }
 
@@ -353,51 +350,53 @@
           loadMoreRoot={scrollContainer}
           loadingMoreMessage={m('admin.common.loading')}
         >
-        {#snippet header()}
-          <th class="table-header-cell">{m('admin.security.oauth_clients.application')}</th>
-          <th class="table-header-cell">{m('admin.security.oauth_clients.origins')}</th>
-          <th class="table-header-cell">{m('admin.security.oauth_clients.users')}</th>
-          <th class="table-header-cell">{m('admin.security.oauth_clients.last_authorization')}</th>
-          <th class="table-header-cell">{m('admin.security.oauth_clients.policy')}</th>
-        {/snippet}
-        {#snippet row(client)}
-          <td class="max-w-72 px-4 py-3 align-top">
-            <div class="font-medium">{client.clientName || m('admin.common.unknown')}</div>
-            <div class="mt-1 truncate font-mono text-xs text-muted" title={client.clientId}>
-              <bdi dir="ltr">{client.clientId}</bdi>
-            </div>
-          </td>
-          <td class="max-w-64 px-4 py-3 align-top text-sm text-muted">
-            {#each client.redirectOrigins as origin, index (origin)}
-              {#if index > 0}, {/if}<bdi dir="ltr">{origin}</bdi>
-            {/each}
-          </td>
-          <td class="px-4 py-3 align-top">{client.authorizedUserCount}</td>
-          <td class="px-4 py-3 align-top whitespace-nowrap text-sm text-muted">
-            {formatTimestamp(client.lastAuthorizationAt)}
-          </td>
-          <td class="min-w-44 px-4 py-3 align-top">
-            <select
-              class="input"
-              name="oauth-client-policy"
-              value={client.policy}
-              aria-label={m('admin.security.oauth_clients.policy_for', {
-                client: client.clientName || client.clientId
-              })}
-              disabled={client.policy === 'unknown' || policySaving(client)}
-              onchange={(event) => updateOAuthClientPolicy(client, event)}
+          {#snippet header()}
+            <th class="table-header-cell">{m('admin.security.oauth_clients.application')}</th>
+            <th class="table-header-cell">{m('admin.security.oauth_clients.origins')}</th>
+            <th class="table-header-cell">{m('admin.security.oauth_clients.users')}</th>
+            <th class="table-header-cell">{m('admin.security.oauth_clients.last_authorization')}</th
             >
-              {#if client.policy === 'unknown'}
-                <option value="unknown">
-                  {m('admin.common.unknown')} ({client.policyCode})
-                </option>
-              {/if}
-              <option value="default">{m('admin.security.oauth_clients.policy_default')}</option>
-              <option value="trusted">{m('admin.security.oauth_clients.policy_trusted')}</option>
-              <option value="blocked">{m('admin.security.oauth_clients.policy_blocked')}</option>
-            </select>
-          </td>
-        {/snippet}
+            <th class="table-header-cell">{m('admin.security.oauth_clients.policy')}</th>
+          {/snippet}
+          {#snippet row(client)}
+            <td class="max-w-72 px-4 py-3 align-top">
+              <div class="font-medium">{client.clientName || m('admin.common.unknown')}</div>
+              <div class="mt-1 truncate font-mono text-xs text-muted" title={client.clientId}>
+                <bdi dir="ltr">{client.clientId}</bdi>
+              </div>
+            </td>
+            <td class="max-w-64 px-4 py-3 align-top text-sm text-muted">
+              {#each client.redirectOrigins as origin, index (origin)}
+                {#if index > 0},
+                {/if}<bdi dir="ltr">{origin}</bdi>
+              {/each}
+            </td>
+            <td class="px-4 py-3 align-top">{client.authorizedUserCount}</td>
+            <td class="px-4 py-3 align-top text-sm whitespace-nowrap text-muted">
+              {formatTimestamp(client.lastAuthorizationAt)}
+            </td>
+            <td class="min-w-44 px-4 py-3 align-top">
+              <select
+                class="input"
+                name="oauth-client-policy"
+                value={client.policy}
+                aria-label={m('admin.security.oauth_clients.policy_for', {
+                  client: client.clientName || client.clientId
+                })}
+                disabled={client.policy === 'unknown' || policySaving(client)}
+                onchange={(event) => updateOAuthClientPolicy(client, event)}
+              >
+                {#if client.policy === 'unknown'}
+                  <option value="unknown">
+                    {m('admin.common.unknown')} ({client.policyCode})
+                  </option>
+                {/if}
+                <option value="default">{m('admin.security.oauth_clients.policy_default')}</option>
+                <option value="trusted">{m('admin.security.oauth_clients.policy_trusted')}</option>
+                <option value="blocked">{m('admin.security.oauth_clients.policy_blocked')}</option>
+              </select>
+            </td>
+          {/snippet}
         </DataTable>
       {:else if oauthClientsLoading}
         <LoadingFog class="m-5 h-32" />

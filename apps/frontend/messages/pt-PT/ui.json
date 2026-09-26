@@ -5,7 +5,12 @@
     "open_quick_switcher": "Abra o alternador rápido",
     "quick_switcher_shortcut": "Troca rápida (Cmd+K)",
     "realtime_paused": "Atualizações em tempo real pausadas. Reconectando...",
-    "saved_view": {"cache_title":"Cache local","cache_description":"Este dispositivo guarda uma vista de texto limitada das conversas para leitura offline.","clear_cache":"Limpar conversas guardadas","cache_cleared":"As conversas guardadas foram apagadas."},
+    "saved_view": {
+      "cache_title": "Cache local",
+      "cache_description": "Este dispositivo guarda uma vista de texto limitada das conversas para leitura offline.",
+      "clear_cache": "Limpar conversas guardadas",
+      "cache_cleared": "As conversas guardadas foram apagadas."
+    },
     "update_available": "Está disponível uma nova versão",
     "reload": "Recarregar",
     "sign_out": "Sair",

@@ -98,9 +98,7 @@ test.describe('Server Admin Members', () => {
       await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
 
       // Should see the admin user in the list
-      await expect(
-        page.getByRole('cell', { name: `@${admin.login}`, exact: true })
-      ).toBeVisible();
+      await expect(page.getByRole('cell', { name: `@${admin.login}`, exact: true })).toBeVisible();
     });
 
     test('server admin can navigate to their own member details from list', async ({

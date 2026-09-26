@@ -5,7 +5,12 @@
     "open_quick_switcher": "Schnellwechsler öffnen",
     "quick_switcher_shortcut": "Schnellwechsler (Cmd+K)",
     "realtime_paused": "Echtzeitaktualisierungen pausiert. Verbindung wird wiederhergestellt...",
-    "saved_view": {"cache_title":"Lokaler Speicher","cache_description":"Dieses Gerät speichert eine begrenzte Textansicht der Chats zum Lesen ohne Verbindung.","clear_cache":"Gespeicherte Chats löschen","cache_cleared":"Gespeicherte Chats wurden gelöscht."},
+    "saved_view": {
+      "cache_title": "Lokaler Speicher",
+      "cache_description": "Dieses Gerät speichert eine begrenzte Textansicht der Chats zum Lesen ohne Verbindung.",
+      "clear_cache": "Gespeicherte Chats löschen",
+      "cache_cleared": "Gespeicherte Chats wurden gelöscht."
+    },
     "update_available": "Eine neue Version ist verfügbar",
     "reload": "Neu laden",
     "sign_out": "Abmelden",

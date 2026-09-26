@@ -198,16 +198,7 @@
 </script>
 
 <div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick}>
-  {#await render(
-    body,
-    members,
-    roleHandles,
-    edited,
-    echoedToChannel,
-    viewerLogin,
-    timestampSettings,
-    timestampLocale
-  )}
+  {#await render(body, members, roleHandles, edited, echoedToChannel, viewerLogin, timestampSettings, timestampLocale)}
     {body}
   {:then html}
     <MarkdownHtml {html} />

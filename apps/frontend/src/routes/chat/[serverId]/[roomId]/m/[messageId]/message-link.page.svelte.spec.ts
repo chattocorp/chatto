@@ -101,14 +101,7 @@ describe('message link resolver', () => {
       if (fails) throw new Error('Request failed');
       return message({ threadExists: true });
     });
-    await resolveAndRedirect(
-      { getMessage },
-      highlights,
-      '-',
-      'room-1',
-      'message-1',
-      () => current
-    );
+    await resolveAndRedirect({ getMessage }, highlights, '-', 'room-1', 'message-1', () => current);
     expect(goto).not.toHaveBeenCalled();
     expect(highlights.consume('room-1', 'message-1')).toBeNull();
     expect(highlights.consume('room-1', null)).toBeNull();

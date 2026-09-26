@@ -1,8 +1,11 @@
 /** A deadline expired. Timeout values are in seconds. */
 export class TimeoutError extends Error {
-  override readonly name = "TimeoutError";
+  override readonly name = 'TimeoutError';
 
-  constructor(scope: "Input" | "Workflow", readonly timeout: number) {
+  constructor(
+    scope: 'Input' | 'Workflow',
+    readonly timeout: number
+  ) {
     super(`${scope} timed out after ${timeout} seconds`);
   }
 }
@@ -14,12 +17,12 @@ export function validateTimeout(timeout: number | undefined): void {
   }
 
   if (!Number.isFinite(timeout) || timeout < 0 || Math.ceil(timeout * 1000) > 2_147_483_647) {
-    throw new RangeError("timeout must be seconds between 0 and 2147483.647");
+    throw new RangeError('timeout must be seconds between 0 and 2147483.647');
   }
 }
 
 /** Internal timer with explicit cleanup; no timer when timeout is omitted. */
-export function createTimeout(timeout: number | undefined, scope: "Input" | "Workflow") {
+export function createTimeout(timeout: number | undefined, scope: 'Input' | 'Workflow') {
   validateTimeout(timeout);
   if (timeout === undefined) return { signal: undefined, dispose() {} };
   const ms = Math.ceil(timeout * 1000);

@@ -66,8 +66,8 @@ describe('Codecs.json', () => {
   });
 
   it('runs the optional validator', () => {
-    const c = Codecs.json<string[]>((v): v is string[] =>
-      Array.isArray(v) && v.every((x) => typeof x === 'string')
+    const c = Codecs.json<string[]>(
+      (v): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string')
     );
     expect(c.parse('["a","b"]')).toEqual(['a', 'b']);
     expect(c.parse('[1,2]')).toBeUndefined();

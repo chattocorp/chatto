@@ -68,10 +68,14 @@
     <button
       type="button"
       class="btn"
-      onclick={() => lateAuthor.set('author', new DirectoryMember({
-        user: { id: 'author', login: 'author', displayName: 'Resolved author' }
-      }))}
-    >Load author profile</button>
+      onclick={() =>
+        lateAuthor.set(
+          'author',
+          new DirectoryMember({
+            user: { id: 'author', login: 'author', displayName: 'Resolved author' }
+          })
+        )}>Load author profile</button
+    >
     <MessageEventTestHarness event={unresolvedMessage} userStore={lateAuthor} />
   </div>
 </Story>

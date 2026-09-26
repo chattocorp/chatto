@@ -1,6 +1,6 @@
-import { execFile } from "node:child_process";
-import { rm } from "node:fs/promises";
-import { promisify } from "node:util";
+import { execFile } from 'node:child_process';
+import { rm } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
 
@@ -11,33 +11,35 @@ export async function stopConsumer(server, timeout = 5000) {
   let onClose;
   const closed = new Promise((resolve) => {
     onClose = resolve;
-    server.once("close", onClose);
+    server.once('close', onClose);
   });
   const signalGroup = (signal) => {
     try {
       process.kill(-server.pid, signal);
     } catch (error) {
-      if (error.code !== "ESRCH") throw error;
+      if (error.code !== 'ESRCH') throw error;
     }
   };
   try {
-    if (process.platform === "win32") {
+    if (process.platform === 'win32') {
       // Killing npm alone leaves the actual server running on Windows.
       if (server.exitCode === null && server.signalCode === null) {
-        await exec("taskkill", ["/pid", String(server.pid), "/T", "/F"]);
+        await exec('taskkill', ['/pid', String(server.pid), '/T', '/F']);
       }
     } else {
-      signalGroup("SIGTERM");
+      signalGroup('SIGTERM');
     }
     await Promise.race([
       closed,
-      new Promise((resolve) => { timer = setTimeout(resolve, timeout); }),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, timeout);
+      })
     ]);
     // Also stop descendants that outlive npm or ignore graceful shutdown.
-    if (process.platform !== "win32") signalGroup("SIGKILL");
+    if (process.platform !== 'win32') signalGroup('SIGKILL');
   } finally {
     clearTimeout(timer);
-    server.removeListener("close", onClose);
+    server.removeListener('close', onClose);
   }
 }
 
@@ -48,6 +50,6 @@ export async function cleanupConsumer(directory, server) {
     recursive: true,
     force: true,
     maxRetries: 10,
-    retryDelay: 100,
+    retryDelay: 100
   });
 }

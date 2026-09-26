@@ -8,8 +8,8 @@ import SystemEvent from './SystemEvent.svelte';
 import { RoomThreadingMode } from '$lib/roomThreading';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
@@ -111,9 +111,9 @@ describe('SystemEvent', () => {
     });
 
     expect(container.textContent).toContain('Alice started a call in this room');
-    expect(container.querySelector('button')?.parentElement?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Alice started a call in this room · Join call'
-    );
+    expect(
+      container.querySelector('button')?.parentElement?.textContent?.replace(/\s+/g, ' ').trim()
+    ).toBe('Alice started a call in this room · Join call');
     await page.getByRole('button', { name: 'Join call' }).click();
     expect(onOpenCall).toHaveBeenCalledOnce();
   });

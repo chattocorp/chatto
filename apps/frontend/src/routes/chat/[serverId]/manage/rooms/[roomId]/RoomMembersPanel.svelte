@@ -298,7 +298,9 @@
       clearSelectedUser();
       toast.success({
         text: m('admin.rooms_admin.member_added', { name: accountNameToken(0) }),
-        accounts: [{ name: user.displayName, identity: { isBot: user.isBot, deleted: user.deleted } }]
+        accounts: [
+          { name: user.displayName, identity: { isBot: user.isBot, deleted: user.deleted } }
+        ]
       });
     } catch (error) {
       if (!isCurrentTarget(target)) return;
@@ -322,7 +324,9 @@
       removeCandidate = null;
       toast.success({
         text: m('admin.rooms_admin.member_removed', { name: accountNameToken(0) }),
-        accounts: [{ name: user.displayName, identity: { isBot: user.isBot, deleted: user.deleted } }]
+        accounts: [
+          { name: user.displayName, identity: { isBot: user.isBot, deleted: user.deleted } }
+        ]
       });
     } catch (error) {
       if (!isCurrentTarget(target)) return;

@@ -5,15 +5,15 @@ an explicit routing context and the JSON request body. It can start any number
 of workflows, send data to an existing conversation, or do nothing.
 
 ```ts
-import { defineWebConfig, startWorkflow } from "runling/web";
-import { task } from "runling";
+import { defineWebConfig, startWorkflow } from 'runling/web';
+import { task } from 'runling';
 
 const echo = task((_ctx, message: string) => message);
 
 export default defineWebConfig({
   webhooks: {
-    echo: startWorkflow(echo),
-  },
+    echo: startWorkflow(echo)
+  }
 });
 ```
 
@@ -27,25 +27,28 @@ host has saved its initial record, without waiting for the workflow to finish.
 The host owns execution and run history. Each call creates a separate run:
 
 ```ts
-import { defineWebConfig } from "runling/web";
-import { task, Type } from "runling";
+import { defineWebConfig } from 'runling/web';
+import { task, Type } from 'runling';
 
-const echo = task({
-  name: "Echo",
-  input: Type.String(),
-  output: Type.String(),
-}, (_ctx, value) => value);
+const echo = task(
+  {
+    name: 'Echo',
+    input: Type.String(),
+    output: Type.String()
+  },
+  (_ctx, value) => value
+);
 
 export default defineWebConfig({
   webhooks: {
     greetings: async (ctx, payload: unknown) => {
-      if (typeof payload !== "string") return;
+      if (typeof payload !== 'string') return;
       await Promise.all([
         ctx.start(echo, { input: payload }),
-        ctx.start(echo, { input: `Hello, ${payload}` }),
+        ctx.start(echo, { input: `Hello, ${payload}` })
       ]);
-    },
-  },
+    }
+  }
 });
 ```
 
@@ -66,14 +69,14 @@ web app's sample request. The host validates this schema before routing and
 passes the original body; schema transforms do not replace the router payload.
 
 ```ts
-import { Type } from "runling";
-import type { WebhookRouter } from "runling/web";
+import { Type } from 'runling';
+import type { WebhookRouter } from 'runling/web';
 
 const route: WebhookRouter<{ message: string }> = async (ctx, payload) => {
   // Route the validated raw message here.
 };
 route.input = Type.Object({ message: Type.String() });
-route.label = "Chat messages";
+route.label = 'Chat messages';
 ```
 
 `startWorkflow(task)` copies the task's input and output schema metadata when

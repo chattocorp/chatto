@@ -39,12 +39,7 @@ export type NotificationSoundId =
   | 'circus';
 
 export type SoundCategory =
-  | 'Silent'
-  | 'Simple'
-  | 'Playful'
-  | 'Robots'
-  | 'Musical'
-  | 'Here Be Dragons';
+  'Silent' | 'Simple' | 'Playful' | 'Robots' | 'Musical' | 'Here Be Dragons';
 
 export interface NotificationSound {
   id: NotificationSoundId;

@@ -239,7 +239,9 @@
   );
   --depth-width: calc(1 + max(var(--depth-level) - 50, 0) * 0.01);
   --depth-shadow-xs: 0 1px 2px rgb(0 0 0 / calc(0.05 * var(--depth-strength)));
-  --depth-shadow-sm: 0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))), 0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
+  --depth-shadow-sm:
+    0 1px 3px rgb(0 0 0 / calc(0.1 * var(--depth-strength))),
+    0 1px 2px -1px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
   color-scheme: light;
   --segmented-fill: white;
   /* Pale shell surfaces need a soft bevel, not a dark stamped lower rim. */
@@ -848,7 +850,7 @@
  * geometry for forms, tables, and dense lists.
  */
 @utility panel-shell {
-  @apply floating-frame rounded-lg border border-border;
+  @apply rounded-lg border border-border floating-frame;
 
   /* The title is part of this continuous frame, not a separate solid band. */
   & > .panel-header {
@@ -865,7 +867,7 @@
  * component supplies p-1 around this inset.
  */
 @utility panel-inset {
-  @apply floating-inset rounded-md bg-background;
+  @apply rounded-md bg-background floating-inset;
 }
 
 /* Edge-to-edge panel content is clipped to the work plane's outer radius.
@@ -952,18 +954,18 @@
 
 /* Inputs and segmented tracks share a rounded, slightly recessed frame. */
 @utility control-frame {
-  @apply surface-lowered rounded-xl border border-input-border shadow-[var(--depth-shadow-xs)];
+  @apply rounded-xl border border-input-border shadow-[var(--depth-shadow-xs)] surface-lowered;
   --lowered-edge: 0 -1px 0 rgb(255 255 255 / calc(0.04 * var(--depth-strength)));
 }
 
 /* A padded, quiet track separates mode selection from text entry. */
 @utility segmented-track {
-  @apply control-frame bg-surface/60 border-text/10 shadow-none;
+  @apply control-frame border-text/10 bg-surface/60 shadow-none;
 }
 
 /* The selected segment sits just above its recessed track. */
 @utility segmented-selection {
-  @apply shell-lighting rounded-lg shadow-[var(--depth-shadow-xs)];
+  @apply rounded-lg shell-lighting shadow-[var(--depth-shadow-xs)];
   background-color: var(--segmented-fill);
 }
 
@@ -980,7 +982,12 @@
   --lighting-edge-top: rgb(255 255 255 / calc(0.16 * var(--depth-strength)));
   --lighting-edge-bottom: rgb(0 0 0 / calc(0.08 * var(--depth-strength)));
   @apply inset-shadow-[0_var(--lighting-edge-width)_var(--lighting-edge-blur)_var(--lighting-edge-top),0_calc(-1*var(--lighting-edge-width))_var(--lighting-edge-blur)_var(--lighting-edge-bottom)];
-  background-image: linear-gradient(to bottom, var(--lighting-top), transparent var(--lighting-midpoint), var(--lighting-bottom));
+  background-image: linear-gradient(
+    to bottom,
+    var(--lighting-top),
+    transparent var(--lighting-midpoint),
+    var(--lighting-bottom)
+  );
 }
 
 /* Lowered surfaces shade their interior. Reset both parameters so nested
@@ -1012,8 +1019,20 @@
   --lighting-edge-top: rgb(255 255 255 / calc(0.3 * var(--depth-strength)));
   --lighting-edge-bottom: rgb(0 0 0 / calc(0.15 * var(--depth-strength)));
   background-image:
-    linear-gradient(to bottom, rgb(255 255 255 / calc(max(0, var(--depth-strength) - 1) * 0.2)), transparent 55%),
-    linear-gradient(to bottom right, color-mix(in srgb, var(--accent-strong), var(--accent-bright) calc(min(1, var(--depth-strength)) * 100%)), var(--accent-strong));
+    linear-gradient(
+      to bottom,
+      rgb(255 255 255 / calc(max(0, var(--depth-strength) - 1) * 0.2)),
+      transparent 55%
+    ),
+    linear-gradient(
+      to bottom right,
+      color-mix(
+        in srgb,
+        var(--accent-strong),
+        var(--accent-bright) calc(min(1, var(--depth-strength)) * 100%)
+      ),
+      var(--accent-strong)
+    );
 }
 
 /* Interactive controls share the shell finish. Disabled controls lose lighting;
@@ -1041,7 +1060,7 @@
 
 /* Compact actions and independent toggles share the standard button foundation. */
 @utility toggle-chip {
-  @apply btn feedback-quick gap-1.5 px-2.5 text-xs;
+  @apply btn gap-1.5 px-2.5 text-xs feedback-quick;
 }
 
 @utility button-content {
@@ -1111,14 +1130,15 @@
 /* One shell with flat separators or softly rounded, individually lit segments.
  * Geometry and highlights follow the shared animated depth preference. */
 @utility pill-button-group {
-  @apply relative isolate grid auto-cols-fr grid-flow-col min-h-12 w-full min-w-0 overflow-hidden rounded-xl bg-surface;
+  @apply relative isolate grid min-h-12 w-full min-w-0 auto-cols-fr grid-flow-col overflow-hidden rounded-xl bg-surface;
   --pill-separation: 1;
   &[data-gaps='false'] {
     --pill-separation: 0;
   }
   gap: calc(2px * min(1, var(--depth-strength)) * var(--pill-separation));
   & > button + button {
-    border-inline-start: calc(1px * (1 - min(1, var(--depth-strength)) * var(--pill-separation))) solid var(--color-border);
+    border-inline-start: calc(1px * (1 - min(1, var(--depth-strength)) * var(--pill-separation)))
+      solid var(--color-border);
   }
   & > button:first-child {
     border-start-start-radius: inherit;
@@ -1165,7 +1185,7 @@
   @apply shell-lighting;
   border-radius: calc(4px * min(1, var(--depth-strength)) * var(--pill-separation, 1));
   @apply relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 px-2 py-1 text-muted;
-  @apply feedback-quick transition-[background-color,color,opacity] hover:bg-surface-selected hover:text-text motion-reduce:transition-none;
+  @apply transition-[background-color,color,opacity] feedback-quick hover:bg-surface-selected hover:text-text motion-reduce:transition-none;
   /* Keep hover colours immediate; ease pending/disabled opacity in both directions. */
   transition-duration: var(--motion-duration-feedback), var(--motion-duration-feedback), 150ms;
   @apply focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
@@ -1262,7 +1282,8 @@
 /* Form input utilities */
 /* Range fields gain a visible boundary as contrast increases. */
 @utility range-field {
-  box-shadow: 0 0 0 1px color-mix(in srgb, transparent, var(--color-border) var(--contrast-strong-mix));
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, transparent, var(--color-border) var(--contrast-strong-mix));
 }
 
 /* RangeField draws its slider from control primitives: a recessed well like
@@ -1272,7 +1293,7 @@
  * width so pointer positions land where the grip is drawn.
  */
 @utility range-track {
-  @apply control-frame relative block h-7 bg-input;
+  @apply relative block h-7 control-frame bg-input;
   @apply transition-[border-color,box-shadow] feedback-quick;
   --range-inset: 3px;
   --range-grip-width: 1.75rem;
@@ -1300,7 +1321,7 @@
 }
 
 @utility range-fill {
-  @apply shell-lighting rounded-lg;
+  @apply rounded-lg shell-lighting;
   position: absolute;
   inset-block: 0;
   inset-inline-start: 0;
@@ -1331,12 +1352,13 @@
 }
 
 @utility range-grip {
-  @apply shell-lighting rounded-lg border border-input-border shadow-[var(--depth-shadow-sm)];
+  @apply rounded-lg border border-input-border shell-lighting shadow-[var(--depth-shadow-sm)];
   /* Compose with the bevel's inset shadows; the halo appears while the pointer
      is over the track or dragging. */
   --tw-shadow:
     var(--depth-shadow-sm),
-    0 0 0 calc(var(--range-active, 0) * 3px) color-mix(in srgb, var(--color-action) 35%, transparent);
+    0 0 0 calc(var(--range-active, 0) * 3px)
+      color-mix(in srgb, var(--color-action) 35%, transparent);
   position: absolute;
   inset-block: 0;
   width: var(--range-grip-width);
@@ -1438,7 +1460,7 @@
 /* Plain-text native options remain usable when customizable pickers are unavailable. */
 @utility select-control {
   @apply input max-w-full min-w-0 cursor-pointer text-base;
-  @apply control-raised bg-surface;
+  @apply bg-surface control-raised;
   text-overflow: ellipsis;
 
   @supports (appearance: base-select) {
@@ -1446,7 +1468,7 @@
 
     &::picker(select) {
       appearance: base-select;
-      @apply floating-frame rounded-lg border border-input-border p-1 text-base text-text shadow-lg;
+      @apply rounded-lg border border-input-border floating-frame p-1 text-base text-text shadow-lg;
       min-inline-size: anchor-size(self-inline);
       max-inline-size: calc(100dvw - 2rem);
       max-block-size: min(20rem, 60dvh);
@@ -1602,7 +1624,6 @@
   @apply h-2 w-2 rounded-full bg-on-action;
 }
 
-
 /* Form error utility */
 @utility form-error {
   @apply text-sm text-error;
@@ -1636,8 +1657,8 @@
 }
 
 @utility embed-control-button {
-  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] compact-input:hover-actions:opacity-0 focus-visible:opacity-100;
-  @apply group-hover/preview:opacity-100 group-focus-within/preview:opacity-100;
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 focus-visible:opacity-100 active:scale-[0.96] compact-input:hover-actions:opacity-0;
+  @apply group-focus-within/preview:opacity-100 group-hover/preview:opacity-100;
 }
 
 @utility attachment-action-button {
@@ -1705,7 +1726,7 @@
    Resting inactive state is intentionally transparent; pair with
    `pane-header-icon-button-active` to mark the selected panel. */
 @utility pane-header-icon-button {
-  @apply icon-action-feedback inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center bg-transparent leading-none;
+  @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center icon-action-feedback bg-transparent leading-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1717,7 +1738,7 @@
    current sidebar item. */
 @utility pane-header-icon-button-active {
   @apply bg-action/10 text-action not-disabled:hover:bg-action/15 not-disabled:hover:text-action;
-  @apply not-disabled:active:bg-action/20 focus-visible:bg-action/10;
+  @apply focus-visible:bg-action/10 not-disabled:active:bg-action/20;
 }
 
 /* Sidebar navigation utilities */
@@ -1766,7 +1787,9 @@
 }
 
 @keyframes shimmer-sweep {
-  to { background-position: -50% 0; }
+  to {
+    background-position: -50% 0;
+  }
 }
 
 /* A gutter logo sits inside another shimmer surface; only the outer one sweeps. */
@@ -1807,7 +1830,7 @@
 
 /* Text actions share the icon highlight and hit-area height. */
 @utility app-header-text-action {
-  @apply app-header-icon min-w-11 w-auto px-3;
+  @apply app-header-icon w-auto min-w-11 px-3;
 }
 
 /* Compact inline icon-only action for row/input affordances such as dismiss
@@ -1815,7 +1838,7 @@
  * pane-header-icon-button instead.
  */
 @utility icon-action {
-  @apply icon-action-feedback inline-flex h-10 w-10 cursor-pointer items-center justify-center;
+  @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center icon-action-feedback;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
@@ -1936,12 +1959,12 @@
 }
 
 @utility shell-surface {
-  @apply shell-lighting rounded-xl bg-surface;
+  @apply rounded-xl bg-surface shell-lighting;
 }
 
 /* Standalone shell actions align with the composer and user card. */
 @utility shell-action {
-  @apply shell-surface inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 px-4 font-semibold text-text;
+  @apply inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 shell-surface px-4 font-semibold text-text;
   @apply transition-[background-color,color] feedback-quick enabled:hover:bg-surface-selected enabled:active:bg-surface-strong;
   @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:inset-shadow-none;
@@ -1960,7 +1983,7 @@
  * Keep compact formatting shelves on composer-surface.
  */
 @utility chat-input-surface {
-  @apply shell-surface min-h-12;
+  @apply min-h-12 shell-surface;
 }
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
@@ -1973,7 +1996,7 @@
 /* Paint above server artwork so image logos and fallback initials get the same rim.
  * The overlay does not intercept links or notification controls. */
 .server-gutter-item::after {
-  @apply shell-lighting pointer-events-none absolute inset-0 z-1 rounded-xl;
+  @apply pointer-events-none absolute inset-0 z-1 rounded-xl shell-lighting;
   content: '';
 }
 
@@ -2009,7 +2032,7 @@
 /* Light falls across the padded outer frame; inset content keeps its own fill.
  * Inset shadows compose with each floating surface's existing outer shadow. */
 @utility floating-frame {
-  @apply surface-raised bg-surface;
+  @apply bg-surface surface-raised;
   --lighting-top: rgb(255 255 255 / calc(0.06 * var(--depth-strength)));
   --lighting-bottom: var(--frame-shade);
   --lighting-midpoint: 45%;
@@ -2029,7 +2052,7 @@
 /* Touch overlays retain the same frame and recessed work planes as dialogs
  * and menus. Only the outer edge meets the viewport; depth follows preferences. */
 @utility sheet-frame {
-  @apply floating-frame rounded-t-lg border border-border border-b-0 px-4 pt-1 pb-4;
+  @apply rounded-t-lg border border-b-0 border-border floating-frame px-4 pt-1 pb-4;
   max-height: var(--modal-available-height);
   padding-inline-start: max(1rem, env(safe-area-inset-left));
   padding-inline-end: max(1rem, env(safe-area-inset-right));
@@ -2072,7 +2095,7 @@
   }
 
   &::after {
-    @apply floating-inset pointer-events-none absolute inset-0 z-40 rounded-[inherit] opacity-[var(--app-inset-opacity)];
+    @apply pointer-events-none absolute inset-0 z-40 rounded-[inherit] opacity-[var(--app-inset-opacity)] floating-inset;
     content: '';
   }
 }
@@ -2083,10 +2106,14 @@
 @utility sidebar-drawer {
   @variant max-md {
     --sidebar-motion-duration: var(--motion-duration-pane);
-    transform: translateX(calc((var(--sidebar-progress, 1) - 1) * var(--sidebar-width, 100vw) * var(--inline-direction)));
+    transform: translateX(
+      calc((var(--sidebar-progress, 1) - 1) * var(--sidebar-width, 100vw) * var(--inline-direction))
+    );
 
     @variant compact-input {
-      transform: translateX(calc((var(--sidebar-progress, 1) - 1) * 300px * var(--inline-direction)));
+      transform: translateX(
+        calc((var(--sidebar-progress, 1) - 1) * 300px * var(--inline-direction))
+      );
       opacity: var(--sidebar-progress, 1);
     }
 
@@ -2113,7 +2140,7 @@
   /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
      (which is pure white in dark mode, not the app's slightly-off neutral-100).
      Menu items that need a different color still override it on their own. */
-  @apply floating-frame rounded-lg border border-text/10 p-1 text-sm text-text shadow-xl;
+  @apply rounded-lg border border-text/10 floating-frame p-1 text-sm text-text shadow-xl;
 
   & :is(.menu-section, .menu-section-sm) {
     @apply floating-inset;
@@ -2122,7 +2149,7 @@
 
 /* Quick navigation uses the menu frame with a larger search and result rhythm. */
 @utility command-palette {
-  @apply menu flex w-140 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg p-1 text-sm;
+  @apply flex w-140 max-w-[calc(100vw-2rem)] flex-col gap-1 menu rounded-lg p-1 text-sm;
 }
 
 @utility command-palette-leading {
@@ -2193,7 +2220,10 @@
 /* Fixed mobile drawers cover the browser content down to the viewport edge.
    Embedded hosts can supply a bottom inset to match their content padding. */
 @utility mobile-sidebar-insets {
-  top: var(--sidebar-overlay-top, calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px))));
+  top: var(
+    --sidebar-overlay-top,
+    calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)))
+  );
   bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
 }
 
@@ -2283,5 +2313,7 @@ body[data-resizing-sidebar] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root { transition: none; }
+  :root {
+    transition: none;
+  }
 }

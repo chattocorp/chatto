@@ -103,46 +103,44 @@ it.each(['gate', 'polish'])(
   }
 );
 
-it.each([
-  'missing API',
-  'module failure',
-  'native node failure',
-  'polish node failure'
-])('keeps ordinary audio available with %s', async (failure) => {
-  const { context, oscillator, track } = await input();
-  if (failure === 'missing API')
-    Object.defineProperty(context, 'audioWorklet', { value: undefined });
-  else if (failure === 'module failure')
-    vi.spyOn(context.audioWorklet, 'addModule').mockRejectedValue(new Error('Unavailable'));
-  else if (failure === 'polish node failure') {
-    const NativeWorklet = AudioWorkletNode;
-    vi.stubGlobal(
-      'AudioWorkletNode',
-      class extends NativeWorklet {
-        constructor(context: BaseAudioContext, name: string, options?: AudioWorkletNodeOptions) {
-          if (name === 'chatto-voice-polish') throw new Error('Unavailable');
-          super(context, name, options);
+it.each(['missing API', 'module failure', 'native node failure', 'polish node failure'])(
+  'keeps ordinary audio available with %s',
+  async (failure) => {
+    const { context, oscillator, track } = await input();
+    if (failure === 'missing API')
+      Object.defineProperty(context, 'audioWorklet', { value: undefined });
+    else if (failure === 'module failure')
+      vi.spyOn(context.audioWorklet, 'addModule').mockRejectedValue(new Error('Unavailable'));
+    else if (failure === 'polish node failure') {
+      const NativeWorklet = AudioWorkletNode;
+      vi.stubGlobal(
+        'AudioWorkletNode',
+        class extends NativeWorklet {
+          constructor(context: BaseAudioContext, name: string, options?: AudioWorkletNodeOptions) {
+            if (name === 'chatto-voice-polish') throw new Error('Unavailable');
+            super(context, name, options);
+          }
         }
-      }
-    );
-  } else
-    vi.spyOn(context, 'createDynamicsCompressor').mockImplementation(() => {
-      throw new Error('Unavailable');
-    });
-  const processor = new MicrophoneProcessor(-20);
-  try {
-    await processor.init({ track, audioContext: context, kind: Track.Kind.Audio });
-    expect(processor.unavailable).toBe(true);
-    await vi.waitFor(() => expect(processor.level).toBeGreaterThan(0));
-    expect(processor.processedTrack).toBe(track);
-    await processor.destroy();
-    expect(track.readyState).toBe('live');
-  } finally {
-    oscillator.stop();
-    track.stop();
-    await context.close();
+      );
+    } else
+      vi.spyOn(context, 'createDynamicsCompressor').mockImplementation(() => {
+        throw new Error('Unavailable');
+      });
+    const processor = new MicrophoneProcessor(-20);
+    try {
+      await processor.init({ track, audioContext: context, kind: Track.Kind.Audio });
+      expect(processor.unavailable).toBe(true);
+      await vi.waitFor(() => expect(processor.level).toBeGreaterThan(0));
+      expect(processor.processedTrack).toBe(track);
+      await processor.destroy();
+      expect(track.readyState).toBe('live');
+    } finally {
+      oscillator.stop();
+      track.stop();
+      await context.close();
+    }
   }
-});
+);
 
 it('does not attach audio after cancellation while loading', async () => {
   const { context, oscillator, track } = await input();

@@ -56,9 +56,14 @@ test.describe('Mention highlighting', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    await roomPage.sendMessage(`Note to myself @${user.login}`, `Note to myself @${user.displayName}`);
+    await roomPage.sendMessage(
+      `Note to myself @${user.login}`,
+      `Note to myself @${user.displayName}`
+    );
 
-    const messageArticle = page.locator('[role="article"]').filter({ hasText: `@${user.displayName}` });
+    const messageArticle = page
+      .locator('[role="article"]')
+      .filter({ hasText: `@${user.displayName}` });
     await expect(messageArticle).toBeVisible();
     await expect(messageArticle).not.toHaveClass(/bg-warning\/10/);
   });

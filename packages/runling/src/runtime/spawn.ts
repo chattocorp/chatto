@@ -1,17 +1,13 @@
-import {
-  bindRunlingContext,
-  emitRunlingEvent,
-  observeRunlingEvents,
-} from "./events.ts";
-import { observeMessageReceipt } from "./message-observation.ts";
-import { createChannel } from "./channel.ts";
-import type { WorkflowContext } from "./context.ts";
+import { bindRunlingContext, emitRunlingEvent, observeRunlingEvents } from './events.ts';
+import { observeMessageReceipt } from './message-observation.ts';
+import { createChannel } from './channel.ts';
+import type { WorkflowContext } from './context.ts';
 
 /** One task execution. Messages are buffered; result and cleanup have separate lifetimes. */
 export interface Run<Incoming, Update, Result> {
   /** Identity shared by the run and its recorded message channel. */
   readonly id: string;
-  readonly status: "running" | "completed" | "failed" | "cancelled";
+  readonly status: 'running' | 'completed' | 'failed' | 'cancelled';
   /** Queue input without waiting for the child to process it. */
   send(value: Incoming): Promise<void>;
 
@@ -48,10 +44,10 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
   const signal = AbortSignal.any([parent.signal, controller.signal]);
 
   const channelId = crypto.randomUUID();
-  let status: Run<Incoming, Update, Awaited<Result>>["status"] = "running";
+  let status: Run<Incoming, Update, Awaited<Result>>['status'] = 'running';
   const record = bindRunlingContext(emitRunlingEvent);
 
-  function messages<T>(direction: "input" | "update") {
+  function messages<T>(direction: 'input' | 'update') {
     type Envelope = { id: string; value: T; ready: Promise<void> };
     const channel = createChannel<Envelope>({ signal });
 
@@ -62,23 +58,18 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
         const id = crypto.randomUUID();
         let payload: string;
         try {
-          payload =
-            (typeof value === "string" ? value : JSON.stringify(value)) ??
-            String(value);
+          payload = (typeof value === 'string' ? value : JSON.stringify(value)) ?? String(value);
         } catch {
-          payload = "[Value cannot be represented as JSON]";
+          payload = '[Value cannot be represented as JSON]';
         }
         const envelope: Envelope = { id, value, ready: Promise.resolve() };
         envelope.ready = channel.send(envelope).then(() => {
           record({
-            type: "message.sent",
+            type: 'message.sent',
             id,
             channelId,
             direction,
-            payload:
-              payload.length > 16000
-                ? payload.slice(0, 16000) + "… [truncated]"
-                : payload,
+            payload: payload.length > 16000 ? payload.slice(0, 16000) + '… [truncated]' : payload
           });
         });
         return envelope.ready;
@@ -92,28 +83,28 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
 
             await item.value.ready;
             const result = { done: false as const, value: item.value.value };
-            record({ type: "message.read", id: item.value.id });
+            record({ type: 'message.read', id: item.value.id });
             observeMessageReceipt(result, (consumed) => {
-              record({ type: "message.receipt", id: item.value.id, consumed });
+              record({ type: 'message.receipt', id: item.value.id, consumed });
             });
             return result;
           },
           return: async (): Promise<IteratorResult<T>> => {
             await reader.return?.();
             return { done: true, value: undefined };
-          },
+          }
         };
-      },
+      }
     };
   }
 
-  const incoming = messages<Incoming>("input");
-  const outgoing = messages<Update>("update");
+  const incoming = messages<Incoming>('input');
+  const outgoing = messages<Update>('update');
   const ctx: WorkflowContext<Incoming, Update> = {
     ...parent,
     signal,
     inbox: incoming,
-    emit: outgoing.send,
+    emit: outgoing.send
   };
 
   // Settle the handle on cancellation even if the task ignores its signal.
@@ -123,7 +114,7 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
     rejectAbort = reject;
   });
   const onAbort = () => rejectAbort(signal.reason);
-  signal.addEventListener("abort", onAbort, { once: true });
+  signal.addEventListener('abort', onAbort, { once: true });
 
   // Start synchronously, preserving the caller's task/event scope.
   let work: Promise<Awaited<Result>>;
@@ -134,13 +125,13 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
     work = Promise.resolve(
       observeRunlingEvents(
         (event) => {
-          if (!linked && event.type === "step.started") {
+          if (!linked && event.type === 'step.started') {
             linked = true;
-            record({ type: "task.linked", channelId, taskId: event.id });
+            record({ type: 'task.linked', channelId, taskId: event.id });
           }
         },
-        () => run(ctx, ...args),
-      ),
+        () => run(ctx, ...args)
+      )
     );
   } catch (error) {
     work = Promise.reject(error);
@@ -153,33 +144,40 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
         signal.throwIfAborted();
         incoming.close();
         outgoing.close();
-        status = "completed";
+        status = 'completed';
 
         return value;
       },
       (error) => {
-        status = signal.aborted ? "cancelled" : "failed";
+        status = signal.aborted ? 'cancelled' : 'failed';
         incoming.fail(error);
         outgoing.fail(error);
 
         throw error;
-      },
+      }
     )
-    .finally(() => signal.removeEventListener("abort", onAbort));
+    .finally(() => signal.removeEventListener('abort', onAbort));
 
   // Observe rejection now: the parent may read updates before awaiting result.
   void result.catch(() => {});
 
-  const settled = work.then(() => {}, () => {}).then(async () => {
-    await result.catch(() => {});
-  });
-  const cancel = (reason: unknown = new Error("Task cancelled")) => {
-    if (status === "running") controller.abort(reason);
+  const settled = work
+    .then(
+      () => {},
+      () => {}
+    )
+    .then(async () => {
+      await result.catch(() => {});
+    });
+  const cancel = (reason: unknown = new Error('Task cancelled')) => {
+    if (status === 'running') controller.abort(reason);
   };
 
   return {
     id: channelId,
-    get status() { return status === "running" && signal.aborted ? "cancelled" : status; },
+    get status() {
+      return status === 'running' && signal.aborted ? 'cancelled' : status;
+    },
     send: incoming.send,
     output: outgoing,
     updates: outgoing,
@@ -187,6 +185,9 @@ export function spawn<Incoming, Update, Args extends unknown[], Result>(
     settled,
     closeInput: incoming.close,
     cancel,
-    async [Symbol.asyncDispose]() { cancel(); await settled; },
+    async [Symbol.asyncDispose]() {
+      cancel();
+      await settled;
+    }
   };
 }

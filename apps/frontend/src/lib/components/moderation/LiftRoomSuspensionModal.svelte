@@ -58,9 +58,9 @@
 </script>
 
 {#snippet liftTitle()}<AccountNameTokens
-  text={m('admin.moderation.lift_title', { user: accountNameToken(0) })}
-  accounts={[{ name: displayName, identity: user }]}
-/>{/snippet}
+    text={m('admin.moderation.lift_title', { user: accountNameToken(0) })}
+    accounts={[{ name: displayName, identity: user }]}
+  />{/snippet}
 
 <FormDialog
   bind:visible

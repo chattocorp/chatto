@@ -1,10 +1,7 @@
 <script lang="ts">
   import { getLocale } from '$lib/i18n/runtime';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import {
-    TimelineEventKind,
-    type TimelineEventView
-  } from '$lib/render/timelineEvents';
+  import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import { computeEventMetadata } from './messageGrouping';
 

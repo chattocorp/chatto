@@ -13,16 +13,22 @@ import {
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
-import { messagePostedPayload, messageToTimelineEvent, roomTimelineEventToView } from './roomTimeline';
+import {
+  messagePostedPayload,
+  messageToTimelineEvent,
+  roomTimelineEventToView
+} from './roomTimeline';
 
 describe('roomTimelineEventToView', () => {
   it('keeps a missing author unresolved and preserves an explicit deleted reference', () => {
     const message = new Message({ id: 'message-1', actorId: 'author', roomId: 'room-1' });
 
     expect(messageToTimelineEvent(message, {})?.actor).toBeNull();
-    expect(messageToTimelineEvent(message, {
-      author: new User({ id: 'author', deleted: true })
-    })?.actor?.deleted).toBe(true);
+    expect(
+      messageToTimelineEvent(message, {
+        author: new User({ id: 'author', deleted: true })
+      })?.actor?.deleted
+    ).toBe(true);
   });
 
   it('maps a Threading Mode change into a renderable system event', () => {
@@ -53,8 +59,10 @@ describe('roomTimelineEventToView', () => {
 describe('messagePostedPayload', () => {
   it('preserves resolved reply authority and distinguishes absent authority', () => {
     for (const canReplyInThread of [true, false, undefined]) {
-      expect(messagePostedPayload(new Message({ viewerState: { canReplyInThread } }), {}).canReplyInThread)
-        .toBe(canReplyInThread);
+      expect(
+        messagePostedPayload(new Message({ viewerState: { canReplyInThread } }), {})
+          .canReplyInThread
+      ).toBe(canReplyInThread);
     }
     expect(messagePostedPayload(new Message(), {}).canReplyInThread).toBeUndefined();
   });

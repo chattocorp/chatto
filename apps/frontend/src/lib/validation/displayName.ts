@@ -89,7 +89,10 @@ export function validateDisplayName(name: string): ValidationResult {
 
   // Check length in characters (matching backend which uses utf8.RuneCountInString() in Go)
   if ([...name].length > MAX_DISPLAY_NAME_LENGTH) {
-    return { valid: false, error: `Display name cannot exceed ${MAX_DISPLAY_NAME_LENGTH} characters` };
+    return {
+      valid: false,
+      error: `Display name cannot exceed ${MAX_DISPLAY_NAME_LENGTH} characters`
+    };
   }
 
   // Check for consecutive spaces

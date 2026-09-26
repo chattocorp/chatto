@@ -62,8 +62,10 @@ export function privateRequestInterceptor(
   beforeRequest: NonNullable<ConnectAPIConfig['beforePrivateRequest']>
 ): Interceptor {
   return (next) => async (request) => {
-    if (request.service.typeName !== 'chatto.api.v1.ViewerService' ||
-      request.method.name !== 'GetViewer') {
+    if (
+      request.service.typeName !== 'chatto.api.v1.ViewerService' ||
+      request.method.name !== 'GetViewer'
+    ) {
       await beforeRequest(request.method.name, request.signal);
     }
     return next(request);

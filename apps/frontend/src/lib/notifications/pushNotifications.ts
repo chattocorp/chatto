@@ -334,9 +334,7 @@ async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResul
 }
 
 /** Refresh every configured server after permission or worker lifecycle changes. */
-export async function refreshPushSubscriptions(
-  targets?: PushRegistrationTarget[]
-): Promise<void> {
+export async function refreshPushSubscriptions(targets?: PushRegistrationTarget[]): Promise<void> {
   if (enableAllInFlight) {
     await enableAllInFlight;
     // Eligibility can change while explicit activation is in progress. Read

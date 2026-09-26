@@ -52,8 +52,7 @@ export function createUserAPI(config: ConnectAPIConfig) {
     },
     async uploadAvatar(userId: string, file: File): Promise<UserSummary> {
       return updateProfile(async () => {
-        const response = await client.uploadAvatar(
-        {
+        const response = await client.uploadAvatar({
           userId,
           image: {
             image: new Uint8Array(await file.arrayBuffer()),

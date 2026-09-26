@@ -1,6 +1,6 @@
-import { Type, agent, log, defineAgentExtension, type WorkflowContext } from "runling";
-import type { ReplySender } from "./sender.ts";
-import webFetchExtension from "./web-fetch.ts";
+import { Type, agent, log, defineAgentExtension, type WorkflowContext } from 'runling';
+import type { ReplySender } from './sender.ts';
+import webFetchExtension from './web-fetch.ts';
 
 const SYSTEM_PROMPT = `You are TestBot, a friendly chat assistant. Answer directly and concisely in the user's language. Conversation, jokes, and creative writing are welcome.
 
@@ -23,9 +23,9 @@ export interface ReplyContext {
   sender: ReplySender;
 
   /** Fresh complete history supplied automatically for mentions and DMs. */
-  thread?: Array<{ role: "bot" | "human"; body: string }>;
+  thread?: Array<{ role: 'bot' | 'human'; body: string }>;
 
-  readThread: () => Promise<Array<{ role: "bot" | "human"; body: string }>>;
+  readThread: () => Promise<Array<{ role: 'bot' | 'human'; body: string }>>;
 }
 
 /**
@@ -35,52 +35,50 @@ export interface ReplyContext {
 export async function generateReply(
   r: WorkflowContext,
   context: ReplyContext,
-  createAgent: typeof agent = agent,
+  createAgent: typeof agent = agent
 ): Promise<void> {
   if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error("Set OPENROUTER_API_KEY before starting Runling");
+    throw new Error('Set OPENROUTER_API_KEY before starting Runling');
   }
 
   const threadTool = defineAgentExtension((pi) => {
     // Replace Pi's coding-agent identity for this chat session. Appending role
     // instructions leaves conflicting defaults in place for lightweight models.
-    pi.on("before_agent_start", async () => {
+    pi.on('before_agent_start', async () => {
       return {
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt: SYSTEM_PROMPT
       };
     });
 
     pi.registerTool({
-      name: "read_thread",
-      label: "Read current thread",
-      description: "Read the complete current Chatto thread for context.",
+      name: 'read_thread',
+      label: 'Read current thread',
+      description: 'Read the complete current Chatto thread for context.',
       parameters: Type.Object({}),
       async execute() {
         return {
-          content: [
-            { type: "text", text: JSON.stringify(await context.readThread()) },
-          ],
-          details: {},
+          content: [{ type: 'text', text: JSON.stringify(await context.readThread()) }],
+          details: {}
         };
-      },
+      }
     });
   });
 
   // Runling reports agent text to its logger by default. Keep chat content out
   // of process logs; the local Runling run history still contains workflow data.
-  return log.withDestination("silent", async () => {
+  return log.withDestination('silent', async () => {
     let reported = false;
     const agent = await createAgent({
       cwd: process.cwd(),
-      model: "openrouter/google/gemini-2.5-flash-lite",
-      thinkingLevel: "off",
-      tools: ["read_thread", "web_fetch"],
+      model: 'openrouter/google/gemini-2.5-flash-lite',
+      thinkingLevel: 'off',
+      tools: ['read_thread', 'web_fetch'],
       onEvent(event) {
         // runOutcome also returns a synthetic failed result when reporting is
         // missing. Only a successful report tool call supplies a user answer.
         if (
-          event.type === "tool_execution_end" &&
-          event.toolName === "report_outcome" &&
+          event.type === 'tool_execution_end' &&
+          event.toolName === 'report_outcome' &&
           !event.isError
         ) {
           reported = true;
@@ -92,26 +90,26 @@ export async function generateReply(
         skills: false,
         promptTemplates: false,
         themes: false,
-        contextFiles: false,
+        contextFiles: false
       },
-      extensions: [threadTool, webFetchExtension],
+      extensions: [threadTool, webFetchExtension]
     });
 
     try {
       const prompt =
-        "Read the conversation below. For Chatto questions, fetch the relevant docs first. Call report_outcome with your complete answer to the current message. Only this final report is shown to the user.\n\n" +
+        'Read the conversation below. For Chatto questions, fetch the relevant docs first. Call report_outcome with your complete answer to the current message. Only this final report is shown to the user.\n\n' +
         JSON.stringify({
           thread: context.thread,
-          currentMessage: context.message,
+          currentMessage: context.message
         });
 
       const signal = AbortSignal.timeout(120_000);
 
       const result = await agent.runOutcome(r, prompt, { signal });
-      if (!reported) throw new Error("The agent did not report an outcome");
+      if (!reported) throw new Error('The agent did not report an outcome');
 
       await context.sender.sendFinal(result.details?.trim() || result.summary);
-      if (result.outcome !== "completed") {
+      if (result.outcome !== 'completed') {
         throw new Error(`The agent reported ${result.outcome}`);
       }
     } finally {

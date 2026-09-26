@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { roomReplyTargetEventId } from './messageReplyTarget';
 
 function messageEvent(id: string, echoOfEventId: string | null = null): TimelineEventView {

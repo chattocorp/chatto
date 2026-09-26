@@ -73,10 +73,7 @@ Use the bordered appearance for page searches, matching standard form inputs.
   onsubmit={submit}
 >
   <label class="sr-only" for={id}>{label}</label>
-  <span
-    class="iconify icon-[uil--search] h-5 w-5 shrink-0 text-muted"
-    aria-hidden="true"
-  ></span>
+  <span class="iconify icon-[uil--search] h-5 w-5 shrink-0 text-muted" aria-hidden="true"></span>
   <input
     bind:this={inputElement}
     {id}
@@ -92,7 +89,7 @@ Use the bordered appearance for page searches, matching standard form inputs.
   {#if clearLabel && value}
     <button
       type="button"
-      class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color] feedback-quick hover:bg-surface-emphasized hover:text-text active:bg-surface-selected focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action disabled:cursor-not-allowed disabled:opacity-50"
+      class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color] feedback-quick hover:bg-surface-emphasized hover:text-text focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action active:bg-surface-selected disabled:cursor-not-allowed disabled:opacity-50"
       aria-label={clearLabel}
       title={clearLabel}
       {disabled}

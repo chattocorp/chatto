@@ -1,4 +1,4 @@
-import type { TokenUsage } from "runling";
+import type { TokenUsage } from 'runling';
 
 export const tokenCount = (usage: TokenUsage): number =>
   usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
@@ -9,7 +9,7 @@ export function mergeUsage(items: TokenUsage[]): TokenUsage | undefined {
     input: 0,
     output: 0,
     cacheRead: 0,
-    cacheWrite: 0,
+    cacheWrite: 0
   };
   for (const usage of items) {
     total.input += usage.input;
@@ -17,16 +17,13 @@ export function mergeUsage(items: TokenUsage[]): TokenUsage | undefined {
     total.cacheRead += usage.cacheRead;
     total.cacheWrite += usage.cacheWrite;
     if (usage.cost !== undefined) total.cost = (total.cost ?? 0) + usage.cost;
-    if (
-      usage.costIncomplete ||
-      (usage.cost === undefined && tokenCount(usage) > 0)
-    )
+    if (usage.costIncomplete || (usage.cost === undefined && tokenCount(usage) > 0))
       total.costIncomplete = true;
   }
   return total;
 }
 
 export function estimatedCost(usage: TokenUsage): string {
-  if (usage.cost === undefined) return "Cost unknown";
-  return `$${usage.cost.toFixed(4)} est.${usage.costIncomplete ? " (partial)" : ""}`;
+  if (usage.cost === undefined) return 'Cost unknown';
+  return `$${usage.cost.toFixed(4)} est.${usage.costIncomplete ? ' (partial)' : ''}`;
 }

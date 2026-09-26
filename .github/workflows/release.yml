@@ -9,12 +9,12 @@ on:
       - 'release-[0-9]*'
   push:
     tags:
-      - "v*"
-      - "chatto-desktop/v*"
+      - 'v*'
+      - 'chatto-desktop/v*'
   workflow_dispatch:
     inputs:
       target:
-        description: "Artifact to build"
+        description: 'Artifact to build'
         required: true
         default: image
         type: choice
@@ -22,7 +22,7 @@ on:
           - image
           - desktop
       ref:
-        description: "Git ref or SHA to build. Defaults to the selected workflow ref."
+        description: 'Git ref or SHA to build. Defaults to the selected workflow ref.'
         required: false
         type: string
 
@@ -114,7 +114,7 @@ jobs:
         run: mise build-frontend
         env:
           CHATTO_BUILD_VERSION: ${{ steps.image.outputs.version }}
-          CHATTO_FRONTEND_PRECOMPRESS: "1"
+          CHATTO_FRONTEND_PRECOMPRESS: '1'
 
       - name: Prepare Docker context
         env:
@@ -226,7 +226,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
-          install-cli-deps: "false"
+          install-cli-deps: 'false'
 
       - name: Resolve desktop version
         id: version
@@ -670,7 +670,7 @@ jobs:
       - name: Build frontend once
         run: mise build-frontend
         env:
-          CHATTO_FRONTEND_PRECOMPRESS: "1"
+          CHATTO_FRONTEND_PRECOMPRESS: '1'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -691,7 +691,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: "~> v2"
+          version: '~> v2'
           args: release --clean
         env:
           # Use a PAT so the release is authored by a user account rather

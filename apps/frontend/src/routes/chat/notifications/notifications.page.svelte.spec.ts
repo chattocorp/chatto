@@ -460,10 +460,22 @@ describe('notifications page', () => {
   });
 
   it('shows the shared badge for a bot in a notification summary', async () => {
-    retainProjection([{ ...mocks.occurrence, actor: {
-      id: 'helper', login: 'helper', displayName: 'Helper', isBot: true,
-      deleted: false, avatarUrl: null, presenceStatus: 1, customStatus: null
-    }, signalKind: NotificationSignalKind.FOLLOWED_THREAD }]);
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        actor: {
+          id: 'helper',
+          login: 'helper',
+          displayName: 'Helper',
+          isBot: true,
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 1,
+          customStatus: null
+        },
+        signalKind: NotificationSignalKind.FOLLOWED_THREAD
+      }
+    ]);
 
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
@@ -917,7 +929,10 @@ describe('notifications page', () => {
           'oldest-read'
         ]);
       });
-      expect(api.listNotificationOccurrences.mock.calls).toEqual([[50, 1], [50, 2]]);
+      expect(api.listNotificationOccurrences.mock.calls).toEqual([
+        [50, 1],
+        [50, 2]
+      ]);
       expect(store.occurrences.map((item) => item.id).sort()).toEqual(['older-unread', 'unread']);
       expect(store.hasMore).toBe(false);
     } finally {

@@ -36,7 +36,9 @@
 </Story>
 
 <Story name="Bot account" asChild>
-  <div class="flex min-h-40 items-end justify-end rounded-lg border border-border bg-background p-6">
+  <div
+    class="flex min-h-40 items-end justify-end rounded-lg border border-border bg-background p-6"
+  >
     <Toast
       tone="success"
       message={`${accountNameToken(0)} was added to the room`}

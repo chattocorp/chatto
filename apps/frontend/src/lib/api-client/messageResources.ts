@@ -11,7 +11,11 @@ export type MessageResource = { message: Message; timeline: TimelineEventView | 
 export function createMessageResourcesAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MessageService, config);
   return {
-    async read(roomId: string, eventIds: string[], minimumCursor?: string): Promise<MessageResource[]> {
+    async read(
+      roomId: string,
+      eventIds: string[],
+      minimumCursor?: string
+    ): Promise<MessageResource[]> {
       const response = await client.batchGetMessages(
         { roomId, eventIds },
         { headers: minimumCursorHeaders(minimumCursor), timeoutMs: 10_000 }

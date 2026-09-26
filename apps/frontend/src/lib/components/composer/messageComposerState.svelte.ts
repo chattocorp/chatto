@@ -100,11 +100,7 @@ type MessageComposerDependencies = {
   getOnReady: () => MessageComposerProps['onReady'];
   getCallbacks: () => Pick<
     MessageComposerProps,
-    | 'onTyping'
-    | 'onMessageSent'
-    | 'onThreadMessageSent'
-    | 'onCancelReply'
-    | 'onEscape'
+    'onTyping' | 'onMessageSent' | 'onThreadMessageSent' | 'onCancelReply' | 'onEscape'
   >;
   onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
@@ -212,10 +208,7 @@ export class MessageComposerState {
     const members = this.#dependencies.getMembers();
     if (this.mentionSearchMembers.length === 0) return members;
     const loadedIds = new SvelteSet(members.map((member) => member.id));
-    return [
-      ...members,
-      ...this.mentionSearchMembers.filter((member) => !loadedIds.has(member.id))
-    ];
+    return [...members, ...this.mentionSearchMembers.filter((member) => !loadedIds.has(member.id))];
   }
 
   get draftKey(): string {
@@ -241,10 +234,7 @@ export class MessageComposerState {
   }
 
   get inputDisabled(): boolean {
-    return (
-      this.submission.loading ||
-      (!this.#dependencies.getCanPost() && !this.isEditing)
-    );
+    return this.submission.loading || (!this.#dependencies.getCanPost() && !this.isEditing);
   }
 
   get hasSendableAttachments(): boolean {
@@ -579,7 +569,12 @@ export class MessageComposerState {
       // Submission clears loading after this callback. Wait for the editor to
       // become editable again before restoring the caret for the next message.
       void tick().then(() => {
-        if (api && this.editorApi === api && this.draftKey === post.draftKey && !this.inputDisabled) {
+        if (
+          api &&
+          this.editorApi === api &&
+          this.draftKey === post.draftKey &&
+          !this.inputDisabled
+        ) {
           api.focus();
         }
       });

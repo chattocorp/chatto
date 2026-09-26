@@ -6,7 +6,11 @@ import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 
 test.use({ serverOptions: { searchProvider: true } });
 
-test('My Threads searches older replies, deduplicates threads, and clears the filter', async ({ page, chatPage, roomPage }) => {
+test('My Threads searches older replies, deduplicates threads, and clears the filter', async ({
+  page,
+  chatPage,
+  roomPage
+}) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

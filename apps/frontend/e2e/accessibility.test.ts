@@ -1,11 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
-import {
-  createAndLoginTestUser,
-  loginAsAdmin,
-  verifyAdminEmail
-} from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdmin, verifyAdminEmail } from './fixtures/testUser';
 import * as routes from './routes';
 
 const wcagTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -16,7 +12,9 @@ async function expectNoAccessibilityViolations(page: Page, state: string): Promi
       const endTime = animation.effect?.getComputedTiming().endTime;
       return typeof endTime === 'number' && Number.isFinite(endTime);
     });
-    await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)));
+    await Promise.all(
+      finiteAnimations.map((animation) => animation.finished.catch(() => undefined))
+    );
   });
 
   const { violations } = await new AxeBuilder({ page }).withTags(wcagTags).analyze();
@@ -84,7 +82,9 @@ test.describe('Route accessibility', () => {
     const admin = await loginAsAdmin(page);
     await verifyAdminEmail(page, admin.id!);
     await page.goto(routes.serverAdminGeneral);
-    await expect(page.getByRole('heading', { level: 1, name: 'General', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'General', exact: true })
+    ).toBeVisible();
     await expectNoAccessibilityViolations(page, 'server administration');
 
     await chatPage.openCreateRoomModal();

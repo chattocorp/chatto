@@ -76,8 +76,8 @@ it.each(accentColors)(
           root.style.setProperty('--depth-level', String(depth));
           const highlight = rgba(getComputedStyle(probe).color);
           for (const fill of ['button-action', 'button-action-hover']) {
-            const glossy = color(fill).map((channel, index) =>
-              channel * (1 - highlight[3]) + highlight[index] * highlight[3]
+            const glossy = color(fill).map(
+              (channel, index) => channel * (1 - highlight[3]) + highlight[index] * highlight[3]
             );
             expect(
               contrast(glossy, color('on-button-action')),
@@ -117,38 +117,41 @@ it.each(['light', 'dark'])('%s at the middle keeps the original semantic colours
   );
 });
 
-it.each(['light', 'dark'])('%s gives the app frame and panel inset a strong edge at 100%', (theme) => {
-  const root = document.documentElement;
-  root.dataset.theme = theme;
-  const frame = document.createElement('div');
-  frame.className = 'app-frame-inset';
-  const inset = document.createElement('div');
-  inset.className = 'panel-inset';
-  document.body.append(frame, inset);
-  try {
-    applyContrastAge(30);
-    expect(rgba(getComputedStyle(frame, '::before').borderColor)[3]).toBe(0);
-    expect(rgba(getComputedStyle(inset).outlineColor)[3]).toBe(0);
+it.each(['light', 'dark'])(
+  '%s gives the app frame and panel inset a strong edge at 100%',
+  (theme) => {
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    const frame = document.createElement('div');
+    frame.className = 'app-frame-inset';
+    const inset = document.createElement('div');
+    inset.className = 'panel-inset';
+    document.body.append(frame, inset);
+    try {
+      applyContrastAge(30);
+      expect(rgba(getComputedStyle(frame, '::before').borderColor)[3]).toBe(0);
+      expect(rgba(getComputedStyle(inset).outlineColor)[3]).toBe(0);
 
-    applyContrastAge(40);
-    const background = rgb(getComputedStyle(root).getPropertyValue('--color-background').trim());
-    const frameEdge = getComputedStyle(frame, '::before');
-    expect(frameEdge.borderStyle).toBe('solid');
-    expect(frameEdge.borderWidth).toBe('1px');
-    expect(Number(frameEdge.zIndex)).toBeGreaterThan(50);
-    expect(frameEdge.pointerEvents).toBe('none');
-    expect(rgba(frameEdge.borderColor)[3]).toBe(1);
-    expect(contrast(rgb(frameEdge.borderColor), background)).toBeGreaterThanOrEqual(15);
-    const insetEdge = getComputedStyle(inset);
-    expect(insetEdge.outlineStyle).toBe('solid');
-    expect(insetEdge.outlineWidth).toBe('1px');
-    expect(rgba(insetEdge.outlineColor)[3]).toBe(1);
-    expect(contrast(rgb(insetEdge.outlineColor), background)).toBeGreaterThanOrEqual(15);
-  } finally {
-    frame.remove();
-    inset.remove();
+      applyContrastAge(40);
+      const background = rgb(getComputedStyle(root).getPropertyValue('--color-background').trim());
+      const frameEdge = getComputedStyle(frame, '::before');
+      expect(frameEdge.borderStyle).toBe('solid');
+      expect(frameEdge.borderWidth).toBe('1px');
+      expect(Number(frameEdge.zIndex)).toBeGreaterThan(50);
+      expect(frameEdge.pointerEvents).toBe('none');
+      expect(rgba(frameEdge.borderColor)[3]).toBe(1);
+      expect(contrast(rgb(frameEdge.borderColor), background)).toBeGreaterThanOrEqual(15);
+      const insetEdge = getComputedStyle(inset);
+      expect(insetEdge.outlineStyle).toBe('solid');
+      expect(insetEdge.outlineWidth).toBe('1px');
+      expect(rgba(insetEdge.outlineColor)[3]).toBe(1);
+      expect(contrast(rgb(insetEdge.outlineColor), background)).toBeGreaterThanOrEqual(15);
+    } finally {
+      frame.remove();
+      inset.remove();
+    }
   }
-});
+);
 
 it.each(accentColors)('%s stays readable across contrast ages and themes', (accent) => {
   const root = document.documentElement;
@@ -166,8 +169,15 @@ it.each(accentColors)('%s stays readable across contrast ages and themes', (acce
         ).toBeGreaterThanOrEqual(4.5);
         for (const foreground of ['text', 'muted']) {
           const minimum =
-            age === 20 ? (foreground === 'text' ? 3 : 2) :
-            age === 25 ? (foreground === 'text' ? 4 : 3) : 4.5;
+            age === 20
+              ? foreground === 'text'
+                ? 3
+                : 2
+              : age === 25
+                ? foreground === 'text'
+                  ? 4
+                  : 3
+                : 4.5;
           expect(
             contrast(color(foreground), color(surface)),
             `${accent}/${theme}/${age} ${foreground} on ${surface}`

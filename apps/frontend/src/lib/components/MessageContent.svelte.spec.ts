@@ -833,17 +833,17 @@ describe('MessageContent component', () => {
         body: 'Hello @alice!',
         members: [{ ...member('alice'), displayName: 'Alice Smith' }]
       });
-      await expect.poll(() => q(rendered.container, 'span.mention')?.textContent).toBe(
-        '@Alice Smith'
-      );
+      await expect
+        .poll(() => q(rendered.container, 'span.mention')?.textContent)
+        .toBe('@Alice Smith');
 
       await rendered.rerender({
         body: 'Hello @alice!',
         members: [{ ...member('alice'), displayName: 'Alice Jones' }]
       });
-      await expect.poll(() => q(rendered.container, 'span.mention')?.textContent).toBe(
-        '@Alice Jones'
-      );
+      await expect
+        .poll(() => q(rendered.container, 'span.mention')?.textContent)
+        .toBe('@Alice Jones');
     });
 
     it('opens the target user menu callback when a mention is clicked', async () => {

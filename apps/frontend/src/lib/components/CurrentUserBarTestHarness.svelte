@@ -12,7 +12,10 @@ before the bar mounts so specs can exercise first-login presence fallbacks.
   import { provideAppUiState, type AppUiState } from '$lib/state/appUi.svelte';
   import CurrentUserBar from './CurrentUserBar.svelte';
 
-  let { cachedPresence = PresenceStatus.ONLINE, onReady }: {
+  let {
+    cachedPresence = PresenceStatus.ONLINE,
+    onReady
+  }: {
     cachedPresence?: PresenceStatus;
     onReady?: (state: AppUiState) => void;
   } = $props();

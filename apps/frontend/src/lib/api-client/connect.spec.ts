@@ -22,12 +22,18 @@ describe('saved-view private request boundary', () => {
     const invoke = privateRequestInterceptor(beforeRequest)(next as never);
     const signal = new AbortController().signal;
 
-    await invoke({ service: { typeName: 'chatto.api.v1.ViewerService' },
-      method: { name: 'GetViewer' }, signal } as never);
+    await invoke({
+      service: { typeName: 'chatto.api.v1.ViewerService' },
+      method: { name: 'GetViewer' },
+      signal
+    } as never);
     expect(beforeRequest).not.toHaveBeenCalled();
 
-    await invoke({ service: { typeName: 'chatto.api.v1.RoomService' },
-      method: { name: 'ListMembers' }, signal } as never);
+    await invoke({
+      service: { typeName: 'chatto.api.v1.RoomService' },
+      method: { name: 'ListMembers' },
+      signal
+    } as never);
     expect(beforeRequest).toHaveBeenCalledOnce();
     expect(beforeRequest).toHaveBeenCalledWith('ListMembers', signal);
   });
@@ -39,11 +45,12 @@ describe('saved-view private request boundary', () => {
       release = resolve;
     });
     const beforeRequest = vi.fn(async () => gate);
-    const fetch = vi.fn(async () =>
-      new Response(new Uint8Array(), {
-        status: 200,
-        headers: { 'Content-Type': 'application/proto' }
-      })
+    const fetch = vi.fn(
+      async () =>
+        new Response(new Uint8Array(), {
+          status: 200,
+          headers: { 'Content-Type': 'application/proto' }
+        })
     );
     vi.stubGlobal('fetch', fetch);
     try {
@@ -147,8 +154,9 @@ describe('bearerRenewalInterceptor', () => {
       const request = { stream: false, header: new Headers() };
       const config = { serverId: 'remote', renewBearerToken };
 
-      await expect(bearerRenewalInterceptor(config)(next as never)(request as never))
-        .rejects.toBe(error);
+      await expect(bearerRenewalInterceptor(config)(next as never)(request as never)).rejects.toBe(
+        error
+      );
       expect(renewBearerToken.mock.calls).toEqual([[false], [true]]);
       expect(request.header.get('Authorization')).toBe('Bearer access-2');
       expect(next).toHaveBeenCalledTimes(2);

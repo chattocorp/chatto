@@ -24,11 +24,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     markdown
   } from '@codemirror/lang-markdown';
   import { Compartment, EditorSelection, EditorState, Prec, Transaction } from '@codemirror/state';
-  import {
-    EditorView,
-    keymap,
-    placeholder as editorPlaceholder
-  } from '@codemirror/view';
+  import { EditorView, keymap, placeholder as editorPlaceholder } from '@codemirror/view';
   import { tags } from '@lezer/highlight';
   import { Autolink, Table } from '@lezer/markdown';
   import { m } from '$lib/i18n/messages';
@@ -157,10 +153,9 @@ the same API as the visual editor while keeping the stored Markdown visible.
       paddingBottom: '0.2rem',
       color: 'var(--color-muted)'
     },
-    '::selection':
-      {
-        backgroundColor: 'color-mix(in srgb, var(--color-action) 20%, transparent)'
-      },
+    '::selection': {
+      backgroundColor: 'color-mix(in srgb, var(--color-action) 20%, transparent)'
+    },
     '.hljs-comment, .hljs-quote': {
       color: 'var(--composer-code-comment)',
       fontStyle: 'italic'
@@ -217,9 +212,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
             {
               key: '`',
               run: (view) =>
-                view.state.selection.main.empty
-                  ? false
-                  : toggleSourceFormatting(view, 'inlineCode')
+                view.state.selection.main.empty ? false : toggleSourceFormatting(view, 'inlineCode')
             },
             { key: 'Escape', run: escapeWithTabFocus },
             indentWithTab,

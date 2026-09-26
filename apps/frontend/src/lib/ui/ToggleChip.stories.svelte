@@ -65,7 +65,6 @@
   </div>
 </Story>
 
-
 <Story name="Admin actions" asChild>
   <div class="flex flex-col gap-4 rounded-lg bg-background p-4">
     <div class="flex gap-2 rounded-lg bg-surface p-3">

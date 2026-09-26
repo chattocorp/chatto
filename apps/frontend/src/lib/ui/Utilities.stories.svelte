@@ -308,8 +308,8 @@
   <div class="flex flex-col gap-3">
     <p class="max-w-prose text-sm text-muted">
       Icon button used in the global app header (hamburger, notifications, quick switcher). 44px tap
-      target with a quiet highlight that appears on hover or keyboard focus.
-      At rest, only the icon is visible. Shared lighting and quick feedback keep the highlight consistent.
+      target with a quiet highlight that appears on hover or keyboard focus. At rest, only the icon
+      is visible. Shared lighting and quick feedback keep the highlight consistent.
     </p>
     <div
       class="flex items-center gap-3 rounded border border-input-border bg-surface p-2 text-muted"
@@ -317,7 +317,7 @@
       <button type="button" class="app-header-icon" aria-label="Menu">
         <span class="iconify icon-[uil--bars] text-xl"></span>
       </button>
-      <button type="button" class="relative app-header-icon" aria-label="Notifications">
+      <button type="button" class="app-header-icon relative" aria-label="Notifications">
         <span class="iconify icon-[uil--bell] text-lg"></span>
       </button>
       <button type="button" class="app-header-icon" aria-label="Quick switcher">
@@ -362,7 +362,12 @@
       <button type="button" class="icon-action" aria-label="Clear" disabled>
         <span class="iconify icon-[uil--times] text-xl" aria-hidden="true"></span>
       </button>
-      <button type="button" class="pane-header-icon-button pane-header-icon-button-active" aria-label="Call sidebar" aria-pressed="true">
+      <button
+        type="button"
+        class="pane-header-icon-button pane-header-icon-button-active"
+        aria-label="Call sidebar"
+        aria-pressed="true"
+      >
         <span class="iconify icon-[uil--phone]" aria-hidden="true"></span>
       </button>
     </div>
@@ -394,10 +399,11 @@
   </div>
 </Story>
 
-
 <Story name="Shell surfaces" asChild>
   <div class="flex max-w-2xl flex-col gap-5">
-    <p class="text-muted">The user card, server tiles, composer, and sidebar inputs share a quiet raised finish.</p>
+    <p class="text-muted">
+      The user card, server tiles, composer, and sidebar inputs share a quiet raised finish.
+    </p>
     <div class="flex items-center gap-3">
       <button type="button" class="server-gutter-item cursor-pointer" aria-label="Add server">
         <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
@@ -407,12 +413,12 @@
         <span>Alice</span>
       </div>
     </div>
-    <div class="flex items-center gap-3 chat-input-surface px-3">
+    <div class="flex chat-input-surface items-center gap-3 px-3">
       <span class="iconify icon-[uil--text] text-muted" aria-hidden="true"></span>
       <span class="flex-1 text-muted">Type a message…</span>
       <span class="iconify icon-[uil--paperclip] text-muted" aria-hidden="true"></span>
     </div>
-    <div class="flex max-w-xs items-center gap-3 chat-input-surface px-3">
+    <div class="flex chat-input-surface max-w-xs items-center gap-3 px-3">
       <span class="iconify icon-[uil--search] text-muted" aria-hidden="true"></span>
       <span class="text-muted">Search members…</span>
     </div>
@@ -429,13 +435,12 @@
   </div>
 </Story>
 
-
 <Story name="Selected navigation" asChild>
   <div class="flex max-w-sm flex-col gap-5">
     <nav class="sidebar-nav" aria-label="Rooms">
       <span class="px-1 font-semibold text-muted">LOBBY</span>
       <a href="https://example.com/announcements" class="sidebar-item">
-        <span class="sidebar-icon iconify icon-[uil--globe]" aria-hidden="true"></span>
+        <span class="iconify sidebar-icon icon-[uil--globe]" aria-hidden="true"></span>
         announcements
       </a>
       <a href="https://example.com/general" class="sidebar-item" aria-current="page">
@@ -446,7 +451,7 @@
     <div class="menu">
       <div class="menu-section">
         <button type="button" class="menu-entry menu-entry-selected" aria-pressed="true">
-          <span class="menu-entry-leading iconify icon-[uil--check]" aria-hidden="true"></span>
+          <span class="iconify menu-entry-leading icon-[uil--check]" aria-hidden="true"></span>
           Show all rooms
         </button>
         <button type="button" class="menu-entry">
@@ -458,14 +463,13 @@
   </div>
 </Story>
 
-
 <Story name="Surface depth" asChild>
   <div class="grid max-w-xl grid-cols-2 gap-6">
-    <div class="surface-raised rounded-xl bg-surface p-6">
+    <div class="rounded-xl bg-surface surface-raised p-6">
       <p class="font-medium">Raised</p>
       <p class="mt-2 text-sm text-muted">Light catches the upper edge.</p>
     </div>
-    <div class="surface-lowered rounded-xl bg-surface p-6">
+    <div class="rounded-xl bg-surface p-6 surface-lowered">
       <p class="font-medium">Lowered</p>
       <p class="mt-2 text-sm text-muted">Shadow falls inside the surface.</p>
     </div>

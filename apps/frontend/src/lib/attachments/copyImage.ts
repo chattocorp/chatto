@@ -2,9 +2,7 @@
 export async function copyImageToClipboard(url: string): Promise<void> {
   // Start the clipboard write during the menu click. Some browsers require
   // transient user activation before the image fetch and conversion finish.
-  await navigator.clipboard.write([
-    new ClipboardItem({ 'image/png': imagePng(url) })
-  ]);
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': imagePng(url) })]);
 }
 
 async function imagePng(url: string): Promise<Blob> {

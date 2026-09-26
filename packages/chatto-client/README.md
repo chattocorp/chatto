@@ -7,10 +7,10 @@ It is not published to npm. Realtime uses `@chatto/api-types` and its protobuf r
 The host must provide Fetch and `AbortSignal.any`/`AbortSignal.timeout`.
 
 ```ts
-import { createChattoClient } from "@chatto/client";
+import { createChattoClient } from '@chatto/client';
 
 const client = createChattoClient({ serverUrl, apiKey: botApiKey });
-await client.postMessage({ roomId, threadRootId }, "Hello from the bot", signal);
+await client.postMessage({ roomId, threadRootId }, 'Hello from the bot', signal);
 ```
 
 The host supplies credentials and can inject `fetch`. The package does not
@@ -74,11 +74,11 @@ await client.consumeRealtime({
   signal,
   checkpoint,
   async onEvent(event) {
-    if (event.event.case === "messagePosted") await acceptMessage(event);
+    if (event.event.case === 'messagePosted') await acceptMessage(event);
   },
   onStatus(status) {
-    if (status.state === "ready" && status.gap) reportMissedMessages();
-  },
+    if (status.state === 'ready' && status.gap) reportMissedMessages();
+  }
 });
 ```
 

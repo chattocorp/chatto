@@ -111,33 +111,33 @@ a side stripe or cast shadow for navigation selection.
 
 ## Choosing A Primitive
 
-| Need                                      | Use                                                                        | Avoid                                                        |
-| ----------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Committed text action or button-like link | `Button` from `$lib/ui/form`                                               | Rebuilding `btn-*` recipes in feature code                   |
-| Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField` | Raw controls unless the interaction is genuinely specialized |
-| Short, visible settings choice list        | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
-| Compact choice from a long or variable list | `Select`                                                                 | Expanding every device or option into a separate row          |
-| Compact one-of-many mode                  | `SegmentedControl`                                                         | Separate buttons or independently styled chips               |
-| Selectable non-table collection           | `selectable-list` and `selectable-list-item`                               | Feature-local hover recipes                                  |
-| Newest-first activity record              | `ActivityListRow` inside `selectable-list`                                 | Repeating row, unread, pending, and action-shell recipes     |
-| Modal form                                | `FormDialog`                                                               | A dialog containing an unrelated hand-rolled form footer     |
-| Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
-| General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
-| Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                         | Hand-written fixed positioning and z-index                   |
-| Context-menu command                      | `MenuItem` inside `MenuSection`                                            | `sidebar-item` or repeated icon and state markup             |
-| Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards        |
-| Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
-| Inline icon action with standard hit area | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
-| Mini icon action directly beside a value  | `mini-icon-action`                                                         | Adding padding, a background fill, or press scaling          |
-| Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
-| Durable content container                 | `Panel` or `panel-shell`                                                   | Ad hoc card borders, radius, and elevation                   |
-| Compact nested row                        | `surface-box`                                                              | A panel nested inside another panel                          |
-| Status or scope label                     | `Pill`; `ToggleChip` when independently interactive                        | One-off colored badges                                       |
-| Inline contextual notice                  | `Hint`                                                                     | A panel used as an alert                                     |
-| Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
-| Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
-| Loading content                           | `LoadingFog` sized to the content area                                      | Rows shaped like future content                              |
-| Loading image                             | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                     |
+| Need                                        | Use                                                                                    | Avoid                                                        |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Committed text action or button-like link   | `Button` from `$lib/ui/form`                                                           | Rebuilding `btn-*` recipes in feature code                   |
+| Form field                                  | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField`             | Raw controls unless the interaction is genuinely specialized |
+| Short, visible settings choice list         | `ChoiceRow` inside a `radiogroup`                                                      | Repeating indicator and selected-state markup                |
+| Compact choice from a long or variable list | `Select`                                                                               | Expanding every device or option into a separate row         |
+| Compact one-of-many mode                    | `SegmentedControl`                                                                     | Separate buttons or independently styled chips               |
+| Selectable non-table collection             | `selectable-list` and `selectable-list-item`                                           | Feature-local hover recipes                                  |
+| Newest-first activity record                | `ActivityListRow` inside `selectable-list`                                             | Repeating row, unread, pending, and action-shell recipes     |
+| Modal form                                  | `FormDialog`                                                                           | A dialog containing an unrelated hand-rolled form footer     |
+| Confirmation                                | `ConfirmDialog`                                                                        | A custom destructive modal                                   |
+| General dialog                              | `Dialog`; `BottomSheet` for touch-specific presentation                                | Fixed-position modal shells                                  |
+| Floating menu or tooltip                    | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                                     | Hand-written fixed positioning and z-index                   |
+| Context-menu command                        | `MenuItem` inside `MenuSection`                                                        | `sidebar-item` or repeated icon and state markup             |
+| Standard pane page                          | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections                  | Hand-rolled page widths, scrolling, and section cards        |
+| Pane title and toolbar                      | `PaneHeader` with `HeaderIconButton` actions                                           | Textual primary actions in the pane header                   |
+| Inline icon action with standard hit area   | `icon-action`                                                                          | Repeating hit-area, hover, and pressed classes               |
+| Mini icon action directly beside a value    | `mini-icon-action`                                                                     | Adding padding, a background fill, or press scaling          |
+| Global app-header icon                      | `app-header-icon`                                                                      | `icon-action` with compensating margins                      |
+| Durable content container                   | `Panel` or `panel-shell`                                                               | Ad hoc card borders, radius, and elevation                   |
+| Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                          |
+| Status or scope label                       | `Pill`; `ToggleChip` when independently interactive                                    | One-off colored badges                                       |
+| Inline contextual notice                    | `Hint`                                                                                 | A panel used as an alert                                     |
+| Transient feedback                          | `toast`                                                                                | Persistent inline copy that disappears automatically         |
+| Empty collection or search result           | `EmptyState`                                                                           | Bespoke centered placeholder markup                          |
+| Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                              |
+| Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                               |
 
 `Select` uses a native control and plain-text options. The shared
 `select-control` utility styles the picker where `appearance: base-select`
@@ -450,23 +450,23 @@ primitive per surface. Semantic utilities set the strength and add the rest of
 the component treatment. Feature components should use those semantic utilities
 instead of adding local gradients or arbitrary inset shadows.
 
-| Utility | Use |
-| --- | --- |
-| `surface-raised` | Base raised finish. Semantic utilities set `--lighting-*` strength. |
-| `surface-lowered` | Base recessed finish. Semantic utilities set `--lowered-shadow` and `--lowered-edge`. |
-| `control-raised` | Buttons and Select fields; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback. |
-| `option-depth` | Quiet checkbox and radio rows; removes depth when disabled. |
-| `control-well` | Empty checkbox and radio indicators. |
-| `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow. |
-| `shell-surface` | User card and call participant cards; soft rim with no button elevation or pressed finish. |
-| `shell-action` | Standalone native buttons in the bottom row, such as Start call. Uses the same surface and 48 px minimum height as the composer and user card, with hover, focus, pressed, and disabled states. |
-| `chat-input-surface` | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card. |
-| `shell-lighting` | Shared quiet finish for shell surfaces and raised controls. Also lights server gutter artwork without changing the image or intercepting clicks. |
-| `floating-frame` | Lit panel, dialog, and menu frames. |
-| `floating-inset` | Recessed content inside those frames. |
-| `sheet-frame` | Touch dialog and menu frames; uses shared depth, shell radius, and safe-area spacing. |
+| Utility                               | Use                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surface-raised`                      | Base raised finish. Semantic utilities set `--lighting-*` strength.                                                                                                                                                                                                                                                                                                                                                                   |
+| `surface-lowered`                     | Base recessed finish. Semantic utilities set `--lowered-shadow` and `--lowered-edge`.                                                                                                                                                                                                                                                                                                                                                 |
+| `control-raised`                      | Buttons and Select fields; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback.                                                                                                                                                                                                                                                                          |
+| `option-depth`                        | Quiet checkbox and radio rows; removes depth when disabled.                                                                                                                                                                                                                                                                                                                                                                           |
+| `control-well`                        | Empty checkbox and radio indicators.                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `selection-indicator`                 | Soft lighting on selected checkbox and radio indicators, without a drop shadow.                                                                                                                                                                                                                                                                                                                                                       |
+| `shell-surface`                       | User card and call participant cards; soft rim with no button elevation or pressed finish.                                                                                                                                                                                                                                                                                                                                            |
+| `shell-action`                        | Standalone native buttons in the bottom row, such as Start call. Uses the same surface and 48 px minimum height as the composer and user card, with hover, focus, pressed, and disabled states.                                                                                                                                                                                                                                       |
+| `chat-input-surface`                  | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card.                                                                                                                                                                                                                                                                                                                                    |
+| `shell-lighting`                      | Shared quiet finish for shell surfaces and raised controls. Also lights server gutter artwork without changing the image or intercepting clicks.                                                                                                                                                                                                                                                                                      |
+| `floating-frame`                      | Lit panel, dialog, and menu frames.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `floating-inset`                      | Recessed content inside those frames.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `sheet-frame`                         | Touch dialog and menu frames; uses shared depth, shell radius, and safe-area spacing.                                                                                                                                                                                                                                                                                                                                                 |
 | `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no depth highlight on its outer edge. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. Higher contrast settings strengthen the edge in both themes. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
-| `accent-swatch` | Palette samples with their own colour gradient and shared lit edges. |
+| `accent-swatch`                       | Palette samples with their own colour gradient and shared lit edges.                                                                                                                                                                                                                                                                                                                                                                  |
 
 The shared `--shell-*` theme tokens soften shell bevels in light mode with a
 cleaner top highlight, less lower shading, and a small edge blur. Dark mode
@@ -684,12 +684,12 @@ matches the action.
 
 Hover, focus, and action-reveal feedback use these tokens from `src/app.css`:
 
-| Token | Default | Purpose |
-| --- | --- | --- |
-| `--motion-duration-feedback` | `0ms` | Instant item highlights and action reveals in both directions |
-| `--motion-easing-feedback` | `ease-out` | Timing curve in both directions |
-| `--motion-duration-overlay-enter` | `100ms` | Modal and floating context-menu entrance |
-| `--motion-easing-overlay-enter` | `ease-out` | Surface entrance curve |
+| Token                             | Default    | Purpose                                                       |
+| --------------------------------- | ---------- | ------------------------------------------------------------- |
+| `--motion-duration-feedback`      | `0ms`      | Instant item highlights and action reveals in both directions |
+| `--motion-easing-feedback`        | `ease-out` | Timing curve in both directions                               |
+| `--motion-duration-overlay-enter` | `100ms`    | Modal and floating context-menu entrance                      |
+| `--motion-easing-overlay-enter`   | `ease-out` | Surface entrance curve                                        |
 
 Use `feedback-quick` with explicit transition properties, for example
 `transition-opacity feedback-quick`. The utility reads both tokens and disables

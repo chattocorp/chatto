@@ -1,11 +1,4 @@
-export const pluralCategories = [
-  "zero",
-  "one",
-  "two",
-  "few",
-  "many",
-  "other",
-] as const;
+export const pluralCategories = ['zero', 'one', 'two', 'few', 'many', 'other'] as const;
 
 export type PluralCategory = (typeof pluralCategories)[number];
 
@@ -21,20 +14,14 @@ export interface TranslationObject {
 
 export type TranslationDocument = Readonly<Record<string, unknown>>;
 
-export type TranslationModule =
-  TranslationDocument | Readonly<{ default: TranslationDocument }>;
+export type TranslationModule = TranslationDocument | Readonly<{ default: TranslationDocument }>;
 
 export type SectionLoader = () => Promise<TranslationModule>;
 
 /** Locale loaders grouped by independently loadable catalog section. */
-export type LoaderRegistry = Readonly<
-  Record<string, Readonly<Record<string, SectionLoader>>>
->;
+export type LoaderRegistry = Readonly<Record<string, Readonly<Record<string, SectionLoader>>>>;
 
-export type SectionName<Registry extends LoaderRegistry> = Extract<
-  keyof Registry,
-  string
->;
+export type SectionName<Registry extends LoaderRegistry> = Extract<keyof Registry, string>;
 
 export type LocaleName<Registry extends LoaderRegistry> = {
   [Section in keyof Registry]: Extract<keyof Registry[Section], string>;
@@ -53,10 +40,9 @@ export type CountTranslationKey =
 export type HtmlTranslationKey = `${string}_html` | `${string}.html`;
 
 /** Arguments inferred from a literal translation key's naming convention. */
-export type TranslationArguments<Key extends string> =
-  Key extends CountTranslationKey
-    ? [values: InterpolationValues & { count: number }]
-    : [values?: InterpolationValues];
+export type TranslationArguments<Key extends string> = Key extends CountTranslationKey
+  ? [values: InterpolationValues & { count: number }]
+  : [values?: InterpolationValues];
 
 declare const localizedHtmlBrand: unique symbol;
 
@@ -84,9 +70,7 @@ export interface LinguaOptions<Registry extends LoaderRegistry> {
    * Maps a locale to its next message fallback. Fallbacks are followed until
    * the base locale, allowing regional catalogs to contain only overrides.
    */
-  readonly fallbackLocales?: Readonly<
-    Partial<Record<LocaleName<Registry>, LocaleName<Registry>>>
-  >;
+  readonly fallbackLocales?: Readonly<Partial<Record<LocaleName<Registry>, LocaleName<Registry>>>>;
   readonly initialBaseCatalogs?: Readonly<
     Partial<Record<SectionName<Registry>, TranslationModule>>
   >;

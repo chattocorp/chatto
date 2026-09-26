@@ -1,4 +1,4 @@
-import type { Activity } from "./timeline.ts";
+import type { Activity } from './timeline.ts';
 
 export interface TimeWindow {
   start: number;
@@ -7,19 +7,21 @@ export interface TimeWindow {
 
 /** Event timestamps can include setup time outside the runner's duration clock. */
 export function timelineEnd(nodes: Activity[], elapsed: number): number {
-  return nodes.reduce((end, node) => Math.max(
-    end,
-    node.startedAt + (node.durationMs ?? Math.max(0, elapsed - node.startedAt)),
-    timelineEnd(node.children, elapsed),
-  ), elapsed);
+  return nodes.reduce(
+    (end, node) =>
+      Math.max(
+        end,
+        node.startedAt + (node.durationMs ?? Math.max(0, elapsed - node.startedAt)),
+        timelineEnd(node.children, elapsed)
+      ),
+    elapsed
+  );
 }
 
 function niceCeiling(value: number): number {
   const power = 10 ** Math.floor(Math.log10(Math.max(value, 0.001)));
   const fraction = value / power;
-  return (
-    (fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10) * power
-  );
+  return (fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10) * power;
 }
 
 /** Fit the actual run duration; only empty runs need a nonzero minimum. */
@@ -34,16 +36,12 @@ export function clampWindow(view: TimeWindow, maxSpan: number): TimeWindow {
 }
 
 /** Preserve the time under the pointer while changing scale. */
-export function zoomWindow(
-  view: TimeWindow,
-  factor: number,
-  anchor = 0.5,
-): TimeWindow {
+export function zoomWindow(view: TimeWindow, factor: number, anchor = 0.5): TimeWindow {
   const fraction = Math.max(0, Math.min(1, anchor));
   const span = Math.max(1, Math.min(86_400_000, view.span * factor));
   return {
     start: Math.max(0, view.start + fraction * (view.span - span)),
-    span,
+    span
   };
 }
 
@@ -52,25 +50,14 @@ export function panWindow(view: TimeWindow, deltaMs: number): TimeWindow {
 }
 
 /** Negative drag deltas zoom in around the initial pointer. */
-export function dragZoomWindow(
-  view: TimeWindow,
-  delta: number,
-  anchor = 0.5,
-): TimeWindow {
-  return zoomWindow(
-    view,
-    Math.exp(Math.max(-1000, Math.min(1000, delta)) * 0.006),
-    anchor,
-  );
+export function dragZoomWindow(view: TimeWindow, delta: number, anchor = 0.5): TimeWindow {
+  return zoomWindow(view, Math.exp(Math.max(-1000, Math.min(1000, delta)) * 0.006), anchor);
 }
 
 export function dragRowHeight(initial: number, dy: number): number {
   return Math.max(
     24,
-    Math.min(
-      100,
-      initial * Math.exp(Math.max(-1000, Math.min(1000, dy)) * 0.006),
-    ),
+    Math.min(100, initial * Math.exp(Math.max(-1000, Math.min(1000, dy)) * 0.006))
   );
 }
 
@@ -88,23 +75,18 @@ export function timelineTicks(view: TimeWindow, width: number): number[] {
 export function tickLabel(ms: number, step: number): string {
   const seconds = ms >= 1000;
   const unit = seconds ? 1000 : 1;
-  const precision = Math.max(
-    0,
-    Math.min(4, Math.ceil(-Math.log10(step / unit))),
-  );
-  return `${(ms / unit).toFixed(precision)} ${seconds ? "s" : "ms"}`;
+  const precision = Math.max(0, Math.min(4, Math.ceil(-Math.log10(step / unit))));
+  return `${(ms / unit).toFixed(precision)} ${seconds ? 's' : 'ms'}`;
 }
 
 export function flattenActivities(
   nodes: Activity[],
   collapsed: ReadonlySet<string>,
-  depth = 0,
+  depth = 0
 ): { node: Activity; depth: number }[] {
   return nodes.flatMap((node) => [
     { node, depth },
-    ...(collapsed.has(node.id)
-      ? []
-      : flattenActivities(node.children, collapsed, depth + 1)),
+    ...(collapsed.has(node.id) ? [] : flattenActivities(node.children, collapsed, depth + 1))
   ]);
 }
 
@@ -112,7 +94,7 @@ export function flattenActivities(
 export function barPosition(
   start: number,
   end: number,
-  view: TimeWindow,
+  view: TimeWindow
 ): {
   left: number;
   width: number;
@@ -127,6 +109,6 @@ export function barPosition(
     left: ((visibleStart - view.start) / view.span) * 100,
     width: (Math.max(0, visibleEnd - visibleStart) / view.span) * 100,
     clippedStart: start < view.start,
-    clippedEnd: end > right,
+    clippedEnd: end > right
   };
 }

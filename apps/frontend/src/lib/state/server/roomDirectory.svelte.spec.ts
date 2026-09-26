@@ -4,10 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { RoomsListItem } from './rooms.svelte';
-import {
-  RoomDirectoryStore,
-  type RoomDirectoryNavigation
-} from './roomDirectory.svelte';
+import { RoomDirectoryStore, type RoomDirectoryNavigation } from './roomDirectory.svelte';
 
 function room(id: string, member = false): RoomsListItem {
   return {
@@ -69,10 +66,7 @@ function commands(
   };
 }
 
-function makeStore(
-  navigation = makeNavigation(),
-  api = commands()
-): RoomDirectoryStore {
+function makeStore(navigation = makeNavigation(), api = commands()): RoomDirectoryStore {
   return new RoomDirectoryStore(navigation, memberAPI(), api);
 }
 

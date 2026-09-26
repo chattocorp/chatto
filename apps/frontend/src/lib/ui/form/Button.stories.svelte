@@ -75,32 +75,40 @@
 </Story>
 
 <Story name="Shared quiet depth" asChild>
-	<div class="flex flex-col gap-6">
-		{#each [
-			{ label: 'Flat', strength: 0, width: 1 },
-			{ label: 'Kinda 3D', strength: 0.75, width: 1 },
-			{ label: 'Very 3D', strength: 1.75, width: 1.5 }
-		] as mode (mode.label)}
-			<section class="flex flex-col gap-3" style:--depth-strength={mode.strength} style:--depth-width={mode.width}>
-				<h2 class="font-semibold">{mode.label}</h2>
-				<div class="flex flex-wrap items-center gap-3">
-					<div class="chat-input-surface flex items-center px-4 text-muted">Composer surface</div>
-					<button type="button" class="shell-action">Start call</button>
-					<Button variant="secondary">Cancel</Button>
-					<Button>Current Server</Button>
-					<Button variant="danger">All Servers</Button>
-				</div>
-				<div class="flex flex-wrap items-end gap-3">
-					<Select id={`quiet-depth-${mode.strength}`} label="Visibility" value="public" options={[{ value: 'public', label: 'Public' }, { value: 'private', label: 'Private' }]} />
-					<Button variant="ghost">Save draft</Button>
-					<Button href="#">Button link</Button>
-					<Button disabled>Disabled</Button>
-					<Button loading loadingText="Saving…">Save</Button>
-					<Button href="#" disabled>Disabled link</Button>
-				</div>
-			</section>
-		{/each}
-	</div>
+  <div class="flex flex-col gap-6">
+    {#each [{ label: 'Flat', strength: 0, width: 1 }, { label: 'Kinda 3D', strength: 0.75, width: 1 }, { label: 'Very 3D', strength: 1.75, width: 1.5 }] as mode (mode.label)}
+      <section
+        class="flex flex-col gap-3"
+        style:--depth-strength={mode.strength}
+        style:--depth-width={mode.width}
+      >
+        <h2 class="font-semibold">{mode.label}</h2>
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex chat-input-surface items-center px-4 text-muted">Composer surface</div>
+          <button type="button" class="shell-action">Start call</button>
+          <Button variant="secondary">Cancel</Button>
+          <Button>Current Server</Button>
+          <Button variant="danger">All Servers</Button>
+        </div>
+        <div class="flex flex-wrap items-end gap-3">
+          <Select
+            id={`quiet-depth-${mode.strength}`}
+            label="Visibility"
+            value="public"
+            options={[
+              { value: 'public', label: 'Public' },
+              { value: 'private', label: 'Private' }
+            ]}
+          />
+          <Button variant="ghost">Save draft</Button>
+          <Button href="#">Button link</Button>
+          <Button disabled>Disabled</Button>
+          <Button loading loadingText="Saving…">Save</Button>
+          <Button href="#" disabled>Disabled link</Button>
+        </div>
+      </section>
+    {/each}
+  </div>
 </Story>
 
 <Story

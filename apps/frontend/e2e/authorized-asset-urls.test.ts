@@ -78,9 +78,7 @@ test.describe('authorized remote asset URLs', () => {
       .first();
     await expect(attachmentImage).toBeVisible();
     await expect
-      .poll(() =>
-        attachmentImage.evaluate((element) => (element as HTMLImageElement).naturalWidth)
-      )
+      .poll(() => attachmentImage.evaluate((element) => (element as HTMLImageElement).naturalWidth))
       .toBeGreaterThan(0);
 
     const src = await attachmentImage.getAttribute('src');

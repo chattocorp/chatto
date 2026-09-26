@@ -38,8 +38,10 @@ message presentation. Each message row itself opens the original message.
   const activeLocale = $derived(getLocale());
 
   function user(userId: string): RoomMember | UserSummary | null {
-    return members.find((member) => member.id === userId) ??
-      mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user);
+    return (
+      members.find((member) => member.id === userId) ??
+      mapOptionalUserSummary(serverScope.store.projection.users.get(userId)?.user)
+    );
   }
 
   function messageActor(message: Message): UserAvatarUserView | null {

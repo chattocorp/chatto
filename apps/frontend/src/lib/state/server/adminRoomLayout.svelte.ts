@@ -307,7 +307,11 @@ export class AdminRoomLayoutStore {
       this.initialized = true;
     } catch (err) {
       if (this.#loadId === thisLoad) {
-        if (reauthorize || isConnectCode(err, Code.PermissionDenied) || isConnectCode(err, Code.NotFound)) {
+        if (
+          reauthorize ||
+          isConnectCode(err, Code.PermissionDenied) ||
+          isConnectCode(err, Code.NotFound)
+        ) {
           this.groups = [];
         }
         this.error = errorMessage(err);

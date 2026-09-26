@@ -33,7 +33,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["sleep", "5"]
+                command: ['sleep', '5']
           resources:
             requests:
               cpu: 50m

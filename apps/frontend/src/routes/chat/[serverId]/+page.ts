@@ -20,5 +20,8 @@ export const load: PageLoad = ({ params, url }) => {
     );
   }
 
-  redirect(302, `${resolve('/chat/[serverId]/overview', { serverId: params.serverId })}${url.search}`);
+  redirect(
+    302,
+    `${resolve('/chat/[serverId]/overview', { serverId: params.serverId })}${url.search}`
+  );
 };

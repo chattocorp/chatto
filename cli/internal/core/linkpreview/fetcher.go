@@ -93,8 +93,8 @@ type FetchResult struct {
 	Description string
 	SiteName    string
 	ImageAsset  *evtv1.AssetRecord // Image asset if image was downloaded, nil otherwise
-	EmbedType   string              // "generic", "youtube", "bluesky"
-	EmbedID     string              // Provider-specific canonical ID
+	EmbedType   string             // "generic", "youtube", "bluesky"
+	EmbedID     string             // Provider-specific canonical ID
 	SocialPost  *evtv1.SocialPostPreview
 }
 

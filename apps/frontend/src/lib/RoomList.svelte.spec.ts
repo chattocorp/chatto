@@ -403,14 +403,16 @@ describe('RoomList', () => {
   });
 
   it('shows the current account name in a self-DM sidebar row', async () => {
-    mocks.store.navigation.rooms = [{
-      id: 'dm-self',
-      name: '',
-      type: RoomKind.DM,
-      viewerIsMember: true,
-      hasMessageHistory: true,
-      members: [user('me', 'me', 'My name')]
-    }] as never;
+    mocks.store.navigation.rooms = [
+      {
+        id: 'dm-self',
+        name: '',
+        type: RoomKind.DM,
+        viewerIsMember: true,
+        hasMessageHistory: true,
+        members: [user('me', 'me', 'My name')]
+      }
+    ] as never;
 
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/dm-self"]')!;
@@ -741,12 +743,17 @@ describe('RoomList', () => {
   });
 
   it('labels a bot beside its name in the DM list', () => {
-    const rooms = mocks.store.navigation.rooms as Array<{ id: string; members: Array<{ id: string; isBot?: boolean }> }>;
+    const rooms = mocks.store.navigation.rooms as Array<{
+      id: string;
+      members: Array<{ id: string; isBot?: boolean }>;
+    }>;
     const dm = rooms.find((room) => room.id === 'dm-with-participants')!;
     dm.members.find((member) => member.id === 'teal')!.isBot = true;
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/dm-with-participants"]')!;
-    expect(row.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent).toBe('Teal');
+    expect(
+      row.querySelector('[data-testid="bot-badge"]')?.previousElementSibling?.textContent
+    ).toBe('Teal');
   });
 
   it('renders active-call DM rows with the pulse icon and participant avatars', async () => {
@@ -774,7 +781,9 @@ describe('RoomList', () => {
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
-    expect(dmRow?.querySelector('[data-testid="room-call-participants"] [data-testid="bot-badge"]')).toBeNull();
+    expect(
+      dmRow?.querySelector('[data-testid="room-call-participants"] [data-testid="bot-badge"]')
+    ).toBeNull();
     expect(dmRow!.querySelector('[data-testid="room-call-participants"]')?.nextElementSibling).toBe(
       icon
     );
@@ -947,9 +956,24 @@ describe('RoomList', () => {
 
   it('expands groups independently and omits the control for joined-only groups', async () => {
     mocks.store.navigation.roomGroups = [
-      { id: 'discovery-first', name: 'Projects', viewerCanManageGroup: false, roomIds: ['joinable-channel'] },
-      { id: 'discovery-second', name: 'Gaming', viewerCanManageGroup: false, roomIds: ['restricted-channel'] },
-      { id: 'discovery-joined', name: 'Joined', viewerCanManageGroup: false, roomIds: ['channel-1'] }
+      {
+        id: 'discovery-first',
+        name: 'Projects',
+        viewerCanManageGroup: false,
+        roomIds: ['joinable-channel']
+      },
+      {
+        id: 'discovery-second',
+        name: 'Gaming',
+        viewerCanManageGroup: false,
+        roomIds: ['restricted-channel']
+      },
+      {
+        id: 'discovery-joined',
+        name: 'Joined',
+        viewerCanManageGroup: false,
+        roomIds: ['channel-1']
+      }
     ];
     const { container } = render(RoomList);
     const sections = container.querySelectorAll('[data-testid="room-group-section"]');
@@ -959,15 +983,24 @@ describe('RoomList', () => {
     first?.click();
     await expect.element(first).toHaveAttribute('aria-expanded', 'true');
     await expect.element(second).toHaveAttribute('aria-expanded', 'false');
-    await expect.poll(() => container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull();
+    await expect
+      .poll(() => container.querySelector('[href="/chat/-/joinable-channel"]'))
+      .not.toBeNull();
     expect(container.querySelector('[href="/chat/-/restricted-channel"]')).toBeNull();
     second?.click();
-    await expect.poll(() => container.querySelector('[href="/chat/-/restricted-channel"]')).not.toBeNull();
+    await expect
+      .poll(() => container.querySelector('[href="/chat/-/restricted-channel"]'))
+      .not.toBeNull();
   });
 
   it('hides a single unjoined room behind the disclosure', async () => {
     mocks.store.navigation.roomGroups = [
-      { id: 'single', name: 'Projects', viewerCanManageGroup: false, roomIds: ['channel-1', 'joinable-channel'] }
+      {
+        id: 'single',
+        name: 'Projects',
+        viewerCanManageGroup: false,
+        roomIds: ['channel-1', 'joinable-channel']
+      }
     ];
     const { container } = render(RoomList);
     expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
@@ -975,7 +1008,9 @@ describe('RoomList', () => {
     await expect.element(more).toHaveTextContent('1 more');
     more?.click();
     await expect.element(more).toHaveAttribute('aria-expanded', 'true');
-    await expect.poll(() => container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull();
+    await expect
+      .poll(() => container.querySelector('[href="/chat/-/joinable-channel"]'))
+      .not.toBeNull();
   });
 
   it('keeps the current unjoined room visible and hides the remaining room', async () => {
@@ -983,7 +1018,9 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     await expect.element(q(container, '[href="/chat/-/joinable-channel"]')).toBeInTheDocument();
     expect(container.querySelector('[href="/chat/-/restricted-channel"]')).toBeNull();
-    await expect.element(q(container, '[data-testid="room-group-more"]')).toHaveTextContent('1 more');
+    await expect
+      .element(q(container, '[data-testid="room-group-more"]'))
+      .toHaveTextContent('1 more');
   });
 
   it('lets faded joinable non-member channel rows navigate to the room route', async () => {
@@ -1645,59 +1682,65 @@ describe('RoomList', () => {
     { name: 'without reorder permission', canReorderGroups: false, supportsMoves: true },
     { name: 'without relative moves', canReorderGroups: true, supportsMoves: false },
     { name: 'with reorder permission', canReorderGroups: true, supportsMoves: true }
-  ])('keeps a room group indicator visible $name', async ({ name, canReorderGroups, supportsMoves }) => {
-    mocks.store.serverInfo.supportsFeature.mockReturnValue(supportsMoves);
-    mocks.store.navigation.roomGroups = [
-      {
-        id: `indicator-${name}`,
-        name: 'Projects',
-        viewerCanManageGroup: canReorderGroups,
-        viewerCanCreateRoom: canReorderGroups,
-        roomIds: ['channel-1']
-      }
-    ];
+  ])(
+    'keeps a room group indicator visible $name',
+    async ({ name, canReorderGroups, supportsMoves }) => {
+      mocks.store.serverInfo.supportsFeature.mockReturnValue(supportsMoves);
+      mocks.store.navigation.roomGroups = [
+        {
+          id: `indicator-${name}`,
+          name: 'Projects',
+          viewerCanManageGroup: canReorderGroups,
+          viewerCanCreateRoom: canReorderGroups,
+          roomIds: ['channel-1']
+        }
+      ];
 
-    const { container, getByRole } = render(RoomList, { props: { canReorderGroups } });
-    const heading = getByRole('button', { name: 'Projects', exact: true });
-    const icon = q(container, '[data-testid="room-group-disclosure-icon"]')!;
-    const handle = q(container, '[data-testid="room-group-drag-handle"]');
-    const hasOverlay = canReorderGroups && supportsMoves;
+      const { container, getByRole } = render(RoomList, { props: { canReorderGroups } });
+      const heading = getByRole('button', { name: 'Projects', exact: true });
+      const icon = q(container, '[data-testid="room-group-disclosure-icon"]')!;
+      const handle = q(container, '[data-testid="room-group-drag-handle"]');
+      const hasOverlay = canReorderGroups && supportsMoves;
 
-    expect(Boolean(handle)).toBe(hasOverlay);
-    await userEvent.unhover(heading);
-    await expect.poll(() => getComputedStyle(icon).opacity).toBe('1');
-    // Wait for the header's hover transition before sampling its resting colour.
-    await Promise.all(
-      heading.element().parentElement!.getAnimations({ subtree: true }).map((animation) => animation.finished)
-    );
-    const mutedColour = getComputedStyle(heading.element()).color;
-
-    for (const expanded of [true, false]) {
-      await expect.element(heading).toHaveAttribute('aria-expanded', String(expanded));
-      await userEvent.hover(heading);
-      await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
-      await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
-      if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
-
+      expect(Boolean(handle)).toBe(hasOverlay);
       await userEvent.unhover(heading);
-      heading.element().focus();
-      await userEvent.tab();
-      await userEvent.tab({ shift: true });
+      await expect.poll(() => getComputedStyle(icon).opacity).toBe('1');
+      // Wait for the header's hover transition before sampling its resting colour.
+      await Promise.all(
+        heading
+          .element()
+          .parentElement!.getAnimations({ subtree: true })
+          .map((animation) => animation.finished)
+      );
+      const mutedColour = getComputedStyle(heading.element()).color;
+
+      for (const expanded of [true, false]) {
+        await expect.element(heading).toHaveAttribute('aria-expanded', String(expanded));
+        await userEvent.hover(heading);
+        await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
+        await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
+        if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
+
+        await userEvent.unhover(heading);
+        heading.element().focus();
+        await userEvent.tab();
+        await userEvent.tab({ shift: true });
+        await expect.element(heading).toHaveFocus();
+        await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
+        await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
+        if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
+
+        await userEvent.keyboard(' ');
+        await expect.element(heading).toHaveAttribute('aria-expanded', String(!expanded));
+        heading.element().blur();
+      }
+
+      await userEvent.click(heading);
+      await userEvent.unhover(heading);
       await expect.element(heading).toHaveFocus();
-      await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
-      await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
-      if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
-
-      await userEvent.keyboard(' ');
-      await expect.element(heading).toHaveAttribute('aria-expanded', String(!expanded));
-      heading.element().blur();
+      await expect.poll(() => getComputedStyle(heading.element()).color).toBe(mutedColour);
     }
-
-    await userEvent.click(heading);
-    await userEvent.unhover(heading);
-    await expect.element(heading).toHaveFocus();
-    await expect.poll(() => getComputedStyle(heading.element()).color).toBe(mutedColour);
-  });
+  );
 
   it('shows permission-gated drag and creation controls without room or group menu buttons', async () => {
     const channel = mocks.store.navigation.rooms.find(

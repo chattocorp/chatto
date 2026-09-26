@@ -40,9 +40,7 @@ describe('ChatSearchInput', () => {
 
   it('focuses on mount and exposes its disabled state', async () => {
     const focused = render(ChatSearchInputTestHarness, { props: { focusOnMount: true } });
-    await expect
-      .element(focused.getByRole('searchbox', { name: 'Search messages' }))
-      .toHaveFocus();
+    await expect.element(focused.getByRole('searchbox', { name: 'Search messages' })).toHaveFocus();
     await expect.element(focused.getByTestId('mount-focus-count')).toHaveTextContent('1');
     focused.unmount();
 

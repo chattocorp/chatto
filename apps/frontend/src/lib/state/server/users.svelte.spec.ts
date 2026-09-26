@@ -7,10 +7,11 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { RoomMembersStore } from '../room/members.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 
-const member = (id: string, name = id) => new DirectoryMember({
-  user: { id, login: id, displayName: name, avatarUrl: '/avatar', bot: { ownerUserId: 'owner' } },
-  roles: ['everyone']
-});
+const member = (id: string, name = id) =>
+  new DirectoryMember({
+    user: { id, login: id, displayName: name, avatarUrl: '/avatar', bot: { ownerUserId: 'owner' } },
+    roles: ['everyone']
+  });
 
 beforeEach(resetUserStoresForTests);
 
@@ -20,7 +21,9 @@ describe('connection user store', () => {
     profiles.set('first', member('first'));
     profiles.set('second', member('second'));
     const room = new RoomMembersStore({
-      serverId: 'server', queryScope: 'session', getAPI: () => ({})
+      serverId: 'server',
+      queryScope: 'session',
+      getAPI: () => ({})
     } as unknown as ServerConnection);
     room.members = [...profiles.values()].map(mapDirectoryMember);
     profiles.invalidate('first');
@@ -34,7 +37,12 @@ describe('connection user store', () => {
     const store = getUserStore('server', 'session');
     const projection = new ServerProjectionStore(store);
     let finish!: (users: DirectoryMember[]) => void;
-    const read = vi.fn(() => new Promise<DirectoryMember[]>((resolve) => { finish = resolve; }));
+    const read = vi.fn(
+      () =>
+        new Promise<DirectoryMember[]>((resolve) => {
+          finish = resolve;
+        })
+    );
     const roomRead = store.resolve(['bot'], read);
     const timelineRead = vi.fn();
     const authorRead = store.resolve(['bot'], timelineRead);
@@ -58,12 +66,22 @@ describe('connection user store', () => {
   it('fences detail reads after newer profiles, deletion, and reset', async () => {
     const store = new UserStore();
     let finish!: (members: DirectoryMember[]) => void;
-    const pending = store.readSnapshot(() => new Promise((resolve) => { finish = resolve; }));
+    const pending = store.readSnapshot(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
     store.set('updated', member('updated', 'New'));
     store.delete('deleted');
     finish([member('updated', 'Old'), member('deleted')]);
     expect((await pending).map((entry) => entry.user?.displayName)).toEqual(['New']);
-    const old = store.readSnapshot(() => new Promise((resolve) => { finish = resolve; }));
+    const old = store.readSnapshot(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
     store.clear();
     finish([member('late')]);
     await expect(old).rejects.toThrow('Response discarded');
@@ -96,9 +114,15 @@ describe('connection user store', () => {
     try {
       const store = new UserStore();
       const profile = member('id');
-      profile.user!.customStatus = new DirectoryMember({ user: { customStatus: {
-        emoji: '☕', text: 'Away', expiresAt: Timestamp.fromDate(new Date(Date.now() + 1000))
-      } } }).user!.customStatus;
+      profile.user!.customStatus = new DirectoryMember({
+        user: {
+          customStatus: {
+            emoji: '☕',
+            text: 'Away',
+            expiresAt: Timestamp.fromDate(new Date(Date.now() + 1000))
+          }
+        }
+      }).user!.customStatus;
       store.set('id', profile);
       await vi.advanceTimersByTimeAsync(1000);
       expect(store.get('id')?.user?.customStatus).toBeUndefined();
@@ -106,6 +130,8 @@ describe('connection user store', () => {
       store.clear();
       await vi.runAllTimersAsync();
       expect(store.size).toBe(0);
-    } finally { vi.useRealTimers(); }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

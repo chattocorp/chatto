@@ -174,7 +174,10 @@ and optional incremental loading.
         </tr>
       {:else}
         <tr>
-          <td colspan={columns} class={empty || loading ? 'p-0' : 'px-4 py-8 text-center text-muted'}>
+          <td
+            colspan={columns}
+            class={empty || loading ? 'p-0' : 'px-4 py-8 text-center text-muted'}
+          >
             {#if loading}
               <LoadingFog class="m-4 h-32" />
             {:else if empty}

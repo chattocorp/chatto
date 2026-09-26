@@ -87,7 +87,9 @@ describe('Neighbor management page', () => {
 
   it('renders each Neighbor with its public server profile', async () => {
     const png = Uint8Array.from(
-      atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='),
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='
+      ),
       (character) => character.charCodeAt(0)
     );
     const imageFetch = vi.fn(

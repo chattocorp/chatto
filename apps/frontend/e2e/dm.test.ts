@@ -25,7 +25,11 @@ import { TIMEOUTS } from './constants';
 
 test.describe('Direct Messages (room-shaped)', () => {
   test('Send message navigates before creating a hidden DM and delivers its first message', async ({
-    page, chatPage, roomPage, browser, serverURL
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
   }) => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -33,49 +37,55 @@ test.describe('Direct Messages (room-shaped)', () => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
 
-    await withServerUser(browser, serverURL, async ({ page: peer, user: userB, chatPage: peerChat, roomPage: peerRoom }) => {
-      await peerChat.enterRoom('general');
-      const greeting = `DM context target ${Date.now()}`;
-      await peerRoom.sendMessage(greeting);
-      await roomPage.expectMessageVisible(greeting);
-      let release!: () => void;
-      const gate = new Promise<void>((resolve) => { release = resolve; });
-      let requestedAt = '';
-      await page.route('**/chatto.api.v1.RoomService/StartDM', async (route) => {
-        requestedAt = new URL(page.url()).pathname;
-        await gate;
-        await route.continue();
-      });
-      try {
-        const article = page.getByRole('article').filter({ hasText: greeting });
-        await article.locator('button').first().click({ button: 'right' });
-        const profile = page.getByRole('dialog', { name: 'User profile' });
-        await expect(profile).toBeVisible();
-        expect(requestedAt).toBe('');
-        await profile.getByRole('button', { name: 'Send Message', exact: true }).click();
-        await expect(page).toHaveURL(new RegExp(`/chat/-/dm/${userB.id}$`));
-        await expect.poll(() => requestedAt).toBe(`/chat/-/dm/${userB.id}`);
-        await expect(page.getByRole('status', { name: 'Loading...', exact: true })).toBeVisible();
-      } finally {
-        release();
+    await withServerUser(
+      browser,
+      serverURL,
+      async ({ page: peer, user: userB, chatPage: peerChat, roomPage: peerRoom }) => {
+        await peerChat.enterRoom('general');
+        const greeting = `DM context target ${Date.now()}`;
+        await peerRoom.sendMessage(greeting);
+        await roomPage.expectMessageVisible(greeting);
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        let requestedAt = '';
+        await page.route('**/chatto.api.v1.RoomService/StartDM', async (route) => {
+          requestedAt = new URL(page.url()).pathname;
+          await gate;
+          await route.continue();
+        });
+        try {
+          const article = page.getByRole('article').filter({ hasText: greeting });
+          await article.locator('button').first().click({ button: 'right' });
+          const profile = page.getByRole('dialog', { name: 'User profile' });
+          await expect(profile).toBeVisible();
+          expect(requestedAt).toBe('');
+          await profile.getByRole('button', { name: 'Send Message', exact: true }).click();
+          await expect(page).toHaveURL(new RegExp(`/chat/-/dm/${userB.id}$`));
+          await expect.poll(() => requestedAt).toBe(`/chat/-/dm/${userB.id}`);
+          await expect(page.getByRole('status', { name: 'Loading...', exact: true })).toBeVisible();
+        } finally {
+          release();
+        }
+        await expect(roomPage.messageInput).toBeVisible();
+        await page.waitForURL(routes.patterns.anyRoom);
+        const canonicalURL = page.url();
+        await new DMPage(page).expectConversationNotVisible(userB.displayName);
+        await new DMPage(peer).expectConversationNotVisible(userA.displayName);
+        const body = `First context DM ${Date.now()}`;
+        await roomPage.sendMessage(body);
+        await new DMPage(page).expectConversationVisible(userB.displayName);
+        await new DMPage(peer).expectConversationVisible(userA.displayName);
+        const recipientRoom = await new DMPage(peer).openConversation(userA.displayName);
+        await recipientRoom.expectMessageVisible(body);
+        await expect(page).toHaveURL(canonicalURL);
+        await page.reload();
+        await expect(roomPage.messageInput).toBeVisible();
+        await expect(page).toHaveURL(canonicalURL);
+        expect(errors).toEqual([]);
       }
-      await expect(roomPage.messageInput).toBeVisible();
-      await page.waitForURL(routes.patterns.anyRoom);
-      const canonicalURL = page.url();
-      await new DMPage(page).expectConversationNotVisible(userB.displayName);
-      await new DMPage(peer).expectConversationNotVisible(userA.displayName);
-      const body = `First context DM ${Date.now()}`;
-      await roomPage.sendMessage(body);
-      await new DMPage(page).expectConversationVisible(userB.displayName);
-      await new DMPage(peer).expectConversationVisible(userA.displayName);
-      const recipientRoom = await new DMPage(peer).openConversation(userA.displayName);
-      await recipientRoom.expectMessageVisible(body);
-      await expect(page).toHaveURL(canonicalURL);
-      await page.reload();
-      await expect(roomPage.messageInput).toBeVisible();
-      await expect(page).toHaveURL(canonicalURL);
-      expect(errors).toEqual([]);
-    });
+    );
   });
 
   test('an empty DM stays hidden until its first attachment-only message', async ({

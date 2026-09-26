@@ -119,7 +119,7 @@ For the 0.5 upgrade only, a dedicated same-origin route migrates the typed cooki
 
 ### 6. Parallel bearer and cookie presentation
 
-**Decision:** Bearer tokens are a *parallel* presentation path rather than a replacement for cookies. The auth middleware checks the `Authorization` header first and falls back to the cookie; both paths validate typed runtime credentials from `RUNTIME_STATE` and inject the same normalized request credential shape: presentation kind, user ID, and opaque handle.
+**Decision:** Bearer tokens are a _parallel_ presentation path rather than a replacement for cookies. The auth middleware checks the `Authorization` header first and falls back to the cookie; both paths validate typed runtime credentials from `RUNTIME_STATE` and inject the same normalized request credential shape: presentation kind, user ID, and opaque handle.
 **Why:** The embedded SPA keeps the safer same-origin cookie path, while multi-instance frontends and CLI tools can authenticate across origins. Both presentation shapes coexist while sharing runtime credential semantics.
 **Tradeoff:** The HTTP edge still has to understand both bearer and cookie presentation.
 

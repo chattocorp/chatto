@@ -139,10 +139,7 @@ describe('EmojiPicker', () => {
     });
 
     it('hydrates from localStorage on mount', () => {
-      localStorage.setItem(
-        `chatto:i:${TEST_SERVER_ID}:recentEmojis`,
-        JSON.stringify(['🚀', '🔥'])
-      );
+      localStorage.setItem(`chatto:i:${TEST_SERVER_ID}:recentEmojis`, JSON.stringify(['🚀', '🔥']));
       const { container } = renderPicker();
       expect(container.textContent).toContain('Recently Used');
       const firstGrid = container.querySelector('.grid') as HTMLElement;
@@ -192,22 +189,24 @@ describe('EmojiPicker', () => {
 });
 
 afterEach(async () => {
-	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
-	await page.viewport(1280, 720);
+  await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await page.viewport(1280, 720);
 });
 
 it.each([false, true])('sizes emoji targets by touch capability, with touch=%s', async (touch) => {
-	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-	const { container } = render(EmojiPicker, {
-		serverId: 'input-presentation-test', onSelect: () => {}, onClose: () => {}
-	});
-	const picker = container.firstElementChild as HTMLElement;
-	for (const width of [320, 390, 1024]) {
-		await page.viewport(width, 800);
-		const button = container.querySelector('button')!;
-		expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(touch ? 44 : 32);
-		expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(touch ? 44 : 30);
-		expect(picker.scrollWidth).toBeLessThanOrEqual(picker.clientWidth);
-		expect(picker.getBoundingClientRect().width).toBeLessThanOrEqual(width);
-	}
+  await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+  const { container } = render(EmojiPicker, {
+    serverId: 'input-presentation-test',
+    onSelect: () => {},
+    onClose: () => {}
+  });
+  const picker = container.firstElementChild as HTMLElement;
+  for (const width of [320, 390, 1024]) {
+    await page.viewport(width, 800);
+    const button = container.querySelector('button')!;
+    expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(touch ? 44 : 32);
+    expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(touch ? 44 : 30);
+    expect(picker.scrollWidth).toBeLessThanOrEqual(picker.clientWidth);
+    expect(picker.getBoundingClientRect().width).toBeLessThanOrEqual(width);
+  }
 });

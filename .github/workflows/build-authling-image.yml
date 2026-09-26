@@ -3,27 +3,27 @@ name: build Authling image
 on:
   pull_request:
     paths:
-      - "authling/**"
-      - "pkg/**"
-      - "go.work*"
-      - "cli/go.mod"
-      - "cli/go.sum"
-      - "LICENSE"
-      - "NOTICE"
-      - ".github/workflows/build-authling-image.yml"
+      - 'authling/**'
+      - 'pkg/**'
+      - 'go.work*'
+      - 'cli/go.mod'
+      - 'cli/go.sum'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '.github/workflows/build-authling-image.yml'
   push:
     branches: [main]
-    tags: ["authling/v*"]
+    tags: ['authling/v*']
     # GitHub does not apply path filters to tag pushes.
     paths:
-      - "authling/**"
-      - "pkg/**"
-      - "go.work*"
-      - "cli/go.mod"
-      - "cli/go.sum"
-      - "LICENSE"
-      - "NOTICE"
-      - ".github/workflows/build-authling-image.yml"
+      - 'authling/**'
+      - 'pkg/**'
+      - 'go.work*'
+      - 'cli/go.mod'
+      - 'cli/go.sum'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '.github/workflows/build-authling-image.yml'
   workflow_dispatch:
 
 concurrency:

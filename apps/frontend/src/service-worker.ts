@@ -29,24 +29,26 @@ const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badg
  * added to Cache Storage.
  */
 self.addEventListener('install', (event) => {
-  event.waitUntil((async () => {
-    if (!ownsAppShell) {
-      await self.skipWaiting();
-      return;
-    }
-    const cache = await caches.open(SHELL_CACHE);
-    await cache.addAll([...build, OFFLINE_DOCUMENT]);
-    let bytes = 0;
-    for (const request of await cache.keys()) {
-      const response = await cache.match(request);
-      bytes += (await response?.arrayBuffer())?.byteLength ?? 0;
-      if (bytes > MAX_SHELL_BYTES) {
-        await caches.delete(SHELL_CACHE);
-        throw new Error('Offline application shell exceeds its storage budget');
+  event.waitUntil(
+    (async () => {
+      if (!ownsAppShell) {
+        await self.skipWaiting();
+        return;
       }
-    }
-    await self.skipWaiting();
-  })());
+      const cache = await caches.open(SHELL_CACHE);
+      await cache.addAll([...build, OFFLINE_DOCUMENT]);
+      let bytes = 0;
+      for (const request of await cache.keys()) {
+        const response = await cache.match(request);
+        bytes += (await response?.arrayBuffer())?.byteLength ?? 0;
+        if (bytes > MAX_SHELL_BYTES) {
+          await caches.delete(SHELL_CACHE);
+          throw new Error('Offline application shell exceeds its storage budget');
+        }
+      }
+      await self.skipWaiting();
+    })()
+  );
 });
 
 /**
@@ -83,19 +85,26 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (shellAssets.has(url.pathname)) {
-    event.respondWith((async () => {
-      const cached = await (await caches.open(SHELL_CACHE)).match(request);
-      return cached ?? fetch(request);
-    })());
+    event.respondWith(
+      (async () => {
+        const cached = await (await caches.open(SHELL_CACHE)).match(request);
+        return cached ?? fetch(request);
+      })()
+    );
     return;
   }
-  const appNavigation = url.pathname === '/' || url.pathname === '/login' ||
-    url.pathname === '/chat' || url.pathname.startsWith('/chat/');
+  const appNavigation =
+    url.pathname === '/' ||
+    url.pathname === '/login' ||
+    url.pathname === '/chat' ||
+    url.pathname.startsWith('/chat/');
   if (request.mode === 'navigate' && appNavigation) {
-    event.respondWith((async () => {
-      const cached = await (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
-      return cached ?? fetch(request);
-    })());
+    event.respondWith(
+      (async () => {
+        const cached = await (await caches.open(SHELL_CACHE)).match(OFFLINE_DOCUMENT);
+        return cached ?? fetch(request);
+      })()
+    );
   }
 });
 

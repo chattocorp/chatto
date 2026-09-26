@@ -57,7 +57,7 @@ spec:
               port: 4000
             initialDelaySeconds: 5
             periodSeconds: 2
-            failureThreshold: 15  # 5s + (15 * 2s) = 35s max startup time
+            failureThreshold: 15 # 5s + (15 * 2s) = 35s max startup time
           readinessProbe:
             httpGet:
               path: /readyz

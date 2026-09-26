@@ -27,9 +27,15 @@ export function provideUserProfiles(users: () => UserStore | undefined = () => u
 
 function readProfile(userId: string): ProfileView | undefined {
   const store = getUsers()();
-  if (store?.isDeleted(userId)) return {
-    displayName: '', login: '', avatarUrl: null, customStatus: null, bio: null, timezone: null
-  };
+  if (store?.isDeleted(userId))
+    return {
+      displayName: '',
+      login: '',
+      avatarUrl: null,
+      customStatus: null,
+      bio: null,
+      timezone: null
+    };
   const user = store?.get(userId)?.user;
   return user ? { ...mapUserSummary(user), ...mapUserPresenceView(user) } : undefined;
 }

@@ -26,7 +26,10 @@ function renderDrawer() {
   const view = renderChrome();
   render(ServerSidebar, {
     target: q(view.container, '[data-testid="sidebar-child"]')!,
-    props: { children: testSnippet('<input aria-label="Navigation filter" value="Keep this filter">'), showCurrentUserBar: false }
+    props: {
+      children: testSnippet('<input aria-label="Navigation filter" value="Keep this filter">'),
+      showCurrentUserBar: false
+    }
   });
   return {
     ...view,
@@ -54,7 +57,9 @@ describe('MobileSidebarChrome', () => {
     await page.viewport(1280, 720);
   });
 
-  it.each([false, true].flatMap(touch => ['ltr', 'rtl'].map(direction => [touch, direction] as const)))('moves both columns together during dragging with touch=%s in %s', async (touch, direction) => {
+  it.each(
+    [false, true].flatMap((touch) => ['ltr', 'rtl'].map((direction) => [touch, direction] as const))
+  )('moves both columns together during dragging with touch=%s in %s', async (touch, direction) => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
     document.documentElement.dir = direction;
     const { panels, field } = renderDrawer();
@@ -75,59 +80,67 @@ describe('MobileSidebarChrome', () => {
     expect(document.activeElement).toBe(field);
     sidebarNav.close();
     flushSync();
-    expect(panels.every(panel => panel.inert)).toBe(true);
+    expect(panels.every((panel) => panel.inert)).toBe(true);
     field.blur();
     field.focus();
     expect(document.activeElement).not.toBe(field);
     await expect.poll(() => getComputedStyle(panels[1]).visibility).toBe('hidden');
   });
 
-  it.each([false, true])('skips motion and delayed visibility with reduced motion and touch=%s', async (touch) => {
-    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-    await cdp().send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-    expect(matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
-    const { panels } = renderDrawer();
-    for (const open of [true, false, true, false]) {
-      if (open) sidebarNav.toggle();
-      else sidebarNav.close();
-      flushSync();
-      for (const panel of panels) {
-        expect(getComputedStyle(panel).visibility).toBe(open ? 'visible' : 'hidden');
-        expect(translation(panel)).toBe(open ? 0 : touch ? -390 : -300);
-        expect(panel.getAnimations()).toHaveLength(0);
+  it.each([false, true])(
+    'skips motion and delayed visibility with reduced motion and touch=%s',
+    async (touch) => {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+      await cdp().send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-reduced-motion', value: 'reduce' }]
+      });
+      expect(matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
+      const { panels } = renderDrawer();
+      for (const open of [true, false, true, false]) {
+        if (open) sidebarNav.toggle();
+        else sidebarNav.close();
+        flushSync();
+        for (const panel of panels) {
+          expect(getComputedStyle(panel).visibility).toBe(open ? 'visible' : 'hidden');
+          expect(translation(panel)).toBe(open ? 0 : touch ? -390 : -300);
+          expect(panel.getAnimations()).toHaveLength(0);
+        }
       }
     }
-  });
+  );
 
-  it.each([false, true])('reverses an unfinished close without replacing content with touch=%s', async (touch) => {
-    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-    const { panels, field } = renderDrawer();
-    sidebarNav.toggle();
-    flushSync();
-    await expect.poll(() => translation(panels[1])).toBe(0);
-    sidebarNav.close();
-    flushSync();
-    // Seek real CSS transitions rather than relying on wall-clock sleeps.
-    for (const panel of panels) {
-      const animations = panel.getAnimations();
-      expect(animations.length).toBeGreaterThan(0);
-      for (const animation of animations) {
-        animation.pause();
-        animation.currentTime = 80;
+  it.each([false, true])(
+    'reverses an unfinished close without replacing content with touch=%s',
+    async (touch) => {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+      const { panels, field } = renderDrawer();
+      sidebarNav.toggle();
+      flushSync();
+      await expect.poll(() => translation(panels[1])).toBe(0);
+      sidebarNav.close();
+      flushSync();
+      // Seek real CSS transitions rather than relying on wall-clock sleeps.
+      for (const panel of panels) {
+        const animations = panel.getAnimations();
+        expect(animations.length).toBeGreaterThan(0);
+        for (const animation of animations) {
+          animation.pause();
+          animation.currentTime = 80;
+        }
       }
+      const before = translation(panels[1]);
+      expect(before).toBeLessThan(0);
+      expect(before).toBeGreaterThan(touch ? -390 : -300);
+      sidebarNav.toggle();
+      flushSync();
+      expect(getComputedStyle(panels[1]).visibility).toBe('visible');
+      await expect.poll(() => translation(panels[1])).toBe(0);
+      expect(field.isConnected).toBe(true);
+      expect(field.value).toBe('Keep this filter');
+      field.focus();
+      expect(document.activeElement).toBe(field);
     }
-    const before = translation(panels[1]);
-    expect(before).toBeLessThan(0);
-    expect(before).toBeGreaterThan(touch ? -390 : -300);
-    sidebarNav.toggle();
-    flushSync();
-    expect(getComputedStyle(panels[1]).visibility).toBe('visible');
-    await expect.poll(() => translation(panels[1])).toBe(0);
-    expect(field.isConnected).toBe(true);
-    expect(field.value).toBe('Keep this filter');
-    field.focus();
-    expect(document.activeElement).toBe(field);
-  });
+  );
 
   it('preserves an active drag through capability changes and cancels it at the pane breakpoint', async () => {
     const stopTracking = sidebarNav.initViewportTracking();
@@ -158,40 +171,51 @@ describe('MobileSidebarChrome', () => {
     }
   });
 
-  it.each(['ltr', 'rtl'])('fills the mobile viewport and follows resizing in %s', async (direction) => {
-    document.documentElement.dir = direction;
-    await page.viewport(390, 844);
-    const { container } = renderChrome();
-    const { container: navigation } = render(ServerSidebar, {
-      target: q(container, '[data-testid="sidebar-child"]')!,
-      props: { children: testSnippet('<nav>Navigation</nav>'), showCurrentUserBar: false }
-    });
-    sidebarNav.toggle();
-    flushSync();
-    const gutter = q(container, '[data-testid="mobile-sidebar-panel"]')!;
-    const pane = q(navigation, '[data-testid="server-sidebar"]')!;
-    // Disable transitions so assertions measure the settled drawer geometry.
-    gutter.style.transition = 'none';
-    pane.style.transition = 'none';
-    try {
-      for (const width of [390, 320, 767]) {
-        await page.viewport(width, 844);
-        await expect.poll(() => sidebarNav.panelWidth).toBe(width);
-        expect(gutter.getBoundingClientRect().width + pane.getBoundingClientRect().width).toBe(width);
-        expect(Math.min(gutter.getBoundingClientRect().left, pane.getBoundingClientRect().left)).toBe(0);
-        expect(Math.max(gutter.getBoundingClientRect().right, pane.getBoundingClientRect().right)).toBe(width);
-      }
-      sidebarNav.close();
+  it.each(['ltr', 'rtl'])(
+    'fills the mobile viewport and follows resizing in %s',
+    async (direction) => {
+      document.documentElement.dir = direction;
+      await page.viewport(390, 844);
+      const { container } = renderChrome();
+      const { container: navigation } = render(ServerSidebar, {
+        target: q(container, '[data-testid="sidebar-child"]')!,
+        props: { children: testSnippet('<nav>Navigation</nav>'), showCurrentUserBar: false }
+      });
+      sidebarNav.toggle();
       flushSync();
-      // Mouse drawers fade after a short slide rather than crossing the full window.
-      expect(getComputedStyle(pane).opacity).toBe('0');
-      expect(getComputedStyle(pane).transform).toBe(`matrix(1, 0, 0, 1, ${direction === 'ltr' ? -300 : 300}, 0)`);
-      await expect.poll(() => getComputedStyle(pane).visibility).toBe('hidden');
-    } finally {
-      document.documentElement.dir = 'ltr';
-      await page.viewport(1280, 720);
+      const gutter = q(container, '[data-testid="mobile-sidebar-panel"]')!;
+      const pane = q(navigation, '[data-testid="server-sidebar"]')!;
+      // Disable transitions so assertions measure the settled drawer geometry.
+      gutter.style.transition = 'none';
+      pane.style.transition = 'none';
+      try {
+        for (const width of [390, 320, 767]) {
+          await page.viewport(width, 844);
+          await expect.poll(() => sidebarNav.panelWidth).toBe(width);
+          expect(gutter.getBoundingClientRect().width + pane.getBoundingClientRect().width).toBe(
+            width
+          );
+          expect(
+            Math.min(gutter.getBoundingClientRect().left, pane.getBoundingClientRect().left)
+          ).toBe(0);
+          expect(
+            Math.max(gutter.getBoundingClientRect().right, pane.getBoundingClientRect().right)
+          ).toBe(width);
+        }
+        sidebarNav.close();
+        flushSync();
+        // Mouse drawers fade after a short slide rather than crossing the full window.
+        expect(getComputedStyle(pane).opacity).toBe('0');
+        expect(getComputedStyle(pane).transform).toBe(
+          `matrix(1, 0, 0, 1, ${direction === 'ltr' ? -300 : 300}, 0)`
+        );
+        await expect.poll(() => getComputedStyle(pane).visibility).toBe('hidden');
+      } finally {
+        document.documentElement.dir = 'ltr';
+        await page.viewport(1280, 720);
+      }
     }
-  });
+  );
 
   it('renders the gutter panel and children in the sidebar row', () => {
     const { container } = renderChrome();

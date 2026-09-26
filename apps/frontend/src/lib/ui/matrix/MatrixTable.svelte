@@ -20,7 +20,8 @@ provide all domain labels and cell content with snippets.
   // Use the containing pane's width, including narrow desktop panes.
   const stacked = $derived(availableWidth > 0 && availableWidth < 640);
   const rowId = (row: TRow) => `${matrixId}-row-${encodeURIComponent(getRowKey(row))}`;
-  const columnId = (column: TColumn) => `${matrixId}-column-${encodeURIComponent(getColumnKey(column))}`;
+  const columnId = (column: TColumn) =>
+    `${matrixId}-column-${encodeURIComponent(getColumnKey(column))}`;
 
   // Defer resize-driven layout changes to avoid feeding a new row height back
   // into the same ResizeObserver delivery cycle.
@@ -29,10 +30,15 @@ provide all domain labels and cell content with snippets.
     availableWidth = element.clientWidth;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => { availableWidth = element.clientWidth; });
+      frame = requestAnimationFrame(() => {
+        availableWidth = element.clientWidth;
+      });
     });
     observer.observe(element);
-    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   };
 
   let {
@@ -148,8 +154,12 @@ provide all domain labels and cell content with snippets.
   function pointerInsideHover(event: MouseEvent): boolean {
     if (!hoveredElement?.isConnected) return false;
     const bounds = hoveredElement.getBoundingClientRect();
-    return event.clientX >= bounds.left && event.clientX < bounds.right &&
-      event.clientY >= bounds.top && event.clientY < bounds.bottom;
+    return (
+      event.clientX >= bounds.left &&
+      event.clientX < bounds.right &&
+      event.clientY >= bounds.top &&
+      event.clientY < bounds.bottom
+    );
   }
 
   function clearHover() {
@@ -191,121 +201,140 @@ provide all domain labels and cell content with snippets.
   }
 </script>
 
-<svelte:window onpointermove={movePointer} onfocusin={moveFocus} onblur={() => { clearHover(); clearFocus(); }} />
+<svelte:window
+  onpointermove={movePointer}
+  onfocusin={moveFocus}
+  onblur={() => {
+    clearHover();
+    clearFocus();
+  }}
+/>
 
-<div class={['flex w-full min-h-0 min-w-0 flex-col', fillHeight && 'flex-1']} {@attach measureWidth}>
-{#if stacked}<span class="sr-only">{@render leadingHeader()}</span>{/if}
-<DataTable
-  items={rows}
-  columns={columns.length + trailingColumns + (stacked ? 1 : 2)}
-  getKey={(row) => getRowKey(row)}
-  getGroupKey={groupContent ? getGroupKey : undefined}
-  {emptyMessage}
-  {loading}
-  {stickyHeader}
-  {fillHeight}
-  {stickyHeaderFadeOffset}
-  hoverable={false}
+<div
+  class={['flex min-h-0 w-full min-w-0 flex-col', fillHeight && 'flex-1']}
+  {@attach measureWidth}
 >
-  {#snippet group(row)}
-    <div class={stacked ? 'sticky start-4 whitespace-normal break-words' : ''}
-      style:width={stacked ? `${Math.max(0, availableWidth - 32)}px` : undefined}>
-      {@render groupContent?.(row)}
-    </div>
-  {/snippet}
-  {#snippet beforeRow(row)}
-    {#if stacked}
-      <tr>
-        <th id={rowId(row)} colspan={columns.length + trailingColumns + 1}
-          class="p-0 text-start font-normal bg-background">
-          <div class="sticky start-0 box-border px-3 pt-3 pb-1 whitespace-normal break-words [&_*]:whitespace-normal [&_*]:break-words"
-            style:width={`${availableWidth}px`}>
-            {@render rowHeader(row, rowHighlighted(row))}
-          </div>
-        </th>
-      </tr>
-    {/if}
-  {/snippet}
-  {#snippet header()}
-    {#if !stacked}
-    <th
-      class={[
-        'sticky start-0 z-30 bg-background text-start align-bottom font-medium',
-        compact ? 'px-3 py-2' : 'px-4 py-3'
-      ]}
-      style:width={rowHeaderWidth}
-    >
-      {@render leadingHeader()}
-    </th>
-    {/if}
-    {#each columns as column (getColumnKey(column))}
-      <th
-        id={columnId(column)}
-        scope="col"
-        class={[
-          compact
-            ? 'px-0 py-2 text-center align-bottom font-medium'
-            : 'px-0 py-3 text-center align-bottom font-medium',
-          columnHighlighted(column)
-            ? 'bg-action/10 text-action'
-            : (columnClass?.(column) ?? 'bg-background')
-        ]}
-        style="width: 2rem; min-width: 2rem"
-        style:height={columnHeaderHeight}
-        data-matrix-column={getColumnKey(column)}
-        {...columnAttributes?.(column) ?? {}}
+  {#if stacked}<span class="sr-only">{@render leadingHeader()}</span>{/if}
+  <DataTable
+    items={rows}
+    columns={columns.length + trailingColumns + (stacked ? 1 : 2)}
+    getKey={(row) => getRowKey(row)}
+    getGroupKey={groupContent ? getGroupKey : undefined}
+    {emptyMessage}
+    {loading}
+    {stickyHeader}
+    {fillHeight}
+    {stickyHeaderFadeOffset}
+    hoverable={false}
+  >
+    {#snippet group(row)}
+      <div
+        class={stacked ? 'sticky start-4 break-words whitespace-normal' : ''}
+        style:width={stacked ? `${Math.max(0, availableWidth - 32)}px` : undefined}
       >
-        <MatrixColumnHeading>
-          {@render columnHeader(column, columnHighlighted(column))}
-        </MatrixColumnHeading>
-      </th>
-    {/each}
-    {@render trailingHeader?.()}
-    <th class="w-full bg-background p-0" aria-hidden={!loadingMore} {@attach columnSentinel}>
-      {#if loadingMore}
-        <LoadingFog class="h-8 w-8" label={m('ui.data_table.loading_more')} />
+        {@render groupContent?.(row)}
+      </div>
+    {/snippet}
+    {#snippet beforeRow(row)}
+      {#if stacked}
+        <tr>
+          <th
+            id={rowId(row)}
+            colspan={columns.length + trailingColumns + 1}
+            class="bg-background p-0 text-start font-normal"
+          >
+            <div
+              class="sticky start-0 box-border px-3 pt-3 pb-1 break-words whitespace-normal [&_*]:break-words [&_*]:whitespace-normal"
+              style:width={`${availableWidth}px`}
+            >
+              {@render rowHeader(row, rowHighlighted(row))}
+            </div>
+          </th>
+        </tr>
       {/if}
-    </th>
-  {/snippet}
-  {#snippet row(row)}
-    {#if !stacked}
-    <th
-      id={rowId(row)}
-      scope="row"
-      class={[
-        'sticky start-0 z-10 text-start font-normal whitespace-nowrap',
-        compact ? 'px-3 py-0.5' : 'px-4 py-2',
-        rowHighlighted(row) ? 'bg-action/8' : 'bg-background'
-      ]}
-    >
-      {@render rowHeader(row, rowHighlighted(row))}
-    </th>
-    {/if}
-    {#each columns as column (getColumnKey(column))}
-      {@const interactive = isCellInteractive(row, column)}
-      <td
-        headers={`${rowId(row)} ${columnId(column)}`}
-        class={[
-          compact ? 'px-0 py-0.5 text-center' : 'px-0 py-2 text-center',
-          cellClass(row, column)
-        ]}
-        style="width: 2.5rem; min-width: 2.5rem"
-        data-matrix-column={getColumnKey(column)}
-        data-matrix-row={getRowKey(row)}
-        {...cellAttributes?.(row, column) ?? {}}
-        onmouseenter={interactive ? (event) => setHovered(row, column, event) : undefined}
-        onmouseleave={interactive ? leaveCell : undefined}
-        onpointerdown={interactive ? clearFocus : undefined}
-        onfocusin={interactive ? (event) => setFocused(row, column, event) : undefined}
-        onfocusout={interactive ? () => {
-          if (!focusedElement?.closest('[inert]')) clearFocus();
-        } : undefined}
-      >
-        {@render cell(row, column)}
-      </td>
-    {/each}
-    {@render trailingCell?.(row)}
-    <td class="w-full p-0" aria-hidden="true" data-testid={spacerTestId}></td>
-  {/snippet}
-</DataTable>
+    {/snippet}
+    {#snippet header()}
+      {#if !stacked}
+        <th
+          class={[
+            'sticky start-0 z-30 bg-background text-start align-bottom font-medium',
+            compact ? 'px-3 py-2' : 'px-4 py-3'
+          ]}
+          style:width={rowHeaderWidth}
+        >
+          {@render leadingHeader()}
+        </th>
+      {/if}
+      {#each columns as column (getColumnKey(column))}
+        <th
+          id={columnId(column)}
+          scope="col"
+          class={[
+            compact
+              ? 'px-0 py-2 text-center align-bottom font-medium'
+              : 'px-0 py-3 text-center align-bottom font-medium',
+            columnHighlighted(column)
+              ? 'bg-action/10 text-action'
+              : (columnClass?.(column) ?? 'bg-background')
+          ]}
+          style="width: 2rem; min-width: 2rem"
+          style:height={columnHeaderHeight}
+          data-matrix-column={getColumnKey(column)}
+          {...columnAttributes?.(column) ?? {}}
+        >
+          <MatrixColumnHeading>
+            {@render columnHeader(column, columnHighlighted(column))}
+          </MatrixColumnHeading>
+        </th>
+      {/each}
+      {@render trailingHeader?.()}
+      <th class="w-full bg-background p-0" aria-hidden={!loadingMore} {@attach columnSentinel}>
+        {#if loadingMore}
+          <LoadingFog class="h-8 w-8" label={m('ui.data_table.loading_more')} />
+        {/if}
+      </th>
+    {/snippet}
+    {#snippet row(row)}
+      {#if !stacked}
+        <th
+          id={rowId(row)}
+          scope="row"
+          class={[
+            'sticky start-0 z-10 text-start font-normal whitespace-nowrap',
+            compact ? 'px-3 py-0.5' : 'px-4 py-2',
+            rowHighlighted(row) ? 'bg-action/8' : 'bg-background'
+          ]}
+        >
+          {@render rowHeader(row, rowHighlighted(row))}
+        </th>
+      {/if}
+      {#each columns as column (getColumnKey(column))}
+        {@const interactive = isCellInteractive(row, column)}
+        <td
+          headers={`${rowId(row)} ${columnId(column)}`}
+          class={[
+            compact ? 'px-0 py-0.5 text-center' : 'px-0 py-2 text-center',
+            cellClass(row, column)
+          ]}
+          style="width: 2.5rem; min-width: 2.5rem"
+          data-matrix-column={getColumnKey(column)}
+          data-matrix-row={getRowKey(row)}
+          {...cellAttributes?.(row, column) ?? {}}
+          onmouseenter={interactive ? (event) => setHovered(row, column, event) : undefined}
+          onmouseleave={interactive ? leaveCell : undefined}
+          onpointerdown={interactive ? clearFocus : undefined}
+          onfocusin={interactive ? (event) => setFocused(row, column, event) : undefined}
+          onfocusout={interactive
+            ? () => {
+                if (!focusedElement?.closest('[inert]')) clearFocus();
+              }
+            : undefined}
+        >
+          {@render cell(row, column)}
+        </td>
+      {/each}
+      {@render trailingCell?.(row)}
+      <td class="w-full p-0" aria-hidden="true" data-testid={spacerTestId}></td>
+    {/snippet}
+  </DataTable>
 </div>

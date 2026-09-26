@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { buildVirtualItems, type VirtualItem } from './virtualItems';
 import { computeEventMetadata, type EventWithMeta } from './messageGrouping';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const utcSettings = {
