@@ -5,7 +5,7 @@ Displays a preview card for a Chatto message link (e.g. pasted in the composer
 or embedded in a posted message). The message is fetched through the appropriate
 instance's Connect timeline API; if it can't be loaded (not found, no permission,
 unknown instance) the component renders nothing. A reconnect keeps the loaded
-preview on screen; a snapshot after a long disconnect reloads it in place.
+preview on screen.
 
 **Props:**
 - `link` — Parsed MessageLink from `$lib/messageLinks`.
@@ -73,29 +73,19 @@ preview on screen; a snapshot after a long disconnect reloads it in place.
   const connection = $derived(
     store && link.serverId ? serverConnectionManager.getClient(link.serverId) : undefined
   );
-  const queryKey = $derived(
-    connection && link.serverId
-      ? messagePreviewQueryKey(link.serverId, connection, link.roomId, link.messageId)
-      : ['message-preview', 'unavailable']
-  );
 
   const previewQuery = createQuery(
     () => {
       const { serverId, roomId, messageId } = link;
-      const currentStore = store;
-      const currentConnection = connection;
+      const target = serverId && connection ? { serverId, client: connection } : null;
       return {
-        queryKey,
-        queryFn:
-          serverId && currentStore && currentConnection
-            ? ({ signal }: { signal: AbortSignal }) =>
-                fetchMessagePreview(serverId, currentConnection, {
-                  roomId,
-                  messageId,
-                  minimumCursor: currentStore.minimumReadCursor,
-                  signal
-                })
-            : skipToken,
+        queryKey: target
+          ? messagePreviewQueryKey(target.serverId, target.client, roomId, messageId)
+          : ['message-preview', 'unavailable'],
+        queryFn: target
+          ? ({ signal }: { signal: AbortSignal }) =>
+              fetchMessagePreview(target.serverId, target.client, roomId, messageId, signal)
+          : skipToken,
         // The card owns the preview: do not keep it after the card unmounts.
         gcTime: 0
       };

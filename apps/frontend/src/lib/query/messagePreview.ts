@@ -6,9 +6,6 @@ import { isMessagePostedEvent } from '$lib/render/timelineEvents';
 import type { UserAvatarUserView } from '$lib/render/users';
 import { unmask } from '$lib/state/room/messages/helpers';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { Query } from '@tanstack/svelte-query';
-import { registerMessagePreviewQueryCache } from './cacheRegistry';
-import { queryClient } from './client';
 import { serverSessionQueryRoot } from './keys';
 
 type MessagePreviewConnection = Pick<ServerConnection, 'queryScope' | 'getAPI'>;
@@ -21,8 +18,6 @@ export interface MessagePreviewAttachment {
   description: string | null;
   thumbnailAssetUrl: ExpiringAssetUrl | null;
   videoThumbnailAssetUrl: ExpiringAssetUrl | null;
-  /** The thumbnail to display: the video thumbnail for videos, else the image thumbnail. */
-  thumbnailUrl: string | null;
 }
 
 /** The linked message content that a preview card renders. */
@@ -62,45 +57,22 @@ function normalizeAssetUrl(
   return { ...value, url: assetUrlForServer(serverId, value.url) ?? value.url };
 }
 
-function withThumbnailUrls(
-  serverId: string,
-  attachment: Omit<
-    MessagePreviewAttachment,
-    'thumbnailAssetUrl' | 'videoThumbnailAssetUrl' | 'thumbnailUrl'
-  >,
-  thumbnail: ExpiringAssetUrl | null | undefined,
-  videoThumbnail: ExpiringAssetUrl | null | undefined
-): MessagePreviewAttachment {
-  const thumbnailAssetUrl = normalizeAssetUrl(serverId, thumbnail);
-  const videoThumbnailAssetUrl = normalizeAssetUrl(serverId, videoThumbnail);
-  const displayed = attachment.contentType.startsWith('video/')
-    ? (videoThumbnailAssetUrl ?? thumbnailAssetUrl)
-    : thumbnailAssetUrl;
-  return {
-    ...attachment,
-    thumbnailAssetUrl,
-    videoThumbnailAssetUrl,
-    thumbnailUrl: displayed?.url ?? null
-  };
-}
-
 /**
  * Load the preview content of a linked message.
  *
- * Pass the store's `minimumReadCursor` as `minimumCursor`, so the read includes
- * every edit and retraction that the client has already received.
  * Returns null when the message does not exist, is not a posted message, or
  * has neither a body nor attachments.
  */
 export async function fetchMessagePreview(
   serverId: string,
   connection: MessagePreviewConnection,
-  target: { roomId: string; messageId: string; minimumCursor?: string; signal?: AbortSignal }
+  roomId: string,
+  messageId: string,
+  signal?: AbortSignal
 ): Promise<MessagePreview | null> {
-  const { roomId, messageId, minimumCursor, signal } = target;
   const page = await connection
     .getAPI(createRoomTimelineAPI)
-    .getRoomEventsAround({ roomId, eventId: messageId, limit: 1, minimumCursor, signal });
+    .getRoomEventsAround({ roomId, eventId: messageId, limit: 1, signal });
   const event = unmask(page.events).find((item) => item.id === messageId);
   const inner = event?.event;
   if (!event || !isMessagePostedEvent(inner)) return null;
@@ -108,19 +80,17 @@ export async function fetchMessagePreview(
 
   return {
     body: inner.body ?? null,
-    attachments: inner.attachments.map((attachment: MessageAttachmentView) =>
-      withThumbnailUrls(
+    attachments: inner.attachments.map((attachment: MessageAttachmentView) => ({
+      id: attachment.id,
+      filename: attachment.filename,
+      contentType: attachment.contentType,
+      description: attachment.description ?? null,
+      thumbnailAssetUrl: normalizeAssetUrl(serverId, attachment.thumbnailAssetUrl),
+      videoThumbnailAssetUrl: normalizeAssetUrl(
         serverId,
-        {
-          id: attachment.id,
-          filename: attachment.filename,
-          contentType: attachment.contentType,
-          description: attachment.description ?? null
-        },
-        attachment.thumbnailAssetUrl,
         attachment.videoProcessing?.thumbnailAssetUrl
       )
-    ),
+    })),
     actor: event.actor ?? null
   };
 }
@@ -136,26 +106,11 @@ export function withRefreshedPreviewUrls(
     attachments: preview.attachments.map((attachment) => {
       const fresh = freshUrls.get(attachment.id);
       if (!fresh) return attachment;
-      return withThumbnailUrls(
-        serverId,
-        attachment,
-        fresh.thumbnailAssetUrl,
-        fresh.videoThumbnailAssetUrl
-      );
+      return {
+        ...attachment,
+        thumbnailAssetUrl: normalizeAssetUrl(serverId, fresh.thumbnailAssetUrl),
+        videoThumbnailAssetUrl: normalizeAssetUrl(serverId, fresh.videoThumbnailAssetUrl)
+      };
     })
   };
 }
-
-/** Reload every mounted preview of a server; each keeps its data while it reloads. */
-function refreshMessagePreviews(serverId: string): void {
-  const filters = {
-    predicate: (query: Query) => {
-      const key = query.queryKey;
-      return key[0] === 'server' && key[1] === serverId && key[4] === 'message-preview';
-    }
-  };
-  // Cancel reads that started before the refresh so they cannot answer it.
-  void queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
-}
-
-registerMessagePreviewQueryCache({ refresh: refreshMessagePreviews });

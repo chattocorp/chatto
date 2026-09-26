@@ -216,9 +216,6 @@ function testConnection(queryScope: string) {
   };
 }
 
-// Reactive, so a test can advance the cursor under a mounted card.
-const readCursor = $state({ value: 'cursor-1' });
-
 function testStore() {
   return {
     currentUser: {
@@ -226,15 +223,11 @@ function testStore() {
     },
     navigation: {
       rooms: [{ id: 'room_1', name: 'general' }]
-    },
-    get minimumReadCursor() {
-      return readCursor.value;
     }
   };
 }
 
 beforeEach(() => {
-  readCursor.value = 'cursor-1';
   registryState.connections.set('server_1', testConnection('session-1'));
   registryState.stores.set('server_1', testStore());
   registryState.servers.set('server_1', {
@@ -364,21 +357,7 @@ describe('MessagePreviewCard', () => {
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
   });
 
-  it('does not reload the preview when the accepted cursor advances', async () => {
-    timelineResults.push(bodyPreviewResult('Steady preview'));
-    const { container } = render(MessagePreviewCard, {
-      props: { link: link(), showDismiss: false }
-    });
-    await vi.waitFor(() => expect(container.textContent).toContain('Steady preview'));
-
-    // Every accepted realtime event advances the cursor.
-    readCursor.value = 'cursor-2';
-    await tick();
-
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('reads at the accepted realtime cursor with a cancellable request', async () => {
+  it('reads with a cancellable request', async () => {
     timelineResults.push(bodyPreviewResult('Bounded preview'));
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -389,7 +368,6 @@ describe('MessagePreviewCard', () => {
       expect.objectContaining({
         roomId: 'room_1',
         eventId: 'event_1',
-        minimumCursor: 'cursor-1',
         signal: expect.any(AbortSignal)
       })
     );
