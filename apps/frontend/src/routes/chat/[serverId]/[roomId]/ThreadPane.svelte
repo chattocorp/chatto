@@ -129,6 +129,7 @@
     />
   {/if}
   <ConversationPane
+    data-testid="thread-conversation-pane"
     {roomId}
     {threadRootEventId}
     messageStore={store}
