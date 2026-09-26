@@ -1,13 +1,11 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { RoomThreadingMode } from '$lib/roomThreading';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
   getRoom: vi.fn(),
   getRoomGroup: vi.fn(),
   listRoomGroups: vi.fn(),
@@ -40,7 +38,6 @@ vi.mock('@connectrpc/connect-web', () => ({
 describe('createAdminRoomLayoutAPI', () => {
   beforeEach(() => {
     for (const mock of Object.values(mocks)) mock.mockReset();
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       getRoom: mocks.getRoom,
@@ -194,62 +191,45 @@ describe('createAdminRoomLayoutAPI', () => {
     await api.deleteSidebarLink('docs');
     await api.moveSidebarLinkToGroup({ linkId: 'docs', groupId: 'g1' });
 
-    const callOptions = { headers: { Authorization: 'Bearer token' } };
-    expect(mocks.getRoom).toHaveBeenCalledWith({ roomId: 'r1' }, callOptions);
-    expect(mocks.getRoomGroup).toHaveBeenCalledWith({ groupId: 'g1' }, callOptions);
-    expect(mocks.listRoomGroups).toHaveBeenCalledWith({}, callOptions);
-    expect(mocks.createRoomGroup).toHaveBeenCalledWith(
-      { name: 'Projects', description: '' },
-      callOptions
-    );
-    expect(mocks.updateRoomGroup).toHaveBeenCalledWith(
-      { groupId: 'g2', name: 'Renamed', description: undefined, updateMask: { paths: ['name'] } },
-      callOptions
-    );
-    expect(mocks.deleteRoomGroup).toHaveBeenCalledWith({ groupId: 'g2' }, callOptions);
-    expect(mocks.reorderRoomGroups).toHaveBeenCalledWith(
-      { orderedGroupIds: ['g2', 'g1'] },
-      callOptions
-    );
-    expect(mocks.moveRoomGroup).toHaveBeenCalledWith(
-      { groupId: 'g2', beforeGroupId: 'g1' },
-      callOptions
-    );
-    expect(mocks.moveRoomToGroup).toHaveBeenCalledWith(
-      { roomId: 'room-1', groupId: 'g2' },
-      callOptions
-    );
-    expect(mocks.reorderSidebarItemsInGroup).toHaveBeenCalledWith(
-      {
-        groupId: 'g2',
-        items: [
-          { item: { case: 'roomId', value: 'room-1' } },
-          { item: { case: 'sidebarLinkId', value: 'docs' } }
-        ]
-      },
-      callOptions
-    );
-    expect(mocks.moveSidebarItem).toHaveBeenCalledWith(
-      {
-        item: { item: { case: 'roomId', value: 'room-1' } },
-        groupId: 'g2',
-        before: { item: { case: 'sidebarLinkId', value: 'docs' } }
-      },
-      callOptions
-    );
-    expect(mocks.createSidebarLink).toHaveBeenCalledWith(
-      { groupId: 'g2', label: 'Docs', url: '/docs' },
-      callOptions
-    );
-    expect(mocks.updateSidebarLink).toHaveBeenCalledWith(
-      { linkId: 'docs', label: 'Docs', url: '/help', updateMask: { paths: ['label', 'url'] } },
-      callOptions
-    );
-    expect(mocks.deleteSidebarLink).toHaveBeenCalledWith({ linkId: 'docs' }, callOptions);
-    expect(mocks.moveSidebarLinkToGroup).toHaveBeenCalledWith(
-      { linkId: 'docs', groupId: 'g1' },
-      callOptions
-    );
+    expect(mocks.getRoom).toHaveBeenCalledWith({ roomId: 'r1' }, {});
+    expect(mocks.getRoomGroup).toHaveBeenCalledWith({ groupId: 'g1' }, {});
+    expect(mocks.listRoomGroups).toHaveBeenCalledWith({});
+    expect(mocks.createRoomGroup).toHaveBeenCalledWith({ name: 'Projects', description: '' });
+    expect(mocks.updateRoomGroup).toHaveBeenCalledWith({
+      groupId: 'g2',
+      name: 'Renamed',
+      description: undefined,
+      updateMask: { paths: ['name'] }
+    });
+    expect(mocks.deleteRoomGroup).toHaveBeenCalledWith({ groupId: 'g2' });
+    expect(mocks.reorderRoomGroups).toHaveBeenCalledWith({ orderedGroupIds: ['g2', 'g1'] });
+    expect(mocks.moveRoomGroup).toHaveBeenCalledWith({ groupId: 'g2', beforeGroupId: 'g1' });
+    expect(mocks.moveRoomToGroup).toHaveBeenCalledWith({ roomId: 'room-1', groupId: 'g2' });
+    expect(mocks.reorderSidebarItemsInGroup).toHaveBeenCalledWith({
+      groupId: 'g2',
+      items: [
+        { item: { case: 'roomId', value: 'room-1' } },
+        { item: { case: 'sidebarLinkId', value: 'docs' } }
+      ]
+    });
+    expect(mocks.moveSidebarItem).toHaveBeenCalledWith({
+      item: { item: { case: 'roomId', value: 'room-1' } },
+      groupId: 'g2',
+      before: { item: { case: 'sidebarLinkId', value: 'docs' } }
+    });
+    expect(mocks.createSidebarLink).toHaveBeenCalledWith({
+      groupId: 'g2',
+      label: 'Docs',
+      url: '/docs'
+    });
+    expect(mocks.updateSidebarLink).toHaveBeenCalledWith({
+      linkId: 'docs',
+      label: 'Docs',
+      url: '/help',
+      updateMask: { paths: ['label', 'url'] }
+    });
+    expect(mocks.deleteSidebarLink).toHaveBeenCalledWith({ linkId: 'docs' });
+    expect(mocks.moveSidebarLinkToGroup).toHaveBeenCalledWith({ linkId: 'docs', groupId: 'g1' });
   });
 
   it('forwards cancellation signals for room detail snapshots', async () => {
@@ -274,7 +254,7 @@ describe('createAdminRoomLayoutAPI', () => {
     );
   });
 
-  it('routes unauthenticated errors through the server registry', async () => {
+  it('propagates Connect errors unchanged', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
     mocks.createRoomGroup.mockRejectedValue(err);
 
@@ -285,6 +265,5 @@ describe('createAdminRoomLayoutAPI', () => {
     });
 
     await expect(api.createRoomGroup({ name: 'Projects' })).rejects.toBe(err);
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 });

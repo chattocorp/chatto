@@ -1,15 +1,12 @@
-import {
-  getCurrentUserViaConnect,
-  type CurrentUser,
-  type ViewerAPIConfig
-} from '$lib/api-client/viewer';
+import type { ConnectAPIConfig } from '$lib/api-client/connect';
+import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
 import { isAuthenticationRequiredError } from './errors';
 import { revokeLegacyOriginBearerSession } from './originBearerMigration';
 import { migrateLegacyOriginCookieSession } from './legacyCookieMigration';
 import { isExplicitSignOutRedirectInProgress } from './signOut';
 
 /** Read the origin account with cookie migration and one transient retry. Owns no account state. */
-export async function getOriginViewer(config: ViewerAPIConfig): Promise<CurrentUser> {
+export async function getOriginViewer(config: ConnectAPIConfig): Promise<CurrentUser> {
   let migrationAttempted = false;
   let retried = false;
   while (true) {

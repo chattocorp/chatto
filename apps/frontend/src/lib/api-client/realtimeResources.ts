@@ -1,10 +1,5 @@
 import { listAllDirectoryRooms } from './roomPages';
-import {
-  authHeaders,
-  createChattoClient,
-  REALTIME_MINIMUM_CURSOR_HEADER,
-  type ConnectAPIConfig
-} from './connect';
+import { createChattoClient, type ConnectAPIConfig, minimumCursorHeaders } from './connect';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
@@ -63,13 +58,8 @@ export function createRealtimeResourceAPI(config: ConnectAPIConfig) {
   const notifications = createChattoClient(NotificationService, config);
   const calls = createChattoClient(VoiceCallService, config);
 
-  const headers = (minimumCursor?: string): Headers => {
-    const result = new Headers(authHeaders(config));
-    if (minimumCursor) result.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
-    return result;
-  };
   const options = (minimumCursor?: string) => ({
-    headers: headers(minimumCursor),
+    headers: minimumCursorHeaders(minimumCursor),
     timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS
   });
 

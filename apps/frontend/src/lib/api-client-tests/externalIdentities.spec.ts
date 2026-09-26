@@ -1,6 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import {
   createExternalIdentityAPI,
   createExternalIdentityFlowAPI
@@ -10,7 +9,6 @@ import { ExternalIdentityFlowKind } from '@chatto/api-types/chatto/auth/v1/exter
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
   getPendingExternalIdentity: vi.fn(),
   createExternalIdentityAccount: vi.fn(),
   cancelExternalIdentityFlow: vi.fn(),
@@ -78,10 +76,12 @@ describe('createExternalIdentityFlowAPI', () => {
       boundUserId: null,
       redirectPath: '/chat/-/settings/account'
     });
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://origin.example.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://origin.example.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.getPendingExternalIdentity).toHaveBeenCalledWith({ token: 'token-1' });
   });
 
@@ -119,8 +119,6 @@ describe('createExternalIdentityAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listExternalIdentities.mockReset();
     mocks.startExternalIdentityLink.mockReset();
     mocks.disconnectExternalIdentity.mockReset();
@@ -184,10 +182,7 @@ describe('createExternalIdentityAPI', () => {
         }
       ]
     });
-    expect(mocks.listExternalIdentities).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.listExternalIdentities).toHaveBeenCalledWith({}, {});
   });
 
   it('passes cancellation through when listing identities', async () => {
@@ -201,10 +196,7 @@ describe('createExternalIdentityAPI', () => {
 
     await api.list({ signal });
 
-    expect(mocks.listExternalIdentities).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
+    expect(mocks.listExternalIdentities).toHaveBeenCalledWith({}, { signal });
   });
 
   it('rejects provider rows without shared provider metadata', async () => {
@@ -224,7 +216,7 @@ describe('createExternalIdentityAPI', () => {
     );
   });
 
-  it('notifies the registry when authenticated calls are rejected', async () => {
+  it('propagates Connect errors unchanged', async () => {
     const err = new ConnectError('nope', Code.Unauthenticated);
     mocks.listExternalIdentities.mockRejectedValue(err);
 
@@ -235,10 +227,9 @@ describe('createExternalIdentityAPI', () => {
     });
 
     await expect(api.list()).rejects.toBe(err);
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 
-  it('starts provider linking with bearer auth', async () => {
+  it('starts provider linking', async () => {
     mocks.startExternalIdentityLink.mockResolvedValue({
       startUrl: 'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
     });
@@ -254,10 +245,10 @@ describe('createExternalIdentityAPI', () => {
     ).resolves.toBe(
       'https://remote.example.test/auth/providers/github-main?intent=link&link_start=tok'
     );
-    expect(mocks.startExternalIdentityLink).toHaveBeenCalledWith(
-      { providerId: 'github-main', redirectPath: '/chat/-/settings/account' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.startExternalIdentityLink).toHaveBeenCalledWith({
+      providerId: 'github-main',
+      redirectPath: '/chat/-/settings/account'
+    });
   });
 
   it('rejects an unsafe provider-link navigation URL from a remote server', async () => {
@@ -276,7 +267,7 @@ describe('createExternalIdentityAPI', () => {
     ).rejects.toThrow('External identity link returned an unsafe URL.');
   });
 
-  it('disconnects a linked identity with bearer auth', async () => {
+  it('disconnects a linked identity', async () => {
     mocks.disconnectExternalIdentity.mockResolvedValue({});
 
     const api = createExternalIdentityAPI({
@@ -286,22 +277,9 @@ describe('createExternalIdentityAPI', () => {
     });
 
     await expect(api.disconnect('abc123', 'current-password')).resolves.toBeUndefined();
-    expect(mocks.disconnectExternalIdentity).toHaveBeenCalledWith(
-      { subjectHash: 'abc123', currentPassword: 'current-password' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-  });
-
-  it('reports expired authentication during disconnect through the shared handler', async () => {
-    const error = new ConnectError('expired', Code.Unauthenticated);
-    mocks.disconnectExternalIdentity.mockRejectedValue(error);
-    const api = createExternalIdentityAPI({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: 'expired-token'
+    expect(mocks.disconnectExternalIdentity).toHaveBeenCalledWith({
+      subjectHash: 'abc123',
+      currentPassword: 'current-password'
     });
-
-    await expect(api.disconnect('identity')).rejects.toBe(error);
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 });

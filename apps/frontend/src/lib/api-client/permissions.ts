@@ -1,4 +1,4 @@
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
 import {
   PermissionDecision,
@@ -12,12 +12,6 @@ import {
   type TierRoles as APITierRoles,
   type UserPermissionMatrix as APIUserPermissionMatrix
 } from '@chatto/api-types/admin/v1/permissions_pb';
-
-export type PermissionAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type PermissionState = 'allow' | 'deny' | 'neutral';
 export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
@@ -117,9 +111,8 @@ export type UserPermissionDecisions = {
   page: PermissionScopePage;
 };
 
-export function createPermissionAPI(config: PermissionAPIConfig) {
+export function createPermissionAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(AdminPermissionService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async getRolePermissionTierMatrix(
@@ -133,7 +126,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
         {
           scope: apiTierMatrixScope(input)
         },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return response.matrix ? tierRoles(response.matrix) : null;
     },
@@ -149,7 +142,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return response.matrix
         ? { ...rolePermissionMatrix(response.matrix), page: scopePage(response.page) }
@@ -167,7 +160,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
-        { headers: headers(), signal: options.signal }
+        { signal: options.signal }
       );
       return {
         roleName: response.roleName,
@@ -188,7 +181,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return response.matrix
         ? { ...userPermissionMatrix(response.matrix), page: scopePage(response.page) }
@@ -206,7 +199,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           page: options.page,
           scope: options.scope ? apiScope(options.scope) : undefined
         },
-        { headers: headers(), signal: options.signal }
+        { signal: options.signal }
       );
       return {
         userId: response.userId,
@@ -222,15 +215,12 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       permission: string;
       state: PermissionState;
     }): Promise<PermissionDecisionUpdate> {
-      const response = await client.setRolePermission(
-        {
-          roleName: input.roleName,
-          permission: input.permission,
-          decision: apiDecision(input.state),
-          scope: apiScope(input.scope)
-        },
-        { headers: headers() }
-      );
+      const response = await client.setRolePermission({
+        roleName: input.roleName,
+        permission: input.permission,
+        decision: apiDecision(input.state),
+        scope: apiScope(input.scope)
+      });
       return permissionDecisionUpdate(response.decision);
     },
 
@@ -240,15 +230,12 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       permission: string;
       state: PermissionState;
     }): Promise<PermissionDecisionUpdate> {
-      const response = await client.setUserPermission(
-        {
-          userId: input.userId,
-          permission: input.permission,
-          decision: apiDecision(input.state),
-          scope: apiScope(input.scope)
-        },
-        { headers: headers() }
-      );
+      const response = await client.setUserPermission({
+        userId: input.userId,
+        permission: input.permission,
+        decision: apiDecision(input.state),
+        scope: apiScope(input.scope)
+      });
       return permissionDecisionUpdate(response.decision);
     }
   };

@@ -1,16 +1,9 @@
 import { updateMask } from './updateMask';
-import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { messageToTimelineEvent, timelineUsersForMessages } from './roomTimeline.js';
 import { createAssetUploadAPI } from './assetUploads.js';
-
-export type MessageAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type CreateMessageInput = {
   roomId: string;
@@ -55,95 +48,73 @@ export type UpdateMessageResult = {
   event: TimelineEventView | null;
 };
 
-export function createMessageAPI(config: MessageAPIConfig) {
+export function createMessageAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MessageService, config);
-  const headers = () => authHeaders(config);
   return {
     async createMessage(input: CreateMessageInput): Promise<CreateMessageResult> {
-      try {
-        const uploadedAttachments = await uploadMessageAttachments(config, input);
-        const uploadedAttachmentAssetIds = uploadedAttachments.map(({ assetId }) => assetId);
-        const uploadedAssetIDByFile = new Map(
-          uploadedAttachments.map(({ file, assetId }) => [file, assetId] as const)
-        );
-        const attachmentDescriptions = (input.attachmentDescriptions ?? []).flatMap((entry) => {
-          const assetId =
-            'assetId' in entry ? entry.assetId : uploadedAssetIDByFile.get(entry.file);
-          return assetId ? [{ assetId, description: entry.description.trim() }] : [];
-        });
-        const response = await client.createMessage(
-          {
-            roomId: input.roomId,
-            body: input.body,
-            attachmentAssetIds: [
-              ...(input.attachmentAssetIds ?? []),
-              ...uploadedAttachmentAssetIds
-            ],
-            attachmentDescriptions,
-            threadRootEventId: input.threadRootEventId ?? '',
-            inReplyTo: input.inReplyTo ?? '',
-            alsoSendToChannel: input.alsoSendToChannel ?? false,
-            createThread: input.createThread ?? false,
-            linkPreviewToken: input.linkPreviewToken ?? ''
-          },
-          { headers: headers() }
-        );
+      const uploadedAttachments = await uploadMessageAttachments(config, input);
+      const uploadedAttachmentAssetIds = uploadedAttachments.map(({ assetId }) => assetId);
+      const uploadedAssetIDByFile = new Map(
+        uploadedAttachments.map(({ file, assetId }) => [file, assetId] as const)
+      );
+      const attachmentDescriptions = (input.attachmentDescriptions ?? []).flatMap((entry) => {
+        const assetId = 'assetId' in entry ? entry.assetId : uploadedAssetIDByFile.get(entry.file);
+        return assetId ? [{ assetId, description: entry.description.trim() }] : [];
+      });
+      const response = await client.createMessage({
+        roomId: input.roomId,
+        body: input.body,
+        attachmentAssetIds: [...(input.attachmentAssetIds ?? []), ...uploadedAttachmentAssetIds],
+        attachmentDescriptions,
+        threadRootEventId: input.threadRootEventId ?? '',
+        inReplyTo: input.inReplyTo ?? '',
+        alsoSendToChannel: input.alsoSendToChannel ?? false,
+        createThread: input.createThread ?? false,
+        linkPreviewToken: input.linkPreviewToken ?? ''
+      });
 
-        const users = await timelineUsersForMessages(
-          config,
-          response.message ? [response.message] : []
-        );
-        return {
-          event: response.message ? messageToTimelineEvent(response.message, users) : null
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const users = await timelineUsersForMessages(
+        config,
+        response.message ? [response.message] : []
+      );
+      return {
+        event: response.message ? messageToTimelineEvent(response.message, users) : null
+      };
     },
 
     async updateMessage(input: UpdateMessageInput): Promise<UpdateMessageResult> {
-      try {
-        const request: {
-          roomId: string;
-          eventId: string;
-          body?: string;
-          alsoSendToChannel?: boolean;
-        } = {
-          roomId: input.roomId,
-          eventId: input.eventId
-        };
-        if (input.body !== undefined) {
-          request.body = input.body;
-        }
-        if (input.alsoSendToChannel !== undefined) {
-          request.alsoSendToChannel = input.alsoSendToChannel;
-        }
-        const response = await client.updateMessage(
-          { ...request, updateMask: updateMask(request, ['body', 'alsoSendToChannel']) },
-          {
-            headers: headers()
-          }
-        );
-        const users = await timelineUsersForMessages(
-          config,
-          response.message ? [response.message] : []
-        );
-        return {
-          updated: true,
-          event: response.message ? messageToTimelineEvent(response.message, users) : null
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
+      const request: {
+        roomId: string;
+        eventId: string;
+        body?: string;
+        alsoSendToChannel?: boolean;
+      } = {
+        roomId: input.roomId,
+        eventId: input.eventId
+      };
+      if (input.body !== undefined) {
+        request.body = input.body;
       }
+      if (input.alsoSendToChannel !== undefined) {
+        request.alsoSendToChannel = input.alsoSendToChannel;
+      }
+      const response = await client.updateMessage({
+        ...request,
+        updateMask: updateMask(request, ['body', 'alsoSendToChannel'])
+      });
+      const users = await timelineUsersForMessages(
+        config,
+        response.message ? [response.message] : []
+      );
+      return {
+        updated: true,
+        event: response.message ? messageToTimelineEvent(response.message, users) : null
+      };
     },
 
     async deleteMessage(roomId: string, eventId: string): Promise<boolean> {
-      try {
-        await client.deleteMessage({ roomId, eventId }, { headers: headers() });
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await client.deleteMessage({ roomId, eventId });
+      return true;
     },
 
     async deleteAttachment(
@@ -151,12 +122,8 @@ export function createMessageAPI(config: MessageAPIConfig) {
       eventId: string,
       attachmentId: string
     ): Promise<boolean> {
-      try {
-        await client.deleteAttachment({ roomId, eventId, attachmentId }, { headers: headers() });
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await client.deleteAttachment({ roomId, eventId, attachmentId });
+      return true;
     },
 
     async setAttachmentDescription(
@@ -165,36 +132,30 @@ export function createMessageAPI(config: MessageAPIConfig) {
       attachmentId: string,
       description: string
     ): Promise<UpdateMessageResult> {
-      try {
-        const response = await client.setAttachmentDescription(
-          { roomId, eventId, attachmentId, description: description.trim() },
-          { headers: headers() }
-        );
-        const users = await timelineUsersForMessages(
-          config,
-          response.message ? [response.message] : []
-        );
-        return {
-          updated: true,
-          event: response.message ? messageToTimelineEvent(response.message, users) : null
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await client.setAttachmentDescription({
+        roomId,
+        eventId,
+        attachmentId,
+        description: description.trim()
+      });
+      const users = await timelineUsersForMessages(
+        config,
+        response.message ? [response.message] : []
+      );
+      return {
+        updated: true,
+        event: response.message ? messageToTimelineEvent(response.message, users) : null
+      };
     },
 
     async deleteLinkPreview(roomId: string, eventId: string, url: string): Promise<boolean> {
-      try {
-        await client.deleteLinkPreview({ roomId, eventId, url }, { headers: headers() });
-        return true;
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      await client.deleteLinkPreview({ roomId, eventId, url });
+      return true;
     }
   };
 }
 
-async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateMessageInput) {
+async function uploadMessageAttachments(config: ConnectAPIConfig, input: CreateMessageInput) {
   const files = input.attachments;
   if (!files?.length) return [];
   const uploads = createAssetUploadAPI(config);

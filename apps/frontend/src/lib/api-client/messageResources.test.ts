@@ -6,8 +6,7 @@ import { REALTIME_MINIMUM_CURSOR_HEADER } from './connect';
 const mocks = vi.hoisted(() => ({ messages: vi.fn(), users: vi.fn() }));
 vi.mock('./connect', async (actual) => ({
   ...await actual<typeof import('./connect')>(),
-  createChattoClient: () => ({ batchGetMessages: mocks.messages }),
-  authHeaders: () => ({ Authorization: 'Bearer test' })
+  createChattoClient: () => ({ batchGetMessages: mocks.messages })
 }));
 vi.mock('./users', () => ({ createUserAPI: () => ({ batchGetUsers: mocks.users }) }));
 
@@ -30,6 +29,7 @@ describe('shared message resource reads', () => {
     const [request, options] = mocks.messages.mock.calls[0];
     expect(request.eventIds).toHaveLength(100);
     expect(options.headers.get(REALTIME_MINIMUM_CURSOR_HEADER)).toBe('cursor');
+    expect(options.headers.has('Authorization')).toBe(false);
     expect(mocks.users.mock.calls.map(([ids]) => ids.length)).toEqual([100, 100]);
     for (const [, cursor] of mocks.users.mock.calls) expect(cursor).toBe('cursor');
   });

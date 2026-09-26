@@ -1,12 +1,6 @@
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
 import { CallMediaPublisherKind } from '@chatto/api-types/api/v1/voice_calls_pb';
-
-export type VoiceCallAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type VoiceCallToken = {
   token: string;
@@ -14,17 +8,16 @@ export type VoiceCallToken = {
   callId: string;
 };
 
-export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
+export function createVoiceCallAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(VoiceCallService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async joinCall(roomId: string): Promise<boolean> {
-      return (await client.joinCall({ roomId }, { headers: headers() })).joined;
+      return (await client.joinCall({ roomId })).joined;
     },
 
     async createCallToken(roomId: string): Promise<VoiceCallToken | null> {
-      const response = await client.createCallToken({ roomId }, { headers: headers() });
+      const response = await client.createCallToken({ roomId });
       if (!response.token || !response.e2eeKey || !response.callId) return null;
       return {
         token: response.token,
@@ -34,10 +27,10 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
     },
 
     async createGameSharePublisherToken(roomId: string): Promise<VoiceCallToken | null> {
-      const response = await client.createCallMediaPublisherToken(
-        { roomId, kind: CallMediaPublisherKind.GAME_SHARE },
-        { headers: headers() }
-      );
+      const response = await client.createCallMediaPublisherToken({
+        roomId,
+        kind: CallMediaPublisherKind.GAME_SHARE
+      });
       if (!response.token || !response.e2eeKey || !response.callId) return null;
       return {
         token: response.token,
@@ -47,7 +40,7 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
     },
 
     async leaveCall(roomId: string): Promise<boolean> {
-      return (await client.leaveCall({ roomId }, { headers: headers() })).left;
+      return (await client.leaveCall({ roomId })).left;
     }
   };
 }

@@ -2,6 +2,8 @@ import {
   Code,
   ConnectError,
   createClient,
+  createContextKey,
+  createContextValues,
   type Client,
   type Interceptor,
   type Transport
@@ -13,6 +15,13 @@ import { notifyAuthenticationRequired } from './hooks.js';
 /** Request header for a read that must include an accepted realtime boundary. */
 export const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
 
+/** Request headers that make a read include the given realtime cursor, if any. */
+export function minimumCursorHeaders(minimumCursor?: string): Headers | undefined {
+  return minimumCursor
+    ? new Headers({ [REALTIME_MINIMUM_CURSOR_HEADER]: minimumCursor })
+    : undefined;
+}
+
 export type ConnectAPIConfig = {
   serverId?: string;
   /** Opaque connection scope for session-owned resource queries. */
@@ -21,7 +30,6 @@ export type ConnectAPIConfig = {
   bearerToken: string | null;
   /** Return the latest access token, rotating it when force is true or expiry is near. */
   renewBearerToken?: (force: boolean) => Promise<string | null>;
-  onAuthenticationRequired?: (serverId: string) => void;
   /** Current private-data generation for this exact connection. */
   dataGeneration?: () => number;
   /** Hold private reads and reject private actions until a restored viewer is verified. */
@@ -61,6 +69,53 @@ export function privateRequestInterceptor(
   };
 }
 
+/**
+ * Call-context flag for a caller that owns its own reaction to `Unauthenticated`.
+ * Set it with {@link skipAuthenticationRequired}.
+ */
+const skipAuthenticationRequiredKey = createContextKey(false, {
+  description: 'skip the authentication-required notification'
+});
+
+/**
+ * Call options for a request whose `Unauthenticated` result must not request a
+ * new sign-in. Use it only when the caller makes that decision itself.
+ */
+export function skipAuthenticationRequired(): {
+  contextValues: ReturnType<typeof createContextValues>;
+} {
+  return { contextValues: createContextValues().set(skipAuthenticationRequiredKey, true) };
+}
+
+/**
+ * Request a new sign-in when a session that cannot renew itself is rejected.
+ *
+ * Cookie and fixed-token sessions have no other way to recover from
+ * `Unauthenticated`. A renewable bearer session is different: the bearer
+ * interceptor refreshes it, and only a rejected refresh grant marks it for
+ * reauthentication. The error always reaches the caller.
+ */
+export function authenticationRequiredInterceptor(
+  config: Pick<ConnectAPIConfig, 'serverId' | 'renewBearerToken'>
+): Interceptor {
+  return (next) => async (request) => {
+    try {
+      return await next(request);
+    } catch (err) {
+      if (
+        err instanceof ConnectError &&
+        err.code === Code.Unauthenticated &&
+        config.serverId &&
+        !config.renewBearerToken &&
+        !request.contextValues.get(skipAuthenticationRequiredKey)
+      ) {
+        notifyAuthenticationRequired(config.serverId);
+      }
+      throw err;
+    }
+  };
+}
+
 export type PublicConnectAPIConfig = {
   baseUrl: string;
 };
@@ -76,15 +131,16 @@ export function createChattoTransport(
   return createConnectTransport({
     baseUrl: config.baseUrl,
     useBinaryFormat: options.useBinaryFormat ?? true,
-    interceptors:
-      config.dataGeneration || config.renewBearerToken || config.beforePrivateRequest
-        ? [
-            // The verification gate must run before the response guard captures its generation.
-            ...(config.beforePrivateRequest ? [privateRequestInterceptor(config.beforePrivateRequest)] : []),
-            ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
-            ...(config.renewBearerToken ? [bearerRenewalInterceptor(config)] : [])
-          ]
-        : undefined
+    interceptors: [
+      // Outermost, so it sees the final error after any bearer renewal.
+      authenticationRequiredInterceptor(config),
+      // The verification gate must run before the response guard captures its generation.
+      ...(config.beforePrivateRequest
+        ? [privateRequestInterceptor(config.beforePrivateRequest)]
+        : []),
+      ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
+      ...(config.renewBearerToken || config.bearerToken ? [bearerRenewalInterceptor(config)] : [])
+    ]
   });
 }
 
@@ -152,24 +208,6 @@ export function createPublicChattoClient<T extends ServiceType>(
         })
     })
   );
-}
-
-export function authHeaders(
-  config: Pick<ConnectAPIConfig, 'bearerToken'>
-): HeadersInit | undefined {
-  return config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
-}
-
-/** Request sign-in for cookie or missing bearer credentials; renewable grants decide their own validity. */
-export function handleAuthError(
-  config: Pick<ConnectAPIConfig, 'serverId' | 'onAuthenticationRequired' | 'renewBearerToken'>,
-  err: unknown
-): never {
-  if (err instanceof ConnectError && err.code === Code.Unauthenticated &&
-    config.serverId && !config.renewBearerToken) {
-    notifyAuthenticationRequired(config.serverId, config.onAuthenticationRequired);
-  }
-  throw err;
 }
 
 export function isConnectCode(err: unknown, code: Code): boolean {

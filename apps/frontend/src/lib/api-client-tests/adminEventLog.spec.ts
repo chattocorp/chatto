@@ -78,10 +78,12 @@ describe('createAdminEventLogAPI', () => {
       }
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://chat.example.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://chat.example.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.listEvents).toHaveBeenCalledWith(
       {
         limit: 50,
@@ -93,7 +95,7 @@ describe('createAdminEventLogAPI', () => {
           createdAtTo: Timestamp.fromDate(new Date('2026-01-02T00:00:00.000Z'))
         }
       },
-      { headers: { Authorization: 'Bearer token' } }
+      {}
     );
     expect(page.totalCount).toBe('9007199254740993');
     expect(page.entries[0]).toMatchObject({
@@ -104,7 +106,7 @@ describe('createAdminEventLogAPI', () => {
     expect(page.scanLimited).toBe(true);
   });
 
-  it('omits empty filters and auth headers', async () => {
+  it('omits empty filters', async () => {
     mocks.listEvents.mockResolvedValue({
       entries: [],
       hasOlder: false,
@@ -123,7 +125,7 @@ describe('createAdminEventLogAPI', () => {
         before: undefined,
         filter: undefined
       },
-      { headers: undefined }
+      {}
     );
     expect(page.entries).toEqual([]);
     expect(page.endCursor).toBeNull();
@@ -143,8 +145,8 @@ describe('createAdminEventLogAPI', () => {
       sequence: '7',
       payloadJson: '{"id":"event-7"}'
     });
-    expect(mocks.listEventTypes).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(mocks.getEvent).toHaveBeenCalledWith({ sequence: '7' }, { headers: undefined });
+    expect(mocks.listEventTypes).toHaveBeenCalledWith({}, {});
+    expect(mocks.getEvent).toHaveBeenCalledWith({ sequence: '7' }, {});
   });
 
   it('maps a missing event to null', async () => {

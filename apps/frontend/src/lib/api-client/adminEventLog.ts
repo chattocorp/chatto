@@ -1,13 +1,7 @@
 import { Timestamp } from '@bufbuild/protobuf';
-import { authHeaders, Code, ConnectError, createChattoClient } from './connect.js';
+import { Code, ConnectError, createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_connect';
 import type { AdminEventLogEntry as APIAdminEventLogEntry } from '@chatto/api-types/admin/v1/event_log_pb';
-
-export type AdminEventLogAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type AdminEventLogFilter = {
   eventType: string;
@@ -47,9 +41,8 @@ export const EMPTY_ADMIN_EVENT_LOG_FILTER: AdminEventLogFilter = {
   createdAtTo: ''
 };
 
-export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
+export function createAdminEventLogAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(AdminEventLogService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async listEvents(
@@ -66,7 +59,7 @@ export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
           before: input.before ?? undefined,
           filter: eventLogFilterInput(input.filter ?? EMPTY_ADMIN_EVENT_LOG_FILTER)
         },
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         entries: response.entries.map(adminEventLogEntry),
@@ -82,7 +75,7 @@ export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
     async listEventTypes(options: { signal?: AbortSignal } = {}): Promise<string[]> {
       const response = await client.listEventTypes(
         {},
-        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        { ...(options.signal ? { signal: options.signal } : {}) }
       );
       return [...response.eventTypes];
     },
@@ -94,7 +87,7 @@ export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
       try {
         const response = await client.getEvent(
           { sequence },
-          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+          { ...(options.signal ? { signal: options.signal } : {}) }
         );
         return response.entry ? adminEventLogEntry(response.entry) : null;
       } catch (error) {

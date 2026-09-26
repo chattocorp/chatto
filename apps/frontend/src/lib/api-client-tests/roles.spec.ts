@@ -77,10 +77,7 @@ describe('createRoleAPI', () => {
 
     const result = await api.listRoles();
 
-    expect(mocks.listRoles).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.listRoles).toHaveBeenCalledWith({});
     expect(result).toEqual({
       roles: [
         {
@@ -120,14 +117,8 @@ describe('createRoleAPI', () => {
       { name: 'moderator' }
     ]);
 
-    expect(mocks.getPublicRole).toHaveBeenCalledWith(
-      { name: 'moderator' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.batchGetRoles).toHaveBeenCalledWith(
-      { names: ['moderator', 'missing'] },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.getPublicRole).toHaveBeenCalledWith({ name: 'moderator' });
+    expect(mocks.batchGetRoles).toHaveBeenCalledWith({ names: ['moderator', 'missing'] });
   });
 
   it('lists admin roles with viewer capabilities', async () => {
@@ -154,10 +145,7 @@ describe('createRoleAPI', () => {
 
     const result = await api.listAdminRoles({ signal });
 
-    expect(mocks.listAdminRoles).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' }, signal }
-    );
+    expect(mocks.listAdminRoles).toHaveBeenCalledWith({}, { signal });
     expect(result).toEqual({
       roles: [
         {
@@ -176,7 +164,7 @@ describe('createRoleAPI', () => {
     });
   });
 
-  it('gets role metadata and no auth headers when no token is available', async () => {
+  it('gets role metadata', async () => {
     mocks.getRole.mockResolvedValue({
       role: {
         role: {
@@ -198,10 +186,7 @@ describe('createRoleAPI', () => {
 
     const result = await api.getRole('helpdesk', { signal });
 
-    expect(mocks.getRole).toHaveBeenCalledWith(
-      { name: 'helpdesk' },
-      { headers: undefined, signal }
-    );
+    expect(mocks.getRole).toHaveBeenCalledWith({ name: 'helpdesk' }, { signal });
     expect(result).toEqual({
       roles: [],
       role: {
@@ -219,7 +204,7 @@ describe('createRoleAPI', () => {
     });
   });
 
-  it('loads an explicit role member page with authentication and cancellation', async () => {
+  it('loads an explicit role member page with cancellation', async () => {
     const user = { id: 'user-1', login: 'alice', displayName: 'Alice', isBot: true };
     mocks.listMembers.mockResolvedValue({
       members: [{ ...user, bot: { ownerUserId: 'owner' } }],
@@ -234,11 +219,11 @@ describe('createRoleAPI', () => {
     });
     expect(mocks.listMembers).toHaveBeenCalledWith(
       { name: 'helpdesk', page: { limit: 20, offset: 20 } },
-      { headers: { Authorization: 'Bearer token' }, signal }
+      { signal }
     );
   });
 
-  it('creates updates and deletes roles with auth headers', async () => {
+  it('creates updates and deletes roles', async () => {
     const role = {
       name: 'helpdesk',
       displayName: 'Helpdesk',
@@ -279,22 +264,14 @@ describe('createRoleAPI', () => {
     ).resolves.toMatchObject({ displayName: 'Support' });
     await expect(api.deleteRole('helpdesk')).resolves.toBe(true);
 
-    expect(mocks.createRole).toHaveBeenCalledWith(role, {
-      headers: { Authorization: 'Bearer token' }
+    expect(mocks.createRole).toHaveBeenCalledWith(role);
+    expect(mocks.updateRole).toHaveBeenCalledWith({
+      name: 'helpdesk',
+      displayName: 'Support',
+      description: 'Support queue',
+      pingable: false,
+      updateMask: { paths: ['display_name', 'description', 'pingable'] }
     });
-    expect(mocks.updateRole).toHaveBeenCalledWith(
-      {
-        name: 'helpdesk',
-        displayName: 'Support',
-        description: 'Support queue',
-        pingable: false,
-        updateMask: { paths: ['display_name', 'description', 'pingable'] }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.deleteRole).toHaveBeenCalledWith(
-      { name: 'helpdesk' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.deleteRole).toHaveBeenCalledWith({ name: 'helpdesk' });
   });
 });

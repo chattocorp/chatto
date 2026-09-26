@@ -1,6 +1,6 @@
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Empty } from '@bufbuild/protobuf';
-import { authHeaders, createChattoClient } from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import {
   NotificationPolicyService,
   NotificationService
@@ -20,11 +20,6 @@ import {
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { mapUserPresenceView, mapUserSummary, type UserSummary } from './userSummary.js';
-export type NotificationAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 /** The acting user behind one notification occurrence. */
 export type NotificationActor = UserSummary & {
@@ -129,26 +124,19 @@ export function notificationPolicyScopeKey(scope: NotificationPolicyScope): stri
   return scope.kind === 'server' ? 'server' : `${scope.kind}:${scope.id}`;
 }
 
-export function createNotificationAPI(config: NotificationAPIConfig) {
+export function createNotificationAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(NotificationService, config);
   const policyClient = createChattoClient(NotificationPolicyService, config);
-  const headers = () => authHeaders(config);
 
   return {
     async listNotificationOccurrences(limit = 50, offset = 0): Promise<NotificationOccurrencePage> {
       return mapNotificationOccurrencePage(
-        await client.listNotificationOccurrences(
-          { page: { limit, offset } },
-          { headers: headers() }
-        )
+        await client.listNotificationOccurrences({ page: { limit, offset } })
       );
     },
 
     async markNotificationRead(notificationId: string): Promise<NotificationOccurrenceItem> {
-      const response = await client.markNotificationRead(
-        { notificationId },
-        { headers: headers() }
-      );
+      const response = await client.markNotificationRead({ notificationId });
       if (!response.occurrence) throw new Error('Read notification was not returned');
       return notificationOccurrence(response.occurrence);
     },
@@ -157,30 +145,24 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       const uniqueIds = [...new Set(notificationIds)];
       let deletedCount = 0;
       for (let offset = 0; offset < uniqueIds.length; offset += 100) {
-        const response = await client.batchDeleteNotificationOccurrences(
-          { notificationIds: uniqueIds.slice(offset, offset + 100) },
-          { headers: headers() }
-        );
+        const response = await client.batchDeleteNotificationOccurrences({
+          notificationIds: uniqueIds.slice(offset, offset + 100)
+        });
         deletedCount += Number(response.deletedCount);
       }
       return deletedCount;
     },
 
     async deleteAllNotificationOccurrences(): Promise<number> {
-      return Number(
-        (await client.deleteAllNotificationOccurrences({}, { headers: headers() })).deletedCount
-      );
+      return Number((await client.deleteAllNotificationOccurrences({})).deletedCount);
     },
 
     async getNotificationPolicy(roomId?: string): Promise<NotificationPolicy> {
-      const response = await policyClient.getNotificationPolicy(
-        {
-          scope: apiNotificationPolicyScope(
-            roomId ? { kind: 'room', id: roomId } : { kind: 'server' }
-          )
-        },
-        { headers: headers() }
-      );
+      const response = await policyClient.getNotificationPolicy({
+        scope: apiNotificationPolicyScope(
+          roomId ? { kind: 'room', id: roomId } : { kind: 'server' }
+        )
+      });
       return notificationPolicy(response.policy?.policy);
     },
 
@@ -190,26 +172,22 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     ): Promise<NotificationPolicy> {
       const { overrides, paths } = notificationPolicyUpdate(patch);
       if (paths.length === 0) throw new Error('Notification policy update is empty');
-      const response = await policyClient.updateNotificationPolicy(
-        {
-          scope: apiNotificationPolicyScope(
-            roomId ? { kind: 'room', id: roomId } : { kind: 'server' }
-          ),
-          overrides,
-          updateMask: { paths }
-        },
-        { headers: headers() }
-      );
+      const response = await policyClient.updateNotificationPolicy({
+        scope: apiNotificationPolicyScope(
+          roomId ? { kind: 'room', id: roomId } : { kind: 'server' }
+        ),
+        overrides,
+        updateMask: { paths }
+      });
       return notificationPolicy(response.policy?.policy);
     },
 
     async getScopedNotificationPolicy(
       scope: NotificationPolicyScope
     ): Promise<ScopedNotificationPolicy> {
-      const response = await policyClient.getNotificationPolicy(
-        { scope: apiNotificationPolicyScope(scope) },
-        { headers: headers() }
-      );
+      const response = await policyClient.getNotificationPolicy({
+        scope: apiNotificationPolicyScope(scope)
+      });
       return scopedNotificationPolicy(response.policy);
     },
 
@@ -224,7 +202,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       for (let offset = 0; offset < uniqueScopes.length; offset += 100) {
         const response = await policyClient.batchGetNotificationPolicies(
           { scopes: uniqueScopes.slice(offset, offset + 100).map(apiNotificationPolicyScope) },
-          { headers: headers(), signal: options?.signal }
+          { signal: options?.signal }
         );
         policies.push(...response.policies.map(scopedNotificationPolicy));
       }
@@ -237,14 +215,11 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     ): Promise<ScopedNotificationPolicy> {
       const { overrides, paths } = notificationPolicyUpdate(patch);
       if (paths.length === 0) throw new Error('Notification policy update is empty');
-      const response = await policyClient.updateNotificationPolicy(
-        {
-          scope: apiNotificationPolicyScope(scope),
-          overrides,
-          updateMask: { paths }
-        },
-        { headers: headers() }
-      );
+      const response = await policyClient.updateNotificationPolicy({
+        scope: apiNotificationPolicyScope(scope),
+        overrides,
+        updateMask: { paths }
+      });
       return scopedNotificationPolicy(response.policy);
     }
   };

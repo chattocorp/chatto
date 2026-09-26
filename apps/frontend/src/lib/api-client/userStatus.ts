@@ -1,11 +1,6 @@
-import {
-  authHeaders,
-  createChattoClient,
-  handleAuthError,
-  type ConnectAPIConfig,
-} from "./connect.js";
-import { Timestamp } from "@bufbuild/protobuf";
-import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { Timestamp } from '@bufbuild/protobuf';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 
 export type CustomUserStatusAPIConfig = ConnectAPIConfig & {
   serverId: string;
@@ -26,36 +21,20 @@ export async function setCustomStatus(
   },
 ): Promise<CustomUserStatus | null> {
   const client = createUserStatusClient(config);
-  try {
-    const response = await client.setCustomStatus(
-      {
-        emoji: input.emoji,
-        text: input.text,
-        expiresAt: input.expiresAt
-          ? Timestamp.fromDate(new Date(input.expiresAt))
-          : undefined,
-      },
-      { headers: authHeaders(config) },
-    );
-    return apiStatus(response.status);
-  } catch (err) {
-    handleAuthError(config, err);
-  }
+  const response = await client.setCustomStatus({
+    emoji: input.emoji,
+    text: input.text,
+    expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+  });
+  return apiStatus(response.status);
 }
 
 export async function deleteCustomStatus(
   config: CustomUserStatusAPIConfig,
 ): Promise<CustomUserStatus | null> {
   const client = createUserStatusClient(config);
-  try {
-    const response = await client.deleteCustomStatus(
-      {},
-      { headers: authHeaders(config) },
-    );
-    return apiStatus(response.status);
-  } catch (err) {
-    handleAuthError(config, err);
-  }
+  const response = await client.deleteCustomStatus({});
+  return apiStatus(response.status);
 }
 
 function createUserStatusClient(config: CustomUserStatusAPIConfig) {

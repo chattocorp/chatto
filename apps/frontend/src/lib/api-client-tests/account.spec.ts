@@ -43,7 +43,7 @@ describe('createAccountAPI', () => {
     });
   });
 
-  it('updates a profile with bearer auth', async () => {
+  it('updates a profile', async () => {
     mocks.updateProfile.mockResolvedValue({
       user: {
         id: 'U1',
@@ -66,18 +66,17 @@ describe('createAccountAPI', () => {
         bio: null
       }
     );
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://origin.test/api/connect',
-      useBinaryFormat: true
-    });
-    expect(mocks.updateProfile).toHaveBeenCalledWith(
-      {
-        displayName: 'Alice Two',
-        login: 'alice2',
-        updateMask: { paths: ['display_name', 'login'] }
-      },
-      { headers: { Authorization: 'Bearer token' } }
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://origin.test/api/connect',
+        useBinaryFormat: true
+      })
     );
+    expect(mocks.updateProfile).toHaveBeenCalledWith({
+      displayName: 'Alice Two',
+      login: 'alice2',
+      updateMask: { paths: ['display_name', 'login'] }
+    });
   });
 
   it('updates settings and maps time format enums', async () => {
@@ -106,18 +105,15 @@ describe('createAccountAPI', () => {
       shareTimezone: true
     });
 
-    expect(mocks.updateSettings).toHaveBeenCalledWith(
-      {
-        timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
-        shareTimezone: true,
-        updateMask: { paths: ['timezone', 'time_format', 'share_timezone'] }
-      },
-      { headers: undefined }
-    );
+    expect(mocks.updateSettings).toHaveBeenCalledWith({
+      timezone: 'Europe/Berlin',
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+      shareTimezone: true,
+      updateMask: { paths: ['timezone', 'time_format', 'share_timezone'] }
+    });
   });
 
-  it('sets a password with bearer auth', async () => {
+  it('sets a password', async () => {
     mocks.changePassword.mockResolvedValue({});
 
     const api = createAccountAPI({
@@ -129,10 +125,10 @@ describe('createAccountAPI', () => {
       api.changePassword({ password: 'newpassword456', currentPassword: 'oldpassword123' })
     ).resolves.toBeUndefined();
 
-    expect(mocks.changePassword).toHaveBeenCalledWith(
-      { password: 'newpassword456', currentPassword: 'oldpassword123' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.changePassword).toHaveBeenCalledWith({
+      password: 'newpassword456',
+      currentPassword: 'oldpassword123'
+    });
   });
 
   it('sends empty timezone when clearing settings', async () => {
@@ -153,15 +149,12 @@ describe('createAccountAPI', () => {
       shareTimezone: undefined
     });
 
-    expect(mocks.updateSettings).toHaveBeenCalledWith(
-      {
-        timezone: '',
-        timeFormat: undefined,
-        shareTimezone: undefined,
-        updateMask: { paths: ['timezone'] }
-      },
-      { headers: undefined }
-    );
+    expect(mocks.updateSettings).toHaveBeenCalledWith({
+      timezone: '',
+      timeFormat: undefined,
+      shareTimezone: undefined,
+      updateMask: { paths: ['timezone'] }
+    });
   });
 
   it('requests and confirms account deletion', async () => {
@@ -176,10 +169,7 @@ describe('createAccountAPI', () => {
     await expect(api.requestAccountDeletion()).resolves.toBe('AD-token');
     await expect(api.deleteMyAccount('AD-token')).resolves.toBe(true);
 
-    expect(mocks.requestAccountDeletion).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(mocks.deleteMyAccount).toHaveBeenCalledWith(
-      { confirmationToken: 'AD-token' },
-      { headers: undefined }
-    );
+    expect(mocks.requestAccountDeletion).toHaveBeenCalledWith({});
+    expect(mocks.deleteMyAccount).toHaveBeenCalledWith({ confirmationToken: 'AD-token' });
   });
 });

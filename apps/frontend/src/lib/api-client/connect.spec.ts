@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Code, ConnectError } from '@connectrpc/connect';
+import { Code, ConnectError, createContextValues } from '@connectrpc/connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  authenticationRequiredInterceptor,
   bearerRenewalInterceptor,
   createChattoClient,
   dataGenerationInterceptor,
-  handleAuthError,
   privateRequestInterceptor,
+  skipAuthenticationRequired,
   StaleResponseError
 } from './connect';
 import { configureApiClientHooks } from './hooks';
@@ -150,10 +151,88 @@ describe('bearerRenewalInterceptor', () => {
       expect(renewBearerToken.mock.calls).toEqual([[false], [true]]);
       expect(request.header.get('Authorization')).toBe('Bearer access-2');
       expect(next).toHaveBeenCalledTimes(2);
-      expect(() => handleAuthError(config, error)).toThrow(error);
+      await expect(
+        authenticationRequiredInterceptor(config)(() => Promise.reject(error))(
+          { contextValues: createContextValues() } as never
+        )
+      ).rejects.toBe(error);
       expect(onAuthenticationRequired).not.toHaveBeenCalled();
     } finally {
       configureApiClientHooks({});
     }
   });
+});
+
+describe('authenticationRequiredInterceptor', () => {
+  const unauthenticated = new ConnectError('session expired', Code.Unauthenticated);
+
+  function unaryRequest(contextValues = createContextValues()) {
+    return { contextValues } as never;
+  }
+
+  async function reject(
+    config: Parameters<typeof authenticationRequiredInterceptor>[0],
+    error: unknown,
+    request = unaryRequest()
+  ) {
+    const invoke = authenticationRequiredInterceptor(config)(() => Promise.reject(error));
+    await expect(invoke(request)).rejects.toBe(error);
+  }
+
+  function withHook(run: (hook: ReturnType<typeof vi.fn>) => Promise<void>) {
+    const onAuthenticationRequired = vi.fn();
+    configureApiClientHooks({ onAuthenticationRequired });
+    return run(onAuthenticationRequired).finally(() => configureApiClientHooks({}));
+  }
+
+  it('requests sign-in when a session that cannot renew is rejected', () =>
+    withHook(async (hook) => {
+      await reject({ serverId: 'origin' }, unauthenticated);
+      expect(hook).toHaveBeenCalledExactlyOnceWith('origin');
+    }));
+
+  it('leaves renewable sessions to the bearer renewal flow', () =>
+    withHook(async (hook) => {
+      await reject({ serverId: 'remote', renewBearerToken: async () => 'token' }, unauthenticated);
+      expect(hook).not.toHaveBeenCalled();
+    }));
+
+  it('ignores calls without a server and errors other than Unauthenticated', () =>
+    withHook(async (hook) => {
+      await reject({}, unauthenticated);
+      await reject({ serverId: 'origin' }, new ConnectError('denied', Code.PermissionDenied));
+      await reject({ serverId: 'origin' }, new Error('network'));
+      expect(hook).not.toHaveBeenCalled();
+    }));
+
+  it('lets a caller that owns the decision opt out', () =>
+    withHook(async (hook) => {
+      await reject(
+        { serverId: 'origin' },
+        unauthenticated,
+        unaryRequest(skipAuthenticationRequired().contextValues)
+      );
+      expect(hook).not.toHaveBeenCalled();
+    }));
+
+  it('applies to every client created from a server connection', () =>
+    withHook(async (hook) => {
+      const fetch = vi.fn(async () =>
+        Response.json({ code: 'unauthenticated', message: 'session expired' }, { status: 401 })
+      );
+      vi.stubGlobal('fetch', fetch);
+      try {
+        const client = createChattoClient(RoomService, {
+          serverId: 'origin',
+          baseUrl: 'http://localhost:1234/api/connect',
+          bearerToken: null
+        });
+        await expect(client.listMembers({ roomId: 'room' })).rejects.toMatchObject({
+          code: Code.Unauthenticated
+        });
+        expect(hook).toHaveBeenCalledExactlyOnceWith('origin');
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }));
 });

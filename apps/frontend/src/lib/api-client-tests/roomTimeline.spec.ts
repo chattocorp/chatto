@@ -138,7 +138,7 @@ describe('createRoomTimelineAPI', () => {
     expect(store.get('colleague')?.user?.displayName).toBe('Colleague');
   });
 
-  it('sends thread page requests with bearer auth and opaque cursors', async () => {
+  it('sends thread page requests with opaque cursors', async () => {
     mocks.getThreadEvents.mockResolvedValue({
       page: new RoomTimelinePage({
         startCursor: 'tl:opaque-start',
@@ -161,10 +161,12 @@ describe('createRoomTimelineAPI', () => {
       before: 'tl:opaque-before'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://remote.example.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://remote.example.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.getThreadEvents).toHaveBeenCalledWith(
       {
         roomId: 'room-1',
@@ -172,9 +174,7 @@ describe('createRoomTimelineAPI', () => {
         limit: 50,
         cursor: { case: 'before', value: 'tl:opaque-before' }
       },
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
+      { headers: undefined }
     );
     expect(page).toMatchObject({
       startCursor: 'tl:opaque-start',
@@ -208,13 +208,11 @@ describe('createRoomTimelineAPI', () => {
         eventId: 'reply-20',
         limit: 50
       },
-      {
-        headers: undefined
-      }
+      { headers: undefined }
     );
   });
 
-  it('gets messages with bearer auth', async () => {
+  it('gets messages and hydrates their authors', async () => {
     mocks.getMessage.mockResolvedValue({
       message: new Message({
         id: 'reply-1',
@@ -253,16 +251,9 @@ describe('createRoomTimelineAPI', () => {
         roomId: 'room-1',
         eventId: 'reply-1'
       },
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
+      { headers: undefined }
     );
-    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
-      { userIds: ['u1'] },
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
-    );
+    expect(mocks.batchGetUsers).toHaveBeenCalledWith({ userIds: ['u1'] }, { headers: undefined });
     expect(message).toMatchObject({
       id: 'reply-1',
       actor: { id: 'u1', displayName: 'Alice' },
@@ -288,16 +279,17 @@ describe('createRoomTimelineAPI', () => {
 
     const options = mocks.getMessage.mock.calls[0]?.[1];
     expect(options?.headers).toBeInstanceOf(Headers);
-    expect((options?.headers as Headers).get('Authorization')).toBe('Bearer remote-token');
     expect((options?.headers as Headers).get('Chatto-Realtime-Minimum-Cursor')).toBe(
       'opaque-event-cursor'
     );
+    expect((options?.headers as Headers).has('Authorization')).toBe(false);
     expect(options?.timeoutMs).toBe(10_000);
     const userOptions = mocks.batchGetUsers.mock.calls[0]?.[1];
     expect(userOptions?.headers).toBeInstanceOf(Headers);
     expect((userOptions?.headers as Headers).get('Chatto-Realtime-Minimum-Cursor')).toBe(
       'opaque-event-cursor'
     );
+    expect((userOptions?.headers as Headers).has('Authorization')).toBe(false);
     expect(userOptions?.timeoutMs).toBe(10_000);
   });
 

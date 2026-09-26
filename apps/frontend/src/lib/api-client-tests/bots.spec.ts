@@ -86,7 +86,7 @@ describe('createBotAPI', () => {
     });
     expect(mocks.listBots).toHaveBeenCalledWith(
       { search: 'helper', page: { limit: 20, offset: 40 } },
-      { headers: { Authorization: 'Bearer token' }, signal }
+      { signal }
     );
   });
 
@@ -122,15 +122,9 @@ describe('createBotAPI', () => {
       },
       apiKey: 'show-once-secret'
     });
-    expect(mocks.createBotApiKey).toHaveBeenCalledWith(
-      { botUserId: 'one', name: 'Production' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.createBotApiKey).toHaveBeenCalledWith({ botUserId: 'one', name: 'Production' });
     await expect(api.revokeBotAPIKey('one', 'K-one')).resolves.toMatchObject({ apiKeys: [] });
-    expect(mocks.revokeBotApiKey).toHaveBeenCalledWith(
-      { botUserId: 'one', keyId: 'K-one' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.revokeBotApiKey).toHaveBeenCalledWith({ botUserId: 'one', keyId: 'K-one' });
   });
 
   it('manages named incoming webhooks and maps safe usage metadata', async () => {
@@ -171,10 +165,10 @@ describe('createBotAPI', () => {
       },
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
-    expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith(
-      { botUserId: 'one', name: 'Production' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith({
+      botUserId: 'one',
+      name: 'Production'
+    });
     await expect(api.revokeBotIncomingWebhook('one', 'W-one')).resolves.toMatchObject({
       id: 'one',
       incomingWebhooks: []
@@ -198,10 +192,7 @@ describe('createBotAPI', () => {
       hasMore: true
     });
     expect(mocks.listBots).toHaveBeenCalledOnce();
-    expect(mocks.listBots).toHaveBeenCalledWith(
-      { search: '', page: { limit: 1, offset: 0 } },
-      { headers: undefined }
-    );
+    expect(mocks.listBots).toHaveBeenCalledWith({ search: '', page: { limit: 1, offset: 0 } }, {});
   });
 
   it('gets one bot by stable user ID', async () => {
@@ -215,7 +206,7 @@ describe('createBotAPI', () => {
     const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: null });
 
     await expect(api.getBot('one', { signal })).resolves.toMatchObject({ id: 'one' });
-    expect(mocks.getBot).toHaveBeenCalledWith({ botUserId: 'one' }, { headers: undefined, signal });
+    expect(mocks.getBot).toHaveBeenCalledWith({ botUserId: 'one' }, { signal });
   });
 
   it('treats unknown credential last-use states as unavailable', async () => {
@@ -252,9 +243,9 @@ describe('createBotAPI', () => {
       id: 'one',
       ownerUserId: 'U-new-owner'
     });
-    expect(mocks.reassignBotOwner).toHaveBeenCalledWith(
-      { botUserId: 'one', ownerUserId: 'U-new-owner' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.reassignBotOwner).toHaveBeenCalledWith({
+      botUserId: 'one',
+      ownerUserId: 'U-new-owner'
+    });
   });
 });

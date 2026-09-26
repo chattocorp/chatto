@@ -1,9 +1,4 @@
-import {
-  authHeaders,
-  createChattoClient,
-  handleAuthError,
-  type ConnectAPIConfig
-} from './connect.js';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import type { MessageReaction } from '@chatto/api-types/api/v1/message_types_pb';
 
@@ -39,34 +34,21 @@ export type ReactionUsersPage = {
 
 export function createReactionAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MessageService, config);
-  const headers = () => authHeaders(config);
   return {
     async addReaction(input: ReactionInput): Promise<AddReactionResult> {
-      try {
-        const response = await client.addReaction(input, {
-          headers: headers()
-        });
-        return {
-          added: response.added,
-          reaction: mapReactionSummary(response.reaction)
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await client.addReaction(input);
+      return {
+        added: response.added,
+        reaction: mapReactionSummary(response.reaction)
+      };
     },
 
     async removeReaction(input: ReactionInput): Promise<RemoveReactionResult> {
-      try {
-        const response = await client.removeReaction(input, {
-          headers: headers()
-        });
-        return {
-          removed: response.removed,
-          reaction: mapReactionSummary(response.reaction)
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await client.removeReaction(input);
+      return {
+        removed: response.removed,
+        reaction: mapReactionSummary(response.reaction)
+      };
     },
 
     async listReactionUsers(
@@ -75,19 +57,15 @@ export function createReactionAPI(config: ConnectAPIConfig) {
       limit = 50,
       signal?: AbortSignal
     ): Promise<ReactionUsersPage> {
-      try {
-        const response = await client.listReactionUsers(
-          { ...input, page: { offset, limit } },
-          { headers: headers(), signal }
-        );
-        return {
-          userIds: [...response.userIds],
-          totalCount: Number(response.page?.totalCount ?? 0),
-          hasMore: response.page?.hasMore ?? false
-        };
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
+      const response = await client.listReactionUsers(
+        { ...input, page: { offset, limit } },
+        { signal }
+      );
+      return {
+        userIds: [...response.userIds],
+        totalCount: Number(response.page?.totalCount ?? 0),
+        hasMore: response.page?.hasMore ?? false
+      };
     }
   };
 }

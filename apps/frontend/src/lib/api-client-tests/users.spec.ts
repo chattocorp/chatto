@@ -99,24 +99,18 @@ describe('createUserAPI', () => {
       avatarUrl: 'https://cdn/new-avatar.webp'
     });
     await expect(api.deleteAvatar('U1')).resolves.toMatchObject({ id: 'U1', avatarUrl: null });
-    expect(mocks.uploadAvatar).toHaveBeenCalledWith(
-      {
-        userId: 'U1',
-        image: {
-          image: new Uint8Array([1, 2, 3]),
-          filename: 'avatar.png',
-          contentType: 'image/png'
-        }
-      },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.deleteAvatar).toHaveBeenCalledWith(
-      { userId: 'U1' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
+    expect(mocks.uploadAvatar).toHaveBeenCalledWith({
+      userId: 'U1',
+      image: {
+        image: new Uint8Array([1, 2, 3]),
+        filename: 'avatar.png',
+        contentType: 'image/png'
+      }
+    });
+    expect(mocks.deleteAvatar).toHaveBeenCalledWith({ userId: 'U1' });
   });
 
-  it('loads user summaries in batches and sends bearer auth', async () => {
+  it('loads user summaries in batches', async () => {
     mocks.batchGetUsers.mockResolvedValue({
       users: [
         new APIDirectoryMember({
@@ -151,13 +145,15 @@ describe('createUserAPI', () => {
       }
     ]);
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://remote.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://remote.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['U1', 'U2'] },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: undefined }
     );
   });
 

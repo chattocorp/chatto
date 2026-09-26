@@ -1,13 +1,11 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { createReadStateAPI } from '$lib/api-client/readState';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  handleAuthenticationRequired: vi.fn(),
   markRoomAsRead: vi.fn(),
   markThreadAsRead: vi.fn()
 }));
@@ -28,9 +26,6 @@ describe('createReadStateAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.handleAuthenticationRequired.mockReset();
-
-    configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.markRoomAsRead.mockReset();
     mocks.markThreadAsRead.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
@@ -40,7 +35,7 @@ describe('createReadStateAPI', () => {
     });
   });
 
-  it('marks a room read with bearer auth and converts timestamp fields', async () => {
+  it('marks a room read and converts timestamp fields', async () => {
     mocks.markRoomAsRead.mockResolvedValue({
       lastReadAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
       previousLastReadAt: Timestamp.fromDate(new Date('2026-06-01T11:00:00Z'))
@@ -56,18 +51,18 @@ describe('createReadStateAPI', () => {
       upToEventId: 'event-2'
     });
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
-      baseUrl: 'https://remote.example.test/api/connect',
-      useBinaryFormat: true
-    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: 'https://remote.example.test/api/connect',
+        useBinaryFormat: true
+      })
+    );
     expect(mocks.markRoomAsRead).toHaveBeenCalledWith(
       {
         roomId: 'room-1',
         upToEventId: 'event-2'
       },
-      {
-        headers: { Authorization: 'Bearer remote-token' }
-      }
+      {}
     );
     expect(result).toEqual({
       lastReadAt: '2026-06-01T12:00:00.000Z',
@@ -75,7 +70,7 @@ describe('createReadStateAPI', () => {
     });
   });
 
-  it('marks a thread read without auth headers when no token is available', async () => {
+  it('marks a thread read up to the latest event', async () => {
     mocks.markThreadAsRead.mockResolvedValue({
       lastReadAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
       previousLastReadAt: Timestamp.fromDate(new Date('2026-06-01T10:00:00Z'))
@@ -96,9 +91,7 @@ describe('createReadStateAPI', () => {
         threadRootEventId: 'root-1',
         upToEventId: ''
       },
-      {
-        headers: undefined
-      }
+      {}
     );
     expect(result).toEqual({
       lastReadAt: '2026-06-01T12:00:00.000Z',
@@ -106,7 +99,7 @@ describe('createReadStateAPI', () => {
     });
   });
 
-  it('marks the server authentication stale on unauthenticated Connect errors', async () => {
+  it('propagates Connect errors unchanged', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
     mocks.markRoomAsRead.mockRejectedValue(err);
 
@@ -117,7 +110,5 @@ describe('createReadStateAPI', () => {
     });
 
     await expect(api.markRoomAsRead({ roomId: 'room-1' })).rejects.toBe(err);
-
-    expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 });

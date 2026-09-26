@@ -10,14 +10,10 @@ vi.mock('./assetUploads.js', () => ({
 }));
 
 vi.mock('./connect.js', () => ({
-  authHeaders: () => new Headers(),
   createChattoClient: () => ({
     createMessage: createMessageMock,
     setAttachmentDescription: setAttachmentDescriptionMock
-  }),
-  handleAuthError: (_config: unknown, error: unknown) => {
-    throw error;
-  }
+  })
 }));
 
 vi.mock('./roomTimeline.js', () => ({
@@ -59,8 +55,7 @@ describe('message attachment uploads', () => {
       expect.objectContaining({
         roomId: 'room-1',
         attachmentAssetIds: ['asset-first.png', 'asset-second.mp4']
-      }),
-      expect.anything()
+      })
     );
   });
 
@@ -101,8 +96,7 @@ describe('message attachment uploads', () => {
       expect.objectContaining({
         attachmentAssetIds: ['asset-first.png', 'asset-second.png'],
         attachmentDescriptions: [{ assetId: 'asset-second.png', description: 'Second image' }]
-      }),
-      expect.anything()
+      })
     );
   });
 });
@@ -119,15 +113,12 @@ describe('attachment description updates', () => {
       bearerToken: null
     }).setAttachmentDescription('room-1', 'message-1', 'asset-1', 'Replacement');
 
-    expect(setAttachmentDescriptionMock).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        eventId: 'message-1',
-        attachmentId: 'asset-1',
-        description: 'Replacement'
-      },
-      expect.anything()
-    );
+    expect(setAttachmentDescriptionMock).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      eventId: 'message-1',
+      attachmentId: 'asset-1',
+      description: 'Replacement'
+    });
     expect(result).toEqual({ updated: true, event: null });
   });
 });
@@ -147,8 +138,7 @@ describe('message thread creation', () => {
     });
 
     expect(createMessageMock).toHaveBeenCalledWith(
-      expect.objectContaining({ roomId: 'room-1', createThread: true }),
-      expect.anything()
+      expect.objectContaining({ roomId: 'room-1', createThread: true })
     );
   });
 });
