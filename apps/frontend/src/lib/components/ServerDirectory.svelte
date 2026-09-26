@@ -376,25 +376,28 @@ its work plane. See FDR-042.
     {@const profile = customProfile}
     {@const joined = registeredServer(customOrigin)}
     {@const external = opensInServerClient(customOrigin, profile)}
-    <div class="@container/server-cards max-w-md">
-      {#snippet customActions()}
-        {@render entryAction(customOrigin, profile, true)}
-      {/snippet}
-      <ServerProfileCard
-        origin={customOrigin}
-        {profile}
-        badge={joined ? m('add_server.directory.joined') : undefined}
-        iconHref={external ? customOrigin : undefined}
-        iconOpensInNewTab={external}
-        onIconClick={external || (!joined && !canJoin(profile))
-          ? undefined
-          : () => openOrJoin(customOrigin, profile)}
-        iconActionLabel={actionLabel(customOrigin, profile)}
-        iconActionDisabled={pendingOrigin === customOrigin}
-        actions={customActions}
-        testId="server-directory-entry"
-        headingTag={inDialog ? 'h4' : 'h3'}
-      />
+    <!-- The card follows the section width, like the directory grid. -->
+    <div class="@container/server-cards">
+      <div class="max-w-md">
+        {#snippet customActions()}
+          {@render entryAction(customOrigin, profile, true)}
+        {/snippet}
+        <ServerProfileCard
+          origin={customOrigin}
+          {profile}
+          badge={joined ? m('add_server.directory.joined') : undefined}
+          iconHref={external ? customOrigin : undefined}
+          iconOpensInNewTab={external}
+          onIconClick={external || (!joined && !canJoin(profile))
+            ? undefined
+            : () => openOrJoin(customOrigin, profile)}
+          iconActionLabel={actionLabel(customOrigin, profile)}
+          iconActionDisabled={pendingOrigin === customOrigin}
+          actions={customActions}
+          testId="server-directory-entry"
+          headingTag={inDialog ? 'h4' : 'h3'}
+        />
+      </div>
     </div>
   {/if}
 {/snippet}

@@ -83,37 +83,7 @@ describe('Server Directory layout', () => {
   });
 
   it('uses compact cards, including an address-lookup result, in a narrow space', async () => {
-    mocks.loadServerDirectory.mockResolvedValue({
-      entries: [entry('https://a.example', 'A')],
-      failedSourceCount: 0,
-      sourceCount: 1
-    });
-    mocks.getPublicServerInfo.mockResolvedValue({
-      name: 'Custom',
-      version: '0.5.0',
-      authorizeUrl: '/oauth/authorize',
-      directRegistrationEnabled: true,
-      directLoginEnabled: true,
-      accountCreationPolicy: 'open',
-      welcomeMessage: null,
-      description: null,
-      iconUrl: null,
-      bannerUrl: null,
-      authProviders: []
-    } satisfies PublicServerInfo);
-    const { host } = renderAtWidth(366);
-
-    await vi.waitFor(() =>
-      expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(1)
-    );
-    const input = host.querySelector<HTMLInputElement>('#add-server-url')!;
-    input.value = 'custom.example';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    flushSync();
-    host.querySelector('form')!.requestSubmit();
-    await vi.waitFor(() =>
-      expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(2)
-    );
+    const { host, input } = await renderWithLookupResult(366);
 
     for (const card of host.querySelectorAll('[data-testid="server-directory-entry"]')) {
       expect(bannerHeight(card)).toBe(40);
@@ -121,4 +91,48 @@ describe('Server Directory layout', () => {
     const button = host.querySelector<HTMLButtonElement>('form button[type="submit"]')!;
     expect(button.getBoundingClientRect().top).toBe(input.getBoundingClientRect().top);
   });
+
+  it('keeps the full address-lookup card in a wide space', async () => {
+    const { host } = await renderWithLookupResult(912);
+
+    for (const card of host.querySelectorAll('[data-testid="server-directory-entry"]')) {
+      expect(bannerHeight(card)).toBe(96);
+    }
+  });
 });
+
+/** Render the directory at a width and look up one server by address. */
+async function renderWithLookupResult(width: number) {
+  mocks.loadServerDirectory.mockResolvedValue({
+    entries: [entry('https://a.example', 'A')],
+    failedSourceCount: 0,
+    sourceCount: 1
+  });
+  mocks.getPublicServerInfo.mockResolvedValue({
+    name: 'Custom',
+    version: '0.5.0',
+    authorizeUrl: '/oauth/authorize',
+    directRegistrationEnabled: true,
+    directLoginEnabled: true,
+    accountCreationPolicy: 'open',
+    welcomeMessage: null,
+    description: null,
+    iconUrl: null,
+    bannerUrl: null,
+    authProviders: []
+  } satisfies PublicServerInfo);
+  const { host } = renderAtWidth(width);
+
+  await vi.waitFor(() =>
+    expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(1)
+  );
+  const input = host.querySelector<HTMLInputElement>('#add-server-url')!;
+  input.value = 'custom.example';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  flushSync();
+  host.querySelector('form')!.requestSubmit();
+  await vi.waitFor(() =>
+    expect(host.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(2)
+  );
+  return { host, input };
+}
