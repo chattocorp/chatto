@@ -3714,6 +3714,52 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps a live reply after newer thread pages that load in jumped mode', async () => {
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi
+        .fn<RoomTimelineAPI['getThreadEvents']>()
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('t1') as never, threadMessageEvent('r80', 't1') as never],
+          startCursor: 'tl:cursor-80',
+          endCursor: 'tl:cursor-80',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [
+            threadMessageEvent('r12', 't1') as never,
+            threadMessageEvent('r13', 't1') as never
+          ],
+          startCursor: 'tl:cursor-12',
+          endCursor: 'tl:cursor-13',
+          hasOlder: true,
+          hasNewer: true
+        }),
+      getThreadEventsAround: vi.fn(async () => ({
+        events: [threadMessageEvent('t1') as never, threadMessageEvent('r10', 't1') as never],
+        startCursor: 'tl:cursor-10',
+        endCursor: 'tl:cursor-10',
+        hasOlder: true,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
+    await settle();
+    const jumpState = new JumpToMessageState();
+    await store.jumpToMessage('r10', jumpState);
+
+    store.ingestEvent(threadMessageEvent('r90', 't1'));
+    await store.loadNewer(jumpState);
+
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r10', 'r12', 'r13', 'r90']);
+    store.dispose();
+  });
+
   it('lets a thread page older again after a refresh supersedes its page load', async () => {
     type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEvents']>>;
     const older = deferred<ThreadPage>();

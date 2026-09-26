@@ -1013,8 +1013,7 @@ export class MessagesStore {
       }
 
       if (eventData.threadRootEventId === this.threadRootEventId) {
-        this.addEvent(spaceEvent, { sortRoom: false });
-        this.sortEvents();
+        this.addEvent(spaceEvent);
       }
       return;
     }
@@ -1139,11 +1138,11 @@ export class MessagesStore {
     }
   }
 
-  private addEvent(event: TimelineEventView, options: { sortRoom?: boolean } = {}): boolean {
+  private addEvent(event: TimelineEventView, options: { sort?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
-    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortEvents();
+    if (options.sort ?? true) this.sortEvents();
     return true;
   }
 
@@ -1151,9 +1150,10 @@ export class MessagesStore {
     let added = false;
     for (const e of events) {
       this.clearOptimisticVersionForEvent(e.id);
-      added = this.addEvent(e, { sortRoom: false }) || added;
+      added = this.addEvent(e, { sort: false }) || added;
     }
-    if (added && this.scope === 'room') this.sortEvents();
+    // A live event can arrive before an older page of newer events.
+    if (added) this.sortEvents();
   }
 
   private prependEvents(olderEvents: TimelineEventView[]): number {
