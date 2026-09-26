@@ -916,11 +916,6 @@
           createThreadDefault={threadingMode === RoomThreadingMode.ENCOURAGED}
           threadsEncouraged={threadingMode === RoomThreadingMode.ENCOURAGED}
           {getRecentThreadRootCandidate}
-          inReplyTo={replyState.messageEventId ?? undefined}
-          replyDisplayName={replyState.actorDisplayName || undefined}
-          replyIdentity={replyState.actorIdentity}
-          replyExcerpt={replyState.excerpt || undefined}
-          onCancelReply={() => replyState.cancelReply()}
           autoFocus={!threadId && !hasMobileRoomSidebar}
           onReady={(api) => (composerApi = api)}
           onTyping={() => typingIndicator?.sendTypingIndicator()}

@@ -43,7 +43,6 @@
   const jumpState = composerContext.jumpState;
 
   let roomEvents = $derived(store.rootEvents);
-  let updateCounter = $derived(roomEvents.length);
 
   // Projection v2 folds retractions and crypto-erasure into the authoritative
   // message row. Keep composer state aligned without requiring a second
@@ -57,15 +56,13 @@
   });
 
   // Wire jumpState handlers to the store
-  if (jumpState) {
-    jumpState.setJumpHandler((eventId: string) => store.jumpToMessage(eventId, jumpState));
-    jumpState.setLoadNewerHandler(() => store.loadNewer(jumpState));
-  }
+  jumpState.setJumpHandler((eventId: string) => store.jumpToMessage(eventId, jumpState));
+  jumpState.setLoadNewerHandler(() => store.loadNewer(jumpState));
 
   // Reset jump state when room changes
   $effect(() => {
     void roomId;
-    if (jumpState) jumpState.reset();
+    jumpState.reset();
   });
 
   // Drive store loads from roomId changes. Reconnect convergence belongs to
@@ -73,49 +70,25 @@
   $effect(() => {
     store.setRoom(roomId);
   });
-
-  function handleReachedPresent(): void {
-    if (!jumpState) return;
-
-    console.debug('[room-refresh] exiting jumped mode at present', { roomId });
-    jumpState.reset();
-  }
 </script>
 
 <EventList
   {roomId}
   messageStore={store}
   events={roomEvents}
-  alwaysScrollToBottom={false}
-  showNewMessagesIndicator={true}
-  enablePagination={true}
-  isLoadingMore={store.isLoadingMore}
-  hasReachedStart={store.hasReachedStart}
   showStartMarker={!hasLimitedMessageAccess}
   emptyMessage={m(hasLimitedMessageAccess ? 'room.timeline.limited_empty' : 'room.message.empty')}
-  onLoadMore={() => store.loadMore()}
-  {updateCounter}
   {onOpenThread}
   {onOpenCall}
   {onOpenProfile}
-  enableLastEditableFinder={true}
-  isLoading={store.isInitialLoading}
   unreadAfterEventId={unreadMarkerEventId}
-  scrollToUnreadOnEntry={true}
   {typingUserIds}
   {typingMembers}
-  scrollToEventId={jumpState?.scrollToEventId ?? null}
   onScrollToEventComplete={(landed) => {
-    if (jumpState) jumpState.scrollToEventId = null;
+    jumpState.scrollToEventId = null;
     onHighlightComplete?.();
     if (!landed) toast.error(m('room.jump_failed'));
   }}
-  isJumpedMode={jumpState?.isJumpedMode ?? false}
-  isLoadingNewer={jumpState?.isLoadingNewer ?? false}
-  hasReachedEnd={jumpState?.hasReachedEnd ?? false}
-  onLoadNewer={() => store.loadNewer(jumpState)}
-  onJumpToPresent={() => store.jumpToPresent(jumpState)}
-  onReachedPresent={handleReachedPresent}
   onReachedBottom={onUnreadMarkerCleared}
   {pendingHighlightId}
   {threadingMode}

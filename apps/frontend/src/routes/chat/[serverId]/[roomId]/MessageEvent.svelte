@@ -520,11 +520,7 @@
 
     // Use jump-to-message state which works with the virtualizer.
     // Both Room (main view) and ThreadPane provide this context.
-    if (jumpState) {
-      jumpState.jumpToMessage(replyToId);
-    } else {
-      toast.info('Message is not loaded. Scroll up to find it.');
-    }
+    jumpState.jumpToMessage(replyToId);
   }
 
   function getSelectedReplyQuote(): QuoteInsertionContent | null {

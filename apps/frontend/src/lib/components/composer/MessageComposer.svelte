@@ -50,10 +50,6 @@
   let {
     roomId,
     inThread,
-    inReplyTo,
-    replyDisplayName,
-    replyIdentity,
-    replyExcerpt,
     placeholder,
     canPost = true,
     canAttach = true,
@@ -65,7 +61,6 @@
     onTyping,
     onMessageSent,
     onThreadMessageSent,
-    onCancelReply,
     onEscape,
     showAlsoSendToChannel = false,
     echoToConversation = false,
@@ -137,11 +132,11 @@
 
   const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
   const composerContext = getComposerContext();
+  const replyState = composerContext.replyState;
   const membersStore = useRoomMembersStore();
   const composer = new MessageComposerState({
     getRoomId: () => roomId,
     getThreadRootEventId: () => inThread,
-    getReplyEventId: () => inReplyTo,
     getCanPost: () => canPost,
     getCanAttach: () => canAttach,
     getSlowModeBlocked: () => slowModeBlocked,
@@ -161,7 +156,6 @@
         onMessageSent?.(event);
       },
       onThreadMessageSent,
-      onCancelReply,
       onEscape
     }),
     onPostError: (error) => {
@@ -261,7 +255,7 @@
     </p>
   {/if}
 
-  {#if threadsEncouraged && inReplyTo && !inThread}
+  {#if threadsEncouraged && replyState.messageEventId && !inThread}
     <p class="px-0.5 text-xs text-muted" data-testid="threads-encouraged-hint">
       {m('composer.threads_encouraged')}
     </p>
@@ -390,12 +384,12 @@
   </div>
 
   <ComposerModeIndicators
-    {inReplyTo}
-    {replyDisplayName}
-    {replyIdentity}
-    {replyExcerpt}
+    inReplyTo={replyState.messageEventId ?? undefined}
+    replyDisplayName={replyState.actorDisplayName || undefined}
+    replyIdentity={replyState.actorIdentity}
+    replyExcerpt={replyState.excerpt || undefined}
     isEditing={composer.isEditing}
-    oncancelreply={() => onCancelReply?.()}
+    oncancelreply={() => replyState.cancelReply()}
     oncanceledit={() => composer.cancelEdit()}
   />
 </div>

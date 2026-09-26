@@ -21,12 +21,10 @@
     isLoading = false,
     isJumpedMode = false,
     onJumpToPresent,
-    updateCounter = 0,
     pendingHighlightId = null,
     hasReachedStart = false,
     recoveryViewport = null,
     unreadAfterEventId = null,
-    scrollToUnreadOnEntry = false,
     onComposerReady,
     onStoreRead
   }: {
@@ -39,18 +37,23 @@
     isLoading?: boolean;
     isJumpedMode?: boolean;
     onJumpToPresent?: () => Promise<boolean>;
-    updateCounter?: number;
     pendingHighlightId?: string | null;
     hasReachedStart?: boolean;
     recoveryViewport?: { eventId: string; offset: number; hasNewer?: boolean } | null;
     unreadAfterEventId?: string | null;
-    scrollToUnreadOnEntry?: boolean;
     onComposerReady?: (context: ComposerContext) => void;
     onStoreRead?: () => void;
   } = $props();
 
   const composerContext = createComposerContext({ scroll: true });
   onMount(() => onComposerReady?.(composerContext));
+  // Production panes drive these through the shared jump state.
+  $effect.pre(() => {
+    composerContext.jumpState.isJumpedMode = isJumpedMode;
+  });
+  $effect.pre(() => {
+    composerContext.jumpState.scrollToEventId = scrollToEventId;
+  });
   createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
   createRoomMembers();
 
@@ -104,6 +107,16 @@
 
   // Match Room's derived store selection so delayed work sees real owner disposal.
   const messageStore = $derived({
+    get isInitialLoading() {
+      return isLoading;
+    },
+    isLoadingMore: false,
+    get hasReachedStart() {
+      return hasReachedStart;
+    },
+    loadMore: async () => {},
+    loadNewer: async () => {},
+    jumpToPresent: async () => (await onJumpToPresent?.()) ?? false,
     get recoveryViewport() {
       onStoreRead?.();
       return recoveryViewport;
@@ -131,14 +144,7 @@
   {permalinkThreadRootEventId}
   messageStore={messageStore as never}
   {events}
-  {isLoading}
-  {isJumpedMode}
-  {onJumpToPresent}
-  {updateCounter}
   {pendingHighlightId}
-  {hasReachedStart}
   {unreadAfterEventId}
-  {scrollToUnreadOnEntry}
-  {scrollToEventId}
   onScrollToEventComplete={onComplete}
 />

@@ -9,7 +9,7 @@ import MessageComposer, { type MessageComposerApi } from './MessageComposer.svel
 import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
-import { EditState } from '$lib/state/room/composerContext.svelte';
+import { EditState, ReplyState } from '$lib/state/room/composerContext.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 import { TimelineEventKind } from '$lib/render/timelineEvents';
@@ -81,6 +81,8 @@ const roomStateMock = vi.hoisted(() => ({
   },
   /** Reactive edit state for tests that depend on edit transitions re-running effects. */
   reactiveEditState: null as EditState | null,
+  /** Real reply state; the composer reads the reply target from context. */
+  replyState: null as ReplyState | null,
   quoteInsertionState: {
     request: null as { id: number; text: QuoteInsertionContent } | null
   },
@@ -176,6 +178,7 @@ vi.mock('$lib/state/room', () => ({
   }),
   getComposerContext: () => ({
     editState: roomStateMock.reactiveEditState ?? roomStateMock.editState,
+    replyState: roomStateMock.replyState,
     quoteInsertionState: roomStateMock.quoteInsertionState,
     lastEditableMessage: roomStateMock.lastEditableMessage,
     scrollState: roomStateMock.scrollState
@@ -409,6 +412,7 @@ describe('MessageComposer', () => {
     roomStateMock.editState.startEdit.mockClear();
     roomStateMock.editState.cancelEdit.mockClear();
     roomStateMock.reactiveEditState = null;
+    roomStateMock.replyState = new ReplyState();
     roomStateMock.quoteInsertionState.request = null;
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReset();
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
@@ -613,7 +617,7 @@ describe('MessageComposer', () => {
       await rendered.rerender({ autoFocus: true });
       await expect.element(editor).toHaveFocus();
       await userEvent.click(outside);
-      await rendered.rerender({ inReplyTo: 'reply-target' });
+      roomStateMock.replyState!.startReply('reply-target', 'Reply target', 'excerpt');
       await expect.element(editor).toHaveFocus();
       await userEvent.click(outside);
       await rendered.rerender({ roomId: 'another-room' });
@@ -2271,6 +2275,21 @@ describe('MessageComposer', () => {
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
     });
 
+    it('cancels an active reply on Escape before handing Escape to the owner', async () => {
+      const onEscape = vi.fn();
+      roomStateMock.replyState!.startReply('evt_reply', 'Reply target', 'excerpt');
+      const { container } = renderMessageComposer({ roomId: 'room_456', onEscape });
+      const editor = await findEditor(container);
+
+      await pressEditorKey(editor, 'Escape');
+
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      expect(onEscape).not.toHaveBeenCalled();
+
+      await pressEditorKey(editor, 'Escape');
+      expect(onEscape).toHaveBeenCalledOnce();
+    });
+
     it('cancels an edit and restores the next room draft when the room changes', async () => {
       const editState = new EditState();
       roomStateMock.reactiveEditState = editState;
@@ -3721,14 +3740,12 @@ describe('MessageComposer', () => {
     });
 
     it('posts normalized body and all thread/reply options', async () => {
-      const onCancelReply = vi.fn();
       const onMessageSent = vi.fn();
+      roomStateMock.replyState!.startReply('evt_reply_to', 'Reply target', 'excerpt');
       const { container, roomId } = renderMessageComposer({
         roomId: 'room_456',
         inThread: 'evt_thread_root',
-        inReplyTo: 'evt_reply_to',
         showAlsoSendToChannel: true,
-        onCancelReply,
         onMessageSent
       });
       const editor = await findEditor(container, 'thread-reply-input');
@@ -3765,7 +3782,7 @@ describe('MessageComposer', () => {
         inReplyTo: 'evt_reply_to',
         alsoSendToChannel: true
       });
-      await vi.waitFor(() => expect(onCancelReply).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(roomStateMock.replyState!.messageEventId).toBeNull());
       expect(onMessageSent).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'msg_123',
