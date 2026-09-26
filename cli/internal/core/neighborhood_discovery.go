@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -23,7 +24,6 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/core/neighborhood"
-	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/parallel"
 	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 )
@@ -33,18 +33,24 @@ const (
 	// neighborhoodDirectoryKey stores the latest discovery result in
 	// MEMORY_CACHE.
 	neighborhoodDirectoryKey = "neighborhood.directory"
-	neighborhoodLeaseName    = "neighborhood-discovery"
 
 	// neighborhoodRefreshAge is the maximum age of a directory before the
 	// next discovery pass.
 	neighborhoodRefreshAge = time.Hour
 	// neighborhoodSourceChangeDelay is the minimum directory age before a
-	// Neighbor change starts a new pass. It merges quick successive edits.
-	neighborhoodSourceChangeDelay = 2 * time.Minute
+	// Neighbor change starts a new pass. It limits the pass rate during a
+	// series of edits.
+	neighborhoodSourceChangeDelay = 10 * time.Second
 	// neighborhoodIncompleteRetryAge is the maximum age of a directory from
 	// a pass with failed remote requests.
 	neighborhoodIncompleteRetryAge = 10 * time.Minute
-	neighborhoodCheckInterval     = time.Minute
+	// neighborhoodCheckInterval is the time between checks. A check reads one
+	// MEMORY_CACHE value and hashes the local Neighbor projection.
+	neighborhoodCheckInterval = 5 * time.Second
+	// neighborhoodFailureBackoff is the wait after a failed check. A check
+	// can fail after a complete remote crawl, so a short retry would repeat
+	// that crawl.
+	neighborhoodFailureBackoff = time.Minute
 	// neighborhoodPassTimeout bounds one pass, including image downloads.
 	neighborhoodPassTimeout = 20 * time.Minute
 	// neighborhoodImageTTL is the object store TTL. Discovery rewrites an
@@ -70,17 +76,13 @@ type neighborhoodFetcher interface {
 	FetchImage(ctx context.Context, origin, rawURL string) ([]byte, error)
 }
 
-type neighborhoodLease interface {
-	TryRun(context.Context, func(context.Context) error) (bool, error)
-}
-
-// neighborhoodDiscovery refreshes the cached Neighborhood directory. Every
-// replica checks the directory age. A shared lease lets one replica run a
-// pass at a time, and the shared directory age limits the cluster-wide rate.
+// neighborhoodDiscovery refreshes the cached Neighborhood directory. Each
+// replica runs one worker. The replicas do not coordinate: when a pass is
+// due, each replica can run the same pass and write an equivalent result.
+// This interim design accepts the extra remote requests.
 type neighborhoodDiscovery struct {
 	kv          jetstream.KeyValue
 	images      jetstream.ObjectStore
-	lease       neighborhoodLease
 	fetcher     neighborhoodFetcher
 	selfOrigins []string
 	neighbors   func() []string
@@ -88,37 +90,45 @@ type neighborhoodDiscovery struct {
 	limits      neighborhood.Limits
 	logger      *log.Logger
 	now         func() time.Time
+	// checkInterval and failureBackoff override the production timings in
+	// tests.
+	checkInterval  time.Duration
+	failureBackoff time.Duration
 }
 
-// Run checks the directory once per minute after boot and refreshes it when
-// it is missing, old, incomplete for ten minutes, or based on different
-// Neighbors.
+// Run checks the directory every few seconds after boot. It refreshes the
+// directory when it is missing, old, incomplete for ten minutes, or based on
+// a different Neighbor set. Every replica sees Neighbor changes through its
+// configuration projection, so no change signal is necessary.
 func (d *neighborhoodDiscovery) Run(ctx context.Context, bootDone <-chan struct{}) error {
 	select {
 	case <-bootDone:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	ticker := time.NewTicker(neighborhoodCheckInterval)
-	defer ticker.Stop()
+	checkInterval := cmp.Or(d.checkInterval, neighborhoodCheckInterval)
+	failureBackoff := cmp.Or(d.failureBackoff, neighborhoodFailureBackoff)
 	for {
+		wait := checkInterval
 		if err := d.refreshIfDue(ctx); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			d.logger.Warn("Neighborhood discovery failed", "stage", "refresh", "error", err)
+			wait = failureBackoff
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-time.After(wait):
 		}
 	}
 }
 
+// refreshIfDue runs a discovery pass when the directory is due.
 func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) error {
 	sources := d.neighbors()
-	fingerprint := neighborhoodSourceFingerprint(d.selfOrigins, sources)
+	fingerprint := neighborhoodSourceFingerprint(sources)
 	current, err := d.load(ctx)
 	if err != nil {
 		return err
@@ -126,19 +136,7 @@ func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) error {
 	if !d.due(current, fingerprint) {
 		return nil
 	}
-	_, err = d.lease.TryRun(ctx, func(leaderCtx context.Context) error {
-		// Another replica can finish a pass between the first check and
-		// lease acquisition.
-		current, err := d.load(leaderCtx)
-		if err != nil {
-			return err
-		}
-		if !d.due(current, fingerprint) {
-			return nil
-		}
-		return d.refresh(leaderCtx, sources, fingerprint, current)
-	})
-	return err
+	return d.refresh(ctx, sources, fingerprint, current)
 }
 
 func (d *neighborhoodDiscovery) due(current *cachestatev1.NeighborhoodDirectory, fingerprint string) bool {
@@ -312,11 +310,14 @@ func loadNeighborhoodDirectory(ctx context.Context, kv jetstream.KeyValue) (*cac
 	return directory, nil
 }
 
-// neighborhoodSourceFingerprint identifies the inputs of a discovery pass.
-func neighborhoodSourceFingerprint(selfOrigins, neighbors []string) string {
-	self := slices.Sorted(slices.Values(selfOrigins))
+// neighborhoodSourceFingerprint identifies the Neighbor set of a discovery
+// pass. Every replica projects the same Neighbors, so replicas agree on it.
+// It excludes the replica's own configured origins: replicas with different
+// origin settings must not start passes against each other. The hourly
+// refresh applies a change to those settings.
+func neighborhoodSourceFingerprint(neighbors []string) string {
 	sources := slices.Sorted(slices.Values(neighbors))
-	sum := sha256.Sum256([]byte(strings.Join(self, "\n") + "\n\n" + strings.Join(sources, "\n")))
+	sum := sha256.Sum256([]byte(strings.Join(sources, "\n")))
 	return hex.EncodeToString(sum[:])
 }
 
@@ -354,19 +355,10 @@ func (c *ChattoCore) OpenNeighborhoodImage(ctx context.Context, name string) (io
 	return result, info, nil
 }
 
-func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure, cfg config.CoreConfig, logger *log.Logger) error {
-	discoveryLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
-		Name:   neighborhoodLeaseName,
-		Bucket: "MEMORY_CACHE",
-		Logger: logger.WithPrefix("core.NeighborhoodDiscoveryLease"),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize Neighborhood discovery lease: %w", err)
-	}
+func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure, cfg config.CoreConfig, logger *log.Logger) {
 	core.neighborhoodDiscovery = &neighborhoodDiscovery{
 		kv:          infra.storage.memoryCacheKV,
 		images:      infra.storage.neighborhoodImages,
-		lease:       discoveryLease,
 		fetcher:     neighborhood.RemoteFetcher{Client: newNeighborhoodHTTPClient()},
 		selfOrigins: slices.Clone(cfg.ServerOrigins),
 		neighbors: func() []string {
@@ -382,7 +374,6 @@ func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure
 		logger:    logger.WithPrefix("core.NeighborhoodDiscovery"),
 		now:       time.Now,
 	}
-	return nil
 }
 
 // newNeighborhoodHTTPClient returns the link-preview client, which rejects

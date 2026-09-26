@@ -28,7 +28,9 @@ afterEach(() => {
 describe('ServerProfileCard public images', () => {
   it('loads same-origin images through the private public-image path', async () => {
     const png = Uint8Array.from(
-      atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='),
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='
+      ),
       (character) => character.charCodeAt(0)
     );
     const browserFetch = vi.fn(
@@ -86,11 +88,12 @@ describe('ServerProfileCard public images', () => {
   it('falls back to plain branding when image data is invalid', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response(new Blob(['invalid image'], { type: 'image/png' }), {
-          status: 200,
-          headers: { 'Content-Type': 'image/png' }
-        })
+      vi.fn(
+        async () =>
+          new Response(new Blob(['invalid image'], { type: 'image/png' }), {
+            status: 200,
+            headers: { 'Content-Type': 'image/png' }
+          })
       )
     );
 
@@ -101,7 +104,7 @@ describe('ServerProfileCard public images', () => {
 
     await vi.waitFor(() => {
       expect(container.querySelector('img')).toBeNull();
-      expect(container.querySelector('.bg-gradient-to-br')).not.toBeNull();
+      expect(container.querySelector('[data-banner-fallback]')).not.toBeNull();
       expect(container.textContent).toContain('R');
     });
   });

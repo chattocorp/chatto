@@ -10,10 +10,13 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -60,12 +63,6 @@ func (f *fakeNeighborhoodFetcher) counts() (int, int) {
 	return f.listCalls, f.imageCalls
 }
 
-type immediateLease struct{}
-
-func (immediateLease) TryRun(ctx context.Context, work func(context.Context) error) (bool, error) {
-	return true, work(ctx)
-}
-
 func testPNG(t *testing.T) []byte {
 	t.Helper()
 	img := image.NewNRGBA(image.Rect(0, 0, 4, 4))
@@ -95,7 +92,6 @@ func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDisco
 	discovery := &neighborhoodDiscovery{
 		kv:          core.storage.memoryCacheKV,
 		images:      core.storage.neighborhoodImages,
-		lease:       immediateLease{},
 		fetcher:     fetcher,
 		selfOrigins: []string{neighborhoodTestSelf},
 		neighbors:   func() []string { return neighbors },
@@ -166,6 +162,99 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 	require.Equal(t, first.GetLogo().GetObjectName(), refreshed.GetServers()[0].GetLogo().GetObjectName())
 }
 
+func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {
+	core, discovery, fetcher, start := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	// The worker reads the clock on its own goroutine.
+	var now atomic.Int64
+	now.Store(start.UnixNano())
+	discovery.now = func() time.Time { return time.Unix(0, now.Load()) }
+	var mu sync.Mutex
+	neighbors := []string{"https://a.example"}
+	discovery.neighbors = func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(neighbors)
+	}
+	fetcher.profiles["https://c.example"] = neighborhood.Profile{Name: "C", Version: "0.5.0"}
+	discovery.checkInterval = 10 * time.Millisecond
+	bootDone := make(chan struct{})
+	close(bootDone)
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- discovery.Run(runCtx, bootDone) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	require.Eventually(t, func() bool {
+		directory, err := core.NeighborhoodDirectory(ctx)
+		return err == nil && directory != nil
+	}, 5*time.Second, 10*time.Millisecond)
+
+	mu.Lock()
+	neighbors = append(neighbors, "https://c.example")
+	mu.Unlock()
+	now.Add(int64(neighborhoodSourceChangeDelay))
+
+	require.Eventually(t, func() bool {
+		directory, err := core.NeighborhoodDirectory(ctx)
+		if err != nil || directory == nil {
+			return false
+		}
+		return slices.ContainsFunc(directory.GetServers(), func(server *cachestatev1.NeighborhoodServerRecord) bool {
+			return server.GetOrigin() == "https://c.example"
+		})
+	}, 5*time.Second, 10*time.Millisecond)
+}
+
+// failingPutKV rejects every write so that a discovery pass fails after its
+// remote crawl. It reports each rejected write on rejected.
+type failingPutKV struct {
+	jetstream.KeyValue
+	rejected chan struct{}
+}
+
+func (kv failingPutKV) Put(context.Context, string, []byte) (uint64, error) {
+	select {
+	case kv.rejected <- struct{}{}:
+	default:
+	}
+	return 0, errors.New("write rejected")
+}
+
+func TestNeighborhoodDiscoveryWaitsAfterAFailedPass(t *testing.T) {
+	_, discovery, fetcher, _ := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	rejected := make(chan struct{}, 1)
+	discovery.kv = failingPutKV{KeyValue: discovery.kv, rejected: rejected}
+	discovery.checkInterval = 5 * time.Millisecond
+	discovery.failureBackoff = time.Hour
+	bootDone := make(chan struct{})
+	close(bootDone)
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- discovery.Run(runCtx, bootDone) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	// The write is the last step of a pass, so the complete crawl is counted.
+	select {
+	case <-rejected:
+	case <-ctx.Done():
+		t.Fatal("the discovery pass did not reach its directory write")
+	}
+	lists, _ := fetcher.counts()
+
+	// Many check intervals pass, but the failed pass does not run again.
+	time.Sleep(100 * time.Millisecond)
+	listsLater, _ := fetcher.counts()
+	require.Equal(t, lists, listsLater)
+}
+
 func TestNeighborhoodDiscoveryDue(t *testing.T) {
 	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
 	discovery := &neighborhoodDiscovery{now: func() time.Time { return now }}
@@ -185,7 +274,7 @@ func TestNeighborhoodDiscoveryDue(t *testing.T) {
 		{name: "fresh", current: directory(time.Minute, "same"), want: false},
 		{name: "old", current: directory(neighborhoodRefreshAge, "same"), want: true},
 		{name: "future", current: directory(-time.Minute, "same"), want: true},
-		{name: "recent Neighbor change", current: directory(time.Minute, "other"), want: false},
+		{name: "recent Neighbor change", current: directory(5*time.Second, "other"), want: false},
 		{name: "settled Neighbor change", current: directory(neighborhoodSourceChangeDelay, "other"), want: true},
 		{name: "recent incomplete pass", current: incomplete(directory(time.Minute, "same")), want: false},
 		{name: "old incomplete pass", current: incomplete(directory(neighborhoodIncompleteRetryAge, "same")), want: true},
@@ -199,11 +288,11 @@ func TestNeighborhoodDiscoveryDue(t *testing.T) {
 
 func TestNeighborhoodSourceFingerprintIgnoresOrder(t *testing.T) {
 	require.Equal(t,
-		neighborhoodSourceFingerprint([]string{"https://s.example"}, []string{"https://a.example", "https://b.example"}),
-		neighborhoodSourceFingerprint([]string{"https://s.example"}, []string{"https://b.example", "https://a.example"}))
+		neighborhoodSourceFingerprint([]string{"https://a.example", "https://b.example"}),
+		neighborhoodSourceFingerprint([]string{"https://b.example", "https://a.example"}))
 	require.NotEqual(t,
-		neighborhoodSourceFingerprint([]string{"https://s.example"}, []string{"https://a.example"}),
-		neighborhoodSourceFingerprint([]string{"https://other.example"}, []string{"https://a.example"}))
+		neighborhoodSourceFingerprint([]string{"https://a.example"}),
+		neighborhoodSourceFingerprint([]string{"https://a.example", "https://b.example"}))
 }
 
 func TestNeighborhoodHTTPClientRejectsRedirects(t *testing.T) {
