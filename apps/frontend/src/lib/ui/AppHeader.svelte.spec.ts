@@ -149,6 +149,22 @@ describe('AppHeader', () => {
     expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'aboutChatto' } });
   });
 
+  it.each([
+    [390, false],
+    [1280, true]
+  ])('shows the client version at %i pixels: %s', async (width, visible) => {
+    await page.viewport(width, 800);
+    try {
+      const { getByTestId } = render(AppHeader);
+      const label = getByTestId('app-header-version');
+      await expect.element(label).toHaveTextContent('v0.5.0-dev+f7b4e515c998');
+      if (visible) await expect.element(label).toBeVisible();
+      else await expect.element(label).not.toBeVisible();
+    } finally {
+      await page.viewport(1280, 720);
+    }
+  });
+
   it.each([320, 390, 1280])('keeps the header height and truncates the MOTD at %i pixels', async (width) => {
     mocks.servers = [{ id: 'remote' }];
     mocks.activeServer = 'remote';

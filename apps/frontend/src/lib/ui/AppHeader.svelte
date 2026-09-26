@@ -138,6 +138,8 @@
   <!-- Actions: About + Logout -->
   <div class="flex shrink-0 items-center gap-3">
     {#if version}
+      <!-- Wide viewports have room to show the client version next to the About action. -->
+      <span class="hidden text-xs tabular-nums md:inline" data-testid="app-header-version">v{version}</span>
       <button
         type="button"
         class="app-header-icon"
