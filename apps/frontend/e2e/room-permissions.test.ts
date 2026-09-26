@@ -363,6 +363,8 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
 
         await memberPage.goto(routes.room(roomId));
+        await expect(memberPage.getByTestId('room-main-pane').getByText(rootBody)).toBeVisible();
+        await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
         await grantRoomPermission(page, roomId, 'everyone', 'message.read');
         await expect(memberPage.getByText(unrelatedBody)).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
