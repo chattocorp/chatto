@@ -25,27 +25,24 @@ configuration for those.
 ## Local Development with Conductor
 
 [Conductor](https://conductor.build) runs the regular root `mise dev` stack as
-native processes. Start the default **Dev stack** run mode to launch the Chatto
-backend and Vite frontend, Authling, Mailpit, and LiveKit on the workspace's ten
-allocated ports. Portless exposes Chatto at
-`https://chatto.<workspace>.localhost:42444`; Authling, Mailpit, and LiveKit use
-the same HTTPS URL shape with their respective service names. The
-[Local Development Stack](README.md#local-development-stack) section lists the
-complete layout. Vite live-reloads frontend source; restart the stack after
-changing Chatto or Authling Go code.
+native processes. Start the default **Dev stack** run mode to build and launch
+Chatto, Authling, the Runling bot, Mailpit, and LiveKit on the workspace's ten
+allocated ports. Chatto is at `http://chatto.<workspace>.localhost:<port>`.
+The Open button lists this URL and the other service URLs. The
+[Local Development Stack](README.md#local-development-stack) section describes
+the complete layout. Restart the stack after you change Chatto, its frontend,
+or Authling. For hot module replacement, also start the **Vite frontend** run
+mode.
 
 The repository-level Conductor settings are shared in
 `.conductor/settings.toml`, while the root `mise.toml` defines the native
-development stack. Together with Portless's workspace-named routes and
-Conductor's allocated ports, they isolate concurrent workspaces. Put
+development stack. Workspace-named `.localhost` hostnames and Conductor's
+allocated ports isolate concurrent workspaces. Put
 machine-specific Conductor overrides in `.conductor/settings.local.toml`; that
 file is gitignored and wins over shared settings on your machine. Conductor
 reads `.worktreeinclude` to copy gitignored local environment files, such as
 `.env` and `.env.*`, into new workspaces. Stopping the run command stops all
-five child processes and unregisters their Portless routes. The first run may
-require launching
-`mise x node@24 npm:portless@0.15.5 -- portless trust` in an
-interactive terminal so macOS can trust Portless's development CA.
+child processes.
 
 ## Local Development with Codex
 
@@ -57,16 +54,15 @@ terminal. The cleanup script stops workspace processes before Codex deletes
 the worktree.
 
 Start an action, then open its URL in the app's browser. With the default
-local settings, Chatto uses `https://chatto.local.localhost:42444`, Storybook
-uses `https://storybook.local.localhost:42444`, and the docs website uses
-`https://docs.local.localhost:42444`. Authling, Mailpit, LiveKit, and Runling
-use the same URL pattern with their service names.
+local settings, Chatto uses `http://chatto.local.localhost:4000` and Authling
+uses `http://authling.local.localhost:4002`. Storybook and the docs website
+show their URLs in the terminal.
 
-This configuration does not allocate ports or route names for each worktree.
-The development stack uses base port `4000` and route suffix `local` outside
+This configuration does not allocate ports or hostnames for each worktree.
+The development stack uses base port `4000` and workspace name `local` outside
 Conductor. Run one such stack at a time, or set distinct `CONDUCTOR_PORT` and
 `CONDUCTOR_WORKSPACE_NAME` values for each workspace before starting its
-actions. These variables are the existing `mise` inputs for port and route
+actions. These variables are the existing `mise` inputs for port and hostname
 isolation. Conductor's preview URL list, `.worktreeinclude` handling, Git
 settings, and PR prompt are not part of the Codex environment configuration.
 
@@ -86,13 +82,20 @@ described in the README:
 mise dev
 ```
 
-To run the docs website development server on the workspace base port:
+To run the Vite frontend development server with hot module replacement:
+
+```sh
+mise dev-frontend
+```
+
+To run the docs website development server:
 
 ```sh
 mise dev-docs-website
 ```
 
-To run the bundled executable without live reloads:
+To run only the bundled Chatto executable, without Authling and the other
+services:
 
 ```sh
 mise run chatto run
@@ -117,12 +120,12 @@ Tailwind plugin settings in `apps/frontend/.prettierrc`. Authling uses its own
 pnpm workspace and toolchain.
 
 `mise dev` uses Conductor's allocated port block and falls back to base port
-`4000` outside Conductor. `mise dev-docs-website` also uses `4000` when
-`CONDUCTOR_PORT` and `CHATTO_DOCS_WEBSITE_PORT` are unset.
-`mise run chatto run` uses the
-bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS,
-`4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit
-CLI arguments after the task name, for example `mise chatto version`.
+`4000` outside Conductor. `mise dev-frontend` uses the base port plus one.
+Storybook starts at port `6006` and the docs website at port `4321`. Both
+select the next free port when another workspace uses it. `mise run chatto run`
+uses the same Chatto, embedded NATS, LiveKit, and Mailpit ports as `mise dev`.
+Pass explicit CLI arguments after the task name, for example
+`mise chatto version`.
 
 ### Local Chatto Data
 
