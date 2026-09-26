@@ -210,19 +210,25 @@ func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {
 }
 
 // failingPutKV rejects every write so that a discovery pass fails after its
-// remote crawl.
+// remote crawl. It reports each rejected write on rejected.
 type failingPutKV struct {
 	jetstream.KeyValue
+	rejected chan struct{}
 }
 
-func (failingPutKV) Put(context.Context, string, []byte) (uint64, error) {
+func (kv failingPutKV) Put(context.Context, string, []byte) (uint64, error) {
+	select {
+	case kv.rejected <- struct{}{}:
+	default:
+	}
 	return 0, errors.New("write rejected")
 }
 
 func TestNeighborhoodDiscoveryWaitsAfterAFailedPass(t *testing.T) {
 	_, discovery, fetcher, _ := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
-	discovery.kv = failingPutKV{KeyValue: discovery.kv}
+	rejected := make(chan struct{}, 1)
+	discovery.kv = failingPutKV{KeyValue: discovery.kv, rejected: rejected}
 	discovery.checkInterval = 5 * time.Millisecond
 	discovery.failureBackoff = time.Hour
 	bootDone := make(chan struct{})
@@ -235,10 +241,12 @@ func TestNeighborhoodDiscoveryWaitsAfterAFailedPass(t *testing.T) {
 		<-done
 	})
 
-	require.Eventually(t, func() bool {
-		lists, _ := fetcher.counts()
-		return lists > 0
-	}, 5*time.Second, 5*time.Millisecond)
+	// The write is the last step of a pass, so the complete crawl is counted.
+	select {
+	case <-rejected:
+	case <-ctx.Done():
+		t.Fatal("the discovery pass did not reach its directory write")
+	}
 	lists, _ := fetcher.counts()
 
 	// Many check intervals pass, but the failed pass does not run again.
