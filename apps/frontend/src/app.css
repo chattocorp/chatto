@@ -562,7 +562,8 @@
    be invalid. */
 @supports not (color: oklch(from red l c h)) {
   :root,
-  [data-tone-theme='light'] [data-tone] {
+  [data-tone-theme='light'] [data-tone],
+  [data-tone-theme='light'][data-tone] {
     --tone-100: var(--color-gray-100);
     --tone-200: var(--color-gray-200);
     --tone-300: var(--color-gray-300);
@@ -575,7 +576,8 @@
     --tone-950: var(--color-gray-950);
   }
   :root[data-theme='dark'],
-  [data-tone-theme='dark'] [data-tone] {
+  [data-tone-theme='dark'] [data-tone],
+  [data-tone-theme='dark'][data-tone] {
     --tone-100: var(--color-neutral-100);
     --tone-200: var(--color-neutral-200);
     --tone-300: var(--color-neutral-300);
@@ -1379,6 +1381,12 @@
     forced-color-adjust: none;
     background: ButtonFace;
     border-color: ButtonText;
+  }
+
+  /* Forced colours remove the focus ring's box shadow. */
+  .range-track:has(.range-input:focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
   }
 }
 

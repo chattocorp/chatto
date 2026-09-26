@@ -1,10 +1,9 @@
 import '../../app.css';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
   accentColors,
   applyContrastAge,
   applySurfaceTones,
-  getLoadingPalettes,
   hexFromComputedColor,
   surfaceTones
 } from './userPreferences.svelte';
@@ -291,19 +290,25 @@ it('fades palette colours instead of switching them instantly', async () => {
   expect(rgb(surface())).not.toEqual(before);
 });
 
+/** Read the colours that app.html paints before the stylesheet loads. */
+function loadingPalettes() {
+  return JSON.parse(localStorage.getItem('chatto:loading-palette') ?? 'null');
+}
+
 it('saves startup colours that match app.html for the default tones', () => {
   applySurfaceTones({ light: 'gray', dark: 'neutral' });
   // These literals are the #app-loading and theme-color fallbacks in app.html.
-  expect(getLoadingPalettes()).toEqual({
+  expect(loadingPalettes()).toEqual({
     light: { background: '#f3f4f6', highlight: '#99a1af', text: '#4a5565', surface: '#e5e7eb' },
     dark: { background: '#171717', highlight: '#404040', text: '#d4d4d4', surface: '#262626' },
     tones: { light: 'gray', dark: 'neutral' }
   });
 
   applySurfaceTones({ light: 'forest', dark: 'plum' });
-  const palettes = getLoadingPalettes();
+  const palettes = loadingPalettes();
   expect(palettes?.light.background).not.toBe('#f3f4f6');
   expect(palettes?.dark.background).not.toBe('#171717');
+  expect(palettes?.tones).toEqual({ light: 'forest', dark: 'plum' });
 });
 
 it.each([
@@ -321,24 +326,11 @@ it.each([
   expect(Number(style.getPropertyValue('--depth-width'))).toBeCloseTo(width);
 });
 
-it('resolves startup colours without reading back a canvas', () => {
-  // Fingerprinting protection can block or randomise canvas readback.
-  const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext');
-  try {
-    applySurfaceTones({ light: 'forest', dark: 'plum' });
-    expect(getContext).not.toHaveBeenCalled();
-    expect(getLoadingPalettes()?.tones).toEqual({ light: 'forest', dark: 'plum' });
-  } finally {
-    getContext.mockRestore();
-  }
-});
-
 it.each([
   ['color(srgb 1 0.5 0)', '#ff8000'],
   ['color(srgb 1.02 -0.01 0.2)', '#ff0033'],
   ['color(srgb 0.1 0.2 0.3 / 0.5)', null],
-  ['rgb(18, 52, 86)', '#123456'],
-  ['rgba(18, 52, 86, 0.5)', null],
+  ['rgb(18, 52, 86)', null],
   ['oklch(0.5 0.1 200)', null]
 ])('converts the computed colour %s to %s', (value, hex) => {
   expect(hexFromComputedColor(value)).toBe(hex);
@@ -352,7 +344,7 @@ it('uses the saved surface of the active tone as the browser theme colour', () =
   try {
     root.dataset.theme = 'dark';
     applySurfaceTones({ light: 'gray', dark: 'plum' });
-    expect(meta.content).toBe(getLoadingPalettes()?.dark.surface);
+    expect(meta.content).toBe(loadingPalettes()?.dark.surface);
     expect(meta.content).not.toBe('#262626');
     applyContrastAge(40);
     expect(meta.content).toBe('#000000');

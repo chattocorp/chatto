@@ -142,11 +142,6 @@ const loadingPaletteSlot = globalSlot<LoadingPalettes | null>(
   Codecs.json<LoadingPalettes | null>(isLoadingPalettes)
 );
 
-/** Read the saved startup colours, for example to check what app.html will paint. */
-export function getLoadingPalettes(): LoadingPalettes | null {
-  return loadingPaletteSlot.get();
-}
-
 /**
  * Save the startup colours of both chosen tones, resolved through a hidden
  * sample with the same scope that the tone picker uses. Does nothing before
@@ -184,22 +179,14 @@ function syncLoadingPalettes(): void {
   }
 }
 
-/** Convert a computed `color(srgb …)` or `rgb()` value to `#rrggbb`. */
+/** Convert a computed opaque `color(srgb r g b)` value to `#rrggbb`. */
 export function hexFromComputedColor(value: string): string | null {
-  const number = String.raw`(-?[\d.]+(?:e-?\d+)?)`;
-  const srgb = new RegExp(`^color\\(srgb ${number} ${number} ${number}(?: / ${number})?\\)$`).exec(
-    value
-  );
-  const legacy = new RegExp(`^rgba?\\(${number}, ${number}, ${number}(?:, ${number})?\\)$`).exec(
-    value
-  );
-  const match = srgb ?? legacy;
+  const match = /^color\(srgb (\S+) (\S+) ([^\s)]+)\)$/.exec(value);
   if (!match) return null;
-  if (match[4] !== undefined && Number(match[4]) < 1) return null;
-  const scale = srgb ? 255 : 1;
   const channels = match
-    .slice(1, 4)
-    .map((channel) => Math.round(Math.max(0, Math.min(255, Number(channel) * scale))));
+    .slice(1)
+    .map((channel) => Math.round(Math.max(0, Math.min(1, Number(channel))) * 255));
+  if (channels.some(Number.isNaN)) return null;
   return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
@@ -262,17 +249,19 @@ export function isContrastAge(value: unknown): value is number {
 }
 
 /**
- * Snap a valid value to the slider's 10% steps. Earlier versions saved half
- * steps; without snapping, the drawn grip and the native thumb would disagree.
+ * Validate a contrast value and snap it to the slider's 10% steps. Earlier
+ * versions saved half steps; without snapping, the drawn grip and the native
+ * thumb would disagree. Keep app.html in sync.
  */
-function snapContrastAge(value: number): number {
-  return Math.round(value / contrastAgeStep) * contrastAgeStep;
+function normalizeContrastAge(value: unknown): number {
+  const age = isContrastAge(value) ? value : defaultContrastAge;
+  return Math.round(age / contrastAgeStep) * contrastAgeStep;
 }
 
 /** Apply the two palette mixes without changing theme, accent, or depth. */
 export function applyContrastAge(value: number): void {
   if (typeof document === 'undefined') return;
-  const age = snapContrastAge(isContrastAge(value) ? value : defaultContrastAge);
+  const age = normalizeContrastAge(value);
   const root = document.documentElement;
   root.style.setProperty('--contrast-soft-mix', `${Math.max(0, 30 - age) * 10}%`);
   root.style.setProperty('--contrast-strong-mix', `${Math.max(0, age - 30) * 10}%`);
@@ -453,9 +442,7 @@ function loadAppPreferences(): AppPreferences {
       ? stored.darkSurfaceTone
       : defaultSurfaceTones.dark,
     surfaceDepth: storedSurfaceDepth(stored.surfaceDepth),
-    contrastAge: isContrastAge(stored.contrastAge)
-      ? snapContrastAge(stored.contrastAge)
-      : defaultContrastAge,
+    contrastAge: normalizeContrastAge(stored.contrastAge),
     composerEditor: isComposerEditorKind(stored.composerEditor)
       ? stored.composerEditor
       : defaultAppPreferences.composerEditor,
@@ -570,7 +557,7 @@ export class UserPreferencesState {
   }
 
   set contrastAge(value: number) {
-    const age = snapContrastAge(isContrastAge(value) ? value : defaultContrastAge);
+    const age = normalizeContrastAge(value);
     this.#preferences.contrastAge = age;
     this.#persist();
     applyContrastAge(age);
