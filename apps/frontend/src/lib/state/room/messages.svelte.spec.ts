@@ -3587,6 +3587,115 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps paging a thread after loading an older reply outside its window', async () => {
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi
+        .fn<RoomTimelineAPI['getThreadEvents']>()
+        .mockResolvedValueOnce({
+          events: [
+            threadMessageEvent('t1') as never,
+            threadMessageEvent('r80', 't1') as never,
+            threadMessageEvent('r81', 't1') as never
+          ],
+          startCursor: 'tl:cursor-80',
+          endCursor: 'tl:cursor-81',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('r40', 't1') as never],
+          startCursor: 'tl:cursor-40',
+          endCursor: 'tl:cursor-40',
+          hasOlder: true,
+          hasNewer: true
+        }),
+      getThreadEventsAround: vi.fn(async () => ({
+        events: [
+          threadMessageEvent('t1') as never,
+          threadMessageEvent('r1', 't1') as never,
+          threadMessageEvent('r2', 't1') as never
+        ],
+        startCursor: 'tl:cursor-1',
+        endCursor: 'tl:cursor-2',
+        hasOlder: false,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
+    await settle();
+
+    await store.refreshCurrentWindow('r2');
+
+    // The loaded page reaches the thread start, but replies r3..r79 are still
+    // missing between the two windows.
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2', 'r80', 'r81']);
+    expect(store.hasReachedStart).toBe(false);
+
+    await store.loadMore();
+
+    expect(timeline.getThreadEvents).toHaveBeenLastCalledWith({
+      roomId: 'room-1',
+      threadRootEventId: 't1',
+      limit: 50,
+      before: 'tl:cursor-80'
+    });
+    expect(store.threadEvents.map((event) => event.id)).toEqual([
+      't1',
+      'r1',
+      'r2',
+      'r40',
+      'r80',
+      'r81'
+    ]);
+    store.dispose();
+  });
+
+  it('reaches the thread start when an older page joins the loaded window', async () => {
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi.fn(async () => ({
+        events: [
+          threadMessageEvent('t1') as never,
+          threadMessageEvent('r3', 't1') as never,
+          threadMessageEvent('r4', 't1') as never
+        ],
+        startCursor: 'tl:cursor-3',
+        endCursor: 'tl:cursor-4',
+        hasOlder: true,
+        hasNewer: false
+      })),
+      getThreadEventsAround: vi.fn(async () => ({
+        events: [
+          threadMessageEvent('t1') as never,
+          threadMessageEvent('r1', 't1') as never,
+          threadMessageEvent('r2', 't1') as never,
+          threadMessageEvent('r3', 't1') as never
+        ],
+        startCursor: 'tl:cursor-1',
+        endCursor: 'tl:cursor-3',
+        hasOlder: false,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
+    await settle();
+
+    await store.refreshCurrentWindow('r2');
+
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2', 'r3', 'r4']);
+    expect(store.hasReachedStart).toBe(true);
+    store.dispose();
+  });
+
   it('keeps a projection-updated thread root over an older in-flight query row', async () => {
     const fake = new FakeQueryClient();
     type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEvents']>>;

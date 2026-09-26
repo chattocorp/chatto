@@ -1318,7 +1318,11 @@ export class MessagesStore {
         options.latestSnapshot || options.forwardSnapshot
           ? (connection.endCursor ?? previousNewestCursor ?? undefined)
           : (previousNewestCursor ?? connection.endCursor ?? undefined);
-      this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
+      // A page without older events reaches the start only when it joins the
+      // loaded window. A separate older page leaves a gap that paging must fill.
+      const continuesWindow = hasFetchedOverlap || !hasExistingContinuityEvents;
+      this.hasReachedStart =
+        previousHasReachedStart || (continuesWindow && !(connection.hasOlder ?? false));
     } else {
       this.oldestCursor = connection.startCursor ?? undefined;
       this.newestCursor = connection.endCursor ?? undefined;
