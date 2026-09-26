@@ -680,8 +680,8 @@ export class MessagesStore {
     try {
       const page = await source.fetchPage({ limit: PAGE_SIZE, before });
 
-      // A reset, access revocation, route/scope change, or owner disposal may
-      // have happened while this page was in flight. Never let an older
+      // A reset, access revocation, or owner disposal may have happened while
+      // this page was in flight. Never let an older
       // authorization context reinstall plaintext or overwrite new cursors.
       if (this.isStale(loadId) || this.#projectionAccessRevoked) {
         return;
@@ -949,7 +949,7 @@ export class MessagesStore {
    * Read and ingest one newly posted message before the wider cursor window is
    * reconciled. This keeps realtime delivery responsive without treating the
    * canonical event as a second message-resource shape. The result reports
-   * whether this same timeline is still active and can be reconciled.
+   * whether the caller still accepts the result and can reconcile the timeline.
    */
   async refreshPostedMessage(
     eventId: string,
